@@ -327,7 +327,9 @@ func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResul
 
 // ServiceEventDao TenantServicePluginRelationDao
 func (m *Manager) ServiceEventDao() dao.EventDao {
-	return &mysqldao.EventDaoImpl{}
+	return &mysqldao.EventDaoESImpl{
+		DB: m.db,
+	}
 }
 
 // ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions

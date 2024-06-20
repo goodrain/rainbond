@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
-	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/es"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"time"
 )
 
 type EventDaoESImpl struct {
+	DB *gorm.DB
 }
 
 // AddModel AddModel
@@ -268,8 +269,8 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 	res := make([]*model.EventAndBuild, 0)
 	for _, item := range array {
 
-		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(item.EventID)
-		if err != nil {
+		var version model.VersionInfo
+		if err := c.DB.Where("event_id=?", item.EventID).Find(&version).Error; err != nil {
 			e := &model.EventAndBuild{
 				CreateTime:  item.CreatedAt.Format(time.DateTime),
 				TenantID:    item.TenantID,
@@ -286,6 +287,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 				Reason:      item.Reason,
 			}
 			res = append(res, e)
+
 		} else {
 			e := &model.EventAndBuild{
 				CreateTime:       item.CreatedAt.Format(time.DateTime),
@@ -317,6 +319,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 			res = append(res, e)
 		}
 	}
+
 	return res, nil
 }
 
