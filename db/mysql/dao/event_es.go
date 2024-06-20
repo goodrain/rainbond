@@ -272,7 +272,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 		var version model.VersionInfo
 		if err := c.DB.Where("event_id=?", item.EventID).Find(&version).Error; err != nil {
 			e := &model.EventAndBuild{
-				CreateTime:  item.CreatedAt.Format(time.DateTime),
+				CreateTime:  item.CreatedAt.Format("2006-01-02 15:04:05"),
 				TenantID:    item.TenantID,
 				Target:      item.Target,
 				TargetID:    item.TargetID,
@@ -290,7 +290,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 
 		} else {
 			e := &model.EventAndBuild{
-				CreateTime:       item.CreatedAt.Format(time.DateTime),
+				CreateTime:       item.CreatedAt.Format("2006-01-02 15:04:05"),
 				TenantID:         item.TenantID,
 				Target:           item.Target,
 				TargetID:         item.TargetID,
@@ -511,7 +511,7 @@ func (c *EventDaoESImpl) GetExceptionEventsByTime(eventTypes []string, createTim
       ]
     }
   }
-}`, string(eventTypesJson), createTime.Format(time.DateTime))
+}`, string(eventTypesJson), createTime.Format("2006-01-02 15:04:05"))
 	return c.array(body)
 }
 
