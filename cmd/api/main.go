@@ -48,6 +48,7 @@ func main() {
 	})
 	// 启动 rbd-api
 	err := rainbond.New(context.Background(), configs.Default()).
+		Registry(component.ES()).
 		Registry(component.Database()).
 		Registry(component.Grpc()).
 		Registry(component.Event()).
