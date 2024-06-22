@@ -193,7 +193,7 @@ func (c *EventDaoESImpl) GetEventsByTarget(target, targetID string, offset, limi
   },
   "sort": [
     { "create_time": { "order": "desc" } },
-    { "id": { "order": "desc" } }
+    { "ID": { "order": "desc" } }
   ],
   "from": %d, 
   "size": %d 
@@ -220,7 +220,7 @@ func (c *EventDaoESImpl) GetEventsByTenantID(tenantID string, offset, limit int)
            },
            "sort": [
              {"start_time": "desc"},
-             {"id": "desc"}
+             {"ID": "desc"}
            ],
            "from": %d,
            "size": %d
@@ -241,7 +241,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 	tenants, _ := json.Marshal(tenantIDs)
 	body := fmt.Sprintf(`{
   "sort": [
-    { "id": "desc" }
+    { "ID": "desc" }
   ],
   "from": %d, 
   "size": %d,
@@ -337,7 +337,7 @@ func (c *EventDaoESImpl) GetLastASyncEvent(target, targetID string) (*model.Serv
     }
   },
   "sort": [
-    { "id": "desc" }
+    { "ID": "desc" }
   ],
   "size": 1
 }`, target, targetID)
@@ -385,7 +385,7 @@ func (c *EventDaoESImpl) LatestFailurePodEvent(podName string) (*model.ServiceEv
     }
   },
   "sort": [
-    { "id": { "order": "desc" } }
+    { "ID": { "order": "desc" } }
   ],
   "size": 1
 }`, model.TargetTypePod, podName, model.EventStatusFailure.String(), model.EventFinalStatusEmptyComplete.String())
@@ -409,7 +409,7 @@ func (c *EventDaoESImpl) GetAppointEvent(serviceID, status, Opt string) (*model.
     }
   },
   "sort": [
-    { "id": { "order": "desc" } }
+    { "ID": { "order": "desc" } }
   ],
   "size": 1
 }`, serviceID, status, Opt)
@@ -434,7 +434,7 @@ func (c *EventDaoESImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEve
     }
   },
   "sort": [
-    { "id": { "order": "desc" } }
+    { "ID": { "order": "desc" } }
   ],
   "size": 1
 }`, model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String())
