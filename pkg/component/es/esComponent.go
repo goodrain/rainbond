@@ -77,6 +77,7 @@ func (c *Component) request(url, method, body string) (string, error) {
 	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 300 {
+		logrus.Error(url, body)
 		logrus.Errorf("Error response from server: %d %s\n", resp.StatusCode, resp.Status)
 		return "", err
 	}
