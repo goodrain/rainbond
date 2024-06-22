@@ -61,6 +61,7 @@ func (c *Component) request(url, method, body string) (string, error) {
 		logrus.Errorf("Error creating request: %s ", err.Error())
 		return "", err
 	}
+	req.SetBasicAuth(c.username, c.password)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
