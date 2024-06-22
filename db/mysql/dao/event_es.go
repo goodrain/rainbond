@@ -244,7 +244,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
     { "id": "desc" }
   ],
   "from": %d, 
-  "size": %d 
+  "size": %d,
   "query": {
     "bool": {
       "must": [
