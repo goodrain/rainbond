@@ -35,6 +35,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/util/flowcontrol"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"kubevirt.io/client-go/kubecli"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,11 +72,12 @@ func Client() *Component {
 func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Infof("init k8s client...")
 	config, err := k8sutil.NewRestConfig(cfg.APIConfig.KubeConfigPath)
-	k.RestConfig = config
 	if err != nil {
 		logrus.Errorf("create k8s config failure: %v", err)
 		return err
 	}
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1000, 1000)
+	k.RestConfig = config
 	k.Clientset, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Errorf("create k8s client failure: %v", err)
