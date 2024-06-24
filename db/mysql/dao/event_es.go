@@ -203,7 +203,20 @@ func (c *EventDaoESImpl) GetEventsByTarget(target, targetID string, offset, limi
 	if err != nil {
 		return nil, 0, err
 	}
-	post, _ := es.Default().POST("/appstore_tenant_services_event/_count", body)
+
+	body2 := fmt.Sprintf(`{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "target": "%s" } },
+        { "match": { "target_id": "%s" } }
+      ]
+    }
+  }
+}
+`, target, targetID)
+
+	post, _ := es.Default().POST("/appstore_tenant_services_event/_count", body2)
 
 	return array, (int)(gjson.Get(post, "count").Int()), nil
 }
