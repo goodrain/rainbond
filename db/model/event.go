@@ -77,23 +77,23 @@ var EventStatusFailure EventStatus = "failure"
 
 // ServiceEvent event struct
 type ServiceEvent struct {
-	ID          uint   `gorm:"column:ID;primary_key"`
+	ID          uint   `gorm:"column:ID;primary_key" json:"-"`
 	CreatedAt   string `gorm:"column:create_time" json:"create_time"`
-	EventID     string `gorm:"column:event_id;size:40;index:event_id"`
-	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id"`
-	ServiceID   string `gorm:"column:service_id;size:40;index:service_id"`
-	Target      string `gorm:"column:target;size:40"`
-	TargetID    string `gorm:"column:target_id;size:255;index:target_id"`
-	RequestBody string `gorm:"column:request_body;size:1024"`
-	UserName    string `gorm:"column:user_name;size:40"`
-	StartTime   string `gorm:"column:start_time;size:40"`
-	EndTime     string `gorm:"column:end_time;size:40"`
-	OptType     string `gorm:"column:opt_type;size:40"`
-	SynType     int    `gorm:"column:syn_type;size:1"`
-	Status      string `gorm:"column:status;size:40"`
-	FinalStatus string `gorm:"column:final_status;size:40"`
-	Message     string `gorm:"column:message"`
-	Reason      string `gorm:"column:reason"`
+	EventID     string `gorm:"column:event_id;size:40;index:event_id" json:"event_id"`
+	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id" json:"tenant_id"`
+	ServiceID   string `gorm:"column:service_id;size:40;index:service_id" json:"service_id"`
+	Target      string `gorm:"column:target;size:40" json:"target"`
+	TargetID    string `gorm:"column:target_id;size:255;index:target_id" json:"target_id"`
+	RequestBody string `gorm:"column:request_body;size:1024" json:"request_body"`
+	UserName    string `gorm:"column:user_name;size:40" json:"user_name"`
+	StartTime   string `gorm:"column:start_time;size:40" json:"start_time"`
+	EndTime     string `gorm:"column:end_time;size:40" json:"end_time"`
+	OptType     string `gorm:"column:opt_type;size:40" json:"opt_type"`
+	SynType     int    `gorm:"column:syn_type;size:1" json:"syn_type"`
+	Status      string `gorm:"column:status;size:40" json:"status"`
+	FinalStatus string `gorm:"column:final_status;size:40" json:"final_status"`
+	Message     string `gorm:"column:message" json:"message"`
+	Reason      string `gorm:"column:reason" json:"reason"`
 }
 
 // TableName 表名
