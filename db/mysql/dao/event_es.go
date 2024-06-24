@@ -20,6 +20,7 @@ type EventDaoESImpl struct {
 // AddModel AddModel
 func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
+	result.CreatedAt = time.Now()
 	body, _ := json.Marshal(result)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
 	if err != nil {
@@ -31,6 +32,7 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 // UpdateModel UpdateModel
 func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	update := mo.(*model.ServiceEvent)
+	update.CreatedAt = time.Now()
 	body, _ := json.Marshal(update)
 	_, err := es.Default().PUT(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", update.EventID), string(body))
 	return err
