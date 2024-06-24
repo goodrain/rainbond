@@ -21,13 +21,8 @@ type EventDaoESImpl struct {
 func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
 	result.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
-	if result.StartTime == "" {
-		result.StartTime = time.Now().Format("2006-01-02 15:04:05")
-	}
-
-	if result.EndTime == "" {
-		result.EndTime = result.StartTime
-	}
+	result.StartTime = time.Now().Format("2006-01-02 15:04:05")
+	result.EndTime = result.StartTime
 	body, _ := json.Marshal(result)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
 	if err != nil {
