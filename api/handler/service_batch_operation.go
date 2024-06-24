@@ -38,7 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//BatchOperationHandler batch operation handler
+// BatchOperationHandler batch operation handler
 type BatchOperationHandler struct {
 	mqCli            gclient.MQClient
 	operationHandler *OperationHandler
@@ -48,12 +48,12 @@ type BatchOperationHandler struct {
 	EventIDs         []string
 }
 
-//BatchOperationResult batch operation result
+// BatchOperationResult batch operation result
 type BatchOperationResult struct {
 	BatchResult []OperationResult `json:"batche_result"`
 }
 
-//CreateBatchOperationHandler create batch operation handler
+// CreateBatchOperationHandler create batch operation handler
 func CreateBatchOperationHandler(mqCli gclient.MQClient, statusCli *client.AppRuntimeSyncClient, operationHandler *OperationHandler) *BatchOperationHandler {
 	return &BatchOperationHandler{
 		mqCli:            mqCli,
@@ -72,7 +72,7 @@ func (b *BatchOperationHandler) serviceStartupSequence(serviceIDs []string) map[
 	return startupSeqConfigs
 }
 
-//Build build
+// Build build
 func (b *BatchOperationHandler) Build(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[BatchOperationHandler] build components")()
@@ -118,7 +118,7 @@ func (b *BatchOperationHandler) Build(ctx context.Context, tenant *dbmodel.Tenan
 	return batchOpResult, nil
 }
 
-//Start batch start
+// Start batch start
 func (b *BatchOperationHandler) Start(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[BatchOperationHandler] start components")()
@@ -165,7 +165,7 @@ func (b *BatchOperationHandler) Start(ctx context.Context, tenant *dbmodel.Tenan
 	return batchOpResult, nil
 }
 
-//Stop batch stop
+// Stop batch stop
 func (b *BatchOperationHandler) Stop(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[BatchOperationHandler] stop components")()
@@ -197,7 +197,7 @@ func (b *BatchOperationHandler) Stop(ctx context.Context, tenant *dbmodel.Tenant
 	return batchOpResult, nil
 }
 
-//Upgrade batch upgrade
+// Upgrade batch upgrade
 func (b *BatchOperationHandler) Upgrade(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[BatchOperationHandler] upgrade components")()
@@ -280,7 +280,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 			Target:    dbmodel.TargetTypeService,
 			TargetID:  req.GetComponentID(),
 			UserName:  operator,
-			StartTime: time.Now().Format(time.RFC3339),
+			StartTime: time.Now().Format("2006-01-02 15:04:05"),
 			SynType:   dbmodel.ASYNEVENTTYPE,
 			OptType:   req.OpType(),
 		}
