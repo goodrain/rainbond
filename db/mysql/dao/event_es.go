@@ -20,7 +20,7 @@ type EventDaoESImpl struct {
 // AddModel AddModel
 func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
-	result.CreatedAt = time.Now()
+	result.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 	body, _ := json.Marshal(result)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
 	if err != nil {
@@ -32,7 +32,7 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 // UpdateModel UpdateModel
 func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	update := mo.(*model.ServiceEvent)
-	update.CreatedAt = time.Now()
+	update.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 	body, _ := json.Marshal(update)
 	_, err := es.Default().PUT(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", update.EventID), string(body))
 	return err
@@ -285,7 +285,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 		var version model.VersionInfo
 		if err := c.DB.Where("event_id=?", item.EventID).Find(&version).Error; err != nil {
 			e := &model.EventAndBuild{
-				CreateTime:  item.CreatedAt.Format("2006-01-02 15:04:05"),
+				CreateTime:  item.CreatedAt,
 				TenantID:    item.TenantID,
 				Target:      item.Target,
 				TargetID:    item.TargetID,
@@ -303,7 +303,7 @@ func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit 
 
 		} else {
 			e := &model.EventAndBuild{
-				CreateTime:       item.CreatedAt.Format("2006-01-02 15:04:05"),
+				CreateTime:       item.CreatedAt,
 				TenantID:         item.TenantID,
 				Target:           item.Target,
 				TargetID:         item.TargetID,
