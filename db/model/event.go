@@ -75,9 +75,10 @@ var EventStatusSuccess EventStatus = "success"
 // EventStatusFailure -
 var EventStatusFailure EventStatus = "failure"
 
-//ServiceEvent event struct
+// ServiceEvent event struct
 type ServiceEvent struct {
-	Model
+	CreatedAt string `gorm:"column:create_time" json:"create_time"`
+
 	EventID     string `gorm:"column:event_id;size:40;index:event_id"`
 	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id"`
 	ServiceID   string `gorm:"column:service_id;size:40;index:service_id"`
@@ -95,12 +96,12 @@ type ServiceEvent struct {
 	Reason      string `gorm:"column:reason"`
 }
 
-//TableName 表名
+// TableName 表名
 func (t *ServiceEvent) TableName() string {
 	return "tenant_services_event"
 }
 
-//NotificationEvent NotificationEvent
+// NotificationEvent NotificationEvent
 type NotificationEvent struct {
 	Model
 	//Kind could be service, tenant, cluster, node
@@ -121,7 +122,7 @@ type NotificationEvent struct {
 	TenantName    string    `gorm:"column:tenant_name;size:40"`
 }
 
-//TableName table name
+// TableName table name
 func (n *NotificationEvent) TableName() string {
 	return "region_notification_event"
 }
