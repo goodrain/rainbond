@@ -59,6 +59,10 @@ type Config struct {
 	KeepCount            int
 	CleanInterval        int
 	BRVersion            string
+
+	ElasticSearchURL      string
+	ElasticSearchUsername string
+	ElasticSearchPassword string
 }
 
 // Builder  builder server
@@ -105,6 +109,10 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
+
+	fs.StringVar(&a.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
+	fs.StringVar(&a.ElasticSearchUsername, "es-username", "", "es username")
+	fs.StringVar(&a.ElasticSearchPassword, "es-password", "", "es pwd")
 
 }
 

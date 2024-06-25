@@ -25,6 +25,12 @@ func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	return nil
 }
 
+func (c *Component) SingleStart(url, username, password string) {
+	c.url = url
+	c.username = username
+	c.password = password
+}
+
 func (c *Component) CloseHandle() {
 }
 

@@ -21,6 +21,7 @@ package server
 import (
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/otherclient"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	kruiseclientset "github.com/openkruise/kruise-api/client/clientset/versioned"
 	"k8s.io/client-go/restmapper"
 	"kubevirt.io/client-go/kubecli"
@@ -58,6 +59,9 @@ func Run(s *option.Worker) error {
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
 	}
+
+	es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
+
 	//step 1:db manager init ,event log client init
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
