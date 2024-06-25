@@ -53,6 +53,10 @@ type Config struct {
 	RBDNamespace            string
 	GrdataPVCName           string
 	Helm                    Helm
+
+	ElasticSearchURL      string
+	ElasticSearchUsername string
+	ElasticSearchPassword string
 }
 
 // Helm helm configuration.
@@ -104,6 +108,10 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
 	a.Helm.ChartCache = path.Join(a.Helm.DataDir, "chart")
+
+	fs.StringVar(&a.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
+	fs.StringVar(&a.ElasticSearchUsername, "es-username", "", "es username")
+	fs.StringVar(&a.ElasticSearchPassword, "es-password", "", "es pwd")
 }
 
 // SetLog 设置log
