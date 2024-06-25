@@ -35,8 +35,10 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	update := mo.(*model.ServiceEvent)
 	update.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+	update.StartTime = time.Now().Format("2006-01-02 15:04:05")
+	update.EndTime = update.StartTime
 	body, _ := json.Marshal(update)
-	_, err := es.Default().PUT(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", update.EventID), string(body))
+	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", update.EventID), string(body))
 	return err
 }
 
