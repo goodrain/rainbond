@@ -127,7 +127,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address")
 	fs.StringSliceVar(&a.EventLogEndpoints, "event-log", []string{"local=>rbd-eventlog:6363"}, "event log websocket address")
 
-	fs.StringVar(&a.ElasticSearchURL, "es-url", "127.0.0.1:9200", "es url")
+	fs.StringVar(&a.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
 	fs.StringVar(&a.ElasticSearchUsername, "es-username", "", "es username")
 	fs.StringVar(&a.ElasticSearchPassword, "es-password", "", "es pwd")
 }

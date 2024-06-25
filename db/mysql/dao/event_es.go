@@ -123,9 +123,11 @@ func (c *EventDaoESImpl) array(query string) ([]*model.ServiceEvent, error) {
 		return nil, err
 	}
 	var result []*model.ServiceEvent
-	err = json.Unmarshal([]byte(gjson.Get(get, "hits.hits").Raw), &result)
-	if err != nil {
-		return nil, err
+	fmt.Println(gjson.Get(get, "hits.hits").Raw)
+	for _, hit := range gjson.Get(get, "hits.hits").Array() {
+		var s *model.ServiceEvent
+		_ = json.Unmarshal([]byte(hit.Get("_source").Raw), &s)
+		result = append(result, s)
 	}
 	return result, nil
 }
