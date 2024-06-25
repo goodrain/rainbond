@@ -409,7 +409,7 @@ func (c *EventDaoESImpl) LatestFailurePodEvent(podName string) (*model.ServiceEv
   "size": 1
 }`, model.TargetTypePod, podName, model.EventStatusFailure.String(), model.EventFinalStatusEmptyComplete.String())
 	array, err := c.array(body)
-	if err != nil {
+	if err != nil || len(array) == 0 {
 		return nil, err
 	}
 	return array[0], nil
@@ -433,7 +433,7 @@ func (c *EventDaoESImpl) GetAppointEvent(serviceID, status, Opt string) (*model.
   "size": 1
 }`, serviceID, status, Opt)
 	array, err := c.array(body)
-	if err != nil {
+	if err != nil || len(array) == 0 {
 		return nil, err
 	}
 	return array[0], nil
@@ -458,7 +458,7 @@ func (c *EventDaoESImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEve
   "size": 1
 }`, model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String())
 	array, err := c.array(body)
-	if err != nil {
+	if err != nil || len(array) == 0 {
 		return nil, err
 	}
 	return array[0], nil
