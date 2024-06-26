@@ -231,9 +231,9 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
 			b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg,
 			b.code_commit_author, b.plan_version
 		FROM
-			region.tenant_services_event AS a
+			tenant_services_event AS a
 		LEFT JOIN
-			region.tenant_service_version AS b
+			tenant_service_version AS b
 		ON
 			a.target_id = b.service_id AND a.event_id = b.event_id
 		WHERE
