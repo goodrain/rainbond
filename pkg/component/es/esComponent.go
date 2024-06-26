@@ -3,6 +3,7 @@ package es
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -69,8 +70,10 @@ func (c *Component) request(url, method, body string) (string, error) {
 	}
 	req.SetBasicAuth(c.username, c.password)
 	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		logrus.Errorf("Error making request: %s", err.Error())

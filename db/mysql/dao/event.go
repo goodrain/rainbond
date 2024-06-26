@@ -30,7 +30,7 @@ import (
 	"time"
 )
 
-//AddModel AddModel
+// AddModel AddModel
 func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
 	var oldResult model.ServiceEvent
@@ -45,7 +45,7 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel UpdateModel
+// UpdateModel UpdateModel
 func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	update := mo.(*model.ServiceEvent)
 	var oldResult model.ServiceEvent
@@ -58,7 +58,7 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//EventDaoImpl EventLogMessageDaoImpl
+// EventDaoImpl EventLogMessageDaoImpl
 type EventDaoImpl struct {
 	DB *gorm.DB
 }
@@ -87,7 +87,7 @@ func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	return nil
 }
 
-//DeleteEvents delete event
+// DeleteEvents delete event
 func (c *EventDaoImpl) DeleteEvents(eventIDs []string) error {
 	return c.DB.Where("event_id in (?)", eventIDs).Delete(&model.ServiceEvent{}).Error
 }
@@ -97,7 +97,7 @@ func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
 	return c.DB.Model(&model.ServiceEvent{}).Where("event_id=?", eventID).UpdateColumn("reason", reason).Error
 }
 
-//GetEventByEventID get event log message
+// GetEventByEventID get event log message
 func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
@@ -106,7 +106,7 @@ func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, e
 	return &result, nil
 }
 
-//GetEventByEventIDs get event info
+// GetEventByEventIDs get event info
 func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("event_id in (?)", eventIDs).Find(&result).Error; err != nil {
@@ -141,7 +141,7 @@ func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
 	return nil
 }
 
-//GetEventByServiceID get event log message
+// GetEventByServiceID get event log message
 func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Order("start_time DESC").Error; err != nil {
@@ -153,7 +153,7 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 	return result, nil
 }
 
-//DelEventByServiceID delete event log
+// DelEventByServiceID delete event log
 func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	var result []*model.ServiceEvent
 	isNoteExist := c.DB.Where("service_id=?", serviceID).Find(&result).RecordNotFound()
@@ -220,23 +220,36 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 
 // GetEventsByTenantIDs get my teams all event by tenantIDs
 func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
-	var EventAndBuild []*model.EventAndBuild
-	if err := c.DB.Raw("select a.create_time, a.tenant_id, a.target, a.target_id, a.user_name, a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status, a.message, a.reason "+
-		"build_version, kind, delivered_type, delivered_path, image_name, cmd, repo_url, code_version, code_branch, code_commit_msg, code_commit_author, plan_version "+
-		"from "+
-		"(select create_time, tenant_id, target, target_id, user_name, start_time, end_time, opt_type, syn_type, status, final_status, message, reason, event_id "+
-		"from tenant_services_event "+
-		"where target = 'service' "+
-		"and tenant_id in (?)) as a "+
-		"left join "+
-		"tenant_service_version "+
-		"on a.target_id = tenant_service_version.service_id and a.event_id = tenant_service_version.event_id", tenantIDs).Order("start_time DESC").Offset(offset).Limit(limit).Scan(&EventAndBuild).Error; err != nil {
+	var events []*model.EventAndBuild
+
+	// 使用原生 SQL 查询，并进行连接优化
+	query := `
+		SELECT
+			a.ID, a.create_time, a.tenant_id, a.target, a.target_id, a.user_name,
+			a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status,
+			a.message, a.reason, b.build_version, b.kind, b.delivered_type, b.delivered_path,
+			b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg,
+			b.code_commit_author, b.plan_version
+		FROM
+			tenant_services_event AS a
+		LEFT JOIN
+			tenant_service_version AS b
+		ON
+			a.target_id = b.service_id AND a.event_id = b.event_id
+		WHERE
+			a.target = 'service'
+		AND a.tenant_id IN (?)
+		ORDER BY
+			a.ID DESC
+		LIMIT ?, ?;
+	`
+	if err := c.DB.Debug().Raw(query, tenantIDs, offset, limit).Scan(&events).Error; err != nil {
 		return nil, err
 	}
-	return EventAndBuild, nil
+	return events, nil
 }
 
-//GetLastASyncEvent get last sync event
+// GetLastASyncEvent get last sync event
 func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 	if err := c.DB.Where("target=? and target_id=? and syn_type=0", target, targetID).Last(&result).Error; err != nil {
@@ -265,7 +278,7 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 	return &event, nil
 }
 
-//GetAppointEvent get event log message
+// GetAppointEvent get event log message
 func (c *EventDaoImpl) GetAppointEvent(serviceID, status, Opt string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 	if err := c.DB.Where("service_id=? and status=? and opt_type=?", serviceID, status, Opt).Last(&result).Error; err != nil {
@@ -315,12 +328,12 @@ func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventSta
 	return nil
 }
 
-//NotificationEventDaoImpl NotificationEventDaoImpl
+// NotificationEventDaoImpl NotificationEventDaoImpl
 type NotificationEventDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel AddModel
+// AddModel AddModel
 func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.NotificationEvent)
 	result.LastTime = time.Now()
@@ -337,7 +350,7 @@ func (c *NotificationEventDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel UpdateModel
+// UpdateModel UpdateModel
 func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.NotificationEvent)
 	var oldResult model.NotificationEvent
@@ -349,7 +362,7 @@ func (c *NotificationEventDaoImpl) UpdateModel(mo model.Interface) error {
 	return gorm.ErrRecordNotFound
 }
 
-//GetNotificationEventByKind GetNotificationEventByKind
+// GetNotificationEventByKind GetNotificationEventByKind
 func (c *NotificationEventDaoImpl) GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error) {
 	var result []*model.NotificationEvent
 	if err := c.DB.Where("kind=? and kind_id=?", kind, kindID).Find(&result).Order("last_time DESC").Error; err != nil {
@@ -361,7 +374,7 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByKind(kind, kindID strin
 	return result, nil
 }
 
-//GetNotificationEventByTime GetNotificationEventByTime
+// GetNotificationEventByTime GetNotificationEventByTime
 func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error) {
 	var result []*model.NotificationEvent
 	if !start.IsZero() && !end.IsZero() {
@@ -382,7 +395,7 @@ func (c *NotificationEventDaoImpl) GetNotificationEventByTime(start, end time.Ti
 	return result, nil
 }
 
-//GetNotificationEventNotHandle GetNotificationEventNotHandle
+// GetNotificationEventNotHandle GetNotificationEventNotHandle
 func (c *NotificationEventDaoImpl) GetNotificationEventNotHandle() ([]*model.NotificationEvent, error) {
 	var result []*model.NotificationEvent
 	if err := c.DB.Where("is_handle=?", false).Find(&result).Order("last_time DESC").Error; err != nil {
@@ -394,7 +407,7 @@ func (c *NotificationEventDaoImpl) GetNotificationEventNotHandle() ([]*model.Not
 	return result, nil
 }
 
-//GetNotificationEventByHash GetNotificationEventByHash
+// GetNotificationEventByHash GetNotificationEventByHash
 func (c *NotificationEventDaoImpl) GetNotificationEventByHash(hash string) (*model.NotificationEvent, error) {
 	var result model.NotificationEvent
 	if err := c.DB.Where("hash=?", hash).Find(&result).Error; err != nil {
