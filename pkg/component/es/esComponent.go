@@ -95,7 +95,5 @@ func (c *Component) request(url, method, body string) (string, error) {
 		logrus.Errorf("Error reading response body: %s", err.Error())
 		return "", err
 	}
-	logrus.Infof("url: %s", url)
-	logrus.Infof("body: %s", body)
 	return string(data), nil
 }
