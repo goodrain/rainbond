@@ -291,7 +291,7 @@ func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *apimodel.SetVersionEnv) *
 }
 
 // SavePluginConfig save plugin dynamic discovery config
-func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *apimodel.ResourceSpec) *util.APIHandleError {
+func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *apimodel.ResourceSpec, tx *gorm.DB) *util.APIHandleError {
 	if config == nil {
 		return nil
 	}
