@@ -31,6 +31,8 @@ const (
 	K8sAttributeNameVolumes = "volumes"
 	// K8sAttributeNameServiceAccountName -
 	K8sAttributeNameServiceAccountName = "serviceAccountName"
+	// K8sAttributeNameCMD -
+	K8sAttributeNameCMD = "cmd"
 	// K8sAttributeNamePrivileged -
 	K8sAttributeNamePrivileged = "privileged"
 	// K8sAttributeNameAffinity -
