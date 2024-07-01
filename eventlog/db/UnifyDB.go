@@ -27,7 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//CreateDBManager -
+// CreateDBManager -
 func CreateDBManager(conf conf.DBConf) error {
 	logrus.Infof("creating dbmanager ,details %v", conf)
 	var tryTime time.Duration
@@ -38,6 +38,7 @@ func CreateDBManager(conf conf.DBConf) error {
 		if err = db.CreateManager(config.Config{
 			MysqlConnectionInfo: conf.URL,
 			DBType:              conf.Type,
+			DBInterpolateParams: conf.DBInterpolateParams,
 		}); err != nil {
 			logrus.Errorf("get db manager failed, try time is %v,%s", tryTime, err.Error())
 			time.Sleep((5 + tryTime*10) * time.Second)

@@ -37,6 +37,7 @@ type Config struct {
 	EtcdPrefix           string
 	ClusterName          string
 	MysqlConnectionInfo  string
+	DBInterpolateParams  string
 	BuildKitImage        string
 	BuildKitArgs         string
 	BuildKitCache        bool
@@ -89,6 +90,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.BuildKitImage, "buildkit-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/buildkit:v0.12.0", "buildkit image version")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
+	fs.StringVar(&a.DBInterpolateParams, "db-interpolate-params", "false", "db interpolate params, for compatible oceanbase, should set true")
 	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "Maximum number of simultaneous build tasks")
 	fs.IntVar(&a.APIPort, "api-port", 3228, "the port for api server")

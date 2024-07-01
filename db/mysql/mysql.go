@@ -34,7 +34,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-//Manager db manager
+// Manager db manager
 type Manager struct {
 	db      *gorm.DB
 	config  config.Config
@@ -42,12 +42,16 @@ type Manager struct {
 	models  []model.Interface
 }
 
-//CreateManager create manager
+// CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
 		var err error
-		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8mb4&parseTime=True&loc=Local")
+		dsn := config.MysqlConnectionInfo + "?charset=utf8mb4&parseTime=True&loc=Local"
+		if config.DBInterpolateParams == "true" {
+			dsn = config.MysqlConnectionInfo + "?charset=utf8mb4&parseTime=True&loc=Local&interpolateParams=true"
+		}
+		db, err = gorm.Open("mysql", dsn)
 		if err != nil {
 			return nil, err
 		}
@@ -91,12 +95,12 @@ func CreateManager(config config.Config) (*Manager, error) {
 	return manager, nil
 }
 
-//CloseManager 关闭管理器
+// CloseManager 关闭管理器
 func (m *Manager) CloseManager() error {
 	return m.db.Close()
 }
 
-//Begin begin a transaction
+// Begin begin a transaction
 func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
 }
@@ -116,12 +120,12 @@ func (m *Manager) EnsureEndTransactionFunc() func(tx *gorm.DB) {
 	}
 }
 
-//Print Print
+// Print Print
 func (m *Manager) Print(v ...interface{}) {
 	logrus.Info(v...)
 }
 
-//RegisterTableModel register table model
+// RegisterTableModel register table model
 func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Tenants{})
 	m.models = append(m.models, &model.TenantServices{})
@@ -178,39 +182,12 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.K8sResource{})
 }
 
-//CheckTable check and create tables
+// CheckTable check and create tables
 func (m *Manager) CheckTable() {
 	m.initOne.Do(func() {
 		for _, md := range m.models {
-			if !m.db.HasTable(md) {
-				if m.config.DBType == "mysql" {
-					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create table %s to db success", md.TableName())
-					}
-				}
-				if m.config.DBType == "cockroachdb" { //cockroachdb
-					err := m.db.CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create cockroachdb table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create cockroachdb table %s to db success", md.TableName())
-					}
-				}
-				if m.config.DBType == "sqlite" {
-					err := m.db.CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create sqlite table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create sqlite table %s to db success", md.TableName())
-					}
-				}
-			} else {
-				if err := m.db.AutoMigrate(md).Error; err != nil {
-					logrus.Errorf("auto Migrate table %s to db error."+err.Error(), md.TableName())
-				}
+			if err := m.db.AutoMigrate(md).Error; err != nil {
+				logrus.Errorf("auto Migrate table %s to db error."+err.Error(), md.TableName())
 			}
 		}
 		m.patchTable()

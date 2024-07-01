@@ -38,6 +38,7 @@ type Config struct {
 	EtcdPrefix              string
 	ClusterName             string
 	MysqlConnectionInfo     string
+	DBInterpolateParams     string
 	DBType                  string
 	PrometheusMetricPath    string
 	EventLogServers         []string
@@ -91,6 +92,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Listen, "listen", ":6369", "prometheus listen host and port")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
+	fs.StringVar(&a.DBInterpolateParams, "db-interpolate-params", "false", "db interpolate params, for compatible oceanbase, should set true")
 	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.KubeAPIQPS, "kube-api-qps", 50, "kube client qps")
 	fs.IntVar(&a.KubeAPIBurst, "kube-api-burst", 10, "kube clint burst")
