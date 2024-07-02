@@ -106,6 +106,15 @@ func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	return tenants, nil
 }
 
+// GetTenantsByTenantIDs -
+func (t *TenantDaoImpl) GetTenantsByTenantIDs(tenantIDs []string) ([]*model.Tenants, error) {
+	var tenants []*model.Tenants
+	if err := t.DB.Where("uuid IN (?)", tenantIDs).Find(&tenants).Error; err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
 // GetTenantByEid get tenants by eid
 func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants

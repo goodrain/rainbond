@@ -30,6 +30,7 @@ import (
 // TenantHandler tenant handler
 type TenantHandler interface {
 	GetTenants(query string) ([]*dbmodel.Tenants, error)
+	GetTenantsByTenantIDs(TenantIDs []string) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
 	GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)

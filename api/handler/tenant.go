@@ -148,6 +148,15 @@ func (t *TenantAction) GetTenants(query string) ([]*dbmodel.Tenants, error) {
 	return tenants, err
 }
 
+// GetTenantsByTenantIDs get tenants ids
+func (t *TenantAction) GetTenantsByTenantIDs(TenantIDs []string) ([]*dbmodel.Tenants, error) {
+	tenants, err := db.GetManager().TenantDao().GetTenantsByTenantIDs(TenantIDs)
+	if err != nil {
+		return nil, err
+	}
+	return tenants, err
+}
+
 // GetTenantsByEid GetTenantsByEid
 func (t *TenantAction) GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid, query)

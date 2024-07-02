@@ -123,31 +123,6 @@ type TenantStruct struct {
 	MQClient  mqclient.MQClient
 }
 
-// AllTenantResources GetResources
-func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request) {
-	tenants, err := handler.GetTenantManager().GetTenants("")
-	if err != nil {
-		msg := httputil.ResponseBody{
-			Msg: fmt.Sprintf("get tenant error, %v", err),
-		}
-		httputil.Return(r, w, 500, msg)
-	}
-	ts := &apimodel.TotalStatsInfo{}
-	for _, tenant := range tenants {
-		services, err := handler.GetServiceManager().GetService(tenant.UUID)
-		if err != nil {
-			msg := httputil.ResponseBody{
-				Msg: fmt.Sprintf("get service error, %v", err),
-			}
-			httputil.Return(r, w, 500, msg)
-		}
-		statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
-		statsInfo.UUID = tenant.UUID
-		ts.Data = append(ts.Data, statsInfo)
-	}
-	httputil.ReturnSuccess(r, w, ts.Data)
-}
-
 // TenantResources TenantResources
 func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/resources/tenants v2 tenantResources
@@ -535,34 +510,20 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	value := r.FormValue("eid")
-	page, _ := strconv.Atoi(r.FormValue("page"))
-	if page == 0 {
-		page = 1
+	jsonTenantIDs := r.FormValue("tenant_ids")
+	var tenantIDs []string
+	err := json.Unmarshal([]byte(jsonTenantIDs), &tenantIDs)
+	if err != nil {
+		logrus.Errorf("json unmarshal failure: %v", err)
 	}
-	pageSize, _ := strconv.Atoi(r.FormValue("pageSize"))
-	if pageSize == 0 {
-		pageSize = 10
-	}
-	queryName := r.FormValue("query")
 	var tenants []*dbmodel.Tenants
-	var err error
-	if len(value) == 0 {
-		tenants, err = handler.GetTenantManager().GetTenants(queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
-	} else {
-		tenants, err = handler.GetTenantManager().GetTenantsByEid(value, queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
+	tenants, err = handler.GetTenantManager().GetTenantsByTenantIDs(tenantIDs)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, "get tenant error")
+		return
 	}
 	list := handler.GetTenantManager().BindTenantsResource(tenants)
-	re := list.Paging(page, pageSize)
-	httputil.ReturnSuccess(r, w, re)
+	httputil.ReturnSuccess(r, w, list)
 }
 
 // DeleteTenant DeleteTenant
