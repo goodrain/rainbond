@@ -128,8 +128,12 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (
 	if app.AppType == model.AppTypeHelm {
 		return r.getHelmAppStatus(app)
 	}
-
-	return r.getRainbondAppStatus(app)
+	services, err := db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
+	var serviceIDs []string
+	for _, service := range services {
+		serviceIDs = append(serviceIDs, service.ServiceID)
+	}
+	return r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
 }
 
 // GetOperatorWatchManagedData -
@@ -148,13 +152,13 @@ func (r *RuntimeServer) GetOperatorWatchManagedData(ctx context.Context, re *pb.
 	}, nil
 }
 
-func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppStatus, error) {
-	status, err := r.store.GetAppStatus(app.AppID)
+func (r *RuntimeServer) getRainbondAppStatus(appID, appName string, serviceIDs []string) (*pb.AppStatus, error) {
+	status, err := r.store.GetAppStatus(serviceIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	cpu, memory, err := r.store.GetAppResources(app.AppID)
+	cpu, memory, err := r.store.GetAppResources(appID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +169,8 @@ func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppSta
 		Cpu:       cpu,
 		SetMemory: true,
 		Memory:    memory,
-		AppId:     app.AppID,
-		AppName:   app.AppName,
+		AppId:     appID,
+		AppName:   appName,
 	}, nil
 }
 
@@ -878,6 +882,14 @@ func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesR
 		return nil, err
 	}
 	var appStatuses []*pb.AppStatus
+	services, err := db.GetManager().TenantServiceDao().ListByAppIDs(in.AppIds)
+	if err != nil {
+		return nil, err
+	}
+	appServiceIDs := make(map[string][]string)
+	for _, service := range services {
+		appServiceIDs[service.AppID] = append(appServiceIDs[service.AppID], service.ServiceID)
+	}
 	for _, app := range apps {
 		if app.AppType == model.AppTypeHelm {
 			helmAppStatus, err := r.getHelmAppStatus(app)
@@ -888,7 +900,7 @@ func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesR
 			appStatuses = append(appStatuses, helmAppStatus)
 			continue
 		}
-		appStatus, err := r.getRainbondAppStatus(app)
+		appStatus, err := r.getRainbondAppStatus(app.AppID, app.AppName, appServiceIDs[app.AppID])
 		if err != nil {
 			logrus.Errorf("get rainbond app (%s)[%s] failed", app.AppName, app.AppID)
 			continue

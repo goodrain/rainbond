@@ -9,3 +9,11 @@ func (t *TenantServicesDaoImpl) ListByAppID(appID string) ([]*model.TenantServic
 	}
 	return services, nil
 }
+
+func (t *TenantServicesDaoImpl) ListByAppIDs(appID []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("app_id in (?)", appID).Find(&services).Error; err != nil {
+		return nil, err
+	}
+	return services, nil
+}

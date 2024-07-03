@@ -109,7 +109,7 @@ type Storer interface {
 	HandleOperatorManagedService(app *v1.OperatorManaged) []*pb.ManagedService
 	HandleOperatorManagedDeployment(app *v1.OperatorManaged) []*pb.ManagedDeployment
 	HandleOperatorManagedStatefulSet(app *v1.OperatorManaged) []*pb.ManagedStatefulSet
-	GetAppStatus(appID string) (pb.AppStatus_Status, error)
+	GetAppStatus(serviceIDs []string) (pb.AppStatus_Status, error)
 	GetAppResources(appID string) (int64, int64, error)
 	GetHelmApp(namespace, name string) (*v1alpha1.HelmApp, error)
 	ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error)
@@ -1470,15 +1470,7 @@ func ExtractPodData(pods []corev1.Pod, deployName string) (podList []*pb.Managed
 	return podList, images
 }
 
-func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error) {
-	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
-	if err != nil || len(services) == 0 {
-		return pb.AppStatus_NIL, err
-	}
-	var serviceIDs []string
-	for _, s := range services {
-		serviceIDs = append(serviceIDs, s.ServiceID)
-	}
+func (a *appRuntimeStore) GetAppStatus(serviceIDs []string) (pb.AppStatus_Status, error) {
 	componentStatuses := a.GetAppServicesStatus(serviceIDs)
 
 	return getAppStatus(componentStatuses), nil
