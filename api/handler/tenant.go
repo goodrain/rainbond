@@ -306,11 +306,11 @@ type QueryResult struct {
 
 // GetTenantsResources Gets the resource usage of the specified tenant.
 func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.TenantResources) (map[string]map[string]interface{}, error) {
-	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
-	if err != nil {
-		return nil, err
-	}
-	limits, err := db.GetManager().TenantDao().GetTenantLimitsByNames(tr.Body.TenantNames)
+	//ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
+	//if err != nil {
+	//	return nil, err
+	//}
+	limits, ids, err := db.GetManager().TenantDao().GetTenantLimitsByNames(tr.Body.TenantNames)
 	if err != nil {
 		return nil, err
 	}

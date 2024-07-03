@@ -146,16 +146,18 @@ func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err er
 }
 
 // GetTenantLimitsByNames get tenants memory limit
-func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (map[string]*model.Tenants, error) {
+func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (map[string]*model.Tenants, []string, error) {
 	limit := make(map[string]*model.Tenants)
+	var ids []string
 	var tenants []*model.Tenants
 	if err := t.DB.Where("name IN (?)", names).Find(&tenants).Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, tenant := range tenants {
+		ids = append(ids, tenant.UUID)
 		limit[tenant.UUID] = tenant
 	}
-	return limit, nil
+	return limit, ids, nil
 }
 
 // GetPagedTenants -
