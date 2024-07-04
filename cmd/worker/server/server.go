@@ -53,6 +53,7 @@ func Run(s *option.Worker) error {
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
+		DBInterpolateParams: s.Config.DBInterpolateParams,
 		EtcdEndPoints:       s.Config.EtcdEndPoints,
 		EtcdTimeout:         s.Config.EtcdTimeout,
 	}

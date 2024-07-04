@@ -28,6 +28,7 @@ import (
 // Config config
 type Config struct {
 	DBType                 string
+	DBInterpolateParams    string
 	APIAddr                string
 	APIHealthzAddr         string
 	APIAddrSSL             string
@@ -87,6 +88,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the api log level")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
+	fs.StringVar(&a.DBInterpolateParams, "db-interpolate-params", "false", "db interpolate params, for compatible oceanbase, should set true")
 	fs.StringVar(&a.APIAddr, "api-addr", "127.0.0.1:8888", "the api server listen address")
 	fs.StringVar(&a.APIHealthzAddr, "api-healthz-addr", "0.0.0.0:8889", "the api server health check listen address")
 	fs.StringVar(&a.APIAddrSSL, "api-addr-ssl", "0.0.0.0:8443", "the api server listen address")

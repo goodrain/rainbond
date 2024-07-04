@@ -51,6 +51,7 @@ func (d *ConDB) Start(ctx context.Context, cfg *configs.Config) error {
 		MysqlConnectionInfo: cfg.APIConfig.DBConnectionInfo,
 		DBType:              cfg.APIConfig.DBType,
 		ShowSQL:             cfg.APIConfig.ShowSQL,
+		DBInterpolateParams: cfg.APIConfig.DBInterpolateParams,
 	}
 	if err := db.CreateManager(dbCfg); err != nil {
 		logrus.Errorf("get db manager failed,%s", err.Error())

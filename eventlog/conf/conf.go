@@ -40,11 +40,12 @@ type WebHookConf struct {
 
 // DBConf db conf
 type DBConf struct {
-	Type        string
-	URL         string
-	PoolSize    int
-	PoolMaxSize int
-	HomePath    string
+	Type                string
+	URL                 string
+	DBInterpolateParams string
+	PoolSize            int
+	PoolMaxSize         int
+	HomePath            string
 }
 
 // WebSocketConf websocket conf
