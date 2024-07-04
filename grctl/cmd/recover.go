@@ -7,7 +7,6 @@ import (
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"net/http"
-	"path"
 )
 
 // NewCmdRecover -
@@ -15,14 +14,6 @@ func NewCmdRecover() cli.Command {
 	c := cli.Command{
 		Name:  "recover",
 		Usage: "this command is used to restore the rainbond platform\n",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:     "console_hose",
-				Value:    "",
-				Usage:    "use console svc host",
-				FilePath: GetTenantNamePath(),
-			},
-		},
 		Subcommands: []cli.Command{
 			{
 				Name: "region",
@@ -41,6 +32,12 @@ func NewCmdRecover() cli.Command {
 						FilePath: GetTenantNamePath(),
 						Required: true,
 					},
+					cli.StringFlag{
+						Name:     "console_host",
+						Value:    "",
+						Usage:    "use console svc host",
+						FilePath: GetTenantNamePath(),
+					},
 				},
 				Usage: "recover region resource. example<grctl recover region --region_name rainbond --range all>",
 				Action: func(c *cli.Context) error {
@@ -55,9 +52,12 @@ func NewCmdRecover() cli.Command {
 
 func recoverRegion(ctx *cli.Context) error {
 	regionName := ctx.String("region_name")
+	fmt.Println(regionName)
 	recoverRange := ctx.String("recover_range")
+	fmt.Println(recoverRange)
 	consoleHost := ctx.String("console_host")
-	recoverUrl := path.Join(consoleHost, "/console/regions_recover")
+	fmt.Println(consoleHost)
+	recoverUrl := fmt.Sprintf("%v/console/regions_recover", consoleHost)
 
 	requestBody, err := json.Marshal(map[string]string{
 		"region_name":   regionName,
