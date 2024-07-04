@@ -888,7 +888,8 @@ func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesR
 	}
 	appServiceIDs := make(map[string][]string)
 	for _, service := range services {
-		appServiceIDs[service.AppID] = append(appServiceIDs[service.AppID], service.ServiceID)
+		component := *service
+		appServiceIDs[component.AppID] = append(appServiceIDs[component.AppID], component.ServiceID)
 	}
 	for _, app := range apps {
 		if app.AppType == model.AppTypeHelm {
