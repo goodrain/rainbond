@@ -37,13 +37,13 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 )
 
-//EventLogStruct eventlog struct
+// EventLogStruct eventlog struct
 type EventLogStruct struct {
 	EventlogServerProxy proxy.Proxy
 }
 
-//HistoryLogs get service history logs
-//proxy
+// HistoryLogs get service history logs
+// proxy
 func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
@@ -58,14 +58,14 @@ func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	e.EventlogServerProxy.Proxy(w, r)
 }
 
-//HistoryRbdLogs get rbd history logs
-//proxy
+// HistoryRbdLogs get rbd history logs
+// proxy
 func (e *EventLogStruct) HistoryRbdLogs(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = strings.Replace(r.URL.Path, "/v2/cluster/", "/", 1)
 	e.EventlogServerProxy.Proxy(w, r)
 }
 
-//LogList GetLogList
+// LogList GetLogList
 func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/log-file v2 logList
 	//
@@ -103,7 +103,7 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//LogFile GetLogFile
+// LogFile GetLogFile
 func (e *EventLogStruct) LogFile(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/log-file/{file_name} v2 logFile
 	//
@@ -137,7 +137,7 @@ func (e *EventLogStruct) LogFile(w http.ResponseWriter, r *http.Request) {
 	//fs.ServeHTTP(w, r)
 }
 
-//LogSocket GetLogSocket
+// LogSocket GetLogSocket
 func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/log-instance v2 logSocket
 	//
@@ -172,7 +172,7 @@ func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//LogByAction GetLogByAction
+// LogByAction GetLogByAction
 func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/event-log v2 logByAction
 	//
@@ -205,7 +205,7 @@ func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//TenantLogByAction GetTenantLogByAction
+// TenantLogByAction GetTenantLogByAction
 // swagger:operation POST /v2/tenants/{tenant_name}/event-log v2 tenantLogByAction
 //
 // 获取指定操作的操作日志
@@ -218,10 +218,11 @@ func (e *EventLogStruct) LogByAction(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Request) {
 	var elog api_model.TenantLogByLevelStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &elog.Body, nil)
@@ -239,7 +240,7 @@ func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-//Events get log by target
+// Events get log by target
 func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
 	target := r.FormValue("target")
 	targetID := r.FormValue("target-id")
@@ -258,6 +259,7 @@ func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
+
 	// format start and end time
 	for i := range list {
 		if list[i].EndTime != "" && len(list[i].EndTime) > 20 {
@@ -267,7 +269,7 @@ func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnList(r, w, total, page, list)
 }
 
-//EventLog get event log by eventID
+// EventLog get event log by eventID
 func (e *EventLogStruct) EventLog(w http.ResponseWriter, r *http.Request) {
 	eventID := chi.URLParam(r, "eventID")
 	if strings.TrimSpace(eventID) == "" {
@@ -300,7 +302,7 @@ func (e *EventLogStruct) GetLatestExceptionEvents(w http.ResponseWriter, r *http
 	httputil.ReturnSuccess(r, w, events)
 }
 
-//MyTeamsEvents get my teams events by tenantID list
+// MyTeamsEvents get my teams events by tenantID list
 func (e *EventLogStruct) MyTeamsEvents(w http.ResponseWriter, r *http.Request) {
 	tenant := r.FormValue("tenant")
 	tenantIDs := r.FormValue("tenant_ids")

@@ -290,11 +290,15 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
+	name := serviceName + "-tcp"
+	if r.URL.Query().Get("port") != "" {
+		name = name + "-" + r.URL.Query().Get("port")
+	}
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
 				Protocol:   "TCP",
-				Name:       serviceName,
+				Name:       name,
 				Port:       apisixRouteStream.Backend.ServicePort.IntVal,
 				TargetPort: apisixRouteStream.Backend.ServicePort,
 				NodePort:   apisixRouteStream.Match.IngressPort,
@@ -313,7 +317,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		// 创建一个空的endpoint
 		_, err := k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
 			ObjectMeta: v1.ObjectMeta{
-				Name: serviceName + "-tcp",
+				Name: name,
 				Labels: map[string]string{
 					"tcp":        "true",
 					"app_id":     r.URL.Query().Get("appID"),
@@ -346,7 +350,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				"app_id":     r.URL.Query().Get("appID"),
 				"service_id": r.URL.Query().Get("service_id"),
 			},
-			Name: serviceName + "-tcp",
+			Name: name,
 		},
 		Spec: spec,
 	}, v1.CreateOptions{})
@@ -354,7 +358,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
-	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName+"-tcp", v1.GetOptions{})
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
@@ -382,7 +386,7 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
 	k := k8s.Default().Clientset.CoreV1()
-	err := k.Services(tenant.Namespace).Delete(r.Context(), name+"-tcp", v1.DeleteOptions{})
+	err := k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			httputil.ReturnSuccess(r, w, name)
