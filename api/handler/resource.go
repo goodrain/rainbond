@@ -9,9 +9,11 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -156,6 +158,26 @@ func RefreshMapper(clientset *kubernetes.Clientset) (meta.RESTMapper, error) {
 // HandleResourceYaml -
 func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string, commonLabels map[string]string) []*model.BuildResource {
 	var buildResourceList []*model.BuildResource
+	_, err := c.clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			labels := map[string]string{
+				constants.ResourceManagedByLabel: constants.Rainbond,
+			}
+			_, err = c.clientset.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   namespace,
+					Labels: labels,
+				},
+			},
+				metav1.CreateOptions{})
+		}
+		if err != nil {
+			logrus.Errorf("create k8s resource, create ns failure: %v", err)
+			return buildResourceList
+		}
+	}
+
 	var state int
 	if change == "create" || change == "re-create" {
 		state = model.CreateError

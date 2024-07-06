@@ -2151,13 +2151,13 @@ func (t *TenantStruct) TenantStartService(w http.ResponseWriter, r *http.Request
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	services, err := db.GetManager().TenantServiceDao().GetStartServicesAllInfoByTenantID(tenantID)
 	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
+		logrus.Errorf("pass tenantid %v because get services failure: %v", tenantID, err)
+		httputil.ReturnSuccess(r, w, "")
 	}
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
 	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
+		logrus.Errorf("pass tenantid %v because get tenant failure: %v", tenantID, err)
+		httputil.ReturnSuccess(r, w, "")
 	}
 	for _, service := range services {
 		if service.Kind != "third_party" {
@@ -2193,8 +2193,8 @@ func (t *TenantStruct) TenantStartService(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
+		logrus.Errorf("start services failure: %v", err)
+		httputil.ReturnSuccess(r, w, "")
 	}
 	httputil.ReturnSuccess(r, w, "")
 }
