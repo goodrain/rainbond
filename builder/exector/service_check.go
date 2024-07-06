@@ -95,7 +95,8 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			logrus.Errorf("service check error: %v", r)
 			debug.PrintStack()
-			logger.Error("The back-end service has deserted, please try again.", map[string]string{"step": "callback", "status": "failure"})
+			errRet := fmt.Sprintf("The back-end service has deserted, please try again. %v", r)
+			logger.Error(errRet, map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	logger.Info("Start component deploy source check.", map[string]string{"step": "starting"})
