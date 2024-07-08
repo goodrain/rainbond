@@ -107,6 +107,7 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 
 // ListChaosNodeArch -
 func (n *nodesHandle) ListChaosNodeArch(ctx context.Context) ([]string, error) {
+	// 使用clientset获取所有带有"name=rbd-chaos"标签的Pods。
 	chaosPods, err := n.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		LabelSelector: "name=rbd-chaos",
 	})
@@ -118,6 +119,7 @@ func (n *nodesHandle) ListChaosNodeArch(ctx context.Context) ([]string, error) {
 	for _, chaosPod := range chaosPods.Items {
 		chaosNodeIP[chaosPod.Status.HostIP] = 1
 	}
+	// 通过clientset获取所有节点的信息。
 	nodes, err := n.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logrus.Error("get node info handle error:", err)
