@@ -9,8 +9,8 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	appv1 "k8s.io/api/apps/v1"
-	autoscalv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	autoscalv2 "k8s.io/api/autoscaling/v2"
+	autoscalv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -70,7 +70,8 @@ func (s *exportController) Begin() {
 		if err != nil {
 			logrus.Errorf("write values.yaml other failure %v", err)
 		}
-		err = s.write(path.Join(exportPath, "dependent_image.txt"), []byte(v1.GetOnlineProbeMeshImageName()), "\n")
+		//err = s.write(path.Join(exportPath, "dependent_image.txt"), []byte(v1.GetOnlineProbeMeshImageName()), "\n")
+		err = s.write(path.Join(exportPath, "dependent_image.txt"), []byte(""), "")
 		if err != nil {
 			logrus.Errorf("write dependent_image.txt failure %v", err)
 		}
