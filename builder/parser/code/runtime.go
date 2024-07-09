@@ -74,7 +74,7 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 	getPhpNewVersion := func(v string) string {
 		version := v
 		vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("php", version)
-		if (err != nil && err == gorm.ErrRecordNotFound) && !vv.Show {
+		if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
 			ver, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("php")
 			if err != nil {
 				return version
