@@ -25,7 +25,6 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
@@ -50,7 +49,6 @@ func (n *NodesController) ListNodeArch(w http.ResponseWriter, r *http.Request) {
 	// 获取所有节点架构信息
 	chaosNodesArch, err := handler.GetNodesHandler().ListChaosNodeArch(context.Background())
 	if err != nil {
-		zap.L().Error("", zap.Error(err))
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
