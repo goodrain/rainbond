@@ -26,7 +26,9 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/util/constants"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
@@ -188,6 +190,10 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 // SystemPodLogs -
 func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
 	ns := r.URL.Query().Get("ns")
+
+	if ns == "" {
+		ns = utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)
+	}
 	name := r.URL.Query().Get("name")
 	logs(w, r, name, ns)
 }
