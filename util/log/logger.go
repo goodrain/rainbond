@@ -19,25 +19,60 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/sirupsen/logrus"
 )
 
-//NewStructuredLogger new struct
+type CustomJSONFormatter struct{}
+
+// Format 实现 logrus.Formatter 接口
+func (f *CustomJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	logEntry := struct {
+		Level   string `json:"level"`
+		Time    string `json:"time"`
+		Caller  string `json:"caller"`
+		Message string `json:"message"`
+	}{
+		Level:   entry.Level.String(),
+		Time:    entry.Time.Format("2006-01-02 15:04:05.000"),
+		Caller:  entry.Caller.File + ":" + strconv.Itoa(entry.Caller.Line),
+		Message: entry.Message,
+	}
+
+	serialized, err := json.Marshal(logEntry)
+	if err != nil {
+		return nil, err
+	}
+
+	serialized = append(serialized, '\n')
+	return serialized, nil
+}
+
+// 初始化logrus日志输出格式
+func InitLogrus() {
+	logrus.SetOutput(os.Stdout)
+	logrus.SetReportCaller(true)
+	logrus.SetFormatter(new(CustomJSONFormatter))
+}
+
+// NewStructuredLogger new struct
 func NewStructuredLogger(logger *logrus.Logger) func(next http.Handler) http.Handler {
 	return middleware.RequestLogger(&StructuredLogger{logger})
 }
 
-//StructuredLogger StructuredLogger
+// StructuredLogger StructuredLogger
 type StructuredLogger struct {
 	Logger *logrus.Logger
 }
 
-//NewLogEntry NewLogEntry
+// NewLogEntry NewLogEntry
 func (l *StructuredLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 	entry := &StructuredLoggerEntry{Logger: logrus.NewEntry(l.Logger)}
 	logFields := logrus.Fields{}
@@ -64,12 +99,12 @@ func (l *StructuredLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 	return entry
 }
 
-//StructuredLoggerEntry StructuredLoggerEntry
+// StructuredLoggerEntry StructuredLoggerEntry
 type StructuredLoggerEntry struct {
 	Logger logrus.FieldLogger
 }
 
-//Write Write
+// Write Write
 func (l *StructuredLoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, data interface{}) {
 	l.Logger = l.Logger.WithFields(logrus.Fields{
 		"resp_status": status, "resp_bytes_length": bytes,
@@ -79,7 +114,7 @@ func (l *StructuredLoggerEntry) Write(status, bytes int, header http.Header, ela
 	l.Logger.Debugln("request complete")
 }
 
-//Panic Panic
+// Panic Panic
 func (l *StructuredLoggerEntry) Panic(v interface{}, stack []byte) {
 	l.Logger = l.Logger.WithFields(logrus.Fields{
 		"stack": string(stack),

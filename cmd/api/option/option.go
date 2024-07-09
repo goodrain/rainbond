@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/monitor/utils"
+	"github.com/goodrain/rainbond/util/log"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -146,4 +147,5 @@ func (a *APIServer) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	log.InitLogrus()
 }
