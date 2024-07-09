@@ -26,7 +26,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"path"
@@ -439,7 +438,6 @@ func (c *ClusterController) GetLangVersion(w http.ResponseWriter, r *http.Reques
 	// 获取版本列表
 	versions, err := db.GetManager().LongVersionDao().ListVersionByLanguage(language, show)
 	if err != nil {
-		zap.L().Error("get lang version failure:", zap.Error(err))
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("update lang version failure: %v", err))
 		return
 	}
@@ -450,14 +448,12 @@ func (c *ClusterController) GetLangVersion(w http.ResponseWriter, r *http.Reques
 func (c *ClusterController) UpdateLangVersion(w http.ResponseWriter, r *http.Request) {
 	var lang model.UpdateLangVersion
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
-		zap.L().Error("failed to parse parameters:")
 		httputil.ReturnError(r, w, 400, "failed to parse parameters")
 		return
 	}
 	// 更新默认语言版本
 	err := db.GetManager().LongVersionDao().DefaultLangVersion(lang.Lang, lang.Version, lang.Show, lang.FirstChoice)
 	if err != nil {
-		zap.L().Error("update lang version failure:", zap.Error(err))
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("update lang version failure: %v", err))
 		return
 	}
@@ -468,14 +464,12 @@ func (c *ClusterController) UpdateLangVersion(w http.ResponseWriter, r *http.Req
 func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Request) {
 	var lang model.UpdateLangVersion
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
-		zap.L().Error("failed to parse parameters:")
 		httputil.ReturnError(r, w, 400, "failed to parse parameters")
 		return
 	}
 	// 根据语言标识和版本号，获取语言版本信息。
 	_, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(lang.Lang, lang.Version)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		zap.L().Error("get lang version failure:", zap.Error(err))
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("get lang version failure: %v", err))
 		return
 	}
@@ -483,7 +477,6 @@ func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Req
 		// 创建新的语言版本记录。
 		err := db.GetManager().LongVersionDao().CreateLangVersion(lang.Lang, lang.Version, lang.EventID, lang.FileName, lang.Show)
 		if err != nil {
-			zap.L().Error("create lang version failure:", zap.Error(err))
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create lang version failure: %v", err))
 			return
 		}
@@ -498,21 +491,18 @@ func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Req
 func (c *ClusterController) DeleteLangVersion(w http.ResponseWriter, r *http.Request) {
 	var lang model.UpdateLangVersion
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
-		zap.L().Error("failed to parse parameters:")
 		httputil.ReturnError(r, w, 400, "failed to parse parameters")
 		return
 	}
 	// 根据语言标识和版本号，删除该语言版本
 	eventID, err := db.GetManager().LongVersionDao().DeleteLangVersion(lang.Lang, lang.Version)
 	if err != nil {
-		zap.L().Error("delete lang version failure:", zap.Error(err))
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version failure: %v", err))
 		return
 	}
 	// 删除本地文件
 	err = os.RemoveAll(path.Join(BaseUploadPath, eventID))
 	if err != nil {
-		zap.L().Error("delete lang version pack failure:", zap.Error(err))
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version pack failure: %v", err))
 		return
 	}
