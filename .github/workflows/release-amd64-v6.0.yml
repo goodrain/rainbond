@@ -78,7 +78,7 @@ jobs:
       - name: Pull code and Build allinone image
         env:
           TRAVIS_PULL_REQUEST: false
-          ADAPTOR_BRANCH: ${{ vars.ADAPTOR_BRANCH}}
+          ADAPTOR_BRANCH: V6.0
           BUILD_ARCH: ${{ vars.BUILD_ARCH}}
           # GitHub
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
