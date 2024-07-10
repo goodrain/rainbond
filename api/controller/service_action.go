@@ -77,6 +77,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		if service.ContainerMemory == 0 {
 			noMemory = service.Replicas
 		}
+
 		storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
 		if err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
@@ -338,8 +339,12 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	if service.ContainerMemory == 0 {
 		noMemory = int(replicas)
 	}
+	//判断组件是否是在运行状态，如果不运行也就是不占用内存，那就给他把正在运行的实例数设为0，然后再去计算所需要的内存
+	if !service.ComponentStatus {
+		service.Replicas = 0
+	}
 	if int(replicas) > service.Replicas {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*(int(replicas-1)), service.ContainerCPU*(int(replicas)), 0, noMemory, noCPU); err != nil {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*(int(replicas-int32(service.Replicas))), service.ContainerCPU*(int(replicas-int32(service.Replicas))), 0, noMemory, noCPU); err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 			return
 		}
