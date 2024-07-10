@@ -730,6 +730,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
+		clusterStatus := os.Getenv("CLUSTER_STATUS")
+		if clusterStatus == "backup" {
+			return
+		}
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
 		for _, ch := range a.volumeTypeListeners {
 			select {
