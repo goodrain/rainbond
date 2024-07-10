@@ -76,7 +76,7 @@ func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
 		logrus.Errorf("create k8s config failure: %v", err)
 		return err
 	}
-	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1000, 1000)
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1e6, 1e6)
 	k.RestConfig = config
 	k.Clientset, err = kubernetes.NewForConfig(config)
 	if err != nil {
