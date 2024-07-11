@@ -19,21 +19,21 @@ func CheckTenantResource(ctx context.Context, tenant *dbmodel.Tenants, needMemor
 	logrus.Debugf("tenant limitMemory: %v, usedMemory: %v", tenant.LimitMemory, ts.UsedMEM)
 	if tenant.LimitMemory != 0 {
 		avaiMemory := tenant.LimitMemory - ts.UsedMEM
-		if avaiMemory > 0 && needMemory > avaiMemory {
+		if avaiMemory >= 0 && needMemory > avaiMemory {
 			logrus.Errorf("tenant available memory is %d, To apply for %d, not enough", avaiMemory, needMemory)
 			return errors.New(constants.TenantLackOfMemory)
 		}
 	}
 	if tenant.LimitCPU != 0 {
 		avaiCPU := tenant.LimitCPU - ts.UsedCPU
-		if avaiCPU > 0 && needCPU > avaiCPU {
+		if avaiCPU >= 0 && needCPU > avaiCPU {
 			logrus.Errorf("tenant available CPU is %d, To apply for %d, not enough", avaiCPU, needCPU)
 			return errors.New(constants.TenantLackOfCPU)
 		}
 	}
 	if tenant.LimitStorage != 0 {
 		avaiStorage := tenant.LimitStorage - int(ts.UsedDisk)
-		if avaiStorage > 0 && needStorage > avaiStorage {
+		if avaiStorage >= 0 && needStorage > avaiStorage {
 			logrus.Errorf("tenant available Storage is %d, To apply for %d, not enough", avaiStorage, needStorage)
 			return errors.New(constants.TenantLackOfStorage)
 		}
