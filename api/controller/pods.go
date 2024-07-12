@@ -147,6 +147,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		Follow:     true,
 		Timestamps: true,
 		TailLines:  &tailLines,
+		Container:  "ingress-apisix",
 	})
 	logrus.Infof("Opening log stream for pod %s", podName)
 
