@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/server"
@@ -189,8 +190,11 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 // SystemPodLogs -
 func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
-	ns := r.URL.Query().Get("ns")
-
+	ns, err := util.GetMyNamespace()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("error getting namespace: %v", err))
+		return
+	}
 	if ns == "" {
 		ns = utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)
 	}
