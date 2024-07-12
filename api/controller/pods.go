@@ -142,12 +142,15 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		lines = 100
 	}
 	tailLines := int64(lines)
-
+	container := ""
+	if strings.HasPrefix(podName, "rbd-gateway") {
+		container = "ingress-apisix"
+	}
 	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
 		TailLines:  &tailLines,
-		Container:  "ingress-apisix",
+		Container:  container,
 	})
 	logrus.Infof("Opening log stream for pod %s", podName)
 
