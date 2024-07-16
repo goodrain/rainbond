@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//InitStorageclass init storage class
+// InitStorageclass init storage class
 func (a *appRuntimeStore) initStorageclass() error {
 	for _, storageclass := range v1.GetInitStorageClass() {
 		old, err := a.conf.KubeClient.StorageV1().StorageClasses().Get(context.Background(), storageclass.Name, metav1.GetOptions{})
@@ -62,7 +62,7 @@ func (a *appRuntimeStore) initStorageclass() error {
 					}
 					logrus.Infof("update storageclass %s success", storageclass.Name)
 				} else {
-					logrus.Errorf("recreate strageclass %s failure %s", err.Error())
+					logrus.Errorf("recreate strageclass %s failure %s", storageclass.Name, err.Error())
 				}
 			}
 		}

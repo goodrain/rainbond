@@ -392,7 +392,7 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 		spaceFreed += image.size
 
 		if spaceFreed >= bytesToFree {
-			logrus.Debugf("spaceFreed(%f) is greater than bytesToFree(%f), stop free space")
+			logrus.Debugf("spaceFreed(%v) is greater than bytesToFree(%v), stop free space", spaceFreed, bytesToFree)
 			break
 		}
 	}
