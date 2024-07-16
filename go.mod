@@ -1,6 +1,6 @@
 module github.com/goodrain/rainbond
 
-go 1.19
+go 1.20
 
 require (
 	cuelang.org/go v0.2.2
