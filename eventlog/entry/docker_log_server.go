@@ -37,7 +37,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//DockerLogServer 日志接受服务
+// DockerLogServer 日志接受服务
 type DockerLogServer struct {
 	conf               conf.DockerLogServerConf
 	log                *logrus.Entry
@@ -53,7 +53,7 @@ type DockerLogServer struct {
 	listen             *net.TCPListener
 }
 
-//NewDockerLogServer 创建zmq server服务端
+// NewDockerLogServer 创建zmq server服务端
 func NewDockerLogServer(conf conf.DockerLogServerConf, log *logrus.Entry, storeManager store.Manager) (*DockerLogServer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &DockerLogServer{
@@ -67,11 +67,11 @@ func NewDockerLogServer(conf conf.DockerLogServerConf, log *logrus.Entry, storeM
 	s.log.Info("receive docker container log server start.")
 	if conf.Mode == "zmq" {
 		server, err := zmq4.NewSocket(zmq4.SUB)
-		server.SetSubscribe("")
 		if err != nil {
 			s.log.Error("create rep zmq socket error.", err.Error())
 			return nil, err
 		}
+		server.SetSubscribe("")
 		address := fmt.Sprintf("tcp://%s:%d", s.conf.BindIP, s.conf.BindPort)
 		server.Bind(address)
 		s.log.Infof("Docker container log server listen %s", address)
@@ -104,7 +104,7 @@ func NewDockerLogServer(conf conf.DockerLogServerConf, log *logrus.Entry, storeM
 	return s, nil
 }
 
-//Serve 执行
+// Serve 执行
 func (s *DockerLogServer) Serve() {
 	if s.conf.Mode == "zmq" {
 		s.handleMessage()
@@ -142,7 +142,7 @@ func (s *DockerLogServer) OnClose(*util.Conn) {
 	s.log.Debugf("a log client closed.")
 }
 
-//Stop 停止
+// Stop 停止
 func (s *DockerLogServer) Stop() {
 	s.cancel()
 	if s.bufferServer != nil {
@@ -194,7 +194,7 @@ func (s *DockerLogServer) handleMessage() {
 	s.log.Info("Handle message core stop.")
 }
 
-//ListenError listen error chan
+// ListenError listen error chan
 func (s *DockerLogServer) ListenError() chan error {
 	return s.listenErr
 }

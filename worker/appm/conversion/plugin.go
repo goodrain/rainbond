@@ -380,15 +380,18 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 	deps, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
 		logrus.Errorf("get service depend service info failure %s", err.Error())
+		return "", nil, err
 	}
 	for _, dep := range deps {
 		ports, err := dbmanager.TenantServicesPortDao().GetPortsByServiceID(dep.DependServiceID)
 		if err != nil {
 			logrus.Errorf("get service depend service port info failure %s", err.Error())
+			continue
 		}
 		depService, err := dbmanager.TenantServiceDao().GetServiceByID(dep.DependServiceID)
 		if err != nil {
 			logrus.Errorf("get service depend service info failure %s", err.Error())
+			continue
 		}
 		for _, port := range ports {
 			if *port.IsInnerService {

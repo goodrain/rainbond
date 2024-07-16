@@ -116,13 +116,15 @@ func convertModelToDB(result *model.CodeCheckResult) *dbmodel.CodeCheckResult {
 		bs := []byte(result.Condition)
 		l, err := simplejson.NewJson(bs)
 		if err != nil {
-			logrus.Errorf("error get condition,details %s", err.Error())
+			logrus.Errorf("error get condition, details %s", err.Error())
+		} else {
+			// 以下代码即使返回错误，language 也只会是一个空字符串，不会影响后续操作，因此可以忽略其错误
+			language, err := l.Get("language").String()
+			if err != nil {
+				logrus.Errorf("error get language,details %s", err.Error())
+			}
+			r.Language = language
 		}
-		language, err := l.Get("language").String()
-		if err != nil {
-			logrus.Errorf("error get language,details %s", err.Error())
-		}
-		r.Language = language
 	}
 	r.BuildImageName = result.BuildImageName
 	r.InnerPort = result.InnerPort

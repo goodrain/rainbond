@@ -34,7 +34,7 @@ import (
 	config "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
-//NewCmdTenant tenant cmd
+// NewCmdTenant tenant cmd
 func NewCmdTenant() cli.Command {
 	c := cli.Command{
 		Name:  "tenant",
@@ -161,7 +161,7 @@ func getAllTenant(c *cli.Context) error {
 	return nil
 }
 
-//CreateTenantFile Create Tenant File
+// CreateTenantFile Create Tenant File
 func CreateTenantFile(tname string) error {
 	filename, err := config.GetTenantNamePath()
 	if err != nil {
@@ -169,15 +169,18 @@ func CreateTenantFile(tname string) error {
 		return errors.New("Load config file error")
 	}
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
 	if err != nil {
 		logrus.Warn("load teantnamefile file", err.Error())
-		f.Close()
 		return err
 	}
 	_, err = f.WriteString(tname)
 	if err != nil {
 		logrus.Warn("write teantnamefile file", err.Error())
 	}
-	f.Close()
 	return err
 }
