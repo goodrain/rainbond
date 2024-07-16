@@ -198,6 +198,7 @@ func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		httputil.ReturnSuccess(r, w, nil)
+		return
 	}
 	httputil.ReturnError(r, w, 500, err.Error())
 }
