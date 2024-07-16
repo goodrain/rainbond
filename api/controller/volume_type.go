@@ -194,7 +194,8 @@ func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if updateErr := handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType); updateErr != nil {
-			httputil.ReturnError(r, w, 500, err.Error())
+			httputil.ReturnError(r, w, 500, updateErr.Error())
+			return
 		}
 		httputil.ReturnSuccess(r, w, nil)
 	}
