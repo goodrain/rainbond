@@ -75,8 +75,12 @@ func ListVolumeType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	volumetypeOptions, er := handler.GetVolumeTypeHandler().GetAllVolumeTypes()
+	if er != nil {
+		httputil.ReturnError(r, w, 500, er.Error())
+		return
+	}
 	volumetypePageOptions, err := handler.GetVolumeTypeHandler().GetAllVolumeTypesByPage(page, pageSize)
-	if err != nil || er != nil {
+	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
