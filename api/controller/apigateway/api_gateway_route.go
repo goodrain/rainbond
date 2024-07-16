@@ -264,10 +264,6 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return
-	}
-	if err != nil {
-		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}

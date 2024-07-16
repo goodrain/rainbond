@@ -303,11 +303,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 		fmt.Fprintf(w, buffer.String())
 
 		var gpuUsageInNode float64 = 0
-		if totalGPUMemInNode > 0 {
-			gpuUsageInNode = float64(usedGPUMemInNode) / float64(totalGPUMemInNode) * 100
-		} else {
-			fmt.Fprintf(w, "\n")
-		}
+		gpuUsageInNode = float64(usedGPUMemInNode) / float64(totalGPUMemInNode) * 100
 
 		fmt.Fprintf(w, "Allocated :\t%d (%d%%)\t\n", usedGPUMemInNode, int64(gpuUsageInNode))
 		fmt.Fprintf(w, "Total :\t%d \t\n", nodeInfo.gpuTotalMemory)

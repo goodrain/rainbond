@@ -112,17 +112,13 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 func (s *PluginShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
 	res, err := db.GetManager().KeyValueDao().Get(fmt.Sprintf("/rainbond/shareresult/%s", shareID))
 	if err != nil {
-		return exector.ShareStatus{}, nil
+		return exector.ShareStatus{}, util.CreateAPIHandleError(500, err)
 	}
-	if err != nil {
-		e = util.CreateAPIHandleError(500, err)
+	if res == nil {
+		i.ShareID = shareID
 	} else {
-		if res == nil {
-			i.ShareID = shareID
-		} else {
-			if err := ffjson.Unmarshal([]byte(res.V), &i); err != nil {
-				return i, util.CreateAPIHandleError(500, err)
-			}
+		if err := ffjson.Unmarshal([]byte(res.V), &i); err != nil {
+			return i, util.CreateAPIHandleError(500, err)
 		}
 	}
 	return

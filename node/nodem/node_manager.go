@@ -43,7 +43,7 @@ import (
 
 var sandboxImage = "k8s.gcr.io/pause-amd64:latest"
 
-//NodeManager node manager
+// NodeManager node manager
 type NodeManager struct {
 	currentNode *client.HostNode
 	ctx         context.Context
@@ -58,7 +58,7 @@ type NodeManager struct {
 	imageGCManager gc.ImageGCManager
 }
 
-//NewNodeManager new a node manager
+// NewNodeManager new a node manager
 func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf)
@@ -68,9 +68,6 @@ func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error
 	}
 	clm := logger.CreatContainerLogManage(conf)
 	controller := controller.NewManagerService(conf, healthyManager, cluster)
-	if err != nil {
-		return nil, fmt.Errorf("Get host id error:%s", err.Error())
-	}
 
 	imageGCPolicy := gc.ImageGCPolicy{
 		MinAge:               conf.ImageMinimumGCAge,
@@ -99,15 +96,15 @@ func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error
 	return nodem, nil
 }
 
-//AddAPIManager AddApiManager
+// AddAPIManager AddApiManager
 func (n *NodeManager) AddAPIManager(apim *api.Manager) error {
 	n.apim = apim
 	n.controller.SetAPIRoute(apim)
 	return n.monitor.SetAPIRoute(apim)
 }
 
-//InitStart init start is first start module.
-//it would not depend etcd
+// InitStart init start is first start module.
+// it would not depend etcd
 func (n *NodeManager) InitStart() error {
 	if err := n.controller.Start(n.currentNode); err != nil {
 		return fmt.Errorf("start node controller error,%s", err.Error())
@@ -115,7 +112,7 @@ func (n *NodeManager) InitStart() error {
 	return nil
 }
 
-//Start start
+// Start start
 func (n *NodeManager) Start(errchan chan error) error {
 	if n.cfg.EtcdCli == nil {
 		return fmt.Errorf("etcd client is nil")
@@ -158,7 +155,7 @@ func (n *NodeManager) Start(errchan chan error) error {
 	return nil
 }
 
-//Stop Stop
+// Stop Stop
 func (n *NodeManager) Stop() {
 	n.cluster.DownNode(n.currentNode)
 	if n.controller != nil {
@@ -175,8 +172,8 @@ func (n *NodeManager) Stop() {
 	}
 }
 
-//CheckNodeHealthy check current node healthy.
-//only healthy can controller other service start
+// CheckNodeHealthy check current node healthy.
+// only healthy can controller other service start
 func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 	services, err := n.controller.GetAllService()
 	if err != nil {
@@ -259,7 +256,7 @@ func (n *NodeManager) heartbeat() {
 	}, time.Second*time.Duration(n.cfg.TTL))
 }
 
-//init node init
+// init node init
 func (n *NodeManager) init() error {
 	node, err := n.cluster.GetNode(n.currentNode.ID)
 	if err != nil {
@@ -320,7 +317,7 @@ func (n *NodeManager) setNodeLabels(node *client.HostNode) {
 	node.Labels = newLabels
 }
 
-//getInitLabel update node role and return new lables
+// getInitLabel update node role and return new lables
 func (n *NodeManager) getInitLabel(node *client.HostNode) map[string]string {
 	labels := map[string]string{}
 	for _, rule := range node.Role {
@@ -336,7 +333,7 @@ func (n *NodeManager) getInitLabel(node *client.HostNode) map[string]string {
 	return labels
 }
 
-//getCurrentNode get current node info
+// getCurrentNode get current node info
 func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	if n.cfg.HostIP == "" {
 		ip, err := util.LocalIP()
@@ -353,12 +350,12 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	return &node, nil
 }
 
-//GetCurrentNode get current node
+// GetCurrentNode get current node
 func (n *NodeManager) GetCurrentNode() *client.HostNode {
 	return n.currentNode
 }
 
-//CreateNode new node
+// CreateNode new node
 func CreateNode(nodeID, ip string) client.HostNode {
 	return client.HostNode{
 		ID:         nodeID,
@@ -369,22 +366,22 @@ func CreateNode(nodeID, ip string) client.HostNode {
 	}
 }
 
-//StartService start a define service
+// StartService start a define service
 func (n *NodeManager) StartService(serviceName string) error {
 	return n.controller.StartService(serviceName)
 }
 
-//StopService stop a define service
+// StopService stop a define service
 func (n *NodeManager) StopService(serviceName string) error {
 	return n.controller.StopService(serviceName)
 }
 
-//UpdateConfig update service config
+// UpdateConfig update service config
 func (n *NodeManager) UpdateConfig() error {
 	return n.controller.ReLoadServices()
 }
 
-//GetMonitorManager get monitor manager
+// GetMonitorManager get monitor manager
 func (n *NodeManager) GetMonitorManager() monitor.Manager {
 	return n.monitor
 }
