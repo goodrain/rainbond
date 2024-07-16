@@ -575,7 +575,7 @@ func (n *NodeInfo) getDeivceInfo(pod v1.Pod) map[int]int {
 		if found {
 			id, err = strconv.Atoi(value)
 			if err != nil {
-				fmt.Printf("Failed to parse dev id %s due to %v for pod %s in ns %s",
+				logrus.Errorf("Failed to parse dev id %s due to %v for pod %s in ns %s",
 					value,
 					err,
 					pod.Name,
@@ -583,7 +583,7 @@ func (n *NodeInfo) getDeivceInfo(pod v1.Pod) map[int]int {
 				id = -1
 			}
 		} else {
-			fmt.Printf("Failed to get dev id for pod %s in ns %s",
+			logrus.Errorf("Failed to get dev id for pod %s in ns %s",
 				pod.Name,
 				pod.Namespace)
 		}
