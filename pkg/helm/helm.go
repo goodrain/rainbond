@@ -89,7 +89,7 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}, nil
 }
 
-//UpdateRepo -
+// UpdateRepo -
 func (h *Helm) UpdateRepo(names string) error {
 	return h.repoUpdate(names, ioutil.Discard)
 }
@@ -180,7 +180,7 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 	//client.IsUpgrade = true
 	client.ClientOnly = true
 	var cp string
-	if chartPath != ""{
+	if chartPath != "" {
 		cp = chartPath
 	} else {
 		res, err := h.locateChart(chart, version)
@@ -245,6 +245,9 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 		}
 	}
 	rel, err := client.Run(chartRequested, vals)
+	if err != nil {
+		return nil, err
+	}
 	rel.Manifest = strings.TrimPrefix(crdYaml+"\n"+rel.Manifest, "\n")
 	return rel, err
 }

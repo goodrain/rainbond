@@ -146,7 +146,7 @@ func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 
 	defer func() {
 		if err := tw.Close(); err != nil {
-			fmt.Printf("Error closing tar writer: %v\n", err)
+			logrus.Errorf("Error closing tar writer: %v\n", err)
 		}
 	}()
 

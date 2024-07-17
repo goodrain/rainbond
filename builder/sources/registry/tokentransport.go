@@ -112,11 +112,12 @@ func (authService *authService) Request(username, password string) (*http.Reques
 	url.RawQuery = q.Encode()
 
 	request, err := http.NewRequest("GET", url.String(), nil)
-
+	if err != nil {
+		return nil, err
+	}
 	if username != "" || password != "" {
 		request.SetBasicAuth(username, password)
 	}
-
 	return request, err
 }
 

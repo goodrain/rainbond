@@ -16,7 +16,7 @@ elif [ $(arch) = "x86_64" ]; then
     GOARCH=amd64
 fi
 
-GO_VERSION=1.19-alpine3.16
+GO_VERSION=1.20-alpine3.16
 
 GOPROXY=${GOPROXY:-'https://goproxy.cn'}
 
@@ -46,7 +46,7 @@ buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 release_desc=${VERSION}-${git_commit}-${buildTime}
-build_items=(api chaos monitor mq webcli worker eventlog init-probe mesh-data-panel grctl node resource-proxy shell)
+build_items=(api chaos monitor mq webcli worker eventlog init-probe mesh-data-panel grctl resource-proxy shell)
 
 build::binary() {
 	echo "---> build binary:$1"

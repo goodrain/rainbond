@@ -35,7 +35,7 @@ import (
 
 //public function part
 
-//TransStatus trans service status
+// TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {
 	case "starting":
@@ -66,12 +66,12 @@ func TransStatus(eStatus string) string {
 	return ""
 }
 
-//HTTPRequest public http request
+// HTTPRequest public http request
 func HTTPRequest(w http.ResponseWriter, r *http.Request, endpoint string) {
 	DirectRequest(w, r, endpoint)
 }
 
-//DirectRequest direct request
+// DirectRequest direct request
 func DirectRequest(w http.ResponseWriter, r *http.Request, endpoint string) {
 	director := func(req *http.Request) {
 		req = r
@@ -82,7 +82,7 @@ func DirectRequest(w http.ResponseWriter, r *http.Request, endpoint string) {
 	proxy.ServeHTTP(w, r)
 }
 
-//TransBody transfer body to map
+// TransBody transfer body to map
 func TransBody(r *http.Request) (map[string]interface{}, error) {
 	var mmp map[string]interface{}
 	err := render.Decode(r, &mmp)
@@ -92,7 +92,7 @@ func TransBody(r *http.Request) (map[string]interface{}, error) {
 	return mmp, nil
 }
 
-//RestInfo rest info
+// RestInfo rest info
 func RestInfo(code int, others ...string) []byte {
 	switch code {
 	case 200:
@@ -131,7 +131,7 @@ func qMsg(others []string) string {
 	return msg
 }
 
-//CheckLabel check label
+// CheckLabel check label
 func CheckLabel(serviceID string) bool {
 	//true for v2, false for v1
 	serviceLabel, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceLabel(serviceID)
@@ -144,13 +144,13 @@ func CheckLabel(serviceID string) bool {
 	return false
 }
 
-//TestFunc test func
+// TestFunc test func
 func TestFunc(w http.ResponseWriter) {
 	w.Write([]byte("here"))
 	return
 }
 
-//CheckMapKey CheckMapKey
+// CheckMapKey CheckMapKey
 func CheckMapKey(rebody map[string]interface{}, key string, defaultValue interface{}) map[string]interface{} {
 	if _, ok := rebody[key]; ok {
 		return rebody
@@ -159,10 +159,10 @@ func CheckMapKey(rebody map[string]interface{}, key string, defaultValue interfa
 	return rebody
 }
 
-//GetServiceAliasID get service alias id
-//python:
-//new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
-//new_id = hashlib.sha224(new_word).hexdigest()[0:16]
+// GetServiceAliasID get service alias id
+// python:
+// new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
+// new_id = hashlib.sha224(new_word).hexdigest()[0:16]
 func GetServiceAliasID(ServiceID string) string {
 	if len(ServiceID) > 11 {
 		newWord := strconv.Itoa(int(ServiceID[10])) + ServiceID + strconv.Itoa(int(ServiceID[3])) + "log" + strconv.Itoa(int(ServiceID[2])/7)
@@ -193,11 +193,9 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 	}))
 }
 
-//Display 遍历结构体
+// Display 遍历结构体
 func Display(i interface{}, j interface{}) {
-	fmt.Printf("Display %T\n", i)
 	display("", reflect.ValueOf(i), j)
-
 }
 
 func display(path string, v reflect.Value, j interface{}) {
@@ -209,7 +207,6 @@ func display(path string, v reflect.Value, j interface{}) {
 		reflect.Float32, reflect.Float64,
 		reflect.Bool,
 		reflect.String:
-		fmt.Printf("%s: %v (%s)\n", path, v, v.Type().Name())
 		return
 	case reflect.Ptr:
 		v = v.Elem()

@@ -447,9 +447,6 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *util.APIHandleError) {
 	res, err := db.GetManager().KeyValueDao().Get("/rainbond/backup_restore/" + restoreID)
 	if err != nil {
-		return nil, nil
-	}
-	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if res == nil {

@@ -19,7 +19,6 @@
 package option
 
 import (
-	"fmt"
 	"os"
 	"path"
 
@@ -72,7 +71,7 @@ func (c *Config) Check() bool {
 	logrus.SetOutput(logfile)
 	if removeService {
 		if err := windows.UnRegisterService(c.ServiceName); err != nil {
-			fmt.Printf("remove service %s failure %s", c.ServiceName, err.Error())
+			logrus.Errorf("remove service %s failure %s", c.ServiceName, err.Error())
 			os.Exit(1)
 		}
 		os.Exit(0)

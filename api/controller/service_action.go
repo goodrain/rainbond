@@ -523,35 +523,33 @@ func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err == gorm.ErrRecordNotFound {
+		httputil.ReturnSuccess(r, w, nil)
+		return
+	}
+	if val.DeliveredType == "slug" && val.FinalStatus == "success" {
+		if err := os.Remove(val.DeliveredPath); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+			return
 
-	} else {
-		if val.DeliveredType == "slug" && val.FinalStatus == "success" {
-			if err := os.Remove(val.DeliveredPath); err != nil {
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
-				return
-
-			}
-			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
-				return
-
-			}
 		}
-		if val.FinalStatus == "failure" {
-			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
-				return
-			}
+		if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+			return
 		}
-		if val.DeliveredType == "image" {
-			if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
-				return
-			}
+	}
+	if val.FinalStatus == "failure" {
+		if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+			return
+		}
+	}
+	if val.DeliveredType == "image" {
+		if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(val); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("delete build version erro, %v", err))
+			return
 		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
-
 }
 
 // UpdateBuildVersion -

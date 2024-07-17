@@ -175,10 +175,6 @@ func (c *clusterAction) AppYamlResourceImport(namespace, tenantID, appID string,
 		K8sResources: k8sResource,
 		Component:    componentAttributes,
 	}
-
-	if err != nil {
-		return apimodel.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("app yaml resource import error:%v", err)}
-	}
 	logrus.Infof("AppYamlResourceImport end")
 	return ar, nil
 }

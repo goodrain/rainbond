@@ -74,9 +74,6 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 		}
 		returnResourceImport.App = append(returnResourceImport.App, application)
 	}
-	if err != nil {
-		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("resource import error:%v", err)}
-	}
 	logrus.Infof("ResourceImport function end")
 	return &returnResourceImport, nil
 }

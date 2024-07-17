@@ -106,9 +106,6 @@ func (c *VersionInfoDaoImpl) ListByServiceIDStatus(serviceID string, finalStatus
 func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			//return messageRaw, nil
-		}
 		return nil, err
 	}
 	return &result, nil

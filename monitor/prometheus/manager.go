@@ -128,10 +128,8 @@ func (p *Manager) StartDaemon(errchan chan error) {
 	}
 	process, err := os.StartProcess("/bin/prometheus", p.Opt.StartArgs, procAttr)
 	if err != nil {
-		if err != nil {
-			logrus.Error("Can not start prometheus daemon: ", err)
-			os.Exit(11)
-		}
+		logrus.Error("Can not start prometheus daemon: ", err)
+		os.Exit(11)
 	}
 	p.Process = process
 
@@ -173,7 +171,7 @@ func (p *Manager) StopDaemon() {
 	}
 }
 
-//ReloadConfig reload prometheus config
+// ReloadConfig reload prometheus config
 func (p *Manager) ReloadConfig() error {
 	if p.Status == STARTED {
 		logrus.Debug("Restart daemon for prometheus.")
@@ -185,7 +183,7 @@ func (p *Manager) ReloadConfig() error {
 	return nil
 }
 
-//LoadConfig load config
+// LoadConfig load config
 func (p *Manager) LoadConfig() error {
 	logrus.Info("Load prometheus config file.")
 	content, err := ioutil.ReadFile(p.Opt.ConfigFile)

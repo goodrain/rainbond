@@ -586,7 +586,6 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	i, err := NewImageShareItem(task.TaskBody, e.imageClient)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
-		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return
 	}
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})

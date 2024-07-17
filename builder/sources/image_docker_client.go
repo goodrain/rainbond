@@ -60,7 +60,7 @@ func (d *dockerImageCliImpl) CheckIfImageExists(imageName string) (imageRef stri
 		return "", false, fmt.Errorf("list images: %v", err)
 	}
 	for _, imageSummary := range imageSummarys {
-		fmt.Printf("%#v", imageSummary.RepoTags)
+		logrus.Infof("%#v", imageSummary.RepoTags)
 	}
 
 	_ = imageSummarys

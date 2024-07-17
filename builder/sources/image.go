@@ -717,7 +717,7 @@ func CheckIfImageExists(containerdClient *containerd.Client, image string) (imag
 		return "", false, fmt.Errorf("list images: %v", err)
 	}
 	for _, imageSummary := range imageSummarys {
-		fmt.Printf("%#v", imageSummary.Name())
+		logrus.Infof("%#v", imageSummary.Name())
 	}
 
 	_ = imageSummarys

@@ -19,9 +19,9 @@
 package discovery
 
 import (
-	"fmt"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
 )
@@ -40,7 +40,7 @@ func TestEtcd_Watch(t *testing.T) {
 		for {
 			select {
 			case event := <-updateCh.Out():
-				fmt.Printf("%+v", event)
+				logrus.Infof("%+v", event)
 			case <-stopCh:
 				break
 			}
