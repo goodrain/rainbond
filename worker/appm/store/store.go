@@ -1476,7 +1476,7 @@ func ExtractPodData(pods []corev1.Pod, deployName string) (podList []*pb.Managed
 
 func (a *appRuntimeStore) GetAppStatus(serviceIDs []string) (pb.AppStatus_Status, error) {
 	if len(serviceIDs) == 0 {
-		return pb.AppStatus_NIL, err
+		return pb.AppStatus_NIL, nil
 	}
 	componentStatuses := a.GetAppServicesStatus(serviceIDs)
 
