@@ -222,8 +222,16 @@ func (m *Manager) Run() {
 		return nil
 	})
 
+	//server := &http.Server{
+	//	Addr:         m.conf.APIAddr,
+	//	Handler:      m.r,
+	//	ReadTimeout:  10 * time.Second,
+	//	WriteTimeout: 10 * time.Second,
+	//	IdleTimeout:  120 * time.Second,
+	//}
 	// api
 	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)
+	//logrus.Fatal(server.ListenAndServe())
 	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 }
 

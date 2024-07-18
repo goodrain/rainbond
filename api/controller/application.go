@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	"github.com/grafana/pyroscope-go"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 	"net/http"
 	"strconv"
@@ -221,15 +223,15 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 
 // GetAppStatus returns the status of the application.
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
-
-	res, err := handler.GetApplicationHandler().GetStatus(r.Context(), app)
-	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, res)
+	pyroscope.TagWrapper(r.Context(), pyroscope.Labels("controller", "API-GetAppStatus"), func(ctx context.Context) {
+		app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+		res, err := handler.GetApplicationHandler().GetStatus(r.Context(), app)
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
+		httputil.ReturnSuccess(r, w, res)
+	})
 }
 
 // Install installs the application.

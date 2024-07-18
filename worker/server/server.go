@@ -21,6 +21,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/grafana/pyroscope-go"
+	"google.golang.org/grpc/keepalive"
 	"net"
 	"strings"
 	"time"
@@ -75,11 +77,19 @@ func CreaterRuntimeServer(conf option.Config,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:      conf,
-		ctx:       ctx,
-		cancel:    cancel,
-		logger:    logrus.WithField("WHO", "RuntimeServer"),
-		server:    grpc.NewServer(),
+		conf:   conf,
+		ctx:    ctx,
+		cancel: cancel,
+		logger: logrus.WithField("WHO", "RuntimeServer"),
+		server: grpc.NewServer(
+			//grpc.MaxConcurrentStreams(), // 设置最大并发流数
+			grpc.KeepaliveParams(keepalive.ServerParameters{
+				MaxConnectionIdle:     5 * 60,  // 设置空闲连接的最大时间
+				MaxConnectionAge:      30 * 60, // 设置连接的最大生命周期
+				MaxConnectionAgeGrace: 5 * 60,  // 设置连接生命周期结束后的宽限期
+				Time:                  2 * 60,  // 发送ping的间隔时间
+				Timeout:               20,      // ping响应的超时时间
+			})),
 		hostIP:    conf.HostIP,
 		store:     store,
 		clientset: clientset,
@@ -95,10 +105,12 @@ func CreaterRuntimeServer(conf option.Config,
 func (r *RuntimeServer) Start(errchan chan error) {
 	go func() {
 		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
+		logrus.Infof("runtime server start at %s:%d", r.conf.HostIP, r.conf.ServerPort)
 		if err != nil {
 			logrus.Errorf("failed to listen: %v", err)
 			errchan <- err
 		}
+
 		if err := r.server.Serve(lis); err != nil {
 			errchan <- err
 		}
@@ -119,21 +131,29 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 }
 
 // GetAppStatus returns the status of application based on the given appId.
-func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
-	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
-	if err != nil {
-		return nil, err
-	}
+func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
+	var app *model.Application
+	var services []*model.TenantServices
+	startTime := time.Now()
+	pyroscope.TagWrapper(ctx, pyroscope.Labels("controller", "WORKER-GetAppStatus"), func(ctx context.Context) {
+		app, err = db.GetManager().ApplicationDao().GetAppByID(in.AppId)
+		if err != nil {
+			return
+		}
 
-	if app.AppType == model.AppTypeHelm {
-		return r.getHelmAppStatus(app)
-	}
-	services, err := db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
-	var serviceIDs []string
-	for _, service := range services {
-		serviceIDs = append(serviceIDs, service.ServiceID)
-	}
-	return r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
+		if app.AppType == model.AppTypeHelm {
+			status, err = r.getHelmAppStatus(app)
+			return
+		}
+		services, err = db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
+		var serviceIDs []string
+		for _, service := range services {
+			serviceIDs = append(serviceIDs, service.ServiceID)
+		}
+		status, err = r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
+	})
+	logrus.Infof("GetAppStatus %s %s", in.AppId, time.Since(startTime))
+	return status, err
 }
 
 // GetOperatorWatchManagedData -

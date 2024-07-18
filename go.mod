@@ -122,6 +122,8 @@ require (
 	sigs.k8s.io/gateway-api v0.8.0
 )
 
+require github.com/grafana/pyroscope-go/godeltaprof v0.1.6 // indirect
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v1.0.0 // indirect
@@ -189,6 +191,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/grafana/pyroscope-go v1.1.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hodgesds/perf-utils v0.0.8 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
@@ -291,7 +294,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
-	github.com/klauspost/compress v1.16.6 // indirect
+	github.com/klauspost/compress v1.17.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/spf13/cobra v1.7.0 // indirect
