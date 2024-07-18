@@ -58,26 +58,26 @@ func UpdateVersionByEventID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if author, err := json.Get("code_commit_author").String(); err != nil || author == "" {
+	if author, err := json.Get("code_commit_author").String(); err != nil {
 		logrus.Debugf("error get code_commit_author from version body ,details %s", err.Error())
-	} else {
+	} else if author != "" {
 		version.Author = author
 	}
 
-	if msg, err := json.Get("code_commit_msg").String(); err != nil || msg == "" {
+	if msg, err := json.Get("code_commit_msg").String(); err != nil {
 		logrus.Debugf("error get code_commit_msg from version body ,details %s", err.Error())
-	} else {
+	} else if msg != "" {
 		version.CommitMsg = msg
 	}
-	if cVersion, err := json.Get("code_version").String(); err != nil || cVersion == "" {
+	if cVersion, err := json.Get("code_version").String(); err != nil {
 		logrus.Debugf("error get code_version from version body ,details %s", err.Error())
-	} else {
+	} else if cVersion != "" {
 		version.CodeVersion = cVersion
 	}
 
-	if status, err := json.Get("final_status").String(); err != nil || status == "" {
+	if status, err := json.Get("final_status").String(); err != nil {
 		logrus.Debugf("error get final_status from version body ,details %s", err.Error())
-	} else {
+	} else if status != "" {
 		version.FinalStatus = status
 	}
 	err = db.GetManager().VersionInfoDao().UpdateModel(version)
