@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/grafana/pyroscope-go"
-	"google.golang.org/grpc/keepalive"
 	"net"
 	"strings"
 	"time"
@@ -77,19 +76,11 @@ func CreaterRuntimeServer(conf option.Config,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:   conf,
-		ctx:    ctx,
-		cancel: cancel,
-		logger: logrus.WithField("WHO", "RuntimeServer"),
-		server: grpc.NewServer(
-			//grpc.MaxConcurrentStreams(), // 设置最大并发流数
-			grpc.KeepaliveParams(keepalive.ServerParameters{
-				MaxConnectionIdle:     5 * 60,  // 设置空闲连接的最大时间
-				MaxConnectionAge:      30 * 60, // 设置连接的最大生命周期
-				MaxConnectionAgeGrace: 5 * 60,  // 设置连接生命周期结束后的宽限期
-				Time:                  2 * 60,  // 发送ping的间隔时间
-				Timeout:               20,      // ping响应的超时时间
-			})),
+		conf:      conf,
+		ctx:       ctx,
+		cancel:    cancel,
+		logger:    logrus.WithField("WHO", "RuntimeServer"),
+		server:    grpc.NewServer(),
 		hostIP:    conf.HostIP,
 		store:     store,
 		clientset: clientset,
@@ -132,6 +123,7 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 
 // GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
+	logrus.Infof("asdasd")
 	var app *model.Application
 	var services []*model.TenantServices
 	startTime := time.Now()
