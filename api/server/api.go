@@ -222,7 +222,6 @@ func (m *Manager) Run() {
 		return nil
 	})
 
-	// api
 	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)
 	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
 }
