@@ -63,7 +63,7 @@ func NewServer(conf conf.EventLogServerConf, log *logrus.Entry, storeManager sto
 func (s *EventLogRPCServer) Start() error {
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.BindPort))
 	if err != nil {
-		logrus.Errorf("failed to lisssten: %v", err)
+		logrus.Errorf("failed to listen: %v", err)
 		return err
 	}
 	s.lis = lis

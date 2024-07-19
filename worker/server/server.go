@@ -123,7 +123,6 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 
 // GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
-	logrus.Infof("asdasd")
 	var app *model.Application
 	var services []*model.TenantServices
 	startTime := time.Now()
