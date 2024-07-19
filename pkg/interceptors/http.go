@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -82,6 +83,7 @@ func handleServiceUnavailable(w http.ResponseWriter, r *http.Request) {
 	responseJSON, err := json.Marshal(response)
 	if err != nil {
 		// Handle JSON marshaling error
+		logrus.Errorf("----------------------%v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
