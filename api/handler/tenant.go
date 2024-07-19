@@ -376,6 +376,7 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 			result[tenantID]["memory"] = tr.MemoryRequest
 			result[tenantID]["app_running_num"] = tr.RunningApplications
 		}
+
 	}
 	//query disk used in prometheus
 	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))

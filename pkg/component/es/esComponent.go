@@ -65,7 +65,6 @@ func (c *Component) DELETE(url string) (string, error) {
 func (c *Component) request(url, method, body string) (string, error) {
 	req, err := http.NewRequest(method, c.url+url, bytes.NewBuffer([]byte(body)))
 	if err != nil {
-		logrus.Errorf("Error creating request: %s ", err.Error())
 		return "", err
 	}
 	req.SetBasicAuth(c.username, c.password)
@@ -76,7 +75,6 @@ func (c *Component) request(url, method, body string) (string, error) {
 	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.Errorf("Error making request: %s", err.Error())
 		return "", err
 	}
 	defer func() {

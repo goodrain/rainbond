@@ -516,10 +516,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			UserName:  "",
 			SynType:   dbmodel.ASYNEVENTTYPE,
 		}
-		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
-			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
-			return nil
-		}
+		db.GetManager().ServiceEventDao().AddModel(event)
 		body := workermodel.RollingUpgradeTaskBody{
 			TenantID:         tenantID,
 			ServiceID:        serviceID,

@@ -24,11 +24,8 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result.StartTime = time.Now().Format("2006-01-02 15:04:05")
 	result.EndTime = result.StartTime
 	body, _ := json.Marshal(result)
-	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
-	if err != nil {
-		logrus.Errorf("eventDaoImpl addModel error: %s", err.Error())
-	}
-	return err
+	es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
+	return nil
 }
 
 // UpdateModel UpdateModel
