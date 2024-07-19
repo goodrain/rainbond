@@ -20,11 +20,11 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/cmd/worker/server"
+	"github.com/grafana/pyroscope-go"
+	"os"
 
 	_ "net/http/pprof"
 
@@ -35,6 +35,39 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("worker")
 	}
+
+	serverAddr := "http://127.0.0.1:4040"
+	if os.Getenv("PYROSCOPE_URL") != "" {
+		serverAddr = os.Getenv("PYROSCOPE_URL")
+	}
+	pyroscope.Start(pyroscope.Config{
+		ApplicationName: "rbd-worker",
+
+		// replace this with the address of pyroscope server
+		ServerAddress: serverAddr,
+
+		// you can disable logging by setting this to nil
+		Logger: nil,
+
+		// you can provide static tags via a map:
+		Tags: map[string]string{"hostname": os.Getenv("HOSTNAME")},
+
+		ProfileTypes: []pyroscope.ProfileType{
+			// these profile types are enabled by default:
+			pyroscope.ProfileCPU,
+			pyroscope.ProfileAllocObjects,
+			pyroscope.ProfileAllocSpace,
+			pyroscope.ProfileInuseObjects,
+			pyroscope.ProfileInuseSpace,
+
+			// these profile types are optional:
+			pyroscope.ProfileGoroutines,
+			pyroscope.ProfileMutexCount,
+			pyroscope.ProfileMutexDuration,
+			pyroscope.ProfileBlockCount,
+			pyroscope.ProfileBlockDuration,
+		},
+	})
 	s := option.NewWorker()
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()

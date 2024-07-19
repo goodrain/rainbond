@@ -21,6 +21,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/grafana/pyroscope-go"
 	"net"
 	"strings"
 	"time"
@@ -95,10 +96,12 @@ func CreaterRuntimeServer(conf option.Config,
 func (r *RuntimeServer) Start(errchan chan error) {
 	go func() {
 		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
+		logrus.Infof("runtime server start at %s:%d", r.conf.HostIP, r.conf.ServerPort)
 		if err != nil {
 			logrus.Errorf("failed to listen: %v", err)
 			errchan <- err
 		}
+
 		if err := r.server.Serve(lis); err != nil {
 			errchan <- err
 		}
@@ -119,21 +122,29 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 }
 
 // GetAppStatus returns the status of application based on the given appId.
-func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
-	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
-	if err != nil {
-		return nil, err
-	}
+func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
+	var app *model.Application
+	var services []*model.TenantServices
+	startTime := time.Now()
+	pyroscope.TagWrapper(ctx, pyroscope.Labels("controller", "WORKER-GetAppStatus"), func(ctx context.Context) {
+		app, err = db.GetManager().ApplicationDao().GetAppByID(in.AppId)
+		if err != nil {
+			return
+		}
 
-	if app.AppType == model.AppTypeHelm {
-		return r.getHelmAppStatus(app)
-	}
-	services, err := db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
-	var serviceIDs []string
-	for _, service := range services {
-		serviceIDs = append(serviceIDs, service.ServiceID)
-	}
-	return r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
+		if app.AppType == model.AppTypeHelm {
+			status, err = r.getHelmAppStatus(app)
+			return
+		}
+		services, err = db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
+		var serviceIDs []string
+		for _, service := range services {
+			serviceIDs = append(serviceIDs, service.ServiceID)
+		}
+		status, err = r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
+	})
+	logrus.Infof("GetAppStatus %s %s", in.AppId, time.Since(startTime))
+	return status, err
 }
 
 // GetOperatorWatchManagedData -

@@ -125,7 +125,7 @@ func (c *EventDaoESImpl) array(query string) ([]*model.ServiceEvent, error) {
 		return nil, err
 	}
 	var result []*model.ServiceEvent
-	fmt.Println(gjson.Get(get, "hits.hits").Raw)
+	logrus.Debug(gjson.Get(get, "hits.hits").Raw)
 	for _, hit := range gjson.Get(get, "hits.hits").Array() {
 		var s *model.ServiceEvent
 		_ = json.Unmarshal([]byte(hit.Get("_source").Raw), &s)
