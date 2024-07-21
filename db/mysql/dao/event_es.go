@@ -23,11 +23,16 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 
 	//原本都被格式化为RFC3339重新格式化为标准的时间戳
-	start, _ := time.ParseInLocation(time.RFC3339, result.StartTime, time.Local)
-	result.StartTime = start.Format("2006-01-02 15:04:05")
+	start, serr := time.ParseInLocation(time.RFC3339, result.StartTime, time.Local)
+	if serr == nil {
+		result.StartTime = start.Format("2006-01-02 15:04:05")
+	}
 
-	end, _ := time.ParseInLocation(time.RFC3339, result.EndTime, time.Local)
-	result.EndTime = end.Format("2006-01-02 15:04:05")
+	end, eerr := time.ParseInLocation(time.RFC3339, result.EndTime, time.Local)
+	if eerr == nil {
+		result.EndTime = end.Format("2006-01-02 15:04:05")
+	}
+
 	body, _ := json.Marshal(result)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
 	if err != nil {
@@ -42,11 +47,15 @@ func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	up.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 
 	//原本都被格式化为RFC3339重新格式化为标准的时间戳
-	start, _ := time.ParseInLocation(time.RFC3339, up.StartTime, time.Local)
-	up.StartTime = start.Format("2006-01-02 15:04:05")
+	start, serr := time.ParseInLocation(time.RFC3339, up.StartTime, time.Local)
+	if serr == nil {
+		up.StartTime = start.Format("2006-01-02 15:04:05")
+	}
 
-	end, _ := time.ParseInLocation(time.RFC3339, up.EndTime, time.Local)
-	up.EndTime = end.Format("2006-01-02 15:04:05")
+	end, eerr := time.ParseInLocation(time.RFC3339, up.EndTime, time.Local)
+	if eerr == nil {
+		up.EndTime = end.Format("2006-01-02 15:04:05")
+	}
 
 	body, _ := json.Marshal(up)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", up.EventID), string(body))
