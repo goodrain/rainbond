@@ -739,11 +739,13 @@ func (t *TenantAction) CheckResourceName(ctx context.Context, namespace string, 
 	}, nil
 }
 
-// TenantResourceQuota -
+// TenantResourceQuota - 设置或更新租户的资源配额和限制范围。
 func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string, limitCPU, limitMemory, LimitStorage int) error {
+	// ConvertMemory, ConvertCPU, ConvertStorage 函数将 limit 值转换为字符串表示
 	memory := ConvertMemory(limitMemory)
 	cpu := ConvertCPU(limitCPU)
 	storage := ConvertStorage(LimitStorage)
+	// 创建一个K8s的资源对象，用于存储资源配额的信息
 	resources := make(map[corev1.ResourceName]resource.Quantity)
 	if limitCPU != 0 {
 		resources[corev1.ResourceLimitsCPU] = resource.MustParse(cpu)
@@ -754,6 +756,10 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 	if LimitStorage != 0 {
 		resources[corev1.ResourceRequestsStorage] = resource.MustParse(storage)
 	}
+
+	// ResourceQuota 对象定义了在命名空间内的资源配额。
+	// 该配额限制了命名空间中可用的总资源量。
+	// 详细内容参考：https://kubernetes.io/zh-cn/docs/concepts/policy/resource-quotas/
 	quota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%v-%v", namespace, "limits-quota"),
@@ -763,15 +769,20 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 			Hard: resources,
 		},
 	}
+
+	// 尝试在 Kubernetes 中创建 ResourceQuota 对象。
 	_, err := t.kubeClient.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{})
 	if err != nil {
+		// 如果配额已存在，则更新或删除配额。
 		if k8sErrors.IsAlreadyExists(err) {
 			if limitCPU == 0 && limitMemory == 0 && LimitStorage == 0 {
+				// 如果所有限制为零，则删除配额。
 				err = t.kubeClient.CoreV1().ResourceQuotas(namespace).Delete(ctx, fmt.Sprintf("%v-limits-quota", namespace), metav1.DeleteOptions{})
 				if err != nil {
 					return errors.Wrap(err, "delete tenant quotas failure")
 				}
 			} else {
+				// 否则，更新现有的配额。
 				_, err = t.kubeClient.CoreV1().ResourceQuotas(namespace).Update(ctx, quota, metav1.UpdateOptions{})
 				if err != nil {
 					return errors.Wrap(err, "update tenant quotas failure")
@@ -782,6 +793,9 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 		}
 	}
 
+	// LimitRangeItem 对象定义了在命名空间内单个容器或 Pod 可使用的资源范围。
+	// 这里设置了 CPU 和内存的默认限制。
+	// 详细内容参考：https://kubernetes.io/zh-cn/docs/concepts/policy/limit-range/
 	var lrs []v1.LimitRangeItem
 	lrsResource := corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("128m"),
@@ -792,6 +806,8 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 		DefaultRequest: lrsResource,
 		Type:           corev1.LimitTypeContainer,
 	})
+
+	// 初始化 LimitRange 对象，它可以强制执行容器或 Pod 级别的资源限制。
 	lr := &v1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%v-%v", namespace, "limits-range"),
@@ -801,10 +817,13 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 			Limits: lrs,
 		},
 	}
+
+	// 尝试在 Kubernetes 中创建 LimitRange 对象。
 	_, err = t.kubeClient.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{})
 	if err != nil {
 		if k8sErrors.IsAlreadyExists(err) {
 			if limitCPU == 0 && limitMemory == 0 {
+				// 如果 LimitRange 已存在且不限制内存和CPU的情况下，则删除 LimitRange。
 				err = t.kubeClient.CoreV1().LimitRanges(namespace).Delete(ctx, fmt.Sprintf("%v-limits-range", namespace), metav1.DeleteOptions{})
 				if err != nil {
 					return errors.Wrap(err, "delete tenant limit range failure")
