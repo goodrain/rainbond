@@ -44,7 +44,7 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 // UpdateModel UpdateModel
 func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	up := mo.(*model.ServiceEvent)
-	up.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
+	//up.CreatedAt = time.Now().Format("2006-01-02 15:04:05")
 
 	//原本都被格式化为RFC3339重新格式化为标准的时间戳
 	start, serr := time.ParseInLocation(time.RFC3339, up.StartTime, time.Local)
