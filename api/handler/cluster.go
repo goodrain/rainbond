@@ -1,6 +1,8 @@
 package handler
 
 import (
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"context"
 	"fmt"
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
@@ -8,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/monitor/utils"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"os"
@@ -274,6 +277,20 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		reqDisk = diskstauts.Used
 	}
 
+	running := 0
+	pods, err := k8s.Default().Clientset.CoreV1().Pods("").List(context.Background(), v1.ListOptions{
+		LabelSelector: "creator=Rainbond",
+	})
+	if err != nil {
+		logrus.Errorf("count running pods error: %v", err)
+	} else {
+		for i := range pods.Items {
+			if pods.Items[i].Status.Phase == "Running" {
+				running++
+			}
+		}
+	}
+
 	result := &model.ClusterResource{
 		CapCPU:              int(capCPU),
 		CapMem:              int(capMem) / 1024 / 1024,
@@ -298,6 +315,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		ResourceProxyStatus: true,
 		K8sVersion:          k8sutil.GetKubeVersion().String(),
 		NodeReady:           nodeReady,
+		RunningPods:         running,
 	}
 
 	result.AllNode = len(nodes)
