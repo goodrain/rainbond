@@ -88,6 +88,9 @@ func (c *Component) request(url, method, body string) (string, error) {
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 300 {
 		logrus.Error(url, body)
 		logrus.Errorf("Error response from server: %d %s\n", resp.StatusCode, resp.Status)
+		data, _ := io.ReadAll(resp.Body)
+		logrus.Errorf("Error request body: %s\n", body)
+		logrus.Errorf("Error response body: %s\n", string(data))
 		return "", err
 	}
 	data, err := io.ReadAll(resp.Body)
