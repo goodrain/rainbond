@@ -26,11 +26,15 @@ func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	start, serr := time.ParseInLocation(time.RFC3339, result.StartTime, time.Local)
 	if serr == nil {
 		result.StartTime = start.Format("2006-01-02 15:04:05")
+	} else {
+		result.StartTime = time.Now().Format("2006-01-02 15:04:05")
 	}
 
 	end, eerr := time.ParseInLocation(time.RFC3339, result.EndTime, time.Local)
 	if eerr == nil {
 		result.EndTime = end.Format("2006-01-02 15:04:05")
+	} else {
+		result.EndTime = time.Now().Format("2006-01-02 15:04:05")
 	}
 
 	body, _ := json.Marshal(result)
@@ -50,11 +54,15 @@ func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	start, serr := time.ParseInLocation(time.RFC3339, up.StartTime, time.Local)
 	if serr == nil {
 		up.StartTime = start.Format("2006-01-02 15:04:05")
+	} else {
+		up.StartTime = time.Now().Format("2006-01-02 15:04:05")
 	}
 
 	end, eerr := time.ParseInLocation(time.RFC3339, up.EndTime, time.Local)
 	if eerr == nil {
 		up.EndTime = end.Format("2006-01-02 15:04:05")
+	} else {
+		up.EndTime = time.Now().Format("2006-01-02 15:04:05")
 	}
 
 	body, _ := json.Marshal(up)
