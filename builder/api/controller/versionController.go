@@ -39,6 +39,7 @@ func GetVersionByEventID(w http.ResponseWriter, r *http.Request) {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(eventID)
 	if err != nil {
 		httputil.ReturnError(r, w, 404, err.Error())
+		return
 	}
 	httputil.ReturnSuccess(r, w, version)
 }
