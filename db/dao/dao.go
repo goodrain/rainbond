@@ -174,6 +174,7 @@ type TenantServiceDao interface {
 	GetServiceTypeByID(serviceID string) (*model.TenantServices, error)
 	ListByAppID(appID string) ([]*model.TenantServices, error)
 	ListByAppIDs(appID []string) ([]*model.TenantServices, error)
+	ListComponentIDsByAppID(appID string) ([]string, error)
 	BindAppByServiceIDs(appID string, serviceIDs []string) error
 	CreateOrUpdateComponentsInBatch(components []*model.TenantServices) error
 	DeleteByComponentIDs(tenantID, appID string, componentIDs []string) error

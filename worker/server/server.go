@@ -125,7 +125,6 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
 	var app *model.Application
 	var services []*model.TenantServices
-	startTime := time.Now()
 	pyroscope.TagWrapper(ctx, pyroscope.Labels("controller", "WORKER-GetAppStatus"), func(ctx context.Context) {
 		app, err = db.GetManager().ApplicationDao().GetAppByID(in.AppId)
 		if err != nil {
@@ -143,7 +142,6 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (
 		}
 		status, err = r.getRainbondAppStatus(app.AppID, app.AppName, serviceIDs)
 	})
-	logrus.Infof("GetAppStatus %s %s", in.AppId, time.Since(startTime))
 	return status, err
 }
 
