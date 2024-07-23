@@ -595,8 +595,18 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		})
 	}
 
-	appsDiskUsage := a.getDiskUsage()
-	diskUsage := appsDiskUsage[app.AppID]
+	componentIDs, err := db.GetManager().TenantServiceDao().ListComponentIDsByAppID(app.AppID)
+	if err != nil {
+		return nil, err
+	}
+	vols, err := db.GetManager().TenantServiceVolumeDao().ListVolumesByComponentIDs(componentIDs)
+	if err != nil {
+		return nil, err
+	}
+	var diskUsage int64
+	for _, vol := range vols {
+		diskUsage += vol.VolumeCapacity
+	}
 	var cpu *int64
 	if status.SetCPU {
 		cpu = commonutil.Int64(status.Cpu)
@@ -607,10 +617,11 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	}
 
 	res := &model.AppStatus{
-		Status:     status.Status,
-		CPU:        cpu,
-		Memory:     memory,
-		Disk:       int64(diskUsage),
+		Status: status.Status,
+		CPU:    cpu,
+		Memory: memory,
+		// diskUsage 在数据库中存储的单位是 GB，但是控制台是以 KB 为单位展示的，因此需要单位转换
+		Disk:       diskUsage * 1024 * 1024,
 		Phase:      status.Phase,
 		Overrides:  status.Overrides,
 		Version:    status.Version,
