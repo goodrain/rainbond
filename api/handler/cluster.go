@@ -278,6 +278,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 	}
 
 	running := 0
+	//k8s.Default().Clientset.CoreV1().Pods("").
 	pods, err := k8s.Default().Clientset.CoreV1().Pods("").List(context.Background(), v1.ListOptions{
 		LabelSelector: "creator=Rainbond",
 	})
