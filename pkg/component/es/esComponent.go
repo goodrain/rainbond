@@ -17,6 +17,7 @@ type Component struct {
 	url      string
 	username string
 	password string
+	client   *http.Client
 }
 
 func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
@@ -30,6 +31,11 @@ func (c *Component) SingleStart(url, username, password string) {
 	c.url = url
 	c.username = username
 	c.password = password
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	c.client = client
 }
 
 func (c *Component) CloseHandle() {
@@ -70,11 +76,8 @@ func (c *Component) request(url, method, body string) (string, error) {
 	}
 	req.SetBasicAuth(c.username, c.password)
 	req.Header.Set("Content-Type", "application/json")
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req)
+
+	resp, err := c.client.Do(req)
 	if err != nil {
 		logrus.Errorf("Error making request: %s", err.Error())
 		return "", err
