@@ -20,6 +20,7 @@ func updateCharts(repos []*repo.ChartRepository, out io.Writer, failOnRepoUpdate
 	for _, re := range repos {
 		wg.Add(1)
 		_ = gogo.Go(func(ctx context.Context) error {
+			defer wg.Done()
 			if _, err := re.DownloadIndexFile(); err != nil {
 				repoFailList = append(repoFailList, re.Config.URL)
 			}
