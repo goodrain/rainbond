@@ -67,7 +67,7 @@ func NewCmdRecover() cli.Command {
 }
 
 func recoverPvc() error {
-	cmd := exec.Command("tar", "-zxvf", "pvc.tgz")
+	cmd := exec.Command("tar", "-zxvf", "pvc_pv_export.tgz")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
