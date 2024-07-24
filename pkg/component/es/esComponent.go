@@ -24,6 +24,11 @@ func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	c.url = cfg.APIConfig.ElasticSearchURL
 	c.username = cfg.APIConfig.ElasticSearchUsername
 	c.password = cfg.APIConfig.ElasticSearchPassword
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	c.client = client
 	return nil
 }
 
