@@ -94,6 +94,7 @@ func GetVersionByServiceID(w http.ResponseWriter, r *http.Request) {
 	versions, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(serviceID)
 	if err != nil {
 		httputil.ReturnError(r, w, 404, err.Error())
+		return
 	}
 	httputil.ReturnSuccess(r, w, versions)
 }

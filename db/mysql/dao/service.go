@@ -17,3 +17,11 @@ func (t *TenantServicesDaoImpl) ListByAppIDs(appID []string) ([]*model.TenantSer
 	}
 	return services, nil
 }
+
+func (t *TenantServicesDaoImpl) ListComponentIDsByAppID(appID string) ([]string, error) {
+	var componentIDs []string
+	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=?", appID).Pluck("service_id", &componentIDs).Error; err != nil {
+		return nil, err
+	}
+	return componentIDs, nil
+}
