@@ -134,6 +134,7 @@ func cleanPVC(pvc *corev1.PersistentVolumeClaim) {
 	pvc.Status = corev1.PersistentVolumeClaimStatus{}
 	pvc.Kind = "PersistentVolumeClaim"
 	pvc.APIVersion = "v1"
+	pvc.Finalizers = nil
 }
 
 func cleanPV(pv *corev1.PersistentVolume) {
@@ -145,8 +146,8 @@ func cleanPV(pv *corev1.PersistentVolume) {
 	pv.Status = corev1.PersistentVolumeStatus{}
 	pv.Kind = "PersistentVolume"
 	pv.APIVersion = "v1"
-	pv.Spec.ClaimRef.ResourceVersion = ""
-	pv.Spec.ClaimRef.UID = ""
+	pv.Spec.ClaimRef = nil
+	pv.Finalizers = nil
 }
 
 func writeToTar(tw *tar.Writer, name string, body []byte) error {
