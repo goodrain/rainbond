@@ -58,7 +58,15 @@ func NewCmdRecover() cli.Command {
 				Usage: "recover region pvc. example<grctl recover pvc>",
 				Action: func(c *cli.Context) error {
 					Common(c)
-					return recoverPvc()
+					return recoverPvc(c)
+				},
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:     "file",
+						Value:    "",
+						Usage:    "pvc pv file path",
+						Required: false,
+					},
 				},
 			},
 		},
@@ -66,8 +74,12 @@ func NewCmdRecover() cli.Command {
 	return c
 }
 
-func recoverPvc() error {
-	cmd := exec.Command("tar", "-zxvf", "pvc.tgz")
+func recoverPvc(c *cli.Context) error {
+	file := c.String("file")
+	if file == "" {
+		file = "pvc_pv_export.tgz"
+	}
+	cmd := exec.Command("tar", "-zxvf", file)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
