@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// EventDaoESImpl -
 type EventDaoESImpl struct {
 	DB *gorm.DB
 }
@@ -515,7 +516,7 @@ func (c *EventDaoESImpl) DelAbnormalEvent(serviceID, Opt string) error {
 
 // DelAllAbnormalEvent delete all Abnormal event in components when stop.
 func (c *EventDaoESImpl) DelAllAbnormalEvent(serviceID string, Opts []string) error {
-	optsJson, _ := json.Marshal(Opts)
+	optsJSON, _ := json.Marshal(Opts)
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -527,7 +528,7 @@ func (c *EventDaoESImpl) DelAllAbnormalEvent(serviceID string, Opts []string) er
       ]
     }
   }
-}`, model.TargetTypePod, serviceID, string(optsJson), model.EventStatusFailure.String())
+}`, model.TargetTypePod, serviceID, string(optsJSON), model.EventStatusFailure.String())
 	_, err := es.Default().POST("/appstore_tenant_services_event/_delete_by_query", body)
 	if err != nil {
 		return err
@@ -548,7 +549,7 @@ func (c *EventDaoESImpl) SetEventStatus(ctx context.Context, status model.EventS
 
 // GetExceptionEventsByTime -
 func (c *EventDaoESImpl) GetExceptionEventsByTime(eventTypes []string, createTime time.Time) ([]*model.ServiceEvent, error) {
-	eventTypesJson, _ := json.Marshal(eventTypes)
+	eventTypesJSON, _ := json.Marshal(eventTypes)
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -558,7 +559,7 @@ func (c *EventDaoESImpl) GetExceptionEventsByTime(eventTypes []string, createTim
       ]
     }
   }
-}`, string(eventTypesJson), createTime.Format("2006-01-02 15:04:05"))
+}`, string(eventTypesJSON), createTime.Format("2006-01-02 15:04:05"))
 	return c.array(body)
 }
 
