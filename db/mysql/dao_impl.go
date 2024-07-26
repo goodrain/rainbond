@@ -19,10 +19,10 @@
 package mysql
 
 import (
-	"github.com/jinzhu/gorm"
-
 	"github.com/goodrain/rainbond/db/dao"
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
+	"github.com/goodrain/rainbond/pkg/component/es"
+	"github.com/jinzhu/gorm"
 )
 
 // VolumeTypeDao volumeTypeDao
@@ -328,6 +328,11 @@ func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResul
 
 // ServiceEventDao TenantServicePluginRelationDao
 func (m *Manager) ServiceEventDao() dao.EventDao {
+	if es.Default() != nil {
+		return &mysqldao.EventDaoESImpl{
+			DB: m.db,
+		}
+	}
 	return &mysqldao.EventDaoImpl{
 		DB: m.db,
 	}
@@ -403,7 +408,7 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
-// AppDao app export and import info
+// KeyValueDao app export and import info
 func (m *Manager) KeyValueDao() dao.KeyValueDao {
 	return &mysqldao.KeyValueImpl{
 		DB: m.db,

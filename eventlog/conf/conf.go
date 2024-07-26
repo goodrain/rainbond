@@ -29,6 +29,11 @@ type Conf struct {
 	WebHook    WebHookConf
 	Cluster    ClusterConf
 	Kubernetes KubernetsConf
+
+	ElasticSearchURL      string
+	ElasticSearchUsername string
+	ElasticSearchPassword string
+	ElasticEnable         bool
 }
 
 // WebHookConf webhook conf

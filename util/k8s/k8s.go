@@ -56,7 +56,7 @@ func NewRestConfig(kubecfg string) (restConfig *rest.Config, err error) {
 	return clientcmd.BuildConfigFromFlags("", kubecfg)
 }
 
-//NewRestClient new rest client
+// NewRestClient new rest client
 func NewRestClient(restConfig *rest.Config) (*rest.RESTClient, error) {
 	return rest.RESTClientFor(restConfig)
 }
@@ -146,7 +146,7 @@ func GetKubeVersion() *utilversion.Version {
 	return utilversion.MustParseSemantic(serverVersion.GitVersion)
 }
 
-//GetClientSet -
+// GetClientSet -
 func GetClientSet() kubernetes.Interface {
 	if clientset == nil {
 		once.Do(func() {
@@ -157,7 +157,7 @@ func GetClientSet() kubernetes.Interface {
 	return clientset
 }
 
-//MustNewKubeConfig -
+// MustNewKubeConfig -
 func MustNewKubeConfig(kubeconfigPath string) *rest.Config {
 	if kubeconfigPath != "" {
 		cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)

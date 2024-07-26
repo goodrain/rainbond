@@ -20,6 +20,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	"os"
 	"os/signal"
 	"path"
@@ -101,6 +102,11 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
 	fs.StringVar(&s.Conf.Cluster.Discover.NodeID, "node-id", "", "the unique ID for this node.")
 	fs.DurationVar(&s.Conf.Cluster.PubSub.PollingTimeout, "zmq4-polling-timeout", 200*time.Millisecond, "The timeout determines the time-out on the polling of sockets")
+
+	fs.StringVar(&s.Conf.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
+	fs.StringVar(&s.Conf.ElasticSearchUsername, "es-username", "", "es username")
+	fs.StringVar(&s.Conf.ElasticSearchPassword, "es-password", "", "es pwd")
+	fs.BoolVar(&s.Conf.ElasticEnable, "es-enable", false, "enable es")
 }
 
 // InitLog 初始化log
@@ -160,6 +166,10 @@ func (s *LogServer) InitConf() {
 func (s *LogServer) Run() error {
 	s.Logger.Debug("Start run server.")
 	log := s.Logger
+
+	if s.Conf.ElasticEnable {
+		es.New().SingleStart(s.Conf.ElasticSearchURL, s.Conf.ElasticSearchUsername, s.Conf.ElasticSearchPassword)
+	}
 
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {

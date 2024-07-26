@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/mq/mqcomponent/grpcserver"
 	"github.com/goodrain/rainbond/mq/mqcomponent/metrics"
 	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -139,4 +140,9 @@ func MQGrpcServer() rainbond.ComponentCancel {
 // MQClient -
 func MQClient() rainbond.Component {
 	return mqclient.New()
+}
+
+// ES -
+func ES() rainbond.Component {
+	return es.New()
 }

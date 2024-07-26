@@ -20,7 +20,9 @@ package mysql
 
 import (
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
@@ -52,7 +54,37 @@ func CreateManager(config config.Config) (*Manager, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		// 获取底层的 sql.DB 对象
+		sqlDB := db.DB()
+		if err != nil {
+			logrus.Errorf("failed to get sql.DB from gorm.DB: %v", err)
+			return nil, err
+		}
+		maxOpenConns := 2500
+		maxIdleConns := 500
+		maxLifeTime := 5
+		if os.Getenv("DB_MAX_OPEN_CONNS") != "" {
+			openCon, err := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNS"))
+			if err == nil {
+				maxOpenConns = openCon
+			}
+		}
+		if os.Getenv("DB_MAX_IDLE_CONNS") != "" {
+			idleCon, err := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNS"))
+			if err == nil {
+				maxIdleConns = idleCon
+			}
+		}
+		if os.Getenv("DB_CONN_MAX_LIFE_TIME") != "" {
+			lifeTime, err := strconv.Atoi(os.Getenv("DB_CONN_MAX_LIFE_TIME"))
+			if err == nil {
+				maxLifeTime = lifeTime
+			}
+		}
+		// 配置连接池参数
+		sqlDB.SetMaxOpenConns(maxOpenConns)                                // 设置最大打开连接数
+		sqlDB.SetMaxIdleConns(maxIdleConns)                                // 设置最大空闲连接数
+		sqlDB.SetConnMaxLifetime(time.Duration(maxLifeTime) * time.Minute) //
 	}
 	if config.DBType == "cockroachdb" {
 		var err error

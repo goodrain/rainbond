@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/prometheus/client_golang/prometheus"
@@ -49,6 +50,10 @@ func Run(s *option.Builder) error {
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
+	}
+
+	if s.ElasticEnable {
+		es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
 	}
 
 	if err := db.CreateManager(dbconfig); err != nil {
