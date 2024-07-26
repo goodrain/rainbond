@@ -402,7 +402,7 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
-// AppDao app export and import info
+// KeyValueDao app export and import info
 func (m *Manager) KeyValueDao() dao.KeyValueDao {
 	return &mysqldao.KeyValueImpl{
 		DB: m.db,
