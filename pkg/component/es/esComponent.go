@@ -51,6 +51,7 @@ func createHTTPClient() *http.Client {
 	return client
 }
 
+// Start -
 func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	c.url = cfg.APIConfig.ElasticSearchURL
 	c.username = cfg.APIConfig.ElasticSearchUsername
@@ -59,6 +60,7 @@ func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	return nil
 }
 
+// SingleStart -
 func (c *Component) SingleStart(url, username, password string) {
 	c.url = url
 	c.username = username
@@ -66,6 +68,7 @@ func (c *Component) SingleStart(url, username, password string) {
 	c.client = createHTTPClient()
 }
 
+// CloseHandle -
 func (c *Component) CloseHandle() {
 }
 
@@ -80,18 +83,22 @@ func Default() *Component {
 	return defaultEsComponent
 }
 
+// GET -
 func (c *Component) GET(url string) (string, error) {
 	return c.request(url, "GET", "")
 }
 
+// POST -
 func (c *Component) POST(url, body string) (string, error) {
 	return c.request(url, "POST", body)
 }
 
+// PUT -
 func (c *Component) PUT(url, body string) (string, error) {
 	return c.request(url, "PUT", body)
 }
 
+// DELETE -
 func (c *Component) DELETE(url string) (string, error) {
 	return c.request(url, "DELETE", "")
 }
