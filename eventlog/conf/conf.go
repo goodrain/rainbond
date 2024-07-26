@@ -33,6 +33,7 @@ type Conf struct {
 	ElasticSearchURL      string
 	ElasticSearchUsername string
 	ElasticSearchPassword string
+	ElasticEnable         bool
 }
 
 // WebHookConf webhook conf

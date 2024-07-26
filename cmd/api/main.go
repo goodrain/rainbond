@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -46,9 +47,13 @@ func main() {
 		AppName:   "rbd-api",
 		APIConfig: s.Config,
 	})
+
+	if s.Config.ElasticEnable {
+		es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
+	}
+
 	// 启动 rbd-api
 	err := rainbond.New(context.Background(), configs.Default()).
-		Registry(component.ES()).
 		Registry(component.Database()).
 		Registry(component.Grpc()).
 		Registry(component.Event()).

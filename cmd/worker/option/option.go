@@ -57,6 +57,7 @@ type Config struct {
 	ElasticSearchURL      string
 	ElasticSearchUsername string
 	ElasticSearchPassword string
+	ElasticEnable         bool
 }
 
 // Helm helm configuration.
@@ -112,6 +113,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
 	fs.StringVar(&a.ElasticSearchUsername, "es-username", "", "es username")
 	fs.StringVar(&a.ElasticSearchPassword, "es-password", "", "es pwd")
+	fs.BoolVar(&a.ElasticEnable, "es-enable", false, "enable es")
 }
 
 // SetLog 设置log

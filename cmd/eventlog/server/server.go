@@ -106,6 +106,7 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.ElasticSearchURL, "es-url", "http://47.92.106.114:9200", "es url")
 	fs.StringVar(&s.Conf.ElasticSearchUsername, "es-username", "", "es username")
 	fs.StringVar(&s.Conf.ElasticSearchPassword, "es-password", "", "es pwd")
+	fs.BoolVar(&s.Conf.ElasticEnable, "es-enable", false, "enable es")
 }
 
 // InitLog 初始化log
@@ -166,7 +167,9 @@ func (s *LogServer) Run() error {
 	s.Logger.Debug("Start run server.")
 	log := s.Logger
 
-	es.New().SingleStart(s.Conf.ElasticSearchURL, s.Conf.ElasticSearchUsername, s.Conf.ElasticSearchPassword)
+	if s.Conf.ElasticEnable {
+		es.New().SingleStart(s.Conf.ElasticSearchURL, s.Conf.ElasticSearchUsername, s.Conf.ElasticSearchPassword)
+	}
 
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {

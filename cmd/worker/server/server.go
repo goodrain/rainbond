@@ -57,8 +57,10 @@ func Run(s *option.Worker) error {
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
 	}
+	if s.Config.ElasticEnable {
+		es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
 
-	es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
+	}
 
 	//step 1:db manager init ,event log client init
 	if err := db.CreateManager(dbconfig); err != nil {

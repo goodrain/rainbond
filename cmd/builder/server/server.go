@@ -52,7 +52,9 @@ func Run(s *option.Builder) error {
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
 	}
 
-	es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
+	if s.ElasticEnable {
+		es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
+	}
 
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
