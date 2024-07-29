@@ -261,7 +261,7 @@ func (h *HelmAction) GetUploadChartResource(name, version, namespace, eventID st
 		return nil, err
 	}
 	chartBuildResourceList := handleFileORYamlToObject("upload-chart", []byte(release.Manifest), h.config)
-	appResource := HandleDetailResource(namespace, chartBuildResourceList, false, h.kubeClient, h.mapper)
+	appResource := HandleDetailResource(namespace, chartBuildResourceList, h.kubeClient, h.mapper)
 	return appResource, nil
 }
 
