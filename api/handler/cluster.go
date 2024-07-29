@@ -1093,7 +1093,6 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 			clientPem := secret.Data["server.pem"]
 			clientKey := secret.Data["server.key.pem"]
 			regionInfo := make(map[string]interface{})
-			regionInfo["regionName"] = time.Now().Unix()
 			regionInfo["regionType"] = []string{"custom"}
 			regionInfo["sslCaCert"] = string(caPem)
 			regionInfo["keyFile"] = string(clientKey)
@@ -1109,7 +1108,11 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 			regionInfo["provider"] = "helm"
 			regionInfo["providerClusterId"] = ""
 			regionInfo["token"] = os.Getenv("HELM_TOKEN")
-			regionInfo["region_id"] = os.Getenv("REGION_ID")
+			regionInfo["regionName"] = os.Getenv("REGION_ID")
+			if os.Getenv("REGION_ID") == "" {
+				regionInfo["regionName"] = time.Now().Unix()
+			}
+			//regionInfo["region_id"] = os.Getenv("REGION_ID")
 			if os.Getenv("ENTERPRISE_ID") != "" {
 				regionInfo["enterpriseId"] = os.Getenv("ENTERPRISE_ID")
 			}
