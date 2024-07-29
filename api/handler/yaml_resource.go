@@ -116,30 +116,33 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 }
 
 // AppYamlResourceDetailed -
-func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool) (api_model.ApplicationResource, *util.APIHandleError) {
+func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource) (api_model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceDetailed begin")
 	source := api_model.YamlSourceFile
 	if yamlResource.Yaml != "" {
 		source = api_model.YamlSourceHelm
 	}
 	k8sResourceObjects := c.YamlToResource(yamlResource, source, yamlResource.Yaml)
-	appResource := HandleDetailResource(yamlResource.Namespace, k8sResourceObjects, yamlImport, c.clientset, c.mapper)
+	appResource := HandleDetailResource(yamlResource.Namespace, k8sResourceObjects, c.clientset, c.mapper)
 	return appResource, nil
 }
 
 // AppYamlResourceImport -
 func (c *clusterAction) AppYamlResourceImport(namespace, tenantID, appID string, components api_model.ApplicationResource) (api_model.AppComponent, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceImport begin")
+	var k8sResource []dbmodel.K8sResource
+	for _, ks := range components.KubernetesResources {
+		rri, err := c.AddAppK8SResource(context.Background(), namespace, appID, ks.Content)
+		if err != nil || rri == nil || len(rri) == 0 {
+			continue
+		}
+		k8sResource = append(k8sResource, *rri[0])
+	}
 	app, err := db.GetManager().ApplicationDao().GetAppByID(appID)
 	if err != nil {
 		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("GetAppByID error %v", err)}
 	}
 	var ar api_model.AppComponent
-	k8sResource, err := c.CreateK8sResource(components.KubernetesResources, app.AppID)
-	if err != nil {
-		logrus.Errorf("create K8sResources err:%v", err)
-		return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
-	}
 	var componentAttributes []api_model.ComponentAttributes
 	existComponents, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
 	if err != nil {
@@ -310,7 +313,7 @@ func handleFileORYamlToObject(fileName string, yamlFileBytes []byte, config *res
 }
 
 // HandleDetailResource -
-func HandleDetailResource(namespace string, k8sResourceObjects []api_model.K8sResourceObject, yamlImport bool, clientset *kubernetes.Clientset, mapper meta.RESTMapper) api_model.ApplicationResource {
+func HandleDetailResource(namespace string, k8sResourceObjects []api_model.K8sResourceObject, clientset *kubernetes.Clientset, mapper meta.RESTMapper) api_model.ApplicationResource {
 	var K8SResource []dbmodel.K8sResource
 	var ConvertResource []api_model.ConvertResource
 	for _, k8sResourceObject := range k8sResourceObjects {
@@ -460,15 +463,6 @@ func HandleDetailResource(namespace string, k8sResourceObjects []api_model.K8sRe
 				}
 				PodTemplateSpecResource(parameter, stsObject.Spec.VolumeClaimTemplates, clientset)
 			default:
-				if yamlImport {
-					resource, err := ResourceCreate(buildResource, namespace, mapper, clientset)
-					if err != nil {
-						errorOverview = err.Error()
-						state = api_model.CreateError
-					} else {
-						buildResource.Resource = resource
-					}
-				}
 				kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", buildResource.Resource)
 				if err != nil {
 					logrus.Errorf("namespace:%v %v:%v error: %v", namespace, buildResource.Resource.GetKind(), buildResource.Resource.GetName(), err)
