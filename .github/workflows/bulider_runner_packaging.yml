@@ -12,7 +12,7 @@ on:
         default: 'https://github.com/goodrain'
       version:
         description: 'version'
-        default: 'v5.17.2-release'
+        default: 'v5.17.3-release'
         required: true
       environment:
         description: 'environment'
