@@ -264,7 +264,7 @@ func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 func (t *TenantServicesDaoImpl) UpdateComponentStatusModel(serviceID string, status bool) error {
 	return t.DB.Model(&model.TenantServices{}).
 		Where("service_id = ?", serviceID).
-		Update(model.TenantServices{ComponentStatus: status}).
+		Update("component_status", status).
 		Error
 }
 
