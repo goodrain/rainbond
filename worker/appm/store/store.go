@@ -837,7 +837,353 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 			}
 		}
 	}
-	a.OnAdd(newObj)
+	if thirdComponent, ok := newObj.(*v1alpha1.ThirdComponent); ok {
+		serviceID := thirdComponent.Labels["service_id"]
+		createrID := thirdComponent.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, "", createrID, true, a.kruiseClient, a.gatewayClient)
+			if appservice != nil {
+				appservice.SetWorkload(thirdComponent)
+				return
+			}
+		}
+	}
+	if deployment, ok := newObj.(*appsv1.Deployment); ok {
+		serviceID := deployment.Labels["service_id"]
+		version := deployment.Labels["version"]
+		createrID := deployment.Labels["creater_id"]
+		migrator := deployment.Labels["migrator"]
+		appID := deployment.Labels["app_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetDeployment(deployment)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
+				return
+			}
+
+		} else if deployment.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetDeployment(deployment)
+				return
+			}
+		}
+	}
+	if job, ok := newObj.(*batchv1.Job); ok {
+		serviceID := job.Labels["service_id"]
+		version := job.Labels["version"]
+		createrID := job.Labels["creater_id"]
+		migrator := job.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetJob(job)
+				if migrator == "rainbond" {
+					label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
+				return
+			}
+
+		}
+	}
+	if cjob, ok := newObj.(*batchv1.CronJob); ok {
+		serviceID := cjob.Labels["service_id"]
+		version := cjob.Labels["version"]
+		createrID := cjob.Labels["creater_id"]
+		migrator := cjob.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetCronJob(cjob)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					for _, job := range jobList.Items {
+						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						if pods != nil {
+							for _, pod := range pods.Items {
+								pod := pod
+								appservice.SetPods(&pod)
+							}
+						}
+					}
+				}
+				return
+			}
+
+		}
+	}
+	if cjob, ok := newObj.(*batchv1beta1.CronJob); ok {
+		serviceID := cjob.Labels["service_id"]
+		version := cjob.Labels["version"]
+		createrID := cjob.Labels["creater_id"]
+		migrator := cjob.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetBetaCronJob(cjob)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					for _, job := range jobList.Items {
+						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						if pods != nil {
+							for _, pod := range pods.Items {
+								pod := pod
+								appservice.SetPods(&pod)
+							}
+						}
+					}
+				}
+				return
+			}
+		}
+	}
+	if statefulset, ok := newObj.(*appsv1.StatefulSet); ok {
+		serviceID := statefulset.Labels["service_id"]
+		version := statefulset.Labels["version"]
+		createrID := statefulset.Labels["creater_id"]
+		migrator := statefulset.Labels["migrator"]
+		appID := statefulset.Labels["app_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetStatefulSet(statefulset)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(statefulset.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
+				return
+			}
+		} else if statefulset.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetStatefulSet(statefulset)
+				return
+			}
+		}
+	}
+	if replicaset, ok := newObj.(*appsv1.ReplicaSet); ok {
+		serviceID := replicaset.Labels["service_id"]
+		version := replicaset.Labels["version"]
+		createrID := replicaset.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetReplicaSets(replicaset)
+				a.checkReplicasetWhetherDelete(appservice, replicaset)
+				return
+			}
+		}
+	}
+	if secret, ok := newObj.(*corev1.Secret); ok {
+		serviceID := secret.Labels["service_id"]
+		version := secret.Labels["version"]
+		createrID := secret.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetSecret(secret)
+				return
+			}
+		}
+	}
+	if service, ok := newObj.(*corev1.Service); ok {
+		serviceID := service.Labels["service_id"]
+		version := service.Labels["version"]
+		createrID := service.Labels["creater_id"]
+		appID := service.Labels["app_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetService(service)
+				return
+			}
+		} else if service.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetService(service)
+				return
+			}
+		}
+	}
+	if ingress, ok := newObj.(*networkingv1.Ingress); ok {
+		serviceID := ingress.Labels["service_id"]
+		version := ingress.Labels["version"]
+		createrID := ingress.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetIngress(ingress)
+				return
+			}
+		}
+	}
+	if ingress, ok := newObj.(*betav1.Ingress); ok {
+		serviceID := ingress.Labels["service_id"]
+		version := ingress.Labels["version"]
+		createrID := ingress.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetIngress(ingress)
+				return
+			}
+		}
+	}
+	if configmap, ok := newObj.(*corev1.ConfigMap); ok {
+		serviceID := configmap.Labels["service_id"]
+		version := configmap.Labels["version"]
+		createrID := configmap.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetConfigMap(configmap)
+				return
+			}
+		}
+	}
+	if hpa, ok := newObj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetHPA(hpa)
+			}
+			return
+		}
+	}
+	if hpa, ok := newObj.(*autoscalingv2beta2.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetHPAbeta2(hpa)
+			}
+			return
+		}
+	}
+
+	if sc, ok := newObj.(*storagev1.StorageClass); ok {
+		clusterStatus := os.Getenv("CLUSTER_STATUS")
+		if clusterStatus == "backup" {
+			return
+		}
+		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
+		for _, ch := range a.volumeTypeListeners {
+			select {
+			case ch <- vt:
+			default:
+			}
+		}
+	}
+	if claim, ok := newObj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetClaim(claim)
+				return
+			}
+		}
+	}
+	if sm, ok := newObj.(*monitorv1.ServiceMonitor); ok {
+		serviceID := sm.Labels["service_id"]
+		version := sm.Labels["version"]
+		createrID := sm.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
+			if err == conversion.ErrServiceNotFound {
+				smClient, err := a.GetServiceMonitorClient()
+				if err != nil {
+					logrus.Errorf("create service monitor client failure %s", err.Error())
+				}
+				if smClient != nil {
+					err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Delete(context.Background(), sm.GetName(), metav1.DeleteOptions{})
+					if err != nil && !k8sErrors.IsNotFound(err) {
+						logrus.Errorf("delete service monitor failure: %s", err.Error())
+					}
+				}
+			}
+			if appservice != nil {
+				appservice.SetServiceMonitor(sm)
+				return
+			}
+		}
+	}
 }
 func (a *appRuntimeStore) OnDelete(objs interface{}) {
 	a.OnDeletes(objs)
