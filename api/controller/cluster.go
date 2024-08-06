@@ -480,6 +480,13 @@ func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Req
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create lang version failure: %v", err))
 			return
 		}
+		sourceDir := path.Join(LSUploadPath, lang.EventID)
+		destinationDir := path.Join(BaseUploadPath, lang.EventID)
+		err = os.Rename(sourceDir, destinationDir)
+		if err != nil {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("rename lang version failure: %v", err))
+			return
+		}
 		httputil.ReturnSuccess(r, w, "创建成功")
 		return
 	}

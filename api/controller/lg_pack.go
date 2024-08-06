@@ -19,6 +19,7 @@ type LongVersionStruct struct{}
 
 // BaseUploadPath lang version base dir
 const BaseUploadPath = "/grdata/lang"
+const LSUploadPath = "/run/lang"
 
 // UploadLongVersion -
 func (t *LongVersionStruct) UploadLongVersion(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +32,7 @@ func (t *LongVersionStruct) UploadLongVersion(w http.ResponseWriter, r *http.Req
 	//defer 结束时关闭文件
 	defer file.Close()
 	eventID, err := generateRandomString(32)
-	langPath := path.Join(BaseUploadPath, eventID)
+	langPath := path.Join(LSUploadPath, eventID)
 	_, err = os.Stat(langPath)
 	if os.IsNotExist(err) {
 		// 创建文件夹
