@@ -26,9 +26,11 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -482,7 +484,7 @@ func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Req
 		}
 		sourceDir := path.Join(LSUploadPath, lang.EventID)
 		destinationDir := path.Join(BaseUploadPath, lang.EventID)
-		err = os.Rename(sourceDir, destinationDir)
+		err = copyDirectory(sourceDir, destinationDir)
 		if err != nil {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("rename lang version failure: %v", err))
 			return
@@ -529,4 +531,52 @@ func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	httputil.ReturnSuccess(r, w, regionInfo)
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	err = destinationFile.Sync()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyDirectory(srcDir, dstDir string) error {
+	err := os.MkdirAll(dstDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relativePath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstDir, relativePath)
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("skipping symbolic link: %s", path)
+		}
+		return copyFile(path, dstPath)
+	})
+	return err
 }
