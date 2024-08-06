@@ -44,18 +44,15 @@ func CanDoEvent(optType string, synType int, target, targetID string, componentK
 	if event == nil || event.FinalStatus != "" {
 		return true
 	}
-	if !checkTimeout(event) {
-		return false
-	}
-	return true
+	return checkTimeout(event)
 }
 
 func checkTimeout(event *dbmodel.ServiceEvent) bool {
 	if event.SynType == dbmodel.ASYNEVENTTYPE {
 		if event.FinalStatus == "" {
-			startTime := event.StartTime
-			start, err := time.ParseInLocation(time.RFC3339, startTime, time.Local)
+			start, err := time.ParseInLocation("2006-01-02 15:04:05", event.StartTime, time.Local)
 			if err != nil {
+				logrus.Errorf("check parse failure")
 				return false
 			}
 			var end time.Time
@@ -82,15 +79,15 @@ func CreateEvent(target, optType, targetID, tenantID, reqBody, userName, status,
 		reqBody = reqBody[0:1024]
 	}
 	event := dbmodel.ServiceEvent{
-		EventID:      util.NewUUID(),
-		TenantID:     tenantID,
-		Target:       target,
-		TargetID:     targetID,
-		RequestBody:  reqBody,
-		UserName:     userName,
-		StartTime:    time.Now().Format(time.RFC3339),
-		SynType:      synType,
-		OptType:      optType,
+		EventID:     util.NewUUID(),
+		TenantID:    tenantID,
+		Target:      target,
+		TargetID:    targetID,
+		RequestBody: reqBody,
+		UserName:    userName,
+		StartTime:   time.Now().Format(time.RFC3339),
+		SynType:     synType,
+		OptType:     optType,
 	}
 	if optType == "volume-file-upload" {
 		event.Status = status

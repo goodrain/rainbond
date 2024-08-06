@@ -60,8 +60,7 @@ func (s *ServiceEventHandler) isTimeout(event *dbmodel.ServiceEvent) bool {
 	if event.FinalStatus != "" {
 		return false
 	}
-
-	startTime, err := time.ParseInLocation(time.RFC3339, event.StartTime, time.Local)
+	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", event.StartTime, time.Local)
 	if err != nil {
 		logrus.Errorf("[ServiceEventHandler] [isTimeout] parse start time(%s): %v", event.StartTime, err)
 		return false
