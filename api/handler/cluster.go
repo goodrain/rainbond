@@ -890,6 +890,9 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
 		AppIds: appIDs,
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "get app statuses")
+	}
 	for _, status := range statuses.AppStatuses {
 		appStatuses[status.AppId] = status.Status
 	}

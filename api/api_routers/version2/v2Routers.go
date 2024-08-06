@@ -470,7 +470,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/services/{service_alias}", v2.serviceRouter())
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Get("/event", controller.GetManager().Event)
-	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//tenant app
 	r.Get("/pods/{pod_name}", controller.GetManager().PodDetail)
 	r.Post("/apps", controller.GetManager().CreateApp)

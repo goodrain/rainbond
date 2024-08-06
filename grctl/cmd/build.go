@@ -278,6 +278,7 @@ func NewSourceBuildCmd() cli.Command {
 	}
 	return c
 }
+
 func showError(m string) {
 	fmt.Printf("Error: %s\n", m)
 	os.Exit(1)

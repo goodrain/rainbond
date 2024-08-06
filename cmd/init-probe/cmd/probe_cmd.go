@@ -24,24 +24,11 @@ import (
 	"github.com/urfave/cli"
 )
 
-//GetCmds get init probe cmds
+// GetCmds get init probe cmds
 func GetCmds() cli.Commands {
 	var commands cli.Commands
 	commands = []cli.Command{
 		{
-			Name:  "probe",
-			Usage: "probe depend service endpoint whether ready",
-			Action: func(ctx *cli.Context) error {
-				logrus.Info("start probe all depend service")
-				controller, err := healthy.NewDependServiceHealthController()
-				if err != nil {
-					logrus.Fatalf("new probe controller failure %s", err.Error())
-					return err
-				}
-				controller.Check()
-				return nil
-			},
-		}, {
 			Name:  "decoupling_probe",
 			Usage: "decoupling probe depend service endpoint whether ready",
 			Action: func(ctx *cli.Context) error {

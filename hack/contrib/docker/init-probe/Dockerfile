@@ -35,5 +35,5 @@ COPY --from=compress /run/rainbond-init-probe /run/rainbond-init-probe
 WORKDIR /run
 
 ENTRYPOINT ["/run/entrypoint.sh"]
-CMD ["probe"]
+CMD ["decoupling_probe"]
 

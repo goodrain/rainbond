@@ -679,11 +679,7 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	// get component all pods
 	pods := as.GetPods(false)
 	for _, pod := range pods {
-		// if pod is terminated, volume status of pod is NOT_READY
-		// if v1.IsPodTerminated(pod) {
-		// 	continue
-		// }
-		// // Exception pod information due to node loss is no longer displayed, so volume status is NOT_READY
+		// Exception pod information due to node loss is no longer displayed, so volume status is NOT_READY
 		if v1.IsPodNodeLost(pod) {
 			continue
 		}
