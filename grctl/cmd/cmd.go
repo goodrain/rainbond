@@ -40,8 +40,6 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewSourceBuildCmd())
 	cmds = append(cmds, NewCmdAnsible())
 	cmds = append(cmds, NewCmdLicense())
-	cmds = append(cmds, NewCmdGateway())
-	cmds = append(cmds, NewCmdEnvoy())
 	cmds = append(cmds, NewCmdConfig())
 	cmds = append(cmds, NewCmdRegistry())
 	cmds = append(cmds, NewCmdReplace())

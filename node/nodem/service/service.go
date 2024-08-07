@@ -18,84 +18,9 @@
 
 package service
 
-import (
-	"time"
-
-	"github.com/goodrain/rainbond/util"
-
-	yaml "gopkg.in/yaml.v2"
-)
-
 const (
 	Stat_Unknow    string = "unknow"    //健康
 	Stat_healthy   string = "healthy"   //健康
 	Stat_unhealthy string = "unhealthy" //出现异常
 	Stat_death     string = "death"     //请求不通
 )
-
-//Service Service
-type Service struct {
-	Name            string      `yaml:"name"`
-	Endpoints       []*Endpoint `yaml:"endpoints,omitempty"`
-	ServiceHealth   *Health     `yaml:"health"`
-	OnlyHealthCheck bool        `yaml:"only_health_check"`
-	IsInitStart     bool        `yaml:"is_init_start"`
-	Disable         bool        `yaml:"disable"`
-	After           []string    `yaml:"after"`
-	Requires        []string    `yaml:"requires"`
-	Type            string      `yaml:"type,omitempty"`
-	PreStart        string      `yaml:"pre_start,omitempty"`
-	Start           string      `yaml:"start"`
-	Stop            string      `yaml:"stop,omitempty"`
-	RestartPolicy   string      `yaml:"restart_policy,omitempty"`
-	RestartSec      string      `yaml:"restart_sec,omitempty"`
-}
-
-//Equal equal
-func (s *Service) Equal(e *Service) bool {
-	sb, err := yaml.Marshal(s)
-	if err != nil {
-		return false
-	}
-	eb, err := yaml.Marshal(e)
-	if err != nil {
-		return false
-	}
-	if util.BytesSliceEqual(sb, eb) {
-		return true
-	}
-	return false
-}
-
-//Services default config of all services
-type Services struct {
-	Version  string     `yaml:"version"`
-	Services []*Service `yaml:"services"`
-	FromFile string     `yaml:"-"`
-}
-
-//Endpoint endpoint
-type Endpoint struct {
-	Name     string `yaml:"name"`
-	Protocol string `yaml:"protocol"`
-	Port     string `yaml:"port"`
-}
-
-//Health ServiceHealth
-type Health struct {
-	Name         string `yaml:"name"`
-	Model        string `yaml:"model"`
-	Address      string `yaml:"address"`
-	TimeInterval int    `yaml:"time_interval"`
-	MaxErrorsNum int    `yaml:"max_errors_num"`
-}
-
-//HealthStatus health status
-type HealthStatus struct {
-	Name           string
-	Status         string
-	ErrorNumber    int
-	ErrorDuration  time.Duration
-	StartErrorTime time.Time
-	Info           string
-}

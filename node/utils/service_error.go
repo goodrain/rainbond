@@ -26,13 +26,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//APIHandleError handle create err for api
+// APIHandleError handle create err for api
 type APIHandleError struct {
 	Code int
 	Err  error
 }
 
-//CreateAPIHandleError create APIHandleError
+// CreateAPIHandleError create APIHandleError
 func CreateAPIHandleError(code int, err error) *APIHandleError {
 	return &APIHandleError{
 		Code: code,
@@ -40,13 +40,6 @@ func CreateAPIHandleError(code int, err error) *APIHandleError {
 	}
 }
 
-//CreateAPIHandleErrorFromDBError from db error create APIHandleError
-func CreateAPIHandleErrorFromDBError(msg string, err error) *APIHandleError {
-	return &APIHandleError{
-		Code: 500,
-		Err:  fmt.Errorf("%s:%s", msg, err.Error()),
-	}
-}
 func (a *APIHandleError) Error() string {
 	return a.Err.Error()
 }
@@ -55,7 +48,7 @@ func (a *APIHandleError) String() string {
 	return fmt.Sprintf("%d:%s", a.Code, a.Err.Error())
 }
 
-//Handle 处理
+// Handle 处理
 func (a *APIHandleError) Handle(r *http.Request, w http.ResponseWriter) {
 	if a.Code >= 500 {
 		logrus.Error(a.String())

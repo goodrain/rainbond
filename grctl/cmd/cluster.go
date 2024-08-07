@@ -21,22 +21,19 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/monitor/utils"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/grctl/cluster"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	utils "github.com/goodrain/rainbond/util/envutil"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
+	"os/exec"
 )
 
 // NewCmdCluster cmd for cluster
@@ -166,112 +163,6 @@ func getClusterInfo(c *cli.Context) error {
 	}
 	fmt.Println(serviceTable.Render())
 	return nil
-}
-
-func getServicesHealthy(nodes []*client.HostNode) map[string][]map[string]string {
-
-	StatusMap := make(map[string][]map[string]string, 30)
-	roleList := make([]map[string]string, 0, 10)
-
-	for _, n := range nodes {
-		for _, v := range n.NodeStatus.Conditions {
-			status, ok := StatusMap[string(v.Type)]
-			if !ok {
-				StatusMap[string(v.Type)] = []map[string]string{map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName}}
-			} else {
-				list := status
-				list = append(list, map[string]string{"type": string(v.Type), "status": string(v.Status), "message": string(v.Message), "hostname": n.HostName})
-				StatusMap[string(v.Type)] = list
-			}
-
-		}
-		roleList = append(roleList, map[string]string{"role": n.Role.String(), "status": n.NodeStatus.Status})
-
-	}
-	StatusMap["Role"] = roleList
-	return StatusMap
-}
-
-func summaryResult(list []map[string]string) (status string, errMessage string) {
-	upNum := 0
-	err := ""
-	for _, v := range list {
-		if v["type"] == "OutOfDisk" || v["type"] == "DiskPressure" || v["type"] == "MemoryPressure" || v["type"] == "InstallNotReady" {
-			if v["status"] == "False" {
-				upNum++
-			} else {
-				err = ""
-				err = err + v["hostname"] + ":" + v["message"] + "/"
-			}
-		} else {
-			if v["status"] == "True" {
-				upNum++
-			} else {
-				err = ""
-				err = err + v["hostname"] + ":" + v["message"] + "/"
-			}
-		}
-	}
-	if upNum == len(list) {
-		status = "\033[0;32;32m" + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
-	} else {
-		status = "\033[0;31;31m " + strconv.Itoa(upNum) + "/" + strconv.Itoa(len(list)) + " \033[0m"
-	}
-	errMessage = err
-	return
-}
-
-func handleNodeReady(list []map[string]string) bool {
-	trueNum := 0
-	for _, v := range list {
-		if v["status"] == "True" {
-			trueNum++
-		}
-	}
-	if trueNum == len(list) {
-		return true
-	}
-	return false
-}
-
-func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) (string, string) {
-	var clusterStatus string
-	var errMessage string
-	readyStatus := handleNodeReady(ReadyList)
-	if readyStatus {
-		clusterStatus = "\033[0;32;32mhealthy\033[0m"
-		errMessage = ""
-	} else {
-		clusterStatus = "\033[0;31;31munhealthy\033[0m"
-		errMessage = "There is a service exception in the cluster"
-	}
-	var computeFlag bool
-	var manageFlag bool
-	var gatewayFlag bool
-	for _, v := range roleList {
-		if strings.Contains(v["role"], "compute") && v["status"] == "running" {
-			computeFlag = true
-		}
-		if strings.Contains(v["role"], "manage") && v["status"] == "running" {
-			manageFlag = true
-		}
-		if strings.Contains(v["role"], "gateway") && v["status"] == "running" {
-			gatewayFlag = true
-		}
-	}
-	if !manageFlag {
-		clusterStatus = "\033[0;33;33munavailable\033[0m"
-		errMessage = "No management nodes are available in the cluster"
-	}
-	if !computeFlag {
-		clusterStatus = "\033[0;33;33munavailable\033[0m"
-		errMessage = "No compute nodes are available in the cluster"
-	}
-	if !gatewayFlag {
-		clusterStatus = "\033[0;33;33munavailable\033[0m"
-		errMessage = "No gateway nodes are available in the cluster"
-	}
-	return clusterStatus, errMessage
 }
 
 func printComponentStatus(namespace string) {

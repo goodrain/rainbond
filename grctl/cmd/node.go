@@ -21,20 +21,16 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/goodrain/rainbond/util/ansible"
 
 	"github.com/fatih/color"
 
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
-	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
 	"github.com/sirupsen/logrus"
@@ -59,33 +55,6 @@ func showError(m string) {
 func showSuccessMsg(m string) {
 	fmt.Printf("Success: %s\n", m)
 	os.Exit(0)
-}
-
-func getExternalIP(path string, node []*client.HostNode) []string {
-	var result []string
-	if fileExist(path) {
-		externalIP, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		strings.TrimSpace(string(externalIP))
-		result = append(result, strings.TrimSpace(string(externalIP)))
-	} else {
-		for _, v := range node {
-			result = append(result, v.InternalIP)
-		}
-	}
-	return result
-}
-func fileExist(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return false
 }
 
 type nodeStatusShow struct {
@@ -296,38 +265,6 @@ func NewCmdNode() cli.Command {
 					return nil
 				},
 			},
-			// {
-			// 	Name:  "up",
-			// 	Usage: "up hostID",
-			// 	Action: func(c *cli.Context) error {
-			// 		Common(c)
-			// 		id := c.Args().First()
-			// 		if id == "" {
-			// 			logrus.Errorf("need hostID")
-			// 			return nil
-			// 		}
-			// 		err := clients.RegionClient.Nodes().Up(id)
-			// 		handleErr(err)
-			// 		fmt.Printf("up node %s  success\n", id)
-			// 		return nil
-			// 	},
-			// },
-			// {
-			// 	Name:  "down",
-			// 	Usage: "down hostID",
-			// 	Action: func(c *cli.Context) error {
-			// 		Common(c)
-			// 		id := c.Args().First()
-			// 		if id == "" {
-			// 			logrus.Errorf("need hostID")
-			// 			return nil
-			// 		}
-			// 		err := clients.RegionClient.Nodes().Down(id)
-			// 		handleErr(err)
-			// 		fmt.Printf("down node %s  success\n", id)
-			// 		return nil
-			// 	},
-			// },
 			{
 				Name:  "cordon",
 				Usage: "Mark node as unschedulable",
@@ -525,196 +462,9 @@ func NewCmdNode() cli.Command {
 					},
 				},
 			},
-			// {
-			// 	Name:  "add",
-			// 	Usage: "Add a node into the cluster",
-			// 	Flags: []cli.Flag{
-			// 		cli.StringFlag{
-			// 			Name:  "hostname,host",
-			// 			Usage: "The option is required",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "hosts-file-path",
-			// 			Usage: "hosts file path",
-			// 			Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "config-file-path",
-			// 			Usage: "ansible global config file path",
-			// 			Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "internal-ip,iip",
-			// 			Usage: "The option is required",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "external-ip,eip",
-			// 			Usage: "Publish the ip address for external connection",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "root-pass,p",
-			// 			Usage: "Specify the root password of the target host for login, this option conflicts with private-key",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "private-key,key",
-			// 			Usage: "Specify the private key file for login, this option conflicts with root-pass",
-			// 		},
-			// 		cli.StringSliceFlag{
-			// 			Name:  "role,r",
-			// 			Usage: "The option is required, the allowed values are: [manage|compute|gateway]",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "podCIDR,cidr",
-			// 			Usage: "Defines the IP assignment range for the specified node, which is automatically specified if not specified",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "id",
-			// 			Usage: "Specify node ID",
-			// 		},
-			// 		cli.BoolFlag{
-			// 			Name:  "install",
-			// 			Usage: "Automatic installation after addition",
-			// 		},
-			// 	},
-			// 	Action: addNodeCommand,
-			// },
-			// {
-
-			// 	Name:  "install",
-			// 	Usage: "Install a exist node into the cluster",
-			// 	Flags: []cli.Flag{
-			// 		cli.StringFlag{
-			// 			Name:  "hosts-file-path",
-			// 			Usage: "hosts file path",
-			// 			Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name:  "config-file-path",
-			// 			Usage: "ansible global config file path",
-			// 			Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
-			// 		},
-			// 	},
-			// 	Action: installNodeCommand,
-			// },
 		},
 	}
 	return c
-}
-
-func isNodeReady(node *client.HostNode) bool {
-	for _, v := range node.NodeStatus.Conditions {
-		if strings.ToLower(string(v.Type)) == "ready" {
-			if strings.ToLower(string(v.Status)) == "true" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func installNode(node *client.HostNode) {
-	// start add node script
-	logrus.Infof("Begin install node %s", node.ID)
-	// node stauts: installing
-	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing); err != nil {
-		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
-	}
-	// install node
-	option := ansible.NodeInstallOption{
-		HostRole:   node.Role.String(),
-		HostName:   node.HostName,
-		InternalIP: node.InternalIP,
-		RootPass:   node.RootPass,
-		KeyPath:    node.KeyPath,
-		NodeID:     node.ID,
-		Stdin:      os.Stdin,
-		Stdout:     os.Stdout,
-		Stderr:     os.Stderr,
-	}
-
-	err := ansible.RunNodeInstallCmd(option)
-
-	if err != nil {
-		logrus.Errorf("Error executing shell script %s", err.Error())
-		if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallFailed); err != nil {
-			logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
-		}
-		return
-	}
-
-	// node status success
-	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {
-		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
-	}
-	fmt.Println("------------------------------------")
-	fmt.Printf("Install node %s successful \n", node.ID)
-	if node.Role.HasRule("compute") {
-		fmt.Printf("You can do 'grctl node up %s' to get this compute node to join the cluster workload \n", node.ID)
-	}
-}
-
-func addNodeCommand(c *cli.Context) error {
-	Common(c)
-	if !c.IsSet("role") {
-		showError("role must not null")
-	}
-	if c.String("internal-ip") == "" || !coreutil.CheckIP(c.String("internal-ip")) {
-		showError(fmt.Sprintf("internal ip(%s) is invalid", c.String("internal-ip")))
-	}
-	if c.String("root-pass") != "" && c.String("private-key") != "" {
-		showError("Options private-key and root-pass are conflicting")
-	}
-	if c.String("root-pass") == "" && c.String("private-key") == "" {
-		showError("Options private-key and root-pass must set one")
-	}
-	var node client.APIHostNode
-	role := c.StringSlice("role")
-	for _, r := range role {
-		if strings.Contains(r, ",") {
-			node.Role.Add(strings.Split(r, ",")...)
-			continue
-		}
-		node.Role.Add(r)
-	}
-	if err := node.Role.Validation(); err != nil {
-		showError(err.Error())
-	}
-	node.HostName = c.String("hostname")
-	node.RootPass = c.String("root-pass")
-	node.InternalIP = c.String("internal-ip")
-	node.ExternalIP = c.String("external-ip")
-	node.PodCIDR = c.String("podCIDR")
-	node.Privatekey = c.String("private-key")
-	node.AutoInstall = false
-	node.ID = c.String("id")
-	renode, err := clients.RegionClient.Nodes().Add(&node)
-	handleErr(err)
-	if c.Bool("install") {
-		nodes, err := clients.RegionClient.Nodes().List()
-		handleErr(err)
-		//write ansible hosts file
-		WriteHostsFile(c.String("hosts-file-path"), c.String("config-file-path"), nodes)
-		installNode(renode)
-	} else {
-		fmt.Printf("success add %s node %s \n you install it by running: grctl node install %s \n", renode.Role, renode.ID, renode.ID)
-	}
-	return nil
-}
-
-func installNodeCommand(c *cli.Context) error {
-	Common(c)
-	nodeID := c.Args().First()
-	if nodeID == "" {
-		showError("node id can not be empty")
-	}
-	node, err := clients.RegionClient.Nodes().Get(nodeID)
-	handleErr(err)
-	nodes, err := clients.RegionClient.Nodes().List()
-	handleErr(err)
-	//write ansible hosts file
-	WriteHostsFile(c.String("hosts-file-path"), c.String("config-file-path"), nodes)
-	installNode(node)
-	return nil
 }
 
 func listNodeLabelsCommand(c *cli.Context) error {
