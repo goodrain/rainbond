@@ -70,8 +70,8 @@ func updateAPISixRoute(as *v1.AppService) error {
 	}
 	for _, port := range ports {
 		// 重新绑定他的后端地址
-		var backends []v2.ApisixRouteHTTPBackend
 		for _, apisixroute := range apisixRoutes.Items {
+			var backends []v2.ApisixRouteHTTPBackend
 			apisixroute.Spec.HTTP[0].Name = uuid.NewV4().String()[0:8]
 			for _, backend := range apisixroute.Spec.HTTP[0].Backends {
 				if backend.ServicePort.IntVal == int32(port.ContainerPort) {
@@ -85,6 +85,8 @@ func updateAPISixRoute(as *v1.AppService) error {
 				continue
 			}
 			get.Spec.HTTP[0].Backends = backends //重新定义的后端地址
+			test, _ := yaml.Marshal(get)
+			logrus.Infof("-----------------------------AAAAAAAA%v", string(test))
 			_, err2 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), get, metav1.UpdateOptions{})
 			if err2 != nil {
 				logrus.Errorf("update apisix route error: %v", err)
