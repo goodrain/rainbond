@@ -55,7 +55,7 @@ import (
 func updateAPISixRoute(as *v1.AppService) error {
 
 	time.Sleep(5 * time.Second)
-	// 找到这个端口对应的真实的k8s svc的 namne
+	// 找到这个端口对应的真实的k8s svc的 name
 	ports, err := db.GetManager().TenantServicesPortDao().GetOuterPorts(as.ServiceID)
 	if err != nil {
 		return err
