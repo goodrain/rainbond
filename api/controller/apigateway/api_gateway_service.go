@@ -35,13 +35,13 @@ func (g Struct) GetAPIService(w http.ResponseWriter, r *http.Request) {
 	list, err := c.ApisixUpstreams(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
-	for _, v := range list.Items {
-		resp[v.Name] = v.Spec
-	}
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
+	}
+	for _, v := range list.Items {
+		resp[v.Name] = v.Spec
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
