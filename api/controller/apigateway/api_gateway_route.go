@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -324,21 +325,21 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-	name := serviceName + "-tcp"
+	name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
 	if r.URL.Query().Get("port") != "" {
 		name = name + "-" + r.URL.Query().Get("port")
 	}
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
-				Protocol:   "TCP",
+				Protocol:   corev1.Protocol(strings.ToUpper(apisixRouteStream.Protocol)),
 				Name:       name,
 				Port:       apisixRouteStream.Backend.ServicePort.IntVal,
 				TargetPort: apisixRouteStream.Backend.ServicePort,
 				NodePort:   apisixRouteStream.Match.IngressPort,
 			},
 		},
-		Type: "NodePort",
+		Type: corev1.ServiceTypeLoadBalancer,
 	}
 	serviceID := r.URL.Query().Get("service_id")
 
