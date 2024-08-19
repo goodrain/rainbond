@@ -215,7 +215,7 @@ var ServiceTypeCronJob ServiceType = "cronjob"
 type TenantServices struct {
 	Model
 	TenantID  string `gorm:"column:tenant_id;size:32" json:"tenant_id"`
-	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
+	ServiceID string `gorm:"column:service_id;size:32;index" json:"service_id"`
 	// 服务key
 	ServiceKey string `gorm:"column:service_key;size:32" json:"service_key"`
 	// 服务别名
