@@ -57,6 +57,7 @@ func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
 		logrus.Warn("Load config file error.", err.Error())
+		return
 	}
 	kc := c.GlobalString("kubeconfig")
 	if kc != "" {
@@ -64,10 +65,12 @@ func Common(c *cli.Context) {
 	}
 	if err := clients.InitClient(config.Kubernets.KubeConf); err != nil {
 		logrus.Errorf("error config k8s,details %s", err.Error())
+		return
 	}
 	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
 	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
 		logrus.Fatal("error config region")
+		return
 	}
 
 }

@@ -452,6 +452,7 @@ func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting
 	})
 	if err != nil {
 		logrus.Errorf("list maven setting config list failure %s", err.Error())
+		return
 	}
 	for _, sm := range cms.Items {
 		isDefault := false

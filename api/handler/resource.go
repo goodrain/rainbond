@@ -112,7 +112,7 @@ func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, app
 		TaskBody: body,
 	})
 	if err != nil {
-		fmt.Errorf("unexpected error occurred while sending task: %v", err)
+		logrus.Errorf("unexpected error occurred while sending task: %v", err)
 		return
 	}
 }

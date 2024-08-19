@@ -53,6 +53,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, serviceID)
 	if err != nil {
 		logrus.Error("query service deploy version error", err.Error())
+		return nil, util.CreateAPIHandleError(502, err)
 	}
 	shareID := uuid.NewV4().String()
 	var slugPath, shareImageName string
