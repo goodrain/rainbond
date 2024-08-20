@@ -21,9 +21,9 @@ package server
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/pkg/component/es"
+	"github.com/goodrain/rainbond/util/log"
 	"os"
 	"os/signal"
-	"path"
 	"syscall"
 	"time"
 
@@ -110,42 +110,16 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 
 // InitLog 初始化log
 func (s *LogServer) InitLog() {
-	log := logrus.New()
-	if l, err := logrus.ParseLevel(s.Conf.Log.LogLevel); err == nil {
-		log.Level = l
-	} else {
-		logrus.Warning("log.level is not valid.will set it is 'info'")
+	level, err := logrus.ParseLevel(s.Conf.Log.LogLevel)
+	if err != nil {
+		fmt.Println("set log level error." + err.Error())
+		return
 	}
-	switch s.Conf.Log.LogOutType {
-	case "stdout":
-		log.Out = os.Stdout
-	case "file":
-		file, err := os.Stat(s.Conf.Log.LogPath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				if err := os.MkdirAll(s.Conf.Log.LogPath, os.ModeDir); err != nil {
-					logrus.Errorf("Create log dir error.%s,The log configuration does not take effect", err.Error())
-				}
-			}
-		}
-		if file.IsDir() {
-			file, err := os.OpenFile(path.Join(s.Conf.Log.LogPath, "event_log.log"), os.O_RDWR|os.O_WRONLY, 755)
-			if err != nil {
-				logrus.Errorf("Open log file error.%s,The log configuration does not take effect", err.Error())
-			} else {
-				log.Out = file
-			}
-		} else { //直接使用指定文件路径
-			file, err := os.OpenFile(s.Conf.Log.LogPath, os.O_RDWR|os.O_WRONLY, 755)
-			if err != nil {
-				logrus.Errorf("Open log file error.%s,The log configuration does not take effect", err.Error())
-			} else {
-				log.Out = file
-			}
-		}
-	}
-	log.Formatter = &logrus.TextFormatter{}
-	s.Logger = log
+
+	logrus.SetLevel(level)
+	log.InitLogrus()
+
+	s.Logger = logrus.StandardLogger()
 }
 
 // InitConf 初始化配置

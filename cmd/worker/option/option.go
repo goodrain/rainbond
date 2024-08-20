@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	utils "github.com/goodrain/rainbond/util/envutil"
+	"github.com/goodrain/rainbond/util/log"
 	"os"
 	"path"
 
@@ -122,6 +123,7 @@ func (a *Worker) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	log.InitLogrus()
 }
 
 // CheckEnv 检测环境变量

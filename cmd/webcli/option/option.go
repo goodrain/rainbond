@@ -20,6 +20,7 @@ package option
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/util/log"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -74,4 +75,5 @@ func (a *WebCliServer) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	log.InitLogrus()
 }

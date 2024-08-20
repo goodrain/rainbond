@@ -18,7 +18,10 @@
 
 package option
 
-import "github.com/spf13/pflag"
+import (
+	"github.com/goodrain/rainbond/util/log"
+	"github.com/spf13/pflag"
+)
 import "github.com/sirupsen/logrus"
 import "fmt"
 
@@ -63,4 +66,5 @@ func (a *MQServer) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	log.InitLogrus()
 }

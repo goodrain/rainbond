@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/mq/client"
 	utils "github.com/goodrain/rainbond/util/envutil"
+	"github.com/goodrain/rainbond/util/log"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"runtime"
@@ -124,6 +125,7 @@ func (a *Builder) SetLog() {
 		return
 	}
 	logrus.SetLevel(level)
+	log.InitLogrus()
 }
 
 // CheckConfig check config
