@@ -26,13 +26,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
@@ -53,12 +50,16 @@ func NewSourceBuildCmd() cli.Command {
 						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
-				Action: func(ctx *cli.Context) {
+				Action: func(ctx *cli.Context) error {
 					namespace := ctx.String("namespace")
 					cmd := exec.Command("kubectl", "get", "pod", "-l", "job=codebuild", "-o", "wide", "-n", namespace)
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
-					cmd.Run()
+					err := cmd.Run()
+					if err != nil {
+						return err
+					}
+					return nil
 				},
 			},
 			cli.Command{
@@ -71,7 +72,7 @@ func NewSourceBuildCmd() cli.Command {
 						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
-				Action: func(ctx *cli.Context) {
+				Action: func(ctx *cli.Context) error {
 					name := ctx.Args().First()
 					if name == "" {
 						showError("Please specify the task pod name")
@@ -81,7 +82,11 @@ func NewSourceBuildCmd() cli.Command {
 					cmd := exec.Command("kubectl", "logs", "-f", name, "-n", namespace)
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
-					cmd.Run()
+					err := cmd.Run()
+					if err != nil {
+						return err
+					}
+					return nil
 				},
 			},
 			cli.Command{
@@ -277,43 +282,4 @@ func NewSourceBuildCmd() cli.Command {
 		Usage: "Commands related to building source code",
 	}
 	return c
-}
-
-func getLang(dir string) (string, error) {
-	lang, err := code.GetLangType(dir)
-	if err != nil {
-		return "", err
-	}
-	return lang.String(), nil
-}
-
-func getSourceCodeTarFile(dir string) (*os.File, error) {
-	util.CheckAndCreateDir("/tmp/.grctl/")
-	var cmd []string
-	cmd = append(cmd, "tar", "-cf", "/tmp/.grctl/sourcebuild.tar", "--exclude=.svn", "--exclude=.git", "./")
-	source := exec.Command(cmd[0], cmd[1:]...)
-	source.Dir = dir
-	if err := source.Run(); err != nil {
-		return nil, err
-	}
-	return os.OpenFile("/tmp/.grctl/sourcebuild.tar", os.O_RDONLY, 0755)
-}
-
-func clear() {
-	os.RemoveAll("/tmp/.grctl/sourcebuild.tar")
-}
-
-func createDockerCli() *client.Client {
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		fatal("docker client create failure:"+err.Error(), 1)
-	}
-	return cli
-}
-
-func prepare(dir string) {
-	util.CheckAndCreateDir(path.Join(dir, ".cache"))
-	util.CheckAndCreateDir(path.Join(dir, ".release"))
-	os.Chown(path.Join(dir, ".cache"), 200, 200)
-	os.Chown(path.Join(dir, ".release"), 200, 200)
 }

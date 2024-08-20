@@ -56,13 +56,13 @@ import (
 )
 
 // annClass annotation represents the storage class associated with a resource:
-// - in PersistentVolumeClaim it represents required class to match.
-//   Only PersistentVolumes with the same class (i.e. annotation with the same
-//   value) can be bound to the claim. In case no such volume exists, the
-//   controller will provision a new one using StorageClass instance with
-//   the same name as the annotation value.
-// - in PersistentVolume it represents storage class to which the persistent
-//   volume belongs.
+//   - in PersistentVolumeClaim it represents required class to match.
+//     Only PersistentVolumes with the same class (i.e. annotation with the same
+//     value) can be bound to the claim. In case no such volume exists, the
+//     controller will provision a new one using StorageClass instance with
+//     the same name as the annotation value.
+//   - in PersistentVolume it represents storage class to which the persistent
+//     volume belongs.
 const annClass = "volume.beta.kubernetes.io/storage-class"
 
 // This annotation is added to a PV that has been dynamically provisioned by
@@ -177,230 +177,6 @@ const (
 	DefaultMetricsPath = "/metrics"
 )
 
-var errRuntime = fmt.Errorf("cannot call option functions after controller has Run")
-
-// ResyncPeriod is how often the controller relists PVCs, PVs, & storage
-// classes. OnUpdate will be called even if nothing has changed, meaning failed
-// operations may be retried on a PVC/PV every resyncPeriod regardless of
-// whether it changed. Defaults to 15 minutes.
-func ResyncPeriod(resyncPeriod time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.resyncPeriod = resyncPeriod
-		return nil
-	}
-}
-
-// Threadiness is the number of claim and volume workers each to launch.
-// Defaults to 4.
-func Threadiness(threadiness int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.threadiness = threadiness
-		return nil
-	}
-}
-
-// ExponentialBackOffOnError determines whether to exponentially back off from
-// failures of Provision and Delete. Defaults to true.
-func ExponentialBackOffOnError(exponentialBackOffOnError bool) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.exponentialBackOffOnError = exponentialBackOffOnError
-		return nil
-	}
-}
-
-// CreateProvisionedPVRetryCount is the number of retries when we create a PV
-// object for a provisioned volume. Defaults to 5.
-func CreateProvisionedPVRetryCount(createProvisionedPVRetryCount int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.createProvisionedPVRetryCount = createProvisionedPVRetryCount
-		return nil
-	}
-}
-
-// CreateProvisionedPVInterval is the interval between retries when we create a
-// PV object for a provisioned volume. Defaults to 10 seconds.
-func CreateProvisionedPVInterval(createProvisionedPVInterval time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.createProvisionedPVInterval = createProvisionedPVInterval
-		return nil
-	}
-}
-
-// FailedProvisionThreshold is the threshold for max number of retries on
-// failures of Provision. Defaults to 15.
-func FailedProvisionThreshold(failedProvisionThreshold int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.failedProvisionThreshold = failedProvisionThreshold
-		return nil
-	}
-}
-
-// FailedDeleteThreshold is the threshold for max number of retries on failures
-// of Delete. Defaults to 15.
-func FailedDeleteThreshold(failedDeleteThreshold int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.failedDeleteThreshold = failedDeleteThreshold
-		return nil
-	}
-}
-
-// LeaderElection determines whether to enable leader election or not. Defaults
-// to true.
-func LeaderElection(leaderElection bool) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaderElection = leaderElection
-		return nil
-	}
-}
-
-// LeaderElectionNamespace is the kubernetes namespace in which to create the
-// leader election object. Defaults to the same namespace in which the
-// the controller runs.
-func LeaderElectionNamespace(leaderElectionNamespace string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaderElectionNamespace = leaderElectionNamespace
-		return nil
-	}
-}
-
-// LeaseDuration is the duration that non-leader candidates will
-// wait to force acquire leadership. This is measured against time of
-// last observed ack. Defaults to 15 seconds.
-func LeaseDuration(leaseDuration time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaseDuration = leaseDuration
-		return nil
-	}
-}
-
-// RenewDeadline is the duration that the acting master will retry
-// refreshing leadership before giving up. Defaults to 10 seconds.
-func RenewDeadline(renewDeadline time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.renewDeadline = renewDeadline
-		return nil
-	}
-}
-
-// RetryPeriod is the duration the LeaderElector clients should wait
-// between tries of actions. Defaults to 2 seconds.
-func RetryPeriod(retryPeriod time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.retryPeriod = retryPeriod
-		return nil
-	}
-}
-
-// ClaimsInformer sets the informer to use for accessing PersistentVolumeClaims.
-// Defaults to using a internal informer.
-func ClaimsInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.claimInformer = informer
-		c.customClaimInformer = true
-		return nil
-	}
-}
-
-// VolumesInformer sets the informer to use for accessing PersistentVolumes.
-// Defaults to using a internal informer.
-func VolumesInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.volumeInformer = informer
-		c.customVolumeInformer = true
-		return nil
-	}
-}
-
-// ClassesInformer sets the informer to use for accessing StorageClasses.
-// The informer must use the versioned resource appropriate for the Kubernetes cluster version
-// (that is, v1.StorageClass for >= 1.6, and v1beta1.StorageClass for < 1.6).
-// Defaults to using a internal informer.
-func ClassesInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.classInformer = informer
-		c.customClassInformer = true
-		return nil
-	}
-}
-
-// MetricsPort sets the port that metrics server serves on. Default: 0, set to non-zero to enable.
-func MetricsPort(metricsPort int32) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsPort = metricsPort
-		return nil
-	}
-}
-
-// MetricsAddress sets the ip address that metrics serve serves on.
-func MetricsAddress(metricsAddress string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsAddress = metricsAddress
-		return nil
-	}
-}
-
-// MetricsPath sets the endpoint path of metrics server.
-func MetricsPath(metricsPath string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsPath = metricsPath
-		return nil
-	}
-}
-
 // HasRun returns whether the controller has Run
 func (ctrl *ProvisionController) HasRun() bool {
 	ctrl.hasRunLock.Lock()
@@ -419,13 +195,16 @@ func NewProvisionController(
 ) *ProvisionController {
 	id, err := os.Hostname()
 	if err != nil {
-		logrus.Fatalf("Error getting hostname: %v", err)
+		logrus.Errorf("Error getting hostname: %v", err)
 	}
 	// add a uniquifier so that two processes on the same host don't accidentally both become active
 	id = id + "_" + string(uuid.NewUUID())
 	component := "rainbond.io/provisioner" + "_" + id
 
-	v1.AddToScheme(scheme.Scheme)
+	err = v1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		logrus.Errorf("add to scheme failure: %v", err)
+	}
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(logrus.Infof)
 	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: client.CoreV1().Events(v1.NamespaceAll)})
@@ -458,8 +237,10 @@ func NewProvisionController(
 		hasRunLock:                    &sync.Mutex{},
 	}
 
-	for _, option := range options {
-		option(controller)
+	for _, op := range options {
+		if err := op(controller); err != nil {
+			logrus.Errorf("op func failure: %v", err)
+		}
 	}
 
 	ratelimiter := workqueue.NewMaxOfRateLimiter(
@@ -487,10 +268,16 @@ func NewProvisionController(
 	}
 
 	if controller.claimInformer != nil {
-		controller.claimInformer.AddEventHandlerWithResyncPeriod(claimHandler, controller.resyncPeriod)
+		_, err = controller.claimInformer.AddEventHandlerWithResyncPeriod(claimHandler, controller.resyncPeriod)
+		if err != nil {
+			logrus.Errorf("add event handler with resync period failure: %v", err)
+		}
 	} else {
 		controller.claimInformer = informer.Core().V1().PersistentVolumeClaims().Informer()
-		controller.claimInformer.AddEventHandler(claimHandler)
+		_, err = controller.claimInformer.AddEventHandler(claimHandler)
+		if err != nil {
+			logrus.Errorf("add event handler failure: %v", err)
+		}
 	}
 	controller.claims = controller.claimInformer.GetStore()
 
@@ -551,10 +338,16 @@ func NewProvisionController(
 	}
 
 	if controller.volumeInformer != nil {
-		controller.volumeInformer.AddEventHandlerWithResyncPeriod(volumeHandler, controller.resyncPeriod)
+		_, err := controller.volumeInformer.AddEventHandlerWithResyncPeriod(volumeHandler, controller.resyncPeriod)
+		if err != nil {
+			logrus.Errorf("add event handler with resync period failure: %v", err)
+		}
 	} else {
 		controller.volumeInformer = informer.Core().V1().PersistentVolumes().Informer()
-		controller.volumeInformer.AddEventHandler(volumeHandler)
+		_, err = controller.volumeInformer.AddEventHandler(volumeHandler)
+		if err != nil {
+			logrus.Errorf("add event handler failure: %v", err)
+		}
 	}
 	controller.volumes = controller.volumeInformer.GetStore()
 

@@ -20,18 +20,18 @@ import (
 
 var re = regexp.MustCompile(`\s`)
 
-//AppAction app action
+// AppAction app action
 type AppAction struct {
 	MQClient  client.MQClient
 	staticDir string
 }
 
-//GetStaticDir get static dir
+// GetStaticDir get static dir
 func (a *AppAction) GetStaticDir() string {
 	return a.staticDir
 }
 
-//CreateAppManager create app manager
+// CreateAppManager create app manager
 func CreateAppManager(mqClient client.MQClient) *AppAction {
 	staticDir := "/grdata/app"
 	if os.Getenv("LOCAL_APP_CACHE_DIR") != "" {
@@ -43,7 +43,7 @@ func CreateAppManager(mqClient client.MQClient) *AppAction {
 	}
 }
 
-//Complete Complete
+// Complete Complete
 func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	appName := gjson.Get(tr.Body.GroupMetadata, "group_name").String()
 	if appName == "" {
@@ -66,7 +66,7 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 	return nil
 }
 
-//ExportApp ExportApp
+// ExportApp ExportApp
 func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	// 保存元数据到组目录
 	if err := saveMetadata(tr); err != nil {
@@ -85,7 +85,7 @@ func (a *AppAction) ExportApp(tr *model.ExportAppStruct) error {
 	return nil
 }
 
-//ImportApp import app
+// ImportApp import app
 func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
 
 	err := a.MQClient.SendBuilderTopic(client.TaskStruct{
@@ -104,10 +104,12 @@ func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
 
 func saveMetadata(tr *model.ExportAppStruct) error {
 	// 创建应用组目录
-	os.MkdirAll(tr.SourceDir, 0755)
-
+	err := os.MkdirAll(tr.SourceDir, 0755)
+	if err != nil {
+		return err
+	}
 	// 写入元数据到文件
-	err := ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
 	if err != nil {
 		logrus.Error("Failed to save metadata", err)
 		return err

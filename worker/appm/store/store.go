@@ -123,15 +123,6 @@ type Storer interface {
 // EventType type of event associated with an informer
 type EventType string
 
-const (
-	// CreateEvent event associated with new objects in an informer
-	CreateEvent EventType = "CREATE"
-	// UpdateEvent event associated with an object update in an informer
-	UpdateEvent EventType = "UPDATE"
-	// DeleteEvent event associated when an object is removed from an informer
-	DeleteEvent EventType = "DELETE"
-)
-
 // Event holds the context of an event.
 type Event struct {
 	Type EventType
@@ -276,7 +267,10 @@ func NewStore(
 	store.informers.ThirdComponent = rainbondInformer.Rainbond().V1alpha1().ThirdComponents().Informer()
 	store.listers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Lister()
 	store.informers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Informer()
-	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
+	_, err = store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
+	if err != nil {
+		return nil
+	}
 	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
 	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
 	if k8sVersion.AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
@@ -339,24 +333,78 @@ func NewStore(
 		},
 	}
 
-	store.informers.Namespace.AddEventHandler(store.nsEventHandler())
-	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Job.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
-	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
-	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
-	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
-	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	_, err = store.informers.Namespace.AddEventHandler(store.nsEventHandler())
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Job.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
+	_, err = store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	if err != nil {
+		return nil
+	}
 
 	return store
 }
@@ -448,10 +496,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetDeployment(deployment)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -482,10 +536,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetJob(job)
 				if migrator == "rainbond" {
 					label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
@@ -510,10 +570,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -542,10 +608,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetBetaCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -574,10 +646,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetStatefulSet(statefulset)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -606,10 +684,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
+				if err != nil {
+					return
+				}
 				appservice.SetReplicaSets(replicaset)
 				a.checkReplicasetWhetherDelete(appservice, replicaset)
 				return
@@ -623,7 +707,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetSecret(secret)
@@ -639,7 +726,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetService(service)
@@ -660,7 +750,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -675,7 +768,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -690,7 +786,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
@@ -705,7 +804,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetHPA(hpa)
@@ -720,7 +822,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetHPAbeta2(hpa)
@@ -749,7 +854,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetClaim(claim)
@@ -857,7 +965,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
@@ -890,7 +1001,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetJob(job)
@@ -917,7 +1031,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetCronJob(cjob)
@@ -948,7 +1065,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetBetaCronJob(cjob)
@@ -979,7 +1099,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetStatefulSet(statefulset)
@@ -1010,7 +1133,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetReplicaSets(replicaset)
@@ -1026,7 +1152,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetSecret(secret)
@@ -1042,7 +1171,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetService(service)
@@ -1063,7 +1195,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -1078,7 +1213,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -1093,7 +1231,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
@@ -1108,7 +1249,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetHPA(hpa)
@@ -1123,7 +1267,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				err := a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetHPAbeta2(hpa)
@@ -1152,7 +1299,10 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+				err := a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return
+				}
 			}
 			if appservice != nil {
 				appservice.SetClaim(claim)
@@ -1237,7 +1387,10 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			appID := deployment.Labels["app_id"]
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
-				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+				err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+				if err != nil {
+					return
+				}
 				if appservice != nil {
 					appservice.DeleteDeployment(deployment)
 					if appservice.IsClosed() {
@@ -1261,7 +1414,10 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
 				if appservice != nil {
-					a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+					err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+					if err != nil {
+						return
+					}
 					appservice.DeleteStatefulSet(statefulset)
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
@@ -1283,7 +1439,10 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
 				if appservice != nil {
-					a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+					err := a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
+					if err != nil {
+						return
+					}
 					appservice.DeleteReplicaSet(replicaset)
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
@@ -1970,7 +2129,7 @@ func (a *appRuntimeStore) analyzePodStatus(pod *corev1.Pod) {
 func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 	switch ai.Reason {
 	case "OOMKilled":
-		a.dbmanager.NotificationEventDao().AddModel(&model.NotificationEvent{
+		err := a.dbmanager.NotificationEventDao().AddModel(&model.NotificationEvent{
 			Kind:        "service",
 			KindID:      ai.ServiceID,
 			Hash:        ai.Hash(),
@@ -1981,8 +2140,11 @@ func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 			ServiceName: ai.ServiceAlias,
 			TenantName:  ai.TenantID,
 		})
+		if err != nil {
+			return
+		}
 	default:
-		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
+		err := db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
 			Kind:        "service",
 			KindID:      ai.ServiceID,
 			Hash:        ai.Hash(),
@@ -1993,6 +2155,9 @@ func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 			ServiceName: ai.ServiceAlias,
 			TenantName:  ai.TenantID,
 		})
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -2027,7 +2192,10 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 				if err == conversion.ErrServiceNotFound {
-					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					err := a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					if err != nil {
+						return
+					}
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
@@ -2063,7 +2231,10 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true, a.kruiseClient, a.gatewayClient)
 				if err == conversion.ErrServiceNotFound {
-					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					err := a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					if err != nil {
+						return
+					}
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {

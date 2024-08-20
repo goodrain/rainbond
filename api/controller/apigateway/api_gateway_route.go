@@ -49,7 +49,11 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 		}
 		item.Spec.HTTP[0].Plugins = newPlugins
 		item.Status = v2.ApisixStatus{}
-		c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
+		_, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("update route %v failure: %v", item.Name, err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
@@ -217,7 +221,12 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		name := r.URL.Query().Get("name")
 		if name != "" {
-			c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+			if err != nil {
+				logrus.Errorf("delete route %v failure: %v", name, err)
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+				return
+			}
 		}
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(route))
 		return
@@ -275,7 +284,12 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		})
 
 		for _, item := range list.Items {
-			c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), item.Spec.HTTP[0].Name, v1.DeleteOptions{})
+			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), item.Spec.HTTP[0].Name, v1.DeleteOptions{})
+			if err != nil {
+				logrus.Errorf("delete route %v failure: %v", item.Name, err)
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+				return
+			}
 			deleteName = append(deleteName, item.Spec.HTTP[0].Name)
 
 		}
@@ -373,7 +387,12 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			for _, v := range list.Items {
 				for i := range v.Spec.Ports {
 					v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
-					k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+					_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+					if err != nil {
+						logrus.Errorf("update third component failure: %v", err)
+						httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+						return
+					}
 				}
 			}
 		}

@@ -320,14 +320,20 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 			if buildResource.Resource.GetKind() == apimodel.ConfigMap {
 				var cm corev1.ConfigMap
 				cmJSON, _ := json.Marshal(buildResource.Resource)
-				json.Unmarshal(cmJSON, &cm)
+				err := json.Unmarshal(cmJSON, &cm)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				cms = append(cms, cm)
 				continue
 			}
 			if buildResource.Resource.GetKind() == apimodel.HorizontalPodAutoscaler {
 				var hpa autoscalingv1.HorizontalPodAutoscaler
 				cmJSON, _ := json.Marshal(buildResource.Resource)
-				json.Unmarshal(cmJSON, &hpa)
+				err := json.Unmarshal(cmJSON, &hpa)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				hpas = append(hpas, hpa)
 			}
 		}
@@ -339,7 +345,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 			case apimodel.Deployment:
 				deployJSON, _ := json.Marshal(buildResource.Resource)
 				var deployObject appv1.Deployment
-				json.Unmarshal(deployJSON, &deployObject)
+				err := json.Unmarshal(deployJSON, &deployObject)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				memory, cpu := deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -369,7 +378,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 			case apimodel.Job:
 				jobJSON, _ := json.Marshal(buildResource.Resource)
 				var jobObject batchv1.Job
-				json.Unmarshal(jobJSON, &jobObject)
+				err := json.Unmarshal(jobJSON, &jobObject)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				memory, cpu := jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -399,7 +411,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 			case apimodel.CronJob:
 				cjJSON, _ := json.Marshal(buildResource.Resource)
 				var cjObject batchv1.CronJob
-				json.Unmarshal(cjJSON, &cjObject)
+				err := json.Unmarshal(cjJSON, &cjObject)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				memory, cpu := cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -429,7 +444,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 			case apimodel.StateFulSet:
 				stsJSON, _ := json.Marshal(buildResource.Resource)
 				var stsObject appv1.StatefulSet
-				json.Unmarshal(stsJSON, &stsObject)
+				err := json.Unmarshal(stsJSON, &stsObject)
+				if err != nil {
+					return apimodel.ApplicationResource{}
+				}
 				memory, cpu := stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()

@@ -21,10 +21,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//AppStruct -
+// AppStruct -
 type AppStruct struct{}
 
-//ExportApp -
+// ExportApp -
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -41,7 +41,10 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 		// 要先更新数据库再通知builder组件
 		app := model.NewAppStatusFromExport(&tr)
-		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
+		if err := db.GetManager().AppDao().DeleteModelByEventId(app.EventID); err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to delete  event %s: %v", app.EventID, err))
+			return
+		}
 		if err := db.GetManager().AppDao().AddModel(app); err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to export app %s: %v", app.EventID, err))
 			return
@@ -72,7 +75,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Download -
+// Download -
 func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	format := strings.TrimSpace(chi.URLParam(r, "format"))
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
@@ -87,7 +90,7 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, tarFile)
 }
 
-//ImportID -
+// ImportID -
 func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
@@ -151,12 +154,15 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		res.Status = "cleaned"
-		db.GetManager().AppDao().UpdateModel(res)
+		if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to update region_app_status %s: %v", eventID, err))
+			return
+		}
 		httputil.ReturnSuccess(r, w, "successful")
 	}
 }
 
-//UploadID -
+// UploadID -
 func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
@@ -215,12 +221,15 @@ func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		res.Status = "cleaned"
-		db.GetManager().AppDao().UpdateModel(res)
+		if err := db.GetManager().AppDao().UpdateModel(res); err != nil {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to update region_app_status %s: %v", eventID, err))
+			return
+		}
 		httputil.ReturnSuccess(r, w, "successful")
 	}
 }
 
-//NewUpload -
+// NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
@@ -245,7 +254,7 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Upload -
+// Upload -
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
@@ -265,7 +274,11 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		defer reader.Close()
 
 		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventID)
-		os.MkdirAll(dirName, 0755)
+		if err := os.MkdirAll(dirName, 0755); err != nil {
+			logrus.Errorf("make dir failure: %s", err.Error())
+			httputil.ReturnError(r, w, 501, "make dir failure")
+			return
+		}
 
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
 		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
@@ -300,7 +313,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//ImportApp -
+// ImportApp -
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -318,7 +331,11 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 		// 要先更新数据库再通知builder组件
 		app := model.NewAppStatusFromImport(&importApp)
-		db.GetManager().AppDao().DeleteModelByEventId(app.EventID)
+		if err := db.GetManager().AppDao().DeleteModelByEventId(app.EventID); err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to delete region_app_status %s: %v", app.SourceDir, err))
+			return
+		}
+
 		if err := db.GetManager().AppDao().AddModel(app); err != nil {
 			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to import app %s: %v", app.SourceDir, err))
 			return

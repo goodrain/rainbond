@@ -50,13 +50,13 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
-//ExecuteCommandTotal metric
+// ExecuteCommandTotal metric
 var ExecuteCommandTotal float64
 
-//ExecuteCommandFailed metric
+// ExecuteCommandFailed metric
 var ExecuteCommandFailed float64
 
-//App -
+// App -
 type App struct {
 	options *Options
 
@@ -70,7 +70,7 @@ type App struct {
 	config     *restclient.Config
 }
 
-//Options options
+// Options options
 type Options struct {
 	Address     string `hcl:"address"`
 	Port        string `hcl:"port"`
@@ -87,10 +87,10 @@ type Options struct {
 	K8SConfPath     string
 }
 
-//Version -
+// Version -
 var Version = "0.0.2"
 
-//DefaultOptions -
+// DefaultOptions -
 var DefaultOptions = Options{
 	Address:         "",
 	Port:            "8080",
@@ -103,7 +103,7 @@ var DefaultOptions = Options{
 	SessionKey:      "_auth_user_id",
 }
 
-//InitMessage -
+// InitMessage -
 type InitMessage struct {
 	TenantID      string `json:"T_id"`
 	ServiceID     string `json:"S_id"`
@@ -117,7 +117,7 @@ func checkSameOrigin(r *http.Request) bool {
 	return true
 }
 
-//New -
+// New -
 func New(options *Options) (*App, error) {
 	titleTemplate, _ := template.New("title").Parse(options.TitleFormat)
 	app := &App{
@@ -138,7 +138,7 @@ func New(options *Options) (*App, error) {
 	return app, nil
 }
 
-//Run Run
+// Run Run
 func (app *App) Run() error {
 
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
@@ -207,7 +207,10 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	_, stream, err := conn.ReadMessage()
 	if err != nil {
 		logrus.Print("Failed to authenticate websocket connection " + err.Error())
-		conn.Close()
+		err = conn.Close()
+		if err != nil {
+			logrus.Errorf("Failed to authenticate websocket connection, conn close failure: %v", err)
+		}
 		return
 	}
 
@@ -221,16 +224,28 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	//todo auth
 	if init.PodName == "" {
 		logrus.Print("Parameter is error, pod name is empty")
-		conn.WriteMessage(websocket.TextMessage, []byte("pod name can not be empty"))
-		conn.Close()
+		err = conn.WriteMessage(websocket.TextMessage, []byte("pod name can not be empty"))
+		if err != nil {
+			logrus.Errorf("conn write message failure: %v", err)
+		}
+		err = conn.Close()
+		if err != nil {
+			logrus.Errorf("conn close failure: %v", err)
+		}
 		return
 	}
 	key := init.TenantID + "_" + init.ServiceID + "_" + init.PodName
 	md5 := md5Func(key)
 	if md5 != init.Md5 {
 		logrus.Print("Auth is not allowed !")
-		conn.WriteMessage(websocket.TextMessage, []byte("Auth is not allowed!"))
-		conn.Close()
+		err = conn.WriteMessage(websocket.TextMessage, []byte("Auth is not allowed!"))
+		if err != nil {
+			logrus.Errorf("conn write message failure: %v", err)
+		}
+		err = conn.Close()
+		if err != nil {
+			logrus.Errorf("conn close failure: %v", err)
+		}
 		return
 	}
 	// base kubernetes api create exec slave
@@ -240,7 +255,10 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	containerName, ip, args, err := app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
 	if err != nil {
 		logrus.Errorf("get default container failure %s", err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
+		if err != nil {
+			logrus.Errorf("write message failure: %v", err)
+		}
 		ExecuteCommandFailed++
 		return
 	}
@@ -249,7 +267,10 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	slave, err = NewExecContext(request, app.config)
 	if err != nil {
 		logrus.Errorf("open exec context failure %s", err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		if err != nil {
+			logrus.Errorf("write message failure: %v", err)
+		}
 		ExecuteCommandFailed++
 		return
 	}
@@ -263,7 +284,10 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	tty, err := webtty.New(&WsWrapper{conn}, slave, opts...)
 	if err != nil {
 		logrus.Errorf("open web tty context failure %s", err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		if err != nil {
+			logrus.Errorf("write message failure: %v", err)
+		}
 		ExecuteCommandFailed++
 		return
 	}
@@ -276,13 +300,16 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		logrus.Errorf("run web tty failure %s", err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte("run tty failure!"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("run tty failure!"))
+		if err != nil {
+			logrus.Errorf("write message failure: %v", err)
+		}
 		ExecuteCommandFailed++
 		return
 	}
 }
 
-//Exit -
+// Exit -
 func (app *App) Exit() (firstCall bool) {
 	return true
 }
@@ -297,7 +324,10 @@ func (app *App) createKubeClient() error {
 	if err != nil {
 		return err
 	}
-	SetConfigDefaults(config)
+	err = SetConfigDefaults(config)
+	if err != nil {
+		logrus.Errorf("set default config failure: %v", err)
+	}
 	app.config = config
 	restClient, err := restclient.RESTClientFor(config)
 	if err != nil {
@@ -308,7 +338,7 @@ func (app *App) createKubeClient() error {
 	return nil
 }
 
-//SetConfigDefaults -
+// SetConfigDefaults -
 func SetConfigDefaults(config *rest.Config) error {
 	if config.APIPath == "" {
 		config.APIPath = "/api"
@@ -321,7 +351,7 @@ func SetConfigDefaults(config *rest.Config) error {
 	return nil
 }
 
-//GetContainerArgs get default container name
+// GetContainerArgs get default container name
 func (app *App) GetContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
 	var args = []string{"/bin/sh"}
 	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
@@ -345,7 +375,7 @@ func (app *App) GetContainerArgs(namespace, podname, containerName string) (stri
 	return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
 }
 
-//NewRequest new exec request
+// NewRequest new exec request
 func (app *App) NewRequest(podName, namespace, containerName string, command []string) *restclient.Request {
 	// TODO: consider abstracting into a client invocation or client helper
 	req := app.restClient.Post().

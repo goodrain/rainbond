@@ -100,13 +100,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
-		r.updateStatus(ctx, component)
+		err := r.updateStatus(ctx, component)
+		if err != nil {
+			logrus.Errorf("update status failure: %v", err)
+		}
 		return ctrl.Result{}, nil
 	}
 	if discover == nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = "third component source not support"
-		r.updateStatus(ctx, component)
+		err := r.updateStatus(ctx, component)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 	r.discoverPool.AddDiscover(discover)
@@ -115,14 +121,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
-		r.updateStatus(ctx, component)
+		err := r.updateStatus(ctx, component)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 
 	if len(endpoints) == 0 {
 		component.Status.Phase = v1alpha1.ComponentPending
 		component.Status.Reason = "endpoints not found"
-		r.updateStatus(ctx, component)
+		err := r.updateStatus(ctx, component)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 	isUnhealthy := false
@@ -135,7 +147,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 	if isUnhealthy {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = "endpoints has Unhealthy"
-		r.updateStatus(ctx, component)
+		err := r.updateStatus(ctx, component)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 	// create endpoints for service
@@ -168,7 +183,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 			svc := services.Items[0]
 			ep := createEndpointsOnlyOnePort(component, svc, component.Status.Endpoints)
 			if ep != nil {
-				controllerutil.SetControllerReference(component, ep, r.Scheme)
+				err := controllerutil.SetControllerReference(component, ep, r.Scheme)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 				r.applyEndpointService(ctx, log, &svc, ep)
 			}
 		} else {
@@ -181,7 +199,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 						continue
 					}
 					endpoint := createEndpoint(component, &service, sourceEndpoint)
-					controllerutil.SetControllerReference(component, &endpoint, r.Scheme)
+					err := controllerutil.SetControllerReference(component, &endpoint, r.Scheme)
+					if err != nil {
+						return reconcile.Result{}, err
+					}
 					r.applyEndpointService(ctx, log, &service, &endpoint)
 				}
 			}

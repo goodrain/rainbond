@@ -97,13 +97,16 @@ func (s *SocketServer) pushEventMessage(w http.ResponseWriter, r *http.Request) 
 		s.log.Error("Create web socket conn error.", err.Error())
 		return
 	}
-	defer conn.Close()
+	defer conn.Close().Error()
 	_, me, err := conn.ReadMessage()
 	if err != nil {
 		s.log.Error("Read EventID from first message error.", err.Error())
 		return
 	}
-	conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	err = conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	if err != nil {
+		return
+	}
 	info := strings.Split(string(me), "=")
 	if len(info) != 2 {
 		s.log.Error("Read EventID from first message error. The data format is not correct")
@@ -139,7 +142,10 @@ func (s *SocketServer) pushEventMessage(w http.ResponseWriter, r *http.Request) 
 			}
 			if message != nil {
 				//s.log.Debugf("websocket push a message,%s", message.Message)
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err != nil {
+					return
+				}
 				err = conn.WriteMessage(websocket.TextMessage, message.Content)
 				if err != nil {
 					s.log.Warn("Push message to client error.", err.Error())
@@ -151,7 +157,10 @@ func (s *SocketServer) pushEventMessage(w http.ResponseWriter, r *http.Request) 
 		case <-s.context.Done():
 			return
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
@@ -181,7 +190,7 @@ func (s *SocketServer) pushDockerLog(w http.ResponseWriter, r *http.Request) {
 		s.log.Error("Create web socket conn error.", err.Error())
 		return
 	}
-	defer conn.Close()
+	defer conn.Close().Error()
 	_, me, err := conn.ReadMessage()
 	if err != nil {
 		s.log.Error("Read ServiceID from first message error.", err.Error())
@@ -210,7 +219,10 @@ func (s *SocketServer) pushDockerLog(w http.ResponseWriter, r *http.Request) {
 		s.log.Debug("Push docker log message request closed")
 		s.storemanager.RealseWebSocketMessageChan("docker", ServiceID, SubID)
 	}()
-	conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	err = conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	if err != nil {
+		return
+	}
 	stop := make(chan struct{})
 	go s.reader(conn, stop)
 	pingTicker := time.NewTicker(s.timeout * 8 / 10)
@@ -238,7 +250,10 @@ func (s *SocketServer) pushDockerLog(w http.ResponseWriter, r *http.Request) {
 		case <-s.context.Done():
 			return
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
@@ -267,7 +282,7 @@ func (s *SocketServer) pushMonitorMessage(w http.ResponseWriter, r *http.Request
 		s.log.Error("Create web socket conn error.", err.Error())
 		return
 	}
-	defer conn.Close()
+	defer conn.Close().Error()
 	_, me, err := conn.ReadMessage()
 	if err != nil {
 		s.log.Error("Read tag key from first message error.", err.Error())
@@ -296,7 +311,10 @@ func (s *SocketServer) pushMonitorMessage(w http.ResponseWriter, r *http.Request
 		s.log.Debug("Push docker log message request closed")
 		s.storemanager.RealseWebSocketMessageChan("monitor", ServiceID, SubID)
 	}()
-	conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	err = conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	if err != nil {
+		return
+	}
 	stop := make(chan struct{})
 	go s.reader(conn, stop)
 	pingTicker := time.NewTicker(s.timeout * 8 / 10)
@@ -309,7 +327,10 @@ func (s *SocketServer) pushMonitorMessage(w http.ResponseWriter, r *http.Request
 			}
 			if message != nil {
 				s.log.Debugf("websocket push a monitor message,%s", string(message.MonitorData))
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err != nil {
+					return
+				}
 				err = conn.WriteMessage(websocket.TextMessage, message.MonitorData)
 				if err != nil {
 					s.log.Warn("Push message to client error.", err.Error())
@@ -321,7 +342,10 @@ func (s *SocketServer) pushMonitorMessage(w http.ResponseWriter, r *http.Request
 		case <-s.context.Done():
 			return
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
@@ -350,7 +374,7 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 		s.log.Error("Create web socket conn error.", err.Error())
 		return
 	}
-	defer conn.Close()
+	defer conn.Close().Error()
 	_, me, err := conn.ReadMessage()
 	if err != nil {
 		s.log.Error("Read tag key from first message error.", err.Error())
@@ -379,7 +403,10 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 		s.log.Debug("Push new monitor message request closed")
 		s.storemanager.RealseWebSocketMessageChan("newmonitor", ServiceID, SubID)
 	}()
-	conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	err = conn.WriteMessage(websocket.TextMessage, []byte("ok"))
+	if err != nil {
+		return
+	}
 	stop := make(chan struct{})
 	go s.reader(conn, stop)
 	pingTicker := time.NewTicker(s.timeout * 8 / 10)
@@ -392,7 +419,10 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 			}
 			if message != nil {
 				s.log.Debugf("websocket push a new monitor message")
-				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if err != nil {
+					return
+				}
 				err = conn.WriteMessage(websocket.TextMessage, message.MonitorData)
 				if err != nil {
 					s.log.Warn("Push message to client error.", err.Error())
@@ -404,7 +434,10 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 		case <-s.context.Done():
 			return
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
@@ -413,10 +446,19 @@ func (s *SocketServer) pushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 
 }
 func (s *SocketServer) reader(ws *websocket.Conn, ch chan struct{}) {
-	defer ws.Close()
+	defer ws.Close().Error()
 	ws.SetReadLimit(512)
-	ws.SetReadDeadline(time.Now().Add(60 * time.Second))
-	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.timeout)); return nil })
+	err := ws.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err != nil {
+		return
+	}
+	ws.SetPongHandler(func(string) error {
+		err := ws.SetReadDeadline(time.Now().Add(s.timeout))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	for {
 		_, _, err := ws.ReadMessage()
 		if err != nil {
@@ -448,7 +490,10 @@ func (s *SocketServer) listen() {
 
 	r.Get("/monitor", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, err := w.Write([]byte("ok"))
+		if err != nil {
+			return
+		}
 	})
 	r.Get("/event_push", s.receiveEventMessage)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -538,9 +583,15 @@ func (s *SocketServer) receiveEventMessage(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	if r.Body != nil {
-		r.Body.Close()
+		err := r.Body.Close()
+		if err != nil {
+			return
+		}
 	}
-	json.NewEncoder(w).Encode(re)
+	err = json.NewEncoder(w).Encode(re)
+	if err != nil {
+		return
+	}
 	return
 }
 
