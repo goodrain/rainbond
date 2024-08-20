@@ -47,7 +47,7 @@ func (s *startController) Begin() {
 	var list []*v1.AppService // should be delete when using foundsequence
 	for _, a := range s.appService {
 		sourceIDs[a.ServiceID] = &a
-		list = append(list, &a) // // should be delete when using foundsequence
+		list = append(list, &a) // should be delete when using foundsequence
 	}
 	var sl sequencelist
 	sl = append(sl, list) // should be delete when using foundsequence
