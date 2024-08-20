@@ -655,6 +655,12 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 			APIVersion:    "v2",
 			IsSupport:     true,
 		},
+		{
+			ProtocolGroup: "stream",
+			ProtocolChild: "udp",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		},
 	}, nil
 }
 
