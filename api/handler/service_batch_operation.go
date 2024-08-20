@@ -33,7 +33,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/retryutil"
 	"github.com/goodrain/rainbond/worker/client"
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -296,9 +295,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 		events = append(events, event)
 	}
 	b.EventIDs = eventIDs
-	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		return db.GetManager().ServiceEventDaoTransactions(tx).CreateEventsInBatch(events)
-	})
+	return db.GetManager().ServiceEventDao().CreateEventsInBatch(events)
 }
 
 // ServiceDependency documents a set of services and their dependencies.

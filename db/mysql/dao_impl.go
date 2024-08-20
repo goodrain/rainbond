@@ -362,7 +362,7 @@ func (m *Manager) ServiceEventDao() dao.EventDao {
 
 // ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
 func (m *Manager) ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao {
-	return &mysqldao.EventDaoImpl{
+	return &mysqldao.EventDaoESImpl{
 		DB: db,
 	}
 }
