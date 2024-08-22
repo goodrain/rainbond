@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: monitor_message_server.go
+// 说明: 该文件实现了监控消息服务器的功能。文件中定义了处理和管理监控消息的相关方法，
+// 用于接收、存储和处理平台中的各种监控数据和消息。通过这些方法，Rainbond 平台能够
+// 确保监控信息的实时性和可靠性，提升系统的监控能力和问题诊断效率。
+
 package entry
 
 import (

@@ -1,3 +1,26 @@
+// 本文件提供了与 Kubernetes Pod 状态相关的工具函数，用于描述和处理 Pod 的状态信息，
+// 这些工具函数在云原生环境下的应用程序监控和管理中至关重要。
+
+// 1. `PodStatusAdvice` 类型：
+//    - 定义了一组常量，用于提供 Pod 状态的建议。
+//    - 包括内存不足 (OutOfMemory)、Pod 不健康 (Unhealthy) 和正在初始化 (Initiating) 等状态。
+
+// 2. `DescribePodStatus` 函数：
+//    - 该函数接收 Kubernetes 客户端集、Pod 对象和一个自定义 Pod 状态对象 `PodStatus`，
+//      并根据 Pod 的当前状态设置 `PodStatus` 的类型、原因和消息。
+//    - 函数通过检查 Pod 的删除时间戳、条件列表、容器状态等信息来确定 Pod 的当前状态，
+//      并根据不同的条件设置对应的状态建议。
+//    - 例如，如果 Pod 正在终止，函数会将状态设置为 `TERMINATING`，如果发现容器因内存不足而终止，
+//      则将状态建议设置为 `OutOfMemory`。
+
+// 3. `SortableConditionType` 类型：
+//    - 该类型实现了排序接口，用于对 Pod 的条件 (Conditions) 进行排序。
+//    - 条件类型按照优先级进行排序，如 `PodScheduled`、`PodInitialized`、`PodReady` 和 `ContainersReady`，
+//      从而确保在处理 Pod 状态时能够识别出最重要的条件。
+
+// 总的来说，本文件中的工具函数和类型为 Kubernetes Pod 状态的管理和监控提供了有效的支持，
+// 帮助开发者和运维人员更好地理解和处理 Pod 在集群中的运行状况。
+
 package util
 
 import (

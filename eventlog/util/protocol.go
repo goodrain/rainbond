@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: protocol.go
+// 说明: 该文件实现了协议管理功能的核心组件。文件中定义了用于处理不同协议的数据传输和通信的相关方法，
+// 以支持平台内各种网络和通信协议的实现。通过这些方法，Rainbond 平台能够确保数据传输的可靠性和兼容性，
+// 提供灵活的协议处理能力。
 
 package util
 
@@ -71,7 +75,7 @@ func (m *MessageProtocol) SetConn(conn *net.TCPConn) {
 	m.cache = bytes.NewBuffer(nil)
 }
 
-//ReadPacket 获取消息流
+// ReadPacket 获取消息流
 func (m *MessageProtocol) ReadPacket() (Packet, error) {
 	if m.reader != nil {
 		message, err := m.Decode()
@@ -91,7 +95,7 @@ func (m *MessageProtocol) isPing(s string) bool {
 
 const maxConsecutiveEmptyReads = 100
 
-//Decode 解码数据流
+// Decode 解码数据流
 func (m *MessageProtocol) Decode() (string, error) {
 	// 读取消息的长度
 	lengthByte, err := m.reader.Peek(4)

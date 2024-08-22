@@ -16,6 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件包含启动控制器的实现。启动控制器负责应用服务的启动过程，包括创建必要的 Kubernetes 资源，
+// 例如 ConfigMap、PersistentVolumeClaim、StatefulSet、Deployment、Job、CronJob、Service、Secret、Ingress、HPA 等。
+// 它还包含错误处理和回滚逻辑，以确保在启动过程中出现问题时能够进行适当的清理。
+// 启动控制器还会监视应用的就绪状态，并在应用准备好之前不会返回成功。
+// 该控制器使用并发处理来启动多个服务，并在所有服务启动后进行状态检查。
+// 如果在启动过程中出现错误，它会尝试停止已创建的资源并进行错误回调处理。
+
 package controller
 
 import (

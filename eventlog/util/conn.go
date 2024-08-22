@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: conn.go
+// 说明: 该文件实现了连接管理功能的核心组件。文件中定义了用于管理和维护系统中各种连接的相关方法，
+// 以支持平台的网络通信需求。通过这些方法，Rainbond 平台能够确保连接的稳定性和可靠性，
+// 提供高效的网络服务。
 
 package util
 

@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: docker_log_store.go
+// 说明: 该文件实现了Docker日志存储功能的核心组件。文件中定义了用于收集、存储和管理Docker容器日志的各种方法，
+// 以支持平台的日志监控需求。通过这些方法，Rainbond 平台能够确保容器日志的可靠存储，
+// 提供有效的日志分析和故障排查能力。
 
 package store
 
@@ -214,7 +218,7 @@ func (h *dockerLogStore) saveBeforeGc(eventID string, v *dockerLogEventBarrel) {
 }
 func (h *dockerLogStore) InsertGarbageMessage(message ...*db.EventLogMessage) {}
 
-//TODD
+// TODD
 func (h *dockerLogStore) handleBarrelEvent() {
 	for {
 		select {

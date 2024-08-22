@@ -16,6 +16,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件实现了 Rainbond 应用管理平台中的主控制器组件，负责管理和监控应用的运行状态，并与 Kubernetes 集成。
+// 主控制器是应用运行时的核心部分，负责处理应用的生命周期管理、资源分配、监控指标收集等关键任务。
+
+// 1. **Controller 结构体**：
+//    - `Controller` 是 Rainbond 平台的核心控制器，包含了多个 Prometheus 指标用于监控内存使用、CPU使用、文件系统使用、命名空间资源等。
+//    - 控制器还集成了多个子控制器，如 Helm 应用控制器、第三方组件控制器、卷控制器等，用于处理不同类型的应用和资源。
+
+// 2. **NewMasterController 函数**：
+//    - `NewMasterController` 函数用于创建和初始化主控制器。
+//    - 该函数设置了多个核心组件，如卷控制器、Helm 应用控制器、磁盘缓存、Pod 事件监听器等。
+//    - 还初始化了与 Kubernetes API 服务器的连接，用于获取集群版本信息并进行资源管理。
+
+// 3. **Start 函数**：
+//    - `Start` 函数启动主控制器，并执行领导者选举，确保集群中只有一个控制器在处理关键任务。
+//    - 如果当前控制器成为领导者，它将启动所有子控制器，并开始收集和暴露应用运行时的监控指标。
+//    - 该函数还处理 Pod 事件和卷类型事件，确保集群中所有应用的状态和资源都能被正确管理。
+
+// 4. **Scrape 函数**：
+//    - `Scrape` 函数用于收集应用的运行时指标，并通过 Prometheus 进行暴露。
+//    - 该函数遍历所有应用服务，收集内存、CPU、文件系统等资源的使用情况，并将这些信息作为监控指标暴露给外部系统。
+//    - 还会收集命名空间的资源限制和请求，并将这些信息纳入监控范围。
+
+// 5. **领导者选举**：
+//    - 通过 `leader.RunAsLeader` 函数实现领导者选举，确保在多实例部署的情况下，只有一个实例在处理集群的核心任务。
+//    - 领导者选举是通过 Kubernetes 的 ConfigMap 锁机制实现的，确保在高可用部署中集群状态的一致性。
+
+// 6. **Prometheus 指标**：
+//    - 文件中定义的 Prometheus 指标包括内存使用、CPU 使用、文件系统使用、命名空间资源使用、磁盘缓存等多个维度。
+//    - 这些指标帮助运维人员监控集群中应用的资源使用情况，识别可能存在的性能瓶颈和资源不足问题。
+
+// 7. **集成的控制器**：
+//    - `Controller` 集成了多个控制器，用于管理不同类型的应用和资源。
+//    - 这些控制器包括 Helm 应用控制器、第三方组件控制器、卷控制器等，它们协同工作，确保应用的高可用性和稳定性。
+
+// 总的来说，本文件定义的主控制器是 Rainbond 平台的核心组件，负责管理和监控集群中的所有应用。
+// 它通过 Kubernetes 提供的 API 和 Prometheus 监控系统，确保集群中应用的高效运行，并帮助运维人员及时了解和处理可能的问题。
+
 package master
 
 import (
@@ -47,7 +84,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-//Controller app runtime master controller
+// Controller app runtime master controller
 type Controller struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -80,7 +117,7 @@ type Controller struct {
 	mgr          ctrl.Manager
 }
 
-//NewMasterController new master controller
+// NewMasterController new master controller
 func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface, restConfig *rest.Config) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -165,12 +202,12 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	}, nil
 }
 
-//IsLeader is leader
+// IsLeader is leader
 func (m *Controller) IsLeader() bool {
 	return m.isLeader
 }
 
-//Start start
+// Start start
 func (m *Controller) Start() error {
 	logrus.Debug("master controller starting")
 	start := func(ctx context.Context) {
@@ -262,12 +299,12 @@ func (m *Controller) Start() error {
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (m *Controller) Stop() {
 	close(m.stopCh)
 }
 
-//Scrape scrape app runtime
+// Scrape scrape app runtime
 func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *prometheus.Desc) {
 	if !m.isLeader {
 		return
@@ -281,8 +318,8 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 			m.memoryUse.WithLabelValues(service.TenantID, service.AppID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
 			m.cpuUse.WithLabelValues(service.TenantID, service.AppID, service.ServiceID, "running").Set(float64(service.GetCPURequest()))
 		}
-		if service.IsClosed(){
-			if m.memoryUse.DeleteLabelValues(service.TenantID, service.AppID, service.ServiceID, "running"){
+		if service.IsClosed() {
+			if m.memoryUse.DeleteLabelValues(service.TenantID, service.AppID, service.ServiceID, "running") {
 				logrus.Infof("remove memory usage for [%s/%s/%s]", service.TenantID, service.AppID, service.ServiceID)
 			}
 			if m.cpuUse.DeleteLabelValues(service.TenantID, service.AppID, service.ServiceID, "running") {

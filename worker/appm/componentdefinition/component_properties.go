@@ -15,12 +15,16 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: component_properties.go
+// 说明: 该文件实现了组件属性管理功能的核心组件。文件中定义了用于处理和管理平台中组件属性的相关方法，
+// 以支持组件的灵活配置和管理。通过这些方法，Rainbond 平台能够确保组件的属性设置和调整的有效性和一致性，
+// 提供强大的组件配置管理能力。
 
 package componentdefinition
 
 import "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 
-//ThirdComponentProperties third component properties
+// ThirdComponentProperties third component properties
 type ThirdComponentProperties struct {
 	Kubernetes *ThirdComponentKubernetes          `json:"kubernetes,omitempty"`
 	Endpoints  []*v1alpha1.ThirdComponentEndpoint `json:"endpoints,omitempty"`

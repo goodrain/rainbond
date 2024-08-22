@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: componentdefinition.go
+// 说明: 该文件实现了组件定义功能的核心组件。文件中定义了用于创建和管理平台中组件定义的相关方法，
+// 以支持组件的灵活配置和扩展。通过这些方法，Rainbond 平台能够提供强大的组件定义功能，
+// 使用户能够根据需求自定义和扩展平台的能力。
 
 package componentdefinition
 
@@ -199,8 +203,8 @@ func (c *Builder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error
 	return nil
 }
 
-//InitCoreComponentDefinition init the built-in component type definition.
-//Should be called after the store is initialized.
+// InitCoreComponentDefinition init the built-in component type definition.
+// Should be called after the store is initialized.
 func (c *Builder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
 	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {

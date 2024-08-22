@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: server.go
+// 说明: 该文件实现了服务器的核心功能。文件中定义了启动和管理服务器的相关方法，
+// 用于处理客户端请求、管理连接、以及提供平台的核心服务。通过这些方法，Rainbond 平台
+// 能够确保服务器的稳定运行和高效响应，支持平台的各种业务功能。
+
 package entry
 
 import (
@@ -26,7 +31,7 @@ import (
 	"github.com/thejerf/suture"
 )
 
-//Entry 数据入口
+// Entry 数据入口
 type Entry struct {
 	supervisor   *suture.Supervisor
 	log          *logrus.Entry
@@ -34,7 +39,7 @@ type Entry struct {
 	storeManager store.Manager
 }
 
-//NewEntry 创建
+// NewEntry 创建
 func NewEntry(conf conf.EntryConf, log *logrus.Entry, storeManager store.Manager) *Entry {
 	return &Entry{
 		log:          log,
@@ -43,7 +48,7 @@ func NewEntry(conf conf.EntryConf, log *logrus.Entry, storeManager store.Manager
 	}
 }
 
-//Start 启动
+// Start 启动
 func (e *Entry) Start() error {
 	supervisor := suture.New("Entry Server", suture.Spec{
 		Log: func(m string) {
@@ -76,7 +81,7 @@ func (e *Entry) Start() error {
 	return nil
 }
 
-//Stop 停止
+// Stop 停止
 func (e *Entry) Stop() {
 	if e.supervisor != nil {
 		e.supervisor.Stop()

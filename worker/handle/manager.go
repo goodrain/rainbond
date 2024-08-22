@@ -15,6 +15,69 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件实现了 Rainbond 平台中的任务管理器（TaskManager），用于管理和执行各种与应用组件相关的任务。
+// 任务管理器处理诸如启动、停止、重启、滚动升级、水平伸缩、垂直伸缩、规则应用、服务垃圾回收等任务。
+// 通过集成 Kubernetes 客户端和其他必要的组件，该管理器能够对 Kubernetes 集群中的资源进行操作。
+
+// 文件的主要功能包括：
+
+// 1. `Manager` 结构体：
+//    - 包含了任务管理的上下文、配置、数据库管理器、控制器管理器、垃圾回收器等组件。
+//    - 该结构体是管理所有任务的核心。
+
+// 2. `NewManager` 函数：
+//    - 创建并返回一个新的 `Manager` 实例，用于管理系统中的各种任务。
+
+// 3. `AnalystToExec` 方法：
+//    - 分析传入的任务并执行对应的操作，如启动、停止、重启等。
+//    - 根据任务类型选择相应的控制器进行处理。
+
+// 4. `startExec` 方法：
+//    - 处理启动服务的任务。
+//    - 初始化应用服务并调用控制器来启动服务。
+
+// 5. `stopExec` 方法：
+//    - 处理停止服务的任务。
+//    - 调用控制器停止指定的应用服务。
+
+// 6. `restartExec` 方法：
+//    - 处理重启服务的任务。
+//    - 首先停止服务，然后重新启动它。
+
+// 7. `horizontalScalingExec` 方法：
+//    - 处理服务的水平伸缩任务，即调整服务的副本数量。
+
+// 8. `verticalScalingExec` 方法：
+//    - 处理服务的垂直伸缩任务，即调整服务的资源配置，如 CPU 和内存。
+
+// 9. `rollingUpgradeExec` 方法：
+//    - 处理服务的滚动升级任务。
+
+// 10. `applyRuleExec` 方法：
+//     - 处理应用规则的任务，通常用于配置更新或应用网络策略。
+
+// 11. `applyPluginConfig` 方法：
+//     - 处理应用插件配置的任务。
+
+// 12. `ExecServiceGCTask` 方法：
+//     - 执行服务垃圾回收任务，清理与服务相关的日志文件、持久卷、Kubernetes 对象等资源。
+
+// 13. `deleteTenant` 方法：
+//     - 处理删除租户的任务，包括删除相关的 Kubernetes 命名空间和数据库中的租户记录。
+
+// 14. `ExecRefreshHPATask` 方法：
+//     - 执行刷新 HPA（Horizontal Pod Autoscaler）规则的任务。
+
+// 15. `ExecApplyRegistryAuthSecretTask` 方法：
+//     - 执行应用注册表认证密钥的任务，将认证信息更新到 Kubernetes 中。
+
+// 16. `DeleteK8sResource` 方法：
+//     - 处理删除 Kubernetes 资源的任务，解析并删除指定的资源 YAML。
+
+// 17. `RefreshMapper` 方法：
+//     - 刷新 Kubernetes 资源的 REST 映射，用于支持最新的 API 资源操作。
+
+// 总体而言，文件通过定义一系列任务执行的方法，确保 Rainbond 平台能够有效地管理和操作 Kubernetes 集群中的应用组件。
 
 package handle
 

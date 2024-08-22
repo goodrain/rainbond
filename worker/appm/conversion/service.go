@@ -16,6 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 描述: 该文件包含处理应用服务相关数据转换的功能。主要功能包括从数据库中获取服务源信息，并根据不同的资源类型（如Deployment、StatefulSet、ConfigMap等）进行解析和转换。文件中还包含了用于初始化不同类型Kubernetes资源（如StatefulSet、VirtualMachine、Deployment、Job、CronJob）的函数。这些函数主要用于将服务的基础信息转换为Kubernetes资源对象，并设置相应的标签和配置。
+//
+// 主要功能：
+// - ServiceSource: 从数据库中获取服务源信息，并根据资源类型将其转换为对应的Kubernetes资源对象。
+// - TenantServiceBase: 获取并初始化服务的基本信息，包括服务的种类、配置和关联的租户信息。
+// - initTenant: 初始化租户信息，设置租户的命名空间和标签。
+// - initSelector: 初始化Kubernetes资源的选择器标签。
+// - initBaseStatefulSet: 初始化StatefulSet资源，包括设置副本数、选择器、标签等。
+// - initBaseVirtualMachine: 初始化虚拟机资源，包括设置名称、标签等。
+// - initBaseDeployment: 初始化Deployment资源，包括设置副本数、选择器、标签等。
+// - initBaseJob: 初始化Job资源，包括设置名称、标签和作业策略。
+// - initBaseCronJob: 初始化CronJob资源，包括设置名称、标签和作业模板。
+//
+
 package conversion
 
 import (

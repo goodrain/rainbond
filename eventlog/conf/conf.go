@@ -16,6 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: conf.go
+// 说明: 该文件定义了Rainbond应用管理平台中使用的配置结构体。
+// 这些结构体用于存储与日志记录、Webhook、数据库连接、WebSocket设置、集群管理等相关的各种配置参数。
+// 每个配置结构体都针对平台中的特定组件或服务量身定制，提供了确保Rainbond生态系统内
+// 正常运行和集成所需的设置。
+
 package conf
 
 import "time"

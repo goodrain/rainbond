@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: handle_message_store.go
+// 说明: 该文件实现了消息处理存储功能的核心组件。文件中定义了用于接收、存储和管理平台消息的各种方法，
+// 以支持系统内的消息处理需求。通过这些方法，Rainbond 平台能够确保消息的可靠传输和存储，
+// 提升系统的响应能力和稳定性。
+
 package store
 
 import (
@@ -93,9 +98,9 @@ func (h *handleMessageStore) SubChan(eventID, subID string) chan *db.EventLogMes
 }
 func (h *handleMessageStore) RealseSubChan(eventID, subID string) {}
 
-//GC 操作进行时 消息接收会停止
-//TODD 怎么加快gc?
-//使用对象池
+// GC 操作进行时 消息接收会停止
+// TODD 怎么加快gc?
+// 使用对象池
 func (h *handleMessageStore) Gc() {
 	h.log.Debug("Handle message store gc core start.")
 	tiker := time.NewTicker(time.Second * 30)
@@ -259,7 +264,7 @@ func (h *handleMessageStore) persistence(eventID string) {
 	}
 }
 
-//TODD
+// TODD
 func (h *handleMessageStore) handleBarrelEvent() {
 	for {
 		select {

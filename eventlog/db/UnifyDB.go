@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: UnifyDB.go
+// 说明: 该文件实现了与数据库交互的统一接口。文件中定义了各种操作数据库的方法，
+// 用于处理应用管理平台中的数据存储和检索操作。通过这些方法，Rainbond 平台能够统一地
+// 处理数据库相关的任务，确保数据操作的稳定和一致性。
+
 package db
 
 import (
@@ -27,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//CreateDBManager -
+// CreateDBManager -
 func CreateDBManager(conf conf.DBConf) error {
 	logrus.Infof("creating dbmanager ,details %v", conf)
 	var tryTime time.Duration

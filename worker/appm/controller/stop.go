@@ -16,6 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件实现了停止控制器的功能。停止控制器负责处理应用服务的停止过程，包括删除相关的 Kubernetes 资源。
+// 这些资源包括 ConfigMap、Service、Secret、Ingress、ConfigMap、StatefulSet、Deployment、Job、CronJob、Pod、HPA 等。
+// 控制器还包含了错误处理和回滚逻辑，以确保在停止过程中出现问题时能够进行适当的清理。
+// 控制器通过并发处理来停止多个服务，并在所有服务停止后进行状态检查。
+// 如果在停止过程中出现错误，控制器会尝试删除已创建的资源，并进行错误回调处理。
+
 package controller
 
 import (

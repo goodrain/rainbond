@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: thirdcomponentdefinition.go
+// 说明: 该文件实现了第三方组件定义功能的核心组件。文件中定义了用于创建和管理第三方组件定义的相关方法，
+// 以支持平台中来自第三方的组件集成和扩展。通过这些方法，Rainbond 平台能够灵活地处理第三方组件，
+// 提供扩展平台功能的能力。
+
 package componentdefinition
 
 import (

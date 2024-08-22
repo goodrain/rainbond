@@ -16,6 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件实现了一个用于 Rainbond 平台的本地共享存储卷（Persistent Volume）提供者，主要功能是为 Rainbond 应用创建和管理持久化存储卷。
+
+// 1. `rainbondssscProvisioner` 结构体：
+//    - 该结构体实现了 `controller.Provisioner` 接口，用于在指定目录下创建存储卷，并返回代表存储卷的 PV（Persistent Volume）对象。
+//    - 结构体包含 `pvDir` 属性，用于存储 PV 相关的目录路径，`name` 属性用于表示提供者的名称。
+
+// 2. `NewRainbondssscProvisioner` 函数：
+//    - 该函数根据环境变量创建并返回一个 `rainbondssscProvisioner` 实例。
+//    - 如果环境变量 `ALLINONE_MODE` 设置为 `true`，则使用 Rancher 的 `local-path` 作为提供者名称，否则使用 Rainbond 自定义的 `provisioner-sssc` 名称。
+
+// 3. `Provision` 方法：
+//    - 该方法用于创建持久化存储卷，并返回对应的 PV 对象。
+//    - 它首先根据 PVC 的标签信息获取租户 ID 和服务 ID，并根据这些信息生成存储路径（`hostpath`），如果路径不存在，则创建该路径。
+//    - 如果存储路径为空或不存在，则会根据不同的场景（如是否为无状态、是否有插件 ID）来决定路径的生成方式。
+//    - 然后，使用生成的路径更新持久化存储卷源（`PersistentVolumeSource`），并构建 PV 对象，最后返回该对象。
+
+// 4. `Delete` 方法：
+//    - 该方法用于删除由 `Provision` 方法创建的持久化存储卷，目前未实现删除逻辑。
+
+// 5. `Name` 方法：
+//    - 该方法返回提供者的名称。
+
+// 6. `getPodNameByPVCName` 函数：
+//    - 该函数通过 PVC 名称解析并返回关联的 Pod 名称。
+
+// 7. `getVolumeIDByPVCName` 函数：
+//    - 该函数通过 PVC 名称解析并返回关联的卷 ID，如果解析失败则返回 0。
+
+// 8. `updatePathForPersistentVolumeSource` 函数：
+//    - 该函数根据生成的存储路径更新持久化存储卷源（`PersistentVolumeSource`），并返回更新后的持久化存储卷源。
+//    - 支持多种存储卷源类型，如 NFS、Glusterfs、HostPath 等，并根据不同的存储类型对路径进行处理和转换。
+
+// 总体而言，本文件的主要功能是通过实现自定义的存储卷提供者，在 Rainbond 平台上为应用创建和管理基于本地文件系统的共享存储卷。通过灵活处理不同类型的存储源，确保了存储卷的创建和管理过程高效且稳定。
+
 package provider
 
 import (

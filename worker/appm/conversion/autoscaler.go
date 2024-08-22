@@ -16,6 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 描述：该文件包含用于在 Kubernetes 中创建和管理水平自动扩缩器（Horizontal Pod Autoscaler，HPA）的函数。
+// 主要功能：
+// 1. 根据 Kubernetes 版本选择使用 v2beta2 或 v2 API 创建 HPA。
+// 2. 从数据库获取自动扩缩规则和指标，创建相应的 HPA。
+// 3. 支持的指标类型包括 CPU 和内存资源指标。
+// 4. 提供了对不同版本 HPA 的支持：
+//    - `newHPAs`：创建使用 v2 API 的 HPA。
+//    - `newHPABeta2s`：创建使用 v2beta2 API 的 HPA。
+// 5. 通过 `createResourceMetrics` 和 `createResourceMetricsBeta2` 函数生成指标规格。
+// 6. 记录创建过程中的调试信息和警告信息。
+// 主要依赖：
+// - Kubernetes Go 客户端库
+// - Rainbond 项目的数据库和模型
+// - Logrus 日志库
+
 package conversion
 
 import (
@@ -25,8 +40,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

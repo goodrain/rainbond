@@ -16,6 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件描述: 该文件包含了 Rainbond 应用管理平台的插件转换功能。主要实现了对服务插件的配置与生成处理，包括初始化容器、前置容器和后置容器的配置。功能涵盖了插件的加载、环境变量的设置、资源的配置、以及与服务网格的集成等。主要功能包括：
+// 1. TenantServicePlugin：根据插件配置生成初始化、前置和后置容器，并将其应用到服务的 Pod 模板中。
+// 2. conversionServicePlugin：处理插件的转换，配置插件的容器信息，包括环境变量、资源、命令等。
+// 3. createTCPDefaultPluginContainer：创建默认的 TCP 代理插件容器，用于服务网格的默认配置。
+// 4. setSidecarContainerLifecycle：设置 sidecar 容器的生命周期处理，包括启动后检查。
+// 5. createProbeMeshInitContainer：创建探针 Mesh 初始化容器，用于服务网格的探针检查。
+//
+// 主要模块：
+// - encoding/json: 用于 JSON 数据的编码和解码。
+// - fmt: 提供格式化 I/O 函数。
+// - os: 提供操作系统功能的接口。
+// - strconv: 提供字符串与其他基本数据类型之间的转换功能。
+// - strings: 提供字符串操作功能。
+// - github.com/goodrain/rainbond/cmd/init-probe/healthy: 提供健康检查相关的功能。
+// - github.com/goodrain/rainbond/worker/appm/volume: 提供与卷相关的功能。
+// - github.com/jinzhu/gorm: 用于数据库操作的 ORM 库。
+// - github.com/sirupsen/logrus: 用于日志记录。
+// - k8s.io/api/core/v1: Kubernetes 核心 API 中的 v1 版本。
+// - k8s.io/apimachinery/pkg/apis/meta/v1: Kubernetes 元数据 API 中的 v1 版本。
+// - github.com/goodrain/rainbond/api/model: Rainbond API 模型。
+// - github.com/goodrain/rainbond/db: Rainbond 数据库操作。
+// - github.com/goodrain/rainbond/db/model: Rainbond 数据库模型。
+// - github.com/goodrain/rainbond/util: Rainbond 工具集。
+// - github.com/goodrain/rainbond/worker/appm/types/v1: Rainbond 应用管理工作者的 v1 版本类型定义。
+
 package conversion
 
 import (

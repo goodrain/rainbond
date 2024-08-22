@@ -15,6 +15,38 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 该文件是 Rainbond 平台中的一个发现模块，用于监控和管理第三方组件的端点状态。文件实现了对不同来源的第三方组件进行发现和状态更新的功能。
+
+// 文件的核心功能包括以下几部分：
+
+// 1. `Discover` 接口：
+//    - 定义了管理第三方组件端点的核心方法，如获取组件信息、执行发现操作、设置探测管理器等。
+//    - 实现该接口的类可以用于不同类型的端点源，如 Kubernetes 服务或静态端点。
+
+// 2. `NewDiscover` 函数：
+//    - 根据给定的组件和配置信息创建并返回合适的 `Discover` 实例。
+//    - 如果组件使用 Kubernetes 服务作为端点源，则返回 `kubernetesDiscover` 实例；
+//      如果组件使用静态端点列表，则返回 `staticEndpoint` 实例。
+//    - 如果不支持指定的端点源类型，则返回错误。
+
+// 3. `kubernetesDiscover` 结构体：
+//    - 实现了 `Discover` 接口，用于从 Kubernetes 服务中发现和更新端点信息。
+//    - 包含组件信息和 Kubernetes 客户端，负责监控和更新组件的端点状态。
+
+// 4. `kubernetesDiscover` 的主要方法：
+//    - `GetComponent`：返回当前的组件信息。
+//    - `getNamespace`：获取组件所在的命名空间，优先使用组件配置中的命名空间，否则使用组件本身的命名空间。
+//    - `Discover`：持续监听 Kubernetes 服务的端点变化，当发生变化时，更新组件的端点状态并通知外部系统。
+//    - `DiscoverOne`：立即获取并返回组件当前的端点状态，包括就绪和未就绪的端点。
+//    - `SetProberManager`：设置探测管理器（目前未实现具体功能）。
+
+// 5. `kubernetesDiscover` 的工作流程：
+//    - 首先，通过 Kubernetes API 获取服务和端点的信息。
+//    - 然后，使用 Kubernetes 的 Watch 机制持续监控端点的变化。
+//    - 当端点发生变化时，调用 `DiscoverOne` 方法获取最新的端点状态，并更新组件的状态。
+//    - 最后，将更新后的组件状态通过通道 `update` 发送出去，以便系统中的其他部分及时感知到变化。
+
+// 该文件的实现确保了 Rainbond 平台能够准确、及时地发现和更新第三方组件的端点信息，无论这些端点是由 Kubernetes 服务提供，还是通过静态配置指定的。
 
 package discover
 

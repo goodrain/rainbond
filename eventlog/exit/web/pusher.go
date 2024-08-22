@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: pusher.go
+// 说明: 该文件实现了消息推送功能的核心组件。文件中定义了用于将消息推送到客户端或其他服务的各种方法，
+// 以支持平台内外的通信需求。通过这些推送功能，Rainbond 平台能够确保消息的及时传递和处理，
+// 提升系统的实时性和响应能力。
 
 package web
 
@@ -34,14 +38,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//WebsocketMessage websocket message
+// WebsocketMessage websocket message
 type WebsocketMessage struct {
 	Event   string      `json:"event"`
 	Data    interface{} `json:"data"`
 	Channel string      `json:"channel,omitempty"`
 }
 
-//Encode return json encode data
+// Encode return json encode data
 func (w *WebsocketMessage) Encode() []byte {
 	reb, _ := ffjson.Marshal(w)
 	return reb
@@ -52,7 +56,7 @@ type sendMessage struct {
 	data        []byte
 }
 
-//PubContext websocket context
+// PubContext websocket context
 type PubContext struct {
 	ID          string
 	upgrader    websocket.Upgrader
@@ -67,7 +71,7 @@ type PubContext struct {
 	once        sync.Once
 }
 
-//Chan handle
+// Chan handle
 type Chan struct {
 	ch      chan *db.EventLogMessage
 	id      string
@@ -78,7 +82,7 @@ type Chan struct {
 	closed  *bool
 }
 
-//NewPubContext create context
+// NewPubContext create context
 func NewPubContext(upgrader websocket.Upgrader,
 	httpWriter http.ResponseWriter,
 	httpRequest *http.Request,
@@ -301,13 +305,13 @@ func (p *PubContext) send(sendClose chan struct{}) {
 	}
 }
 
-//SendMessage send websocket message
+// SendMessage send websocket message
 func (p *PubContext) SendMessage(message WebsocketMessage) error {
 	p.sendQueue <- sendMessage{messageType: websocket.TextMessage, data: message.Encode()}
 	return nil
 }
 
-//SendWebsocketMessage send websocket message
+// SendWebsocketMessage send websocket message
 func (p *PubContext) SendWebsocketMessage(message int) error {
 	p.sendQueue <- sendMessage{messageType: message, data: []byte{}}
 	return nil
@@ -324,7 +328,7 @@ func (p *PubContext) sendPing(closed chan struct{}) {
 	}
 }
 
-//Start start context
+// Start start context
 func (p *PubContext) Start() {
 	var err error
 	p.conn, err = p.upgrader.Upgrade(p.httpWriter, p.httpRequest, nil)
@@ -346,7 +350,7 @@ func (p *PubContext) Start() {
 	}
 }
 
-//Stop close context
+// Stop close context
 func (p *PubContext) Stop() {
 	if p.conn != nil {
 		p.conn.Close()
@@ -356,7 +360,7 @@ func (p *PubContext) Stop() {
 	}
 }
 
-//Close close the context
+// Close close the context
 func (p *PubContext) Close() {
 	p.once.Do(func() {
 		close(p.close)

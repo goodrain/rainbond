@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: kube-controller.go
+// 说明: 该文件实现了 Kubernetes 控制器功能。文件中定义了用于管理和协调 Kubernetes 集群中资源的相关方法，
+// 以支持平台对 Kubernetes 工作负载的自动化管理和调度。通过这些方法，Rainbond 平台能够与 Kubernetes 集群紧密集成，
+// 提供高效的集群资源管理和调度能力。
 
 package controller
 
@@ -27,7 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//CreateKubeService create kube service
+// CreateKubeService create kube service
 func CreateKubeService(client kubernetes.Interface, namespace string, services ...*corev1.Service) error {
 	var retryService []*corev1.Service
 	for i := range services {

@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: buffer.go
+// 说明: 该文件实现了缓冲区管理功能。文件中定义了用于管理数据缓冲的各种方法，
+// 以支持系统在高并发场景下的性能需求。通过这些方法，Rainbond 平台能够有效管理数据流，
+// 提高系统的处理效率和响应速度，确保数据传输的稳定性。
+
 package util
 
 import (

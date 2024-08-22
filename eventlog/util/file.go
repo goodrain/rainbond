@@ -15,12 +15,16 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: file.go
+// 说明: 该文件实现了文件管理功能的核心组件。文件中定义了用于处理文件操作的相关方法，
+// 以支持平台内的文件读写和管理需求。通过这些方法，Rainbond 平台能够高效地管理文件资源，
+// 提供可靠的文件存储和访问服务。
 
 package util
 
 import "os"
 
-//AppendToFile 文件名字(带全路径)
+// AppendToFile 文件名字(带全路径)
 // content: 写入的内容
 func AppendToFile(fileName string, content string) error {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)

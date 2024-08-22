@@ -16,6 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件定义了一个名为 Exporter 的收集器，用于在 Rainbond 平台上收集应用程序的运行状态和性能指标，
+// 并通过 Prometheus 监控系统进行暴露。这个收集器集成了 Prometheus 的接口，能够将 Worker 组件的各类运行信息作为指标进行上报。
+
+// 1. **Exporter 结构体**：
+//    - `Exporter` 是一个 Prometheus 的收集器实现，它包含了多个 Gauge 和 Counter 类型的指标，
+//      这些指标用于跟踪 Worker 组件的状态、任务数量、任务错误数以及存储组件的数量等。
+//    - 通过 `dbmanager` 和 `masterController` 等组件，收集器可以获取数据库状态、控制器状态以及健康检查信息。
+
+// 2. **New 函数**：
+//    - `New` 函数创建并初始化一个 `Exporter` 实例，设置了多个 Prometheus 指标，用于记录 Worker 的各种状态和操作统计信息。
+//    - 这些指标包括总抓取次数、抓取错误次数、当前任务数量、任务错误数和存储组件数量等。
+
+// 3. **Describe 函数**：
+//    - `Describe` 函数是 Prometheus 收集器接口的实现之一，用于描述当前收集器中所有指标的元数据。
+//    - 它通过启动一个 Goroutine 来异步收集和发送指标描述信息。
+
+// 4. **Collect 函数**：
+//    - `Collect` 函数是 Prometheus 收集器接口的另一实现，用于实际收集指标数据。
+//    - 在该函数中，收集器会调用 `scrape` 函数来抓取当前的指标数据，并将这些数据发送给 Prometheus。
+
+// 5. **scrape 函数**：
+//    - `scrape` 函数执行实际的数据抓取工作，
+//      它会从 `masterController` 中收集组件的状态信息，并检查 Worker 的健康状态，将这些信息更新到相应的指标中。
+
+// 6. **健康检查**：
+//    - `scrape` 函数还会调用 `discover.HealthCheck()` 来检查 Worker 服务的健康状态，并根据检查结果更新相应的指标。
+
+// 7. **Prometheus 指标**：
+//    - 文件中定义的 Prometheus 指标涵盖了抓取持续时间、健康状态、任务数量、任务错误数以及存储组件数量等多个维度，
+//      这些指标可以帮助运维人员了解 Worker 组件的运行状况和性能表现。
+
+// 总的来说，本文件通过定义 Exporter 组件，集成了 Prometheus 监控能力，为 Rainbond 的 Worker 组件提供了详细的运行时状态监控，
+// 帮助用户及时掌握系统状态，并对潜在问题进行快速诊断。
+
 package collector
 
 import (

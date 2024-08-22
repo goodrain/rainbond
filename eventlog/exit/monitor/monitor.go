@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: monitor.go
+// 说明: 该文件实现了监控功能的核心组件。文件中定义了监控数据的收集、处理和分析方法，
+// 用于实时监控平台的运行状态和性能。通过这些方法，Rainbond 平台能够及时检测和响应异常情况，
+// 确保系统的稳定性和可靠性。
+
 package monitor
 
 import (

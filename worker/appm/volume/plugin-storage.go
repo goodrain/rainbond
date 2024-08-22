@@ -1,3 +1,30 @@
+// 本文件定义了与 Rainbond 平台中的插件存储卷相关的结构体和方法，
+// 主要用于在应用服务中创建和管理这些插件相关的存储卷或配置文件。
+
+// 文件内容包括以下几个主要部分：
+// 1. `PluginStorageVolume` 结构体：这是一个与插件存储卷相关的结构体，继承自 `Base`，
+//    主要负责处理插件存储卷的创建和管理操作。该结构体包括了插件的基本信息（如插件 ID、卷名等）
+//    以及与应用服务相关的元数据信息。
+
+// 2. `CreateVolume` 方法：该方法用于根据给定的定义对象（`Define`）创建插件存储卷或配置文件。
+//    根据插件属性类型（`AttrType`），如果是配置文件类型（`config-file`），则会创建一个 Kubernetes 的 `ConfigMap` 对象，
+//    并将插件内容写入其中；如果是存储类型（`storage`），则会根据插件的信息创建一个 Kubernetes 的 `PersistentVolumeClaim` 对象，
+//    并将其附加到有状态组件（`StatefulSet`）或其他组件中。
+//    通过这种方式，应用服务可以使用插件存储卷来扩展其功能或配置。
+
+// 3. `CreateDependVolume` 方法：这是一个空方法，当前在插件存储卷的场景下没有具体实现。
+//    该方法通常用于创建依赖于其他服务的卷，但在此场景下不需要额外的依赖卷处理。
+
+// 4. `generateVolumeSubPath` 方法：该方法用于生成卷的子路径（`SubPath`）或子路径表达式（`SubPathExpr`）。
+//    如果环境变量 `ENABLE_SUBPATH` 被设置为 "true"，则根据应用服务的租户 ID 和服务 ID 生成对应的子路径或子路径表达式，
+//    并设置到卷挂载对象（`VolumeMount`）中。否则，直接返回原始的卷挂载对象。
+
+// 5. `deleteVolume` 方法：该方法用于从定义对象（`Define`）的卷列表中删除指定的卷，
+//    以便在需要时清理不再使用的卷。
+
+// 通过这些结构体和方法，Rainbond 平台能够在应用服务中动态创建和配置与插件相关的存储卷，
+// 使得应用服务可以通过插件来扩展其功能，满足不同的业务需求。
+
 package volume
 
 import (
@@ -11,7 +38,7 @@ import (
 	"path"
 )
 
-//PluginStorageVolume 插件新增存储
+// PluginStorageVolume 插件新增存储
 type PluginStorageVolume struct {
 	Plugin api_model.PluginStorage
 	Base
@@ -19,7 +46,7 @@ type PluginStorageVolume struct {
 	AS       *v1.AppService
 }
 
-//CreateVolume 创建插件存储或配置文件
+// CreateVolume 创建插件存储或配置文件
 func (v *PluginStorageVolume) CreateVolume(define *Define) error {
 	v.as = v.AS
 	if v.Plugin.AttrType == "config-file" {

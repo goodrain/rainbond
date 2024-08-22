@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: apply_plugin_config.go
+// 说明: 该文件实现了插件配置应用功能。文件中定义了用于处理和应用插件配置的相关方法，
+// 以支持平台中插件的灵活配置和管理。通过这些方法，Rainbond 平台能够确保插件配置的有效应用，
+// 提供定制化的功能扩展支持。
 
 package controller
 

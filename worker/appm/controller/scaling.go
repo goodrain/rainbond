@@ -15,6 +15,26 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: scaling.go
+// 说明: 该文件实现了应用服务的水平扩展功能。文件中定义了 `scalingController` 结构体及其相关方法，
+// 用于处理平台中应用服务的水平扩展过程。通过这些方法，Rainbond 平台能够有效地进行服务的扩展和缩减，
+// 并提供实时监控和等待服务准备好的功能。`Begin` 方法启动所有服务的扩展操作，`scalingOne` 方法处理单个服务的扩展，
+// `WaitingReady` 方法用于等待服务准备就绪，`Stop` 方法用于优雅地终止扩展操作。文件的功能旨在确保服务的扩展过程平稳和系统的高可用性。
+
+package controller
+
+import (
+	"fmt"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"math"
+	"sync"
+	"time"
+)
 
 package controller
 
@@ -40,7 +60,7 @@ type scalingController struct {
 	stopChan     chan struct{}
 }
 
-//Begin  start handle service scaling
+// Begin  start handle service scaling
 func (s *scalingController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
@@ -64,7 +84,7 @@ func (s *scalingController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 
-//Replicas petch replicas to n
+// Replicas petch replicas to n
 func Replicas(n int) []byte {
 	return []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, n))
 }
@@ -99,7 +119,7 @@ func (s *scalingController) scalingOne(service v1.AppService) error {
 	return s.WaitingReady(service)
 }
 
-//WaitingReady wait app start or upgrade ready
+// WaitingReady wait app start or upgrade ready
 func (s *scalingController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32

@@ -1,5 +1,10 @@
 package controller
 
+// 文件: export.go
+// 说明: 该文件实现了导出功能。文件中定义了用于导出平台内数据、配置或其他资源的相关方法，
+// 以支持数据的备份、迁移和分享需求。通过这些方法，Rainbond 平台能够确保数据导出的准确性和完整性，
+// 提供便捷的数据管理和迁移能力。
+
 import (
 	"context"
 	"encoding/json"
@@ -33,7 +38,7 @@ type exportController struct {
 	End          bool
 }
 
-//RainbondExport -
+// RainbondExport -
 type RainbondExport struct {
 	ImageDomain  string                       `json:"imageDomain"`
 	StorageClass string                       `json:"storageClass"`
@@ -394,7 +399,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 	return nil
 }
 
-//CheckFileExist check whether the file exists
+// CheckFileExist check whether the file exists
 func CheckFileExist(fileName string) bool {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {

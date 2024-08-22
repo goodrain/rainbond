@@ -15,6 +15,20 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件主要定义了 Rainbond 平台中与存储类（StorageClass）相关的初始化和管理逻辑。
+// 在 Kubernetes 中，StorageClass 用于动态配置存储卷，本文件定义了 Rainbond 平台支持的几种存储类。
+
+// 文件内容包括以下几个主要部分：
+// 1. Rainbond 支持的存储类常量定义：文件中定义了两个常量 `RainbondStatefuleShareStorageClass` 和 `RainbondStatefuleLocalStorageClass`，
+//    分别表示 Rainbond 平台支持的共享存储和本地存储的 StorageClass 名称。
+
+// 2. 初始化存储类：`init()` 函数用于初始化存储类列表，包括 Rainbond 平台支持的共享存储和本地存储的 StorageClass。
+//    初始化过程中设置了存储类的 provisioner、卷绑定模式（VolumeBindingMode）和回收策略（ReclaimPolicy）。
+
+// 3. 存储类的获取函数：`GetInitStorageClass()` 函数根据系统环境变量 `ALLINONE_MODE` 来决定返回的存储类列表。
+//    如果 `ALLINONE_MODE` 为 `true`，则返回本地存储类列表，否则返回共享存储类列表。
+
+// 通过这些逻辑，Rainbond 平台能够根据不同的部署环境，动态初始化和获取适合的存储类配置，为应用服务的持久化存储提供支持。
 
 package v1
 
@@ -35,10 +49,10 @@ import (
 var initStorageClass []*storagev1.StorageClass
 var initLocalStorageClass []*storagev1.StorageClass
 
-//RainbondStatefuleShareStorageClass rainbond support statefulset app share volume
+// RainbondStatefuleShareStorageClass rainbond support statefulset app share volume
 var RainbondStatefuleShareStorageClass = "rainbondsssc"
 
-//RainbondStatefuleLocalStorageClass rainbond support statefulset app local volume
+// RainbondStatefuleLocalStorageClass rainbond support statefulset app local volume
 var RainbondStatefuleLocalStorageClass = "rainbondslsc"
 
 func init() {
@@ -79,7 +93,7 @@ func init() {
 	})
 }
 
-//GetInitStorageClass get init storageclass list
+// GetInitStorageClass get init storageclass list
 func GetInitStorageClass() []*storagev1.StorageClass {
 	if os.Getenv("ALLINONE_MODE") == "true" {
 		return initLocalStorageClass

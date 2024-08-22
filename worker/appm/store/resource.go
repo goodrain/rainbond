@@ -16,6 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件定义了一个用于管理和缓存Rainbond平台上租户资源的结构体 `ResourceCache` 及其相关方法。
+// 通过实现对Kubernetes Pod 资源的管理和计算，该文件为平台提供了资源使用情况的实时监控和查询能力。
+
+// 文件中的主要功能包括：
+// 1. `ResourceCache` 结构体：这是一个资源缓存的实现，主要用于存储和管理各个租户的资源信息。
+//    资源信息包括CPU和内存的请求值和限制值，这些信息通过 `NamespaceResource` 结构体来组织和管理。
+// 2. 资源管理方法：`SetPodResource` 方法用于将一个Pod的资源信息添加到缓存中，`RemovePod` 方法用于从缓存中移除一个Pod的资源信息。
+//    这些方法确保了缓存中的资源信息是最新的，并且能够准确反映当前的资源使用情况。
+// 3. 资源查询方法：`GetTenantResource` 方法用于获取指定命名空间下的资源使用情况，`GetAllTenantResource` 方法则用于获取所有租户的资源信息。
+//    这些方法使得平台能够快速查询和监控各个租户的资源使用情况，从而进行资源优化和管理。
+
+// 总的来说，该文件通过定义和管理Rainbond平台的资源缓存，使平台能够高效地监控和管理租户资源的使用情况，
+// 这对于优化资源配置、提高系统性能至关重要，特别是在多租户的云平台环境中。
+
 package store
 
 import (

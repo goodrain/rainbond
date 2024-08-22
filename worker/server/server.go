@@ -16,6 +16,47 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件定义了一个名为 RuntimeServer 的应用程序运行时 gRPC 服务器，用于处理和管理 Rainbond 平台上应用程序的状态、资源和第三方组件。
+// 该服务器负责处理与应用程序相关的各种请求，例如获取应用程序的状态、列出应用程序的服务、管理存储类和处理第三方组件的端点。
+
+// 1. **RuntimeServer 结构体**：
+//    - `RuntimeServer` 是 gRPC 服务器的核心，它封装了应用程序的状态存储、Kubernetes 客户端、gRPC 服务以及相关配置。
+//    - 服务器启动后，它会监听指定的 IP 和端口，并提供一系列 gRPC 接口来供其他组件调用。
+
+// 2. **Start 函数**：
+//    - 该函数启动 gRPC 服务器，并监听指定的地址和端口，处理客户端的请求。
+
+// 3. **GetAppStatus 和 GetAppStatusDeprecated 函数**：
+//    - `GetAppStatusDeprecated` 是一个旧版接口，用于获取指定服务的状态。
+//    - `GetAppStatus` 是新版接口，基于应用程序 ID 获取应用程序的状态。它区分了 Rainbond 应用和 Helm 应用，并返回应用程序的详细状态信息。
+
+// 4. **GetOperatorWatchManagedData 函数**：
+//    - 该函数获取由 Rainbond Operator 管理的应用数据，包括服务、部署和有状态集的状态。
+
+// 5. **GetTenantResource 和 GetTenantResources 函数**：
+//    - 这两个函数用于获取租户资源的使用情况，包括 CPU 和内存的分配和请求量，运行中的应用程序数量等。
+
+// 6. **GetAppPods 和 GetMultiAppPods 函数**：
+//    - 这两个函数分别用于获取单个或多个应用程序的 Pod 列表，并根据 Pod 的状态将其分类为旧版本或新版本。
+
+// 7. **GetComponentPodNums 函数**：
+//    - 该函数用于获取组件的 Pod 数量，并返回每个组件的 Pod 数。
+
+// 8. **DescribeEvents 函数**：
+//    - 该函数描述了 Pod 的事件日志，用于调试和排查问题。
+
+// 9. **ListThirdPartyEndpoints、AddThirdPartyEndpoint、UpdThirdPartyEndpoint、DelThirdPartyEndpoint 函数**：
+//    - 这些函数用于管理第三方组件的端点，包括列出、添加、更新和删除端点。
+
+// 10. **GetStorageClasses 函数**：
+//    - 该函数用于获取存储类的列表，用于在创建存储卷时选择适当的存储类。
+
+// 11. **ListAppServices 和 ListHelmAppRelease 函数**：
+//    - 这些函数用于列出应用程序的服务和 Helm 应用的发布历史。
+
+// 总的来说，本文件实现了 Rainbond 平台应用程序运行时的核心管理功能，通过 gRPC 接口提供了多种服务，
+// 用于处理和监控应用程序的生命周期和资源状态，支持第三方组件的集成与管理。
+
 package server
 
 import (

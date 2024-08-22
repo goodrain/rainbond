@@ -16,6 +16,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件实现了Rainbond平台的应用运行时同步客户端，该客户端通过gRPC与远程服务器通信，用于获取应用的状态、资源信息、第三方服务的端点信息等。
+// 文件主要包含以下内容：
+
+// 1. `AppRuntimeSyncClient` 结构体：这是一个gRPC客户端，用于与Rainbond的应用运行时同步服务通信。它封装了与远程服务器交互的各种方法，如获取应用状态、资源信息、第三方服务端点等。
+
+// 2. `NewClient` 函数：该函数用于创建并初始化 `AppRuntimeSyncClient` 实例。它需要传入上下文和gRPC服务器地址。成功创建客户端后，可以通过该实例调用各种远程方法。
+
+// 3. `GetStatus` 和 `GetStatuss` 方法：这些方法用于获取单个或多个服务的状态信息。通过向远程服务器发送请求并接收响应，返回服务的当前状态。
+
+// 4. `GetOperatorWatchData` 方法：该方法用于获取由Operator管理的应用的监控数据。主要用于监控和管理由Kubernetes Operator部署的应用。
+
+// 5. `GetServiceDeployInfo` 方法：用于获取指定服务的部署信息，包括服务的当前部署状态及相关的元数据信息。
+
+// 6. `GetTenantResource` 和 `GetAllTenantResource` 方法：这些方法用于获取租户的资源使用情况。通过这些方法，管理员可以了解每个租户的资源占用情况，如CPU、内存等。
+
+// 7. `ListThirdPartyEndpoints`、`AddThirdPartyEndpoint`、`UpdThirdPartyEndpoint` 和 `DelThirdPartyEndpoint` 方法：
+//    这些方法用于管理第三方服务的端点信息，可以添加、更新或删除第三方服务的端点。
+
+// 8. `GetStorageClasses` 方法：该方法用于获取存储类信息，存储类定义了不同类型的存储资源在Kubernetes中的表现和管理方式。
+
+// 9. `GetAppVolumeStatus` 方法：用于获取应用的存储卷状态信息，帮助运维人员监控和管理应用的存储资源。
+
+// 10. `GetAppResources` 方法：用于获取应用的资源使用情况，包括CPU、内存等资源的分配和使用状态。
+
+// 通过这些方法，Rainbond平台的管理员和开发者可以方便地通过gRPC客户端与运行时环境交互，获取所需的应用状态和资源信息，从而实现对应用的实时监控和管理。
+
 package client
 
 import (

@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: streamserver.go
+// 说明: 该文件实现了流服务器功能的核心组件。文件中定义了用于处理实时数据流的传输和管理的相关方法，
+// 以支持平台内高并发场景下的数据流处理需求。通过这些方法，Rainbond 平台能够高效地管理实时数据流，
+// 确保数据传输的稳定性和低延迟，提升系统的响应能力。
 
 package util
 

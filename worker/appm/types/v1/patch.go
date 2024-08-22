@@ -16,6 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件定义了一个用于 Rainbond 平台中应用服务升级和资源变更管理的核心功能集合。
+// 主要包括用于创建和设置升级补丁的方法，以及用于比较、编码和格式化 Kubernetes 资源的方法。
+
+// 文件的主要内容包括：
+// 1. `SetUpgradePatch` 方法：该方法用于生成和设置应用服务的升级补丁。通过比较应用服务的旧版本和新版本，
+//    生成需要应用的差异补丁并进行格式化，以便在 Kubernetes 中应用这些更改。
+//    方法中还包括处理 statefulset 和 deployment 的特殊逻辑，确保在升级过程中正确处理初始化容器和启动顺序。
+
+// 2. `EncodeNode` 结构体及其方法：`EncodeNode` 用于对 JSON 数据进行自定义的编码和解码。
+//    它允许在比较 Kubernetes 资源配置时，对资源的不同字段进行逐一比较，找出需要变更的字段。
+
+// 3. `getchange` 方法：该方法通过对比旧的和新的 Kubernetes 资源配置，生成描述差异的补丁。
+//    该补丁会用于后续的资源更新操作中，以便只应用那些确实发生了变化的部分。
+
+// 4. `getStatefulsetModifiedConfiguration` 和 `getDeploymentModifiedConfiguration` 方法：
+//    这两个方法用于提取 statefulset 和 deployment 中允许修改的字段，并生成相应的补丁。
+
+// 5. `K8sResourceFormat` 方法：该方法用于格式化 Kubernetes 资源的 JSON 表示，
+//    例如将空字符串的注解字段转换为空映射，以避免在 Kubernetes 中因格式不正确而出现的错误。
+
+// 总的来说，该文件的功能在于为 Rainbond 平台中的应用服务提供升级、资源变更管理和差异比较等核心功能，
+// 以确保在多集群、多租户环境中应用服务的高效和一致性管理。
+
 package v1
 
 import (
@@ -30,7 +53,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//SetUpgradePatch create and set upgrade pathch for deployment and statefulset
+// SetUpgradePatch create and set upgrade pathch for deployment and statefulset
 func (a *AppService) SetUpgradePatch(new *AppService) error {
 	if a.statefulset != nil && new.statefulset != nil {
 		// If the controller originally had a startup sequence, then the startup sequence needs to be updated
@@ -73,14 +96,14 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 	return nil
 }
 
-//EncodeNode encode node
+// EncodeNode encode node
 type EncodeNode struct {
 	body  []byte
 	value []byte
 	Field map[string]EncodeNode
 }
 
-//UnmarshalJSON custom yaml decoder
+// UnmarshalJSON custom yaml decoder
 func (e *EncodeNode) UnmarshalJSON(code []byte) error {
 	e.body = code
 	if len(code) < 1 {
@@ -98,7 +121,7 @@ func (e *EncodeNode) UnmarshalJSON(code []byte) error {
 	return nil
 }
 
-//MarshalJSON custom marshal json
+// MarshalJSON custom marshal json
 func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 	if e.value != nil {
 		return e.value, nil
@@ -128,12 +151,12 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("marshal error")
 }
 
-//Contrast Compare value
+// Contrast Compare value
 func (e *EncodeNode) Contrast(endpoint *EncodeNode) bool {
 	return util.BytesSliceEqual(e.value, endpoint.value)
 }
 
-//GetChange get change fields
+// GetChange get change fields
 func (e *EncodeNode) GetChange(endpoint *EncodeNode) *EncodeNode {
 	if util.BytesSliceEqual(e.body, endpoint.body) {
 		return nil
@@ -184,7 +207,7 @@ func getChange(old, new EncodeNode) *EncodeNode {
 	return &result
 }
 
-//stateful label can not be patch
+// stateful label can not be patch
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
 	oldNeed := getStatefulsetAllowFields(old)
@@ -219,7 +242,7 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 	}
 }
 
-//deployment label can not be patch
+// deployment label can not be patch
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
 	oldNeed := getDeploymentAllowFields(old)

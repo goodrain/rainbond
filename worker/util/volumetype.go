@@ -15,6 +15,25 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件定义了与存储类型和容量验证相关的工具函数，主要用于将 Kubernetes StorageClass 转换为 Rainbond 平台的存储卷类型
+// 并验证存储容量的合法性。
+
+// 1. `TransStorageClass2RBDVolumeType` 函数：
+//    - 该函数用于将 Kubernetes 的 StorageClass 对象转换为 Rainbond 平台的 TenantServiceVolumeType 对象。
+//    - 如果 StorageClass 名称为 Rainbond 的特定值（如 `RainbondStatefuleShareStorageClass` 或 `RainbondStatefuleLocalStorageClass`），
+//      则会直接返回对应的共享文件卷类型或本地卷类型。
+//    - 对于其他 StorageClass，函数会将其转换为 TenantServiceVolumeType 对象，包括存储类型名称、容量验证、存储类详细信息、
+//      配置等信息。
+//    - 函数还支持通过 StorageClass 的注解自定义显示名称。
+
+// 2. `ValidateVolumeCapacity` 函数：
+//    - 该函数用于验证存储容量是否符合给定的容量验证规则。
+//    - 函数从 JSON 格式的验证规则字符串中解析出最小值 (`min`) 和最大值 (`max`) 限制，
+//      然后检查给定的容量是否在这个范围内。
+//    - 如果容量不符合规则，函数会返回相应的错误信息。
+
+// 总的来说，这些函数帮助 Rainbond 平台与 Kubernetes 的存储系统进行集成，
+// 实现了存储类型的转换和容量验证的功能，确保了存储资源的合理使用。
 
 package util
 

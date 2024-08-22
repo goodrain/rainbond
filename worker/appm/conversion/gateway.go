@@ -16,6 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件说明：
+// 该文件包含与 Kubernetes 资源相关的服务构建功能，包括服务、Ingress 和 Secret 的创建和应用。
+// 它定义了 `AppServiceBuild` 类型及其方法，用于根据服务 ID 和其他信息构建和配置 Kubernetes 服务。
+// 文件中提供的功能包括服务、Ingress 和 Secret 的创建、规则应用、插件端口映射等。
+// 主要的类型和函数如下：
+// - `AppServiceBuild`：服务构建器类型，包含构建 Kubernetes 资源所需的属性和方法。
+// - `AppServiceBuilder`：用于创建 `AppServiceBuild` 实例的工厂方法。
+// - `Build`：构建 Kubernetes 服务、Ingress 和 Secret 的方法。
+// - `ApplyRules`：应用 HTTP 和 TCP 规则的方法。
+// - `CreateUpstreamPluginMappingPort`：检查和创建插件端口映射的方法。
+// - `CreateUpstreamPluginMappingService`：在服务中添加插件映射标签的方法。
+// - `BuildOnPort`：在指定端口上创建服务的方法。
+// - `createServiceAnnotations`：创建服务注释的方法。
+// 本文件还包含对服务、Ingress 和 Secret 的创建、配置及其与 HTTP/TCP 规则的应用逻辑。
+
 package conversion
 
 import (

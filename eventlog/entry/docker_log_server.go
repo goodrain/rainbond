@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: docker_log_server.go
+// 说明: 该文件实现了Docker日志服务器的功能。文件中定义了处理和存储Docker容器日志
+// 的相关方法和服务，用于接收来自Docker容器的日志信息，并将其持久化存储。通过这些方法，
+// Rainbond 平台能够有效地管理和监控容器日志，确保容器运行状态的可追踪性和问题排查的便利性。
+
 package entry
 
 import (

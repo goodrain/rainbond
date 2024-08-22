@@ -15,6 +15,40 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件是 Rainbond 平台中第三方组件（ThirdComponent）发现池（Discover Pool）的实现，用于管理和维护多个第三方组件的发现进程。通过 Discover Pool，可以有效地管理这些组件的状态发现和更新任务，确保组件的运行状态与实际状态保持一致。
+
+// 文件的主要功能如下：
+
+// 1. `DiscoverPool` 结构体：
+//    - 该结构体是发现池的核心，用于管理多个第三方组件的发现任务。
+//    - 通过维护一个工作池（discoverWorker），发现池能够跟踪和管理所有正在进行的组件发现任务。
+//    - 它还包含一个更新通道（updateChan），用于接收来自发现任务的状态更新。
+
+// 2. `NewDiscoverPool` 函数：
+//    - 这是 DiscoverPool 的构造函数，初始化发现池并启动发现任务的管理进程。
+//    - 该函数创建 DiscoverPool 的实例，并启动一个独立的 Goroutine 来处理更新任务。
+
+// 3. `Start` 方法：
+//    - 该方法是发现池的主要运行循环，用于持续监听和处理组件状态的更新请求。
+//    - 它会检查是否有新的组件状态更新，并将其与已有的状态进行比较，如果有变化则更新组件的状态。
+
+// 4. `newWorker` 方法：
+//    - 该方法用于为每个第三方组件创建一个新的发现任务（Worker）。
+//    - 如果组件使用的是静态端点（Static Endpoints），还会为其创建一个探测管理器（proberManager），用于定期探测组件的健康状况。
+
+// 5. `AddDiscover` 方法：
+//    - 该方法用于向发现池中添加新的组件发现任务。
+//    - 如果该组件已经存在于发现池中，则更新其发现任务；否则，创建新的发现任务并启动。
+
+// 6. `RemoveDiscover` 和 `RemoveDiscoverByName` 方法：
+//    - 这些方法用于从发现池中移除指定的组件发现任务。
+//    - 当组件被删除或发现任务停止时，调用这些方法以清理和移除相关的发现任务。
+
+// 7. `Worker` 结构体：
+//    - 该结构体代表每个具体的发现任务，负责执行组件的发现操作。
+//    - Worker 通过其上下文（context）管理生命周期，并通过 `Start` 和 `Stop` 方法控制任务的启动和停止。
+
+// 总的来说，本文件实现了对 Rainbond 平台中第三方组件发现任务的集中管理。通过 Discover Pool，平台能够有效地管理多个组件的发现进程，确保组件的运行状态能够被及时发现和更新，为平台的稳定运行提供了重要支持。
 
 package thirdcomponent
 

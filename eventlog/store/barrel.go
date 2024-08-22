@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: barrel.go
+// 说明: 该文件实现了存储桶（Barrel）管理功能的核心组件。文件中定义了用于管理和操作存储桶的各种方法，
+// 以支持平台的存储需求。通过这些方法，Rainbond 平台能够高效地管理存储资源，
+// 确保数据的可靠存储和高效访问。
 
 package store
 

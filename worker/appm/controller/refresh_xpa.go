@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: refresh_xpa.go
+// 说明: 该文件实现了 XPA 刷新功能。文件中定义了用于刷新和更新平台中 XPA（可扩展代理架构）配置的相关方法，
+// 以确保系统中代理配置的实时性和一致性。通过这些方法，Rainbond 平台能够有效管理和更新 XPA 设置，
+// 提升系统的代理管理和扩展能力。
 
 package controller
 

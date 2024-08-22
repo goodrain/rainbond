@@ -16,6 +16,37 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件实现了一个用于导出应用资源监控指标的管理器。该管理器使用 Prometheus 作为监控系统，通过 HTTP 服务提供应用资源的监控数据。
+
+// 1. `ExporterManager` 结构体：
+//    - 该结构体包含多个字段，用于管理监控服务的上下文、配置、控制器以及停止信号通道等。
+//    - `ctx` 和 `cancel`：上下文和取消函数，用于管理服务的生命周期。
+//    - `config`：配置选项，包含了 Prometheus 相关的配置信息。
+//    - `stopChan`：停止信号通道，用于控制服务的停止。
+//    - `masterController` 和 `controllermanager`：Rainbond 系统中的控制器，用于收集和管理应用资源的数据。
+
+// 2. `NewManager` 函数：
+//    - 该函数用于创建并初始化一个 `ExporterManager` 实例。
+//    - 接受配置参数、主控制器以及控制器管理器作为输入，返回一个新的 `ExporterManager` 实例。
+
+// 3. `handler` 方法：
+//    - 该方法是 HTTP 请求的处理函数，用于响应 Prometheus 的监控数据采集请求。
+//    - 它创建了一个新的 Prometheus 注册表，并注册了自定义的采集器，用于收集应用资源的指标数据。
+//    - 最后通过 Prometheus 客户端库提供的 HTTP 处理程序来响应监控数据请求。
+
+// 4. `Start` 方法：
+//    - 该方法启动 HTTP 服务，并提供了三个 HTTP 处理路径：
+//      - `t.config.PrometheusMetricPath`：用于返回 Prometheus 格式的监控指标数据。
+//      - `/`：一个简单的欢迎页面，包含链接到监控指标数据页面。
+//      - `/worker/health`：用于检查服务的健康状态，并返回健康检查的结果。
+//    - 方法通过调用 `http.ListenAndServe` 开启 HTTP 服务，并开始监听配置中指定的端口。
+
+// 5. `Stop` 方法：
+//    - 该方法用于停止监控服务，取消上下文并释放资源。
+//    - 通过调用 `t.cancel()`，可以停止正在运行的 HTTP 服务和所有关联的操作。
+
+// 总体而言，本文件实现了一个简单而有效的监控管理器，能够为 Rainbond 系统中的应用资源提供实时的监控指标，并通过 Prometheus 进行采集和展示。
+
 package monitor
 
 import (

@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: event_log_client.go
+// 说明: 该文件实现了事件日志客户端的功能。文件中定义了与事件日志服务的交互方法，
+// 用于记录和获取平台中的事件日志信息。通过这些方法，Rainbond 平台能够有效地管理和
+// 存储各种操作事件日志，确保系统的审计和监控功能的实现。
+
 package client
 
 import (
@@ -25,7 +30,7 @@ import (
 	grpc1 "google.golang.org/grpc"
 )
 
-//NewEventClient new a event client
+// NewEventClient new a event client
 func NewEventClient(ctx context.Context, server string) (pb.EventLogClient, error) {
 	conn, err := grpc1.DialContext(ctx, server, grpc1.WithInsecure())
 	if err != nil {

@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: apply_rule.go
+// 说明: 该文件实现了规则应用功能。文件中定义了用于处理和应用平台内规则的相关方法，
+// 以支持系统内不同规则的统一管理和执行。通过这些方法，Rainbond 平台能够确保规则的正确应用，
+// 提升系统的自动化管理能力。
 
 package controller
 

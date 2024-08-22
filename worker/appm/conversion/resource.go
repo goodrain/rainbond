@@ -15,6 +15,36 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+/*
+ * 描述:
+ * 该文件包含与资源设置相关的功能，特别是用于创建 Kubernetes 资源需求的功能。主要功能包括根据给定的内存、CPU 和 GPU 配置生成 Kubernetes 和 KubeVirt 资源需求对象。此功能对资源的限制和请求进行设置，并在需要时支持 KubeVirt 特定的资源配置。
+ *
+ * 主要功能:
+ * - 创建 Kubernetes 资源需求对象 (corev1.ResourceRequirements) 和 KubeVirt 资源需求对象 (kubevirtv1.ResourceRequirements)。
+ * - 根据提供的内存、CPU 和 GPU 配置生成资源限制和请求。
+ * - 处理 GPU 限制的解析和日志记录。
+ *
+ * 函数:
+ * - createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimit int64, vmResource bool) (*corev1.ResourceRequirements, *kubevirtv1.ResourceRequirements)
+ *   - 参数:
+ *     - memory: 内存大小，以 MB 为单位。
+ *     - setCPURequest: CPU 请求值，以毫核为单位。
+ *     - setCPULimit: CPU 限制值，以毫核为单位。
+ *     - setGPULimit: GPU 限制值，以整数形式表示。
+ *     - vmResource: 布尔值，指示是否生成 KubeVirt 资源需求对象。
+ *   - 返回值:
+ *     - 对于 Kubernetes 资源需求，返回 *corev1.ResourceRequirements。
+ *     - 对于 KubeVirt 资源需求，返回 *kubevirtv1.ResourceRequirements。
+ *
+ * 许可证:
+ * - 本程序是自由软件；您可以根据 GNU 通用公共许可证第3版（或（根据您的选择）任何更高版本）的条款重新分发和/或修改。
+ * - 对于 Rainbond 的任何非 GPL 使用，必须先获得 Goodrain Co., Ltd. 授权的一个或多个商业许可证。
+ * - 本程序按“原样”分发，未提供任何形式的明示或暗示的担保，包括但不限于适销性或适用性的担保。
+ * - 有关详细信息，请参阅 GNU 通用公共许可证。
+ *
+ * 联系:
+ * - 如果您没有收到 GNU 通用公共许可证的副本，请访问 <http://www.gnu.org/licenses/>。
+ */
 
 package conversion
 

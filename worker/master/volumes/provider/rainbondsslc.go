@@ -15,6 +15,35 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件主要实现了一个用于 Rainbond 平台的本地路径卷（Persistent Volume）提供者，该提供者用于在 Kubernetes 集群中创建和管理持久化存储卷。
+
+// 1. `rainbondsslcProvisioner` 结构体：
+//    - `rainbondsslcProvisioner` 是一个实现了 `controller.Provisioner` 接口的结构体，负责管理和操作 Rainbond 的本地路径卷。
+//    - 该结构体包含了 Kubernetes 客户端接口 `kubecli` 和存储接口 `store`，用于与 Kubernetes 集群和存储系统交互。
+
+// 2. `NewRainbondsslcProvisioner` 函数：
+//    - 该函数根据运行模式（ALLINONE_MODE）创建并返回一个 `rainbondsslcProvisioner` 实例。
+//    - 如果处于 All-in-One 模式下，使用 Rancher 的 `local-path` 作为提供者名称；否则，使用 Rainbond 自定义的 `provisioner-sslc` 名称。
+
+// 3. `selectNode` 方法：
+//    - 该方法用于在 Kubernetes 集群中选择一个最合适的节点，以便为本地路径卷提供存储资源。
+//    - 它会遍历所有节点，过滤掉不符合条件的节点，并选择资源最充足的节点（基于可用内存）作为目标节点。
+
+// 4. `createPath` 方法：
+//    - 该方法根据提供的卷选项创建一个存储路径。它通过向目标节点发送 HTTP 请求，调用节点的 API 创建本地卷，并返回创建的存储路径。
+//    - 如果创建失败，会重试三次，并记录相关错误日志。
+
+// 5. `Provision` 方法：
+//    - 该方法用于创建持久化存储卷（PV）。它首先选择一个最合适的节点，然后调用 `createPath` 方法创建存储路径，最后根据指定的参数构建并返回一个 PV 对象。
+//    - PV 对象包含了存储路径、访问模式、容量、节点亲和性等配置信息。
+
+// 6. `Delete` 方法：
+//    - 该方法用于删除由 `Provision` 方法创建的持久化存储卷。目前该方法未实现删除逻辑。
+
+// 7. `Name` 方法：
+//    - 该方法返回提供者的名称。
+
+// 综上所述，本文件实现了一个自定义的 Kubernetes 持久化存储卷提供者，主要用于在 Rainbond 平台上创建和管理基于节点本地存储的卷资源。通过对节点资源的选择和路径的创建，确保了集群中持久化存储卷的高效和可靠管理。
 
 package provider
 
@@ -70,7 +99,7 @@ func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer
 
 var _ controller.Provisioner = &rainbondsslcProvisioner{}
 
-//selectNode select an appropriate node with the largest resource surplus
+// selectNode select an appropriate node with the largest resource surplus
 func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore string) (*v1.Node, error) {
 	allnode, err := p.kubecli.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {

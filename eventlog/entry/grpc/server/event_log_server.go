@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: event_log.proto
+// 说明: 该文件定义了事件日志服务的 Protocol Buffers (protobuf) 接口和消息格式。文件中包含
+// 了服务端方法和消息体结构，用于在系统中处理事件日志的序列化和传输。通过这些定义，Rainbond
+// 平台能够确保事件日志数据在不同服务之间的高效传递和处理。
+
 package server
 
 import (

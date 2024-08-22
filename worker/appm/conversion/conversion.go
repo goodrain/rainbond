@@ -16,6 +16,51 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+/*
+本文件定义了与应用服务转换相关的功能，包括注册转换函数、初始化应用服务和缓存操作等。
+
+主要功能：
+1. `init` 函数：注册各种应用服务转换函数。这些转换函数包括：
+   - `TenantServiceConfigGroup`：将配置组转换为环境变量密钥。
+   - `TenantServiceVersion`：转换服务的基本信息。
+   - `TenantServicePlugin`：转换服务插件。
+   - `TenantServiceAutoscaler`：转换服务自动伸缩器。
+   - `TenantServiceMonitor`：转换服务监控器。
+
+2. `Conversion` 类型：定义了应用服务转换函数的接口。
+   - 输入：应用服务对象 (`*v1.AppService`) 和数据库管理器 (`db.Manager`)。
+   - 输出：可能返回的错误。
+
+3. `CacheConversion` 类型：用于缓存转换函数及其名称。
+   - `Name`：转换函数名称。
+   - `Conversion`：转换函数。
+
+4. `RegistConversion` 函数：注册转换函数到转换函数列表中。
+   - 输入：转换函数名称和转换函数。
+   - 输出：无。
+
+5. `InitAppService` 函数：初始化应用服务，包括设置治理模式、注册组件、构建工作负载资源等。
+   - 输入：共享存储类、Kruise 客户端、Gateway 客户端、滚动标志、干运行标志、数据库管理器、服务 ID、配置映射和启用的转换列表。
+   - 输出：初始化后的应用服务对象 (`*v1.AppService`) 和可能发生的错误。
+
+6. `InitCacheOperatorManaged` 函数：初始化缓存操作管理器。
+   - 输入：应用 ID。
+   - 输出：初始化后的操作管理器对象 (`*v1.OperatorManaged`)。
+
+7. `InitCacheAppService` 函数：初始化缓存应用服务。如果在存储中找不到服务模型，将创建一个新的服务对象。
+   - 输入：数据库管理器、服务 ID、创建者 ID、Kruise 客户端和 Gateway 客户端。
+   - 输出：初始化后的应用服务对象 (`*v1.AppService`) 和可能发生的错误。
+
+文件中使用的主要库：
+- `errors` 和 `fmt`：处理错误和格式化输入输出。
+- `github.com/jinzhu/gorm`：ORM 框架。
+- `github.com/openkruise/kruise-api/client/clientset/versioned`：Kruise 客户端库。
+- `sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1`：Gateway API 客户端库。
+- `github.com/goodrain/rainbond/api/util/bcode` 和 `github.com/goodrain/rainbond/db`：Rainbond 相关的工具和数据库操作。
+- `github.com/goodrain/rainbond/worker/appm/componentdefinition` 和 `github.com/goodrain/rainbond/worker/appm/types/v1`：Rainbond 应用服务和组件定义。
+- `github.com/sirupsen/logrus`：日志记录。
+*/
+
 package conversion
 
 import (
@@ -48,25 +93,25 @@ func init() {
 	RegistConversion("TenantServiceMonitor", TenantServiceMonitor)
 }
 
-//Conversion conversion function
-//Any application attribute implementation is similarly injected
+// Conversion conversion function
+// Any application attribute implementation is similarly injected
 type Conversion func(*v1.AppService, db.Manager) error
 
-//CacheConversion conversion cache struct
+// CacheConversion conversion cache struct
 type CacheConversion struct {
 	Name       string
 	Conversion Conversion
 }
 
-//conversionList conversion function list
+// conversionList conversion function list
 var conversionList []CacheConversion
 
-//RegistConversion regist conversion function list
+// RegistConversion regist conversion function list
 func RegistConversion(name string, fun Conversion) {
 	conversionList = append(conversionList, CacheConversion{Name: name, Conversion: fun})
 }
 
-//InitAppService init a app service
+// InitAppService init a app service
 func InitAppService(sharedStorageClass string, kruiseClient *versioned.Clientset, gatewayClient *v1beta1.GatewayV1beta1Client, inRolling bool, dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
 	if configs == nil {
 		configs = make(map[string]string)
@@ -126,7 +171,7 @@ func InitAppService(sharedStorageClass string, kruiseClient *versioned.Clientset
 	return appService, nil
 }
 
-//InitCacheOperatorManaged init cache operator manager
+// InitCacheOperatorManaged init cache operator manager
 func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
 	operatorManaged := &v1.OperatorManaged{
 		AppID: appID,
@@ -134,8 +179,8 @@ func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
 	return operatorManaged
 }
 
-//InitCacheAppService init cache app service.
-//if store manager receive a kube model belong with service and not find in store,will create
+// InitCacheAppService init cache app service.
+// if store manager receive a kube model belong with service and not find in store,will create
 func InitCacheAppService(dbm db.Manager, serviceID, creatorID string, kruiseClient *versioned.Clientset, gatewayClient *v1beta1.GatewayV1beta1Client) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{

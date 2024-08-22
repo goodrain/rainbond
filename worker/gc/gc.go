@@ -15,6 +15,40 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件实现了 Rainbond 平台中的垃圾回收器（GarbageCollector），该组件用于清理与服务相关的持久数据、卷数据、Kubernetes 对象等资源。
+// 通过定期执行垃圾回收任务，确保平台资源得到有效管理，避免过多的无用数据占用系统资源。
+
+// 文件的主要功能包括：
+
+// 1. `GarbageCollector` 结构体：
+//    - 包含了 Kubernetes 客户端，用于与 Kubernetes 集群进行交互，执行资源删除操作。
+
+// 2. `NewGarbageCollector` 函数：
+//    - 创建并返回一个新的 `GarbageCollector` 实例，用于管理系统中的垃圾回收任务。
+
+// 3. `DelLogFile` 方法：
+//    - 根据服务 ID 删除与该服务相关的日志文件，包括服务运行期间生成的 Docker 日志和事件日志。
+
+// 4. `DelVolumeData` 方法：
+//    - 根据服务 ID 删除与该服务相关的卷数据，清理服务产生的持久化存储。
+
+// 5. `DelPvPvcByServiceID` 方法：
+//    - 删除与服务 ID 相关的持久卷（PersistentVolume, PV）和持久卷声明（PersistentVolumeClaim, PVC）。
+
+// 6. `DelKubernetesObjects` 方法：
+//    - 删除与服务 ID 相关的 Kubernetes 对象，包括 Deployment、StatefulSet、Job、CronJob、Ingress、Secret、ConfigMap、HPA 等资源。
+//    - 由于 Kubernetes 不支持批量删除 Service 对象，因此该方法在删除 Service 对象后，还会删除其对应的 Endpoints。
+
+// 7. `DelComponentPkg` 方法：
+//    - 删除与服务 ID 相关的组件包文件，清理服务构建过程中生成的组件包。
+
+// 8. `DelShellPod` 方法：
+//    - 删除创建时间超过 6 小时的 Shell Pod，以避免这些短期使用的 Pod 长时间占用系统资源。
+
+// 9. `listOptionsServiceID` 方法：
+//    - 构建一个用于按服务 ID 过滤 Kubernetes 对象的选项，方便后续批量删除与特定服务相关的对象。
+
+// 总体而言，文件通过提供多个资源清理方法，确保系统在删除服务后能够有效地清理相关资源，避免资源泄漏和浪费。
 
 package gc
 

@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: event_log.pb.go
+// 说明: 该文件由 Protocol Buffers (protobuf) 生成，定义了事件日志的序列化和反序列化
+// 的数据结构和方法。通过这些生成的代码，Rainbond 平台能够高效地处理事件日志的网络传输
+// 和数据存储。这些定义确保了日志数据在不同服务之间的兼容性和一致性。
+
 package pb
 
 import proto "github.com/golang/protobuf/proto"

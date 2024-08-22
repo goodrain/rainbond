@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: getter.go
+// 说明: 该文件实现了数据获取的相关功能。文件中定义了用于从不同数据源中获取和处理数据的方法，
+// 以支持平台中的各种功能模块。通过这些方法，Rainbond 平台能够高效地从外部资源中获取所需的数据，
+// 并确保数据的准确性和及时性。
 
 package web
 
@@ -26,7 +30,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//getDockerLogs get history docker logs
+// getDockerLogs get history docker logs
 func (s *SocketServer) getDockerLogs(w http.ResponseWriter, r *http.Request) {
 	rows, _ := strconv.Atoi(r.URL.Query().Get("rows"))
 	serviceID := chi.URLParam(r, "serviceID")

@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: manager.go
+// 说明: 该文件实现了平台管理功能的核心组件。文件中定义了用于管理应用、组件和服务的各种方法，
+// 以确保平台内资源的有效管理和调度。通过这些管理功能，Rainbond 平台能够为用户提供强大而灵活的管理工具，
+// 从而提升平台的整体运维效率和可靠性。
 
 package store
 

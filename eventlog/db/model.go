@@ -16,9 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: model.go
+// 说明: 该文件定义了Rainbond应用管理平台中的模型层结构体和方法。文件中包含了各种
+// 与应用、组件、服务相关的核心数据模型，这些模型用于在平台中表示和处理不同类型的资源。
+// 通过这些数据模型，平台能够高效地管理和操作各类应用和服务。
+
 package db
 
-//EventLogMessage 事件日志实体
+// EventLogMessage 事件日志实体
 type EventLogMessage struct {
 	EventID string `json:"event_id"`
 	Step    string `json:"step"`

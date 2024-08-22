@@ -16,6 +16,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件定义了 Rainbond 平台中的存储卷（Volume）管理模块，包括各种类型存储卷的创建、配置和管理操作。
+// 存储卷是 Rainbond 应用服务的重要组成部分，用于在容器中持久化数据或提供配置文件。
+
+// 文件内容主要包括以下几个部分：
+// 1. `Volume` 接口：该接口定义了存储卷的基本操作，包括创建卷（CreateVolume）和创建依赖卷（CreateDependVolume）。
+//    所有具体的存储卷类型都需要实现这个接口。
+
+// 2. `NewVolumeManager` 函数：该函数是存储卷管理器的构造函数，根据传入的存储卷类型创建相应的存储卷对象。
+//    不同类型的存储卷包括共享文件卷（ShareFileVolume）、配置文件卷（ConfigFileVolume）、内存文件系统卷（MemoryFSVolume）、
+//    本地卷（LocalVolume）、插件存储卷（PluginStorageVolume）、NFS 卷（NFSVolume）等。
+
+// 3. `Base` 结构体：这是一个基础结构体，存储了与应用服务和存储卷相关的基本信息，例如应用服务对象、存储卷模型、
+//    版本信息和数据库管理器等。所有具体的存储卷类型都继承自这个基础结构体，并通过 `setBaseInfo` 方法进行初始化。
+
+// 4. `Define` 结构体：该结构体用于定义应用服务的存储卷，包括卷的挂载路径、卷对象和虚拟机卷等。
+//    通过该结构体，Rainbond 可以统一管理和访问应用服务的存储卷信息。
+
+// 5. `newVolumeClaim` 函数：该函数用于创建 Kubernetes 中的 `PersistentVolumeClaim` 对象。
+//    该对象表示对持久化存储资源的请求，包含存储卷的名称、访问模式、存储类和资源请求等信息。
+
+// 6. `SetVolume` 和 `SetVolumeCMap` 方法：这些方法用于在 `Define` 结构体中设置存储卷和配置卷。
+//    `SetVolume` 方法支持内存文件系统卷和共享文件卷的设置，而 `SetVolumeCMap` 方法则用于设置配置卷，
+//    其中配置卷的数据来源于 Kubernetes 中的 ConfigMap 对象。
+
+// 7. `convertRulesToEnvs` 函数：该函数用于将 HTTP 规则转换为环境变量，
+//    并将这些环境变量注入到应用服务的容器中。通过环境变量，应用服务可以访问与其端口相关的域名和协议信息。
+
+// 8. `RewriteHostPathInWindows` 和 `RewriteContainerPathInWindows` 函数：
+//    这些函数用于在 Windows 环境中重写主机路径和容器路径，以适应 Windows 的路径格式。
+
+// 通过这些结构体和方法，Rainbond 平台能够灵活地创建和管理应用服务的存储卷，
+// 满足不同类型服务的持久化存储需求，并支持在不同操作系统环境中的兼容性。
+
 package volume
 
 import (

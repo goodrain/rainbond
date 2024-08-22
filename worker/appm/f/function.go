@@ -15,6 +15,22 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 该文件定义了在Rainbond平台上管理Kubernetes资源对象的核心函数，主要涉及到服务、Ingress、Secret、
+// PersistentVolumeClaim、Endpoints、HorizontalPodAutoscaler、ServiceMonitor等Kubernetes对象的创建、更新和删除。
+// 通过这些函数，可以保证在应用服务的生命周期内，相关资源能够正确地应用、更新或清理。
+
+// 文件中的主要功能包括：
+// 1. `ApplyOne` 函数：用于根据AppService的配置，创建或更新Kubernetes中的命名空间、组件清单、服务、Ingress、Secret等资源。
+// 2. 资源管理函数：例如 `EnsureService`、`EnsureIngress` 等函数，用于检查Kubernetes集群中的资源是否存在，如果不存在则创建，
+//    如果存在则更新。确保应用服务的资源配置与期望状态一致。
+// 3. 删除操作：文件中的部分函数负责清理不再需要的Kubernetes资源，如删除旧的Ingress、Secret、服务等，
+//    以避免资源浪费并保持集群的整洁。
+// 4. 处理水平Pod自动扩展和服务监控：通过 `EnsureHPA` 和 `UpgradeServiceMonitor` 函数，
+//    可以保证应用服务在Kubernetes集群中的自动扩展和监控配置得以实现和更新。
+
+// 这些功能的实现涉及到与Kubernetes API Server的交互，通过 `client-go` 和 `prometheus-operator` 等客户端库，
+// 文件中的函数能够对Kubernetes资源对象进行高效的管理和操作。同时，通过日志记录和错误处理机制，
+// 可以在操作过程中捕获和处理异常情况，确保应用服务的正常运行。
 
 package f
 

@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: new_monitor_message_store.go
+// 说明: 该文件实现了新的监控消息存储功能。文件中定义了用于接收、存储和管理监控数据的改进方法，
+// 提升了消息处理的效率和可靠性。通过这些方法，Rainbond 平台能够确保监控信息的及时存储和分析，
+// 从而进一步提高系统的监控能力和问题响应速度。
 
 package store
 
@@ -161,7 +165,7 @@ func (h *newMonitorMessageStore) GetHistoryMessage(eventID string, length int) (
 	return nil
 }
 
-//MonitorMessage 性能监控消息系统模型
+// MonitorMessage 性能监控消息系统模型
 type MonitorMessage struct {
 	ServiceID   string
 	Port        string
@@ -177,14 +181,14 @@ type MonitorMessage struct {
 	AbnormalCount uint64
 }
 
-//cacheMonitorMessage 每个实例的数据缓存
+// cacheMonitorMessage 每个实例的数据缓存
 type cacheMonitorMessage struct {
 	updateTime time.Time
 	hostName   string
 	mms        MonitorMessageList
 }
 
-//CacheMonitorMessageList 某个应用性能分析数据
+// CacheMonitorMessageList 某个应用性能分析数据
 type CacheMonitorMessageList struct {
 	list          []*cacheMonitorMessage
 	subSocketChan map[string]chan *db.EventLogMessage
@@ -193,7 +197,7 @@ type CacheMonitorMessageList struct {
 	UpdateTime    time.Time
 }
 
-//CreateCacheMonitorMessageList 创建应用监控信息缓存器
+// CreateCacheMonitorMessageList 创建应用监控信息缓存器
 func CreateCacheMonitorMessageList(eventID string) *CacheMonitorMessageList {
 	return &CacheMonitorMessageList{
 		subSocketChan: make(map[string]chan *db.EventLogMessage),
@@ -203,8 +207,8 @@ func CreateCacheMonitorMessageList(eventID string) *CacheMonitorMessageList {
 	}
 }
 
-//Insert 认为mms的hostname一致
-//每次收到消息进行gc
+// Insert 认为mms的hostname一致
+// 每次收到消息进行gc
 func (c *CacheMonitorMessageList) Insert(mms ...MonitorMessage) {
 	if mms == nil || len(mms) < 1 {
 		return
@@ -240,7 +244,7 @@ func (c *CacheMonitorMessageList) Insert(mms ...MonitorMessage) {
 	c.pushMessage()
 }
 
-//Gc 清理数据
+// Gc 清理数据
 func (c *CacheMonitorMessageList) Gc() {
 	var list []*cacheMonitorMessage
 	for i := range c.list {
@@ -290,7 +294,7 @@ func (c *CacheMonitorMessageList) addSubChan(subID string) chan *db.EventLogMess
 	return ch
 }
 
-//delSubChan delete socket sub chan
+// delSubChan delete socket sub chan
 func (c *CacheMonitorMessageList) delSubChan(subID string) {
 	c.subLock.Lock()
 	defer c.subLock.Unlock()
@@ -341,16 +345,16 @@ func merge(source, addsource MonitorMessageList) (result MonitorMessageList) {
 	return
 }
 
-//Round Round
+// Round Round
 func Round(f float64, n int) float64 {
 	pow10n := math.Pow10(n)
 	return math.Trunc((f+0.5/pow10n)*pow10n) / pow10n
 }
 
-//MonitorMessageList 消息列表
+// MonitorMessageList 消息列表
 type MonitorMessageList []MonitorMessage
 
-//Add 添加
+// Add 添加
 func (m *MonitorMessageList) Add(mm *MonitorMessage) {
 	*m = append(*m, *mm)
 }
@@ -360,7 +364,7 @@ func (m *MonitorMessageList) Len() int {
 	return len(*m)
 }
 
-//Less 如果index为i的元素小于index为j的元素，则返回true，否则返回false
+// Less 如果index为i的元素小于index为j的元素，则返回true，否则返回false
 func (m *MonitorMessageList) Less(i, j int) bool {
 	return (*m)[i].CumulativeTime < (*m)[j].CumulativeTime
 }
@@ -372,7 +376,7 @@ func (m *MonitorMessageList) Swap(i, j int) {
 	(*m)[j] = tmp
 }
 
-//Pop Pop
+// Pop Pop
 func (m *MonitorMessageList) Pop(i int) *MonitorMessageList {
 	if len(*m) <= i {
 		return m
@@ -381,7 +385,7 @@ func (m *MonitorMessageList) Pop(i int) *MonitorMessageList {
 	return &cache
 }
 
-//String json string
+// String json string
 func (m *MonitorMessageList) String() string {
 	body, _ := json.Marshal(m)
 	return string(body)

@@ -15,16 +15,20 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: controller.go
+// 说明: 该文件实现了控制器功能。文件中定义了用于管理和协调平台内各组件和服务的相关方法，
+// 以支持系统内的自动化和调度需求。通过这些方法，Rainbond 平台能够确保各组件和服务的有序运行，
+// 提供高效的资源调度和管理能力。
 
 package controller
 
 import (
 	"context"
 	"fmt"
-	"github.com/openkruise/kruise-api/client/clientset/versioned"
-	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/openkruise/kruise-api/client/clientset/versioned"
 	"kubevirt.io/client-go/kubecli"
+	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"sync"
 
 	"github.com/goodrain/rainbond/util"

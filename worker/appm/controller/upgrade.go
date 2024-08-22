@@ -16,6 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件定义了 `upgradeController` 结构体及其相关方法，用于管理应用程序的升级过程。主要功能包括：
+// 1. `Begin` 方法：启动应用程序升级，遍历所有服务并并行执行升级操作。
+// 2. `Stop` 方法：停止升级过程，当前实现为空。
+// 3. `upgradeConfigMap` 方法：升级应用程序的配置映射（ConfigMap），包括更新、创建和删除操作。
+// 4. `upgradeService` 方法：升级应用程序的服务，包括更新现有服务或创建新的服务，处理删除操作。
+// 5. `upgradeOne` 方法：执行单个应用程序的完整升级流程，包括检查或创建命名空间、应用自定义组件、升级配置映射、服务、持久卷声明、状态副本集和秘密等。
+// 6. `WaitingReady` 方法：等待应用程序启动或升级完成，确保应用程序达到预期的就绪状态。
+//
+// 该文件依赖于多个包，包括 Kubernetes API 客户端、日志记录库和 Rainbond 内部的 util 和 event 模块。通过这些依赖，`upgradeController` 可以与 Kubernetes 集群进行交互，处理应用程序的升级需求，并提供详细的日志记录功能。
+//
+// 主要用于 Rainbond 应用管理平台中的应用程序升级控制。
+
 package controller
 
 import (

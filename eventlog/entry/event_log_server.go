@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: event_log_server.go
+// 说明: 该文件实现了事件日志服务器的功能。文件中定义了处理和管理事件日志的相关方法，
+// 用于接收、存储和分析平台中的各种操作日志信息。通过这些方法，Rainbond 平台能够确保
+// 事件日志的可靠存储和审计，提升系统的可监控性和问题定位能力。
+
 package entry
 
 import (
@@ -32,7 +37,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//EventLogServer 日志接受服务
+// EventLogServer 日志接受服务
 type EventLogServer struct {
 	conf               conf.EventLogServerConf
 	log                *logrus.Entry
@@ -46,7 +51,7 @@ type EventLogServer struct {
 	eventRPCServer     *grpcserver.EventLogRPCServer
 }
 
-//NewEventLogServer 创建zmq server服务端
+// NewEventLogServer 创建zmq server服务端
 func NewEventLogServer(conf conf.EventLogServerConf, log *logrus.Entry, storeManager store.Manager) (*EventLogServer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &EventLogServer{
@@ -68,19 +73,19 @@ func NewEventLogServer(conf conf.EventLogServerConf, log *logrus.Entry, storeMan
 	return s, nil
 }
 
-//Serve 执行
+// Serve 执行
 func (s *EventLogServer) Serve() {
 	s.eventRPCServer.Start()
 }
 
-//Stop 停止
+// Stop 停止
 func (s *EventLogServer) Stop() {
 	s.cancel()
 	s.eventRPCServer.Stop()
 	s.log.Info("receive event message server stop")
 }
 
-//ListenError listen error chan
+// ListenError listen error chan
 func (s *EventLogServer) ListenError() chan error {
 	return s.listenErr
 }

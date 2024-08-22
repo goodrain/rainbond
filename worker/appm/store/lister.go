@@ -16,6 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件定义了Rainbond平台中用于管理和缓存Kubernetes资源对象的Lister结构体。
+// 通过集成多个Kubernetes资源的Lister，该文件为Rainbond平台提供了对Kubernetes集群中各种资源的
+// 实时查询和访问能力。
+
+// 文件中的主要功能包括：
+// 1. `Lister` 结构体：定义了多个Kubernetes资源的Lister，包括Ingress、Service、Secret、StatefulSet、
+//    Deployment、Pod、ReplicaSets、ConfigMap、Endpoints、Nodes、StorageClass、PersistentVolumeClaim、
+//    HorizontalPodAutoscaler、CustomResourceDefinition (CRD)、HelmApp、ComponentDefinition、ThirdComponent、
+//    Job、CronJob等。这些Lister用于查询和缓存Kubernetes集群中相应资源的状态和信息。
+// 2. 资源管理：通过这些Lister，Rainbond平台能够高效地访问和操作Kubernetes中的资源，
+//    提供了更快速和简便的资源查询能力，避免了每次查询都直接访问API Server，从而减少了对Kubernetes集群的负载。
+
+// 总的来说，该文件通过定义和管理Kubernetes资源的Lister，使Rainbond平台能够高效地管理和访问
+// 集群中的资源信息，从而实现对应用服务的实时监控和高效管理。这对于确保平台的稳定性和响应能力至关重要。
+
 package store
 
 import (
@@ -32,7 +47,7 @@ import (
 	storagev1 "k8s.io/client-go/listers/storage/v1"
 )
 
-//Lister kube-api client cache
+// Lister kube-api client cache
 type Lister struct {
 	Ingress                      networkingv1.IngressLister
 	BetaIngress                  betav1.IngressLister

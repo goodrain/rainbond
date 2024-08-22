@@ -15,6 +15,11 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: restart.go
+// 说明: 该文件实现了应用服务的重启功能。文件中定义了 `restartController` 结构体及其相关方法，
+// 用于管理和执行平台中应用服务的重启过程。通过这些方法，Rainbond 平台能够并行处理多个服务的重启，
+// 并提供错误处理、日志记录和服务注册功能。`Begin` 方法启动所有服务的重启过程，`restartOne` 方法处理单个服务的重启，
+// `Stop` 方法用于优雅地终止重启操作。文件的功能旨在确保服务的稳定性和系统的高可用性。
 
 package controller
 
@@ -87,7 +92,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		ctx:          s.ctx,
 		controllerID: s.controllerID,
 	}
-	newAppService, err := conversion.InitAppService(s.cfg.SharedStorageClass,s.manager.kruiseClient, s.manager.gatewayClient, true, false, db.GetManager(), app.ServiceID, app.ExtensionSet)
+	newAppService, err := conversion.InitAppService(s.cfg.SharedStorageClass, s.manager.kruiseClient, s.manager.gatewayClient, true, false, db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
 		app.Logger.Error(util.Translation("(restart)Application model init create failure"), event.GetCallbackLoggerOption())

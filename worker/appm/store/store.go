@@ -16,6 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件定义了Rainbond平台中的应用运行时存储接口 `Storer` 及其相关的功能和方法。`Storer` 接口提供了对
+// Kubernetes 资源的管理和操作能力，涵盖了应用服务、Pod、Service、CRD（自定义资源定义）等多种资源类型的管理。
+
+// 文件中的主要功能包括：
+// 1. `Storer` 接口：定义了多种方法用于管理和查询Rainbond平台中的应用服务及其关联的Kubernetes资源。
+//    这些方法涵盖了应用服务的注册、状态查询、资源获取、监听器注册、CRD操作、Prometheus监控集成等多种功能。
+// 2. 资源管理：`Storer` 接口的实现提供了对应用服务的生命周期管理，包括启动、删除、资源分配和状态监控等。
+//    通过接口的多种方法，可以高效地管理应用服务的状态和资源使用情况，并与Kubernetes集群中的资源进行交互。
+// 3. 监控与监听：通过接口方法，平台可以注册对特定资源的更新监听器，监控资源的变化，并相应地调整应用服务的状态和配置。
+//    例如，Pod更新监听、卷类型监听等，使得平台能够动态响应资源变化。
+// 4. CRD 和 ServiceMonitor 的管理：接口中还包含了对CRD和Prometheus ServiceMonitor的操作方法，使得Rainbond能够集成和管理自定义资源，并与Prometheus监控系统进行交互。
+
+// 总的来说，该文件通过定义 `Storer` 接口，提供了Rainbond平台对Kubernetes资源的全面管理能力，
+// 包括应用服务的状态管理、资源分配、监控集成和自定义资源的操作。这些功能确保了平台的高可用性和动态响应能力，
+
 package store
 
 import (

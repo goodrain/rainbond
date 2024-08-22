@@ -1,3 +1,27 @@
+// 本文件主要用于处理 Kubernetes 集群中的 Pod 事件，并根据事件的类型和状态记录相关信息或触发相应操作。
+
+// 1. 事件类型定义与获取：
+//    - `EventType` 定义了一系列与 Pod 相关的事件类型，包括 OOMKilled、CrashLoopBackOff 等常见异常事件。
+//    - 通过 `GetEventTypes` 函数可以获取所有定义的事件类型。
+
+// 2. `PodEvent` 结构体：
+//    - `PodEvent` 结构体负责管理和处理 Pod 的事件。它包含了一个 Kubernetes 客户端 `clientset`，用于与集群交互；一个通道 `podEventCh`，用于接收和处理 Pod 事件；以及一个控制循环终止的通道 `stopCh`。
+//    - 通过 `New` 函数可以创建一个新的 `PodEvent` 实例，并启动一个事件处理循环。
+//    - `Handle` 方法是事件处理的主循环，负责从 `podEventCh` 通道中读取 Pod 事件，并根据 Pod 的创建时间和状态决定是否记录事件或触发异常处理。
+
+// 3. 事件记录与异常处理：
+//    - `recordUpdateEvent` 函数负责记录 Pod 状态更新事件，并根据 Pod 的状态和异常类型触发系统事件。这包括创建新事件或更新已有事件的状态。
+//    - `AbnormalEvent` 函数专门处理 Pod 的异常事件，如调度失败、容器状态异常等。它会根据异常原因生成相应的系统事件，并在必要时更新事件状态。
+
+// 4. 异常类型判断：
+//    - `determineOptType` 是一个类型别名，用于定义一个函数类型，该函数根据 Pod 的状态和相关事件来确定异常类型。
+//    - `defDetermineOptType` 是一个默认实现，负责根据容器的状态和 Pod 相关事件来判断异常类型。
+
+// 5. 系统事件创建：
+//    - `createSystemEvent` 函数负责在数据库中创建新的系统事件记录。这些事件包括 Pod 的各种异常情况，如内存不足导致的 OOMKill、容器异常退出等。
+
+// 综上所述，本文件通过监听和处理 Kubernetes 集群中的 Pod 事件，实时记录和响应 Pod 的异常状态。它帮助 Rainbond 平台在集群管理过程中有效监控 Pod 的运行状态，并及时处理和报告潜在的问题。这对于保证集群的稳定运行和故障恢复具有重要作用。
+
 package podevent
 
 import (

@@ -1,3 +1,26 @@
+/*
+本文件提供了与应用服务配置相关的功能，包括创建配置组和生成 Kubernetes Secret 对象。
+
+主要功能：
+1. `TenantServiceConfigGroup` 函数：为指定的应用服务创建配置组，并生成相应的 Kubernetes Secret。
+   - 输入：应用服务对象 (`*v1.AppService`) 和数据库管理器 (`db.Manager`)。
+   - 输出：可能返回的错误。
+
+2. `createConfigGroup` 函数：根据应用服务、命名空间、应用 ID 和配置组名称创建一个配置组对象。
+   - 输入：应用服务对象、命名空间、应用 ID 和配置组名称。
+   - 输出：配置组对象 (`*configGroup`)。
+
+3. `secretForConfigGroup` 方法：为配置组生成一个 Kubernetes Secret 对象。
+   - 输入：无。
+   - 输出：生成的 Secret 对象 (`*corev1.Secret`) 和可能发生的错误。
+
+文件中使用的主要库：
+- `fmt`：格式化输入输出。
+- `logrus`：日志记录。
+- `k8s.io/api/core/v1` 和 `k8s.io/apimachinery/pkg/apis/meta/v1`：Kubernetes API 类型和工具。
+- `github.com/goodrain/rainbond/db` 和 `github.com/goodrain/rainbond/worker/appm/types/v1`：Rainbond 相关的数据库和类型定义。
+*/
+
 package conversion
 
 import (

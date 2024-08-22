@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: store.go
+// 说明: 该文件实现了存储功能的核心组件。文件中定义了用于管理和操作存储数据的方法，
+// 以支持平台的各种数据存储需求。通过这些方法，Rainbond 平台能够确保数据的可靠存储、
+// 高效访问和安全管理，提供稳定的存储服务。
 
 package store
 
@@ -29,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-//MessageStore store
+// MessageStore store
 type MessageStore interface {
 	InsertMessage(*db.EventLogMessage)
 	InsertGarbageMessage(...*db.EventLogMessage)
@@ -43,7 +47,7 @@ type MessageStore interface {
 	Scrape(ch chan<- prometheus.Metric, namespace, exporter, from string) error
 }
 
-//NewStore 创建
+// NewStore 创建
 func NewStore(storeType string, manager *storeManager) MessageStore {
 	ctx, cancel := context.WithCancel(context.Background())
 	if storeType == "handle" {

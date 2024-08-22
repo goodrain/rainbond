@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: parse.go
+// 说明: 该文件实现了解析功能的核心组件。文件中定义了用于解析输入数据、配置文件或其他信息的相关方法，
+// 以支持平台内的数据处理和配置需求。通过这些方法，Rainbond 平台能够有效地解析和处理各类输入，
+// 提供准确的配置和数据处理能力。
 
 package componentdefinition
 

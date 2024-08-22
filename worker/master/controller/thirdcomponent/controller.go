@@ -16,6 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件是 Rainbond 平台中负责第三方组件（ThirdComponent）管理的控制器实现。文件主要功能是对第三方组件的状态进行持续监控和更新，包括端点（Endpoints）的发现、状态更新，以及服务（Service）端点的创建与管理。
+
+// 主要包含以下几个部分：
+
+// 1. `Reconciler` 结构体：
+//    - 这是控制器的核心结构体，包含了与 Kubernetes API 交互的客户端、配置、Scheme、以及端点发现池（DiscoverPool）等。
+//    - 该结构体实现了对第三方组件的状态监控和管理，确保组件的状态与实际运行状况保持一致。
+
+// 2. `Reconcile` 方法：
+//    - 这是控制器的核心逻辑，负责协调（Reconcile）第三方组件的状态。
+//    - 首先，它会获取组件的最新状态，如果组件已被删除，则从发现池中移除对应的发现器。
+//    - 然后，根据组件的配置创建相应的发现器（Discover），并调用其方法发现端点状态。
+//    - 根据发现的端点状态，更新组件的状态，并在必要时创建或更新服务端点。
+
+// 3. `applyEndpointService` 方法：
+//    - 负责将生成的端点信息应用到 Kubernetes 服务（Service）中。
+//    - 该方法会检查现有的端点与新生成的端点是否有变化，如果有变化则更新服务和端点。
+
+// 4. `createEndpointsOnlyOnePort` 和 `createEndpoint` 方法：
+//    - 这两个方法负责为组件创建 Kubernetes 端点资源。
+//    - `createEndpointsOnlyOnePort` 主要用于组件仅包含一个端口的情况，而 `createEndpoint` 则用于通用情况。
+//    - 它们根据组件的配置和发现的端点信息，生成对应的端点资源。
+
+// 5. `updateStatus` 方法：
+//    - 负责更新第三方组件的状态，确保状态与实际情况一致。
+//    - 使用 `RetryOnConflict` 机制确保状态更新的可靠性。
+
+// 6. `SetupWithManager` 方法：
+//    - 将控制器与控制器管理器（Manager）绑定，确保控制器能被 Kubernetes 管理和调度。
+
+// 7. `Setup` 方法：
+//    - 初始化控制器并与控制器管理器进行集成。
+//    - 该方法设置了事件记录器、端点发现池等，确保控制器能够正常运行并处理相关资源。
+
+// 通过上述功能，`Reconciler` 实现了对第三方组件的全面管理，包括状态监控、端点发现、服务端点管理等，确保 Rainbond 平台中的第三方组件能够正确运行，并在状态发生变化时及时做出响应。
+
 package thirdcomponent
 
 import (

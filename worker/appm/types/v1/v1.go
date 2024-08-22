@@ -15,6 +15,29 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 本文件主要定义了 Rainbond 平台中与应用服务管理相关的各种结构体和方法，
+// 包括应用服务的状态管理、资源统计、Kubernetes 资源的管理等。
+
+// 文件内容包括以下几个主要部分：
+// 1. 事件类型定义和事件结构体：定义了应用服务生命周期中可能发生的事件类型，如启动和停止事件。
+//    `Event` 结构体包含了事件类型、服务ID、端口等信息。
+
+// 2. 应用服务的基础信息结构体：`AppServiceBase` 包含了应用服务的基本信息，如租户ID、服务ID、服务类型、部署版本等。
+//    还定义了一些用于判断服务类型和管理服务发现配置的方法。
+
+// 3. 应用服务管理：`AppService` 结构体继承了 `AppServiceBase`，并增加了与 Kubernetes 资源（如 StatefulSet、Deployment、Pod、Service 等）
+//    相关的字段和方法，用于管理应用服务在 Kubernetes 集群中的状态和资源。
+
+// 4. Kubernetes 资源的管理：提供了一系列方法用于设置、获取和删除 Kubernetes 资源，包括 Deployment、StatefulSet、Service、ConfigMap、Ingress 等。
+//    这些方法用于管理应用服务在 Kubernetes 中的各种资源。
+
+// 5. 服务监控和资源计算：定义了用于计算应用服务资源请求（如 CPU 和内存）的函数，以及管理和删除服务监控的相关方法。
+
+// 6. 辅助方法：如计算 Pod 资源的 `CalculatePodResource` 方法，获取镜像名称的 `GetTCPMeshImageName` 等，
+//    这些方法为应用服务的管理和运维提供了便利。
+
+// 通过这些结构体和方法，Rainbond 平台能够实现对应用服务的精细化管理，包括服务的生命周期管理、资源使用统计、Kubernetes 资源的动态管理等，
+// 从而为平台用户提供稳定高效的应用服务管理能力。
 
 package v1
 

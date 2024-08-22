@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: eventFilePlugin.go
+// 说明: 该文件定义了用于管理事件日志的插件。包括事件日志的保存、
+// 检索和日志级别的检查等功能。这些功能通过 EventFilePlugin 结构体及其方法实现，
+// 主要用于处理事件日志文件的存储和读取操作。
+
 package db
 
 import (
@@ -33,12 +38,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//EventFilePlugin EventFilePlugin
+// EventFilePlugin EventFilePlugin
 type EventFilePlugin struct {
 	HomePath string
 }
 
-//SaveMessage save event log to file
+// SaveMessage save event log to file
 func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
@@ -70,21 +75,21 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	return nil
 }
 
-//MessageData message data 获取指定操作的操作日志
+// MessageData message data 获取指定操作的操作日志
 type MessageData struct {
 	Message  string `json:"message"`
 	Time     string `json:"time"`
 	Unixtime int64  `json:"utime"`
 }
 
-//MessageDataList MessageDataList
+// MessageDataList MessageDataList
 type MessageDataList []MessageData
 
 func (a MessageDataList) Len() int           { return len(a) }
 func (a MessageDataList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unixtime }
 
-//GetMessages GetMessages
+// GetMessages GetMessages
 func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interface{}, error) {
 	var message MessageDataList
 	apath := path.Join(m.HomePath, "eventlog", eventID+".log")
@@ -135,7 +140,7 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 	return message, nil
 }
 
-//CheckLevel check log level
+// CheckLevel check log level
 func CheckLevel(flag, level string) bool {
 	switch flag {
 	case "0":
@@ -152,7 +157,7 @@ func CheckLevel(flag, level string) bool {
 	return false
 }
 
-//GetTimeUnix get specified time unix
+// GetTimeUnix get specified time unix
 func GetTimeUnix(timeStr string) int64 {
 	var timeLayout string
 	if strings.Contains(timeStr, ".") {
@@ -169,7 +174,7 @@ func GetTimeUnix(timeStr string) int64 {
 	return utime.Unix()
 }
 
-//GetLevelFlag get log level flag
+// GetLevelFlag get log level flag
 func GetLevelFlag(level string) []byte {
 	switch level {
 	case "error":
@@ -183,7 +188,7 @@ func GetLevelFlag(level string) []byte {
 	}
 }
 
-//Close Close
+// Close Close
 func (m *EventFilePlugin) Close() error {
 	return nil
 }

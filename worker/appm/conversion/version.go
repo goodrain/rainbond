@@ -16,6 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 该文件定义了一个用于转换和处理Kubernetes资源对象的包。主要处理Rainbond平台上的AppService资源，
+// 并与Kubernetes、APISIX等外部系统进行交互。文件中包含了多个函数，用于创建和更新服务的相关配置，
+// 包括环境变量、卷、Pod模板等。这些函数整合了Rainbond平台的服务信息、Kubernetes API以及其他
+// 外部组件的数据，以确保应用程序在Rainbond平台上的正确部署和运行。
+
+// 主要功能包括：
+// 1. 根据AppService资源的配置信息，生成Kubernetes的PodTemplateSpec和VirtualMachineInstanceTemplateSpec。
+// 2. 处理服务的环境变量，包括从数据库中获取依赖服务的环境变量，并处理自定义环境变量。
+// 3. 管理服务的卷定义，支持不同类型的卷（如共享存储、slug文件等）。
+// 4. 更新APISIX路由信息，确保服务与API网关之间的路由配置正确。
+// 5. 处理虚拟机资源配置，支持KubeVirt虚拟机实例的创建和管理。
+
+// 此外，该文件中的代码还涉及到日志记录、错误处理，以及与数据库的交互，
+// 以确保在整个应用程序生命周期内正确管理和配置服务资源。通过这些功能，
+// 文件中定义的函数可以帮助开发者高效地在Rainbond平台上部署和管理复杂的微服务架构。
+
 package conversion
 
 import (

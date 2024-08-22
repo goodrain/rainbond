@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: read_message_store.go
+// 说明: 该文件实现了消息读取存储功能。文件中定义了用于从存储中读取和处理消息的方法，
+// 以支持系统内的消息检索和管理需求。通过这些方法，Rainbond 平台能够高效地获取和处理存储中的消息，
+// 提供稳定可靠的消息服务。
 
 package store
 

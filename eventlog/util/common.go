@@ -15,6 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+// 文件: common.go
+// 说明: 该文件实现了通用功能的核心组件。文件中定义了平台内广泛使用的通用方法和工具函数，
+// 以支持不同模块之间的代码复用和统一处理。通过这些方法，Rainbond 平台能够简化开发流程，
+// 提高代码的一致性和可维护性。
 
 package util
 
@@ -47,7 +51,7 @@ func Source(l *logrus.Entry) *logrus.Entry {
 	return l.WithField("source", fmt.Sprintf("%s:%d", file, line))
 }
 
-//ExternalIP 获取本机ip
+// ExternalIP 获取本机ip
 func ExternalIP() (net.IP, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -85,7 +89,7 @@ func ExternalIP() (net.IP, error) {
 	return nil, errors.New("are you connected to the network?")
 }
 
-//GetHostID 获取机器ID
+// GetHostID 获取机器ID
 func GetHostID(nodeIDFile string) (string, error) {
 	_, err := os.Stat(nodeIDFile)
 	if err != nil {
@@ -104,7 +108,7 @@ func GetHostID(nodeIDFile string) (string, error) {
 
 var rex *regexp.Regexp
 
-//Format 格式化处理监控数据
+// Format 格式化处理监控数据
 func Format(source map[string]gjson.Result) map[string]interface{} {
 	defer func() {
 		if r := recover(); r != nil {

@@ -13,6 +13,34 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+// 本文件实现了一个持久卷（Persistent Volume，简称PV）供应控制器，用于根据Kubernetes集群中的持久卷声明（Persistent Volume Claim，简称PVC）动态创建或删除PV。
+// 该控制器负责与Kubernetes API交互，监控PVC和PV的状态，决定何时创建或删除持久卷，并将这些操作记录在事件中以便追踪。
+
+// 1. **ProvisionController 结构体**：
+//    - `ProvisionController` 结构体是本文件的核心，包含了用于创建和删除PV的多个字段和方法。
+//    - 它包括Kubernetes客户端、配置、PV供应器列表、Kubernetes版本信息、缓存存储器（用于存储PVC、PV和存储类信息）、事件记录器、工作队列以及控制器的运行配置参数等。
+
+// 2. **工作队列和缓存**：
+//    - 该控制器使用工作队列来处理PVC和PV的事件，包括创建和删除操作。PVC和PV的事件首先被缓存，然后通过队列进行处理。
+//    - 事件处理采用延迟队列（Rate Limiting Queue）以处理可能的错误重试，并根据配置的失败阈值决定是否放弃重试。
+
+// 3. **PV和PVC的同步**：
+//    - 控制器会监听Kubernetes集群中的PVC和PV的状态变化。当PVC需要PV时，控制器会调用供应器来创建新的PV；当PV不再需要时，控制器会负责删除相应的存储资源。
+//    - 具体的操作包括：检查PVC是否需要创建PV（`shouldProvision`方法）、检查PV是否需要删除（`shouldDelete`方法）、同步PVC的状态（`syncClaimHandler`方法）以及同步PV的状态（`syncVolumeHandler`方法）。
+
+// 4. **动态供应PV**：
+//    - 控制器的核心功能之一是根据PVC的请求动态地创建PV。它使用供应器（`Provisioner`接口的实现）来执行具体的存储资源创建逻辑，并生成相应的PV对象。
+//    - 在创建PV时，控制器会检查存储类（StorageClass）的配置，获取相应的回收策略、挂载选项和拓扑约束等参数，然后调用供应器的`Provision`方法来完成PV的创建。
+
+// 5. **事件处理和错误管理**：
+//    - 控制器在处理PVC和PV的创建和删除操作时，会记录相关事件（如成功或失败），这些事件可用于监控和调试。
+//    - 当操作失败时，控制器会根据配置的重试次数和时间间隔进行重试，确保尽量避免存储资源的遗留问题。
+
+// 6. **领导者选举**：
+//    - 控制器支持Kubernetes的领导者选举机制（Leader Election），用于在多实例部署时确保只有一个实例在执行PV的创建和删除操作。这可以避免多个实例重复操作同一资源。
+
+// 总结：
+// 这个文件实现了一个用于Kubernetes集群的持久卷供应控制器，通过监听和处理PVC和PV的状态变化，实现了对存储资源的动态管理。它能够确保在集群中动态创建和删除存储资源，提升了存储管理的自动化和效率。
 
 package controller
 

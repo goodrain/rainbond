@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 文件: filePlugin.go
+// 说明: 该文件实现了一个事件日志管理插件，主要用于事件日志的保存、检索、
+// 日志级别检查等操作。通过定义的 EventFilePlugin 结构体及其相关方法，实现对事件日志
+// 文件的管理，确保日志数据的有效存储和提取。
+
 package db
 
 import (
@@ -179,10 +184,9 @@ func (m *filePlugin) Close() error {
 	return nil
 }
 
-//GetServiceAliasID python:
-//new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
-//new_id = hashlib.sha224(new_word).hexdigest()[0:16]
-//
+// GetServiceAliasID python:
+// new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
+// new_id = hashlib.sha224(new_word).hexdigest()[0:16]
 func GetServiceAliasID(ServiceID string) string {
 	if len(ServiceID) > 11 {
 		newWord := strconv.Itoa(int(ServiceID[10])) + ServiceID + strconv.Itoa(int(ServiceID[3])) + "log" + strconv.Itoa(int(ServiceID[2])/7)
@@ -193,7 +197,7 @@ func GetServiceAliasID(ServiceID string) string {
 	return ServiceID
 }
 
-//MvLogFile 更改文件名称，压缩
+// MvLogFile 更改文件名称，压缩
 func MvLogFile(newName string, filePath string) error {
 	info, err := os.Stat(filePath)
 	if err != nil {
