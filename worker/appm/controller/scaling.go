@@ -24,21 +24,6 @@
 package controller
 
 import (
-	"fmt"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"math"
-	"sync"
-	"time"
-)
-
-package controller
-
-import (
 	"context"
 	"fmt"
 	"math"
