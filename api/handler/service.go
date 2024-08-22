@@ -1357,8 +1357,23 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *apimodel.Se
 		vpD.PortAlias = vp.PortAlias
 		vpD.K8sServiceName = vp.K8sServiceName
 		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&vpD); err != nil {
-			tx.Rollback()
-			return err
+			logrus.Errorf("add port var error, %v", err)
+			if errors.Is(err, dberr.ErrRecordAlreadyExist) {
+				logrus.Infof("port %d already exists", vp.ContainerPort)
+				oldPort, err := db.GetManager().TenantServicesPortDaoTransactions(tx).GetPort(vpD.ServiceID, vpD.ContainerPort)
+				if err != nil {
+					logrus.Errorf("get port var error, %v", err)
+					tx.Rollback()
+					return err
+				}
+				if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(oldPort); err != nil {
+					tx.Rollback()
+					return err
+				}
+			} else {
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
