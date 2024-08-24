@@ -19,19 +19,21 @@
 package controller
 
 import (
+	"encoding/base64"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/util/license"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//LicenseManager license manager
+// LicenseManager license manager
 type LicenseManager struct{}
 
 var licenseManager *LicenseManager
 
-//GetLicenseManager get license Manager
+// GetLicenseManager get license Manager
 func GetLicenseManager() *LicenseManager {
 	if licenseManager != nil {
 		return licenseManager
@@ -46,7 +48,14 @@ func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Reques
 	// Windows Container Support
 	// Gateway security control
 	features := []license.Feature{}
-	if lic := license.ReadLicense(); lic != nil {
+	encodedCert := r.Header.Get("ca-crt")
+	// 解码Base64编码的证书
+	cert, err := base64.StdEncoding.DecodeString(encodedCert)
+	if err != nil {
+		logrus.Errorf("get license feature get ca-crt failure: %v", err)
+	}
+	consoleCA := string(cert)
+	if lic := license.ReadLicense(consoleCA); lic != nil {
 		features = lic.Features
 	}
 	httputil.ReturnSuccess(r, w, features)
@@ -54,7 +63,14 @@ func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Reques
 
 // Getlicense -
 func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
-	lic := license.ReadLicense()
+	encodedCert := r.Header.Get("ca-crt")
+	// 解码Base64编码的证书
+	cert, err := base64.StdEncoding.DecodeString(encodedCert)
+	if err != nil {
+		logrus.Errorf("get license ca-crt failure: %v", err)
+	}
+	consoleCA := string(cert)
+	lic := license.ReadLicense(consoleCA)
 	if lic == nil {
 		httputil.ReturnSuccess(r, w, nil)
 		return
@@ -62,7 +78,7 @@ func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
 	resp := lic.SetResp()
 	computeNodes, _ := handler.GetClusterHandler().GetComputeNodeNums(r.Context())
 	clusterInfo, err := handler.GetClusterHandler().GetClusterInfo(r.Context())
-	if err != nil{
+	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}

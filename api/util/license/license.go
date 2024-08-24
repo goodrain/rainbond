@@ -33,7 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//LicenseInfo license data
+// LicenseInfo license data
 type LicenseInfo struct {
 	Code      string    `json:"code"`
 	Company   string    `json:"company"`
@@ -56,7 +56,7 @@ func (l *LicenseInfo) SetResp() *LicenseResp {
 	}
 }
 
-//LicenseResp license resp data
+// LicenseResp license resp data
 type LicenseResp struct {
 	Code       string    `json:"code" description:"code"`
 	Company    string    `json:"company" description:"公司名"`
@@ -85,8 +85,8 @@ type Feature struct {
 
 var licenseInfo *LicenseInfo
 
-//ReadLicense -
-func ReadLicense() *LicenseInfo {
+// ReadLicense -
+func ReadLicense(consoleCA string) *LicenseInfo {
 	if licenseInfo != nil {
 		return licenseInfo
 	}
@@ -105,20 +105,11 @@ func ReadLicense() *LicenseInfo {
 		logrus.Error("read LICENSE file failure：" + err.Error())
 		return nil
 	}
-	// step2 decryption info
-	caPath := "/etc/goodrain/region.goodrain.me/ssl/ca.pem"
-	_, err = os.Stat(caPath)
-	if err != nil {
-		logrus.Error("read ca file failure：" + err.Error())
-		return nil
-	}
-	ca, err := ioutil.ReadFile(caPath)
-	if err != nil {
-		logrus.Error("read ca file failure：" + err.Error())
-		return nil
+	if consoleCA == "" {
+		logrus.Errorf("consoleCA is nil")
 	}
 	// Remove all line breaks
-	caStr := strings.Replace(string(ca), "\n", "", -1)
+	caStr := strings.Replace(consoleCA, "\n", "", -1)
 	salt := []byte(md5String(caStr + string(defaultKey)))
 	key := os.Getenv("LICENSE_KEY")
 	if key == "" {

@@ -20,6 +20,7 @@ package controller
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -288,7 +289,14 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 		ContainerMemory: memorySet,
 		ContainerGPU:    gpuSet,
 	}
-	if err := handler.GetServiceManager().ServiceVertical(r.Context(), verticalTask); err != nil {
+	encodedCert := r.Header.Get("ca-crt")
+	// 解码Base64编码的证书
+	cert, err := base64.StdEncoding.DecodeString(encodedCert)
+	if err != nil {
+		logrus.Errorf("vertical service ca-crt failure: %v", err)
+	}
+	consoleCA := string(cert)
+	if err := handler.GetServiceManager().ServiceVertical(r.Context(), verticalTask, consoleCA); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service vertical error. %v", err))
 		return
 	}

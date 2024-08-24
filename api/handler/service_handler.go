@@ -39,7 +39,7 @@ type ServiceHandler interface {
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
-	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
+	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody, consoleCA string) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error
 	ServiceCreate(ts *apimodel.ServiceStruct) error

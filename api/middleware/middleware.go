@@ -21,6 +21,7 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
@@ -345,8 +346,15 @@ func LicenseVerification(w http.ResponseWriter, r *http.Request, ResourceValidat
 			isEnvExpire = true
 		}
 	}
+	encodedCert := r.Header.Get("ca-crt")
+	// 解码Base64编码的证书
+	cert, err := base64.StdEncoding.DecodeString(encodedCert)
+	if err != nil {
+		logrus.Errorf("license verification ca-crt failure: %v", err)
+	}
+	consoleCA := string(cert)
 	if licenseCache == "" || isEnvExpire {
-		lic := license.ReadLicense()
+		lic := license.ReadLicense(consoleCA)
 		if lic == nil {
 			return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_license"))
 		}
@@ -370,7 +378,7 @@ func LicenseVerification(w http.ResponseWriter, r *http.Request, ResourceValidat
 	}
 
 	var licenseResp license.LicenseResp
-	err := json.Unmarshal([]byte(licenseCache), &licenseResp)
+	err = json.Unmarshal([]byte(licenseCache), &licenseResp)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return nil

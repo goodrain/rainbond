@@ -417,7 +417,7 @@ func (s *ServiceAction) PauseUNPauseService(serviceID string, pauseORunpause str
 }
 
 // ServiceVertical vertical service
-func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalScalingTaskBody) error {
+func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalScalingTaskBody, consoleCA string) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
 	if err != nil {
 		logrus.Errorf("get service by id %s error, %s", vs.ServiceID, err)
@@ -442,7 +442,7 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	if vs.ContainerGPU != nil {
 		service.ContainerGPU = *vs.ContainerGPU
 	}
-	licenseInfo := license.ReadLicense()
+	licenseInfo := license.ReadLicense(consoleCA)
 	if licenseInfo == nil || !licenseInfo.HaveFeature("GPU") {
 		service.ContainerGPU = 0
 	}
