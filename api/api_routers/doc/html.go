@@ -29,7 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//Routes routes
+// Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
 	workDir, _ := os.Getwd()
@@ -37,6 +37,7 @@ func Routes() chi.Router {
 	filesDir := filepath.Join(workDir, "html")
 	//filesDir := "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/hack/contrib/docker/api/html"
 	logrus.Debugf("filesdir is %v", filesDir)
+	// 以指定的目录为根目录，创建一个文件服务器
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("/docs"))
 	})
@@ -45,7 +46,7 @@ func Routes() chi.Router {
 	return r
 }
 
-//FileServer file server
+// FileServer file server
 func FileServer(r chi.Router, path string, root http.FileSystem) {
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit URL parameters.")

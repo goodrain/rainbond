@@ -507,7 +507,7 @@ func (s *SocketServer) listen() {
 		}
 		httputil.ReturnSuccess(r, w, s.healthInfo)
 	})
-	// new websocket pubsub
+	// 组件日志接口，已废弃，已改为使用 apiserver 提供的接口
 	r.Get("/services/{serviceID}/pubsub", s.pubsub)
 	r.Get("/tenants/{tenantName}/services/{serviceID}/logs", s.getDockerLogs)
 	r.Get("/rbd-name/{serviceID}/logs", s.getDockerLogs)

@@ -167,16 +167,22 @@ func (m *Manager) Run() {
 	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
 	m.r.Get("/api/v1/series", m.PrometheusAPI)
 	m.r.Get("/api/v1/alerts", m.PrometheusAPI)
-	//开启对浏览器的websocket服务和文件服务
 
+	//开启对浏览器的websocket服务和文件服务
 	_ = gogo.Go(func(ctx context.Context) error {
 		websocketRouter := chi.NewRouter()
 		websocketRouter.Mount("/", websocket.Routes())
+		// 日志下载路由
 		websocketRouter.Mount("/logs", websocket.LogRoutes())
+		// 应用导出包下载和上传路由
 		websocketRouter.Mount("/app", websocket.AppRoutes())
+		// 本地文件上传路由
 		websocketRouter.Mount("/package_build", websocket.PackageBuildRoutes())
+		// Helm安装集群状态查询
 		websocketRouter.Mount("/helm_install", websocket.HelmInstallRegionStatus())
+		// 共享存储的文件操作路由
 		websocketRouter.Mount("/v2/file-operate", websocket.FileOperateRoutes())
+		// 语言包处理
 		websocketRouter.Mount("/lg_pack_operate", websocket.LongVersionRoutes())
 		if m.conf.WebsocketSSL {
 			logrus.Infof("websocket listen on (HTTPs) %s", m.conf.WebsocketAddr)
@@ -213,6 +219,7 @@ func (m *Manager) Run() {
 	}
 	_ = gogo.Go(func(ctx context.Context) error {
 		healthzRouter := chi.NewRouter()
+		// 健康检查路由
 		healthzRouter.Get("/healthz", func(res http.ResponseWriter, req *http.Request) {
 			res.Write([]byte("ok"))
 			res.WriteHeader(http.StatusOK)

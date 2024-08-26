@@ -24,12 +24,13 @@ import (
 	"github.com/go-chi/chi"
 )
 
-//License license struct
+// License license struct
 type License struct{}
 
-//Routes routes
+// Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
+	// 获取license以及license功能
 	r.Get("/", controller.GetLicenseManager().Getlicense)
 	r.Get("/features", controller.GetLicenseManager().GetlicenseFeature)
 	return r

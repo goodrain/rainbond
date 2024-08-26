@@ -26,17 +26,17 @@ import (
 	"github.com/go-chi/chi"
 )
 
-//PluginRouter plugin router
+// PluginRouter plugin router
 func (v2 *V2) pluginRouter() chi.Router {
 	r := chi.NewRouter()
-	//初始化应用信息
+	// 初始化应用信息
 	r.Use(middleware.InitPlugin)
 	//plugin uri
-	//update/delete plugin
+	// 更新、删除、构建插件
 	r.Put("/", controller.GetManager().PluginAction)
 	r.Delete("/", controller.GetManager().PluginAction)
 	r.Post("/build", controller.GetManager().PluginBuild)
-	//get this plugin all build version
+	// 获取插件所有构建版本、获取插件构建版本、删除插件构建版本
 	r.Get("/build-version", controller.GetManager().GetAllPluginBuildVersions)
 	r.Get("/build-version/{version_id}", controller.GetManager().GetPluginBuildVersion)
 	r.Delete("/build-version/{version_id}", controller.GetManager().DeletePluginBuildVersion)
@@ -45,16 +45,16 @@ func (v2 *V2) pluginRouter() chi.Router {
 
 func (v2 *V2) serviceRelatePluginRouter() chi.Router {
 	r := chi.NewRouter()
-	//service relate plugin
+	// 组件关联的插件信息，为组件创建插件、更新插件
 	// v2/tenant/tenant_name/services/service_alias/plugin/xxx
 	r.Post("/", middleware.WrapEL(controller.GetManager().PluginSet, dbmodel.TargetTypeService, "create-service-plugin", dbmodel.SYNEVENTTYPE, true))
 	r.Put("/", middleware.WrapEL(controller.GetManager().PluginSet, dbmodel.TargetTypeService, "update-service-plugin", dbmodel.SYNEVENTTYPE, false))
 	r.Get("/", controller.GetManager().PluginSet)
 	r.Delete("/{plugin_id}", middleware.WrapEL(controller.GetManager().DeletePluginRelation, dbmodel.TargetTypeService, "delete-service-plugin", dbmodel.SYNEVENTTYPE, false))
-	// app plugin config supdate
+	// 更新插件环境变量及配置
 	r.Post("/{plugin_id}/setenv", middleware.WrapEL(controller.GetManager().UpdateVersionEnv, dbmodel.TargetTypeService, "update-service-plugin-config", dbmodel.SYNEVENTTYPE, false))
 	r.Put("/{plugin_id}/upenv", middleware.WrapEL(controller.GetManager().UpdateVersionEnv, dbmodel.TargetTypeService, "update-service-plugin-config", dbmodel.SYNEVENTTYPE, false))
-	//deprecated
+	// deprecated
 	r.Get("/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
 	return r
 }

@@ -36,51 +36,73 @@ func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
 	license := middleware.NewLicense(v2.Cfg)
 	r.Use(license.Verify)
+	// 展示当前版本信息
 	r.Get("/show", controller.GetManager().Show)
-
 	r.Post("/show", controller.GetManager().Show)
+	// 团队级路由
 	r.Mount("/tenants", v2.tenantRouter())
+	// 集群级路由
 	r.Mount("/cluster", v2.clusterRouter())
+	// 已废弃
 	r.Mount("/notificationEvent", v2.notificationEventRouter())
+	// 资源管理相关路由
 	r.Mount("/resources", v2.resourcesRouter())
+	// prometheus路由
 	r.Mount("/prometheus", v2.prometheusRouter())
+	// 已废弃
 	r.Get("/event", controller.GetManager().Event)
+	// 应用包导入、导出路由
 	r.Mount("/app", v2.appRouter())
+	// 健康检查
 	r.Get("/health", controller.GetManager().Health)
+	// 已废弃
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
+	// 获取当前api版本信息
 	r.Get("/version", controller.GetManager().Version)
 	// deprecated use /gateway/ports
 	r.Mount("/port", v2.portRouter())
 	// deprecated, use /events/<event_id>/log
 	r.Get("/event-log", controller.GetManager().LogByAction)
+	// 事件信息路由
 	r.Mount("/events", v2.eventsRouter())
+	// 已废弃
 	r.Get("/gateway/ips", controller.GetGatewayIPs)
 	r.Get("/gateway/ports", controller.GetManager().GetAvailablePort)
+	// 获取存储类型列表、删除、更新存储类型
 	r.Get("/volume-options", controller.VolumeOptions)
 	r.Get("/volume-options/page/{page}/size/{pageSize}", controller.ListVolumeType)
 	r.Post("/volume-options", controller.VolumeSetVar)
 	r.Delete("/volume-options/{volume_type}", controller.DeleteVolumeType)
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
+	// 企业级资源路由
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
+	// 监控服务路由
 	r.Mount("/monitor", v2.monitorRouter())
 	r.Get("/instances/monitor", controller.GetManager().InstancesMonitor)
+	// helm 安装路由
 	r.Mount("/helm", v2.helmRouter())
+	// 代理镜像搜索相关路由
 	r.Mount("/proxy-pass", v2.proxyRoute())
+	// 获取日志路由
 	r.Get("/pods/logs", controller.GetManager().PodLogs)
 
 	return r
 }
 
+// 代理镜像搜索相关路由
 func (v2 *V2) proxyRoute() chi.Router {
 	r := chi.NewRouter()
+	// 代理镜像搜索
 	r.Post("/registry/repos", controller.GetManager().GetAllRepo)
 	r.Post("/registry/tags", controller.GetManager().GetTagsByRepoName)
 	r.Post("/registry/check", controller.GetManager().CheckRegistry)
+	// 代理pod日志
 	r.Get("/system/pods", controller.GetManager().SystemPodDetail)
 	r.Get("/system/logs", controller.GetManager().SystemPodLogs)
 	return r
 }
 
+// helm 安装路由
 func (v2 *V2) helmRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
@@ -94,12 +116,14 @@ func (v2 *V2) helmRouter() chi.Router {
 	return r
 }
 
+// 监控指标路由
 func (v2 *V2) monitorRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/metrics", controller.GetMonitorMetrics)
 	return r
 }
 
+// 企业级资源路由
 func (v2 *V2) enterpriseRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/running-services", controller.GetRunningServices)
@@ -121,40 +145,52 @@ func (v2 *V2) eventsRouter() chi.Router {
 
 func (v2 *V2) clusterRouter() chi.Router {
 	r := chi.NewRouter()
+	// 获取集群和节点信息
 	r.Get("/", controller.GetManager().GetClusterInfo)
 	r.Get("/exception", controller.GetManager().GetExceptionNodeInfo)
+	// 管理 maven 设置路由
 	r.Get("/builder/mavensetting", controller.GetManager().MavenSettingList)
 	r.Post("/builder/mavensetting", controller.GetManager().MavenSettingAdd)
 	r.Get("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDetail)
 	r.Put("/builder/mavensetting/{name}", controller.GetManager().MavenSettingUpdate)
 	r.Delete("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDelete)
+	// gateway api 网关获取路由
 	r.Get("/batch-gateway", controller.GetManager().BatchGetGateway)
+	// 获取集群命名空间、资源路由
 	r.Get("/namespace", controller.GetManager().GetNamespace)
 	r.Get("/resource", controller.GetManager().GetNamespaceResource)
+	// 转换yaml到平台组件相关路由
 	r.Get("/convert-resource", controller.GetManager().ConvertResource)
 	r.Post("/convert-resource", controller.GetManager().ResourceImport)
+	// 应用下K8s资源相关路由
 	r.Get("/k8s-resource", controller.GetManager().GetResource)
 	r.Post("/k8s-resource", controller.GetManager().AddResource)
 	r.Delete("/k8s-resource", controller.GetManager().DeleteResource)
 	r.Delete("/batch-k8s-resource", controller.GetManager().BatchDeleteResource)
 	r.Put("/k8s-resource", controller.GetManager().UpdateResource)
 	r.Post("/sync-k8s-resources", controller.GetManager().SyncResource)
+	// yaml 文件处理路由
 	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
 	r.Get("/yaml_resource_detailed", controller.GetManager().YamlResourceDetailed)
 	r.Post("/yaml_resource_import", controller.GetManager().YamlResourceImport)
+	// 获取平台自身组件日志及pod状态的路由
 	r.Get("/rbd-resource/log", controller.GetManager().RbdLog)
 	r.Get("/rbd-resource/pods", controller.GetManager().GetRbdPods)
 	r.Get("/rbd-name/{serviceID}/logs", controller.GetManager().HistoryRbdLogs)
 	r.Get("/log-file", controller.GetManager().LogList)
+	// 已废弃
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
+	// 平台级插件和能力，已废弃
 	r.Get("/plugins", controller.GetManager().ListPlugins)
 	r.Get("/abilities", controller.GetManager().ListAbilities)
 	r.Get("/abilities/{ability_id}", controller.GetManager().GetAbility)
 	r.Put("/abilities/{ability_id}", controller.GetManager().UpdateAbility)
 	r.Get("/governance-mode", controller.GetManager().ListGovernanceMode)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
+	// 节点操作相关路由
 	r.Mount("/nodes", v2.nodesRouter())
+	// 语言包版本相关路由
 	r.Get("/langVersion", controller.GetManager().GetLangVersion)
 	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
 	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
@@ -164,8 +200,10 @@ func (v2 *V2) clusterRouter() chi.Router {
 
 func (v2 *V2) nodesRouter() chi.Router {
 	r := chi.NewRouter()
+	// 节点架构
 	r.Get("/", controller.GetManager().ListNodes)
 	r.Get("/arch", controller.GetManager().ListNodeArch)
+	// 节点详情和操作路由
 	r.Get("/{node_name}/detail", controller.GetManager().GetNode)
 	r.Post("/{node_name}/action/{action}", controller.GetManager().NodeAction)
 	r.Get("/{node_name}/labels", controller.GetManager().ListLabels)
@@ -177,6 +215,7 @@ func (v2 *V2) nodesRouter() chi.Router {
 
 func (v2 *V2) tenantRouter() chi.Router {
 	r := chi.NewRouter()
+	// 团队级别路由
 	r.Post("/", controller.GetManager().Tenants)
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
 	r.Get("/", controller.GetManager().Tenants)
@@ -205,32 +244,34 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/services", controller.GetManager().ServicesInfo)
-	//创建应用
+	// 创建组件
 	r.Post("/services", middleware.WrapEL(controller.GetManager().CreateService, dbmodel.TargetTypeService, "create-service", dbmodel.SYNEVENTTYPE, true))
+	// 插件操作、发布插件相关路由
 	r.Post("/plugin", controller.GetManager().PluginAction)
 	r.Post("/plugins/{plugin_id}/share", controller.GetManager().SharePlugin)
 	r.Get("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
 	r.Get("/plugin", controller.GetManager().PluginAction)
-	// batch install and build plugins
+	// 批量安装和构建插件
 	r.Post("/plugins", controller.GetManager().BatchInstallPlugins)
 	r.Post("/batch-build-plugins", controller.GetManager().BatchBuildPlugins)
 	r.Post("/services_status", controller.GetManager().StatusServiceList)
 	r.Mount("/services/{service_alias}", v2.serviceRouter())
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Get("/event", controller.GetManager().Event)
-	//tenant app
+	// 团队下应用操作路由
 	r.Get("/pods/{pod_name}", controller.GetManager().PodDetail)
 	r.Post("/apps", controller.GetManager().CreateApp)
 	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
 	r.Get("/apps", controller.GetManager().ListApps)
 	r.Delete("/k8s-app/{k8s_app}", controller.GetManager().DeleteK8sApp)
 	r.Post("/checkResourceName", controller.GetManager().CheckResourceName)
+	// 获取应用运行状态
 	r.Get("/appstatuses", controller.GetManager().ListAppStatuses)
 	r.Mount("/apps/{app_id}", v2.applicationRouter())
-	//get some service pod info
+	// 获取组件的pod信息
 	r.Get("/pods", controller.Pods)
 	r.Get("/pod_nums", controller.PodNums)
-	//app backup
+	// 应用备份路由
 	r.Get("/groupapp/backups", controller.Backups)
 	r.Post("/groupapp/backups", controller.NewBackups)
 	r.Post("/groupapp/backupcopy", controller.BackupCopy)
@@ -239,11 +280,11 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
 	r.Post("/deployversions", controller.GetManager().GetManyDeployVersion)
-	//团队资源限制
+	// 团队资源限制
 	r.Post("/limit_resource", controller.GetManager().LimitTenantResource)
 	r.Get("/limit_resource", controller.GetManager().TenantResourcesStatus)
 
-	// Gateway
+	// 已废弃，使用新网关
 	r.Post("/http-rule", controller.GetManager().HTTPRule)
 	r.Delete("/http-rule", controller.GetManager().HTTPRule)
 	r.Put("/http-rule", controller.GetManager().HTTPRule)
@@ -251,24 +292,24 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/http-limiting-policy", controller.GetManager().HTTPLimitingPolicy)
 	r.Delete("/http-limiting-policy", controller.GetManager().HTTPLimitingPolicy)
 	r.Put("/http-limiting-policy", controller.GetManager().HTTPLimitingPolicy)
-
+	// gateway api http 规则路由
 	r.Get("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
 	r.Post("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
 	r.Put("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
 	r.Delete("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
-
+	// gateway api tcp 规则路由
 	r.Get("/outer-port-gateway", controller.GetManager().OuterPortGatewayHTTPRoute)
 	r.Post("/outer-port-gateway", controller.GetManager().OuterPortGatewayHTTPRoute)
 	r.Delete("/outer-port-gateway", controller.GetManager().OuterPortGatewayHTTPRoute)
 	r.Put("/outer-port-gateway", controller.GetManager().OuterPortGatewayHTTPRoute)
 
 	r.Get("/batch-gateway-http-route", controller.GetManager().BatchGatewayHTTPRoute)
-
+	// gateway api 证书路由
 	r.Post("/gateway-certificate", controller.GetManager().GatewayCertificate)
 	r.Get("/gateway-certificate", controller.GetManager().GatewayCertificate)
 	r.Delete("/gateway-certificate", controller.GetManager().GatewayCertificate)
 	r.Put("/gateway-certificate", controller.GetManager().GatewayCertificate)
-
+	// 已废弃，使用新网关
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
@@ -411,7 +452,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// gateway
 	r.Put("/rule-config", middleware.WrapEL(controller.GetManager().RuleConfig, dbmodel.TargetTypeService, "update-service-gateway-rule", dbmodel.SYNEVENTTYPE, false))
 
-	// app restore
+	// 应用恢复相关路由
 	r.Post("/app-restore/envs", middleware.WrapEL(controller.GetManager().RestoreEnvs, dbmodel.TargetTypeService, "app-restore-envs", dbmodel.SYNEVENTTYPE, false))
 	r.Post("/app-restore/ports", middleware.WrapEL(controller.GetManager().RestorePorts, dbmodel.TargetTypeService, "app-restore-ports", dbmodel.SYNEVENTTYPE, false))
 	r.Post("/app-restore/volumes", middleware.WrapEL(controller.GetManager().RestoreVolumes, dbmodel.TargetTypeService, "app-restore-volumes", dbmodel.SYNEVENTTYPE, false))
@@ -423,7 +464,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/pods/{pod_name}/detail", controller.GetManager().PodDetail)
 	r.Get("/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 
-	// autoscaler
+	// 组件自动伸缩规则配置路由
 	r.Post("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "add-app-autoscaler-rule", dbmodel.SYNEVENTTYPE, false))
 	r.Put("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "update-app-autoscaler-rule", dbmodel.SYNEVENTTYPE, false))
 	r.Get("/xparecords", controller.GetManager().ScalingRecords)
@@ -505,13 +546,16 @@ func (v2 *V2) prometheusRouter() chi.Router {
 
 func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
+	// 应用模版导出路由
 	r.Post("/export", controller.GetManager().ExportApp)
 	r.Get("/export/{eventID}", controller.GetManager().ExportApp)
 
+	// 模版下载上传路由
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
 	r.Post("/upload/{eventID}", controller.GetManager().NewUpload)
 	r.Options("/upload/{eventID}", controller.GetManager().NewUpload)
 
+	// 模版导入路由
 	r.Post("/import/ids/{eventID}", controller.GetManager().ImportID)
 	r.Get("/import/ids/{eventID}", controller.GetManager().ImportID)
 	r.Delete("/import/ids/{eventID}", controller.GetManager().ImportID)
@@ -526,6 +570,7 @@ func (v2 *V2) appRouter() chi.Router {
 	return r
 }
 
+// 已废弃
 func (v2 *V2) notificationEventRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", controller.GetNotificationEvents)
@@ -534,6 +579,7 @@ func (v2 *V2) notificationEventRouter() chi.Router {
 	return r
 }
 
+// 已废弃
 func (v2 *V2) portRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/avail-port", controller.GetManager().GetAvailablePort)

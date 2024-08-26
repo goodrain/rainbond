@@ -10,7 +10,7 @@ import (
 func Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.InitTenant)
-	// 关于路由的接口
+	// 关于http路由的接口
 	r.Route("/routes/http", func(r chi.Router) {
 		r.Get("/domains", controller.GetManager().GetBindDomains)
 		r.Get("/port", controller.GetManager().OpenOrCloseDomains)
@@ -19,7 +19,7 @@ func Routes() chi.Router {
 		r.Delete("/{name}", controller.GetManager().DeleteHTTPAPIRoute)
 	})
 
-	// 关于路由的接口
+	// 关于tcp/udp路由的接口
 	r.Route("/routes/tcp", func(r chi.Router) {
 		r.Get("/", controller.GetManager().GetTCPRoute)
 		r.Post("/", controller.GetManager().CreateTCPRoute)
@@ -33,6 +33,7 @@ func Routes() chi.Router {
 		r.Delete("/{name}", controller.GetManager().DeleteAPIService)
 	})
 
+	// 关于证书的接口
 	r.Route("/cert", func(r chi.Router) {
 		r.Get("/", controller.GetManager().GetCert)
 		r.Post("/{name}", controller.GetManager().CreateCert)

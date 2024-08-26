@@ -26,11 +26,17 @@ import (
 // Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
+	// web终端接口
 	r.Get("/docker_console", controller.GetDockerConsole().Get)
+	// 日志接口，已废弃
 	r.Get("/docker_log", controller.GetDockerLog().Get)
+	// 已废弃
 	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
+	// 已废弃
 	r.Get("/new_monitor_message", controller.GetMonitorMessage().Get)
+	// 已废弃
 	r.Get("/event_log", controller.GetEventLog().Get)
+	// 已废弃
 	r.Get("/services/{serviceID}/pubsub", controller.GetPubSubControll().Get)
 	return r
 }
@@ -43,7 +49,7 @@ func LogRoutes() chi.Router {
 	return r
 }
 
-// AppRoutes 应用导出包下载路由
+// AppRoutes 应用导出包下载和上传路由
 func AppRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
@@ -67,7 +73,7 @@ func HelmInstallRegionStatus() chi.Router {
 	return r
 }
 
-//FileOperateRoutes 文件操作
+// FileOperateRoutes 共享存储的文件操作路由
 func FileOperateRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{fileName}", controller.GetFileManage().Get)
@@ -82,7 +88,6 @@ func LongVersionRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Options("/upload", controller.GetManager().OptionLongVersion)
 	r.Post("/upload", controller.GetManager().UploadLongVersion)
-	//r.Options("/download/{language}/{version}", controller.GetManager().OptionLongVersion)
 	r.Get("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
 	r.Head("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
 	return r

@@ -24,6 +24,7 @@ import (
 
 // PluginRouter plugin router
 func (v2 *V2) rulesRouter() chi.Router {
+	// 已废弃
 	r := chi.NewRouter()
 	// service rule
 	// url: v2/tenant/{tenant_name}/services/{service_alias}/net-rule/xxx
@@ -34,6 +35,7 @@ func (v2 *V2) rulesRouter() chi.Router {
 }
 
 func (v2 *V2) upstreamRouter() chi.Router {
+	// 已废弃
 	r := chi.NewRouter()
 	return r
 }

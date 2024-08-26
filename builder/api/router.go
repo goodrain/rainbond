@@ -34,6 +34,7 @@ import (
 
 func APIServer() *chi.Mux {
 	r := chi.NewRouter()
+	// 获取公钥
 	r.Route("/v2/builder", func(r chi.Router) {
 		r.Get("/publickey/{tenant_id}", func(w http.ResponseWriter, r *http.Request) {
 			tenantId := strings.TrimSpace(chi.URLParam(r, "tenant_id"))
@@ -45,11 +46,13 @@ func APIServer() *chi.Mux {
 			}
 			httputil.ReturnSuccess(r, w, bean)
 		})
+		// 组件源码检查、更新、查询构建结果
 		r.Route("/codecheck", func(r chi.Router) {
 			r.Post("/", controller.AddCodeCheck)
 			r.Put("/service/{serviceID}", controller.Update)
 			r.Get("/service/{serviceID}", controller.GetCodeCheck)
 		})
+		// 组件构建版本查询、更新、删除
 		r.Route("/version", func(r chi.Router) {
 			r.Post("/", controller.UpdateDeliveredPath)
 			r.Get("/event/{eventID}", controller.GetVersionByEventID)
@@ -57,9 +60,11 @@ func APIServer() *chi.Mux {
 			r.Get("/service/{serviceID}", controller.GetVersionByServiceID)
 			r.Delete("/service/{eventID}", controller.DeleteVersionByEventID)
 		})
+		// 组件构建事件查询、更新、删除
 		r.Route("/event", func(r chi.Router) {
 			r.Get("/", controller.GetEventsByIds)
 		})
+		// chaos组件健康检查接口
 		r.Route("/health", func(r chi.Router) {
 			r.Get("/", controller.CheckHealth)
 		})
