@@ -920,13 +920,14 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 		})
 	}
 	// Customize it according to how it is built volumes volumeMounts config
+	logrus.Infof("----------11111----------")
 	if buildType == "plug-build" {
+		logrus.Infof("--------------22222-----------")
 		volume := corev1.Volume{
 			Name: "plug-build",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: contextDir,
-					Type: &hostPathType,
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "rbd-chaos-cache",
 				},
 			},
 		}
@@ -934,6 +935,7 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 		volumeMount := corev1.VolumeMount{
 			Name:      "plug-build",
 			MountPath: "/workspace",
+			SubPath:   subPath,
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
