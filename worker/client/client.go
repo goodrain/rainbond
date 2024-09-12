@@ -46,6 +46,8 @@ package client
 
 import (
 	"context"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/keepalive"
 	"strings"
 	"time"
 
@@ -70,13 +72,36 @@ func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient,
 	c = new(AppRuntimeSyncClient)
 	c.ctx = ctx
 	logrus.Infof("discover app runtime sync server address %s", grpcServer)
-	c.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
+
+	// 定义Keepalive参数
+	keepaliveParams := keepalive.ClientParameters{
+		Time:                10 * time.Second, // 多长时间内无活动会发送ping
+		Timeout:             2 * time.Second,  // ping 之后等待的超时时间
+		PermitWithoutStream: true,             // 即使没有活跃的流，是否仍然发送ping
+	}
+
+	// 定义重连策略
+	retryBackoffConfig := backoff.Config{
+		BaseDelay:  1.0 * time.Second, // 初始退避时间
+		Multiplier: 1.6,               // 退避乘数
+		MaxDelay:   120 * time.Second, // 最大退避时间
+	}
+
+	// 使用grpc.Dial添加Keepalive和重连配置
+	c.cc, err = grpc.Dial(
+		grpcServer,
+		grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(keepaliveParams),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff:           retryBackoffConfig,
+			MinConnectTimeout: 20 * time.Second,
+		}),
+	)
 
 	if err != nil {
 		return nil, err
 	}
 	c.AppRuntimeSyncClient = pb.NewAppRuntimeSyncClient(c.cc)
-
 	return c, nil
 }
 
