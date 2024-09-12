@@ -2178,7 +2178,7 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 		if k8sErrors.IsAlreadyExists(err) {
 			_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   t.Namespace,
+					Name:   ns,
 					Labels: labels,
 				},
 			}, metav1.CreateOptions{})
