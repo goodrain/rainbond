@@ -2186,9 +2186,9 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 				return err
 			}
 			t.Namespace = ns
-			return nil
+		} else {
+			return err
 		}
-		return err
 	}
 	if err := db.GetManager().TenantDao().AddModel(t); err != nil {
 		if !strings.HasSuffix(err.Error(), "is exist") {
