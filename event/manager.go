@@ -270,7 +270,8 @@ func (m *manager) RemoveHandle(server string) {
 func (m *handle) HandleLog() error {
 	defer m.manager.RemoveHandle(m.server)
 	return util.Exec(m.ctx, func() error {
-		ctx, cancel := context.WithCancel(m.ctx)
+		deadline := time.Now().Add(5 * time.Second)
+		ctx, cancel := context.WithDeadline(context.Background(), deadline)
 		defer cancel()
 		client, err := eventclient.NewEventClient(ctx, m.server)
 		if err != nil {
@@ -296,6 +297,7 @@ func (m *handle) HandleLog() error {
 			case me := <-m.cacheChan:
 				err := logClient.Send(&eventpb.LogMessage{Log: me})
 				if err != nil {
+					m.cacheChan <- me
 					logrus.Error("send event log error.", err.Error())
 					logClient.CloseSend()
 					//切换使用此chan的logger到其他chan
