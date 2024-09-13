@@ -2186,6 +2186,7 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 				return err
 			}
 			t.Namespace = ns
+			return nil
 		}
 		return err
 	}
