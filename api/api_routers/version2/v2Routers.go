@@ -304,6 +304,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/upgrade", middleware.WrapEL(controller.GetManager().UpgradeService, dbmodel.TargetTypeService, "upgrade-service", dbmodel.ASYNEVENTTYPE))
 	//应用状态获取(act)
 	r.Get("/status", controller.GetManager().StatusService)
+	//文件上传下载
+	r.Get("/file-manage", controller.GetManager().FileManageService)
 	//构建版本列表
 	r.Get("/build-list", controller.GetManager().BuildList)
 	//构建版本操作

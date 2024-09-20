@@ -19,12 +19,16 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/util/constants"
 	"io"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 	"net/http"
@@ -77,6 +81,7 @@ type ServiceAction struct {
 	kubevirtClient kubecli.KubevirtClient
 	dbmanager      db.Manager
 	registryCli    *registry.Registry
+	config         *rest.Config
 }
 
 type dCfg struct {
@@ -96,7 +101,8 @@ func CreateManager(conf option.Config,
 	kubeClient kubernetes.Interface,
 	kubevirtClient kubecli.KubevirtClient,
 	dbmanager db.Manager,
-	registryCli *registry.Registry) *ServiceAction {
+	registryCli *registry.Registry,
+	config *rest.Config) *ServiceAction {
 	return &ServiceAction{
 		MQClient:       mqClient,
 		statusCli:      statusCli,
@@ -107,6 +113,7 @@ func CreateManager(conf option.Config,
 		kubevirtClient: kubevirtClient,
 		dbmanager:      dbmanager,
 		registryCli:    registryCli,
+		config:         config,
 	}
 }
 
@@ -3043,4 +3050,65 @@ func TransStatus(eStatus string) string {
 		return "挂起"
 	}
 	return ""
+}
+
+func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error) {
+	var fileInfos []apimodel.FileInfo
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return nil, err
+	}
+	containerName := service.K8sComponentName
+	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-l", tarPath})
+	if err != nil {
+		return nil, err
+	}
+	files := strings.Split(output, "\n")
+	for _, file := range files {
+		fileElements := strings.Split(file, " ")
+		if strings.HasPrefix(fileElements[0], "d") {
+			fileInfos = append(fileInfos, apimodel.FileInfo{
+				Title:  fileElements[len(fileElements)-1],
+				IsLeaf: true,
+			})
+		} else if strings.HasPrefix(fileElements[0], "-") {
+			fileInfos = append(fileInfos, apimodel.FileInfo{
+				Title:  fileElements[len(fileElements)-1],
+				IsLeaf: false,
+			})
+		}
+	}
+	return fileInfos, nil
+}
+
+func (s *ServiceAction) executeCommand(podName, namespace, containerName string, command []string) (string, error) {
+	req := s.kubeClient.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: containerName,
+		Command:   command,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+
+	executor, err := remotecommand.NewSPDYExecutor(s.config, "POST", req.URL())
+	if err != nil {
+		return "", err
+	}
+
+	var stdout, stderr bytes.Buffer
+	err = executor.Stream(remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if err != nil {
+		return "", err
+	}
+	// 返回输出结果
+	return strings.TrimSpace(stdout.String()), nil
 }

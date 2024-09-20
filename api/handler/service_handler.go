@@ -116,4 +116,5 @@ type ServiceHandler interface {
 	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
+	FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error)
 }

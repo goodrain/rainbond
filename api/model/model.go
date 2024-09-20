@@ -2251,3 +2251,9 @@ type FlowEntryRule struct {
 	HeaderType  string `json:"header_type"`
 	HeaderValue string `json:"header_value"`
 }
+
+// FileInfo -
+type FileInfo struct {
+	Title  string `json:"title"`
+	IsLeaf bool   `json:"is_leaf"`
+}

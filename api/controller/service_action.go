@@ -408,6 +408,20 @@ func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
+func (t *TenantStruct) FileManageService(w http.ResponseWriter, r *http.Request) {
+	tarPath := r.FormValue("path")
+	podName := r.FormValue("pod_name")
+	namespace := r.FormValue("namespace")
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	fileInfos, err := handler.GetServiceManager().FileManageInfo(serviceID, podName, tarPath, namespace)
+	if err != nil {
+		logrus.Errorf(fmt.Sprintf("%v get file  manage %v failure: %v", serviceID, tarPath, err))
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("%v get file  manage %v failure: %v", serviceID, tarPath, err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, fileInfos)
+}
+
 // BuildVersionIsExist -
 func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Request) {
 	statusMap := make(map[string]bool)
