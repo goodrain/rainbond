@@ -1098,8 +1098,8 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 			regionInfo["sslCaCert"] = string(caPem)
 			regionInfo["keyFile"] = string(clientKey)
 			regionInfo["certFile"] = string(clientPem)
-			regionInfo["url"] = fmt.Sprintf("https://%s:%s", gatewayIngressIP, "8443")
-			regionInfo["wsUrl"] = fmt.Sprintf("ws://%s:%s", gatewayIngressIP, "6060")
+			regionInfo["url"] = fmt.Sprintf("https://%s:%s", gatewayIngressIP, "38443")
+			regionInfo["wsUrl"] = fmt.Sprintf("ws://%s:%s", gatewayIngressIP, "36060")
 			regionInfo["httpDomain"] = cluster.Spec.SuffixHTTPHost
 			regionInfo["tcpDomain"] = cluster.GatewayIngressIP()
 			regionInfo["desc"] = "Helm"
