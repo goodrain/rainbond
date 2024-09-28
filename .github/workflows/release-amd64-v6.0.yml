@@ -104,7 +104,7 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
     strategy:
       matrix:
-        component: [api, chaos, mq, worker, eventlog, init-probe, resource-proxy]
+        component: [api, chaos, mq, worker, init-probe, resource-proxy]
     steps:
       - name: Pull code and Build the Docker image
         env:
