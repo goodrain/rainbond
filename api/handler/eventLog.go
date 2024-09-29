@@ -193,9 +193,7 @@ func bubSort(d []api_model.MessageData) []api_model.MessageData {
 	for i := 0; i < len(d); i++ {
 		for j := i + 1; j < len(d); j++ {
 			if d[i].Unixtime > d[j].Unixtime {
-				temp := d[i]
-				d[i] = d[j]
-				d[j] = temp
+				d[i], d[j] = d[j], d[i]
 			}
 		}
 	}

@@ -367,9 +367,7 @@ func (m *MonitorMessageList) Less(i, j int) bool {
 
 // Swap 交换索引为 i 和 j 的元素
 func (m *MonitorMessageList) Swap(i, j int) {
-	tmp := (*m)[i]
-	(*m)[i] = (*m)[j]
-	(*m)[j] = tmp
+	(*m)[i], (*m)[j] = (*m)[j], (*m)[i]
 }
 
 //Pop Pop

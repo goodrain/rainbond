@@ -62,9 +62,7 @@ func (list TenantResList) Less(i, j int) bool {
 }
 
 func (list TenantResList) Swap(i, j int) {
-	temp := list[i]
-	list[i] = list[j]
-	list[j] = temp
+	list[i], list[j] = list[j], list[i]
 }
 
 //TenantAndResource tenant and resource strcut
