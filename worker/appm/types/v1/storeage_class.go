@@ -19,9 +19,7 @@
 package v1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 )
 
@@ -35,51 +33,7 @@ import (
 var initStorageClass []*storagev1.StorageClass
 var initLocalStorageClass []*storagev1.StorageClass
 
-//RainbondStatefuleShareStorageClass rainbond support statefulset app share volume
-var RainbondStatefuleShareStorageClass = "rainbondsssc"
-
-//RainbondStatefuleLocalStorageClass rainbond support statefulset app local volume
-var RainbondStatefuleLocalStorageClass = "rainbondslsc"
-
-func init() {
-	var volumeBindingImmediate = storagev1.VolumeBindingImmediate
-	var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
-	var Retain = v1.PersistentVolumeReclaimRetain
-	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: RainbondStatefuleShareStorageClass,
-		},
-		Provisioner:       "rainbond.io/provisioner-sssc",
-		VolumeBindingMode: &volumeBindingImmediate,
-		ReclaimPolicy:     &Retain,
-	})
-	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: RainbondStatefuleLocalStorageClass,
-		},
-		Provisioner:       "rainbond.io/provisioner-sslc",
-		VolumeBindingMode: &columeWaitForFirstConsumer,
-		ReclaimPolicy:     &Retain,
-	})
-	initLocalStorageClass = append(initLocalStorageClass, &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: RainbondStatefuleShareStorageClass,
-		},
-		Provisioner:       "rancher.io/local-path",
-		VolumeBindingMode: &columeWaitForFirstConsumer,
-		ReclaimPolicy:     &Retain,
-	})
-	initLocalStorageClass = append(initLocalStorageClass, &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: RainbondStatefuleLocalStorageClass,
-		},
-		Provisioner:       "rancher.io/local-path",
-		VolumeBindingMode: &columeWaitForFirstConsumer,
-		ReclaimPolicy:     &Retain,
-	})
-}
-
-//GetInitStorageClass get init storageclass list
+// GetInitStorageClass get init storageclass list
 func GetInitStorageClass() []*storagev1.StorageClass {
 	if os.Getenv("ALLINONE_MODE") == "true" {
 		return initLocalStorageClass

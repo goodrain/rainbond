@@ -20,6 +20,7 @@ package sources
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"net"
 	"os"
@@ -35,7 +36,7 @@ import (
 	"github.com/pkg/sftp"
 )
 
-//SFTPClient sFTP客户端
+// SFTPClient sFTP客户端
 type SFTPClient struct {
 	UserName   string `json:"username"`
 	PassWord   string `json:"password"`
@@ -45,7 +46,7 @@ type SFTPClient struct {
 	sftpClient *sftp.Client
 }
 
-//NewSFTPClient NewSFTPClient
+// NewSFTPClient NewSFTPClient
 func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
 	fb := &SFTPClient{
 		UserName: username,
@@ -89,7 +90,7 @@ func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
 	return fb, nil
 }
 
-//Close 关闭啊
+// Close 关闭啊
 func (s *SFTPClient) Close() {
 	if s.sftpClient != nil {
 		s.sftpClient.Close()
@@ -130,7 +131,7 @@ func (s *SFTPClient) checkMd5(src, dst string, logger event.Logger) (bool, error
 	return false, nil
 }
 
-//PushFile PushFile
+// PushFile PushFile
 func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	logger.Info(fmt.Sprintf("开始上传代码包到FTP服务器"), map[string]string{"step": "slug-share"})
 	ok, err := s.checkMd5(src, dst, logger)
@@ -185,7 +186,7 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	}
 	defer dstFile.Close()
 	allSize := srcStat.Size()
-	if err := CopyWithProgress(srcFile, dstFile, allSize, logger); err != nil {
+	if err := storage.CopyWithProgress(srcFile, dstFile, allSize, logger); err != nil {
 		return err
 	}
 	// write remote md5 file
@@ -202,7 +203,7 @@ func (s *SFTPClient) PushFile(src, dst string, logger event.Logger) error {
 	return nil
 }
 
-//DownloadFile DownloadFile
+// DownloadFile DownloadFile
 func (s *SFTPClient) DownloadFile(src, dst string, logger event.Logger) error {
 	logger.Info(fmt.Sprintf("开始从FTP服务器下载代码包"), map[string]string{"step": "slug-share"})
 
@@ -240,10 +241,10 @@ func (s *SFTPClient) DownloadFile(src, dst string, logger event.Logger) error {
 	}
 	defer dstFile.Close()
 	allSize := srcStat.Size()
-	return CopyWithProgress(srcFile, dstFile, allSize, logger)
+	return storage.CopyWithProgress(srcFile, dstFile, allSize, logger)
 }
 
-//FileExist 文件是否存在
+// FileExist 文件是否存在
 func (s *SFTPClient) FileExist(filepath string) (bool, error) {
 	if _, err := s.sftpClient.Stat(filepath); err != nil {
 		return false, err
@@ -251,7 +252,7 @@ func (s *SFTPClient) FileExist(filepath string) (bool, error) {
 	return true, nil
 }
 
-//MkdirAll 创建目录，递归
+// MkdirAll 创建目录，递归
 func (s *SFTPClient) MkdirAll(dirpath string) error {
 	parentDir := filepath.Dir(dirpath)
 	_, err := s.sftpClient.Stat(parentDir)

@@ -27,23 +27,14 @@ import (
 	"os"
 
 	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/mq/option"
-	"github.com/spf13/pflag"
 )
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("mq")
 	}
-	s := option.NewMQServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
+	configs.Default().SetAppName("rbd-mq").SetPublicFlags().Parse().SetLog()
 
-	configs.SetDefault(&configs.Config{
-		AppName:  "rbd-mq",
-		MQConfig: s.Config,
-	})
 	err := rainbond.New(context.Background(), configs.Default()).
 		Registry(component.MQClient()).
 		RegistryCancel(component.MQGrpcServer()).

@@ -6,7 +6,6 @@ import (
 	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,8 +19,8 @@ type Server struct {
 }
 
 // Start -
-func (s *Server) Start(ctx context.Context, cfg *configs.Config) error {
-	return s.StartCancel(ctx, nil, cfg)
+func (s *Server) Start(ctx context.Context) error {
+	return s.StartCancel(ctx, nil)
 }
 
 // CloseHandle -
@@ -34,7 +33,7 @@ func New() *Server {
 }
 
 // StartCancel -
-func (s *Server) StartCancel(ctx context.Context, cancel context.CancelFunc, cfg *configs.Config) error {
+func (s *Server) StartCancel(ctx context.Context, cancel context.CancelFunc) error {
 	prometheus.MustRegister(version.NewCollector("acp_mq"))
 	prometheus.MustRegister(monitor.NewExporter(mqclient.Default().ActionMQ()))
 	http.Handle("/metrics", promhttp.Handler())

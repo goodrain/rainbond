@@ -38,19 +38,21 @@ var defaultRegistryComponent *RegistryComponent
 
 // RegistryComponent -
 type RegistryComponent struct {
-	RegistryCli *registry.Registry
+	RegistryCli  *registry.Registry
+	ServerConfig *configs.ServerConfig
 }
 
 // New -
 func New() *RegistryComponent {
 	defaultRegistryComponent = &RegistryComponent{
-		RegistryCli: new(registry.Registry),
+		RegistryCli:  new(registry.Registry),
+		ServerConfig: configs.Default().ServerConfig,
 	}
 	return defaultRegistryComponent
 }
 
 // Start -
-func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
+func (r *RegistryComponent) Start(ctx context.Context) error {
 	var cluster rainbondv1alpha1.RainbondCluster
 
 	err := clients.K8SClientInitClient(k8s.Default().Clientset, k8s.Default().RestConfig)
@@ -64,7 +66,7 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 
 	registryConfig := cluster.Spec.ImageHub
 	if registryConfig.Domain == "goodrain.me" {
-		registryConfig.Domain = cfg.APIConfig.RbdHub
+		registryConfig.Domain = r.ServerConfig.RbdHub
 	}
 	gogo.Go(func(ctx context.Context) error {
 		for {

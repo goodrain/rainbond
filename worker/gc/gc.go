@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	utils "github.com/goodrain/rainbond/util"
 	"os"
 	"path"
@@ -42,9 +43,9 @@ type GarbageCollector struct {
 }
 
 // NewGarbageCollector -
-func NewGarbageCollector(clientset kubernetes.Interface) *GarbageCollector {
+func NewGarbageCollector() *GarbageCollector {
 	gcr := &GarbageCollector{
-		clientset: clientset,
+		clientset: k8s.Default().Clientset,
 	}
 	return gcr
 }

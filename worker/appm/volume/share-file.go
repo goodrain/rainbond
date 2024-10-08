@@ -20,7 +20,6 @@ package volume
 
 import (
 	"fmt"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -46,7 +45,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 		vm = &corev1.VolumeMount{
 			Name:      volumeMountName,
 			MountPath: volumeMountPath,
@@ -65,7 +64,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			"stateless":   "",
 		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, v1.RainbondStatefuleLocalStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
 		v.as.SetClaimManually(claim)
 		vo := kubevirtv1.Volume{
@@ -121,7 +120,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			"stateless":   "",
 		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 		vm = &corev1.VolumeMount{
 			Name:      volumeMountName,
 			MountPath: volumeMountPath,
@@ -171,7 +170,7 @@ func (v *ShareFileVolume) generateVolumeSubPath(define *Define, vm *corev1.Volum
 	var existClaimName string
 	var needDeleteClaim []corev1.PersistentVolumeClaim
 	for _, claim := range v.as.GetClaims() {
-		if existClaimName != "" && *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
+		if existClaimName != "" && *claim.Spec.StorageClassName == "local-path" {
 			v.as.DeleteClaim(claim)
 			if v.as.GetStatefulSet() == nil {
 				v.as.DeleteClaimManually(claim)
@@ -179,7 +178,7 @@ func (v *ShareFileVolume) generateVolumeSubPath(define *Define, vm *corev1.Volum
 			needDeleteClaim = append(needDeleteClaim, *claim)
 			continue
 		}
-		if *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
+		if *claim.Spec.StorageClassName == "local-path" {
 			existClaimName = claim.GetName()
 		}
 	}

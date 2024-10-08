@@ -20,6 +20,7 @@ package handler
 
 import (
 	"encoding/json"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"strings"
 
 	"fmt"
@@ -49,8 +50,8 @@ type VolumeTypeHandler interface {
 var defaultVolumeTypeHandler VolumeTypeHandler
 
 // CreateVolumeTypeManger create VolumeType manager
-func CreateVolumeTypeManger(statusCli *client.AppRuntimeSyncClient) *VolumeTypeAction {
-	return &VolumeTypeAction{statusCli: statusCli}
+func CreateVolumeTypeManger() *VolumeTypeAction {
+	return &VolumeTypeAction{statusCli: grpc.Default().StatusClient}
 }
 
 // GetVolumeTypeHandler get volumeType handler

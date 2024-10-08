@@ -20,14 +20,12 @@ package discover
 
 import (
 	"context"
-	"fmt"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/appm/controller"
@@ -51,48 +49,32 @@ var TaskError float64
 type TaskManager struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
-	config        option.Config
 	handleManager *handle.Manager
+	k8sComponent  *k8s.Component
+	serverConfig  *configs.ServerConfig
 	client        client.MQClient
-	restConfig    *rest.Config
-	mapper        meta.RESTMapper
-	clientset     *kubernetes.Clientset
 }
 
 // NewTaskManager return *TaskManager
-func NewTaskManager(cfg option.Config,
-	store store.Storer,
+func NewTaskManager(store store.Storer,
 	controllermanager *controller.Manager,
-	garbageCollector *gc.GarbageCollector,
-	restConfig *rest.Config,
-	mapper meta.RESTMapper,
-	clientset *kubernetes.Clientset) *TaskManager {
-
+	garbageCollector *gc.GarbageCollector) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, garbageCollector, restConfig, mapper, clientset)
+	handleManager := handle.NewManager(ctx, store, controllermanager, garbageCollector)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
-		config:        cfg,
 		handleManager: handleManager,
-		restConfig:    restConfig,
-		mapper:        mapper,
-		clientset:     clientset,
+		k8sComponent:  k8s.Default(),
+		serverConfig:  configs.Default().ServerConfig,
+		client:        mq.Default().MqClient,
 	}
 }
 
 // Start 启动
 func (t *TaskManager) Start() error {
-	client, err := client.NewMqClient(t.config.MQAPI)
-	if err != nil {
-		logrus.Errorf("new Mq client error, %v", err)
-		healthStatus["status"] = "unusual"
-		healthStatus["info"] = fmt.Sprintf("new Mq client error, %v", err)
-		return err
-	}
-	t.client = client
 	go t.Do()
 	logrus.Info("start discover success.")
 	return nil

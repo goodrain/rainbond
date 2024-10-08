@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -33,10 +34,10 @@ type RegistryAuthSecretAction struct {
 }
 
 // CreateRegistryAuthSecretManager creates registry auth secret manager
-func CreateRegistryAuthSecretManager(dbmanager db.Manager, mqclient client.MQClient) *RegistryAuthSecretAction {
+func CreateRegistryAuthSecretManager() *RegistryAuthSecretAction {
 	return &RegistryAuthSecretAction{
-		dbmanager: dbmanager,
-		mqclient:  mqclient,
+		dbmanager: db.GetManager(),
+		mqclient:  mq.Default().MqClient,
 	}
 }
 

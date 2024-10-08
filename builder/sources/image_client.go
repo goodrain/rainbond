@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/containerd/containerd"
 	dockercli "github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/event"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -31,18 +32,20 @@ type ImageClientFactory interface {
 }
 
 // NewImageClient new image client
-func NewImageClient(containerRuntime, endpoint string, timeout time.Duration) (c ImageClient, err error) {
-	logrus.Infof("create container client runtime %s endpoint %s", containerRuntime, endpoint)
+func NewImageClient() (c ImageClient, err error) {
+	containerRuntime := configs.Default().ChaosConfig.ContainerRuntime
+	runtimeEndpoint := configs.Default().ChaosConfig.RuntimeEndpoint
+	logrus.Infof("create container client runtime %s endpoint %s", containerRuntime, runtimeEndpoint)
 	switch containerRuntime {
 	case ContainerRuntimeDocker:
 		factory := &dockerImageCliFactory{}
 		c, err = factory.NewClient(
-			endpoint, timeout,
+			runtimeEndpoint, time.Second*3,
 		)
 	case ContainerRuntimeContainerd:
 		factory := &containerdImageCliFactory{}
 		c, err = factory.NewClient(
-			endpoint, timeout,
+			runtimeEndpoint, time.Second*3,
 		)
 		return
 	default:

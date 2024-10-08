@@ -21,14 +21,15 @@ package master
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/common"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	mcontroller "github.com/goodrain/rainbond/worker/master/controller"
@@ -42,17 +43,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-//Controller app runtime master controller
+// Controller app runtime master controller
 type Controller struct {
+	workerConfig        *rbdcomponent.WorkerConfig
+	k8sComponent        *k8s.Component
 	ctx                 context.Context
 	cancel              context.CancelFunc
-	conf                option.Config
-	restConfig          *rest.Config
 	store               store.Storer
 	dbmanager           db.Manager
 	memoryUse           *prometheus.GaugeVec
@@ -67,26 +66,20 @@ type Controller struct {
 	helmAppController   *helmapp.Controller
 	controllers         []mcontroller.Controller
 	isLeader            bool
-
-	kubeClient kubernetes.Interface
-
-	stopCh          chan struct{}
-	podEvent        *podevent.PodEvent
-	volumeTypeEvent *sync.VolumeTypeEvent
-
-	version      *version.Info
-	rainbondsssc controller.Provisioner
-	rainbondsslc controller.Provisioner
-	mgr          ctrl.Manager
+	stopCh              chan struct{}
+	podEvent            *podevent.PodEvent
+	volumeTypeEvent     *sync.VolumeTypeEvent
+	version             *version.Info
+	mgr                 ctrl.Manager
 }
 
-//NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface, restConfig *rest.Config) (*Controller, error) {
+// NewMasterController new master controller
+func NewMasterController(store store.Storer) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
-	serverVersion, err := kubeClient.Discovery().ServerVersion()
+	serverVersion, err := k8s.Default().Clientset.Discovery().ServerVersion()
 	if err != nil {
 		logrus.Errorf("Error getting server version: %v", err)
 		cancel()
@@ -98,27 +91,27 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	//statefulset share controller
 	rainbondssscProvisioner := provider.NewRainbondssscProvisioner()
 	//statefulset local controller
-	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(kubeClient, store)
+	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(k8s.Default().Clientset, store)
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
-	pc := controller.NewProvisionController(kubeClient, &conf, map[string]controller.Provisioner{
+	pc := controller.NewProvisionController(map[string]controller.Provisioner{
 		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 
-	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient,
-		store.Informer().HelmApp, store.Lister().HelmApp, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
+	helmAppController := helmapp.NewController(ctx, stopCh,
+		store.Informer().HelmApp, store.Lister().HelmApp)
 
 	return &Controller{
-		conf:              conf,
-		restConfig:        restConfig,
 		pc:                pc,
 		helmAppController: helmAppController,
 		store:             store,
 		stopCh:            stopCh,
 		cancel:            cancel,
 		ctx:               ctx,
+		workerConfig:      configs.Default().WorkerConfig,
+		k8sComponent:      k8s.Default(),
 		dbmanager:         db.GetManager(),
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
@@ -156,36 +149,27 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 			Help:      "total cpu limit in namespace",
 		}, []string{"namespace"}),
 		diskCache:       statistical.CreatDiskCache(ctx),
-		podEvent:        podevent.New(conf.KubeClient, stopCh),
+		podEvent:        podevent.New(stopCh),
 		volumeTypeEvent: sync.New(stopCh),
-		kubeClient:      kubeClient,
-		rainbondsssc:    rainbondssscProvisioner,
-		rainbondsslc:    rainbondsslcProvisioner,
 		version:         serverVersion,
 	}, nil
 }
 
-//IsLeader is leader
+// IsLeader is leader
 func (m *Controller) IsLeader() bool {
 	return m.isLeader
 }
 
-//Start start
+// Start -
 func (m *Controller) Start() error {
 	logrus.Debug("master controller starting")
 	start := func(ctx context.Context) {
-		pc := controller.NewProvisionController(m.kubeClient, &m.conf, map[string]controller.Provisioner{
-			m.rainbondsslc.Name(): m.rainbondsslc,
-			m.rainbondsssc.Name(): m.rainbondsssc,
-		}, m.version.GitVersion)
-
 		m.isLeader = true
 		defer func() {
 			m.isLeader = false
 		}()
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
-		go pc.Run(ctx)
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
@@ -198,7 +182,7 @@ func (m *Controller) Start() error {
 		defer m.helmAppController.Stop()
 
 		// start controller
-		mgr, err := ctrl.NewManager(m.restConfig, ctrl.Options{
+		mgr, err := ctrl.NewManager(m.k8sComponent.RestConfig, ctrl.Options{
 			Scheme:           common.Scheme,
 			LeaderElection:   false,
 			LeaderElectionID: "controllers.rainbond.io",
@@ -226,13 +210,13 @@ func (m *Controller) Start() error {
 
 	}
 	// Leader election was requested.
-	if m.conf.LeaderElectionNamespace == "" {
+	if m.workerConfig.LeaderElectionNamespace == "" {
 		return fmt.Errorf("-leader-election-namespace must not be empty")
 	}
-	if m.conf.LeaderElectionIdentity == "" {
-		m.conf.LeaderElectionIdentity = m.conf.NodeName
+	if m.workerConfig.LeaderElectionIdentity == "" {
+		m.workerConfig.LeaderElectionIdentity = m.workerConfig.NodeName
 	}
-	if m.conf.LeaderElectionIdentity == "" {
+	if m.workerConfig.LeaderElectionIdentity == "" {
 		return fmt.Errorf("-leader-election-identity must not be empty")
 	}
 	// Name of config map with leader election lock
@@ -249,7 +233,7 @@ func (m *Controller) Start() error {
 				logrus.Info("run as leader")
 				ctx, cancel := context.WithCancel(m.ctx)
 				defer cancel()
-				leader.RunAsLeader(ctx, m.kubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {
+				leader.RunAsLeader(ctx, m.k8sComponent.Clientset, m.workerConfig.LeaderElectionNamespace, m.workerConfig.LeaderElectionIdentity, lockName, start, func() {
 					leaderCh <- struct{}{}
 					logrus.Info("restart leader")
 				})
@@ -262,12 +246,12 @@ func (m *Controller) Start() error {
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (m *Controller) Stop() {
 	close(m.stopCh)
 }
 
-//Scrape scrape app runtime
+// Scrape scrape app runtime
 func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *prometheus.Desc) {
 	if !m.isLeader {
 		return

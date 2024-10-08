@@ -20,6 +20,8 @@ package group
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -74,8 +76,8 @@ type BackupHandle struct {
 }
 
 // CreateBackupHandle CreateBackupHandle
-func CreateBackupHandle(MQClient mqclient.MQClient, statusCli *client.AppRuntimeSyncClient) *BackupHandle {
-	return &BackupHandle{mqcli: MQClient, statusCli: statusCli}
+func CreateBackupHandle() *BackupHandle {
+	return &BackupHandle{mqcli: mq.Default().MqClient, statusCli: grpc.Default().StatusClient}
 }
 
 // NewBackup new backup task

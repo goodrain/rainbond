@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,11 +42,11 @@ type ThirdPartyServiceHanlder struct {
 }
 
 // Create3rdPartySvcHandler creates a new *ThirdPartyServiceHanlder.
-func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntimeSyncClient) *ThirdPartyServiceHanlder {
+func Create3rdPartySvcHandler() *ThirdPartyServiceHanlder {
 	return &ThirdPartyServiceHanlder{
 		logger:    logrus.WithField("WHO", "ThirdPartyServiceHanlder"),
-		dbmanager: dbmanager,
-		statusCli: statusCli,
+		dbmanager: db.GetManager(),
+		statusCli: grpc.Default().StatusClient,
 	}
 }
 

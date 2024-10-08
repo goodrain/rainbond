@@ -18,18 +18,21 @@
 
 package handler
 
-import "github.com/goodrain/rainbond/api/client/prometheus"
+import (
+	"github.com/goodrain/rainbond/api/client/prometheus"
+	"github.com/goodrain/rainbond/pkg/component/prom"
+)
 
-//MonitorHandler monitor api handler
+// MonitorHandler monitor api handler
 type MonitorHandler interface {
 	GetTenantMonitorMetrics(tenantID string) []prometheus.Metadata
 	GetAppMonitorMetrics(tenantID, appID string) []prometheus.Metadata
 	GetComponentMonitorMetrics(tenantID, componentID string) []prometheus.Metadata
 }
 
-//NewMonitorHandler new monitor handler
-func NewMonitorHandler(cli prometheus.Interface) MonitorHandler {
-	return &monitorHandler{cli: cli}
+// NewMonitorHandler new monitor handler
+func NewMonitorHandler() MonitorHandler {
+	return &monitorHandler{cli: prom.Default().PrometheusCli}
 }
 
 type monitorHandler struct {

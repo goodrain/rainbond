@@ -29,11 +29,12 @@ var defaultGrpcComponent *Component
 // Component -
 type Component struct {
 	StatusClient *client.AppRuntimeSyncClient
+	serverConfig *configs.ServerConfig
 }
 
 // Start -
-func (c *Component) Start(ctx context.Context, cfg *configs.Config) (err error) {
-	c.StatusClient, err = client.NewClient(ctx, cfg.APIConfig.RbdWorker)
+func (c *Component) Start(ctx context.Context) (err error) {
+	c.StatusClient, err = client.NewClient(ctx, c.serverConfig.RbdWorker)
 	return err
 }
 
@@ -43,7 +44,9 @@ func (c *Component) CloseHandle() {
 
 // New -
 func New() *Component {
-	defaultGrpcComponent = &Component{}
+	defaultGrpcComponent = &Component{
+		serverConfig: configs.Default().ServerConfig,
+	}
 	return defaultGrpcComponent
 }
 

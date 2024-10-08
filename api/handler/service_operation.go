@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"time"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -53,9 +54,9 @@ type OperationResult struct {
 }
 
 // CreateOperationHandler create  operation handler
-func CreateOperationHandler(mqCli gclient.MQClient) *OperationHandler {
+func CreateOperationHandler() *OperationHandler {
 	return &OperationHandler{
-		mqCli: mqCli,
+		mqCli: mq.Default().MqClient,
 	}
 }
 

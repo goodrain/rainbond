@@ -24,6 +24,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/hubregistry"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
 	"io"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -43,7 +48,6 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/api/util/license"
 	"github.com/goodrain/rainbond/builder/parser"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dberr "github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -75,7 +79,6 @@ type ServiceAction struct {
 	MQClient       gclient.MQClient
 	statusCli      *client.AppRuntimeSyncClient
 	prometheusCli  prometheus.Interface
-	conf           option.Config
 	rainbondClient versioned.Interface
 	kubeClient     kubernetes.Interface
 	kubevirtClient kubecli.KubevirtClient
@@ -93,27 +96,17 @@ type dCfg struct {
 }
 
 // CreateManager create Manger
-func CreateManager(conf option.Config,
-	mqClient gclient.MQClient,
-	statusCli *client.AppRuntimeSyncClient,
-	prometheusCli prometheus.Interface,
-	rainbondClient versioned.Interface,
-	kubeClient kubernetes.Interface,
-	kubevirtClient kubecli.KubevirtClient,
-	dbmanager db.Manager,
-	registryCli *registry.Registry,
-	config *rest.Config) *ServiceAction {
+func CreateManager() *ServiceAction {
 	return &ServiceAction{
-		MQClient:       mqClient,
-		statusCli:      statusCli,
-		conf:           conf,
-		prometheusCli:  prometheusCli,
-		rainbondClient: rainbondClient,
-		kubeClient:     kubeClient,
-		kubevirtClient: kubevirtClient,
-		dbmanager:      dbmanager,
-		registryCli:    registryCli,
-		config:         config,
+		MQClient:       mq.Default().MqClient,
+		statusCli:      grpc.Default().StatusClient,
+		prometheusCli:  prom.Default().PrometheusCli,
+		rainbondClient: k8s.Default().RainbondClient,
+		kubeClient:     k8s.Default().Clientset,
+		kubevirtClient: k8s.Default().KubevirtCli,
+		dbmanager:      db.GetManager(),
+		registryCli:    hubregistry.Default().RegistryCli,
+		config:         k8s.Default().RestConfig,
 	}
 }
 

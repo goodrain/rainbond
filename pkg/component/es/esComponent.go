@@ -52,19 +52,13 @@ func createHTTPClient() *http.Client {
 }
 
 // Start -
-func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
-	c.url = cfg.APIConfig.ElasticSearchURL
-	c.username = cfg.APIConfig.ElasticSearchUsername
-	c.password = cfg.APIConfig.ElasticSearchPassword
+func (c *Component) Start(ctx context.Context) error {
 	c.client = createHTTPClient()
 	return nil
 }
 
 // SingleStart -
-func (c *Component) SingleStart(url, username, password string) {
-	c.url = url
-	c.username = username
-	c.password = password
+func (c *Component) SingleStart() {
 	c.client = createHTTPClient()
 }
 
@@ -74,7 +68,12 @@ func (c *Component) CloseHandle() {
 
 // New -
 func New() *Component {
-	defaultEsComponent = &Component{}
+	esConfig := configs.Default().ESConfig
+	defaultEsComponent = &Component{
+		url:      esConfig.ElasticSearchURL,
+		username: esConfig.ElasticSearchUsername,
+		password: esConfig.ElasticSearchPassword,
+	}
 	return defaultEsComponent
 }
 

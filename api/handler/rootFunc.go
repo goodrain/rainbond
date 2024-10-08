@@ -24,8 +24,6 @@ import (
 	"strings"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd/api/option"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,7 +31,7 @@ import (
 type RootAction struct{}
 
 // CreateRootFuncManager get root func manager
-func CreateRootFuncManager(conf option.Config) *RootAction {
+func CreateRootFuncManager() *RootAction {
 	return &RootAction{}
 }
 

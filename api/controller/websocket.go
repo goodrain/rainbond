@@ -22,6 +22,7 @@ import (
 	"context"
 	webcli "github.com/goodrain/rainbond/api/webcli/app"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
@@ -160,7 +161,7 @@ func (d LogFile) Get(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "filename")
 	filePath := path.Join(d.Root, gid, filename)
 	if isExist(filePath) {
-		http.ServeFile(w, r, filePath)
+		storage.Default().StorageCli.ServeFile(w, r, filePath)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -175,7 +176,7 @@ func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "filename")
 	filePath := d.Root + filename
 	if isExist(filePath) {
-		http.ServeFile(w, r, filePath)
+		storage.Default().StorageCli.ServeFile(w, r, filePath)
 	} else {
 		w.WriteHeader(404)
 	}

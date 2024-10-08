@@ -20,7 +20,7 @@ package handler
 
 import (
 	"github.com/goodrain/rainbond/api/proxy"
-	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/config/configs"
 )
 
 var nodeProxy proxy.Proxy
@@ -30,18 +30,20 @@ var monitorProxy proxy.Proxy
 var kubernetesDashboard proxy.Proxy
 
 // InitProxy 初始化
-func InitProxy(conf option.Config) {
+func InitProxy() {
+	serverConfig := configs.Default().ServerConfig
+	apiConfig := configs.Default().APIConfig
 	if nodeProxy == nil {
-		nodeProxy = proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
+		nodeProxy = proxy.CreateProxy("acp_node", "http", apiConfig.NodeAPI)
 	}
 	if builderProxy == nil {
-		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
+		builderProxy = proxy.CreateProxy("builder", "http", apiConfig.BuilderAPI)
 	}
 	if prometheusProxy == nil {
-		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{conf.PrometheusEndpoint})
+		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{serverConfig.PrometheusEndpoint})
 	}
 	if kubernetesDashboard == nil {
-		kubernetesDashboard = proxy.CreateProxy("kubernetesdashboard", "http", []string{conf.KuberentesDashboardAPI})
+		kubernetesDashboard = proxy.CreateProxy("kubernetesdashboard", "http", []string{apiConfig.KuberentesDashboardAPI})
 	}
 }
 

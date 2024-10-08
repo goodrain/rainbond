@@ -24,6 +24,8 @@ import (
 	"crypto/x509"
 	"github.com/goodrain/rainbond/api/api_routers/gateway"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/goodrain/rainbond/pkg/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,8 +39,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/util"
-
-	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/goodrain/rainbond/api/api_routers/doc"
 	"github.com/goodrain/rainbond/api/api_routers/license"
@@ -59,21 +59,26 @@ import (
 type Manager struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
-	conf            option.Config
 	stopChan        chan struct{}
 	r               *chi.Mux
 	prometheusProxy proxy.Proxy
 	exporter        *metric.Exporter
+	LogConfig       *configs.LogConfig
+	WebSocket       *configs.WebSocketConfig
+	APIConfig       *rbdcomponent.APIConfig
 }
 
 // NewManager newManager
-func NewManager(c option.Config) *Manager {
+func NewManager() *Manager {
+	config := configs.Default()
 	ctx, cancel := context.WithCancel(context.Background())
 	manager := &Manager{
-		ctx:      ctx,
-		cancel:   cancel,
-		conf:     c,
-		stopChan: make(chan struct{}),
+		ctx:       ctx,
+		cancel:    cancel,
+		stopChan:  make(chan struct{}),
+		LogConfig: config.LogConfig,
+		WebSocket: config.WebSocketConfig,
+		APIConfig: config.APIConfig,
 	}
 	r := chi.NewRouter()
 	manager.r = r
@@ -83,17 +88,16 @@ func NewManager(c option.Config) *Manager {
 
 // SetMiddleware set api meddleware
 func (m *Manager) SetMiddleware() {
-	c := m.conf
 	r := m.r
 	r.Use(m.RequestMetric)
 	r.Use(middleware.RequestID)
 	//Sets a http.Request's RemoteAddr to either X-Forwarded-For or X-Real-IP
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
-	if c.LoggerFile != "" {
-		logerFile, err := os.OpenFile(c.LoggerFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	if m.LogConfig.LoggerFile != "" {
+		logerFile, err := os.OpenFile(m.LogConfig.LoggerFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 		if err != nil {
-			logrus.Errorf("open logger file %s error %s", c.LoggerFile, err.Error())
+			logrus.Errorf("open logger file %s error %s", m.LogConfig.LoggerFile, err.Error())
 			r.Use(middleware.DefaultLogger)
 		} else {
 			requestLog := middleware.RequestLogger(&middleware.DefaultLogFormatter{Logger: log.New(logerFile, "", log.LstdFlags)})
@@ -145,11 +149,9 @@ func (m *Manager) Stop() error {
 
 // Run run
 func (m *Manager) Run() {
-	v2R := &version2.V2{
-		Cfg: &m.conf,
-	}
+	v2R := &version2.V2{}
 	m.Metric()
-	if m.conf.Debug {
+	if m.APIConfig.Debug {
 		util.ProfilerSetup(m.r)
 	}
 	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
@@ -176,36 +178,36 @@ func (m *Manager) Run() {
 		websocketRouter.Mount("/package_build", websocket.PackageBuildRoutes())
 		// 共享存储的文件操作路由
 		websocketRouter.Mount("/v2/file-operate", websocket.FileOperateRoutes())
-		if m.conf.WebsocketSSL {
-			logrus.Infof("websocket listen on (HTTPs) %s", m.conf.WebsocketAddr)
-			logrus.Fatal(http.ListenAndServeTLS(m.conf.WebsocketAddr, m.conf.WebsocketCertFile, m.conf.WebsocketKeyFile, websocketRouter))
+		if m.WebSocket.WebsocketSSL {
+			logrus.Infof("websocket listen on (HTTPs) %s", m.WebSocket.WebsocketAddr)
+			logrus.Fatal(http.ListenAndServeTLS(m.WebSocket.WebsocketAddr, m.WebSocket.WebsocketCertFile, m.WebSocket.WebsocketKeyFile, websocketRouter))
 		} else {
-			logrus.Infof("websocket listen on (HTTP) %s", m.conf.WebsocketAddr)
-			logrus.Fatal(http.ListenAndServe(m.conf.WebsocketAddr, websocketRouter))
+			logrus.Infof("websocket listen on (HTTP) %s", m.WebSocket.WebsocketAddr)
+			logrus.Fatal(http.ListenAndServe(m.WebSocket.WebsocketAddr, websocketRouter))
 		}
 		return nil
 	})
 
 	// api ssl
-	if m.conf.APISSL {
+	if m.APIConfig.APISSL {
 		_ = gogo.Go(func(ctx context.Context) error {
 			pool := x509.NewCertPool()
-			caCrt, err := ioutil.ReadFile(m.conf.APICaFile)
+			caCrt, err := ioutil.ReadFile(m.APIConfig.APICaFile)
 			if err != nil {
 				logrus.Fatal("ReadFile ca err:", err)
 				return err
 			}
 			pool.AppendCertsFromPEM(caCrt)
 			s := &http.Server{
-				Addr:    m.conf.APIAddrSSL,
+				Addr:    m.APIConfig.APIAddrSSL,
 				Handler: m.r,
 				TLSConfig: &tls.Config{
 					ClientCAs:  pool,
 					ClientAuth: tls.RequireAndVerifyClientCert,
 				},
 			}
-			logrus.Infof("api listen on (HTTPs) %s", m.conf.APIAddrSSL)
-			logrus.Fatal(s.ListenAndServeTLS(m.conf.APICertFile, m.conf.APIKeyFile))
+			logrus.Infof("api listen on (HTTPs) %s", m.APIConfig.APIAddrSSL)
+			logrus.Fatal(s.ListenAndServeTLS(m.APIConfig.APICertFile, m.APIConfig.APIKeyFile))
 			return nil
 		})
 	}
@@ -215,14 +217,14 @@ func (m *Manager) Run() {
 			res.Write([]byte("ok"))
 			res.WriteHeader(http.StatusOK)
 		})
-		logrus.Infof("health check listen on (HTTP) %s", m.conf.APIHealthzAddr)
-		logrus.Fatal(http.ListenAndServe(m.conf.APIHealthzAddr, healthzRouter))
+		logrus.Infof("health check listen on (HTTP) %s", m.APIConfig.APIHealthzAddr)
+		logrus.Fatal(http.ListenAndServe(m.APIConfig.APIHealthzAddr, healthzRouter))
 		return nil
 	})
 
 	// api
-	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)
-	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
+	logrus.Infof("api listen on (HTTP) %s", m.APIConfig.APIAddr)
+	logrus.Fatal(http.ListenAndServe(m.APIConfig.APIAddr, m.r))
 }
 
 // PrometheusAPI prometheus api 代理

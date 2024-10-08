@@ -20,6 +20,7 @@ package exector
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"os"
 
 	"github.com/goodrain/rainbond/builder"
@@ -36,7 +37,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//MarketSlugItem MarketSlugItem
+// MarketSlugItem MarketSlugItem
 type MarketSlugItem struct {
 	TenantName    string       `json:"tenant_name"`
 	ServiceAlias  string       `json:"service_alias"`
@@ -58,7 +59,7 @@ type MarketSlugItem struct {
 	} `json:"slug_info"`
 }
 
-//NewMarketSlugItem 创建实体
+// NewMarketSlugItem 创建实体
 func NewMarketSlugItem(in []byte) (*MarketSlugItem, error) {
 	var msi MarketSlugItem
 	if err := ffjson.Unmarshal(in, &msi); err != nil {
@@ -69,7 +70,7 @@ func NewMarketSlugItem(in []byte) (*MarketSlugItem, error) {
 	return &msi, nil
 }
 
-//Run Run
+// Run Run
 func (i *MarketSlugItem) Run() error {
 	if i.SlugInfo.FTPHost != "" && i.SlugInfo.FTPPort != "" {
 		sFTPClient, err := sources.NewSFTPClient(i.SlugInfo.FTPUser, i.SlugInfo.FTPPassword, i.SlugInfo.FTPHost, i.SlugInfo.FTPPort)
@@ -84,7 +85,7 @@ func (i *MarketSlugItem) Run() error {
 			return nil
 		}
 	} else {
-		if err := sources.CopyFileWithProgress(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
+		if err := storage.Default().StorageCli.CopyFileWithProgress(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
 			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
 			return nil
@@ -111,7 +112,7 @@ func (i *MarketSlugItem) Run() error {
 	return nil
 }
 
-//UpdateVersionInfo 更新任务执行结果
+// UpdateVersionInfo 更新任务执行结果
 func (i *MarketSlugItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {

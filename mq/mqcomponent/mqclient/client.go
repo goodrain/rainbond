@@ -2,7 +2,6 @@ package mqclient
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/mq/api/mq"
 )
 
@@ -24,8 +23,8 @@ func (m *Component) ActionMQ() mq.ActionMQ {
 }
 
 // Start -
-func (m *Component) Start(ctx context.Context, cfg *configs.Config) error {
-	m.actionMQ = mq.NewActionMQ(ctx, cfg.MQConfig)
+func (m *Component) Start(ctx context.Context) error {
+	m.actionMQ = mq.NewActionMQ(ctx)
 	return m.actionMQ.Start()
 }
 

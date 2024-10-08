@@ -27,6 +27,8 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/jinzhu/gorm"
@@ -57,23 +59,15 @@ type GatewayAction struct {
 }
 
 // CreateGatewayManager creates gateway manager.
-func CreateGatewayManager(
-	dbmanager db.Manager,
-	mqclient client.MQClient,
-	gatewayClient *gateway.GatewayV1beta1Client,
-	kubeClient kubernetes.Interface,
-	kubeClientset *kubernetes.Clientset,
-	config *rest.Config,
-	apisixClient *apisixversioned.Clientset,
-) *GatewayAction {
+func CreateGatewayManager() *GatewayAction {
 	return &GatewayAction{
-		dbmanager:     dbmanager,
-		mqclient:      mqclient,
-		gatewayClient: gatewayClient,
-		kubeClient:    kubeClient,
-		kubeClientset: kubeClientset,
-		config:        config,
-		apisixClient:  apisixClient,
+		dbmanager:     db.GetManager(),
+		mqclient:      mq.Default().MqClient,
+		gatewayClient: k8s.Default().GatewayClient,
+		kubeClient:    k8s.Default().Clientset,
+		kubeClientset: k8s.Default().Clientset,
+		config:        k8s.Default().RestConfig,
+		apisixClient:  k8s.Default().ApiSixClient,
 	}
 }
 

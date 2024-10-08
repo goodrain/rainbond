@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/sirupsen/logrus"
 	"io"
 	corev1 "k8s.io/api/core/v1"
@@ -97,22 +98,12 @@ func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 		defer reader.Close()
 
 		dirName := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
-		os.MkdirAll(dirName, 0755)
-
+		storage.Default().StorageCli.MkdirAll(dirName)
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+		err = storage.Default().StorageCli.SaveFile(fileName, reader)
 		if err != nil {
-			logrus.Errorf("Failed to open file: %s", err.Error())
-			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
+			httputil.ReturnError(r, w, 503, "Failed to save file: "+err.Error())
 		}
-		defer file.Close()
-
-		logrus.Debug("Start write file to: ", fileName)
-		if _, err := io.Copy(file, reader); err != nil {
-			logrus.Errorf("Failed to write file：%s", err.Error())
-			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
-		}
-
 		logrus.Debug("successful write file to: ", fileName)
 		origin := r.Header.Get("Origin")
 		w.Header().Add("Access-Control-Allow-Origin", origin)
@@ -267,7 +258,7 @@ func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.Remove(path.Join("./", fileName))
 	w.Header().Set("Content-Disposition", "attachment;filename="+fileName)
-	http.ServeFile(w, r, path.Join("./", fileName))
+	storage.Default().StorageCli.ServeFile(w, r, path.Join("./", fileName))
 }
 
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {

@@ -28,7 +28,9 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -56,16 +58,16 @@ type Manager struct {
 }
 
 // CreateCleanManager create clean manager
-func CreateCleanManager(imageClient sources.ImageClient, config *rest.Config, clientset *kubernetes.Clientset, keepCount uint, cleanInterval int) (*Manager, error) {
+func CreateCleanManager(imageClient sources.ImageClient) (*Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Manager{
 		imageClient:   imageClient,
 		ctx:           ctx,
 		cancel:        cancel,
-		config:        config,
-		keepCount:     keepCount,
-		clientset:     clientset,
-		cleanInterval: cleanInterval,
+		config:        k8s.Default().RestConfig,
+		keepCount:     uint(configs.Default().ChaosConfig.KeepCount),
+		clientset:     k8s.Default().Clientset,
+		cleanInterval: configs.Default().ChaosConfig.CleanInterval,
 	}
 	return c, nil
 }

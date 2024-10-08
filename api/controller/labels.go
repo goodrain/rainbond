@@ -19,14 +19,13 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/cmd/api/option"
+	"github.com/goodrain/rainbond/config/configs"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 )
 
 // LabelController implements Labeler.
 type LabelController struct {
-	optconfig *option.Config
 }
 
 // Labels - get -> list labels
@@ -38,5 +37,6 @@ func (l *LabelController) Labels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (l *LabelController) listLabels(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r, w, l.optconfig.EnableFeature)
+	config := configs.Default()
+	httputil.ReturnSuccess(r, w, config.APIConfig.EnableFeature)
 }

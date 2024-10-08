@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,7 +30,6 @@ import (
 
 	"github.com/goodrain/rainbond/api/model"
 	apimodel "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventdb "github.com/goodrain/rainbond/eventlog/db"
@@ -42,10 +42,11 @@ type LogAction struct {
 }
 
 // CreateLogManager get log manager
-func CreateLogManager(conf option.Config) *LogAction {
+func CreateLogManager() *LogAction {
+	config := configs.Default()
 	return &LogAction{
 		eventdb: &eventdb.EventFilePlugin{
-			HomePath: conf.LogPath,
+			HomePath: config.LogConfig.LogPath,
 		},
 	}
 }

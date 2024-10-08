@@ -22,11 +22,12 @@ import (
 	"context"
 	"fmt"
 	model2 "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
-	"kubevirt.io/client-go/kubecli"
 	"os"
 	"strconv"
 	"strings"
@@ -34,11 +35,9 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	rainbondversioned "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/pkg/generated/informers/externalversions"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -67,8 +66,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -139,10 +136,9 @@ type Event struct {
 // appRuntimeStore app runtime store
 // cache all kubernetes object and appservice
 type appRuntimeStore struct {
-	kubeconfig             *rest.Config
-	clientset              kubernetes.Interface
+	k8sClient              *k8s.Component
+	confClient             *configs.Config
 	crdClient              *internalclientset.Clientset
-	rainbondClient         rainbondversioned.Interface
 	crClients              map[string]interface{}
 	ctx                    context.Context
 	cancel                 context.CancelFunc
@@ -153,46 +149,32 @@ type appRuntimeStore struct {
 	operatorManaged        sync.Map
 	appCount               int32
 	dbmanager              db.Manager
-	conf                   option.Config
 	stopch                 chan struct{}
 	podUpdateListeners     map[string]chan<- *corev1.Pod
 	podUpdateListenerLock  sync.Mutex
 	volumeTypeListeners    map[string]chan<- *model.TenantServiceVolumeType
 	volumeTypeListenerLock sync.Mutex
 	resourceCache          *ResourceCache
-	k8sVersion             *utilversion.Version
-	kubevirtCli            kubecli.KubevirtClient
 }
 
 // NewStore new app runtime store
-func NewStore(
-	kubeconfig *rest.Config,
-	clientset kubernetes.Interface,
-	rainbondClient rainbondversioned.Interface,
-	dbmanager db.Manager,
-	conf option.Config,
-	k8sVersion *utilversion.Version,
-	kubevirtCli kubecli.KubevirtClient) Storer {
+func NewStore(dbmanager db.Manager) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
-		kubeconfig:          kubeconfig,
-		clientset:           clientset,
-		rainbondClient:      rainbondClient,
+		k8sClient:           k8s.Default(),
+		confClient:          configs.Default(),
 		ctx:                 ctx,
 		cancel:              cancel,
 		informers:           &Informer{CRS: make(map[string]cache.SharedIndexInformer)},
 		listers:             &Lister{},
 		appServices:         sync.Map{},
-		conf:                conf,
 		dbmanager:           dbmanager,
 		crClients:           make(map[string]interface{}),
 		resourceCache:       NewResourceCache(),
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
-		k8sVersion:          k8sVersion,
-		kubevirtCli:         kubevirtCli,
 	}
-	crdClient, err := internalclientset.NewForConfig(kubeconfig)
+	crdClient, err := internalclientset.NewForConfig(store.k8sClient.RestConfig)
 	if err != nil {
 		logrus.Errorf("create crd client failure %s", err.Error())
 	}
@@ -204,7 +186,7 @@ func NewStore(
 	}
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewSharedInformerFactoryWithOptions(conf.KubeClient, 10*time.Second,
+	infFactory := informers.NewSharedInformerFactoryWithOptions(store.k8sClient.Clientset, 10*time.Second,
 		informers.WithNamespace(corev1.NamespaceAll))
 
 	store.informers.Namespace = infFactory.Core().V1().Namespaces().Informer()
@@ -251,7 +233,7 @@ func NewStore(
 
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
-	if k8sVersion.AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+	if store.k8sClient.K8SVersion.AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
 		store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2().HorizontalPodAutoscalers().Informer()
 		store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2().HorizontalPodAutoscalers().Lister()
 	} else {
@@ -260,6 +242,7 @@ func NewStore(
 	}
 
 	// rainbond custom resource
+	rainbondClient := k8s.Default().RainbondClient
 	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
 		externalversions.WithNamespace(corev1.NamespaceAll))
 	store.listers.HelmApp = rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister()
@@ -271,7 +254,7 @@ func NewStore(
 	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
 	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
 	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
-	if k8sVersion.AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
+	if store.k8sClient.K8SVersion.AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
 		store.informers.CronJob = infFactory.Batch().V1().CronJobs().Informer()
 		store.listers.CronJob = infFactory.Batch().V1().CronJobs().Lister()
 	} else {
@@ -361,29 +344,7 @@ func (a *appRuntimeStore) Lister() *Lister {
 	return a.listers
 }
 
-func (a *appRuntimeStore) init() error {
-	//init leader namespace
-	leaderNamespace := a.conf.LeaderElectionNamespace
-	if _, err := a.conf.KubeClient.CoreV1().Namespaces().Get(context.Background(), leaderNamespace, metav1.GetOptions{}); err != nil {
-		if k8sErrors.IsNotFound(err) {
-			_, err = a.conf.KubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: leaderNamespace,
-				},
-			}, metav1.CreateOptions{})
-		}
-		if err != nil {
-			return err
-		}
-	}
-	// init third-party service
-	return a.initStorageclass()
-}
-
 func (a *appRuntimeStore) Start() error {
-	if err := a.init(); err != nil {
-		return err
-	}
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
@@ -391,7 +352,7 @@ func (a *appRuntimeStore) Start() error {
 	for !a.Ready() {
 	}
 	// init core componentdefinition
-	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.rainbondClient)
+	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.k8sClient.RainbondClient)
 	go func() {
 		a.initCustomResourceInformer(stopch)
 	}()
@@ -411,7 +372,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 		//delete old version
 		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
 			if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
-				if err := a.conf.KubeClient.AppsV1().ReplicaSets(rs.Namespace).Delete(context.Background(), rs.Name, metav1.DeleteOptions{}); err != nil && k8sErrors.IsNotFound(err) {
+				if err := a.k8sClient.Clientset.AppsV1().ReplicaSets(rs.Namespace).Delete(context.Background(), rs.Name, metav1.DeleteOptions{}); err != nil && k8sErrors.IsNotFound(err) {
 					logrus.Errorf("delete old version replicaset failure %s", err.Error())
 				}
 			}
@@ -440,13 +401,13 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
-					pods, _ := a.conf.KubeClient.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
 						for _, pod := range pods.Items {
 							pod := pod
@@ -473,13 +434,13 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetJob(job)
 				if migrator == "rainbond" {
 					label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
-					pods, _ := a.conf.KubeClient.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
 						for _, pod := range pods.Items {
 							pod := pod
@@ -500,16 +461,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
-					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					jobList, _ := a.k8sClient.Clientset.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					for _, job := range jobList.Items {
 						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
-						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						pods, _ := a.k8sClient.Clientset.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 						if pods != nil {
 							for _, pod := range pods.Items {
 								pod := pod
@@ -531,16 +492,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetBetaCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
-					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					jobList, _ := a.k8sClient.Clientset.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					for _, job := range jobList.Items {
 						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
-						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						pods, _ := a.k8sClient.Clientset.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 						if pods != nil {
 							for _, pod := range pods.Items {
 								pod := pod
@@ -562,13 +523,13 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetStatefulSet(statefulset)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
-					pods, _ := a.conf.KubeClient.CoreV1().Pods(statefulset.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(statefulset.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
 						for _, pod := range pods.Items {
 							pod := pod
@@ -593,7 +554,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetReplicaSets(replicaset)
@@ -609,7 +570,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetSecret(secret)
@@ -625,7 +586,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetService(service)
@@ -646,7 +607,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -661,7 +622,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.NetworkingV1beta1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -676,7 +637,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.CoreV1().ConfigMaps(configmap.Namespace).Delete(context.Background(), configmap.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetConfigMap(configmap)
@@ -691,7 +652,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				a.k8sClient.Clientset.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetHPA(hpa)
@@ -706,7 +667,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				a.k8sClient.Clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetHPAbeta2(hpa)
@@ -731,7 +692,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
+				a.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetClaim(claim)
@@ -849,7 +810,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				if serviceID != "" && version != "" && createrID != "" {
 					appservice, _ := a.getAppService(serviceID, version, createrID, false)
 					if appservice != nil {
-						vm, err := a.kubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil && !k8sErrors.IsNotFound(err) {
 							logrus.Errorf("get vm failure: %v", err)
 							return
@@ -1122,7 +1083,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			}
 		}
 		if vm := appService.GetVirtualMachine(); vm != nil {
-			vm, err := a.kubevirtCli.VirtualMachine(vm.Namespace).Get(context.Background(), vm.Name, &metav1.GetOptions{})
+			vm, err := a.k8sClient.KubevirtCli.VirtualMachine(vm.Namespace).Get(context.Background(), vm.Name, &metav1.GetOptions{})
 			if err != nil && k8sErrors.IsNotFound(err) {
 				appService.DeleteVirtualMachine(vm)
 			}
@@ -1349,7 +1310,7 @@ func (a *appRuntimeStore) HandleOperatorManagedService(app *v1.OperatorManaged) 
 			labelSelector = append(labelSelector, labelKey+"="+labelValue)
 		}
 		var relation []string
-		pods, err := a.clientset.CoreV1().Pods(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
+		pods, err := a.k8sClient.Clientset.CoreV1().Pods(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
 		if err != nil {
 			logrus.Errorf("Failed to find pod according to the selector of the service created by the operator: %v", err)
 		} else if len(pods.Items) != 0 {
@@ -1380,7 +1341,7 @@ func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManage
 	deploys := app.GetDeployment()
 	var deployList []*pb.ManagedDeployment
 	if deploys != nil && len(deploys) > 0 {
-		operatorPods, err := a.clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
+		operatorPods, err := a.k8sClient.Clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("get pod by label appid failure: %v", err)
 		} else {
@@ -1403,7 +1364,7 @@ func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManag
 	statefulSets := app.GetStatefulSet()
 	var stsList []*pb.ManagedStatefulSet
 	if statefulSets != nil && len(statefulSets) > 0 {
-		operatorPods, err := a.clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
+		operatorPods, err := a.k8sClient.Clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("sts get pod by label appid failure: %v", err)
 		} else {
@@ -1665,11 +1626,11 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
-					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
-						vm, err := a.kubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
 							logrus.Errorf("get vm failure: %v", err)
 						}
@@ -1701,11 +1662,11 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
 				if err == conversion.ErrServiceNotFound {
-					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
-						vm, err := a.kubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
 							logrus.Errorf("get vm failure: %v", err)
 						}
@@ -1846,7 +1807,7 @@ func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (stri
 		serviceID = statefulset.GetLabels()["service_id"]
 		ruleID = statefulset.GetLabels()["rule_id"]
 	case "HorizontalPodAutoscaler":
-		if a.k8sVersion.AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+		if a.k8sClient.K8SVersion.AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
 			hpa, err := a.listers.HorizontalPodAutoscaler.HorizontalPodAutoscalers(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
 			if err != nil {
 				logrus.Warningf("retrieve statefulset: %v", err)
@@ -1937,10 +1898,10 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 	}
 
 	// get secret in namespace rbd-system
-	rawSecret, err := a.secretByKey(types.NamespacedName{Namespace: a.conf.RBDNamespace, Name: imagePullSecretName})
+	rawSecret, err := a.secretByKey(types.NamespacedName{Namespace: a.confClient.PublicConfig.RbdNamespace, Name: imagePullSecretName})
 	if err != nil {
 		return fmt.Errorf("get secret %s: %v",
-			types.NamespacedName{Namespace: a.conf.RBDNamespace, Name: imagePullSecretName}.String(), err)
+			types.NamespacedName{Namespace: a.confClient.PublicConfig.RbdNamespace, Name: imagePullSecretName}.String(), err)
 	}
 	// get secret in current namespace
 	curSecret, err := a.secretByKey(types.NamespacedName{Namespace: ns, Name: imagePullSecretName})
@@ -1955,7 +1916,7 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 				Data: rawSecret.Data,
 				Type: rawSecret.Type,
 			}
-			_, err := a.clientset.CoreV1().Secrets(ns).Create(context.Background(), curSecret, metav1.CreateOptions{})
+			_, err := a.k8sClient.Clientset.CoreV1().Secrets(ns).Create(context.Background(), curSecret, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("create secret for pulling images: %v", err)
 			}
@@ -1972,7 +1933,7 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 
 	// if the raw secret is different from the current one, then update the current one.
 	curSecret.Data = rawSecret.Data
-	if _, err := a.clientset.CoreV1().Secrets(ns).Update(context.Background(), curSecret, metav1.UpdateOptions{}); err != nil {
+	if _, err := a.k8sClient.Clientset.CoreV1().Secrets(ns).Update(context.Background(), curSecret, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("update secret for pulling images: %v", err)
 	}
 	logrus.Infof("successfully update secret: %s", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String())

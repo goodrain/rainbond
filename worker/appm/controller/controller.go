@@ -21,7 +21,7 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"kubevirt.io/client-go/kubecli"
 	"sync"
 
@@ -76,23 +76,21 @@ type Manager struct {
 	controllers   map[string]Controller
 	store         store.Storer
 	lock          sync.Mutex
-	config        option.Config
 	kubevirtCli   kubecli.KubevirtClient
 }
 
 // NewManager new manager
-func NewManager(config option.Config, store store.Storer, client kubernetes.Interface, runtimeClient client.Client, kubevirtCli kubecli.KubevirtClient) *Manager {
+func NewManager(store store.Storer) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
 		ctx:           ctx,
 		cancel:        cancel,
-		client:        client,
-		apply:         apply.NewAPIApplicator(runtimeClient),
-		runtimeClient: runtimeClient,
+		client:        k8s.Default().Clientset,
+		apply:         apply.NewAPIApplicator(k8s.Default().K8sClient),
+		runtimeClient: k8s.Default().K8sClient,
 		controllers:   make(map[string]Controller),
 		store:         store,
-		config:        config,
-		kubevirtCli:   kubevirtCli,
+		kubevirtCli:   k8s.Default().KubevirtCli,
 	}
 }
 
@@ -171,7 +169,6 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			manager:      m,
 			stopChan:     make(chan struct{}),
 			ctx:          context.Background(),
-			cfg:          m.config,
 		}
 	case TypeApplyRuleController:
 		controller = &applyRuleController{

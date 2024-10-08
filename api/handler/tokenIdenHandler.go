@@ -23,7 +23,6 @@ import (
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -49,13 +48,13 @@ var defaultTokenMap map[string]*dbmodel.RegionUserInfo
 var defaultSourceURI map[string][]*dbmodel.RegionAPIClass
 
 // CreateTokenIdenHandler create token identification handler
-func CreateTokenIdenHandler(conf option.Config) error {
-	CreateDefaultTokenMap(conf)
+func CreateTokenIdenHandler() error {
+	CreateDefaultTokenMap()
 	var err error
 	if defaultTokenIdenHandler != nil {
 		return nil
 	}
-	defaultTokenIdenHandler, err = CreateTokenIdenManager(conf)
+	defaultTokenIdenHandler, err = CreateTokenIdenManager()
 	if err != nil {
 		return err
 	}
@@ -91,7 +90,7 @@ func resourceURI() (map[string][]*dbmodel.RegionAPIClass, error) {
 }
 
 // CreateDefaultTokenMap CreateDefaultTokenMap
-func CreateDefaultTokenMap(conf option.Config) {
+func CreateDefaultTokenMap() {
 	createDefaultSourceURI()
 	if defaultTokenMap != nil {
 		return

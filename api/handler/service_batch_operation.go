@@ -22,6 +22,8 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"strings"
 	"time"
 
@@ -54,11 +56,11 @@ type BatchOperationResult struct {
 }
 
 // CreateBatchOperationHandler create batch operation handler
-func CreateBatchOperationHandler(mqCli gclient.MQClient, statusCli *client.AppRuntimeSyncClient, operationHandler *OperationHandler) *BatchOperationHandler {
+func CreateBatchOperationHandler(operationHandler *OperationHandler) *BatchOperationHandler {
 	return &BatchOperationHandler{
-		mqCli:            mqCli,
+		mqCli:            mq.Default().MqClient,
 		operationHandler: operationHandler,
-		statusCli:        statusCli,
+		statusCli:        grpc.Default().StatusClient,
 	}
 }
 

@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -45,20 +46,19 @@ import (
 
 // Component -
 type Component struct {
-	RestConfig    *rest.Config
-	Clientset     *kubernetes.Clientset
-	GatewayClient *v1beta1.GatewayV1beta1Client
-	DynamicClient *dynamic.DynamicClient
-
+	RestConfig     *rest.Config
+	Clientset      *kubernetes.Clientset
+	GatewayClient  *v1beta1.GatewayV1beta1Client
+	DynamicClient  *dynamic.DynamicClient
 	RainbondClient *versioned.Clientset
 	K8sClient      k8sclient.Client
 	KubevirtCli    kubecli.KubevirtClient
-
-	Mapper meta.RESTMapper
-
-	ApiSixClient *apisixversioned.Clientset
-	KruiseClient *kruiseclientset.Clientset
-	MetricClient *metrics.Clientset
+	KubeConfigPath string
+	Mapper         meta.RESTMapper
+	ApiSixClient   *apisixversioned.Clientset
+	KruiseClient   *kruiseclientset.Clientset
+	MetricClient   *metrics.Clientset
+	K8SVersion     *utilversion.Version
 }
 
 var (
@@ -75,14 +75,16 @@ var defaultK8sComponent *Component
 
 // New -
 func New() *Component {
-	defaultK8sComponent = &Component{}
+	defaultK8sComponent = &Component{
+		KubeConfigPath: configs.Default().K8SConfig.KubeConfigPath,
+	}
 	return defaultK8sComponent
 }
 
 // Start -
-func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
+func (k *Component) Start(ctx context.Context) error {
 	logrus.Infof("init k8s client...")
-	config, err := k8sutil.NewRestConfig(cfg.APIConfig.KubeConfigPath)
+	config, err := k8sutil.NewRestConfig(k.KubeConfigPath)
 	k.RestConfig = config
 	if err != nil {
 		logrus.Errorf("create k8s config failure: %v", err)
@@ -125,7 +127,7 @@ func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
 		logrus.Errorf("create k8s client failure: %v", err)
 		return err
 	}
-
+	k.K8SVersion = k8sutil.GetKubeVersion()
 	k.KubevirtCli, err = kubecli.GetKubevirtClientFromRESTConfig(config)
 	if err != nil {
 		logrus.Errorf("create kubevirt cli failure: %v", err)

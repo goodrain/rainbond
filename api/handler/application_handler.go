@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -82,13 +85,13 @@ type ApplicationHandler interface {
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface, kubeClient clientset.Interface, dynamicClient dynamic.Interface) ApplicationHandler {
+func NewApplicationHandler() ApplicationHandler {
 	return &ApplicationAction{
-		statusCli:      statusCli,
-		promClient:     promClient,
-		rainbondClient: rainbondClient,
-		kubeClient:     kubeClient,
-		dynamicClient:  dynamicClient,
+		statusCli:      grpc.Default().StatusClient,
+		promClient:     prom.Default().PrometheusCli,
+		rainbondClient: k8s.Default().RainbondClient,
+		kubeClient:     k8s.Default().Clientset,
+		dynamicClient:  k8s.Default().DynamicClient,
 	}
 }
 
@@ -952,7 +955,7 @@ func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceM
 	return nil
 }
 
-//GetAndHandleOperatorManaged get operator managed component
+// GetAndHandleOperatorManaged get operator managed component
 func (a *ApplicationAction) GetAndHandleOperatorManaged(appID string) (*pb.OperatorManaged, error) {
 	watchData, err := a.statusCli.GetOperatorWatchData(appID)
 	if err != nil {

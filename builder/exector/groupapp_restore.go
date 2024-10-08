@@ -20,6 +20,7 @@ package exector
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"path"
@@ -368,7 +369,7 @@ func (b *BackupAPPRestore) getOldServiceID(new string) string {
 }
 func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-	if err := sources.CopyFileWithProgress(dstDir, version.DeliveredPath, b.Logger); err != nil {
+	if err := storage.Default().StorageCli.CopyFileWithProgress(dstDir, version.DeliveredPath, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("down slug file from local dir error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
 		return err
@@ -708,7 +709,7 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 
 func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
 	sourceDir := backup.SourceDir
-	err := util.Unzip(sourceDir, b.cacheDir, false)
+	err := storage.Default().StorageCli.Unzip(sourceDir, b.cacheDir, false)
 	if err != nil {
 		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())

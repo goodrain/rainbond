@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	utils "github.com/goodrain/rainbond/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -86,9 +87,9 @@ type PodEvent struct {
 }
 
 // New create a new PodEvent
-func New(clientset kubernetes.Interface, stopCh chan struct{}) *PodEvent {
+func New(stopCh chan struct{}) *PodEvent {
 	return &PodEvent{
-		clientset:  clientset,
+		clientset:  k8s.Default().Clientset,
 		stopCh:     stopCh,
 		podEventCh: make(chan *corev1.Pod, 100),
 	}

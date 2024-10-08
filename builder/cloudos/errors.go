@@ -12,6 +12,6 @@ type S3SDKError struct {
 
 // Error implements interface error
 func (e S3SDKError) Error() string {
-	return fmt.Sprintf("s3: service returned error: StatusCode=%d, ErrorCode=%s, ErrorMessage=\"%s\"",
+	return fmt.Sprintf("storage: service returned error: StatusCode=%d, ErrorCode=%s, ErrorMessage=\"%s\"",
 		e.StatusCode, e.Code, e.Message)
 }

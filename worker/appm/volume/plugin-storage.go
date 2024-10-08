@@ -11,7 +11,7 @@ import (
 	"path"
 )
 
-//PluginStorageVolume 插件新增存储
+// PluginStorageVolume 插件新增存储
 type PluginStorageVolume struct {
 	Plugin api_model.PluginStorage
 	Base
@@ -19,7 +19,7 @@ type PluginStorageVolume struct {
 	AS       *v1.AppService
 }
 
-//CreateVolume 创建插件存储或配置文件
+// CreateVolume 创建插件存储或配置文件
 func (v *PluginStorageVolume) CreateVolume(define *Define) error {
 	v.as = v.AS
 	if v.Plugin.AttrType == "config-file" {
@@ -43,7 +43,7 @@ func (v *PluginStorageVolume) CreateVolume(define *Define) error {
 		var vm *corev1.VolumeMount
 		annotations := map[string]string{"volume_name": v.Plugin.VolumeName}
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "VolumeName": v.Plugin.VolumeName, "pluginID": v.PluginID})
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, "RWX", v1.RainbondStatefuleShareStorageClass, 0, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, "RWX", "local-path", 0, labels, annotations)
 		v.as.SetClaim(claim)
 		if v.as.GetStatefulSet() == nil {
 			v.as.SetClaimManually(claim)
@@ -73,19 +73,6 @@ func (v *PluginStorageVolume) generateVolumeSubPath(define *Define, vm *corev1.V
 	}
 	var existClaimName string
 	var needDeleteClaim []corev1.PersistentVolumeClaim
-	for _, claim := range v.as.GetClaims() {
-		if existClaimName != "" && *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
-			v.as.DeleteClaim(claim)
-			if v.as.GetStatefulSet() == nil {
-				v.as.DeleteClaimManually(claim)
-			}
-			needDeleteClaim = append(needDeleteClaim, *claim)
-			continue
-		}
-		if *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
-			existClaimName = claim.GetName()
-		}
-	}
 	if v.as.GetStatefulSet() != nil {
 		for _, delClaim := range needDeleteClaim {
 			newVolumes := v.deleteVolume(define.volumes, delClaim)

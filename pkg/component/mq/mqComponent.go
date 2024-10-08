@@ -28,12 +28,13 @@ var defaultMqComponent *Component
 
 // Component -
 type Component struct {
-	MqClient client.MQClient
+	MqClient     client.MQClient
+	ServerConfig *configs.ServerConfig
 }
 
 // Start -
-func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
-	mqClient, err := client.NewMqClient(cfg.APIConfig.MQAPI)
+func (c *Component) Start(ctx context.Context) error {
+	mqClient, err := client.NewMqClient(c.ServerConfig.MQAPI)
 	c.MqClient = mqClient
 	return err
 }
@@ -44,7 +45,9 @@ func (c *Component) CloseHandle() {
 
 // New -
 func New() *Component {
-	defaultMqComponent = &Component{}
+	defaultMqComponent = &Component{
+		ServerConfig: configs.Default().ServerConfig,
+	}
 	return defaultMqComponent
 }
 

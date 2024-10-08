@@ -20,6 +20,8 @@ package helmapp
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -41,23 +43,17 @@ type Finalizer struct {
 }
 
 // NewFinalizer creates a new finalizer.
-func NewFinalizer(ctx context.Context,
-	kubeClient clientset.Interface,
-	clientset versioned.Interface,
-	workQueue workqueue.Interface,
-	repoFile string,
-	repoCache string,
-	chartCache string,
-) *Finalizer {
+func NewFinalizer(ctx context.Context, workQueue workqueue.Interface) *Finalizer {
+	helmc := configs.Default().WorkerConfig.Helm
 	return &Finalizer{
 		ctx:        ctx,
 		log:        logrus.WithField("WHO", "Helm App Finalizer"),
-		kubeClient: kubeClient,
-		clientset:  clientset,
+		kubeClient: k8s.Default().Clientset,
+		clientset:  k8s.Default().RainbondClient,
 		queue:      workQueue,
-		repoFile:   repoFile,
-		repoCache:  repoCache,
-		chartCache: chartCache,
+		repoFile:   helmc.RepoFile,
+		repoCache:  helmc.RepoCache,
+		chartCache: helmc.ChartCache,
 	}
 }
 

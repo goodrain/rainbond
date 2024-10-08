@@ -21,7 +21,6 @@ package volume
 import (
 	"fmt"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -43,7 +42,7 @@ func (v *LocalVolume) CreateVolume(define *Define) error {
 	}
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
-	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleLocalStorageClass, v.svm.VolumeCapacity, labels, annotations)
+	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 	v.as.SetClaim(claim)
 	vo := corev1.Volume{Name: volumeMountName}
 	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}

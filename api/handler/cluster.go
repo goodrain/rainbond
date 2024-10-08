@@ -8,10 +8,15 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
@@ -82,19 +87,19 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client, mqclient mqclient.MQClient) ClusterHandler {
+func NewClusterHandler() ClusterHandler {
 	return &clusterAction{
-		namespace:      RbdNamespace,
-		clientset:      clientset,
-		config:         config,
-		mapper:         mapper,
-		grctlImage:     grctlImage,
-		prometheusCli:  prometheusCli,
-		rainbondClient: rainbondClient,
-		statusCli:      statusCli,
-		dynamicClient:  dynamicClient,
-		gatewayClient:  gatewayClient,
-		mqclient:       mqclient,
+		namespace:      configs.Default().PublicConfig.RbdNamespace,
+		clientset:      k8s.Default().Clientset,
+		config:         k8s.Default().RestConfig,
+		mapper:         k8s.Default().Mapper,
+		grctlImage:     configs.Default().APIConfig.GrctlImage,
+		prometheusCli:  prom.Default().PrometheusCli,
+		rainbondClient: k8s.Default().RainbondClient,
+		statusCli:      grpc.Default().StatusClient,
+		dynamicClient:  k8s.Default().DynamicClient,
+		gatewayClient:  k8s.Default().GatewayClient,
+		mqclient:       mq.Default().MqClient,
 	}
 }
 

@@ -21,12 +21,14 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/eapache/channels"
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -48,40 +50,36 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/duration"
-	"k8s.io/client-go/kubernetes"
 )
 
 // RuntimeServer app runtime grpc server
 type RuntimeServer struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	logger *logrus.Entry
-
-	store     store.Storer
-	conf      option.Config
-	server    *grpc.Server
-	hostIP    string
-	clientset kubernetes.Interface
-	updateCh  *channels.RingChannel
+	ctx          context.Context
+	cancel       context.CancelFunc
+	logger       *logrus.Entry
+	store        store.Storer
+	server       *grpc.Server
+	hostIP       string
+	updateCh     *channels.RingChannel
+	workerConfig *rbdcomponent.WorkerConfig
+	publicConfig *configs.PublicConfig
+	k8sComponent *k8s.Component
 }
 
 // CreaterRuntimeServer create a runtime grpc server
-func CreaterRuntimeServer(conf option.Config,
-	store store.Storer,
-	clientset kubernetes.Interface,
+func CreaterRuntimeServer(store store.Storer,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:      conf,
-		ctx:       ctx,
-		cancel:    cancel,
-		logger:    logrus.WithField("WHO", "RuntimeServer"),
-		server:    grpc.NewServer(),
-		hostIP:    conf.HostIP,
-		store:     store,
-		clientset: clientset,
-		updateCh:  updateCh,
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       logrus.WithField("WHO", "RuntimeServer"),
+		server:       grpc.NewServer(),
+		hostIP:       configs.Default().PublicConfig.HostIP,
+		store:        store,
+		updateCh:     updateCh,
+		workerConfig: configs.Default().WorkerConfig,
+		k8sComponent: k8s.Default(),
 	}
 	pb.RegisterAppRuntimeSyncServer(rs.server, rs)
 	// Register reflection service on gRPC server.
@@ -92,7 +90,7 @@ func CreaterRuntimeServer(conf option.Config,
 // Start start runtime server
 func (r *RuntimeServer) Start(errchan chan error) {
 	go func() {
-		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
+		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.hostIP, r.workerConfig.ServerPort))
 		if err != nil {
 			logrus.Errorf("failed to listen: %v", err)
 			errchan <- err
@@ -324,7 +322,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			PodVolumes: volumes,
 		}
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+		wutil.DescribePodStatus(r.k8sComponent.Clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)
@@ -691,7 +689,7 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		}
 
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+		wutil.DescribePodStatus(r.k8sComponent.Clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 
 		for _, volume := range pod.Spec.Volumes {
 			volumeName := volume.Name
@@ -777,7 +775,7 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 		} else {
 			for _, pod := range pods {
 				podStatus := &pb.PodStatus{}
-				wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+				wutil.DescribePodStatus(r.k8sComponent.Clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 				po := &pb.AppService_Pod{
 					Name:   pod.Name,
 					Status: podStatus.TypeStr,
@@ -822,7 +820,7 @@ func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) 
 	if err != nil {
 		return nil, err
 	}
-	h, err := helm.NewHelm(tenant.Namespace, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
+	h, err := helm.NewHelm(tenant.Namespace, r.workerConfig.Helm.RepoFile, r.workerConfig.Helm.RepoCache)
 	if err != nil {
 		return nil, err
 	}

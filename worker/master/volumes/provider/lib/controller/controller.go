@@ -21,17 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"strings"
-	"sync"
-	"time"
-
-	"github.com/goodrain/rainbond/cmd/worker/option"
-
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	storagebeta "k8s.io/api/storage/v1beta1"
@@ -49,6 +43,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/client-go/util/workqueue"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
@@ -56,13 +55,13 @@ import (
 )
 
 // annClass annotation represents the storage class associated with a resource:
-// - in PersistentVolumeClaim it represents required class to match.
-//   Only PersistentVolumes with the same class (i.e. annotation with the same
-//   value) can be bound to the claim. In case no such volume exists, the
-//   controller will provision a new one using StorageClass instance with
-//   the same name as the annotation value.
-// - in PersistentVolume it represents storage class to which the persistent
-//   volume belongs.
+//   - in PersistentVolumeClaim it represents required class to match.
+//     Only PersistentVolumes with the same class (i.e. annotation with the same
+//     value) can be bound to the claim. In case no such volume exists, the
+//     controller will provision a new one using StorageClass instance with
+//     the same name as the annotation value.
+//   - in PersistentVolume it represents storage class to which the persistent
+//     volume belongs.
 const annClass = "volume.beta.kubernetes.io/storage-class"
 
 // This annotation is added to a PV that has been dynamically provisioned by
@@ -80,70 +79,36 @@ const annSelectedNode = "volume.kubernetes.io/selected-node"
 // ProvisionController is a controller that provisions PersistentVolumes for
 // PersistentVolumeClaims.
 type ProvisionController struct {
-	client kubernetes.Interface
-	cfg    *option.Config
-
-	// The provisioner the controller will use to provision and delete volumes.
-	// Presumably this implementer of Provisioner carries its own
-	// volume-specific options and such that it needs in order to provision
-	// volumes.
-	provisioners map[string]Provisioner
-
-	// Kubernetes cluster server version:
-	// * 1.4: storage classes introduced as beta. Technically out-of-tree dynamic
-	// provisioning is not officially supported, though it works
-	// * 1.5: storage classes stay in beta. Out-of-tree dynamic provisioning is
-	// officially supported
-	// * 1.6: storage classes enter GA
-	kubeVersion *utilversion.Version
-
-	claimInformer  cache.SharedInformer
-	claims         cache.Store
-	volumeInformer cache.SharedInformer
-	volumes        cache.Store
-	classInformer  cache.SharedInformer
-	classes        cache.Store
-
-	// To determine if the informer is internal or external
+	client                                                         kubernetes.Interface
+	provisioners                                                   map[string]Provisioner
+	kubeVersion                                                    *utilversion.Version
+	claimInformer                                                  cache.SharedInformer
+	claims                                                         cache.Store
+	volumeInformer                                                 cache.SharedInformer
+	volumes                                                        cache.Store
+	classInformer                                                  cache.SharedInformer
+	classes                                                        cache.Store
 	customClaimInformer, customVolumeInformer, customClassInformer bool
-
-	claimQueue  workqueue.RateLimitingInterface
-	volumeQueue workqueue.RateLimitingInterface
-
-	// Identity of this controller, generated at creation time and not persisted
-	// across restarts. Useful only for debugging, for seeing the source of
-	// events. controller.provisioner may have its own, different notion of
-	// identity which may/may not persist across restarts
-	id            string
-	component     string
-	eventRecorder record.EventRecorder
-
-	resyncPeriod time.Duration
-
-	exponentialBackOffOnError bool
-	threadiness               int
-
-	createProvisionedPVRetryCount int
-	createProvisionedPVInterval   time.Duration
-
-	failedProvisionThreshold, failedDeleteThreshold int
-
-	// The port for metrics server to serve on.
-	metricsPort int32
-	// The IP address for metrics server to serve on.
-	metricsAddress string
-	// The path of metrics endpoint path.
-	metricsPath string
-
-	// Whether to do kubernetes leader election at all. It should basically
-	// always be done when possible to avoid duplicate Provision attempts.
-	leaderElection          bool
-	leaderElectionNamespace string
-	// Parameters of leaderelection.LeaderElectionConfig.
-	leaseDuration, renewDeadline, retryPeriod time.Duration
-
-	hasRun     bool
-	hasRunLock *sync.Mutex
+	claimQueue                                                     workqueue.RateLimitingInterface
+	volumeQueue                                                    workqueue.RateLimitingInterface
+	id                                                             string
+	component                                                      string
+	eventRecorder                                                  record.EventRecorder
+	resyncPeriod                                                   time.Duration
+	exponentialBackOffOnError                                      bool
+	threadiness                                                    int
+	createProvisionedPVRetryCount                                  int
+	createProvisionedPVInterval                                    time.Duration
+	failedProvisionThreshold, failedDeleteThreshold                int
+	metricsPort                                                    int32
+	metricsAddress                                                 string
+	metricsPath                                                    string
+	leaderElection                                                 bool
+	leaderElectionNamespace                                        string
+	leaseDuration, renewDeadline, retryPeriod                      time.Duration
+	hasRun                                                         bool
+	hasRunLock                                                     *sync.Mutex
+	publicConf                                                     *configs.PublicConfig
 }
 
 const (
@@ -179,228 +144,6 @@ const (
 
 var errRuntime = fmt.Errorf("cannot call option functions after controller has Run")
 
-// ResyncPeriod is how often the controller relists PVCs, PVs, & storage
-// classes. OnUpdate will be called even if nothing has changed, meaning failed
-// operations may be retried on a PVC/PV every resyncPeriod regardless of
-// whether it changed. Defaults to 15 minutes.
-func ResyncPeriod(resyncPeriod time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.resyncPeriod = resyncPeriod
-		return nil
-	}
-}
-
-// Threadiness is the number of claim and volume workers each to launch.
-// Defaults to 4.
-func Threadiness(threadiness int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.threadiness = threadiness
-		return nil
-	}
-}
-
-// ExponentialBackOffOnError determines whether to exponentially back off from
-// failures of Provision and Delete. Defaults to true.
-func ExponentialBackOffOnError(exponentialBackOffOnError bool) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.exponentialBackOffOnError = exponentialBackOffOnError
-		return nil
-	}
-}
-
-// CreateProvisionedPVRetryCount is the number of retries when we create a PV
-// object for a provisioned volume. Defaults to 5.
-func CreateProvisionedPVRetryCount(createProvisionedPVRetryCount int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.createProvisionedPVRetryCount = createProvisionedPVRetryCount
-		return nil
-	}
-}
-
-// CreateProvisionedPVInterval is the interval between retries when we create a
-// PV object for a provisioned volume. Defaults to 10 seconds.
-func CreateProvisionedPVInterval(createProvisionedPVInterval time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.createProvisionedPVInterval = createProvisionedPVInterval
-		return nil
-	}
-}
-
-// FailedProvisionThreshold is the threshold for max number of retries on
-// failures of Provision. Defaults to 15.
-func FailedProvisionThreshold(failedProvisionThreshold int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.failedProvisionThreshold = failedProvisionThreshold
-		return nil
-	}
-}
-
-// FailedDeleteThreshold is the threshold for max number of retries on failures
-// of Delete. Defaults to 15.
-func FailedDeleteThreshold(failedDeleteThreshold int) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.failedDeleteThreshold = failedDeleteThreshold
-		return nil
-	}
-}
-
-// LeaderElection determines whether to enable leader election or not. Defaults
-// to true.
-func LeaderElection(leaderElection bool) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaderElection = leaderElection
-		return nil
-	}
-}
-
-// LeaderElectionNamespace is the kubernetes namespace in which to create the
-// leader election object. Defaults to the same namespace in which the
-// the controller runs.
-func LeaderElectionNamespace(leaderElectionNamespace string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaderElectionNamespace = leaderElectionNamespace
-		return nil
-	}
-}
-
-// LeaseDuration is the duration that non-leader candidates will
-// wait to force acquire leadership. This is measured against time of
-// last observed ack. Defaults to 15 seconds.
-func LeaseDuration(leaseDuration time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.leaseDuration = leaseDuration
-		return nil
-	}
-}
-
-// RenewDeadline is the duration that the acting master will retry
-// refreshing leadership before giving up. Defaults to 10 seconds.
-func RenewDeadline(renewDeadline time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.renewDeadline = renewDeadline
-		return nil
-	}
-}
-
-// RetryPeriod is the duration the LeaderElector clients should wait
-// between tries of actions. Defaults to 2 seconds.
-func RetryPeriod(retryPeriod time.Duration) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.retryPeriod = retryPeriod
-		return nil
-	}
-}
-
-// ClaimsInformer sets the informer to use for accessing PersistentVolumeClaims.
-// Defaults to using a internal informer.
-func ClaimsInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.claimInformer = informer
-		c.customClaimInformer = true
-		return nil
-	}
-}
-
-// VolumesInformer sets the informer to use for accessing PersistentVolumes.
-// Defaults to using a internal informer.
-func VolumesInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.volumeInformer = informer
-		c.customVolumeInformer = true
-		return nil
-	}
-}
-
-// ClassesInformer sets the informer to use for accessing StorageClasses.
-// The informer must use the versioned resource appropriate for the Kubernetes cluster version
-// (that is, v1.StorageClass for >= 1.6, and v1beta1.StorageClass for < 1.6).
-// Defaults to using a internal informer.
-func ClassesInformer(informer cache.SharedInformer) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.classInformer = informer
-		c.customClassInformer = true
-		return nil
-	}
-}
-
-// MetricsPort sets the port that metrics server serves on. Default: 0, set to non-zero to enable.
-func MetricsPort(metricsPort int32) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsPort = metricsPort
-		return nil
-	}
-}
-
-// MetricsAddress sets the ip address that metrics serve serves on.
-func MetricsAddress(metricsAddress string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsAddress = metricsAddress
-		return nil
-	}
-}
-
-// MetricsPath sets the endpoint path of metrics server.
-func MetricsPath(metricsPath string) func(*ProvisionController) error {
-	return func(c *ProvisionController) error {
-		if c.HasRun() {
-			return errRuntime
-		}
-		c.metricsPath = metricsPath
-		return nil
-	}
-}
-
 // HasRun returns whether the controller has Run
 func (ctrl *ProvisionController) HasRun() bool {
 	ctrl.hasRunLock.Lock()
@@ -411,8 +154,6 @@ func (ctrl *ProvisionController) HasRun() bool {
 // NewProvisionController creates a new provision controller using
 // the given configuration parameters and with private (non-shared) informers.
 func NewProvisionController(
-	client kubernetes.Interface,
-	cfg *option.Config,
 	provisioners map[string]Provisioner,
 	kubeVersion string,
 	options ...func(*ProvisionController) error,
@@ -428,12 +169,11 @@ func NewProvisionController(
 	v1.AddToScheme(scheme.Scheme)
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(logrus.Infof)
-	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: client.CoreV1().Events(v1.NamespaceAll)})
+	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: k8s.Default().Clientset.CoreV1().Events(v1.NamespaceAll)})
 	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: component})
 
 	controller := &ProvisionController{
-		client:                        client,
-		cfg:                           cfg,
+		client:                        k8s.Default().Clientset,
 		provisioners:                  provisioners,
 		kubeVersion:                   utilversion.MustParseSemantic(kubeVersion),
 		id:                            id,
@@ -475,7 +215,7 @@ func NewProvisionController(
 	controller.claimQueue = workqueue.NewNamedRateLimitingQueue(ratelimiter, "claims")
 	controller.volumeQueue = workqueue.NewNamedRateLimitingQueue(ratelimiter, "volumes")
 
-	informer := informers.NewSharedInformerFactory(client, controller.resyncPeriod)
+	informer := informers.NewSharedInformerFactory(k8s.Default().Clientset, controller.resyncPeriod)
 
 	// ----------------------
 	// PersistentVolumeClaims
@@ -1115,7 +855,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(ctx context.Context, cl
 }
 
 func (ctrl *ProvisionController) persistentVolumeForGrdata(ctx context.Context) (*v1.PersistentVolume, error) {
-	pvc, err := ctrl.client.CoreV1().PersistentVolumeClaims(ctrl.cfg.RBDNamespace).Get(ctx, ctrl.cfg.GrdataPVCName, metav1.GetOptions{})
+	pvc, err := ctrl.client.CoreV1().PersistentVolumeClaims(ctrl.publicConf.RbdNamespace).Get(ctx, ctrl.publicConf.GrdataPVCName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("find pvc for grdata: %v", err)
 	}

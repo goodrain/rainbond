@@ -20,11 +20,12 @@ package monitor
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"net/http"
 
 	"github.com/goodrain/rainbond/worker/master"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/discover"
@@ -38,22 +39,24 @@ import (
 type ExporterManager struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
-	config            option.Config
 	stopChan          chan struct{}
 	masterController  *master.Controller
 	controllermanager *controller.Manager
+	proConfig         *configs.PrometheusConfig
+	workerConfig      *rbdcomponent.WorkerConfig
 }
 
 // NewManager return *NewManager
-func NewManager(c option.Config, masterController *master.Controller, controllermanager *controller.Manager) *ExporterManager {
+func NewManager(masterController *master.Controller, controllermanager *controller.Manager) *ExporterManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ExporterManager{
 		ctx:               ctx,
 		cancel:            cancel,
-		config:            c,
 		stopChan:          make(chan struct{}),
 		masterController:  masterController,
 		controllermanager: controllermanager,
+		proConfig:         configs.Default().PrometheusConfig,
+		workerConfig:      configs.Default().WorkerConfig,
 	}
 }
 func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
@@ -71,13 +74,13 @@ func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
 
 // Start 启动
 func (t *ExporterManager) Start() error {
-	http.HandleFunc(t.config.PrometheusMetricPath, t.handler)
+	http.HandleFunc(t.proConfig.PrometheusMetricPath, t.handler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Worker exporter</title></head>
 			<body>
 			<h1>Worker exporter</h1>
-			<p><a href='` + t.config.PrometheusMetricPath + `'>Metrics</a></p>
+			<p><a href='` + t.proConfig.PrometheusMetricPath + `'>Metrics</a></p>
 			</body>
 			</html>
 			`))
@@ -89,9 +92,9 @@ func (t *ExporterManager) Start() error {
 		}
 		httputil.ReturnSuccess(r, w, healthStatus)
 	})
-	logrus.Infoln("Listening on", t.config.Listen)
+	logrus.Infoln("Listening on", t.workerConfig.Listen)
 	go func() {
-		logrus.Fatal(http.ListenAndServe(t.config.Listen, nil))
+		logrus.Fatal(http.ListenAndServe(t.workerConfig.Listen, nil))
 	}()
 	logrus.Info("start app resource exporter success.")
 	return nil

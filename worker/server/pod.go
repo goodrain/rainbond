@@ -75,7 +75,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	}
 	describeContainers(pod.Spec.Containers, pod.Status.ContainerStatuses, &podDetail.Containers)
 
-	util.DescribePodStatus(r.clientset, pod, podDetail.Status, k8sutil.DefListEventsByPod)
+	util.DescribePodStatus(r.k8sComponent.Clientset, pod, podDetail.Status, k8sutil.DefListEventsByPod)
 
 	return podDetail, nil
 }
@@ -101,14 +101,14 @@ func (r *RuntimeServer) listPodEventsByPod(pod *corev1.Pod) []*pb.PodEvent {
 	if _, isMirrorPod := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirrorPod {
 		ref.UID = types.UID(pod.Annotations[corev1.MirrorPodAnnotationKey])
 	}
-	events, _ := r.clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
+	events, _ := r.k8sComponent.Clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
 	podEvents := DescribeEvents(events)
 	return podEvents
 }
 
 // GetPodEventsByName -
 func (r RuntimeServer) listPodEventsByName(name, namespace string) []*pb.PodEvent {
-	eventsInterface := r.clientset.CoreV1().Events(namespace)
+	eventsInterface := r.k8sComponent.Clientset.CoreV1().Events(namespace)
 	selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
 	options := metav1.ListOptions{FieldSelector: selector.String()}
 	events, err := eventsInterface.List(context.Background(), options)

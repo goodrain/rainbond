@@ -25,7 +25,6 @@ import (
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -34,7 +33,7 @@ import (
 type TokenIdenAction struct{}
 
 // CreateTokenIdenManager token identification
-func CreateTokenIdenManager(conf option.Config) (*TokenIdenAction, error) {
+func CreateTokenIdenManager() (*TokenIdenAction, error) {
 	return &TokenIdenAction{}, nil
 }
 

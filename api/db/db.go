@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"time"
@@ -29,7 +30,6 @@ import (
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/config"
 	dbModel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -48,12 +48,13 @@ func New() *ConDB {
 }
 
 // Start -
-func (d *ConDB) Start(ctx context.Context, cfg *configs.Config) error {
+func (d *ConDB) Start(ctx context.Context) error {
+	dbConfig := configs.Default().DBConfig
 	logrus.Info("start db client...")
 	dbCfg := config.Config{
-		MysqlConnectionInfo: cfg.APIConfig.DBConnectionInfo,
-		DBType:              cfg.APIConfig.DBType,
-		ShowSQL:             cfg.APIConfig.ShowSQL,
+		MysqlConnectionInfo: dbConfig.DBConnectionInfo,
+		DBType:              dbConfig.DBType,
+		ShowSQL:             dbConfig.ShowSQL,
 	}
 	if err := db.CreateManager(dbCfg); err != nil {
 		logrus.Errorf("get db manager failed,%s", err.Error())

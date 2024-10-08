@@ -53,7 +53,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
-//CodeSourceInfo 代码源信息
+// CodeSourceInfo 代码源信息
 type CodeSourceInfo struct {
 	ServerType    string                  `json:"server_type"`
 	RepositoryURL string                  `json:"repository_url"`
@@ -66,12 +66,12 @@ type CodeSourceInfo struct {
 	ServiceID string `json:"service_id"`
 }
 
-//GetCodeSourceDir get source storage directory
+// GetCodeSourceDir get source storage directory
 func (c CodeSourceInfo) GetCodeSourceDir() string {
 	return GetCodeSourceDir(c.RepositoryURL, c.Branch, c.TenantID, c.ServiceID)
 }
 
-//GetCodeSourceDir get source storage directory
+// GetCodeSourceDir get source storage directory
 // it changes as gitrepostory address, branch, and service id change
 func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) string {
 	sourceDir := os.Getenv("SOURCE_DIR")
@@ -85,7 +85,7 @@ func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) 
 	return path.Join(sourceDir, "build", tenantID, bsStr)
 }
 
-//CheckFileExist CheckFileExist
+// CheckFileExist CheckFileExist
 func CheckFileExist(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {
@@ -97,7 +97,7 @@ func CheckFileExist(path string) bool {
 	return true
 }
 
-//RemoveDir RemoveDir
+// RemoveDir RemoveDir
 func RemoveDir(path string) error {
 	if path == "/" {
 		return fmt.Errorf("remove wrong dir")
@@ -113,7 +113,7 @@ func getShowURL(rurl string) string {
 	return ""
 }
 
-//GitClone git clone code
+// GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	if !strings.HasSuffix(csi.RepositoryURL, ".git") {
@@ -271,7 +271,7 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 	return nil, nil
 }
 
-//GitPull git pull code
+// GitPull git pull code
 func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	flag := true
@@ -401,7 +401,7 @@ Loop:
 	return rs, "", err
 }
 
-//GitCloneOrPull if code exist in local,use git pull.
+// GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
 		re, msg, err := GitPull(csi, sourceDir, logger, timeout)
@@ -420,7 +420,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	return GitClone(csi, sourceDir, logger, timeout)
 }
 
-//GitCheckout checkout the specified branch
+// GitCheckout checkout the specified branch
 func GitCheckout(sourceDir, branch string) error {
 	// option := git.CheckoutOptions{
 	// 	Branch: getBranch(branch),
@@ -434,8 +434,8 @@ func getBranch(branch string) plumbing.ReferenceName {
 	return plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", branch))
 }
 
-//GetLastCommit get last commit info
-//get commit by head reference
+// GetLastCommit get last commit info
+// get commit by head reference
 func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 	ref, err := re.Head()
 	if err != nil {
@@ -444,7 +444,7 @@ func GetLastCommit(re *git.Repository) (*object.Commit, error) {
 	return re.CommitObject(ref.Hash())
 }
 
-//GetPrivateFile 获取私钥文件地址
+// GetPrivateFile 获取私钥文件地址
 func GetPrivateFile(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
@@ -460,7 +460,7 @@ func GetPrivateFile(tenantID string) string {
 
 }
 
-//GetPublicKey 获取公钥
+// GetPublicKey 获取公钥
 func GetPublicKey(tenantID string) string {
 	home, _ := Home()
 	if home == "" {
@@ -495,7 +495,7 @@ func GetPublicKey(tenantID string) string {
 
 }
 
-//GenerateKey GenerateKey
+// GenerateKey GenerateKey
 func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	private, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -505,7 +505,7 @@ func GenerateKey(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
 
 }
 
-//EncodePrivateKey EncodePrivateKey
+// EncodePrivateKey EncodePrivateKey
 func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	return pem.EncodeToMemory(&pem.Block{
 		Bytes: x509.MarshalPKCS1PrivateKey(private),
@@ -513,7 +513,7 @@ func EncodePrivateKey(private *rsa.PrivateKey) []byte {
 	})
 }
 
-//EncodeSSHKey EncodeSSHKey
+// EncodeSSHKey EncodeSSHKey
 func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	publicKey, err := sshkey.NewPublicKey(public)
 	if err != nil {
@@ -522,7 +522,7 @@ func EncodeSSHKey(public *rsa.PublicKey) ([]byte, error) {
 	return sshkey.MarshalAuthorizedKey(publicKey), nil
 }
 
-//MakeSSHKeyPair make ssh key
+// MakeSSHKeyPair make ssh key
 func MakeSSHKeyPair() (string, string, error) {
 
 	pkey, pubkey, err := GenerateKey(2048)

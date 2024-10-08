@@ -3,7 +3,7 @@ package controller
 import (
 	"bytes"
 	"fmt"
-	"io"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -21,10 +21,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//AppStruct -
+// AppStruct -
 type AppStruct struct{}
 
-//ExportApp -
+// ExportApp -
 func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -72,7 +72,7 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Download -
+// Download -
 func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	format := strings.TrimSpace(chi.URLParam(r, "format"))
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
@@ -83,11 +83,10 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 404, fmt.Sprintf("Not found export app tar file: %s", tarFile))
 		return
 	}
-
-	http.ServeFile(w, r, tarFile)
+	storage.Default().StorageCli.ServeFile(w, r, tarFile)
 }
 
-//ImportID -
+// ImportID -
 func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
@@ -156,7 +155,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//UploadID -
+// UploadID -
 func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
@@ -174,30 +173,17 @@ func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 		}
 		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
 	case "GET":
-		_, err := os.Stat(dirName)
+		err := storage.Default().StorageCli.MkdirAll(dirName)
 		if err != nil {
-			if !os.IsExist(err) {
-				err := os.MkdirAll(dirName, 0755)
-				if err != nil {
-					httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
-					return
-				}
-			}
+			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
+			return
 		}
-		packages, err := ioutil.ReadDir(dirName)
+		packageArr, err := storage.Default().StorageCli.ReadDir(dirName)
 		if err != nil {
+			logrus.Errorf("read dir failure")
 			httputil.ReturnSuccess(r, w, map[string][]string{"packages": {}})
 			return
 		}
-
-		packageArr := make([]string, 0, 10)
-		for _, dir := range packages {
-			if dir.IsDir() {
-				continue
-			}
-			packageArr = append(packageArr, dir.Name())
-		}
-
 		httputil.ReturnSuccess(r, w, map[string][]string{"packages": packageArr})
 	case "DELETE":
 		cmd := exec.Command("rm", "-rf", dirName)
@@ -220,7 +206,7 @@ func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//NewUpload -
+// NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
@@ -245,7 +231,7 @@ func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Upload -
+// Upload -
 func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
@@ -254,7 +240,6 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
 			return
 		}
-
 		logrus.Debug("Start receive upload file: ", eventID)
 		reader, header, err := r.FormFile("appTarFile")
 		if err != nil {
@@ -265,20 +250,11 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 		defer reader.Close()
 
 		dirName := fmt.Sprintf("%s/import/%s", handler.GetAppHandler().GetStaticDir(), eventID)
-		os.MkdirAll(dirName, 0755)
-
 		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+		storage.Default().StorageCli.MkdirAll(dirName)
+		err = storage.Default().StorageCli.SaveFile(fileName, reader)
 		if err != nil {
-			logrus.Errorf("Failed to open file: %s", err.Error())
-			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
-		}
-		defer file.Close()
-
-		logrus.Debug("Start write file to: ", fileName)
-		if _, err := io.Copy(file, reader); err != nil {
-			logrus.Errorf("Failed to write file：%s", err.Error())
-			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
+			httputil.ReturnError(r, w, 503, "Failed to save file: "+err.Error())
 		}
 
 		logrus.Debug("successful write file to: ", fileName)
@@ -300,7 +276,7 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//ImportApp -
+// ImportApp -
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":

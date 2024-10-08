@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/api/client/prometheus"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/shirou/gopsutil/disk"
@@ -66,13 +69,13 @@ type NodesHandler interface {
 }
 
 // NewNodesHandler -
-func NewNodesHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface) NodesHandler {
+func NewNodesHandler() NodesHandler {
 	return &nodesHandle{
-		namespace:     RbdNamespace,
-		clientset:     clientset,
-		config:        config,
-		mapper:        mapper,
-		prometheusCli: prometheusCli,
+		namespace:     configs.Default().PublicConfig.RbdNamespace,
+		clientset:     k8s.Default().Clientset,
+		config:        k8s.Default().RestConfig,
+		mapper:        k8s.Default().Mapper,
+		prometheusCli: prom.Default().PrometheusCli,
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	client "github.com/goodrain/rainbond/mq/client"
 	tutil "github.com/goodrain/rainbond/util"
@@ -40,7 +41,8 @@ func (s *ServiceAction) ServiceCheck(scs *apimodel.ServiceCheckStruct) (string, 
 		scs.Body.EventID = tutil.NewUUID()
 	}
 	topic := client.BuilderTopic
-	if tutil.StringArrayContains(s.conf.EnableFeature, "windows") {
+	config := configs.Default()
+	if tutil.StringArrayContains(config.APIConfig.EnableFeature, "windows") {
 		if scs.Body.CheckOS == "windows" {
 			topic = client.WindowsBuilderTopic
 		}

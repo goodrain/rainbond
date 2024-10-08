@@ -21,75 +21,42 @@ package handler
 import (
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/component/grpc"
-	"github.com/goodrain/rainbond/pkg/component/hubregistry"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
-	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/sirupsen/logrus"
 )
 
-// InitHandle 初始化handle
-func InitHandle(conf option.Config) error {
-
-	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
-	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
-	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
-
-	statusCli := grpc.Default().StatusClient
-	clientset := k8s.Default().Clientset
-	rainbondClient := k8s.Default().RainbondClient
-	k8sClient := k8s.Default().K8sClient
-	restconfig := k8s.Default().RestConfig
-	dynamicClient := k8s.Default().DynamicClient
-
-	apiSixClient := k8s.Default().ApiSixClient
-	gatewayClient := k8s.Default().GatewayClient
-	kubevirtCli := k8s.Default().KubevirtCli
-	mapper := k8s.Default().Mapper
-	registryCli := hubregistry.Default().RegistryCli
-
-	mqClient := mq.Default().MqClient
-	prometheusCli := prom.Default().PrometheusCli
-
-	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli, restconfig)
-	defaultPluginHandler = CreatePluginManager(mqClient)
-	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)
-	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
-	defaultCloudHandler = CreateCloudManager(conf)
-	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
-	defaultEventHandler = CreateLogManager(conf)
-	shareHandler = &share.ServiceShareHandle{MQClient: mqClient}
-	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient}
-	if err := CreateTokenIdenHandler(conf); err != nil {
+// InitAPIHandle 初始化handle
+func InitAPIHandle() error {
+	defaultServieHandler = CreateManager()
+	defaultPluginHandler = CreatePluginManager()
+	defaultAppHandler = CreateAppManager()
+	defaultTenantHandler = CreateTenManager()
+	defaultHelmHandler = CreateHelmManager()
+	defaultCloudHandler = CreateCloudManager()
+	defaultAPPBackupHandler = group.CreateBackupHandle()
+	defaultEventHandler = CreateLogManager()
+	if err := CreateTokenIdenHandler(); err != nil {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset, clientset, restconfig, apiSixClient)
-	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
-	operationHandler = CreateOperationHandler(mqClient)
-	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
+	defaultGatewayHandler = CreateGatewayManager()
+	def3rdPartySvcHandler = Create3rdPartySvcHandler()
+	operationHandler = CreateOperationHandler()
+	batchOperationHandler = CreateBatchOperationHandler(operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
-	defPodHandler = NewPodHandler(statusCli)
-	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
-	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
+	defPodHandler = NewPodHandler()
+	defClusterHandler = NewClusterHandler()
+	defaultVolumeTypeHandler = CreateVolumeTypeManger()
 	defaultCleanDateBaseHandler = NewCleanDateBaseHandler()
-	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
+	defaultmonitorHandler = NewMonitorHandler()
 	defServiceEventHandler = NewServiceEventHandler()
-	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)
-	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient)
-	defNodesHandler = NewNodesHandler(clientset, conf.RbdNamespace, restconfig, mapper, prometheusCli)
+	defApplicationHandler = NewApplicationHandler()
+	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
+	defNodesHandler = NewNodesHandler()
 	return nil
 }
 
 var defaultServieHandler ServiceHandler
-var shareHandler *share.ServiceShareHandle
-var pluginShareHandler *share.PluginShareHandle
 var defaultmonitorHandler MonitorHandler
 
 // GetMonitorHandle get monitor handler
@@ -99,12 +66,12 @@ func GetMonitorHandle() MonitorHandler {
 
 // GetShareHandle get share handle
 func GetShareHandle() *share.ServiceShareHandle {
-	return shareHandler
+	return &share.ServiceShareHandle{MQClient: mq.Default().MqClient}
 }
 
 // GetPluginShareHandle get plugin share handle
 func GetPluginShareHandle() *share.PluginShareHandle {
-	return pluginShareHandler
+	return &share.PluginShareHandle{MQClient: mq.Default().MqClient}
 }
 
 // GetServiceManager get manager

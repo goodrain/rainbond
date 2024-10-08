@@ -21,6 +21,7 @@ package exector
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -72,7 +73,6 @@ func NewSlugShareItem(in []byte) (*SlugShareItem, error) {
 
 // ShareService  Run
 func (i *SlugShareItem) ShareService() error {
-
 	logrus.Debugf("share app local slug path: %s ,target path: %s", i.LocalSlugPath, i.SlugPath)
 	if _, err := os.Stat(i.LocalSlugPath); err != nil {
 		i.Logger.Error(fmt.Sprintf("数据中心应用代码包不存在，请先构建应用"), map[string]string{"step": "slug-share", "status": "failure"})
@@ -134,13 +134,13 @@ func (i *SlugShareItem) ShareToLocal() error {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "success"})
 		return err
 	}
-	if err := sources.CopyFileWithProgress(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
+	if err := storage.Default().StorageCli.CopyFileWithProgress(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		logrus.Errorf("copy file to share path error: %s", err.Error())
 		i.Logger.Error("复制文件失败", map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
-	if err := sources.CopyFileWithProgress(md5, i.SlugPath+".md5", i.Logger); err != nil {
+	if err := storage.Default().StorageCli.CopyFileWithProgress(md5, i.SlugPath+".md5", i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		os.Remove(i.SlugPath + ".md5")
 		logrus.Errorf("copy file to share path error: %s", err.Error())

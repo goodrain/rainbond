@@ -20,11 +20,12 @@ package discover
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"os"
 	"time"
 
 	"github.com/goodrain/rainbond/builder/exector"
-	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"
@@ -40,14 +41,13 @@ var healthStatus = make(map[string]string, 1)
 type TaskManager struct {
 	ctx, discoverCtx       context.Context
 	cancel, discoverCancel context.CancelFunc
-	config                 option.Config
 	client                 client.MQClient
 	exec                   exector.Manager
 	callbackChan           chan *pb.TaskMessage
 }
 
-// NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manager) *TaskManager {
+// NewChaosTaskManager return *TaskManager
+func NewChaosTaskManager(exec exector.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	discoverCtx, discoverCancel := context.WithCancel(ctx)
 	healthStatus["status"] = "health"
@@ -58,8 +58,7 @@ func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manage
 		discoverCancel: discoverCancel,
 		ctx:            ctx,
 		cancel:         cancel,
-		config:         c,
-		client:         client,
+		client:         mq.Default().MqClient,
 		exec:           exec,
 		callbackChan:   callbackChan,
 	}
@@ -95,7 +94,8 @@ func (t *TaskManager) Do(errChan chan error) {
 			return
 		default:
 			ctx, cancel := context.WithCancel(t.discoverCtx)
-			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: t.config.Topic, ClientHost: hostName + "-builder"})
+			topic := configs.Default().ChaosConfig.Topic
+			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: topic, ClientHost: hostName + "-builder"})
 			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {

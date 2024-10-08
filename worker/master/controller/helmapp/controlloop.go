@@ -20,6 +20,8 @@ package helmapp
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"strings"
 	"time"
 
@@ -57,26 +59,23 @@ type ControlLoop struct {
 
 // NewControlLoop -
 func NewControlLoop(ctx context.Context,
-	kubeClient clientset.Interface,
-	clientset versioned.Interface,
 	storer Storer,
 	workQueue workqueue.Interface,
-	repoFile string,
-	repoCache string,
-	chartCache string,
+
 ) *ControlLoop {
-	repo := helm.NewRepo(repoFile, repoCache)
+	helmc := configs.Default().WorkerConfig.Helm
+	repo := helm.NewRepo(helmc.RepoFile, helmc.RepoFile)
 	return &ControlLoop{
 		ctx:        ctx,
 		log:        logrus.WithField("WHO", "Helm App ControlLoop"),
-		kubeClient: kubeClient,
-		clientset:  clientset,
+		kubeClient: k8s.Default().Clientset,
+		clientset:  k8s.Default().RainbondClient,
 		storer:     storer,
 		workQueue:  workQueue,
 		repo:       repo,
-		repoFile:   repoFile,
-		repoCache:  repoCache,
-		chartCache: chartCache,
+		repoFile:   helmc.RepoFile,
+		repoCache:  helmc.RepoCache,
+		chartCache: helmc.ChartCache,
 	}
 }
 

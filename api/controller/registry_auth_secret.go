@@ -24,7 +24,6 @@ import (
 
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -32,7 +31,6 @@ import (
 // RegistryAuthSecretStruct -
 type RegistryAuthSecretStruct struct {
 	MQClient client.MQClient
-	cfg      *option.Config
 }
 
 // RegistryAuthSecret http handler for registry auth secret

@@ -21,6 +21,7 @@ package exector
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"path"
@@ -49,10 +50,10 @@ const (
 	NewMetadata = "NewMetadata"
 )
 
-//maxBackupVersionSize Maximum number of backup versions per service
+// maxBackupVersionSize Maximum number of backup versions per service
 var maxBackupVersionSize = 3
 
-//BackupAPPNew backup group app new version
+// BackupAPPNew backup group app new version
 type BackupAPPNew struct {
 	GroupID     string   `json:"group_id" `
 	ServiceIDs  []string `json:"service_ids" `
@@ -79,7 +80,7 @@ func init() {
 	RegisterWorker("backup_apps_new", BackupAPPNewCreater)
 }
 
-//BackupAPPNewCreater create
+// BackupAPPNewCreater create
 func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -102,7 +103,7 @@ type AppSnapshot struct {
 	PluginBuildVersions []*dbmodel.TenantPluginBuildVersion
 }
 
-//RegionServiceSnapshot RegionServiceSnapshot
+// RegionServiceSnapshot RegionServiceSnapshot
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
@@ -124,7 +125,7 @@ type RegionServiceSnapshot struct {
 	PluginStreamPorts []*dbmodel.TenantServicesStreamPluginPort
 }
 
-//Run Run
+// Run Run
 func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	//read region group app metadata
 	metadata, err := ioutil.ReadFile(fmt.Sprintf("%s/region_apps_metadata.json", b.SourceDir))
@@ -362,7 +363,7 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 func (b *BackupAPPNew) saveSlugPkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.SourceDir, app.ServiceID, version.BuildVersion)
 	util.CheckAndCreateDir(filepath.Dir(dstDir))
-	if err := sources.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
+	if err := storage.Default().StorageCli.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("push slug file to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
 		return err
@@ -386,22 +387,22 @@ func (b *BackupAPPNew) saveImagePkg(app *RegionServiceSnapshot, version *dbmodel
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (b *BackupAPPNew) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (b *BackupAPPNew) Name() string {
 	return "backup_apps_new"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (b *BackupAPPNew) GetLogger() event.Logger {
 	return b.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (b *BackupAPPNew) ErrorCallBack(err error) {
 	if err != nil {
 		logrus.Errorf("backup group app failure %s", err)
@@ -423,7 +424,7 @@ func (b *BackupAPPNew) updateBackupStatu(status string) error {
 	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
 }
 
-//GetVolumeDir get volume path prifix
+// GetVolumeDir get volume path prifix
 func GetVolumeDir() (string, string) {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")

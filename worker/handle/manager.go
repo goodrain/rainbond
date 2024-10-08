@@ -22,20 +22,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -55,36 +55,28 @@ import (
 // Manager manager
 type Manager struct {
 	ctx               context.Context
-	cfg               option.Config
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
 	garbageCollector  *gc.GarbageCollector
-	restConfig        *rest.Config
-	mapper            meta.RESTMapper
-	clientset         *kubernetes.Clientset
+	k8sComponent      *k8s.Component
+	workerConfig      *rbdcomponent.WorkerConfig
 }
 
 // NewManager now handle
 func NewManager(ctx context.Context,
-	config option.Config,
 	store store.Storer,
 	controllerManager *controller.Manager,
 	garbageCollector *gc.GarbageCollector,
-	restConfig *rest.Config,
-	mapper meta.RESTMapper,
-	clientset *kubernetes.Clientset) *Manager {
-
+) *Manager {
 	return &Manager{
 		ctx:               ctx,
-		cfg:               config,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
 		garbageCollector:  garbageCollector,
-		restConfig:        restConfig,
-		mapper:            mapper,
-		clientset:         clientset,
+		k8sComponent:      k8s.Default(),
+		workerConfig:      configs.Default().WorkerConfig,
 	}
 }
 
@@ -92,7 +84,7 @@ func NewManager(ctx context.Context,
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (m *Manager) checkCount() bool {
-	return m.controllerManager.GetControllerSize() > m.cfg.MaxTasks
+	return m.controllerManager.GetControllerSize() > m.workerConfig.MaxTasks
 }
 
 // AnalystToExec analyst exec
@@ -169,7 +161,7 @@ func (m *Manager) startExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, body.Configs)
+	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -332,7 +324,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	appService.ContainerMemory = service.ContainerMemory
 	appService.ContainerGPU = service.ContainerGPU
 	appService.Logger = logger
-	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
+	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -359,7 +351,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("rolling_upgrade body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, body.DryRun, m.dbmanager, body.ServiceID, body.Configs)
+	newAppService, err := conversion.InitAppService(body.DryRun, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -431,10 +423,10 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	var newAppService *v1.AppService
 	if svc.Kind == dbmodel.ServiceKindThirdParty.String() {
-		newAppService, err = conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil,
+		newAppService, err = conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil,
 			"ServiceSource", "TenantServiceBase", "TenantServiceRegist")
 	} else {
-		newAppService, err = conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
+		newAppService, err = conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
 	}
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
@@ -467,7 +459,7 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 		logrus.Debugf("service is closed,no need handle")
 		return nil
 	}
-	newApp, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
+	newApp, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
 	if err != nil {
 		logrus.Errorf("component apply plugin config controller failure:%s", err.Error())
 		return err
@@ -527,7 +519,7 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 		err = fmt.Errorf("tenant id: %s; find tenant: %v", body.TenantID, err)
 		return
 	}
-	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(context.Background(), tenant.Namespace, metav1.DeleteOptions{
+	if err = m.k8sComponent.Clientset.CoreV1().Namespaces().Delete(context.Background(), tenant.Namespace, metav1.DeleteOptions{
 		GracePeriodSeconds: util.Int64(0),
 	}); err != nil && !k8sErrors.IsNotFound(err) {
 		err = fmt.Errorf("delete namespace: %v", err)
@@ -560,7 +552,7 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 		return nil
 	}
 
-	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
+	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -598,7 +590,7 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 		return fmt.Sprintf("rbd-registry-auth-%s", secretID)
 	}
 
-	secret, err := m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Get(m.ctx, secretNameFrom(body.SecretID), metav1.GetOptions{})
+	secret, err := m.k8sComponent.Clientset.CoreV1().Secrets(tenant.Namespace).Get(m.ctx, secretNameFrom(body.SecretID), metav1.GetOptions{})
 	switch body.Action {
 	case "apply":
 		if err != nil {
@@ -621,7 +613,7 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 					},
 					Type: corev1.SecretTypeOpaque,
 				}
-				_, err = m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Create(m.ctx, secret, metav1.CreateOptions{})
+				_, err = m.k8sComponent.Clientset.CoreV1().Secrets(tenant.Namespace).Create(m.ctx, secret, metav1.CreateOptions{})
 			} else {
 				logrus.Errorf("get secret failure: %s", err.Error())
 				return err
@@ -630,14 +622,14 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 			secret.Data["Domain"] = []byte(body.Domain)
 			secret.Data["Username"] = []byte(body.Username)
 			secret.Data["Password"] = []byte(body.Password)
-			_, err = m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Update(m.ctx, secret, metav1.UpdateOptions{})
+			_, err = m.k8sComponent.Clientset.CoreV1().Secrets(tenant.Namespace).Update(m.ctx, secret, metav1.UpdateOptions{})
 		}
 		if err != nil {
 			logrus.Errorf("apply secret failure: %s", err.Error())
 			return err
 		}
 	case "delete":
-		err := m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Delete(m.ctx, secretNameFrom(body.SecretID), metav1.DeleteOptions{})
+		err := m.k8sComponent.Clientset.CoreV1().Secrets(tenant.Namespace).Delete(m.ctx, secretNameFrom(body.SecretID), metav1.DeleteOptions{})
 		if err != nil {
 			logrus.Debugf("delete secret: %s", err.Error())
 		}
@@ -648,11 +640,11 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 
 // RefreshMapper -
 func (m *Manager) RefreshMapper() error {
-	gr, err := restmapper.GetAPIGroupResources(m.clientset)
+	gr, err := restmapper.GetAPIGroupResources(m.k8sComponent.Clientset)
 	if err != nil {
 		return err
 	}
-	m.mapper = restmapper.NewDiscoveryRESTMapper(gr)
+	m.k8sComponent.Mapper = restmapper.NewDiscoveryRESTMapper(gr)
 	return nil
 }
 
@@ -663,7 +655,7 @@ func (m *Manager) DeleteK8sResource(task *model.Task) error {
 		return fmt.Errorf("can't convert %s to *model.DeleteK8sResourceTaskBody", reflect.TypeOf(task.Body))
 	}
 	var buildResourceList []*model.BuildResource
-	dc, err := dynamic.NewForConfig(m.restConfig)
+	dc, err := dynamic.NewForConfig(m.k8sComponent.RestConfig)
 	if err != nil {
 		logrus.Errorf("HandleResourceYaml dynamic.NewForConfig error %v", err)
 		return err
@@ -691,7 +683,7 @@ func (m *Manager) DeleteK8sResource(task *model.Task) error {
 		}
 		//转化成对象
 		unstructuredObj := unstructured.Unstructured{Object: unstructuredMap}
-		mapping, err := m.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		mapping, err := m.k8sComponent.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
 			if !meta.IsNoMatchError(err) {
 				return err

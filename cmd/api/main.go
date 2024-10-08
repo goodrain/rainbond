@@ -23,47 +23,31 @@ import (
 	"context"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
-	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/api/option"
-
-	"github.com/spf13/pflag"
 )
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("api")
 	}
-	s := option.NewAPIServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-
-	configs.SetDefault(&configs.Config{
-		AppName:   "rbd-api",
-		APIConfig: s.Config,
-	})
-
-	if s.Config.ElasticEnable {
-		es.New().SingleStart(s.Config.ElasticSearchURL, s.Config.ElasticSearchUsername, s.Config.ElasticSearchPassword)
-	}
-
+	configs.Default().SetAppName("rbd-api").SetAPIFlags().SetPublicFlags().Parse().SetLog()
 	// 启动 rbd-api
 	err := rainbond.New(context.Background(), configs.Default()).
 		Registry(component.Database()).
 		Registry(component.Grpc()).
 		Registry(component.Event()).
 		Registry(component.K8sClient()).
+		Registry(component.StorageClient()).
 		Registry(component.HubRegistry()).
 		Registry(component.Proxy()).
 		Registry(component.MQ()).
 		Registry(component.Prometheus()).
-		Registry(component.Handler()).
-		Registry(component.Router()).
+		Registry(component.APIHandler()).
+		Registry(component.APIRouter()).
 		Start()
 	if err != nil {
 		logrus.Errorf("start rbd-api error %s", err.Error())

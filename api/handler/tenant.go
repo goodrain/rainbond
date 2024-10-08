@@ -21,6 +21,10 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
 	"strings"
@@ -31,7 +35,6 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
@@ -54,7 +57,6 @@ import (
 type TenantAction struct {
 	MQClient                  mqclient.MQClient
 	statusCli                 *client.AppRuntimeSyncClient
-	OptCfg                    *option.Config
 	kubeClient                *kubernetes.Clientset
 	cacheClusterResourceStats *ClusterResourceStats
 	cacheTime                 time.Time
@@ -64,24 +66,17 @@ type TenantAction struct {
 }
 
 // CreateTenManager create Manger
-func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
-	optCfg *option.Config,
-	kubeClient *kubernetes.Clientset,
-	prometheusCli prometheus.Interface,
-	k8sClient k8sclient.Client) *TenantAction {
-
+func CreateTenManager() *TenantAction {
 	resources := map[string]k8sclient.Object{
 		"helmApp": &v1alpha1.HelmApp{},
 		"service": &corev1.Service{},
 	}
-
 	return &TenantAction{
-		MQClient:      mqc,
-		statusCli:     statusCli,
-		OptCfg:        optCfg,
-		kubeClient:    kubeClient,
-		prometheusCli: prometheusCli,
-		k8sClient:     k8sClient,
+		MQClient:      mq.Default().MqClient,
+		statusCli:     grpc.Default().StatusClient,
+		kubeClient:    k8s.Default().Clientset,
+		prometheusCli: prom.Default().PrometheusCli,
+		k8sClient:     k8s.Default().K8sClient,
 		resources:     resources,
 	}
 }

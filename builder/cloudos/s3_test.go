@@ -14,7 +14,7 @@ func TestS3PutObject(t *testing.T) {
 
 	cs, err := newS3(cfg)
 	if err != nil {
-		t.Fatalf("create s3 driver: %v", err)
+		t.Fatalf("create storage driver: %v", err)
 	}
 
 	if err := cs.PutObject("aws-sdk-go-1.25.25.zip", "/Users/abewang/Downloads/aws-sdk-go-1.25.25.zip"); err != nil {
@@ -32,7 +32,7 @@ func TestS3GetObject(t *testing.T) {
 
 	cs, err := newS3(cfg)
 	if err != nil {
-		t.Fatalf("create s3 driver: %v", err)
+		t.Fatalf("create storage driver: %v", err)
 	}
 
 	if err := cs.GetObject("goodrain-logo.png", "goodrain-logo2.png"); err != nil {
@@ -50,7 +50,7 @@ func TestS3DeleteObject(t *testing.T) {
 
 	cs, err := newS3(cfg)
 	if err != nil {
-		t.Fatalf("create s3 driver: %v", err)
+		t.Fatalf("create storage driver: %v", err)
 	}
 
 	if err := cs.DeleteObject("goodrain-logo.png"); err != nil {

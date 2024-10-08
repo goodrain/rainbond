@@ -27,6 +27,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
 	"io/ioutil"
 	"math/big"
 	"time"
@@ -36,7 +37,6 @@ import (
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
@@ -50,12 +50,13 @@ type CloudAction struct {
 }
 
 // CreateCloudManager get cloud manager
-func CreateCloudManager(conf option.Config) *CloudAction {
+func CreateCloudManager() *CloudAction {
+	config := configs.Default()
 	return &CloudAction{
-		APISSL:    conf.APISSL,
-		RegionTag: conf.RegionTag,
-		CAPath:    conf.APICertFile,
-		KeyPath:   conf.APIKeyFile,
+		APISSL:    config.APIConfig.APISSL,
+		RegionTag: config.APIConfig.RegionTag,
+		CAPath:    config.APIConfig.APICertFile,
+		KeyPath:   config.APIConfig.APIKeyFile,
 	}
 }
 

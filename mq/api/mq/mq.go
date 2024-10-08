@@ -19,7 +19,8 @@
 package mq
 
 import (
-	"github.com/goodrain/rainbond/cmd/mq/option"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"github.com/goodrain/rainbond/mq/client"
 	"os"
 	"strings"
@@ -48,18 +49,18 @@ var EnqueueNumber float64 = 0
 var DequeueNumber float64 = 0
 
 // NewActionMQ new etcd mq
-func NewActionMQ(ctx context.Context, c option.Config) ActionMQ {
+func NewActionMQ(ctx context.Context) ActionMQ {
 	etcdQueue := etcdQueue{
-		config: c,
-		ctx:    ctx,
-		queues: make(map[string]string),
+		mqConfig: configs.Default().MQConfig,
+		ctx:      ctx,
+		queues:   make(map[string]string),
 	}
 	return &etcdQueue
 }
 
 type etcdQueue struct {
 	client     *KeyValueStore
-	config     option.Config
+	mqConfig   *rbdcomponent.MQConfig
 	ctx        context.Context
 	queues     map[string]string
 	queuesLock sync.Mutex
@@ -109,7 +110,7 @@ func (e *etcdQueue) Stop() error {
 	return nil
 }
 func (e *etcdQueue) queueKey(topic string) string {
-	return e.config.KeyPrefix + "/" + topic
+	return e.mqConfig.KeyPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
 	EnqueueNumber++

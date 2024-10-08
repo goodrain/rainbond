@@ -19,30 +19,40 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/rainbond"
+	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/builder/option"
-	"github.com/goodrain/rainbond/cmd/builder/server"
-
-	"github.com/spf13/pflag"
 )
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("chaos")
 	}
-	s := option.NewBuilder()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-	if err := s.CheckConfig(); err != nil {
+	err := configs.Default().SetAppName("rbd-chaos").SetChaosFlags().SetPublicFlags().Parse().SetLog().CheckConfig()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	err = rainbond.New(context.Background(), configs.Default()).
+		Registry(component.Database()).
+		Registry(component.Grpc()).
+		Registry(component.Event()).
+		Registry(component.K8sClient()).
+		Registry(component.StorageClient()).
+		Registry(component.HubRegistry()).
+		Registry(component.Proxy()).
+		Registry(component.MQ()).
+		Registry(component.Prometheus()).
+		Registry(component.ChaosInit()).
+		Registry(component.ChaosRouter()).
+		Start()
+	if err != nil {
+		logrus.Errorf("start rbd-api error %s", err.Error())
 	}
 }

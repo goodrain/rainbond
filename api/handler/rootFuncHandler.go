@@ -18,10 +18,6 @@
 
 package handler
 
-import (
-	"github.com/goodrain/rainbond/cmd/api/option"
-)
-
 //RootFuncHandler root function handler interface
 type RootFuncHandler interface {
 }
@@ -29,11 +25,11 @@ type RootFuncHandler interface {
 var defaultRootFuncHandler RootFuncHandler
 
 //CreateRootFuncHandler create root func handler
-func CreateRootFuncHandler(conf option.Config) error {
+func CreateRootFuncHandler() error {
 	if defaultRootFuncHandler != nil {
 		return nil
 	}
-	defaultRootFuncHandler = CreateRootFuncManager(conf)
+	defaultRootFuncHandler = CreateRootFuncManager()
 	return nil
 }
 

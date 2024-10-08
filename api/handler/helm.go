@@ -7,6 +7,7 @@ import (
 	"fmt"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/pkg/helm"
 	rutil "github.com/goodrain/rainbond/util"
@@ -43,15 +44,15 @@ type HelmAction struct {
 }
 
 // CreateHelmManager 创建 helm 客户端
-func CreateHelmManager(clientset *kubernetes.Clientset, rainbondClient versioned.Interface, config *rest.Config, mapper meta.RESTMapper) *HelmAction {
+func CreateHelmManager() *HelmAction {
 	repo := helm.NewRepo(repoFile, repoCache)
 	return &HelmAction{
-		kubeClient:     clientset,
-		rainbondClient: rainbondClient,
+		kubeClient:     k8s.Default().Clientset,
+		rainbondClient: k8s.Default().RainbondClient,
 		ctx:            context.Background(),
 		repo:           repo,
-		config:         config,
-		mapper:         mapper,
+		config:         k8s.Default().RestConfig,
+		mapper:         k8s.Default().Mapper,
 	}
 }
 

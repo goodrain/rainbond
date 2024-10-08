@@ -875,21 +875,21 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 			MountPath: "/etc/buildkit",
 		},
 	}
-	if buildKitCache {
-		volumes = append(volumes, corev1.Volume{
-			Name: "buildkit-db",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/cache/buildkit-cache",
-					Type: &hostPathType,
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "buildkit-db",
-			MountPath: "/var/lib/buildkit",
-		})
-	}
+	//if buildKitCache {
+	//	volumes = append(volumes, corev1.Volume{
+	//		Name: "buildkit-db",
+	//		VolumeSource: corev1.VolumeSource{
+	//			HostPath: &corev1.HostPathVolumeSource{
+	//				Path: "/cache/buildkit-cache",
+	//				Type: &hostPathType,
+	//			},
+	//		},
+	//	})
+	//	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+	//		Name:      "buildkit-db",
+	//		MountPath: "/var/lib/buildkit",
+	//	})
+	//}
 	// Customize it according to how it is built volumes volumeMounts config
 	if buildType == "plug-build" {
 		volume := corev1.Volume{

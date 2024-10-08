@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -28,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
@@ -39,7 +39,6 @@ import (
 // GatewayStruct -
 type GatewayStruct struct {
 	MQClient client.MQClient
-	cfg      *option.Config
 }
 
 // HTTPRule is used to add, update or delete http rule which enables
@@ -55,7 +54,7 @@ func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//GatewayCertificate k8s gateway certificate related operations
+// GatewayCertificate k8s gateway certificate related operations
 func (g *GatewayStruct) GatewayCertificate(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "PUT":
@@ -67,7 +66,7 @@ func (g *GatewayStruct) GatewayCertificate(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-//BatchGatewayHTTPRoute k8s gateway http route batch operation
+// BatchGatewayHTTPRoute k8s gateway http route batch operation
 func (g *GatewayStruct) BatchGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -75,7 +74,7 @@ func (g *GatewayStruct) BatchGatewayHTTPRoute(w http.ResponseWriter, r *http.Req
 	}
 }
 
-//GatewayHTTPRoute k8s gateway http route related operations
+// GatewayHTTPRoute k8s gateway http route related operations
 func (g *GatewayStruct) GatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -337,13 +336,14 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
 	// verify request
 	values := url.Values{}
+	apiConfig := configs.Default().APIConfig
 	if req.ContainerPort == 0 {
 		values["container_port"] = []string{"The container_port field is required"}
 	}
 	if req.Port == 0 {
 		values["port"] = []string{"The port field is required"}
-	} else if req.Port <= g.cfg.MinExtPort {
-		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
+	} else if req.Port <= apiConfig.MinExtPort {
+		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", apiConfig.MinExtPort)}
 	} else {
 		// check if the port exists
 		if h.TCPIPPortExists(req.IP, req.Port) {
@@ -385,8 +385,9 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
 	// verify reqeust
 	values := url.Values{}
-	if req.Port != 0 && req.Port <= g.cfg.MinExtPort {
-		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
+	apiConfig := configs.Default().APIConfig
+	if req.Port != 0 && req.Port <= apiConfig.MinExtPort {
+		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", apiConfig.MinExtPort)}
 	}
 	if len(req.RuleExtensions) > 0 {
 		for _, re := range req.RuleExtensions {
@@ -405,7 +406,7 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
+	err := h.UpdateTCPRule(&req, apiConfig.MinExtPort)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
@@ -472,7 +473,7 @@ func (g *GatewayStruct) Certificate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//updCertificate updates certificate and refresh http rules based on certificate id
+// updCertificate updates certificate and refresh http rules based on certificate id
 func (g *GatewayStruct) updCertificate(w http.ResponseWriter, r *http.Request) {
 	var req api_model.UpdCertificateReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
@@ -493,7 +494,7 @@ func (g *GatewayStruct) updCertificate(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//GetGatewayIPs get gateway ips
+// GetGatewayIPs get gateway ips
 func GetGatewayIPs(w http.ResponseWriter, r *http.Request) {
 	ips := handler.GetGatewayHandler().GetGatewayIPs()
 	httputil.ReturnSuccess(r, w, ips)

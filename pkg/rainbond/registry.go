@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"log"
 	"os"
@@ -43,6 +44,9 @@ type CloseHandle func()
 
 // New 初始化cago
 func New(ctx context.Context, cfg *configs.Config) *Rainbond {
+	if cfg.ESConfig.ElasticEnable {
+		es.New().SingleStart()
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	cago := &Rainbond{
 		ctx:    ctx,
@@ -54,7 +58,7 @@ func New(ctx context.Context, cfg *configs.Config) *Rainbond {
 
 // Registry 注册组件
 func (r *Rainbond) Registry(component Component) *Rainbond {
-	err := component.Start(r.ctx, r.cfg)
+	err := component.Start(r.ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +68,7 @@ func (r *Rainbond) Registry(component Component) *Rainbond {
 
 // RegistryCancel 注册cancel组件
 func (r *Rainbond) RegistryCancel(component ComponentCancel) *Rainbond {
-	err := component.StartCancel(r.ctx, r.cancel, r.cfg)
+	err := component.StartCancel(r.ctx, r.cancel)
 	if err != nil {
 		panic(errors.New("start component error: " + reflect.TypeOf(component).String() + " " + err.Error()))
 	}

@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	configs2 "github.com/goodrain/rainbond/config/configs"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
@@ -63,7 +64,7 @@ func RegistConversion(name string, fun Conversion) {
 }
 
 // InitAppService init a app service
-func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
+func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
 	if configs == nil {
 		configs = make(map[string]string)
 	}
@@ -74,7 +75,7 @@ func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager
 			ExtensionSet:       configs,
 			GovernanceMode:     model.GovernanceModeBuildInServiceMesh,
 			DryRun:             dryRun,
-			SharedStorageClass: sharedStorageClass,
+			SharedStorageClass: configs2.Default().WorkerConfig.SharedStorageClass,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}

@@ -6,7 +6,7 @@ import (
 
 var (
 	// ErrUnsupportedS3Provider -
-	ErrUnsupportedS3Provider = errors.New("unsupported s3 provider")
+	ErrUnsupportedS3Provider = errors.New("unsupported storage provider")
 )
 
 // S3Provider -
@@ -14,7 +14,7 @@ type S3Provider string
 
 var (
 	// S3ProviderS3 -
-	S3ProviderS3 S3Provider = "s3"
+	S3ProviderS3 S3Provider = "storage"
 	// S3ProviderAliOSS -
 	S3ProviderAliOSS S3Provider = "alioss"
 )

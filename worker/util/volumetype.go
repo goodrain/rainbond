@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	storagev1 "k8s.io/api/storage/v1"
 )
 
@@ -42,12 +41,6 @@ func init() {
 
 // TransStorageClass2RBDVolumeType transfer k8s storageclass 2 rbd volumeType
 func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.TenantServiceVolumeType {
-	if sc.GetName() == v1.RainbondStatefuleShareStorageClass {
-		return &dbmodel.TenantServiceVolumeType{VolumeType: dbmodel.ShareFileVolumeType.String()}
-	}
-	if sc.GetName() == v1.RainbondStatefuleLocalStorageClass {
-		return &dbmodel.TenantServiceVolumeType{VolumeType: dbmodel.LocalVolumeType.String()}
-	}
 	scbs, _ := json.Marshal(sc)
 	cvbs, _ := json.Marshal(defaultcapacityValidation)
 

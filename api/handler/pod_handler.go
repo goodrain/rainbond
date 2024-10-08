@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/worker/server/pb"
 )
 
@@ -11,8 +11,8 @@ type PodHandler interface {
 }
 
 // NewPodHandler creates a new PodHandler.
-func NewPodHandler(statusCli *client.AppRuntimeSyncClient) PodHandler {
+func NewPodHandler() PodHandler {
 	return &PodAction{
-		statusCli: statusCli,
+		statusCli: grpc.Default().StatusClient,
 	}
 }

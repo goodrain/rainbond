@@ -9,7 +9,7 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
-//ServiceMonitor service monitor custom resource
+// ServiceMonitor service monitor custom resource
 const ServiceMonitor = "servicemonitors.monitoring.coreos.com"
 
 func (a *appRuntimeStore) GetCrds() (ret []*apiextensions.CustomResourceDefinition, err error) {
@@ -24,7 +24,7 @@ func (a *appRuntimeStore) GetServiceMonitorClient() (*versioned.Clientset, error
 	if c := a.crClients["ServiceMonitor"]; c != nil {
 		return c.(*versioned.Clientset), nil
 	}
-	c, err := versioned.NewForConfig(a.kubeconfig)
+	c, err := versioned.NewForConfig(a.k8sClient.RestConfig)
 	if err != nil {
 		return nil, err
 	}

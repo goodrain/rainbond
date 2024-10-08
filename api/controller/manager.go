@@ -19,12 +19,11 @@
 package controller
 
 import (
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/api"
 	"github.com/goodrain/rainbond/api/proxy"
-	"github.com/goodrain/rainbond/cmd/api/option"
-	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -57,8 +56,8 @@ type V2Manager interface {
 var defaultV2Manager V2Manager
 
 // CreateV2RouterManager 创建manager
-func CreateV2RouterManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (err error) {
-	defaultV2Manager, err = NewManager(conf, statusCli)
+func CreateV2RouterManager(statusCli *client.AppRuntimeSyncClient) (err error) {
+	defaultV2Manager, err = NewAPIManager(statusCli)
 	return err
 }
 
@@ -67,18 +66,12 @@ func GetManager() V2Manager {
 	return defaultV2Manager
 }
 
-// NewManager new manager
-func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
-	mqClient, err := mqclient.NewMqClient(conf.MQAPI)
-	if err != nil {
-		return nil, err
-	}
+// NewAPIManager new manager
+func NewAPIManager(statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
-	v2r.TenantStruct.MQClient = mqClient
-	v2r.GatewayStruct.MQClient = mqClient
-	v2r.GatewayStruct.cfg = &conf
-	v2r.LabelController.optconfig = &conf
+	v2r.TenantStruct.MQClient = mq.Default().MqClient
+	v2r.GatewayStruct.MQClient = mq.Default().MqClient
 	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>rbd-eventlog:6363"})
 	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil

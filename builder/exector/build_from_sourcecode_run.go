@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/parser"
+	"github.com/goodrain/rainbond/config/configs"
 	utils "github.com/goodrain/rainbond/util"
 	"io/ioutil"
 	"os"
@@ -112,6 +113,13 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	}
 	scb := &SourceCodeBuildItem{
 		Namespace:     gjson.GetBytes(in, "tenant_id").String(),
+		RbdNamespace:  configs.Default().PublicConfig.RbdNamespace,
+		RbdRepoName:   configs.Default().ChaosConfig.RbdRepoName,
+		CachePVCName:  configs.Default().ChaosConfig.CachePVCName,
+		GRDataPVCName: configs.Default().ChaosConfig.GRDataPVCName,
+		CacheMode:     configs.Default().ChaosConfig.CacheMode,
+		CachePath:     configs.Default().ChaosConfig.CachePath,
+		BRVersion:     configs.Default().ChaosConfig.BRVersion,
 		TenantName:    gjson.GetBytes(in, "tenant_name").String(),
 		ServiceAlias:  gjson.GetBytes(in, "service_alias").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),

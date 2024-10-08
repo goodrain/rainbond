@@ -22,6 +22,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -36,7 +38,6 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/goodrain/rainbond/builder/job"
-	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -68,20 +69,19 @@ type Manager interface {
 }
 
 // NewManager new manager
-func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
-	imageClient, err := sources.NewImageClient(conf.ContainerRuntime, conf.RuntimeEndpoint, time.Second*3)
+func NewManager() (Manager, error) {
+	configDefault := configs.Default()
+	imageClient, err := sources.NewImageClient()
 	if err != nil {
 		return nil, err
 	}
-
 	containerdClient := imageClient.GetContainerdClient()
-	if containerdClient == nil && conf.ContainerRuntime == sources.ContainerRuntimeContainerd {
+	if containerdClient == nil && configDefault.ChaosConfig.ContainerRuntime == sources.ContainerRuntimeContainerd {
 		return nil, fmt.Errorf("containerd client is nil")
 	}
-
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
-	if conf.KubeConfig != "" {
-		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
+	if configDefault.K8SConfig.KubeConfigPath != "" {
+		restConfig, err = clientcmd.BuildConfigFromFlags("", configDefault.K8SConfig.KubeConfigPath)
 	} else {
 		restConfig, err = rest.InClusterConfig()
 	}
@@ -92,33 +92,30 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
-
 	var maxConcurrentTask int
-	if conf.MaxTasks == 0 {
+	if configDefault.ChaosConfig.MaxTasks == 0 {
 		maxConcurrentTask = 50
 	} else {
-		maxConcurrentTask = conf.MaxTasks
+		maxConcurrentTask = configDefault.ChaosConfig.MaxTasks
 	}
 	stop := make(chan struct{})
-	if err := job.InitJobController(conf.RbdNamespace, stop, kubeClient); err != nil {
+	if err := job.InitJobController(configDefault.PublicConfig.RbdNamespace, stop, kubeClient); err != nil {
 		cancel()
 		return nil, err
 	}
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 
 	return &exectorManager{
-		BuildKitImage:     conf.BuildKitImage,
-		BuildKitArgs:      strings.Split(conf.BuildKitArgs, "&"),
-		BuildKitCache:     conf.BuildKitCache,
+		BuildKitImage:     configDefault.ChaosConfig.BuildKitImage,
+		BuildKitArgs:      strings.Split(configDefault.ChaosConfig.BuildKitArgs, "&"),
+		BuildKitCache:     configDefault.ChaosConfig.BuildKitCache,
 		KubeClient:        kubeClient,
-		mqClient:          mqc,
+		mqClient:          mq.Default().MqClient,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
 		maxConcurrentTask: maxConcurrentTask,
 		ctx:               ctx,
 		cancel:            cancel,
-		cfg:               conf,
 		imageClient:       imageClient,
 	}, nil
 }
@@ -135,7 +132,6 @@ type exectorManager struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	runningTask       sync.Map
-	cfg               option.Config
 	imageClient       sources.ImageClient
 }
 
@@ -348,15 +344,8 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.BuildKitArgs = e.BuildKitArgs
 	i.BuildKitCache = e.BuildKitCache
 	i.KubeClient = e.KubeClient
-	i.RbdNamespace = e.cfg.RbdNamespace
-	i.RbdRepoName = e.cfg.RbdRepoName
 	i.Ctx = e.ctx
 	i.Arch = task.Arch
-	i.CachePVCName = e.cfg.CachePVCName
-	i.GRDataPVCName = e.cfg.GRDataPVCName
-	i.CacheMode = e.cfg.CacheMode
-	i.CachePath = e.cfg.CachePath
-	i.BRVersion = e.cfg.BRVersion
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
 	defer event.GetManager().ReleaseLogger(i.Logger)
@@ -619,7 +608,7 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {
-	gci, err := NewGarbageCollectionItem(e.cfg, task.TaskBody)
+	gci, err := NewGarbageCollectionItem(task.TaskBody)
 	if err != nil {
 		logrus.Warningf("create a new GarbageCollectionItem: %v", err)
 	}

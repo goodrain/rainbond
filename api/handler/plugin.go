@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"strings"
 	"time"
 
@@ -42,9 +43,9 @@ type PluginAction struct {
 }
 
 // CreatePluginManager get plugin manager
-func CreatePluginManager(mqClient client.MQClient) *PluginAction {
+func CreatePluginManager() *PluginAction {
 	return &PluginAction{
-		MQClient: mqClient,
+		MQClient: mq.Default().MqClient,
 	}
 }
 

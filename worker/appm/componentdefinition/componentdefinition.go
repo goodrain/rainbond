@@ -21,6 +21,7 @@ package componentdefinition
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/config/configs"
 	"strings"
 	"sync"
 
@@ -51,11 +52,11 @@ type Builder struct {
 var componentDefinitionBuilder *Builder
 
 // NewComponentDefinitionBuilder -
-func NewComponentDefinitionBuilder(namespace string) *Builder {
+func NewComponentDefinitionBuilder() *Builder {
 	componentDefinitionBuilder = &Builder{
 		logger:      logrus.WithField("WHO", "Builder"),
 		definitions: make(map[string]*v1alpha1.ComponentDefinition),
-		namespace:   namespace,
+		namespace:   configs.Default().PublicConfig.RbdNamespace,
 	}
 	return componentDefinitionBuilder
 }
@@ -199,8 +200,8 @@ func (c *Builder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error
 	return nil
 }
 
-//InitCoreComponentDefinition init the built-in component type definition.
-//Should be called after the store is initialized.
+// InitCoreComponentDefinition init the built-in component type definition.
+// Should be called after the store is initialized.
 func (c *Builder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
 	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {
