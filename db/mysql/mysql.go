@@ -19,6 +19,7 @@
 package mysql
 
 import (
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"os"
 	"strconv"
 	"sync"
@@ -297,4 +298,489 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
 		logrus.Errorf("alter table applications error: %s", err.Error())
 	}
+	var count int64
+	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
+	if count == 0 {
+		m.initLanguageVersion()
+	}
+}
+
+func (m *Manager) initLanguageVersion() {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, GolangInitVersion...)
+	versions = append(versions, NodeInitVersion...)
+	versions = append(versions, WebCompilerInitVersion...)
+	versions = append(versions, OpenJDKInitVersion...)
+	versions = append(versions, MavenInitVersion...)
+	versions = append(versions, PythonInitVersion...)
+	versions = append(versions, NetRuntimeInitVersion...)
+	versions = append(versions, NetCompilerInitVersion...)
+	versions = append(versions, PHPInitVersion...)
+	versions = append(versions, WebRuntimeInitVersion...)
+	dbType := m.db.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, version := range versions {
+			if err := m.db.Create(version).Error; err != nil {
+				logrus.Error("batch Update or update k8sResources error:", err)
+			}
+		}
+		return
+	}
+	var objects []interface{}
+	for _, version := range versions {
+		objects = append(objects, *version)
+	}
+	if err := gormbulkups.BulkUpsert(m.db, objects, 2000); err != nil {
+		logrus.Errorf("create K8sResource groups in batch failure: %v", err)
+	}
+}
+
+// GolangInitVersion -
+var GolangInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "golang",
+		Version:     "go1.20.4",
+		FirstChoice: true,
+		System:      true,
+		FileName:    "go1.20.4.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.19.9",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.19.9.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.18.10",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.18.10.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.17.13",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.17.13.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.16.15",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.16.15.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.15.15",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.15.15.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.14.15",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.14.15.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.13.15",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.13.15.tar.gz",
+	}, {
+		Lang:        "golang",
+		Version:     "go1.12.17",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "go1.12.17.tar.gz",
+	},
+}
+
+// OpenJDKInitVersion -
+var OpenJDKInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "openJDK",
+		Version:     "17",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK17.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "16",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK16.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "15",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK15.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "14",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK14.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "13",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK13.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "12",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK12.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "11",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK11.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "10",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK10.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "1.9",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK1.9.tar.gz",
+	},
+	{
+		Lang:        "openJDK",
+		Version:     "1.8",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK1.8.tar.gz",
+	},
+}
+
+// PythonInitVersion -
+var PythonInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "python",
+		Version:     "python-3.9.16",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Python3.9.16.tar.gz",
+	}, {
+		Lang:        "python",
+		Version:     "python-3.8.16",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Python3.8.16.tar.gz",
+	}, {
+		Lang:        "python",
+		Version:     "python-3.7.16",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Python3.7.16.tar.gz",
+	}, {
+		Lang:        "python",
+		Version:     "python-3.6.15",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "Python3.6.15.tar.gz",
+	}, {
+		Lang:        "python",
+		Version:     "python-3.5.6",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Python3.5.6.tar.gz",
+	}, {
+		Lang:        "python",
+		Version:     "python-2.7.18",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Python2.7.18.tar.gz",
+	},
+}
+
+// MavenInitVersion -
+var MavenInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "maven",
+		Version:     "3.9.1",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.9.1.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.8.8",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.8.8.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.6.3",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.6.3.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.5.4",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.5.4.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.3.9",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.3.9.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.2.5",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.2.5.tar.gz",
+	}, {
+		Lang:        "maven",
+		Version:     "3.1.1",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Maven3.1.1.tar.gz",
+	},
+}
+
+// PHPInitVersion -
+var PHPInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "php",
+		Version:     "8.2.5",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "php8.2.5.tar.gz",
+	}, {
+		Lang:        "php",
+		Version:     "8.1.18",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "php8.1.18.tar.gz",
+	},
+}
+
+// NodeInitVersion -
+var NodeInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "node",
+		Version:     "20.0.0",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "Node20.0.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "19.9.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node19.9.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "18.16.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node18.16.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "17.9.1",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node17.9.1.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "16.20.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node16.20.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "16.15.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node16.15.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "15.14.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node15.14.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "14.21.3",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node14.21.3.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "13.14.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node13.14.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "12.22.12",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node12.22.12.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "11.15.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node11.15.0.tar.gz",
+	},
+}
+
+// WebCompilerInitVersion -
+var WebCompilerInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "java_server",
+		Version:     "tomcat85",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "tomcat85.tar.gz",
+	}, {
+		Lang:        "java_server",
+		Version:     "tomcat7",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "tomcat7.tar.gz",
+	}, {
+		Lang:        "java_server",
+		Version:     "tomcat8",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "tomcat8.tar.gz",
+	}, {
+		Lang:        "java_server",
+		Version:     "tomcat9",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "tomcat9.tar.gz",
+	}, {
+		Lang:        "java_server",
+		Version:     "jetty7",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "jetty7.tar.gz",
+	}, {
+		Lang:        "java_server",
+		Version:     "jetty9",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "jetty9.tar.gz",
+	},
+}
+
+// WebRuntimeInitVersion -
+var WebRuntimeInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "web_runtime",
+		Version:     "nginx",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "nginx-1.22.1-ubuntu-22.04.2.tar.gz",
+	}, {
+		Lang:        "web_runtime",
+		Version:     "apache",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "apache-2.2.19.tar.gz",
+	},
+}
+
+// NetCompilerInitVersion -
+var NetCompilerInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "net_sdk",
+		Version:     "2.2",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "mcr.microsoft.com/dotnet/core/sdk:2.2",
+	}, {
+		Lang:        "net_sdk",
+		Version:     "2.1",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "mcr.microsoft.com/dotnet/core/sdk:2.1",
+	},
+}
+
+// NetRuntimeInitVersion -
+var NetRuntimeInitVersion = []*model.EnterpriseLanguageVersion{
+	{
+		Lang:        "net_runtime",
+		Version:     "2.2",
+		FirstChoice: true,
+		Show:        true,
+		System:      true,
+		FileName:    "mcr.microsoft.com/dotnet/core/aspnet:2.2",
+	}, {
+		Lang:        "net_runtime",
+		Version:     "2.1",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "mcr.microsoft.com/dotnet/core/aspnet:2.1",
+	},
 }

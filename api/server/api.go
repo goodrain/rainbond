@@ -178,6 +178,8 @@ func (m *Manager) Run() {
 		websocketRouter.Mount("/package_build", websocket.PackageBuildRoutes())
 		// 共享存储的文件操作路由
 		websocketRouter.Mount("/v2/file-operate", websocket.FileOperateRoutes())
+		// 语言包处理
+		websocketRouter.Mount("/lg_pack_operate", websocket.LongVersionRoutes())
 		if m.WebSocket.WebsocketSSL {
 			logrus.Infof("websocket listen on (HTTPs) %s", m.WebSocket.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServeTLS(m.WebSocket.WebsocketAddr, m.WebSocket.WebsocketCertFile, m.WebSocket.WebsocketKeyFile, websocketRouter))

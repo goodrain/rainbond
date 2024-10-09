@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"io"
 	"io/ioutil"
 	"os"
@@ -359,6 +360,53 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				v = "web: " + v[4:]
 			}
 		}
+		if k == "RUNTIMES" || k == "GOVERSION" {
+			var lang string
+			switch re.Lang {
+			case code.Python:
+				lang = "python"
+			case code.Golang:
+				lang = "golang"
+			case code.JavaJar, code.JavaMaven, code.JaveWar, code.Gradle:
+				lang = "openJDK"
+			case code.PHP:
+				lang = "php"
+			case code.Nodejs, code.NodeJSStatic:
+				lang = "node"
+			}
+			version, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(lang, v)
+			if err != nil {
+				return err
+			}
+			if !version.System {
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES", Value: "true"})
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES_URL", Value: fmt.Sprintf("rbd-api-websocket:6060/lg_pack_operate/download/%v/%v", lang, v)})
+			}
+		}
+		if k == "RUNTIMES_MAVEN" {
+			version, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("maven", v)
+			if err != nil {
+				return err
+			}
+			if !version.System {
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES_MAVEN", Value: "true"})
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES_MAVEN_URL", Value: fmt.Sprintf("rbd-api-websocket:6060/lg_pack_operate/download/maven/%v", v)})
+			}
+		}
+		if k == "RUNTIMES_SERVER" {
+			language := "java_server"
+			if re.Lang == code.Static || re.Lang == code.PHP {
+				language = "web_runtime"
+			}
+			version, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(language, v)
+			if err != nil {
+				return err
+			}
+			if !version.System {
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES_SERVER", Value: "true"})
+				envs = append(envs, corev1.EnvVar{Name: "CUSTOMIZE_RUNTIMES_SERVER_URL", Value: fmt.Sprintf("rbd-api-websocket:6060/lg_pack_operate/download/%v/%v", language, v)})
+			}
+		}
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
 		if k == "PROC_ENV" {
 			var mapdata = make(map[string]interface{})
@@ -372,6 +420,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			buildNoCache = true
 		}
 	}
+
 	podSpec := corev1.PodSpec{
 		RestartPolicy: corev1.RestartPolicyOnFailure,
 		Affinity: &corev1.Affinity{

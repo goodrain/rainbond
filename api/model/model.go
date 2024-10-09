@@ -2257,3 +2257,13 @@ type FileInfo struct {
 	Title  string `json:"title"`
 	IsLeaf bool   `json:"is_leaf"`
 }
+
+// UpdateLangVersion -
+type UpdateLangVersion struct {
+	Lang        string `json:"lang"`
+	Version     string `json:"version"`
+	EventID     string `json:"event_id"`
+	FileName    string `json:"file_name"`
+	Show        bool   `json:"show"`
+	FirstChoice bool   `json:"first_choice"`
+}

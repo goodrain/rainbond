@@ -20,6 +20,8 @@ package code
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db"
+	"github.com/jinzhu/gorm"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -29,10 +31,10 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
-//ErrRuntimeNotSupport runtime not support
+// ErrRuntimeNotSupport runtime not support
 var ErrRuntimeNotSupport = fmt.Errorf("runtime version not support")
 
-//CheckRuntime CheckRuntime
+// CheckRuntime CheckRuntime
 func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
 	switch lang {
 	case PHP:
@@ -48,10 +50,9 @@ func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		runtime["RUNTIMES_SERVER"] = "nginx"
 		return runtime, nil
 	case Static:
-		return map[string]string{"RUNTIMES_SERVER": "nginx"}, nil
+		return map[string]string{}, nil
 	default:
 		return nil, nil
 	}
@@ -72,12 +73,13 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 	}
 	getPhpNewVersion := func(v string) string {
 		version := v
-		switch v {
-		case "8.1":
-			version = "8.1.18"
-		// "7.1 compatible with old official demos"
-		case "7.1", "8.2":
-			version = "8.2.5"
+		vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("php", version)
+		if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
+			ver, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("php")
+			if err != nil {
+				return version
+			}
+			return ver.Version
 		}
 		return version
 	}
@@ -124,7 +126,16 @@ func readPythonRuntimeInfo(buildPath string) (map[string]string, error) {
 	if err != nil {
 		return runtimeInfo, nil
 	}
-	runtimeInfo["RUNTIMES"] = string(body)
+	version := string(body)
+	v, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("python", version)
+	if (err != nil && err == gorm.ErrRecordNotFound) || !v.Show {
+		ver, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("python")
+		if err != nil {
+			return runtimeInfo, nil
+		}
+		version = ver.Version
+	}
+	runtimeInfo["RUNTIMES"] = version
 	return runtimeInfo, nil
 }
 
@@ -140,6 +151,14 @@ func readJavaRuntimeInfo(buildPath string) (map[string]string, error) {
 		return runtimeInfo, nil
 	}
 	if runtime != "" {
+		vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("openJDK", runtime)
+		if (err != nil && err == gorm.ErrRecordNotFound) && !vv.Show {
+			ver, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("openJDK")
+			if err != nil {
+				return runtimeInfo, nil
+			}
+			runtime = ver.Version
+		}
 		runtimeInfo["RUNTIMES"] = runtime
 	}
 	return runtimeInfo, nil
@@ -163,7 +182,14 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 			nodeVersion, _ := v.String()
 			// The latest version is used by default. (11.1.0 is latest version in ui)
 			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
-				nodeVersion = "20.0.0"
+				vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("node", nodeVersion)
+				if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
+					v, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("node")
+					if err != nil {
+						return runtimeInfo, nil
+					}
+					nodeVersion = v.Version
+				}
 			}
 			runtimeInfo["RUNTIMES"] = nodeVersion
 		}

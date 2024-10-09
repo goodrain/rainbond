@@ -32,9 +32,14 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	utils "github.com/goodrain/rainbond/util"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"io"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -495,4 +500,139 @@ func (c *ClusterController) UpdateAbility(w http.ResponseWriter, r *http.Request
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+// GetLangVersion Get the unconnected namespaces under the current cluster
+func (c *ClusterController) GetLangVersion(w http.ResponseWriter, r *http.Request) {
+	// language：查询的语言
+	// show：版本信息
+	language := r.URL.Query().Get("language")
+	show := r.URL.Query().Get("show")
+	// 获取版本列表
+	versions, err := db.GetManager().LongVersionDao().ListVersionByLanguage(language, show)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, fmt.Errorf("update lang version failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, versions)
+}
+
+// UpdateLangVersion -
+func (c *ClusterController) UpdateLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	// 更新默认语言版本
+	err := db.GetManager().LongVersionDao().DefaultLangVersion(lang.Lang, lang.Version, lang.Show, lang.FirstChoice)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("update lang version failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "更新成功")
+}
+
+// CreateLangVersion -
+func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	// 根据语言标识和版本号，获取语言版本信息。
+	_, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(lang.Lang, lang.Version)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("get lang version failure: %v", err))
+		return
+	}
+	if err == gorm.ErrRecordNotFound {
+		// 创建新的语言版本记录。
+		err := db.GetManager().LongVersionDao().CreateLangVersion(lang.Lang, lang.Version, lang.EventID, lang.FileName, lang.Show)
+		if err != nil {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("create lang version failure: %v", err))
+			return
+		}
+		sourceDir := path.Join(LSUploadPath, lang.EventID)
+		destinationDir := path.Join(BaseUploadPath, lang.EventID)
+		err = copyDirectory(sourceDir, destinationDir)
+		if err != nil {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("rename lang version failure: %v", err))
+			return
+		}
+		httputil.ReturnSuccess(r, w, "创建成功")
+		return
+	}
+	httputil.ReturnSuccess(r, w, "exist")
+	return
+}
+
+// DeleteLangVersion -
+func (c *ClusterController) DeleteLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	// 根据语言标识和版本号，删除该语言版本
+	eventID, err := db.GetManager().LongVersionDao().DeleteLangVersion(lang.Lang, lang.Version)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version failure: %v", err))
+		return
+	}
+	// 删除本地文件
+	err = os.RemoveAll(path.Join(BaseUploadPath, eventID))
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version pack failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "删除成功")
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	err = destinationFile.Sync()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyDirectory(srcDir, dstDir string) error {
+	err := os.MkdirAll(dstDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relativePath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstDir, relativePath)
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("skipping symbolic link: %s", path)
+		}
+		return copyFile(path, dstPath)
+	})
+	return err
 }

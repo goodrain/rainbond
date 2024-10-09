@@ -41,6 +41,7 @@ type V2Manager interface {
 	api.PluginInterface
 	api.RulesInterface
 	api.AppInterface
+	api.LongVersionInterface
 	api.Gatewayer
 	api.ThirdPartyServicer
 	api.Labeler

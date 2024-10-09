@@ -140,3 +140,20 @@ type AppGrayRelease struct {
 func (k *AppGrayRelease) TableName() string {
 	return "app_gray_release"
 }
+
+// EnterpriseLanguageVersion language model
+type EnterpriseLanguageVersion struct {
+	Model
+	Lang        string `gorm:"column:lang" json:"lang"`
+	Version     string `gorm:"column:version" json:"version"`
+	FirstChoice bool   `gorm:"column:first_choice" json:"first_choice"`
+	EventID     string `gorm:"column:event_id" json:"event_id"`
+	FileName    string `gorm:"column:file_name" json:"file_name"`
+	System      bool   `gorm:"column:system" json:"system"`
+	Show        bool   `gorm:"column:is_show" json:"show"`
+}
+
+// TableName return tableName "k8s_resources"
+func (k *EnterpriseLanguageVersion) TableName() string {
+	return "enterprise_language_version"
+}

@@ -21,6 +21,7 @@ package build
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/db"
 	"io/ioutil"
 	"os"
 	"path"
@@ -31,15 +32,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var dockerfileTmpl = `
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION:2.1-alpine} AS builder
+var netDockerfileTmpl = `
+FROM ${DOTNET_SDK} AS builder
 WORKDIR /app
 
 # copy csproj and restore as distinct layers
 COPY . .
 RUN ${DOTNET_RESTORE_PRE} && ${DOTNET_RESTORE:dotnet restore} && dotnet publish -c Release -o /out
 
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION:2.1-alpine}
+FROM ${DOTNET_RUNTIME}
 WORKDIR /app
 COPY --from=builder /out/ .
 CMD ["dotnet"]
@@ -108,7 +109,21 @@ func (d *customDockerfileBuild) Build(re *Request) (*Response, error) {
 }
 
 func (d *customDockerfileBuild) writeDockerfile(sourceDir string, envs map[string]string, lang code.Lang) error {
-	dockerfile := util.ParseVariable(dockerfileTmpl, envs)
+	if lang == code.NetCore {
+		version := envs["DOTNET_SDK_VERSION"]
+		compilerVersion, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("net_sdk", version)
+		if err != nil {
+			return err
+		}
+		version = envs["DOTNET_RUNTIME_VERSION"]
+		runtimeVersion, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("net_runtime", version)
+		if err != nil {
+			return err
+		}
+		envs["DOTNET_SDK"] = compilerVersion.FileName
+		envs["DOTNET_RUNTIME"] = runtimeVersion.FileName
+	}
+	dockerfile := util.ParseVariable(netDockerfileTmpl, envs)
 	if lang == "NodeJSStatic" && envs["MODE"] == "DOCKERFILE" {
 		if envs["NODE_BUILD_CMD"] == "" {
 			envs["NODE_BUILD_CMD"] = envs["PACKAGE_TOOL"] + " run build"

@@ -50,6 +50,8 @@ type Manager interface {
 	AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao
 	K8sResourceDao() dao.K8sResourceDao
 	K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao
+	LongVersionDao() dao.LongVersionDao
+	LongVersionDaoTransactions(db *gorm.DB) dao.LongVersionDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao

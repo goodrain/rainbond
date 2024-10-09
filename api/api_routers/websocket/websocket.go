@@ -70,3 +70,13 @@ func FileOperateRoutes() chi.Router {
 	r.Options("/upload", controller.GetFileManage().Get)
 	return r
 }
+
+// LongVersionRoutes 语言包处理
+func LongVersionRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Options("/upload", controller.GetManager().OptionLongVersion)
+	r.Post("/upload", controller.GetManager().UploadLongVersion)
+	r.Get("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
+	r.Head("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
+	return r
+}
