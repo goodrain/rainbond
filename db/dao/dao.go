@@ -53,10 +53,11 @@ type TenantDao interface {
 	GetTenantByUUID(uuid string) (*model.Tenants, error)
 	GetTenantIDByName(tenantName string) (*model.Tenants, error)
 	GetALLTenants(query string) ([]*model.Tenants, error)
+	GetTenantsByTenantIDs(tenantIDs []string) ([]*model.Tenants, error)
 	GetTenantByEid(eid, query string) ([]*model.Tenants, error)
 	GetPagedTenants(offset, len int) ([]*model.Tenants, error)
 	GetTenantIDsByNames(names []string) ([]string, error)
-	GetTenantLimitsByNames(names []string) (map[string]int, error)
+	GetTenantLimitsByNames(names []string) (map[string]*model.Tenants, []string, error)
 	GetTenantByUUIDIsExist(uuid string) bool
 	DelByTenantID(tenantID string) error
 }
@@ -155,6 +156,7 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetStartServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
 	CountServiceByAppID(appID string) (int64, error)
 	GetServiceIDsByAppID(appID string) (re []model.ServiceID)

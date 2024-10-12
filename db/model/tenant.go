@@ -62,12 +62,14 @@ func (t TenantStatus) String() string {
 // Tenants 租户信息
 type Tenants struct {
 	Model
-	Name        string `gorm:"column:name;size:40;unique_index"`
-	UUID        string `gorm:"column:uuid;size:33;unique_index"`
-	EID         string `gorm:"column:eid"`
-	LimitMemory int    `gorm:"column:limit_memory"`
-	Status      string `gorm:"column:status;default:'normal'"`
-	Namespace   string `gorm:"column:namespace;size:32;unique_index"`
+	Name         string `gorm:"column:name;size:40;unique_index"`
+	UUID         string `gorm:"column:uuid;size:33;unique_index"`
+	EID          string `gorm:"column:eid"`
+	LimitCPU     int    `gorm:"column:limit_cpu"`
+	LimitStorage int    `gorm:"column:limit_storage"`
+	LimitMemory  int    `gorm:"column:limit_memory"`
+	Status       string `gorm:"column:status;default:'normal'"`
+	Namespace    string `gorm:"column:namespace;size:32;unique_index"`
 }
 
 // TableName 返回租户表名称

@@ -13,6 +13,27 @@ const (
 	ImagePullSecretKey = "IMAGE_PULL_SECRET"
 	// DefOnlineImageRepository default private image repository
 	DefOnlineImageRepository = "registry.cn-hangzhou.aliyuncs.com/goodrain"
+
+	// NotFound
+	NotFound = "not found"
+
+	// TenantQuotaCPULack
+	TenantQuotaCPULack = "tenant_quota_cpu_lack"
+
+	// enantQuotaMemoryLack
+	TenantQuotaMemoryLack = "tenant_quota_memory_lack"
+
+	// TenantLackOfMemory
+	TenantLackOfMemory = "tenant_lack_of_memory"
+
+	// TenantLackOfCPU
+	TenantLackOfCPU = "tenant_lack_of_cpu"
+
+	// TenantLackOfStorage
+	TenantLackOfStorage = "tenant_lack_of_storage"
+
+	// ClusterLackOfMemory
+	ClusterLackOfMemory = "cluster_lack_of_memory"
 )
 
 // Kubernetes recommended Labels

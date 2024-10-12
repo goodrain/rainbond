@@ -25,8 +25,11 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
+	"github.com/goodrain/rainbond/util/constants"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,6 +134,15 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) apimodel.T
 // GetTenants get tenants
 func (t *TenantAction) GetTenants(query string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants(query)
+	if err != nil {
+		return nil, err
+	}
+	return tenants, err
+}
+
+// GetTenantsByTenantIDs get tenants ids
+func (t *TenantAction) GetTenantsByTenantIDs(TenantIDs []string) ([]*dbmodel.Tenants, error) {
+	tenants, err := db.GetManager().TenantDao().GetTenantsByTenantIDs(TenantIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -286,11 +298,11 @@ type QueryResult struct {
 
 // GetTenantsResources Gets the resource usage of the specified tenant.
 func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.TenantResources) (map[string]map[string]interface{}, error) {
-	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
-	if err != nil {
-		return nil, err
-	}
-	limits, err := db.GetManager().TenantDao().GetTenantLimitsByNames(tr.Body.TenantNames)
+	//ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
+	//if err != nil {
+	//	return nil, err
+	//}
+	limits, ids, err := db.GetManager().TenantDao().GetTenantLimitsByNames(tr.Body.TenantNames)
 	if err != nil {
 		return nil, err
 	}
@@ -327,16 +339,21 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 		}
 	}
 	for _, tenantID := range ids {
-		var limitMemory int64
-		if l, ok := limits[tenantID]; ok && l != 0 {
-			limitMemory = int64(l)
+		var limitMemory, limitCPU, limitStorage int64
+		if l, ok := limits[tenantID]; ok && l != nil {
+			limitMemory = int64(l.LimitMemory)
+			limitCPU = int64(l.LimitCPU)
+			limitStorage = int64(l.LimitStorage)
 		} else {
 			limitMemory = clusterStats.AllMemory
+			limitCPU = clusterStats.AllCPU
+			limitStorage = int64(clusterStats.TotalDisk)
 		}
 		result[tenantID] = map[string]interface{}{
 			"tenant_id":           tenantID,
 			"limit_memory":        limitMemory,
-			"limit_cpu":           clusterStats.AllCPU,
+			"limit_cpu":           limitCPU,
+			"limit_storage":       limitStorage,
 			"service_total_num":   serviceTenantCount[tenantID],
 			"disk":                0,
 			"service_running_num": 0,
@@ -351,6 +368,7 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 			result[tenantID]["memory"] = tr.MemoryRequest
 			result[tenantID]["app_running_num"] = tr.RunningApplications
 		}
+
 	}
 	//query disk used in prometheus
 	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))
@@ -410,12 +428,23 @@ type PodResourceInformation struct {
 	StorageEphemeral int64
 }
 
+// NodeGPU -
+type NodeGPU struct {
+	NodeName string
+	GPUCount int64
+	GPUMem   int64
+}
+
 // ClusterResourceStats cluster resource stats
 type ClusterResourceStats struct {
 	AllCPU        int64
 	AllMemory     int64
+	AllGPU        int64
+	NodeGPU       []NodeGPU
 	RequestCPU    int64
 	RequestMemory int64
+	UsageDisk     uint64
+	TotalDisk     uint64
 	NodePods      []PodResourceInformation
 	AllPods       int64
 }
@@ -683,4 +712,167 @@ func (t *TenantAction) CheckResourceName(ctx context.Context, namespace string, 
 	return &model.CheckResourceNameResp{
 		Name: req.Name,
 	}, nil
+}
+
+// TenantResourceQuota - 设置或更新租户的资源配额和限制范围。
+func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string, limitCPU, limitMemory, LimitStorage int) error {
+	// ConvertMemory, ConvertCPU, ConvertStorage 函数将 limit 值转换为字符串表示
+	memory := ConvertMemory(limitMemory)
+	cpu := ConvertCPU(limitCPU)
+	storage := ConvertStorage(LimitStorage)
+	// 创建一个K8s的资源对象，用于存储资源配额的信息
+	resources := make(map[corev1.ResourceName]resource.Quantity)
+	if limitCPU != 0 {
+		resources[corev1.ResourceLimitsCPU] = resource.MustParse(cpu)
+	}
+	if limitMemory != 0 {
+		resources[corev1.ResourceLimitsMemory] = resource.MustParse(memory)
+	}
+	if LimitStorage != 0 {
+		resources[corev1.ResourceRequestsStorage] = resource.MustParse(storage)
+	}
+
+	// ResourceQuota 对象定义了在命名空间内的资源配额。
+	// 该配额限制了命名空间中可用的总资源量。
+	// 详细内容参考：https://kubernetes.io/zh-cn/docs/concepts/policy/resource-quotas/
+	quota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%v-%v", namespace, "limits-quota"),
+			Namespace: namespace,
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: resources,
+		},
+	}
+
+	// 尝试在 Kubernetes 中创建 ResourceQuota 对象。
+	_, err := t.kubeClient.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{})
+	if err != nil {
+		// 如果配额已存在，则更新或删除配额。
+		if k8sErrors.IsAlreadyExists(err) {
+			if limitCPU == 0 && limitMemory == 0 && LimitStorage == 0 {
+				// 如果所有限制为零，则删除配额。
+				err = t.kubeClient.CoreV1().ResourceQuotas(namespace).Delete(ctx, fmt.Sprintf("%v-limits-quota", namespace), metav1.DeleteOptions{})
+				if err != nil {
+					return errors.Wrap(err, "delete tenant quotas failure")
+				}
+			} else {
+				// 否则，更新现有的配额。
+				_, err = t.kubeClient.CoreV1().ResourceQuotas(namespace).Update(ctx, quota, metav1.UpdateOptions{})
+				if err != nil {
+					return errors.Wrap(err, "update tenant quotas failure")
+				}
+			}
+		} else {
+			return err
+		}
+	}
+
+	// LimitRangeItem 对象定义了在命名空间内单个容器或 Pod 可使用的资源范围。
+	// 这里设置了 CPU 和内存的默认限制。
+	// 详细内容参考：https://kubernetes.io/zh-cn/docs/concepts/policy/limit-range/
+	var lrs []v1.LimitRangeItem
+	lrsResource := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("128m"),
+		corev1.ResourceMemory: resource.MustParse("512Mi"),
+	}
+	lrs = append(lrs, v1.LimitRangeItem{
+		Default:        lrsResource,
+		DefaultRequest: lrsResource,
+		Type:           corev1.LimitTypeContainer,
+	})
+
+	// 初始化 LimitRange 对象，它可以强制执行容器或 Pod 级别的资源限制。
+	lr := &v1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%v-%v", namespace, "limits-range"),
+			Namespace: namespace,
+		},
+		Spec: v1.LimitRangeSpec{
+			Limits: lrs,
+		},
+	}
+
+	// 尝试在 Kubernetes 中创建 LimitRange 对象。
+	_, err = t.kubeClient.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{})
+	if err != nil {
+		if k8sErrors.IsAlreadyExists(err) {
+			if limitCPU == 0 && limitMemory == 0 {
+				// 如果 LimitRange 已存在且不限制内存和CPU的情况下，则删除 LimitRange。
+				err = t.kubeClient.CoreV1().LimitRanges(namespace).Delete(ctx, fmt.Sprintf("%v-limits-range", namespace), metav1.DeleteOptions{})
+				if err != nil {
+					return errors.Wrap(err, "delete tenant limit range failure")
+				}
+			}
+		} else {
+			return err
+		}
+	}
+	return nil
+}
+
+func ConvertMemory(memory int) string {
+	if memory >= 1024 {
+		return fmt.Sprintf("%vGi", memory/1024)
+	}
+	return fmt.Sprintf("%vMi", memory)
+}
+
+func ConvertCPU(cpu int) string {
+	if cpu >= 1000 {
+		return fmt.Sprintf("%v", strconv.Itoa(cpu/1000))
+	}
+	return fmt.Sprintf("%vm", cpu)
+}
+
+func ConvertStorage(storage int) string {
+	return fmt.Sprintf("%vGi", strconv.Itoa(storage))
+}
+
+func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context, namespace string, noMemory, noCPU int) error {
+	quotas, err := t.kubeClient.CoreV1().ResourceQuotas(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-quota"), metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), constants.NotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "get tenant limit range failure")
+	}
+	hardCpu := quotas.Status.Hard["limits.cpu"]
+	userCpu := quotas.Status.Used["limits.cpu"]
+	hardMemory := quotas.Status.Hard["limits.memory"]
+	userMemory := quotas.Status.Used["limits.memory"]
+
+	surplusCPU := ConvertCpuToInt(hardCpu.String()) - ConvertCpuToInt(userCpu.String())
+	surplusMemory := hardMemory.Value() - userMemory.Value()
+	limitRanges, err := t.kubeClient.CoreV1().LimitRanges(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-range"), metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), constants.NotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "get tenant limit range failure")
+	}
+	var defaultCpu, defaultMemory int64
+	for _, limit := range limitRanges.Spec.Limits {
+		cpu := limit.Default["cpu"]
+		defaultCpu = ConvertCpuToInt(cpu.String())
+		defaultMemory = limit.Default.Memory().Value()
+	}
+	if ConvertCpuToInt(hardCpu.String()) > 0 && int64(noCPU)*defaultCpu > surplusCPU {
+		return errors.New(constants.TenantQuotaCPULack)
+	}
+	if hardMemory.Value() > 0 && int64(noMemory)*defaultMemory > surplusMemory {
+		return errors.New(constants.TenantQuotaMemoryLack)
+	}
+	return nil
+}
+
+func ConvertCpuToInt(cpu string) int64 {
+	var res int64
+	if strings.Contains(cpu, "m") {
+		s := strings.TrimRight(cpu, "m")
+		res, _ = strconv.ParseInt(s, 10, 64)
+		return res
+	}
+	res, _ = strconv.ParseInt(cpu, 10, 64)
+	return res * 1000
 }

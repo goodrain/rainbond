@@ -30,6 +30,7 @@ import (
 // TenantHandler tenant handler
 type TenantHandler interface {
 	GetTenants(query string) ([]*dbmodel.Tenants, error)
+	GetTenantsByTenantIDs(TenantIDs []string) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
 	GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
@@ -50,4 +51,6 @@ type TenantHandler interface {
 	DeleteTenant(ctx context.Context, tenantID string) error
 	GetClusterResource(ctx context.Context) *ClusterResourceStats
 	CheckResourceName(ctx context.Context, namespace string, req *model.CheckResourceNameReq) (*model.CheckResourceNameResp, error)
+	TenantResourceQuota(ctx context.Context, namespace string, limitCPU, limitMemory, LimitStorage int) error
+	CheckTenantResourceQuotaAndLimitRange(ctx context.Context, namespace string, noMemory, noCPU int) error
 }

@@ -22,10 +22,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"strings"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
@@ -36,6 +32,9 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
+	"strings"
 )
 
 var pool []string

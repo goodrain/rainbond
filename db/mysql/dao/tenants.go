@@ -25,6 +25,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -105,6 +106,15 @@ func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	return tenants, nil
 }
 
+// GetTenantsByTenantIDs -
+func (t *TenantDaoImpl) GetTenantsByTenantIDs(tenantIDs []string) ([]*model.Tenants, error) {
+	var tenants []*model.Tenants
+	if err := t.DB.Where("uuid IN (?)", tenantIDs).Find(&tenants).Error; err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
 // GetTenantByEid get tenants by eid
 func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
@@ -136,20 +146,18 @@ func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err er
 }
 
 // GetTenantLimitsByNames get tenants memory limit
-func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (limit map[string]int, err error) {
-	limit = make(map[string]int)
-	rows, err := t.DB.Raw("select uuid,limit_memory from tenants where name in (?)", names).Rows()
-	if err != nil {
-		return nil, err
+func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (map[string]*model.Tenants, []string, error) {
+	limit := make(map[string]*model.Tenants)
+	var ids []string
+	var tenants []*model.Tenants
+	if err := t.DB.Where("name IN (?)", names).Find(&tenants).Error; err != nil {
+		return nil, nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var limitmemory int
-		var uuid string
-		rows.Scan(&uuid, &limitmemory)
-		limit[uuid] = limitmemory
+	for _, tenant := range tenants {
+		ids = append(ids, tenant.UUID)
+		limit[tenant.UUID] = tenant
 	}
-	return
+	return limit, ids, nil
 }
 
 // GetPagedTenants -
@@ -226,6 +234,10 @@ func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion str
 	return nil
 }
 
+func (t *TenantServicesDaoImpl) UpdateSafety(serviceID string, safety bool) error {
+	return t.DB.Exec("update tenant_services set safety=? where service_id=?", safety, serviceID).Error
+}
+
 // AddModel 添加租户应用
 func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
@@ -249,10 +261,26 @@ func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+func (t *TenantServicesDaoImpl) UpdateComponentStatusModel(serviceID string, status bool) error {
+	return t.DB.Debug().Model(&model.TenantServices{}).
+		Where("service_id = ?", serviceID).
+		Update("component_status", status).
+		Error
+}
+
 // GetServiceByID 获取服务通过服务id
 func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_id=?", serviceID).Find(&service).Error; err != nil {
+		return nil, err
+	}
+	return &service, nil
+}
+
+// GetServiceByk8sComponentName 获取服务通过k8sname
+func (t *TenantServicesDaoImpl) GetServiceByk8sComponentName(k8sComponentName string) (*model.TenantServices, error) {
+	var service model.TenantServices
+	if err := t.DB.Where("k8s_component_name=?", k8sComponentName).Find(&service).Error; err != nil {
 		return nil, err
 	}
 	return &service, nil
@@ -473,6 +501,18 @@ func (t *TenantServicesDaoImpl) GetServicesAllInfoByTenantID(tenantID string) ([
 	return services, nil
 }
 
+// GetStartServicesAllInfoByTenantID -
+func (t *TenantServicesDaoImpl) GetStartServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("tenant_id= ? and component_status=?", tenantID, true).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
 // GetServicesInfoByAppID Get Services Info By ApplicationID
 func (t *TenantServicesDaoImpl) GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error) {
 	var (
@@ -667,6 +707,16 @@ func (t *TenantServicesDeleteImpl) List() ([]*model.TenantServicesDelete, error)
 		return nil, pkgerr.Wrap(err, "list deleted components")
 	}
 	return components, nil
+}
+
+// TenantServiceInspectionDaoImpl 组件源码安全
+type TenantServiceInspectionDaoImpl struct {
+	DB *gorm.DB
+}
+
+// TenantServiceSecurityContextDaoImpl 组件配置安全
+type TenantServiceSecurityContextDaoImpl struct {
+	DB *gorm.DB
 }
 
 // TenantServicesPortDaoImpl 租户应用端口操作
@@ -1243,9 +1293,9 @@ func (t *TenantServiceMountRelationDaoImpl) DELTenantServiceMountRelationByServi
 
 // GetTenantServiceMountRelationsByService 获取应用的所有挂载依赖
 func (t *TenantServiceMountRelationDaoImpl) GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error) {
-	var relations []*model.TenantServiceMountRelation
+	var relations = make([]*model.TenantServiceMountRelation, 0)
 	if err := t.DB.Where("service_id=? ", serviceID).Find(&relations).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if strings.Contains(err.Error(), "record not found") {
 			return relations, nil
 		}
 		return nil, err
@@ -1338,9 +1388,9 @@ func (t *TenantServiceVolumeDaoImpl) UpdateModel(mo model.Interface) error {
 
 // GetTenantServiceVolumesByServiceID 获取应用挂载
 func (t *TenantServiceVolumeDaoImpl) GetTenantServiceVolumesByServiceID(serviceID string) ([]*model.TenantServiceVolume, error) {
-	var volumes []*model.TenantServiceVolume
+	var volumes = make([]*model.TenantServiceVolume, 0)
 	if err := t.DB.Where("service_id=? ", serviceID).Find(&volumes).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if strings.Contains(err.Error(), "record not found") {
 			return volumes, nil
 		}
 		return nil, err

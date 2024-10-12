@@ -218,6 +218,23 @@ type CreateServiceStruct struct {
 	}
 }
 
+type ServiceSecurityContext struct {
+	ServiceID      string `json:"service_id"`
+	SeccompProfile struct {
+		SeccompProfileType string `json:"type"`
+		LocalhostProfile   string `json:"localhostProfile"`
+	} `json:"seccomp_profile"`
+	RunAsNonRoot             bool `json:"run_as_non_root"`
+	AllowPrivilegeEscalation bool `json:"allow_privilege_escalation"`
+	RunAsUser                int  `json:"run_as_user"`
+	RunAsGroup               int  `json:"run_as_group"`
+	Capabilities             struct {
+		Add  []corev1.Capability `json:"add"`
+		Drop []corev1.Capability `json:"drop"`
+	} `json:"capabilities"`
+	ReadOnlyRootFilesystem bool `json:"read_only_root_filesystem"`
+}
+
 // UpdateServiceStruct service update
 // swagger:parameters updateService
 type UpdateServiceStruct struct {
@@ -423,12 +440,18 @@ type TenantServiceVolumeStruct struct {
 	AllowExpansion bool `json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `json:"volume_provider_name"`
+	// NFSServer NFS存储服务地址
+	NFSServer string `json:"nfs_server"`
+	// NFSPath NFS存储服务路径
+	NFSPath string `json:"nfs_path"`
 }
 
 // DependService struct for depend service
 type DependService struct {
 	TenantID       string `json:"tenant_id"`
 	ServiceID      string `json:"service_id"`
+	Namespace      string `json:"namespace"`
+	DepSAName      string `json:"dep_sa_name"`
 	DepServiceID   string `json:"dep_service_id"`
 	DepServiceType string `json:"dep_service_type"`
 	Action         string `json:"action"`
@@ -463,6 +486,7 @@ type AddHandleResource struct {
 	Namespace    string `json:"namespace"`
 	AppID        string `json:"app_id"`
 	ResourceYaml string `json:"resource_yaml"`
+	Recover      bool   `json:"recover"`
 }
 
 // HandleResource -
@@ -1660,8 +1684,8 @@ type ExportAppStruct struct {
 type BatchOperationReq struct {
 	TenantName string `json:"tenant_name"`
 	Body       struct {
-		Operator  string                 `json:"operator"`
 		Operation string                 `json:"operation" validate:"operation|required|in:start,stop,build,upgrade,export"`
+		Operator  string                 `json:"operator"`
 		Builds    []*ComponentBuildReq   `json:"build_infos,omitempty"`
 		Starts    []*ComponentStartReq   `json:"start_infos,omitempty"`
 		Stops     []*ComponentStopReq    `json:"stop_infos,omitempty"`
@@ -1775,6 +1799,8 @@ type ComponentBuildReq struct {
 	SlugInfo BuildSlugInfo `json:"slug_info,omitempty"`
 	//tenantName
 	TenantName string `json:"-"`
+	//InRolling
+	InRolling bool `json:"in_rolling"`
 }
 
 // GetEventID -
@@ -1806,6 +1832,12 @@ func (b *ComponentBuildReq) SetVersion(string) {
 	return
 }
 
+// SetInRolling -
+func (b *ComponentBuildReq) SetInRolling(bool) {
+	// no need
+	return
+}
+
 // OpType -
 func (b *ComponentBuildReq) OpType() string {
 	return "build-service"
@@ -1832,6 +1864,7 @@ type ComponentUpgradeReq struct {
 	//UpgradeVersion The target version of the upgrade
 	//If empty, the same version is upgraded
 	UpgradeVersion string `json:"upgrade_version"`
+	InRolling      bool   `json:"in_rolling"`
 }
 
 // GetEventID -
@@ -1864,6 +1897,11 @@ func (u *ComponentUpgradeReq) SetVersion(version string) {
 	}
 }
 
+// SetInRolling -
+func (u *ComponentUpgradeReq) SetInRolling(inRolling bool) {
+	u.InRolling = inRolling
+}
+
 // GetComponentID -
 func (u *ComponentUpgradeReq) GetComponentID() string {
 	return u.ServiceID
@@ -1877,6 +1915,7 @@ func (u *ComponentUpgradeReq) TaskBody(cpt *dbmodel.TenantServices) interface{} 
 		NewDeployVersion: u.UpgradeVersion,
 		EventID:          u.GetEventID(),
 		Configs:          u.Configs,
+		InRolling:        u.InRolling,
 	}
 }
 
@@ -2211,6 +2250,7 @@ type RainbondPlugins struct {
 	Icon        string            `json:"icon"`
 	Description string            `json:"description"`
 	Version     string            `json:"version"`
+	Namespace   string            `json:"namespace"`
 	Author      string            `json:"author"`
 	Status      string            `json:"status"`
 	Alias       string            `json:"alias"`
@@ -2230,6 +2270,68 @@ type GovernanceMode struct {
 	Description string `json:"description"`
 }
 
+// FileInfo -
+type FileInfo struct {
+	Title  string `json:"title"`
+	IsLeaf bool   `json:"is_leaf"`
+}
+
+type GrayReleaseModeRet struct {
+	ComponentID         string `json:"component_id"`
+	Hostname            string `json:"hostname"`
+	IstioNamespace      string `json:"istio_namespace"`
+	CanaryReadyReplicas int32  `json:"canary_ready_replicas"`
+	CanaryReplicas      int32  `json:"canary_replicas"`
+	CurrentStepIndex    int    `json:"current_step_index"`
+	CurrentStepState    string `json:"current_step_state"`
+	Message             string `json:"message"`
+	Step                int    `json:"step"`
+	NewVersion          string `json:"new_version"`
+	OldVersion          string `json:"old_version"`
+}
+
+type GrayReleaseModeReq struct {
+	AppID            string             `json:"app_id"`
+	Namespace        string             `json:"namespace"`
+	EntryComponentID string             `json:"entry_component_id"`
+	EntryHttpRoute   string             `json:"entry_http_route"`
+	FlowEntryRule    [][]*FlowEntryRule `json:"flow_entry_rule"`
+	GrayStrategyType string             `json:"gray_strategy_type"`
+	GrayStrategy     []int              `json:"gray_strategy"`
+	Status           bool               `json:"status"`
+	TraceType        string             `json:"trace_type"`
+}
+
+type FlowEntryRule struct {
+	HeaderKey   string `json:"header_key"`
+	HeaderType  string `json:"header_type"`
+	HeaderValue string `json:"header_value"`
+}
+
+type AppPeerAuthentications struct {
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	AppID       string `json:"app_id"`
+	OperateMode bool   `json:"operating_mode"`
+}
+
+type AppAuthorizationPolicy struct {
+	Name           string          `json:"name"`
+	Namespace      string          `json:"namespace"`
+	AppID          string          `json:"app_id"`
+	OperateMode    bool            `json:"operating_mode"`
+	TenantID       string          `json:"tenant_id"`
+	ComponentInfos []ComponentInfo `json:"component_infos"`
+}
+
+type ComponentInfo struct {
+	ComponentID               string   `json:"component_id"`
+	IsCreateSA                bool     `json:"is_create_sa"`
+	SAName                    string   `json:"sa_name"`
+	DependentComponentSANames []string `json:"dependent_component_sa_names"`
+	PortOuter                 []string `json:"port_outer"`
+}
+
 // UploadChart -
 type UploadChart struct {
 	EventID   string   `json:"event_id"`
@@ -2243,19 +2345,6 @@ type UploadChart struct {
 type UploadChartValueYaml struct {
 	Values map[string]string `json:"values"`
 	Readme string            `json:"readme"`
-}
-
-// FlowEntryRule -
-type FlowEntryRule struct {
-	HeaderKey   string `json:"header_key"`
-	HeaderType  string `json:"header_type"`
-	HeaderValue string `json:"header_value"`
-}
-
-// FileInfo -
-type FileInfo struct {
-	Title  string `json:"title"`
-	IsLeaf bool   `json:"is_leaf"`
 }
 
 // UpdateLangVersion -

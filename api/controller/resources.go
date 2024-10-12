@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"io/ioutil"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,7 +39,7 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/errors"
+	dberrors "github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	validation "github.com/goodrain/rainbond/util/endpoint"
@@ -56,8 +58,8 @@ type V2Routes struct {
 	TenantStruct
 	EventLogStruct
 	AppStruct
-	GatewayStruct
 	LongVersionStruct
+	GatewayStruct
 	ThirdPartyServiceController
 	LabelController
 	AppRestoreController
@@ -121,31 +123,6 @@ type TenantStruct struct {
 	MQClient  mqclient.MQClient
 }
 
-// AllTenantResources GetResources
-func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request) {
-	tenants, err := handler.GetTenantManager().GetTenants("")
-	if err != nil {
-		msg := httputil.ResponseBody{
-			Msg: fmt.Sprintf("get tenant error, %v", err),
-		}
-		httputil.Return(r, w, 500, msg)
-	}
-	ts := &apimodel.TotalStatsInfo{}
-	for _, tenant := range tenants {
-		services, err := handler.GetServiceManager().GetService(tenant.UUID)
-		if err != nil {
-			msg := httputil.ResponseBody{
-				Msg: fmt.Sprintf("get service error, %v", err),
-			}
-			httputil.Return(r, w, 500, msg)
-		}
-		statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
-		statsInfo.UUID = tenant.UUID
-		ts.Data = append(ts.Data, statsInfo)
-	}
-	httputil.ReturnSuccess(r, w, ts.Data)
-}
-
 // TenantResources TenantResources
 func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/resources/tenants v2 tenantResources
@@ -169,7 +146,6 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	rep, err := handler.GetTenantManager().GetTenantsResources(r.Context(), &tr)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get resources error, %v", err))
@@ -534,34 +510,20 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	value := r.FormValue("eid")
-	page, _ := strconv.Atoi(r.FormValue("page"))
-	if page == 0 {
-		page = 1
+	jsonTenantIDs := r.FormValue("tenant_ids")
+	var tenantIDs []string
+	err := json.Unmarshal([]byte(jsonTenantIDs), &tenantIDs)
+	if err != nil {
+		logrus.Errorf("json unmarshal failure: %v", err)
 	}
-	pageSize, _ := strconv.Atoi(r.FormValue("pageSize"))
-	if pageSize == 0 {
-		pageSize = 10
-	}
-	queryName := r.FormValue("query")
 	var tenants []*dbmodel.Tenants
-	var err error
-	if len(value) == 0 {
-		tenants, err = handler.GetTenantManager().GetTenants(queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
-	} else {
-		tenants, err = handler.GetTenantManager().GetTenantsByEid(value, queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
+	tenants, err = handler.GetTenantManager().GetTenantsByTenantIDs(tenantIDs)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, "get tenant error")
+		return
 	}
 	list := handler.GetTenantManager().BindTenantsResource(tenants)
-	re := list.Paging(page, pageSize)
-	httputil.ReturnSuccess(r, w, re)
+	httputil.ReturnSuccess(r, w, list)
 }
 
 // DeleteTenant DeleteTenant
@@ -697,6 +659,29 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
+	// check tenant source
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	var noMemory, noCPU, needStorage int
+	if ss.ContainerCPU == 0 {
+		noCPU = ss.Replicas
+	}
+	if ss.ContainerMemory == 0 {
+		noMemory = ss.Replicas
+	}
+	storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(ss.ServiceID)
+	if err != nil {
+		httputil.ReturnResNotEnough(r, w, ss.EventID, err.Error())
+		return
+	}
+	if storages != nil && len(storages) > 0 {
+		for _, storage := range storages {
+			needStorage += int(storage.VolumeCapacity)
+		}
+	}
+	if err := handler.CheckTenantResource(r.Context(), tenant, ss.Replicas*ss.ContainerMemory, ss.Replicas*ss.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
+		httputil.ReturnResNotEnough(r, w, "", err.Error())
+		return
+	}
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		// The creation of a component should be idempotent, and if it has been successfully created,
 		// the error that the component already exists should not be thrown.
@@ -809,7 +794,7 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// StatusService StatusService
+// StatusService -
 func (t *TenantStruct) StatusService(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/status v2 serviceStatus
 	//
@@ -1025,6 +1010,17 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
+
+	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(tenant.Namespace).DeleteCollection(r.Context(), v1.DeleteOptions{}, v1.ListOptions{
+		LabelSelector: "service_alias=" + service.ServiceAlias,
+	})
+	if err != nil {
+		logrus.Errorf("delete apisix route error: %v", err)
+	}
+
 	var req apimodel.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
@@ -1086,6 +1082,8 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"dep_service_id":   []string{"required"},
 		"dep_service_type": []string{"required"},
+		"namespace":        []string{"required"},
+		"dep_sa_name":      []string{},
 		"dep_order":        []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
@@ -1097,6 +1095,8 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 		ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID:   data["dep_service_id"].(string),
 		DepServiceType: data["dep_service_type"].(string),
+		DepSAName:      data["dep_sa_name"].(string),
+		Namespace:      data["namespace"].(string),
 	}
 	if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
@@ -1186,6 +1186,8 @@ func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) 
 		"dep_service_id":   []string{"required"},
 		"dep_service_type": []string{},
 		"dep_order":        []string{},
+		"namespace":        []string{"required"},
+		"dep_sa_name":      []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
@@ -1195,6 +1197,8 @@ func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) 
 		TenantID:     r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
 		ServiceID:    r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID: data["dep_service_id"].(string),
+		DepSAName:    data["dep_sa_name"].(string),
+		Namespace:    data["namespace"].(string),
 	}
 	if err := handler.GetServiceManager().ServiceDepend("delete", ds); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete dependency error, %v", err))
@@ -1254,7 +1258,7 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	envD.Name = envM.Name
 	envD.Scope = envM.Scope
 	if err := handler.GetServiceManager().EnvAttr("add", &envD); err != nil {
-		if err == errors.ErrRecordAlreadyExist {
+		if err == dberrors.ErrRecordAlreadyExist {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("%v", err))
 			return
 		}
@@ -2051,4 +2055,56 @@ func (t *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request)
 	}
 
 	httputil.ReturnSuccess(r, w, res)
+}
+
+func (t *TenantStruct) TenantStartService(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	services, err := db.GetManager().TenantServiceDao().GetStartServicesAllInfoByTenantID(tenantID)
+	if err != nil {
+		logrus.Errorf("pass tenantid %v because get services failure: %v", tenantID, err)
+		httputil.ReturnSuccess(r, w, "")
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		logrus.Errorf("pass tenantid %v because get tenant failure: %v", tenantID, err)
+		httputil.ReturnSuccess(r, w, "")
+	}
+	for _, service := range services {
+		if service.Kind != "third_party" {
+			var noMemory, noCPU, needStorage int
+			if service.ContainerCPU == 0 {
+				noCPU = service.Replicas
+			}
+			if service.ContainerMemory == 0 {
+				noMemory = service.Replicas
+			}
+			storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(service.ServiceID)
+			if err != nil {
+				break
+			}
+			if storages != nil && len(storages) > 0 {
+				for _, storage := range storages {
+					needStorage += int(storage.VolumeCapacity)
+				}
+			}
+			if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
+				break
+			}
+		}
+
+		startStopStruct := &apimodel.StartStopStruct{
+			TenantID:  tenantID,
+			ServiceID: service.ServiceID,
+			EventID:   "",
+			TaskType:  "start",
+		}
+		if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
+			break
+		}
+	}
+	if err != nil {
+		logrus.Errorf("start services failure: %v", err)
+		httputil.ReturnSuccess(r, w, "")
+	}
+	httputil.ReturnSuccess(r, w, "")
 }

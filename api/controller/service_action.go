@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -70,7 +71,25 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
 	if service.Kind != "third_party" {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+		var noMemory, noCPU, needStorage int
+		if service.ContainerCPU == 0 {
+			noCPU = service.Replicas
+		}
+		if service.ContainerMemory == 0 {
+			noMemory = service.Replicas
+		}
+
+		storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+		if err != nil {
+			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
+			return
+		}
+		if storages != nil && len(storages) > 0 {
+			for _, storage := range storages {
+				needStorage += int(storage.VolumeCapacity)
+			}
+		}
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 			return
 		}
@@ -171,7 +190,24 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+	var noMemory, noCPU, needStorage int
+	if service.ContainerCPU == 0 {
+		noCPU = service.Replicas
+	}
+	if service.ContainerMemory == 0 {
+		noMemory = service.Replicas
+	}
+	storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+	if err != nil {
+		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
+		return
+	}
+	if storages != nil && len(storages) > 0 {
+		for _, storage := range storages {
+			needStorage += int(storage.VolumeCapacity)
+		}
+	}
+	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, needStorage, service.Replicas*service.ContainerCPU, noMemory, noCPU); err != nil {
 		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 		return
 	}
@@ -232,8 +268,15 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	}
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if memorySet != nil {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*(*memorySet)); err != nil {
+	if memorySet != nil && cpuSet != nil {
+		var noMemory, noCPU int
+		if *cpuSet == 0 {
+			noCPU = service.Replicas
+		}
+		if *memorySet == 0 {
+			noMemory = service.Replicas
+		}
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*(*memorySet), service.Replicas*(*cpuSet), 0, noMemory, noCPU); err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 			return
 		}
@@ -290,9 +333,18 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*int(replicas)); err != nil {
-		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
-		return
+	var noMemory, noCPU int
+	if service.ContainerCPU == 0 {
+		noCPU = int(replicas)
+	}
+	if service.ContainerMemory == 0 {
+		noMemory = int(replicas)
+	}
+	if int(replicas) > service.Replicas {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*(int(replicas-int32(service.Replicas))), service.ContainerCPU*(int(replicas-int32(service.Replicas))), 0, noMemory, noCPU); err != nil {
+			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
+			return
+		}
 	}
 
 	horizontalTask := &model.HorizontalScalingTaskBody{
@@ -349,7 +401,24 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+	var noMemory, noCPU, needStorage int
+	if service.ContainerCPU == 0 {
+		noCPU = service.Replicas
+	}
+	if service.ContainerMemory == 0 {
+		noMemory = service.Replicas
+	}
+	storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+	if err != nil {
+		httputil.ReturnResNotEnough(r, w, build.EventID, err.Error())
+		return
+	}
+	if storages != nil && len(storages) > 0 {
+		for _, storage := range storages {
+			needStorage += int(storage.VolumeCapacity)
+		}
+	}
+	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
 		httputil.ReturnResNotEnough(r, w, build.EventID, err.Error())
 		return
 	}
@@ -613,7 +682,24 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	if service.Kind != "third_party" {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+		var noMemory, noCPU, needStorage int
+		if service.ContainerCPU == 0 {
+			noCPU = service.Replicas
+		}
+		if service.ContainerMemory == 0 {
+			noMemory = service.Replicas
+		}
+		storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+		if err != nil {
+			httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
+			return
+		}
+		if storages != nil && len(storages) > 0 {
+			for _, storage := range storages {
+				needStorage += int(storage.VolumeCapacity)
+			}
+		}
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
 			httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
 			return
 		}
@@ -706,7 +792,14 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+	var noMemory, noCPU int
+	if service.ContainerCPU == 0 {
+		noCPU = service.Replicas
+	}
+	if service.ContainerMemory == 0 {
+		noMemory = service.Replicas
+	}
+	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, 0, noMemory, noCPU); err != nil {
 		httputil.ReturnResNotEnough(r, w, rollbackRequest.EventID, err.Error())
 		return
 	}
@@ -715,37 +808,44 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, re)
 }
 
-type limitMemory struct {
-	LimitMemory int `json:"limit_memory"`
+type TenantResourceQuota struct {
+	LimitMemory  int `json:"limit_memory"`
+	LimitCPU     int `json:"limit_cpu"`
+	LimitStorage int `json:"limit_storage"`
 }
 
-// LimitTenantMemory -
-func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request) {
-	var lm limitMemory
+// LimitTenantResource -
+func (t *TenantStruct) LimitTenantResource(w http.ResponseWriter, r *http.Request) {
+	var trq TenantResourceQuota
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	err = ffjson.Unmarshal(body, &lm)
+	err = ffjson.Unmarshal(body, &trq)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-	tenant.LimitMemory = lm.LimitMemory
+	tenant.LimitMemory = trq.LimitMemory
+	tenant.LimitCPU = trq.LimitCPU
+	tenant.LimitStorage = trq.LimitStorage
+	err = handler.GetTenantManager().TenantResourceQuota(context.Background(), tenant.Namespace, trq.LimitCPU, trq.LimitMemory, trq.LimitStorage)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
 	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 	}
 	httputil.ReturnSuccess(r, w, "success!")
-
 }
 
 // SourcesInfo -

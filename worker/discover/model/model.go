@@ -16,6 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// 本文件实现了Rainbond平台中的任务模型及其操作任务主体的定义。任务模型主要用于在系统中描述和管理各种操作任务，如启动、停止、扩展、升级、回滚等。这些任务可以通过任务类型区分，不同的任务类型对应不同的任务主体结构。
+
+// 文件中的主要内容包括：
+
+// 1. `Task` 结构体：
+//    - 表示一个任务，包含任务类型、任务主体、创建时间、用户信息等。
+//    - `NewTask` 方法用于从JSON数据中创建任务对象。
+
+// 2. `TaskBody` 接口：
+//    - 定义了任务主体的接口，不同类型的任务有不同的任务主体结构体实现该接口。
+
+// 3. `NewTaskBody` 方法：
+//    - 根据任务类型创建对应的任务主体实例，并从给定的JSON数据中反序列化任务主体内容。
+
+// 4. 各种具体的任务主体结构体：
+//    - 例如 `StartTaskBody`、`StopTaskBody`、`HorizontalScalingTaskBody`、`RollingUpgradeTaskBody` 等。
+//    - 这些结构体根据任务类型分别定义了不同的任务参数，如启动服务需要的配置、扩展服务需要的副本数等。
+
+// 5. `StrategyIsValid` 方法：
+//    - 用于验证任务中的策略是否有效，例如服务启动顺序、升级策略等。
+
+// 6. `ApplyRegistryAuthSecretTaskBody`、`DeleteK8sResourceTaskBody` 等特殊任务主体：
+//    - 处理如Kubernetes资源删除、注册表认证信息应用等特定任务。
+
+// 7. `BuildResource` 结构体：
+//    - 用于在Kubernetes中构建资源，包含资源对象、状态、错误信息等。
+
+// 该文件为Rainbond平台中的任务管理提供了基础数据模型和任务处理逻辑，支持任务的序列化、反序列化以及执行时所需的参数验证和处理。
+
 package model
 
 import (
@@ -30,10 +59,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//TaskType 任务类型
+// TaskType 任务类型
 type TaskType string
 
-//Task 任务
+// Task 任务
 type Task struct {
 	Type       TaskType  `json:"type"`
 	Body       TaskBody  `json:"body"`
@@ -41,7 +70,7 @@ type Task struct {
 	User       string    `json:"user"`
 }
 
-//NewTask 从json bytes data create task
+// NewTask 从json bytes data create task
 func NewTask(data []byte) (*Task, error) {
 	taskType := gjson.GetBytes(data, "type").String()
 	body := CreateTaskBody(taskType)
@@ -55,7 +84,7 @@ func NewTask(data []byte) (*Task, error) {
 	return &task, err
 }
 
-//TransTask transtask
+// TransTask transtask
 func TransTask(task *pb.TaskMessage) (*Task, error) {
 	timeT, _ := time.Parse(time.RFC3339, task.CreateTime)
 	return &Task{
@@ -66,7 +95,7 @@ func TransTask(task *pb.TaskMessage) (*Task, error) {
 	}, nil
 }
 
-//NewTaskBody new task body
+// NewTaskBody new task body
 func NewTaskBody(taskType string, body []byte) TaskBody {
 	switch taskType {
 	case "start":
@@ -188,7 +217,7 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 	}
 }
 
-//CreateTaskBody 通过类型串创建实体
+// CreateTaskBody 通过类型串创建实体
 func CreateTaskBody(taskType string) TaskBody {
 	switch taskType {
 	case "start":
@@ -220,10 +249,10 @@ func CreateTaskBody(taskType string) TaskBody {
 	}
 }
 
-//TaskBody task body
+// TaskBody task body
 type TaskBody interface{}
 
-//StartTaskBody 启动操作任务主体
+// StartTaskBody 启动操作任务主体
 type StartTaskBody struct {
 	TenantID      string            `json:"tenant_id"`
 	ServiceID     string            `json:"service_id"`
@@ -234,7 +263,7 @@ type StartTaskBody struct {
 	DepServiceIDInBootSeq []string `json:"dep_service_ids_in_boot_seq"`
 }
 
-//StopTaskBody 停止操作任务主体
+// StopTaskBody 停止操作任务主体
 type StopTaskBody struct {
 	TenantID      string            `json:"tenant_id"`
 	ServiceID     string            `json:"service_id"`
@@ -243,7 +272,7 @@ type StopTaskBody struct {
 	Configs       map[string]string `json:"configs"`
 }
 
-//HorizontalScalingTaskBody 水平伸缩操作任务主体
+// HorizontalScalingTaskBody 水平伸缩操作任务主体
 type HorizontalScalingTaskBody struct {
 	TenantID  string `json:"tenant_id"`
 	ServiceID string `json:"service_id"`
@@ -252,7 +281,7 @@ type HorizontalScalingTaskBody struct {
 	Username  string `json:"username"`
 }
 
-//VerticalScalingTaskBody 垂直伸缩操作任务主体
+// VerticalScalingTaskBody 垂直伸缩操作任务主体
 type VerticalScalingTaskBody struct {
 	TenantID        string `json:"tenant_id"`
 	ServiceID       string `json:"service_id"`
@@ -262,7 +291,7 @@ type VerticalScalingTaskBody struct {
 	EventID         string `json:"event_id"`
 }
 
-//RestartTaskBody 重启操作任务主体
+// RestartTaskBody 重启操作任务主体
 type RestartTaskBody struct {
 	TenantID      string `json:"tenant_id"`
 	ServiceID     string `json:"service_id"`
@@ -275,19 +304,18 @@ type RestartTaskBody struct {
 	Configs  map[string]string `json:"configs"`
 }
 
-//StrategyIsValid 验证策略是否有效
-//策略包括以下值：
+// StrategyIsValid 验证策略是否有效
+// 策略包括以下值：
 // prestart 先启动后关闭
 // prestop 先关闭后启动
 // rollingupdate 滚动形式
 // grayupdate 灰度形式
 // bluegreenupdate 蓝绿形式
-//
 func StrategyIsValid(strategy []string, serviceDeployType string) bool {
 	return false
 }
 
-//RollingUpgradeTaskBody 升级操作任务主体
+// RollingUpgradeTaskBody 升级操作任务主体
 type RollingUpgradeTaskBody struct {
 	TenantID         string            `json:"tenant_id"`
 	ServiceID        string            `json:"service_id"`
@@ -300,9 +328,10 @@ type RollingUpgradeTaskBody struct {
 	AppVersion       string            `json:"app_version"`
 	EventIDs         []string          `json:"event_ids"`
 	End              bool              `json:"end"`
+	InRolling        bool              `json:"in_rolling"`
 }
 
-//RollBackTaskBody 回滚操作任务主体
+// RollBackTaskBody 回滚操作任务主体
 type RollBackTaskBody struct {
 	TenantID  string `json:"tenant_id"`
 	ServiceID string `json:"service_id"`
@@ -318,7 +347,7 @@ type RollBackTaskBody struct {
 	Strategy []string `json:"strategy"`
 }
 
-//GroupStartTaskBody 组应用启动操作任务主体
+// GroupStartTaskBody 组应用启动操作任务主体
 type GroupStartTaskBody struct {
 	Services    []StartTaskBody `json:"services"`
 	Dependences []Dependence    `json:"dependences"`
@@ -347,13 +376,13 @@ type ApplyPluginConfigTaskBody struct {
 	Action string `json:"action"`
 }
 
-//Dependence 依赖关系
+// Dependence 依赖关系
 type Dependence struct {
 	CurrentServiceID string `json:"current_service_id"`
 	DependServiceID  string `json:"depend_service_id"`
 }
 
-//GroupStopTaskBody 组应用停止操作任务主体
+// GroupStopTaskBody 组应用停止操作任务主体
 type GroupStopTaskBody struct {
 	Services    []StartTaskBody `json:"services"`
 	Dependences []Dependence    `json:"dependences"`
@@ -396,7 +425,7 @@ type DeleteK8sResourceTaskBody struct {
 	ResourceYaml string `json:"resource_yaml"`
 }
 
-//BuildResource -
+// BuildResource -
 type BuildResource struct {
 	Resource      *unstructured.Unstructured
 	State         int
@@ -406,6 +435,5 @@ type BuildResource struct {
 	GVK           *schema.GroupVersionKind
 }
 
-
-//DefaultTaskBody 默认操作任务主体
+// DefaultTaskBody 默认操作任务主体
 type DefaultTaskBody map[string]interface{}
