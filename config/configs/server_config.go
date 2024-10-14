@@ -11,7 +11,7 @@ type ServerConfig struct {
 }
 
 func AddServerFlags(fs *pflag.FlagSet, sc *ServerConfig) {
-	fs.StringSliceVar(&sc.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address")
+	fs.StringSliceVar(&sc.EventLogServers, "event-servers", []string{"rbd-api-api-inner:6366"}, "event log server address")
 	fs.StringVar(&sc.RbdWorker, "worker-api", "rbd-worker:6535", "the rbd-worker server api")
 	fs.StringVar(&sc.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&sc.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
