@@ -19,20 +19,20 @@
 package websocket
 
 import (
-	"github.com/goodrain/rainbond/api/controller"
-
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/controller"
+	"github.com/goodrain/rainbond/pkg/component/eventlog"
 )
 
 // Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/docker_console", controller.GetWebCli().HandleWS)
-	r.Get("/docker_log", controller.GetDockerLog().Get)
+	r.Get("/docker_log", eventlog.Default().SocketServer.PushDockerLog)
 	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
 	r.Get("/new_monitor_message", controller.GetMonitorMessage().Get)
-	r.Get("/event_log", controller.GetEventLog().Get)
-	r.Get("/services/{serviceID}/pubsub", controller.GetPubSubControll().Get)
+	r.Get("/event_log", eventlog.Default().SocketServer.PushEventMessage)
+	r.Get("/services/{serviceID}/pubsub", eventlog.Default().SocketServer.Pubsub)
 	return r
 }
 

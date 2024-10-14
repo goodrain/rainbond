@@ -12,6 +12,7 @@ func init() {
 	defaultConfig = &Config{
 		fs:               pflag.CommandLine,
 		APIConfig:        &rbdcomponent.APIConfig{},
+		EventLogConfig:   &rbdcomponent.EventLogConfig{},
 		StorageConfig:    &StorageConfig{},
 		DBConfig:         &DBConfig{},
 		ESConfig:         &ESConfig{},
@@ -34,6 +35,7 @@ type Config struct {
 	Env              Env
 	Debug            bool
 	APIConfig        *rbdcomponent.APIConfig
+	EventLogConfig   *rbdcomponent.EventLogConfig
 	StorageConfig    *StorageConfig
 	DBConfig         *DBConfig
 	ESConfig         *ESConfig

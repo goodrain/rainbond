@@ -20,10 +20,10 @@ package exector
 
 import (
 	"fmt"
+	eventutil "github.com/goodrain/rainbond/api/eventlog/util"
 	"github.com/goodrain/rainbond/config/configs"
-	"os"
+ 	"os"
 
-	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 )

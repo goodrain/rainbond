@@ -1,6 +1,7 @@
 ARG BASE_IMAGE_VERSION
 FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
 ARG RELEASE_DESC
+COPY ./libzmq.so.3 /usr/lib
 COPY rainbond-worker /run/rainbond-worker
 COPY entrypoint.sh /run/entrypoint.sh
 

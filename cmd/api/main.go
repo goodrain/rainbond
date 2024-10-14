@@ -40,6 +40,7 @@ func main() {
 		Registry(component.Database()).
 		Registry(component.Grpc()).
 		Registry(component.Event()).
+		Registry(component.EventLog()).
 		Registry(component.K8sClient()).
 		Registry(component.StorageClient()).
 		Registry(component.HubRegistry()).

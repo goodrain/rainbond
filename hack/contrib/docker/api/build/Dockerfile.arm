@@ -1,0 +1,10 @@
+FROM golang:1.19-alpine3.16
+
+#RUN apt update && apt-get install -y libzmq3-dev
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && apk --no-cache add zeromq-dev gcc libc-dev
+
+WORKDIR /go
+
+    
+
+

@@ -71,18 +71,19 @@ build::binary() {
 	docker build -t goodrain.me/golang-gcc-buildstack:${GO_VERSION} --build-arg GO_VERSION="${GO_VERSION}" -f "${BUILD_STACK_PATH}/${DOCKERFILE_BASE}" "${BUILD_STACK_PATH}"
 
 	CGO_ENABLED=1
-	if [ "$1" = "eventlog" ]; then
+	if [ "$1" = "api" ] || [ "$1" = "worker" ] || [ "$1" = "mq" ] || [ "$1" = "grctl" ] || [ "$1" = "chaos" ]; then
 		if [ "$GOARCH" = "arm64" ]; then
 			DOCKERFILE_BASE="Dockerfile.arm"
 		fi
-		docker build -t goodrain.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" "${DOCKER_PATH}/build/"
+		docker build -t goodrain.me/event-build:v1 -f "./hack/contrib/docker/api/build/${DOCKERFILE_BASE}" "./hack/contrib/docker/api/build/"
 		build_image="goodrain.me/event-build:v1"
 		local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
-	elif [ "$1" = "chaos" ]; then
-		build_dir="./cmd/builder"
+		if [ "$1" = "chaos" ]; then
+		  build_dir="./cmd/builder"
+    fi
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
-	elif [ "$1" = "grctl" ] || [ "$1" = "mesh-data-panel" ]; then
+	elif [ "$1" = "mesh-data-panel" ]; then
 		local build_args="-w -s -linkmode external -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	fi
 	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOARCH=${GOARCH} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}" -o "${OUTPATH}" ${build_dir}
@@ -122,7 +123,7 @@ build::image() {
 	if [ "$GOARCH" = "arm64" ]; then
 		if [ "$1" = "gateway" ]; then
 			BASE_IMAGE_VERSION="1.19.3.2-alpine"
-		elif [ "$1" = "eventlog" ]; then
+		elif [ "$1" = "mq" ]; then
 			DOCKERFILE_BASE="Dockerfile.arm"
 		elif [ "$1" = "mesh-data-panel" ]; then
 			DOCKERFILE_BASE="Dockerfile.arm"

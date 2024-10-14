@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -874,7 +875,9 @@ func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Un
 
 // HandlePlugins -
 func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err error) {
-	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{
+		LabelSelector: v1alpha1.PluginEnableLabel.Combine(v1alpha1.True),
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
@@ -922,19 +925,44 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 			status = appStatuses[appID]
 		}
 		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		frontedRelativePath, _ := extractFilePath(plugin.Spec.FrontedPath)
+		var pluginViews []string
+		for _, view := range plugin.Spec.PluginView {
+			pluginViews = append(pluginViews, view.String())
+		}
 		plugins = append(plugins, &model.RainbondPlugins{
-			RegionAppID: appID,
-			Name:        plugin.GetName(),
-			TeamName:    teamNames[appTeamIDs[appID]],
-			Icon:        plugin.Spec.Icon,
-			Description: plugin.Spec.Description,
-			Version:     plugin.Spec.Version,
-			Author:      plugin.Spec.Author,
-			Status:      status,
-			Alias:       plugin.Spec.Alias,
-			AccessURLs:  plugin.Spec.AccessURLs,
-			Labels:      plugin.Labels,
+			RegionAppID:         appID,
+			Name:                plugin.GetName(),
+			TeamName:            teamNames[appTeamIDs[appID]],
+			Icon:                plugin.Spec.Icon,
+			Description:         plugin.Spec.Description,
+			Version:             plugin.Spec.Version,
+			Author:              "plugin.Spec.Author",
+			Status:              status,
+			Alias:               plugin.Spec.DisplayName,
+			AccessURLs:          plugin.Spec.AccessURLs,
+			Labels:              plugin.Labels,
+			FrontedPath:         plugin.Spec.FrontedPath,
+			FrontedRelativePath: frontedRelativePath,
+			PluginType:          plugin.Spec.PluginType.String(),
+			PluginViews:         pluginViews,
 		})
 	}
 	return plugins, nil
+}
+
+func extractFilePath(frontedPath string) (string, error) {
+	// 解析 frontedPath
+	parsedURL, err := url.Parse(frontedPath)
+	if err != nil {
+		return "", err
+	}
+
+	// 返回路径部分，路径部分可能以 / 开头
+	filePath := parsedURL.Path
+
+	// 去掉路径前面的斜杠
+	filePath = strings.TrimPrefix(filePath, "/")
+
+	return filePath, nil
 }

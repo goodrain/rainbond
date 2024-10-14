@@ -2256,6 +2256,10 @@ type RainbondPlugins struct {
 	Alias       string            `json:"alias"`
 	AccessURLs  []string          `json:"access_urls"`
 	Labels      map[string]string `json:"labels"`
+	FrontedPath         string            `json:"fronted_path"`
+	FrontedRelativePath string            `json:"fronted_relative_path"`
+	PluginType          string            `json:"plugin_type"`
+	PluginViews         []string
 }
 
 // CreateUpdateGovernanceModeReq -

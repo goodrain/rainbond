@@ -20,6 +20,8 @@ package event
 
 import (
 	"fmt"
+	eventclient "github.com/goodrain/rainbond/api/eventlog/entry/grpc/client"
+	eventpb "github.com/goodrain/rainbond/api/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"io"
 	"os"
@@ -28,8 +30,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
-	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"

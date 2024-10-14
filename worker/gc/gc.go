@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
+	eventutil "github.com/goodrain/rainbond/api/eventlog/util"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	utils "github.com/goodrain/rainbond/util"
@@ -29,7 +30,6 @@ import (
 	"path"
 	"time"
 
-	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

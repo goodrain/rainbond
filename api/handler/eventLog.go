@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"fmt"
+	eventdb "github.com/goodrain/rainbond/api/eventlog/db"
 	"github.com/goodrain/rainbond/config/configs"
 	"io"
 	"io/ioutil"
@@ -32,7 +33,6 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	eventdb "github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/util/constants"
 )
 

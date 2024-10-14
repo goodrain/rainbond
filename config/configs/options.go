@@ -17,6 +17,7 @@ func (c *Config) SetAppName(name string) *Config {
 
 func (c *Config) SetAPIFlags() *Config {
 	rbdcomponent.AddAPIFlags(c.fs, c.APIConfig)
+	rbdcomponent.AddEventLogFlags(c.fs, c.EventLogConfig)
 	return c
 }
 

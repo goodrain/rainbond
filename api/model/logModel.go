@@ -19,29 +19,30 @@
 package model
 
 import (
-	eventdb "github.com/goodrain/rainbond/eventlog/db"
+	eventdb "github.com/goodrain/rainbond/api/eventlog/db"
 )
 
-//LogData log data
+// LogData log data
 type LogData struct {
 	num int
 	msg string
 }
 
-//MessageData message data 获取指定操作的操作日志
+// MessageData message data 获取指定操作的操作日志
 type MessageData struct {
 	Message  string `json:"message"`
 	Time     string `json:"time"`
 	Unixtime int64  `json:"utime"`
 }
 
-//DataLog 获取指定操作的操作日志
+// DataLog 获取指定操作的操作日志
 type DataLog struct {
 	Status string
 	Data   eventdb.MessageDataList
 }
 
-//LogByLevelStruct GetLogByLevelStruct
+// LogByLevelStruct GetLogByLevelStruct
+//
 //swagger:parameters logByAction
 type LogByLevelStruct struct {
 	// in: path
@@ -63,7 +64,8 @@ type LogByLevelStruct struct {
 	}
 }
 
-//TenantLogByLevelStruct GetTenantLogByLevelStruct
+// TenantLogByLevelStruct GetTenantLogByLevelStruct
+//
 //swagger:parameters tenantLogByAction
 type TenantLogByLevelStruct struct {
 	// in: path
@@ -82,7 +84,8 @@ type TenantLogByLevelStruct struct {
 	}
 }
 
-//LogSocketStruct LogSocketStruct
+// LogSocketStruct LogSocketStruct
+//
 //swagger:parameters logSocket logList
 type LogSocketStruct struct {
 	// in: path
@@ -93,7 +96,8 @@ type LogSocketStruct struct {
 	ServiceAlias string `json:"service_alias" validate:"service_alias"`
 }
 
-//LogFileStruct LogFileStruct
+// LogFileStruct LogFileStruct
+//
 //swagger:parameters logFile
 type LogFileStruct struct {
 	// in: path
@@ -107,7 +111,7 @@ type LogFileStruct struct {
 	FileName string `json:"file_name" validate:"file_name"`
 }
 
-//MsgStruct msg struct in eventlog_message
+// MsgStruct msg struct in eventlog_message
 type MsgStruct struct {
 	EventID string `json:"event_id"`
 	Step    string `json:"step"`
@@ -116,7 +120,8 @@ type MsgStruct struct {
 	Time    string `json:"time"`
 }
 
-//LastLinesStruct LastLinesStruct
+// LastLinesStruct LastLinesStruct
+//
 //swagger:parameters lastLinesLogs
 type LastLinesStruct struct {
 	// in: path

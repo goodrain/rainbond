@@ -1,0 +1,250 @@
+name: "release-amd64-v6.0"
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'branch'
+        required: false
+        default: 'V6.0'
+      clone_url:
+        description: 'clone_url'
+        required: false
+        default: 'https://github.com/yangkaa'
+      version:
+        description: 'version'
+        required: true
+        default: 'V6.0-dev'
+      environment:
+        description: 'environment'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - release-arm
+          - enterprise
+          - enterprise-arm
+      action:
+        description: 'action'
+        required: false
+        default: 'GitHub'
+        type: choice
+        options:
+          - GitHub
+          - GitLab
+      os:
+        description: 'os'
+        required: false
+        default: 'ubuntu-22.04'
+env:
+  VERSION: ${{ github.event.inputs.version }}
+  GITLAB_CLONE_URL: ${{ secrets.GITLAB_CLONE_URL }}
+
+jobs:
+  build-ui:
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Build the Docker image
+        env:
+          BUILD_RBD_APP_UI: false
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          # GitLab
+          UI_DOCKER_USERNAME: ${{ vars.UI_DOCKER_USERNAME }}
+          UI_DOCKER_PASSWORD: ${{ secrets.UI_DOCKER_PASSWORD }}
+          ALLINONE: ${{ vars.ALLINONE }}
+          ROUTE_MODE: ${{ vars.ROUTE_MODE }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-ui.git
+            cd rainbond-ui
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-ui-cloud.git
+            cd rainbond-ui-cloud
+            echo "$UI_DOCKER_PASSWORD" | docker login -u "$UI_DOCKER_USERNAME" --password-stdin
+          fi
+          chmod +x ./build.sh
+          ./build.sh
+          docker build -t yangk/rainbond-ui:$VERSION .
+          docker push yangk/rainbond-ui:$VERSION
+
+  build-rainbond-allinone:
+    needs: build-ui
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Pull code and Build allinone image
+        env:
+          TRAVIS_PULL_REQUEST: false
+          ADAPTOR_BRANCH: V6.0
+          BUILD_ARCH: ${{ vars.BUILD_ARCH}}
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          # GitLab
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
+          DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
+            cd rainbond-console
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-console-cloud.git
+            cd rainbond-console-cloud
+          fi
+          chmod +x  ./release.sh
+          ./release.sh allinone
+  build-rainbond-api:
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    strategy:
+      matrix:
+        component: [api]
+    steps:
+      - name: Pull code and Build the Docker image
+        env:
+          DISABLE_GOPROXY: true
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          # GitLab
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
+          DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
+          cd rainbond
+          chmod +x ./release.sh
+          ./release.sh ${{ matrix.component }} push
+
+  build-rainbond-region:
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    strategy:
+      matrix:
+        component: [chaos, worker, init-probe, resource-proxy]
+    steps:
+      - name: Pull code and Build the Docker image
+        env:
+          DISABLE_GOPROXY: true
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          # GitLab
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
+          DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
+          cd rainbond
+          chmod +x ./release.sh
+          ./release.sh ${{ matrix.component }} push
+  build-rainbond-region-grctl-shell:
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Pull code and Build the Docker image
+        env:
+          DISABLE_GOPROXY: true
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          # GitLab
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
+          DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
+          cd rainbond
+          chmod +x ./release.sh
+          ./release.sh grctl push
+
+  build-operator:
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Build and push
+        env:
+          BUILD_ARCH: ${{ vars.BUILD_ARCH}}
+          # GitHub
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          # GitLab
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
+          DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
+          OPERATOR_BRANCH: ${{ vars.OPERATOR_BRANCH }}
+          OPERATOR_URL: ${{ vars.OPERATOR_URL }}
+        run: |
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-operator.git
+            cd rainbond-operator
+          else
+            git clone -b $OPERATOR_BRANCH $OPERATOR_URL/rainbond-operator.git
+            cd rainbond-operator
+          fi
+          chmod +x ./release.sh
+          ./release.sh
+
+  # build-dind:
+  #   if: github.event.inputs.action == 'GitHub'
+  #   needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator]
+  #   runs-on: ${{ github.event.inputs.os }}
+  #   environment: ${{ github.event.inputs.environment }}
+  #   steps:
+  #     - name: Build the Docker image
+  #       env:
+  #         TRAVIS_PULL_REQUEST: false
+  #         BUILD_ARCH: ${{ vars.BUILD_ARCH}}
+  #         ADAPTOR_BRANCH: ${{ vars.ADAPTOR_BRANCH}}
+  #         # GitHub
+  #         DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+  #         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  #       run: |
+  #         git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
+  #         cd rainbond-console
+  #         ./release.sh dind
+  
+  # push-arch:
+  #   if: github.event.inputs.action == 'GitHub' && github.event.inputs.os == 'self-hosted'
+  #   needs: [build-rainbond-allinone,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
+  #   runs-on: ${{ github.event.inputs.os }}
+  #   environment: release-arch
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: push arch images
+  #       env:
+  #         RBD_VER: ${{ vars.RBD_VER }}
+  #         DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+  #         DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+  #         PUSH_ARCH: ${{ vars.PUSH_ARCH }}
+  #       run: |
+  #         if [ $PUSH_ARCH == 'true' ];then
+  #           chmod +x .github/scripts/push-arch.sh && ./.github/scripts/push-arch.sh
+  #         fi

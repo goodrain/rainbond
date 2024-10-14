@@ -1,6 +1,7 @@
 ARG BASE_IMAGE_VERSION
 FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
 ARG RELEASE_DESC
+COPY ./libzmq.so.3 /usr/lib
 COPY rainbond-mq /run/rainbond-mq
 ADD entrypoint.sh /run/entrypoint.sh
 RUN chmod 655 /run/rainbond-mq

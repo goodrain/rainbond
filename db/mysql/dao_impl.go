@@ -21,7 +21,6 @@ package mysql
 import (
 	"github.com/goodrain/rainbond/db/dao"
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
-	"github.com/goodrain/rainbond/pkg/component/es"
 	"github.com/jinzhu/gorm"
 )
 
@@ -328,11 +327,6 @@ func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResul
 
 // ServiceEventDao TenantServicePluginRelationDao
 func (m *Manager) ServiceEventDao() dao.EventDao {
-	if es.Default() != nil {
-		return &mysqldao.EventDaoESImpl{
-			DB: m.db,
-		}
-	}
 	return &mysqldao.EventDaoImpl{
 		DB: m.db,
 	}
