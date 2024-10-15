@@ -2260,6 +2260,7 @@ type RainbondPlugins struct {
 	FrontedRelativePath string            `json:"fronted_relative_path"`
 	PluginType          string            `json:"plugin_type"`
 	PluginViews         []string          `json:"plugin_views"`
+	EnableStatus        string            `json:"enable_status"`
 }
 
 // CreateUpdateGovernanceModeReq -

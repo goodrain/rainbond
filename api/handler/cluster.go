@@ -875,9 +875,7 @@ func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Un
 
 // HandlePlugins -
 func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err error) {
-	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{
-		LabelSelector: v1alpha1.PluginEnableLabel.Combine(v1alpha1.True),
-	})
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
@@ -930,6 +928,11 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 		for _, view := range plugin.Spec.PluginView {
 			pluginViews = append(pluginViews, view.String())
 		}
+
+		enableStatus := plugin.GetLabels()[v1alpha1.PluginEnableLabel.String()]
+		if enableStatus == "" {
+			enableStatus = v1alpha1.True.String()
+		}
 		plugins = append(plugins, &model.RainbondPlugins{
 			RegionAppID:         appID,
 			Name:                plugin.GetName(),
@@ -946,6 +949,7 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 			FrontedRelativePath: frontedRelativePath,
 			PluginType:          plugin.Spec.PluginType.String(),
 			PluginViews:         pluginViews,
+			EnableStatus:        enableStatus,
 		})
 	}
 	return plugins, nil
