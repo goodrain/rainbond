@@ -9,7 +9,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"

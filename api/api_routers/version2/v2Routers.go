@@ -28,7 +28,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/sirupsen/logrus"
+	http2 "github.com/goodrain/rainbond/util/http"
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,6 +134,7 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/static/plugins/{plugin_name}", PluginStaticProxy)
 	r.Get("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
+	r.Post("/plugins/{plugin_name}/status", ChangePluginStatus)
 	return r
 }
 
@@ -188,20 +189,11 @@ func resolveBackend(plugin *v1alpha1.RBDPlugin) (url *url.URL, err error) {
 
 // 获取 RBDPlugin 的 fronted_path
 func getRBDPlugin(pluginName string) (*v1alpha1.RBDPlugin, error) {
-	logrus.Infof("pluginName: %v", pluginName)
-	// TODO: An error will be reported when using the Get method to obtain a plugin object
-	// TODO: "an empty namespace may not be set when a resource name is provided"
-	// TODO: The final need to get through the Get method to improve performance
-	list, err := k8s.Default().RainbondClient.RainbondV1alpha1().RBDPlugins(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	plugin, err := k8s.Default().RainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Get(context.TODO(), pluginName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("plugin not found")
 	}
-	for _, rbdPlugin := range list.Items {
-		if rbdPlugin.Name == pluginName {
-			return &rbdPlugin, nil
-		}
-	}
-	return nil, errors.New("plugin not found")
+	return plugin, nil
 }
 
 func PluginStaticProxy(w http.ResponseWriter, r *http.Request) {
@@ -353,6 +345,31 @@ func getAppEnvVars(appID string) (map[string]string, error) {
 		}
 	}
 	return envVars, nil
+}
+
+func ChangePluginStatus(w http.ResponseWriter, r *http.Request) {
+	type Status struct {
+		Action string `json:"action"`
+	}
+	var status Status
+	if ok := http2.ValidatorRequestStructAndErrorResponse(r, w, &status, nil); !ok {
+		return
+	}
+	plugin, err := getRBDPlugin(chi.URLParam(r, "plugin_name"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get backend_path: %v", err), http.StatusInternalServerError)
+		return
+	}
+	plugin.Labels[v1alpha1.PluginEnableLabel.String()] = v1alpha1.True.String()
+	if status.Action == "disable" {
+		plugin.Labels[v1alpha1.PluginEnableLabel.String()] = v1alpha1.False.String()
+	}
+	data, err := k8s.Default().RainbondClient.RainbondV1alpha1().RBDPlugins("").Update(context.TODO(), plugin, metav1.UpdateOptions{})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update plugin status: %v", err), http.StatusInternalServerError)
+		return
+	}
+	http2.ReturnSuccess(r, w, data.GetObjectMeta())
 }
 
 func (v2 *V2) clusterRouter() chi.Router {

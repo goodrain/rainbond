@@ -24,7 +24,7 @@ import (
 	workerclient "github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/sirupsen/logrus"
 	"io"
 	corev1 "k8s.io/api/core/v1"
