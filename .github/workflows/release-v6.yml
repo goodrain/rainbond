@@ -1,0 +1,204 @@
+name: "release-v6"
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'branch'
+        required: true
+        default: 'V6.0'
+      version:
+        description: 'version'
+        required: true
+        default: 'V6.0-dev'
+      build-who:
+        description: 'build-who'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - operator
+          - region
+          - console
+      
+env:
+  VERSION: ${{ github.event.inputs.version }}
+  
+jobs:
+  rainbond-region:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    strategy:
+      matrix:
+        component: [api, chaos, worker, init-probe, mq]
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Set release description
+        run: |
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
+          echo "release_desc=$release_desc" >> $GITHUB_ENV
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+          context: .
+          file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          push: true
+          tags: |
+            rainbond/${{ matrix.component }}:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/${{ matrix.component }}:${{ env.VERSION }}
+
+  rainbond-operator:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'operator' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: rainbond/rainbond-operator
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            rainbond/rainbond-operator:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}
+
+  rainbond-ui:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: rainbond/rainbond-ui
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            rainbond/rainbond-ui:${{ env.VERSION }}
+  
+  rainbond-allinone:
+    runs-on: ubuntu-latest
+    needs: [rainbond-ui]
+    environment: release-v6
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: rainbond/rainbond-console
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Set release description
+        run: |
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
+          echo "release_desc=$release_desc" >> $GITHUB_ENV
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+            VERSION=${{ env.VERSION }}
+          context: .
+          file: ./Dockerfile.allinone
+          push: true
+          tags: |
+            rainbond/rainbond:${{ env.VERSION }}-allinone
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}-allinone

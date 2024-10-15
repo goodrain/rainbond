@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     /run/rainbond-worker version
 else
-    exec /bin/tini -- /run/rainbond-worker $@
+    exec /sbin/tini -- /run/rainbond-worker "$@"
 fi
