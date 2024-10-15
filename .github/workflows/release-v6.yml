@@ -21,7 +21,7 @@ on:
           - region
           - console
       platforms:
-        description: 'build-who'
+        description: 'platforms'
         required: true
         default: 'linux/amd64'
         type: choice
