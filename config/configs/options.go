@@ -71,9 +71,6 @@ func (c *Config) CheckEnv() error {
 	if err := os.Setenv("GRDATA_PVC_NAME", c.PublicConfig.GrdataPVCName); err != nil {
 		return fmt.Errorf("set env 'GRDATA_PVC_NAME': %v", err)
 	}
-	if os.Getenv("EX_DOMAIN") == "" {
-		return fmt.Errorf("please set env `EX_DOMAIN`")
-	}
 	return nil
 }
 

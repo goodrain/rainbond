@@ -23,6 +23,7 @@ import (
 	"fmt"
 	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	"io/ioutil"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -42,7 +43,6 @@ import (
 	dberrors "github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
-	validation "github.com/goodrain/rainbond/util/endpoint"
 	"github.com/goodrain/rainbond/util/fuzzy"
 	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -1597,7 +1597,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, "port must be a number")
 		return
 	}
-	vsPort, protocol, errV := handler.GetServiceManager().PortOuter(tenantName, serviceID, containerPort, &data)
+	vsPort, _, errV := handler.GetServiceManager().PortOuter(tenantName, serviceID, containerPort, &data)
 	if errV != nil {
 		if strings.HasSuffix(errV.Error(), gorm.ErrRecordNotFound.Error()) {
 			httputil.ReturnError(r, w, 404, errV.Error())
@@ -1607,24 +1607,8 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	rc := make(map[string]string)
-	domain := os.Getenv("EX_DOMAIN")
-	if domain == "" {
-		httputil.ReturnError(r, w, 500, "have no EX_DOMAIN")
-		return
-	}
-	mm := strings.Split(domain, ":")
-	if protocol == "http" || protocol == "https" {
-		rc["domain"] = mm[0]
-		if len(mm) == 2 {
-			rc["port"] = mm[1]
-		} else {
-			rc["port"] = "10080"
-		}
-	} else if vsPort != nil {
-		rc["domain"] = mm[0]
-		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
-	}
-
+	rc["domain"] = ""
+	rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,

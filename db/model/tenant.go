@@ -20,7 +20,6 @@ package model
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -317,18 +316,6 @@ func (t *TenantServices) ChangeDelete() *TenantServicesDelete {
 	delete := TenantServicesDelete(*t)
 	delete.UpdateTime = time.Now()
 	return &delete
-}
-
-// Autodomain 构建默认域名
-func (t *TenantServices) Autodomain(tenantName string, containerPort int) string {
-	exDomain := os.Getenv("EX_DOMAIN")
-	if exDomain == "" {
-		return ""
-	}
-	if strings.Contains(exDomain, ":") {
-		exDomain = strings.Split(exDomain, ":")[0]
-	}
-	return fmt.Sprintf("%d.%s.%s.%s", containerPort, t.ServiceAlias, tenantName, exDomain)
 }
 
 // TableName 表名
