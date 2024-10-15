@@ -85,7 +85,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          repository: rainbond/rainbond-operator
+          repository: goodrain/rainbond-operator
           ref: ${{ github.event.inputs.branch }}
 
       - name: Set up QEMU
@@ -126,7 +126,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          repository: rainbond/rainbond-ui
+          repository: goodrain/rainbond-ui
           ref: ${{ github.event.inputs.branch }}
 
       - name: Set up QEMU
@@ -160,7 +160,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          repository: rainbond/rainbond-console
+          repository: goodrain/rainbond-console
           ref: ${{ github.event.inputs.branch }}
 
       - name: Set up QEMU
