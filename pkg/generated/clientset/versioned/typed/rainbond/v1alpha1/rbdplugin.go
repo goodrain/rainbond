@@ -70,7 +70,6 @@ func newRBDPlugins(c *RainbondV1alpha1Client, namespace string) *rBDPlugins {
 func (c *rBDPlugins) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.RBDPlugin, err error) {
 	result = &v1alpha1.RBDPlugin{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -87,7 +86,6 @@ func (c *rBDPlugins) List(ctx context.Context, opts v1.ListOptions) (result *v1a
 	}
 	result = &v1alpha1.RBDPluginList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -104,7 +102,6 @@ func (c *rBDPlugins) Watch(ctx context.Context, opts v1.ListOptions) (watch.Inte
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -115,7 +112,6 @@ func (c *rBDPlugins) Watch(ctx context.Context, opts v1.ListOptions) (watch.Inte
 func (c *rBDPlugins) Create(ctx context.Context, rBDPlugin *v1alpha1.RBDPlugin, opts v1.CreateOptions) (result *v1alpha1.RBDPlugin, err error) {
 	result = &v1alpha1.RBDPlugin{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(rBDPlugin).
@@ -128,7 +124,6 @@ func (c *rBDPlugins) Create(ctx context.Context, rBDPlugin *v1alpha1.RBDPlugin, 
 func (c *rBDPlugins) Update(ctx context.Context, rBDPlugin *v1alpha1.RBDPlugin, opts v1.UpdateOptions) (result *v1alpha1.RBDPlugin, err error) {
 	result = &v1alpha1.RBDPlugin{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		Name(rBDPlugin.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -143,7 +138,6 @@ func (c *rBDPlugins) Update(ctx context.Context, rBDPlugin *v1alpha1.RBDPlugin, 
 func (c *rBDPlugins) UpdateStatus(ctx context.Context, rBDPlugin *v1alpha1.RBDPlugin, opts v1.UpdateOptions) (result *v1alpha1.RBDPlugin, err error) {
 	result = &v1alpha1.RBDPlugin{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		Name(rBDPlugin.Name).
 		SubResource("status").
@@ -157,7 +151,6 @@ func (c *rBDPlugins) UpdateStatus(ctx context.Context, rBDPlugin *v1alpha1.RBDPl
 // Delete takes name of the rBDPlugin and deletes it. Returns an error if one occurs.
 func (c *rBDPlugins) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		Name(name).
 		Body(&opts).
@@ -172,7 +165,6 @@ func (c *rBDPlugins) DeleteCollection(ctx context.Context, opts v1.DeleteOptions
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -185,7 +177,6 @@ func (c *rBDPlugins) DeleteCollection(ctx context.Context, opts v1.DeleteOptions
 func (c *rBDPlugins) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.RBDPlugin, err error) {
 	result = &v1alpha1.RBDPlugin{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("rbdplugins").
 		Name(name).
 		SubResource(subresources...).
