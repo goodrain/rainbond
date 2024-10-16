@@ -383,26 +383,15 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 }
 
 func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, err error) {
-	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(context.Background(), i.RbdRepoName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
-		return nil, err
-	}
-	hostNames := []string{"maven.goodrain.me", "lang.goodrain.me"}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			hostAliasList = append(hostAliasList, build.HostAlias{IP: addr.IP, Hostnames: hostNames})
-		}
-	}
-
 	// 增加对goodrain.me 的域名解析
 	list, err := i.KubeClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=rbd-gateway",
 	})
 	if err == nil && len(list.Items) > 0 {
 		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"goodrain.me"}})
+		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"maven.goodrain.me"}})
+		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"lang.goodrain.me"}})
 	}
-
 	return
 }
 
