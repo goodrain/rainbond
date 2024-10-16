@@ -216,6 +216,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.ComponentK8sAttributes{})
 	m.models = append(m.models, &model.K8sResource{})
 	m.models = append(m.models, &model.KeyValue{})
+	m.models = append(m.models, &model.EnterpriseLanguageVersion{})
 }
 
 // CheckTable check and create tables
