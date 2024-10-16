@@ -126,7 +126,7 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 			Namespace:   "string",
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode)},
+			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode, storageClassName)},
 			StorageClassName: &storageClassName,
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
@@ -142,7 +142,10 @@ RWO - ReadWriteOnce
 ROX - ReadOnlyMany
 RWX - ReadWriteMany
 */
-func parseAccessMode(accessMode string) corev1.PersistentVolumeAccessMode {
+func parseAccessMode(accessMode, storageClassName string) corev1.PersistentVolumeAccessMode {
+	if storageClassName == "local-path" {
+		return corev1.ReadWriteOnce
+	}
 	accessMode = strings.ToUpper(accessMode)
 	switch accessMode {
 	case "RWO":
