@@ -143,7 +143,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	err := sources.ImageBuild(s.re.Arch, cacheDir, "", "", s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.BuildKitImage, s.re.BuildKitArgs, s.re.BuildKitCache, s.re.KubeClient)
+	err := sources.ImageBuild(s.re.Arch, cacheDir, s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.BuildKitImage, s.re.BuildKitArgs, s.re.BuildKitCache, s.re.KubeClient)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
@@ -186,110 +186,23 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 }
 
 func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, buildNoCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
-	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
-	lazyloading := sourceTarFileName == ""
-	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
-
 	hostPathType := corev1.HostPathDirectoryOrCreate
-	unset := corev1.HostPathUnset
-	if re.CacheMode == "hostpath" {
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "slug",
-				MountPath: "/tmp/slug",
-				SubPath:   slugSubPath,
-			},
-		}
-		if !lazyloading {
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "source-file",
-				MountPath: "/tmp/app-source.tar",
-			})
-		}
-		volumes = []corev1.Volume{
-			{
-				Name: "slug",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: s.re.GRDataPVCName,
-					},
+	volumeMounts = []corev1.VolumeMount{}
+	volumes = []corev1.Volume{}
+	if !buildNoCache {
+		volumes = append(volumes, corev1.Volume{
+			Name: "cache",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: path.Join(re.CachePath, cacheSubPath),
+					Type: &hostPathType,
 				},
 			},
-		}
-		if !lazyloading {
-			volumes = append(volumes, corev1.Volume{
-				Name: "source-file",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: path.Join(re.CachePath, sourceTarPath),
-						// host file type can not auto create parent dir, so can not use.
-						Type: &unset,
-					},
-				},
-			})
-		}
-		if !buildNoCache {
-			volumes = append(volumes, corev1.Volume{
-				Name: "cache",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: path.Join(re.CachePath, cacheSubPath),
-						Type: &hostPathType,
-					},
-				},
-			})
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "cache",
-				MountPath: "/tmp/cache",
-			})
-		}
-	} else {
-		volumes = []corev1.Volume{
-			{
-				Name: "slug",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: s.re.GRDataPVCName,
-					},
-				},
-			},
-			{
-				Name: "app",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: re.CachePVCName,
-					},
-				},
-			},
-		}
-		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "slug",
-				MountPath: "/tmp/slug",
-				SubPath:   slugSubPath,
-			},
-		}
-		if !lazyloading {
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "app",
-				MountPath: "/tmp/app-source.tar",
-				SubPath:   sourceTarPath,
-			})
-		}
-		if !buildNoCache {
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "app",
-				MountPath: "/tmp/cache",
-				SubPath:   cacheSubPath,
-			})
-		}
-	}
-	if re.ServerType == "pkg" {
+		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "slug",
-			MountPath: "/tmp/app",
-			SubPath:   strings.TrimPrefix(re.RepositoryURL, "/grdata/"),
+			Name:      "cache",
+			MountPath: "/tmp/cache",
 		})
 	}
 	return volumes, volumeMounts

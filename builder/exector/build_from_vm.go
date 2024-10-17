@@ -82,7 +82,7 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		return err
 	}
 	imageName := fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, v.Image)
-	err = sources.ImageBuild(v.Arch, sourcePath, "", "", utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), v.ServiceID, v.DeployVersion, v.Logger, "vm-build", imageName, v.BuildKitImage, v.BuildKitArgs, v.BuildKitCache, v.kubeClient)
+	err = sources.ImageBuild(v.Arch, sourcePath, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), v.ServiceID, v.DeployVersion, v.Logger, "vm-build", imageName, v.BuildKitImage, v.BuildKitArgs, v.BuildKitCache, v.kubeClient)
 	if err != nil {
 		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

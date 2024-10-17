@@ -147,7 +147,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if err != nil {
 		return err
 	}
-	volumes, mounts := d.createVolumeAndMount(re, secret.Name, re.ServiceID, buildKitTomlCMName, re.BuildKitCache)
+	volumes, mounts := d.createVolumeAndMount(secret.Name, buildKitTomlCMName)
 	podSpec.Volumes = volumes
 	privileged := true
 	container := corev1.Container{
@@ -201,34 +201,16 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	return nil
 }
 
-func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceID string, buildKitTomlCMName string, buildKitCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
-	dockerfileBuildVolume := corev1.Volume{
-		Name: "dockerfile-build",
-		VolumeSource: corev1.VolumeSource{
-			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: re.CachePVCName,
-				ReadOnly:  false,
-			},
-		},
-	}
-	if re.CacheMode == "hostpath" {
-		hostPathType := corev1.HostPathDirectoryOrCreate
-		dockerfileBuildVolume.VolumeSource = corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/cache",
-				Type: &hostPathType,
-			},
-		}
-	}
 	volumes = []corev1.Volume{
-		dockerfileBuildVolume,
 		{
-			Name: "grdata",
+			Name: "dockerfile-build",
 			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "rbd-cpt-grdata",
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/cache",
+					Type: &hostPathType,
 				},
 			},
 		},
@@ -272,10 +254,6 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceI
 	}
 	volumeMounts = []corev1.VolumeMount{
 		{
-			Name:      "grdata",
-			MountPath: "/grdata",
-		},
-		{
 			Name:      "dockerfile-build",
 			MountPath: "/cache",
 		},
@@ -291,21 +269,6 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceI
 			Name:      "buildkittoml",
 			MountPath: "/etc/buildkit",
 		},
-	}
-	if buildKitCache {
-		volumes = append(volumes, corev1.Volume{
-			Name: "buildkit-db",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/cache/buildkit-cache",
-					Type: &hostPathType,
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "buildkit-db",
-			MountPath: "/var/lib/buildkit",
-		})
 	}
 	return volumes, volumeMounts
 }

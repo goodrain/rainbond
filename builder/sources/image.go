@@ -392,7 +392,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 // ImageBuild use buildkit build image
-func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
+func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" || buildType == "vm-build" {
@@ -454,7 +454,7 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 		return err
 	}
 	// only support never and onfailure
-	volumes, volumeMounts := CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName, buildKitTomlCMName, BuildKitCache)
+	volumes, volumeMounts := CreateVolumeAndMounts(contextDir, buildType, buildKitTomlCMName)
 	podSpec.Volumes = volumes
 	privileged := true
 	// container config
@@ -815,8 +815,8 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 	return nil
 }
 
-// CreateVolumesAndMounts -
-func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName string, buildKitTomlCMName string, buildKitCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+// CreateVolumeAndMounts -
+func CreateVolumeAndMounts(contextDir, buildType string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	pathSplit := strings.Split(contextDir, "/")
 	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -875,22 +875,6 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 			MountPath: "/etc/buildkit",
 		},
 	}
-	//if buildKitCache {
-	//	volumes = append(volumes, corev1.Volume{
-	//		Name: "buildkit-db",
-	//		VolumeSource: corev1.VolumeSource{
-	//			HostPath: &corev1.HostPathVolumeSource{
-	//				Path: "/cache/buildkit-cache",
-	//				Type: &hostPathType,
-	//			},
-	//		},
-	//	})
-	//	volumeMounts = append(volumeMounts, corev1.VolumeMount{
-	//		Name:      "buildkit-db",
-	//		MountPath: "/var/lib/buildkit",
-	//	})
-	//}
-	// Customize it according to how it is built volumes volumeMounts config
 	if buildType == "plug-build" {
 		volume := corev1.Volume{
 			Name: "plug-build",
@@ -912,18 +896,11 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 		volume := corev1.Volume{
 			Name: "nc-build",
 			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: cachePVCName,
-				},
-			},
-		}
-		if cacheMode == "hostpath" {
-			volume.VolumeSource = corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/cache",
 					Type: &hostPathType,
 				},
-			}
+			},
 		}
 		volumes = append(volumes, volume)
 		volumeMount := corev1.VolumeMount{
@@ -934,21 +911,7 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 	if buildType == "run-build" || buildType == "vm-build" {
-		volume := corev1.Volume{
-			Name: "run-build",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "rbd-cpt-grdata",
-				},
-			},
-		}
-		volumes = append(volumes, volume)
-		volumeMount := corev1.VolumeMount{
-			Name:      "run-build",
-			MountPath: "/workspace",
-			SubPath:   subPath,
-		}
-		volumeMounts = append(volumeMounts, volumeMount)
+		logrus.Infof("look ------------ %v", subPath)
 	}
 	return volumes, volumeMounts
 }
