@@ -46,7 +46,6 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
-	"github.com/goodrain/rainbond/api/util/license"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/db"
 	dberr "github.com/goodrain/rainbond/db/errors"
@@ -434,10 +433,6 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	}
 	if vs.ContainerGPU != nil {
 		service.ContainerGPU = *vs.ContainerGPU
-	}
-	licenseInfo := license.ReadLicense()
-	if licenseInfo == nil || !licenseInfo.HaveFeature("GPU") {
-		service.ContainerGPU = 0
 	}
 	if service.ContainerMemory == oldMemory && service.ContainerCPU == oldCPU && service.ContainerGPU == oldGPU {
 		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusSuccess)

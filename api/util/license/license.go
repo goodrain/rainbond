@@ -21,25 +21,60 @@ package license
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 )
 
-//LicenseInfo license data
+// LicenseInfo license data
 type LicenseInfo struct {
-	Code      string    `json:"code"`
-	Company   string    `json:"company"`
-	Node      int64     `json:"node"`
-	Memory    int64     `json:"memory"`
-	EndTime   string    `json:"end_time"`
-	StartTime string    `json:"start_time"`
-	Features  []Feature `json:"features"`
+	Code          string    `json:"code"`
+	Company       string    `json:"company"`
+	Contact       string    `json:"contact"`
+	ExpectCluster int64     `json:"expect_cluster"`
+	ExpectNode    int64     `json:"expect_node"`
+	ExpectMemory  int64     `json:"expect_memory"`
+	EndTime       string    `json:"end_time"`
+	StartTime     string    `json:"start_time"`
+	Features      []Feature `json:"features"`
+}
+
+func (l *LicenseInfo) SetResp(actualCluster, actualNode, actualMemory int64) *LicenseResp {
+	return &LicenseResp{
+		Code:          l.Code,
+		Company:       l.Company,
+		Contact:       l.Contact,
+		ExpectCluster: l.ExpectCluster,
+		ActualCluster: actualCluster,
+		ExpectNode:    l.ExpectNode,
+		ActualNode:    actualNode,
+		ExpectMemory:  l.ExpectMemory,
+		ActualMemory:  actualMemory,
+		EndTime:       l.EndTime,
+		StartTime:     l.StartTime,
+		Features:      l.Features,
+	}
+}
+
+// LicenseResp license resp data
+type LicenseResp struct {
+	Code          string    `json:"code" description:"code"`
+	Company       string    `json:"company" description:"公司名"`
+	Contact       string    `json:"contact" description:"联系信息"`
+	ExpectCluster int64     `json:"expect_cluster" description:"授权集群数量"`
+	ActualCluster int64     `json:"actual_cluster" description:"实际集群数量"`
+	ExpectNode    int64     `json:"expect_node" description:"授权节点数量"`
+	ActualNode    int64     `json:"actual_node" description:"实际节点数量"`
+	ExpectMemory  int64     `json:"expect_memory" description:"授权内存"`
+	ActualMemory  int64     `json:"actual_memory" description:"实际内存"`
+	EndTime       string    `json:"end_time" description:"结束时间"`
+	StartTime     string    `json:"start_time" description:"开始时间"`
+	Features      []Feature `json:"features" description:"特性列表"`
 }
 
 func (l *LicenseInfo) HaveFeature(code string) bool {
@@ -56,36 +91,15 @@ type Feature struct {
 	Code string `json:"code"`
 }
 
-var licenseInfo *LicenseInfo
-
-//ReadLicense -
-func ReadLicense() *LicenseInfo {
-	if licenseInfo != nil {
-		return licenseInfo
-	}
-	licenseFile := os.Getenv("LICENSE_PATH")
-	if licenseFile == "" {
+// ReadLicense -
+func ReadLicense(enterpriseID, infoBody string) *LicenseInfo {
+	if enterpriseID == "" {
+		logrus.Errorf("license id is nil")
 		return nil
 	}
-	//step1 read license file
-	_, err := os.Stat(licenseFile)
-	if err != nil {
-		logrus.Error("read LICENSE file failure：" + err.Error())
-		return nil
-	}
-	infoBody, err := ioutil.ReadFile(licenseFile)
-	if err != nil {
-		logrus.Error("read LICENSE file failure：" + err.Error())
-		return nil
-	}
-
-	//step2 decryption info
-	key := os.Getenv("LICENSE_KEY")
-	if key == "" {
-		logrus.Error("not define license Key")
-		return nil
-	}
-	infoData, err := Decrypt(getKey(key), string(infoBody))
+	salt := []byte(md5String(enterpriseID + string(defaultKey)))
+	key := md5String(enterpriseID)
+	infoData, err := Decrypt(getKey(key, salt), infoBody)
 	if err != nil {
 		logrus.Error("decrypt LICENSE failure " + err.Error())
 		return nil
@@ -96,10 +110,10 @@ func ReadLicense() *LicenseInfo {
 		logrus.Error("decrypt LICENSE json failure " + err.Error())
 		return nil
 	}
-	licenseInfo = &info
 	return &info
 }
 
+// Decrypt -
 func Decrypt(key []byte, encrypted string) ([]byte, error) {
 	ciphertext, err := base64.RawURLEncoding.DecodeString(encrypted)
 	if err != nil {
@@ -118,11 +132,20 @@ func Decrypt(key []byte, encrypted string) ([]byte, error) {
 	cfb.XORKeyStream(ciphertext, ciphertext)
 	return ciphertext, nil
 }
-func getKey(source string) []byte {
+
+// getKey -
+func getKey(source string, salt []byte) []byte {
 	if len(source) > 32 {
 		return []byte(source[:32])
 	}
-	return append(defaultKey[len(source):], []byte(source)...)
+	return append(salt[len(source):], []byte(source)...)
+}
+
+// md5String -
+func md5String(s string) string {
+	h := md5.New()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 var defaultKey = []byte{113, 119, 101, 114, 116, 121, 117, 105, 111, 112, 97, 115, 100, 102, 103, 104, 106, 107, 108, 122, 120, 99, 118, 98, 110, 109, 49, 50, 51, 52, 53, 54}

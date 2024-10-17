@@ -19,18 +19,18 @@
 package controller
 
 import (
-	"net/http"
-
+	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/util/license"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"net/http"
 )
 
-//LicenseManager license manager
+// LicenseManager license manager
 type LicenseManager struct{}
 
 var licenseManager *LicenseManager
 
-//GetLicenseManager get license Manager
+// GetLicenseManager get license Manager
 func GetLicenseManager() *LicenseManager {
 	if licenseManager != nil {
 		return licenseManager
@@ -39,14 +39,22 @@ func GetLicenseManager() *LicenseManager {
 	return licenseManager
 }
 
+// Deprecated
 func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Request) {
 	//The following features are designed for license control.
 	// GPU Support
 	// Windows Container Support
 	// Gateway security control
 	features := []license.Feature{}
-	if lic := license.ReadLicense(); lic != nil {
-		features = lic.Features
-	}
 	httputil.ReturnSuccess(r, w, features)
+}
+
+// Getlicense -
+func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
+	err := middleware.LicenseVerification(r, true)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, middleware.LicenseCache.Data)
 }
