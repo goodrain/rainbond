@@ -209,7 +209,16 @@ func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCM
 			Name: "dockerfile-build",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/cache",
+					Path: "/opt/rainbond/cache",
+					Type: &hostPathType,
+				},
+			},
+		},
+		{
+			Name: "grdata",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/opt/rainbond/grdata",
 					Type: &hostPathType,
 				},
 			},
@@ -253,6 +262,10 @@ func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCM
 		},
 	}
 	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "grdata",
+			MountPath: "/grdata",
+		},
 		{
 			Name:      "dockerfile-build",
 			MountPath: "/cache",

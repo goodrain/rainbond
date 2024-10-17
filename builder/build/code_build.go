@@ -186,16 +186,30 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 }
 
 func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, buildNoCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
-	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
-	volumeMounts = []corev1.VolumeMount{}
-	volumes = []corev1.Volume{}
+	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "slug",
+			MountPath: "/tmp/slug",
+		},
+	}
+	volumes = []corev1.Volume{
+		{
+			Name: "slug",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: path.Join("/opt/rainbond/", re.SourceDir),
+					Type: &hostPathType,
+				},
+			},
+		},
+	}
 	if !buildNoCache {
 		volumes = append(volumes, corev1.Volume{
 			Name: "cache",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path.Join(re.CachePath, cacheSubPath),
+					Path: path.Join("/opt/rainbond/", re.CacheDir),
 					Type: &hostPathType,
 				},
 			},

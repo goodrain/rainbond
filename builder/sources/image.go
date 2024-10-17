@@ -817,8 +817,6 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 
 // CreateVolumeAndMounts -
 func CreateVolumeAndMounts(contextDir, buildType string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
-	pathSplit := strings.Split(contextDir, "/")
-	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
 	// buildkit volumes volumeMounts config
@@ -875,44 +873,21 @@ func CreateVolumeAndMounts(contextDir, buildType string, buildKitTomlCMName stri
 			MountPath: "/etc/buildkit",
 		},
 	}
-	if buildType == "plug-build" {
-		volume := corev1.Volume{
-			Name: "plug-build",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: contextDir,
-					Type: &hostPathType,
-				},
+	volume := corev1.Volume{
+		Name: "plug-build",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: path.Join("/opt/rainbond", contextDir),
+				Type: &hostPathType,
 			},
-		}
-		volumes = append(volumes, volume)
-		volumeMount := corev1.VolumeMount{
-			Name:      "plug-build",
-			MountPath: "/workspace",
-		}
-		volumeMounts = append(volumeMounts, volumeMount)
+		},
 	}
-	if buildType == "nc-build" {
-		volume := corev1.Volume{
-			Name: "nc-build",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/cache",
-					Type: &hostPathType,
-				},
-			},
-		}
-		volumes = append(volumes, volume)
-		volumeMount := corev1.VolumeMount{
-			Name:      "nc-build",
-			MountPath: "/workspace",
-			SubPath:   subPath,
-		}
-		volumeMounts = append(volumeMounts, volumeMount)
+	volumes = append(volumes, volume)
+	volumeMount := corev1.VolumeMount{
+		Name:      "plug-build",
+		MountPath: "/workspace",
 	}
-	if buildType == "run-build" || buildType == "vm-build" {
-		logrus.Infof("look ------------ %v", subPath)
-	}
+	volumeMounts = append(volumeMounts, volumeMount)
 	return volumes, volumeMounts
 }
 
