@@ -192,13 +192,26 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 			Name:      "slug",
 			MountPath: "/tmp/slug",
 		},
+		{
+			Name:      "app",
+			MountPath: "/tmp/app",
+		},
 	}
 	volumes = []corev1.Volume{
+		{
+			Name: "app",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: path.Join("/opt/rainbond/", re.SourceDir),
+					Type: &hostPathType,
+				},
+			},
+		},
 		{
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path.Join("/opt/rainbond/", re.SourceDir),
+					Path: path.Join("/opt/rainbond/", re.TGZDir),
 					Type: &hostPathType,
 				},
 			},
