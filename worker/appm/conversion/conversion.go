@@ -20,9 +20,8 @@ package conversion
 
 import (
 	"fmt"
-	configs2 "github.com/goodrain/rainbond/config/configs"
-
 	"github.com/goodrain/rainbond/api/util/bcode"
+	configs2 "github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
@@ -96,7 +95,11 @@ func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs
 		logrus.Errorf("init component base config failure %s", err.Error())
 		return nil, err
 	}
-
+	// all component can regist server.
+	if err := TenantServiceRegist(appService, dbmanager); err != nil {
+		logrus.Errorf("init component server regist config failure %s", err.Error())
+		return nil, err
+	}
 	if appService.IsCustomComponent() {
 		if err := componentdefinition.GetComponentDefinitionBuilder().BuildWorkloadResource(appService, dbmanager); err != nil {
 			logrus.Errorf("init component by component definition build failure %s", err.Error())
