@@ -356,6 +356,7 @@ func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error
 }
 
 func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
+	logrus.Infof("----------------------------为什么%v", fileName)
 	bucketName, key, err := s3s.ParseDirPath(fileName)
 	if err != nil {
 		logrus.Errorf("Failed to parse file path: %s", err.Error())
