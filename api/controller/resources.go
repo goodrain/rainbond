@@ -514,7 +514,7 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	var tenantIDs []string
 	err := json.Unmarshal([]byte(jsonTenantIDs), &tenantIDs)
 	if err != nil {
-		logrus.Errorf("json unmarshal failure: %v", err)
+		logrus.Debugf("json unmarshal failure: %v", err)
 	}
 	var tenants []*dbmodel.Tenants
 	tenants, err = handler.GetTenantManager().GetTenantsByTenantIDs(tenantIDs)
