@@ -39,6 +39,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Pull Docker image
+        run: |
+          VERSION=${{ env.VERSION }} sh standalone/images-package.sh
+      
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -51,19 +55,15 @@ jobs:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-      
-      - name: Pull Docker image
-        run: |
-          VERSION=${{ env.VERSION }} cd standalone && sh ./images-package.sh
-      
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           platforms: ${{ github.event.inputs.platforms }}
           build-args: |
             VERSION=${{ env.VERSION }}
-          context: standalone
-          file: ./Dockerfile
+          context: .
+          file: standalone/Dockerfile
           push: true
           tags: |
             rainbond/rainbond:${{ env.VERSION }}-dind
