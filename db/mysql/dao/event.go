@@ -243,7 +243,7 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
 			a.ID DESC
 		LIMIT ?, ?;
 	`
-	if err := c.DB.Debug().Raw(query, tenantIDs, offset, limit).Scan(&events).Error; err != nil {
+	if err := c.DB.Raw(query, tenantIDs, offset, limit).Scan(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil
