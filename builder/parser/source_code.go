@@ -225,6 +225,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			filePath = path.Join(buildInfo.GetCodeHome(), fileList[0].Name())
 			ext = path.Ext(fileList[0].Name())
 		}
+		logrus.Infof("looooooooooooook:::::%v", ext)
 		switch ext {
 		case ".tar":
 			if err := util.UnTar(filePath, buildInfo.GetCodeHome(), false); err != nil {
