@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"path"
@@ -211,17 +212,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		checkPath = buildInfo.RepostoryURL
 		pathSplit := strings.Split(buildInfo.RepostoryURL, "/")
 		eventID := pathSplit[len(pathSplit)-1]
-		files, err := ioutil.ReadDir(checkPath)
-		if err != nil {
-			logrus.Warn("check package error", err)
-		}
-		if len(files) == 0 {
-			// 第一次上传在临时目录下检测
-			checkPath = fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
-		}
+		checkPath = fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
 		buildInfo.CodeHome = checkPath
+		err := storage.Default().StorageCli.DownloadDirToDir(checkPath, checkPath)
+		if err != nil {
+			logrus.Errorf("download dir to dir failure: %v", err)
+		}
 
-		fileList, err := ioutil.ReadDir(buildInfo.GetCodeHome())
+		fileList, _ := ioutil.ReadDir(buildInfo.GetCodeHome())
 		var ext, filePath string
 		if len(fileList) > 0 {
 			filePath = path.Join(buildInfo.GetCodeHome(), fileList[0].Name())

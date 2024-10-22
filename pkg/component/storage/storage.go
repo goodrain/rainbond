@@ -75,6 +75,7 @@ type InterfaceStorage interface {
 	SaveFile(fileName string, reader multipart.File) error
 	CopyFileWithProgress(src string, dst string, logger event.Logger) error
 	ReadDir(dirName string) ([]string, error)
+	DownloadDirToDir(srcDir, dstDir string) error
 }
 
 type SrcFile interface {

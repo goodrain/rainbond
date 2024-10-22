@@ -528,3 +528,58 @@ func extractFile(zipFile *zip.File, target string, currentDirectory bool) error 
 
 	return run()
 }
+
+func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
+	bucketName, prefix, err := s3s.ParseDirPath(srcDir, true)
+	if err != nil {
+		return fmt.Errorf("解析源路径失败: %v", err)
+	}
+
+	// 检查目标目录是否存在，如果不存在则创建
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("无法创建目录 %s: %v", dstDir, err)
+	}
+
+	// 列出 S3 中指定目录下的所有对象
+	listInput := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(prefix),
+	}
+
+	result, err := s3s.s3Client.ListObjectsV2(listInput)
+	if err != nil {
+		return fmt.Errorf("无法列出 S3 目录 %s: %v", srcDir, err)
+	}
+
+	// 下载每个文件
+	for _, item := range result.Contents {
+		key := *item.Key
+		dstFilePath := fmt.Sprintf("%s/%s", dstDir, filepath.Base(key))
+
+		// 从 S3 下载文件
+		input := &s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(key),
+		}
+
+		result, err := s3s.s3Client.GetObject(input)
+		if err != nil {
+			return fmt.Errorf("无法从 S3 下载文件 %s: %v", key, err)
+		}
+		defer result.Body.Close()
+
+		// 创建目标文件
+		dstFile, err := os.OpenFile(dstFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("无法打开文件 %s: %v", dstFilePath, err)
+		}
+		defer dstFile.Close()
+
+		// 将 S3 文件内容写入目标文件
+		if _, err := io.Copy(dstFile, result.Body); err != nil {
+			return fmt.Errorf("无法写入文件 %s: %v", dstFilePath, err)
+		}
+	}
+
+	return nil
+}
