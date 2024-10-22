@@ -27,6 +27,7 @@ import (
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/sirupsen/logrus"
 	"io"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"net/http"
 	"net/url"
 	"os"
@@ -85,6 +87,7 @@ type ClusterHandler interface {
 	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
 	GenerateAbilityID(ability *unstructured.Unstructured) string
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
+	ListUpgradeStatus() ([]model.ComponentStatus, error)
 }
 
 // NewClusterHandler -
@@ -972,4 +975,239 @@ func extractFilePath(frontedPath string) (string, error) {
 	filePath = strings.TrimPrefix(filePath, "/")
 
 	return filePath, nil
+}
+
+const (
+	ComponentRainbondOperator = "rainbond-operator" // deployment
+	ComponentRBDAPI           = "rbd-api"           // deployment
+	ComponentRBDWorker        = "rbd-worker"        // deployment
+	ComponentRBDAPPUI         = "rbd-app-ui"        // deployment, optional
+	ComponentRBDChaos         = "rbd-chaos"         // daemonset
+	ComponentRBDMQ            = "rbd-mq"            // deployment
+)
+
+func (c *clusterAction) ListUpgradeStatus() ([]model.ComponentStatus, error) {
+	components := []string{ComponentRainbondOperator, ComponentRBDAPI, ComponentRBDWorker, ComponentRBDAPPUI, ComponentRBDChaos, ComponentRBDMQ}
+	var statuses []model.ComponentStatus
+
+	// 遍历所有组件并查询其状态
+	for _, component := range components {
+		var status model.ComponentStatus
+		status.Name = component
+
+		// 根据组件类型查询状态
+		if component == ComponentRBDChaos {
+			// DaemonSet 状态检查，包含重试机制
+			dsStatus, err := retryStatusCheck(func() (model.ComponentStatus, error) {
+				return c.checkDaemonSetStatus(component)
+			})
+			if err != nil {
+				status.Status = "Failed"
+				status.Message = err.Error()
+			} else {
+				status = dsStatus
+			}
+		} else {
+			// 检查组件是否存在，ComponentRBDAPPUI 是可选的
+			exists, err := c.checkComponentExists(component)
+			if err != nil {
+				// 处理组件存在性检查中的错误
+				status.Status = "Failed"
+				status.Message = fmt.Sprintf("error checking component existence: %v", err)
+				statuses = append(statuses, status)
+				continue
+			}
+			if !exists {
+				// 如果组件不存在则跳过
+				continue
+			}
+			// Deployment 状态检查，包含重试机制
+			deployStatus, err := retryStatusCheck(func() (model.ComponentStatus, error) {
+				return c.checkDeploymentStatus(component)
+			})
+			if err != nil {
+				status.Status = "Failed"
+				status.Message = err.Error()
+			} else {
+				status = deployStatus
+			}
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
+}
+
+// 重试机制封装，防止短暂的错误导致失败
+func retryStatusCheck(checkFunc func() (model.ComponentStatus, error)) (model.ComponentStatus, error) {
+	var status model.ComponentStatus
+	var err error
+	retryErr := retry.OnError(retry.DefaultRetry, func(err error) bool {
+		// Retry on any error
+		return true
+	}, func() error {
+		status, err = checkFunc()
+		return err
+	})
+	if retryErr != nil {
+		return model.ComponentStatus{}, retryErr
+	}
+	return status, nil
+}
+
+// 检查组件是否存在（用于处理可选的组件，如 ComponentRBDAPPUI）
+func (c *clusterAction) checkComponentExists(componentName string) (bool, error) {
+	// 检查 Deployment 是否存在
+	_, err := c.clientset.AppsV1().Deployments(c.namespace).Get(context.TODO(), componentName, metav1.GetOptions{})
+	if err == nil {
+		return true, nil
+	} else if apierrors.IsNotFound(err) {
+		// 如果返回 404 错误，说明该组件不存在
+		return false, nil
+	} else {
+		// 其他类型的错误
+		return false, fmt.Errorf("error checking component %s existence: %v", componentName, err)
+	}
+}
+
+func (c *clusterAction) checkDeploymentStatus(deploymentName string) (model.ComponentStatus, error) {
+	deployment, err := c.clientset.AppsV1().Deployments(c.namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return model.ComponentStatus{}, fmt.Errorf("error getting deployment %s: %v", deploymentName, err)
+	}
+
+	replicas := *deployment.Spec.Replicas                        // 总期望副本数
+	updatedReplicas := deployment.Status.UpdatedReplicas         // 更新到新镜像的副本数
+	availableReplicas := deployment.Status.AvailableReplicas     // 可用副本数
+	unavailableReplicas := deployment.Status.UnavailableReplicas // 不可用副本数
+
+	status := model.ComponentStatus{
+		Name: deploymentName,
+	}
+
+	// 检查升级是否还在进行
+	isProgressing := false
+	for _, condition := range deployment.Status.Conditions {
+		if condition.Type == appsv1.DeploymentProgressing && condition.Status == corev1.ConditionTrue {
+			isProgressing = true
+			break
+		}
+	}
+
+	// 如果 replicas 与 updatedReplicas 相等，且 unavailableReplicas 为 0，说明升级完成
+	if updatedReplicas == replicas && unavailableReplicas == 0 {
+		status.Status = "Completed"
+		status.Progress = 100.0
+	} else {
+		status.Status = "Upgrading"
+		// 更新进度：结合 updatedReplicas 和 availableReplicas 的比例
+		progress := (float64(updatedReplicas)/float64(replicas))*50 + (float64(availableReplicas)/float64(replicas))*50
+		status.Progress = progress
+
+		// 如果有不可用副本，说明可能有问题
+		if unavailableReplicas > 0 {
+			// 获取不可用 Pod 的详细状态信息
+			podMessage := c.getPodMessage(deploymentName)
+			if podMessage != "" {
+				status.Message = podMessage
+			} else {
+				status.Message = fmt.Sprintf("%d replicas are unavailable", unavailableReplicas)
+			}
+		}
+
+		// 如果进展缓慢，或者长时间没有变化，可以增加错误提示
+		if isProgressing {
+			if status.Message == "" {
+				status.Message = "Deployment is progressing, but not all replicas are ready"
+			} else {
+				status.Message += "; Deployment is progressing, but not all replicas are ready"
+			}
+		}
+	}
+	return status, nil
+}
+
+// 获取Pod的详细信息，展示包括创建中的信息和终止状态
+func (c *clusterAction) getPodMessage(deploymentName string) string {
+	// 根据Deployment的label来获取相关的Pod
+	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("name=%s", deploymentName), // 假设使用name=deploymentName作为label
+	})
+	if err != nil {
+		return fmt.Sprintf("Error listing pods for %s: %v", deploymentName, err)
+	}
+
+	var messages []string
+
+	// 遍历所有Pod，检查每个Pod的状态
+	for _, pod := range podList.Items {
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			// 检查容器是否在等待状态，展示创建中的详细信息
+			if containerStatus.State.Waiting != nil {
+				messages = append(messages, fmt.Sprintf("Pod %s is in waiting state: %s", pod.Name, containerStatus.State.Waiting.Message))
+			}
+			// 检查容器是否处于终止状态且有错误
+			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.ExitCode != 0 {
+				messages = append(messages, fmt.Sprintf("Pod %s terminated with exit code %d: %s", pod.Name, containerStatus.State.Terminated.ExitCode, containerStatus.State.Terminated.Message))
+			}
+		}
+	}
+
+	// 如果有详细状态信息，返回所有状态
+	if len(messages) > 0 {
+		return fmt.Sprintf("Pod details: %s", strings.Join(messages, "; "))
+	}
+	// 如果没有发现详细信息
+	return ""
+}
+
+func (c *clusterAction) checkDaemonSetStatus(daemonsetName string) (model.ComponentStatus, error) {
+	daemonset, err := c.clientset.AppsV1().DaemonSets(c.namespace).Get(context.TODO(), daemonsetName, metav1.GetOptions{})
+	if err != nil {
+		return model.ComponentStatus{}, fmt.Errorf("error getting daemonset %s: %v", daemonsetName, err)
+	}
+
+	desired := daemonset.Status.DesiredNumberScheduled
+	updated := daemonset.Status.UpdatedNumberScheduled
+	available := daemonset.Status.NumberAvailable
+
+	status := model.ComponentStatus{
+		Name: daemonsetName,
+	}
+
+	// 检查所有 pods 是否都更新并可用
+	if updated == desired && available == desired {
+		status.Status = "Completed"
+		status.Progress = 100.0
+	} else {
+		status.Status = "Upgrading"
+		progress := (float64(available) / float64(desired)) * 100
+		status.Progress = progress
+		// 如果升级卡住，检查 pod 的错误信息
+		podMessage := c.checkPodStatus(daemonsetName)
+		if podMessage != "" {
+			status.Message = podMessage
+		}
+	}
+	return status, nil
+}
+
+func (c *clusterAction) checkPodStatus(componentName string) string {
+	// 根据组件名称列出相关的 Pod
+	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("name=%s", componentName),
+	})
+	if err != nil {
+		return fmt.Sprintf("Error listing pods for %s: %v", componentName, err)
+	}
+	for _, pod := range podList.Items {
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			// 检查容器是否处于等待或终止状态
+			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.ExitCode != 0 {
+				return fmt.Sprintf("Pod %s terminated with exit code: %d", pod.Name, containerStatus.State.Terminated.ExitCode)
+			} else if containerStatus.State.Waiting != nil {
+				return containerStatus.State.Waiting.Message
+			}
+		}
+	}
+	return ""
 }

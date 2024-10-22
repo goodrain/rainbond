@@ -59,6 +59,7 @@ type ClusterInterface interface {
 	CreateLangVersion(w http.ResponseWriter, r *http.Request)
 	DeleteLangVersion(w http.ResponseWriter, r *http.Request)
 	Upgrade(w http.ResponseWriter, r *http.Request)
+	ListUpgradeStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // NodesInterface -

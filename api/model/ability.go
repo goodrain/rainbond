@@ -15,3 +15,11 @@ type AbilityResp struct {
 	Kind       string `json:"kind"`
 	AbilityID  string `json:"ability_id"`
 }
+
+// ComponentStatus holds the status information of a component
+type ComponentStatus struct {
+	Name     string  `json:"name"`
+	Status   string  `json:"status"` // Completed, Upgrading, Failed
+	Progress float64 `json:"progress"`
+	Message  string  `json:"message"`
+}

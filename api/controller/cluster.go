@@ -447,6 +447,16 @@ func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// ListUpgradeStatus -
+func (c *ClusterController) ListUpgradeStatus(w http.ResponseWriter, r *http.Request) {
+	status, err := handler.GetClusterHandler().ListUpgradeStatus()
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, status)
+}
+
 // ListPlugins -
 func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) {
 	official, _ := strconv.ParseBool(r.URL.Query().Get("official"))
