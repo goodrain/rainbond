@@ -255,15 +255,14 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 	}
 	// get node roles
 	var roles []string
-	for k, v := range node.Labels {
+	for k, _ := range node.Labels {
 		if strings.HasPrefix(k, NodeRolesLabelPrefix) {
 			// string handle : node-role.kubernetes.io/worker: "true"
 			role := strings.Split(k, "/")[1]
+			if role == "master" {
+				continue
+			}
 			roles = append(roles, role)
-		}
-		if strings.HasPrefix(k, NodeRolesLabel) {
-			// string handle : kubernetes.io/role: master
-			roles = append(roles, v)
 		}
 		continue
 	}
