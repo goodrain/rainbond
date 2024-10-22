@@ -32,7 +32,7 @@ func (s3s *S3Storage) Test() {
 
 // Glob 便利目录下所有的文件全路径
 func (s3s *S3Storage) Glob(dirPath string) ([]string, error) {
-	bucketName, prefix, err := s3s.ParseDirPath(dirPath)
+	bucketName, prefix, err := s3s.ParseDirPath(dirPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (s3s *S3Storage) Glob(dirPath string) ([]string, error) {
 }
 
 func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
-	bucketName, prefix, err := s3s.ParseDirPath(dirName)
+	bucketName, prefix, err := s3s.ParseDirPath(dirName, false)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
 // MkdirAll MkdirAll
 func (s3s *S3Storage) MkdirAll(dirPath string) error {
 	// 解析目录路径
-	bucketName, parsePath, err := s3s.ParseDirPath(dirPath)
+	bucketName, parsePath, err := s3s.ParseDirPath(dirPath, false)
 	if err != nil {
 		return fmt.Errorf("failed to parse directory path: %w", err)
 	}
@@ -97,13 +97,7 @@ func (s3s *S3Storage) MkdirAll(dirPath string) error {
 		return fmt.Errorf("failed to check directory existence: %w", err)
 	}
 
-	if exists {
-		// 如果目录已存在，清空该目录下的内容
-		err = s3s.ClearDirectory(bucketName, parsePath)
-		if err != nil {
-			return fmt.Errorf("failed to clear directory: %w", err)
-		}
-	} else {
+	if !exists {
 		// 如果目录不存在，创建目录
 		_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
@@ -121,7 +115,7 @@ func (s3s *S3Storage) MkdirAll(dirPath string) error {
 // RemoveAll RemoveAll
 func (s3s *S3Storage) RemoveAll(dirPath string) error {
 	// 构建删除对象列表
-	bucketName, parsePath, err := s3s.ParseDirPath(dirPath)
+	bucketName, parsePath, err := s3s.ParseDirPath(dirPath, false)
 	objectsToDelete := &s3.Delete{
 		Objects: []*s3.ObjectIdentifier{},
 		Quiet:   aws.Bool(true),
@@ -216,7 +210,7 @@ func (s3s *S3Storage) ClearDirectory(bucketName, dirPath string) error {
 
 func (s3s *S3Storage) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	// 获取对象
-	bucketName, key, err := s3s.ParseDirPath(filePath)
+	bucketName, key, err := s3s.ParseDirPath(filePath, true)
 	output, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(key),
@@ -258,7 +252,7 @@ func (s3s *S3Storage) ensureBucketExists(bucketName string) error {
 }
 
 // ParseDirPath 解析 dirPath 并返回桶名和路径
-func (s3s *S3Storage) ParseDirPath(dirPath string) (string, string, error) {
+func (s3s *S3Storage) ParseDirPath(dirPath string, isFile bool) (string, string, error) {
 	parts := strings.Split(dirPath, "/")
 	if len(parts) < 2 {
 		return "", "", fmt.Errorf("dirPath is invalid, must include bucket name and path")
@@ -284,12 +278,16 @@ func (s3s *S3Storage) ParseDirPath(dirPath string) (string, string, error) {
 	if err := s3s.ensureBucketExists(bucketName); err != nil {
 		return "", "", err
 	}
-	key = strings.Join(parts[keyIndex+1:], "/") + "/"
+	key = strings.Join(parts[keyIndex+1:], "/")
+	if !isFile {
+		key += "/"
+	}
+
 	return bucketName, key, nil
 }
 
 func (s3s *S3Storage) OpenFile(fileName string, flag int, perm os.FileMode) (*os.File, error) {
-	bucketName, key, err := s3s.ParseDirPath(fileName)
+	bucketName, key, err := s3s.ParseDirPath(fileName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +312,7 @@ func (s3s *S3Storage) OpenFile(fileName string, flag int, perm os.FileMode) (*os
 }
 
 func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error {
-	bucketName, key, err := s3s.ParseDirPath(archive)
+	bucketName, key, err := s3s.ParseDirPath(archive, true)
 	// 下载 S3 中的 ZIP 文件
 	zipFile, err := os.CreateTemp("", "archive-*.zip")
 	if err != nil {
@@ -356,8 +354,7 @@ func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error
 }
 
 func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
-	logrus.Infof("----------------------------为什么%v", fileName)
-	bucketName, key, err := s3s.ParseDirPath(fileName)
+	bucketName, key, err := s3s.ParseDirPath(fileName, true)
 	if err != nil {
 		logrus.Errorf("Failed to parse file path: %s", err.Error())
 		return err
@@ -392,7 +389,7 @@ func (s3s *S3Storage) CopyFileWithProgress(src, dst string, logger event.Logger)
 		}
 		return err
 	}
-	bucket, key, err := s3s.ParseDirPath(dst)
+	bucket, key, err := s3s.ParseDirPath(dst, true)
 	if err != err {
 		logger.Error("解析目标路径失败", map[string]string{"step": "share"})
 		return err
