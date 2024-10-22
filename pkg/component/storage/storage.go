@@ -35,6 +35,7 @@ func New() *StorageComponent {
 // Start -
 func (s *StorageComponent) Start(ctx context.Context) error {
 	var storageCli InterfaceStorage
+	logrus.Infof("create s3 client %v,----%v,----%v", s.storageConfig.StorageType, s.storageConfig.S3AccessKeyID, s.storageConfig.S3SecretAccessKey)
 	if s.storageConfig.StorageType == "s3" {
 		sess, err := session.NewSession(&aws.Config{
 			Endpoint:         aws.String(s.storageConfig.S3Endpoint),
