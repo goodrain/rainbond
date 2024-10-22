@@ -530,7 +530,7 @@ func extractFile(zipFile *zip.File, target string, currentDirectory bool) error 
 }
 
 func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
-	bucketName, prefix, err := s3s.ParseDirPath(srcDir, true)
+	bucketName, prefix, err := s3s.ParseDirPath(srcDir, false)
 	if err != nil {
 		return fmt.Errorf("解析源路径失败: %v", err)
 	}
@@ -553,6 +553,10 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 
 	// 下载每个文件
 	for _, item := range result.Contents {
+		logrus.Infof("look ----- %v:%v", *item.Key, prefix)
+		if *item.Key == prefix {
+			continue
+		}
 		key := *item.Key
 		dstFilePath := fmt.Sprintf("%s/%s", dstDir, filepath.Base(key))
 
