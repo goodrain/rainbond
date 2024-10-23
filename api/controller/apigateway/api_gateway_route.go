@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -16,6 +17,8 @@ import (
 	"net/http"
 	"sigs.k8s.io/yaml"
 	"strings"
+	"sync"
+	"time"
 )
 
 // OpenOrCloseDomains -
@@ -23,7 +26,7 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias"),
+		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias") + ",port=" + r.URL.Query().Get("port"),
 	})
 	for _, item := range list.Items {
 		var plugins = item.Spec.HTTP[0].Plugins
@@ -46,8 +49,11 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 		}
 		item.Spec.HTTP[0].Plugins = newPlugins
 		item.Status = v2.ApisixStatus{}
-		c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
-		c.ApisixRoutes(tenant.Namespace).UpdateStatus(r.Context(), &item, v1.UpdateOptions{})
+		_, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("update route %v failure: %v", item.Name, err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
@@ -58,7 +64,7 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias"),
+		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias") + ",port=" + r.URL.Query().Get("port"),
 	})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
@@ -82,6 +88,17 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, hosts)
 }
 
+type CacheItem struct {
+	Data      []*v2.ApisixRouteHTTP
+	ExpiresAt time.Time
+}
+
+var (
+	cache      = make(map[string]*CacheItem)
+	cacheMutex sync.Mutex
+	cacheTTL   = 15 * time.Second
+)
+
 // GetHTTPAPIRoute -
 func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
@@ -93,6 +110,22 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if appID != "" {
 		labelSelector = "app_id=" + appID
 	}
+
+	// 使用命名空间和 labelSelector 作为缓存 key
+	cacheKey := tenant.Namespace + "|" + labelSelector
+	// 从缓存中获取数据
+	cacheMutex.Lock()
+	cachedItem, found := cache[cacheKey]
+	cacheMutex.Unlock()
+
+	if found && time.Now().Before(cachedItem.ExpiresAt) {
+		// 返回缓存数据
+		resp = cachedItem.Data
+		httputil.ReturnSuccess(r, w, resp)
+		return
+	}
+
+	// 如果缓存不存在或已过期，则从 API 获取数据
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -106,6 +139,15 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httpRoute.Name = v.Name + "|" + v.ObjectMeta.Labels["service_alias"]
 		resp = append(resp, httpRoute)
 	}
+
+	// 更新缓存
+	cacheMutex.Lock()
+	cache[cacheKey] = &CacheItem{
+		Data:      resp,
+		ExpiresAt: time.Now().Add(cacheTTL),
+	}
+	cacheMutex.Unlock()
+
 	httputil.ReturnSuccess(r, w, resp)
 }
 
@@ -143,6 +185,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	// 如果没有绑定appId，那么不要加这个lable
 	labels := make(map[string]string)
 	labels["creator"] = "Rainbond"
+	labels["port"] = r.URL.Query().Get("port")
 	if r.URL.Query().Get("appID") != "" {
 		labels["app_id"] = r.URL.Query().Get("appID")
 	}
@@ -178,7 +221,12 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		name := r.URL.Query().Get("name")
 		if name != "" {
-			c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+			if err != nil {
+				logrus.Errorf("delete route %v failure: %v", name, err)
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+				return
+			}
 		}
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(route))
 		return
@@ -236,7 +284,12 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		})
 
 		for _, item := range list.Items {
-			c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), item.Spec.HTTP[0].Name, v1.DeleteOptions{})
+			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), item.Spec.HTTP[0].Name, v1.DeleteOptions{})
+			if err != nil {
+				logrus.Errorf("delete route %v failure: %v", item.Name, err)
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+				return
+			}
 			deleteName = append(deleteName, item.Spec.HTTP[0].Name)
 
 		}
@@ -264,10 +317,6 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return
-	}
-	if err != nil {
-		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
@@ -290,17 +339,21 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
+	name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
+	if r.URL.Query().Get("port") != "" {
+		name = name + "-" + r.URL.Query().Get("port")
+	}
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
-				Protocol:   "TCP",
-				Name:       serviceName,
+				Protocol:   corev1.Protocol(strings.ToUpper(apisixRouteStream.Protocol)),
+				Name:       name,
 				Port:       apisixRouteStream.Backend.ServicePort.IntVal,
 				TargetPort: apisixRouteStream.Backend.ServicePort,
 				NodePort:   apisixRouteStream.Match.IngressPort,
 			},
 		},
-		Type: "NodePort",
+		Type: corev1.ServiceTypeLoadBalancer,
 	}
 	serviceID := r.URL.Query().Get("service_id")
 
@@ -311,9 +364,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// 创建一个空的endpoint
-		k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
+		_, err := k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
 			ObjectMeta: v1.ObjectMeta{
-				Name: serviceName + "-tcp",
+				Name: name,
 				Labels: map[string]string{
 					"tcp":        "true",
 					"app_id":     r.URL.Query().Get("appID"),
@@ -321,6 +374,28 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		}, v1.CreateOptions{})
+		if err == nil {
+			// 找到这个第三方组件，去更新状态
+			list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
+				LabelSelector: "service_id=" + serviceID,
+			})
+			if err != nil {
+				logrus.Errorf("get route error %s", err.Error())
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+				return
+			}
+			for _, v := range list.Items {
+				for i := range v.Spec.Ports {
+					v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
+					_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+					if err != nil {
+						logrus.Errorf("update third component failure: %v", err)
+						httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+						return
+					}
+				}
+			}
+		}
 	}
 	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
@@ -329,41 +404,25 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				"app_id":     r.URL.Query().Get("appID"),
 				"service_id": r.URL.Query().Get("service_id"),
 			},
-			Name: serviceName + "-tcp",
+			Name: name,
 		},
 		Spec: spec,
 	}, v1.CreateOptions{})
 	if err == nil {
-		// 找到这个第三方组件，去更新状态
-		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
-			LabelSelector: "service_id=" + serviceID,
-		})
-		if err != nil {
-			logrus.Errorf("get route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-			return
-		}
-		for _, v := range list.Items {
-			for i := range v.Spec.Ports {
-				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
-				k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
-			}
-		}
-
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
-	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName+"-tcp", v1.GetOptions{})
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
 	get.Spec = spec
 	update, err := k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
 	if err != nil {
 		logrus.Errorf("update route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
 	httputil.ReturnSuccess(r, w, update.Spec.Ports[0].NodePort)
@@ -381,7 +440,7 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
 	k := k8s.Default().Clientset.CoreV1()
-	err := k.Services(tenant.Namespace).Delete(r.Context(), name+"-tcp", v1.DeleteOptions{})
+	err := k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			httputil.ReturnSuccess(r, w, name)

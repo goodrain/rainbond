@@ -232,7 +232,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tar规范文件"))
 			}
-		case ".tgz", ".tar.gz":
+		case ".tgz", ".gz":
 			if err := util.UnTar(filePath, buildInfo.GetCodeHome(), true); err != nil {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
