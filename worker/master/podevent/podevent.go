@@ -447,6 +447,8 @@ func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg strin
 		Status:      status,
 		FinalStatus: model.EventFinalStatusEmpty.String(),
 		Message:     msg,
+		CreatedAt:   time.Now().Format(time.RFC3339),
+		StartTime:   time.Now().Format(time.RFC3339),
 	}
 	if err = db.GetManager().ServiceEventDao().AddModel(et); err != nil {
 		return

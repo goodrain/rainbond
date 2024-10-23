@@ -82,6 +82,7 @@ func CreateEvent(target, optType, targetID, tenantID, reqBody, userName, status,
 		reqBody = reqBody[0:1024]
 	}
 	event := dbmodel.ServiceEvent{
+		CreatedAt:   time.Now().Format(time.RFC3339),
 		EventID:     util.NewUUID(),
 		TenantID:    tenantID,
 		Target:      target,
