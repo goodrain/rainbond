@@ -107,4 +107,5 @@ func AddEventLogFlags(fs *pflag.FlagSet, elc *EventLogConfig) {
 	fs.StringVar(&elc.Conf.WebSocket.PrometheusMetricPath, "monitor-path", "/metrics", "promethesu monitor metrics path")
 	fs.StringVar(&elc.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
 	fs.IntVar(&elc.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
+	fs.StringVar(&elc.Conf.EventStore.StorageHomePath, "docker.log.homepath", "/grdata/logs/", "container log persistent home path")
 }
