@@ -61,6 +61,19 @@ func CreateManager(config config.Config) (*Manager, error) {
 			logrus.Errorf("failed to get sql.DB from gorm.DB: %v", err)
 			return nil, err
 		}
+		// 循环 Ping 操作，最多重试 5 次，每次间隔 10 秒
+		for {
+			if err := sqlDB.Ping(); err != nil {
+				logrus.Errorf("failed to connect to database: %v", err)
+				// 等待 10 秒再重试
+				time.Sleep(2 * time.Second)
+			} else {
+				logrus.Info("数据库连接成功")
+				break
+			}
+		}
+
+		// 设置连接池参数
 		maxOpenConns := 2500
 		maxIdleConns := 500
 		maxLifeTime := 5
