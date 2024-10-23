@@ -18,8 +18,8 @@ type AbilityResp struct {
 
 // ComponentStatus holds the status information of a component
 type ComponentStatus struct {
-	Name     string  `json:"name"`
-	Status   string  `json:"status"` // Completed, Upgrading, Failed
-	Progress float64 `json:"progress"`
-	Message  string  `json:"message"`
+	Name     string `json:"name"`
+	Status   string `json:"status"` // Completed, Upgrading, Failed
+	Progress int64  `json:"progress"`
+	Message  string `json:"message"`
 }

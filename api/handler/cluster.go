@@ -1096,11 +1096,19 @@ func (c *clusterAction) checkDeploymentStatus(deploymentName string) (model.Comp
 	// 如果 replicas 与 updatedReplicas 相等，且 unavailableReplicas 为 0，说明升级完成
 	if updatedReplicas == replicas && unavailableReplicas == 0 {
 		status.Status = "Completed"
-		status.Progress = 100.0
+		status.Progress = 100
 	} else {
 		status.Status = "Upgrading"
 		// 更新进度：结合 updatedReplicas 和 availableReplicas 的比例
-		progress := (float64(updatedReplicas)/float64(replicas))*50 + (float64(availableReplicas)/float64(replicas))*50
+		logrus.Infof("updatedReplicas/replicas*50 [%f], int64(updatedReplicas/replicas*50) [%d]", float64(updatedReplicas)/float64(replicas)*50, int64(updatedReplicas*50/replicas))
+		logrus.Infof("availableReplicas/replicas*50 [%f], int64(availableReplicas/replicas*50) [%d]", float64(availableReplicas)/float64(replicas)*50, int64(availableReplicas/replicas*50))
+		progress := int64(updatedReplicas*50/replicas + availableReplicas*50/replicas)
+		floatval := (float64(updatedReplicas)/float64(replicas))*50 + (float64(availableReplicas)/float64(replicas))*50
+		logrus.Infof("deployment %s progress: %d, %f", deploymentName, progress, floatval)
+		// 如果进度为 100，但是 unavailableReplicas 不等于 0，则说明升级卡住了
+		if progress == 100 {
+			progress = 99
+		}
 		status.Progress = progress
 
 		// 如果有不可用副本，说明可能有问题
@@ -1149,6 +1157,10 @@ func (c *clusterAction) getPodMessage(deploymentName string) string {
 			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.ExitCode != 0 {
 				messages = append(messages, fmt.Sprintf("Pod %s terminated with exit code %d: %s", pod.Name, containerStatus.State.Terminated.ExitCode, containerStatus.State.Terminated.Message))
 			}
+			// 检查容器是否处于Running但Not Ready状态
+			if containerStatus.State.Running != nil && !containerStatus.Ready {
+				messages = append(messages, fmt.Sprintf("Pod %s: Container %s is running but not ready", pod.Name, containerStatus.Name))
+			}
 		}
 	}
 
@@ -1177,10 +1189,14 @@ func (c *clusterAction) checkDaemonSetStatus(daemonsetName string) (model.Compon
 	// 检查所有 pods 是否都更新并可用
 	if updated == desired && available == desired {
 		status.Status = "Completed"
-		status.Progress = 100.0
+		status.Progress = 100
 	} else {
 		status.Status = "Upgrading"
-		progress := (float64(available) / float64(desired)) * 100
+		progress := int64(available * 100 / desired)
+		// 如果进度为 100，但是 available 与 desired 不相等，说明升级卡住了
+		if progress == 100 {
+			progress = 99
+		}
 		status.Progress = progress
 		// 如果升级卡住，检查 pod 的错误信息
 		podMessage := c.checkPodStatus(daemonsetName)
@@ -1206,6 +1222,12 @@ func (c *clusterAction) checkPodStatus(componentName string) string {
 				return fmt.Sprintf("Pod %s terminated with exit code: %d", pod.Name, containerStatus.State.Terminated.ExitCode)
 			} else if containerStatus.State.Waiting != nil {
 				return containerStatus.State.Waiting.Message
+			}
+		}
+		// 检查 Pod 的健康状态
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodReady && condition.Status != corev1.ConditionTrue {
+				return fmt.Sprintf("Pod %s is running but not ready: %s", pod.Name, condition.Message)
 			}
 		}
 	}

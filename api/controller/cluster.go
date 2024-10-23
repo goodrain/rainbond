@@ -438,6 +438,7 @@ func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		cpt.Spec.Image = v
+		logrus.Infof("upgrade [%s] image to [%s]", k, v)
 		err = k8s.Default().K8sClient.Update(context.Background(), &cpt)
 		if err != nil {
 			res = append(res, fmt.Sprintf(`%s更新异常%s`, k, err.Error()))
