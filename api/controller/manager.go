@@ -73,7 +73,7 @@ func NewAPIManager(statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
 	v2r.TenantStruct.StatusCli = statusCli
 	v2r.TenantStruct.MQClient = mq.Default().MqClient
 	v2r.GatewayStruct.MQClient = mq.Default().MqClient
-	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>rbd-eventlog:6363"})
+	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>rbd-api-api-inner:6363"})
 	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil
 }

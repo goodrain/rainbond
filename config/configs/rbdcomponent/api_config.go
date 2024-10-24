@@ -58,7 +58,7 @@ func AddAPIFlags(fs *pflag.FlagSet, apic *APIConfig) {
 	fs.StringVar(&apic.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard."+utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)+":443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
 	fs.StringVar(&apic.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
 	fs.StringSliceVar(&apic.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
-	fs.StringSliceVar(&apic.EventLogEndpoints, "event-log", []string{"local=>rbd-eventlog:6363"}, "event log websocket address")
+	fs.StringSliceVar(&apic.EventLogEndpoints, "event-log", []string{"local=>rbd-api-api-inner:6363"}, "event log websocket address")
 }
 
 type EventLogConfig struct {

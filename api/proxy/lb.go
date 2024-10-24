@@ -156,7 +156,7 @@ type SelectBalance struct {
 // NewSelectBalance  创建选择性负载均衡
 func NewSelectBalance() *SelectBalance {
 	return &SelectBalance{
-		hostIDMap: map[string]string{"local": "rbd-eventlog:6363"},
+		hostIDMap: map[string]string{"local": "rbd-api-api-inner:6363"},
 	}
 }
 
@@ -165,7 +165,7 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 	if r.URL == nil {
 		return Endpoint(s.hostIDMap["local"])
 	}
-	id2ip := map[string]string{"local": "rbd-eventlog:6363"}
+	id2ip := map[string]string{"local": "rbd-api-api-inner:6363"}
 	for _, end := range endpoints {
 		if kv := strings.Split(string(end), "=>"); len(kv) > 1 {
 			id2ip[kv[0]] = kv[1]
