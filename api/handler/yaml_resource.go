@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	appv1 "k8s.io/api/apps/v1"
@@ -187,6 +188,11 @@ func (c *clusterAction) YamlToResource(yamlResource apimodel.YamlResource, yamlS
 	yamlDirectoryPath := path.Join("/grdata/package_build/temp/events", yamlResource.EventID, "*")
 	yamlFilesPath := []string{apimodel.YamlSourceHelm}
 	if yamlSource == apimodel.YamlSourceFile {
+		baseDIR := path.Join("/grdata/package_build/temp/events", yamlResource.EventID)
+		err := storage.Default().StorageCli.DownloadDirToDir(baseDIR, baseDIR)
+		if err != nil {
+			logrus.Errorf("DownloadDirToDir failure: %v", err)
+		}
 		yamlFilesPath, _ = filepath.Glob(yamlDirectoryPath)
 	}
 	var fileBuildResourceList []apimodel.K8sResourceObject
