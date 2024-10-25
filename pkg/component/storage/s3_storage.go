@@ -553,7 +553,6 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 
 	// 下载每个文件
 	for _, item := range result.Contents {
-		logrus.Infof("look ----- %v:%v", *item.Key, prefix)
 		if *item.Key == prefix {
 			continue
 		}
