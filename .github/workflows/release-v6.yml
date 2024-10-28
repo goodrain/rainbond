@@ -28,13 +28,21 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
+      os:
+        description: 'os'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - self-hosted
       
 env:
   VERSION: ${{ github.event.inputs.version }}
   
 jobs:
   rainbond-region:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-v6
     strategy:
       matrix:
@@ -86,7 +94,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}
 
   rainbond-operator:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-v6
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'operator' }}
     steps:
@@ -127,7 +135,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}
 
   rainbond-ui:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-v6
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
     steps:
@@ -160,7 +168,7 @@ jobs:
             rainbond/rainbond-ui:${{ env.VERSION }}
   
   rainbond-allinone:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.os }}
     needs: [rainbond-ui]
     environment: release-v6
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
