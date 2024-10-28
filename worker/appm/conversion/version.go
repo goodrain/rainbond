@@ -100,10 +100,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
 
-	updateAPISixRouteErr := updateAPISixRoute(as)
-	if updateAPISixRouteErr != nil {
-		logrus.Errorf("update apisix route error: %v", updateAPISixRouteErr)
-	}
+	go updateAPISixRoute(as)
 
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
