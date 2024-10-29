@@ -734,6 +734,13 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		for _, t := range tsmr {
 			sv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
 			if err != nil {
+				if strings.Contains(err.Error(), "record not found") {
+					err := dbmanager.TenantServiceMountRelationDao().DElTenantServiceMountRelationByDepService(t.ServiceID, t.DependServiceID)
+					if err != nil {
+						logrus.Errorf("delete relation volume failure: %v", err)
+					}
+					continue
+				}
 				return nil, fmt.Errorf("service id: %s; volume name: %s; get dep volume: %v", t.DependServiceID, t.VolumeName, err)
 			}
 			vol := volume.NewVolumeManager(as, sv, t, version, envs, secrets, dbmanager)
