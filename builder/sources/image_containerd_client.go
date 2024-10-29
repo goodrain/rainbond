@@ -177,50 +177,59 @@ func getImageConfig(ctx context.Context, image containerd.Image) (*ocispec.Image
 }
 
 func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger event.Logger, timeout int) error {
-	printLog(logger, "info", fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
+	printLog(logger, "info", fmt.Sprintf("开始推送镜像：%s", image), map[string]string{"step": "pushimage"})
+
 	named, err := refdocker.ParseDockerRef(image)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "解析镜像引用失败")
 	}
 	reference := named.String()
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
+
+	// 获取镜像并进行验证
 	img, err := c.client.ImageService().Get(ctx, reference)
 	if err != nil {
-		return errors.Wrap(err, "unable to resolve image to manifest")
+		return errors.Wrap(err, "无法获取镜像清单")
 	}
 	desc := img.Target
 	cs := c.client.ContentStore()
-	if manifests, err := images.Children(ctx, cs, desc); err == nil && len(manifests) > 0 {
-		matcher := platforms.NewMatcher(platforms.DefaultSpec())
-		for _, manifest := range manifests {
-			if manifest.Platform != nil && matcher.Match(*manifest.Platform) {
-				if _, err := images.Children(ctx, cs, manifest); err != nil {
-					return errors.Wrap(err, "no matching manifest")
-				}
-				desc = manifest
-				break
-			}
+
+	// 获取子镜像清单
+	manifests, err := images.Children(ctx, cs, desc)
+	if err != nil {
+		return errors.Wrap(err, "获取镜像子清单失败")
+	}
+
+	matcher := platforms.NewMatcher(platforms.DefaultSpec())
+	for _, manifest := range manifests {
+		if manifest.Platform != nil && matcher.Match(*manifest.Platform) {
+			desc = manifest
+			break
 		}
 	}
+
 	NewTracker := docker.NewInMemoryTracker()
 	options := docker.ResolverOptions{
 		Tracker: NewTracker,
 	}
+
 	hostOptions := config.HostOptions{
 		DefaultTLS: &tls.Config{
 			InsecureSkipVerify: true,
 		},
-	}
-	hostOptions.Credentials = func(host string) (string, string, error) {
-		return user, pass, nil
+		Credentials: func(host string) (string, string, error) {
+			return user, pass, nil
+		},
 	}
 	options.Hosts = config.ConfigureHosts(ctx, hostOptions)
 	resolver := docker.NewResolver(options)
 	ongoing := newPushJobs(NewTracker)
 
+	// 使用 error group 进行推送任务管理
 	eg, ctx := errgroup.WithContext(ctx)
-	// used to notify the progress writer
 	doneCh := make(chan struct{})
+
+	// 镜像推送任务
 	eg.Go(func() error {
 		defer close(doneCh)
 		jobHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -232,15 +241,30 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 			containerd.WithResolver(resolver),
 			containerd.WithImageHandler(jobHandler),
 		}
-		return c.client.Push(ctx, reference, desc, ropts...)
+
+		// 尝试多次推送，确保清理缓存后重新拉取并推送
+		for attempts := 0; attempts < 3; attempts++ {
+			if err := c.client.Push(ctx, reference, desc, ropts...); err != nil {
+				if attempts < 2 {
+					printLog(logger, "warn", fmt.Sprintf("推送失败，重试中... (%d/3)", attempts+1), map[string]string{"step": "pushimage"})
+					// 清理缓存镜像重新拉取
+					_ = c.client.ImageService().Delete(ctx, reference)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				return errors.Wrap(err, "推送过程中发生错误")
+			}
+			break
+		}
+		return nil
 	})
+
+	// 进度显示任务
 	eg.Go(func() error {
-		var (
-			ticker = time.NewTicker(100 * time.Millisecond)
-			start  = time.Now()
-			done   bool
-		)
+		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
+		start := time.Now()
+		done := false
 
 		for {
 			select {
@@ -252,12 +276,17 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 			case <-doneCh:
 				done = true
 			case <-ctx.Done():
-				done = true // allow ui to update once more
+				done = true
 			}
 		}
 	})
-	// create a container
-	printLog(logger, "info", fmt.Sprintf("success push image：%s", reference), map[string]string{"step": "pushimage"})
+
+	// 等待所有 goroutine 完成
+	if err := eg.Wait(); err != nil {
+		return errors.Wrap(err, "推送失败")
+	}
+
+	printLog(logger, "info", fmt.Sprintf("成功推送镜像：%s", reference), map[string]string{"step": "pushimage"})
 	return nil
 }
 
