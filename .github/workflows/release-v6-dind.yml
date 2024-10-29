@@ -18,13 +18,21 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
+      os:
+        description: 'os'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - self-hosted
       
 env:
   VERSION: ${{ github.event.inputs.version }}
   
 jobs:
   rainbond-allinone:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-v6
     steps:
       - name: Checkout repository
