@@ -22,11 +22,14 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/util"
+	utils "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
@@ -139,11 +142,15 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		lines = 100
 	}
 	tailLines := int64(lines)
-
+	container := ""
+	if strings.HasPrefix(podName, "rbd-gateway") {
+		container = "ingress-apisix"
+	}
 	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
 		TailLines:  &tailLines,
+		Container:  container,
 	})
 	logrus.Infof("Opening log stream for pod %s", podName)
 
@@ -187,7 +194,14 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 // SystemPodLogs -
 func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
-	ns := r.URL.Query().Get("ns")
+	ns, err := util.GetMyNamespace()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("error getting namespace: %v", err))
+		return
+	}
+	if ns == "" {
+		ns = utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)
+	}
 	name := r.URL.Query().Get("name")
 	logs(w, r, name, ns)
 }
