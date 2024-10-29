@@ -10,14 +10,7 @@ ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
-
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-      go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" \
-      -o /run/rainbond-init-probe ./cmd/init-probe; \
-    elif [ "$TARGETARCH" = "arm64" ]; then \
-      go build -ldflags "-w -s -linkmode external -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" \
-      -o /run/rainbond-init-probe ./cmd/init-probe; \
-    fi
+RUN go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-init-probe ./cmd/init-probe;
 
 FROM ubuntu:24.04 as compress
 COPY --from=compile /run/rainbond-init-probe /run/rainbond-init-probe
