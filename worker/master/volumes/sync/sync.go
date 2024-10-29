@@ -32,6 +32,9 @@ func (e *VolumeTypeEvent) Handle() {
 		case <-e.stopCh:
 			return
 		case vt := <-e.vtEventCh:
+			if vt.VolumeType == "local-path" {
+				vt.NameShow = "本地存储"
+			}
 			if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
 				logrus.Errorf("sync storageClass error : %s, ignore it", err.Error())
 			}
