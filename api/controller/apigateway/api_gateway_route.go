@@ -353,7 +353,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				NodePort:   apisixRouteStream.Match.IngressPort,
 			},
 		},
-		Type: corev1.ServiceTypeLoadBalancer,
+		Type: corev1.ServiceTypeNodePort,
 	}
 	serviceID := r.URL.Query().Get("service_id")
 
