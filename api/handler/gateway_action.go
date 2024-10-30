@@ -1174,25 +1174,25 @@ func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	//	}
 	//	ports = append(ports, port)
 	//}
-	//port := selectAvailablePort(ports)
-	//if port != 0 {
-	//	if lock {
-	//		lease := clientv3.NewLease(g.etcdCli)
-	//		leaseResp, err := lease.Grant(context.Background(), 120)
-	//		if err != nil {
-	//			logrus.Info("set lease failed")
-	//			return port, nil
-	//		}
-	//		lockPortKey := fmt.Sprintf("/rainbond/gateway/lockports/%d", port)
-	//		_, err = g.etcdCli.Put(context.Background(), lockPortKey, fmt.Sprintf("%d", port), clientv3.WithLease(leaseResp.ID))
-	//		if err != nil {
-	//			logrus.Infof("set lock port key %s failed", lockPortKey)
-	//			return port, nil
-	//		}
-	//		logrus.Infof("select gateway port %d, lock it 2 min", port)
-	//	}
-	//	return port, nil
-	//}
+	port := selectAvailablePort(ports)
+	if port != 0 {
+		//	if lock {
+		//		lease := clientv3.NewLease(g.etcdCli)
+		//		leaseResp, err := lease.Grant(context.Background(), 120)
+		//		if err != nil {
+		//			logrus.Info("set lease failed")
+		//			return port, nil
+		//		}
+		//		lockPortKey := fmt.Sprintf("/rainbond/gateway/lockports/%d", port)
+		//		_, err = g.etcdCli.Put(context.Background(), lockPortKey, fmt.Sprintf("%d", port), clientv3.WithLease(leaseResp.ID))
+		//		if err != nil {
+		//			logrus.Infof("set lock port key %s failed", lockPortKey)
+		//			return port, nil
+		//		}
+		//		logrus.Infof("select gateway port %d, lock it 2 min", port)
+		//	}
+		return port, nil
+	}
 	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
 }
 
@@ -1200,7 +1200,7 @@ func selectAvailablePort(used []int) int {
 	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
 	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
 	if minPort == 0 {
-		minPort = 10000
+		minPort = 30000
 	}
 	if maxPort == 0 {
 		maxPort = 65535

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -343,6 +345,18 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("port") != "" {
 		name = name + "-" + r.URL.Query().Get("port")
 	}
+	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
+	if apisixRouteStream.Match.IngressPort == 0 {
+		logrus.Infof("change ingressPort")
+		h := handler.GetGatewayHandler()
+		res, err := h.GetAvailablePort("0.0.0.0", true)
+		if err != nil {
+			logrus.Errorf("GetAvailablePort error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
+		apisixRouteStream.Match.IngressPort = int32(res)
+	}
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
@@ -409,6 +423,18 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		Spec: spec,
 	}, v1.CreateOptions{})
 	if err == nil {
+		tcpRule := &dbmodel.TCPRule{
+			UUID:          r.URL.Query().Get("service_id"),
+			ServiceID:     r.URL.Query().Get("service_id"),
+			ContainerPort: int(apisixRouteStream.Backend.ServicePort.IntVal),
+			IP:            "0.0.0.0",
+			Port:          int(apisixRouteStream.Match.IngressPort),
+		}
+		if err := db.GetManager().TCPRuleDao().AddModel(tcpRule); err != nil {
+			logrus.Errorf("add tcp %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
