@@ -3,8 +3,10 @@ package handler
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -111,6 +113,10 @@ func saveMetadata(tr *model.ExportAppStruct) error {
 	err := ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", tr.SourceDir), []byte(tr.Body.GroupMetadata), 0644)
 	if err != nil {
 		logrus.Error("Failed to save metadata", err)
+		return err
+	}
+	err = storage.Default().StorageCli.CopyFileWithProgress(path.Join(tr.SourceDir, "metadata.json"), path.Join(tr.SourceDir, "metadata.json"), nil)
+	if err != nil {
 		return err
 	}
 

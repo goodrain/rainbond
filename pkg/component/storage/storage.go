@@ -11,7 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"mime/multipart"
 	"net/http"
-	"os"
 )
 
 // StorageComponent -
@@ -66,11 +65,8 @@ func Default() *StorageComponent {
 }
 
 type InterfaceStorage interface {
-	Glob(dirPath string) ([]string, error)
 	MkdirAll(path string) error
-	RemoveAll(path string) error
 	ServeFile(w http.ResponseWriter, r *http.Request, filePath string)
-	OpenFile(fileName string, flag int, perm os.FileMode) (*os.File, error)
 	Unzip(archive, target string, currentDirectory bool) error
 	SaveFile(fileName string, reader multipart.File) error
 	CopyFileWithProgress(src string, dst string, logger event.Logger) error

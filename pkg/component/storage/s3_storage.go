@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util/zip"
 	"github.com/google/uuid"
@@ -14,7 +13,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -28,33 +26,6 @@ type S3Storage struct {
 
 func (s3s *S3Storage) Test() {
 
-}
-
-// Glob 便利目录下所有的文件全路径
-func (s3s *S3Storage) Glob(dirPath string) ([]string, error) {
-	bucketName, prefix, err := s3s.ParseDirPath(dirPath, false)
-	if err != nil {
-		return nil, err
-	}
-	var matchedKeys []string
-	// 列出 S3 桶中的对象
-	result, err := s3s.s3Client.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String(prefix),
-	})
-	for _, item := range result.Contents {
-		if *item.Key == prefix {
-			continue
-		}
-		syPath := strings.Split(*item.Key, prefix)[1]
-		sPath := strings.Split(syPath, "/")
-		nextPath := sPath[0]
-		matchedKeys = append(matchedKeys, path.Join(bucketName, prefix, nextPath))
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects: %w", err)
-	}
-	return matchedKeys, nil
 }
 
 func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
@@ -109,49 +80,6 @@ func (s3s *S3Storage) MkdirAll(dirPath string) error {
 		}
 	}
 
-	return nil
-}
-
-// RemoveAll RemoveAll
-func (s3s *S3Storage) RemoveAll(dirPath string) error {
-	// 构建删除对象列表
-	bucketName, parsePath, err := s3s.ParseDirPath(dirPath, false)
-	objectsToDelete := &s3.Delete{
-		Objects: []*s3.ObjectIdentifier{},
-		Quiet:   aws.Bool(true),
-	}
-
-	// 使用分页方式列出并删除所有对象
-	err = s3s.s3Client.ListObjectsV2Pages(&s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String(parsePath),
-	}, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-		for _, obj := range page.Contents {
-			// 将对象添加到待删除列表中
-			objectsToDelete.Objects = append(objectsToDelete.Objects, &s3.ObjectIdentifier{
-				Key: aws.String(*obj.Key),
-			})
-		}
-
-		// 删除当前页的对象
-		if len(objectsToDelete.Objects) > 0 {
-			_, err := s3s.s3Client.DeleteObjects(&s3.DeleteObjectsInput{
-				Bucket: aws.String(bucketName),
-				Delete: objectsToDelete,
-			})
-			if err != nil {
-				fmt.Printf("Failed to delete objects: %v\n", err)
-				return false // 停止分页处理
-			}
-			// 清空列表，以便下一页对象的处理
-			objectsToDelete.Objects = nil
-		}
-
-		return !lastPage // 继续处理下一页
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list objects for deletion: %w", err)
-	}
 	return nil
 }
 
@@ -284,31 +212,6 @@ func (s3s *S3Storage) ParseDirPath(dirPath string, isFile bool) (string, string,
 	}
 
 	return bucketName, key, nil
-}
-
-func (s3s *S3Storage) OpenFile(fileName string, flag int, perm os.FileMode) (*os.File, error) {
-	bucketName, key, err := s3s.ParseDirPath(fileName, true)
-	if err != nil {
-		return nil, err
-	}
-	if flag != os.O_RDONLY {
-		return nil, fmt.Errorf("only read access is supported")
-	}
-
-	downloader := s3manager.NewDownloaderWithClient(s3s.s3Client)
-	file, err := os.CreateTemp("", "s3-")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = downloader.Download(file, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return file, nil
 }
 
 func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error {

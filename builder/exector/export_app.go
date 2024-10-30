@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -42,7 +43,7 @@ import (
 
 var re = regexp.MustCompile(`\s`)
 
-//ExportApp Export app to specified format(rainbond-app or dockercompose or slug)
+// ExportApp Export app to specified format(rainbond-app or dockercompose or slug)
 type ExportApp struct {
 	EventID     string `json:"event_id"`
 	Format      string `json:"format"`
@@ -55,7 +56,7 @@ func init() {
 	RegisterWorker("export_app", NewExportApp)
 }
 
-//NewExportApp create
+// NewExportApp create
 func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -68,7 +69,7 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	}, nil
 }
 
-//Run Run
+// Run Run
 func (i *ExportApp) Run(timeout time.Duration) error {
 	defer os.RemoveAll(i.SourceDir)
 	// disable Md5 checksum
@@ -77,6 +78,10 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 	// 	return nil
 	// }
 	// Delete the old application group directory and then regenerate the application package
+	err := storage.Default().StorageCli.DownloadDirToDir(i.SourceDir, i.SourceDir)
+	if err != nil {
+		return err
+	}
 	if i.Format != "helm-chart" {
 		if err := i.CleanSourceDir(); err != nil {
 			return err
@@ -194,17 +199,17 @@ func (i *ExportApp) exportHelmChart(ram v1alpha1.RainbondApplicationConfig) (*ex
 	return helmExporter.Export()
 }
 
-//Stop stop
+// Stop stop
 func (i *ExportApp) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (i *ExportApp) Name() string {
 	return "export_app"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (i *ExportApp) GetLogger() event.Logger {
 	return i.Logger
 }
@@ -230,7 +235,7 @@ func (i *ExportApp) isLatest() bool {
 	return true
 }
 
-//CleanSourceDir clean export dir
+// CleanSourceDir clean export dir
 func (i *ExportApp) CleanSourceDir() error {
 	logrus.Debug("Ready clean the source directory.")
 	metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
@@ -285,7 +290,7 @@ func (i *ExportApp) updateStatus(status, filePath string) error {
 	return nil
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (i *ExportApp) ErrorCallBack(err error) {
 	i.updateStatus("failed", "")
 }

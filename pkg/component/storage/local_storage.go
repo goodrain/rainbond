@@ -12,17 +12,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
 
 type LocalStorage struct {
-}
-
-func (l *LocalStorage) Glob(dirPath string) ([]string, error) {
-	return filepath.Glob(path.Join(dirPath, "*"))
 }
 
 func (l *LocalStorage) MkdirAll(path string) error {
@@ -35,16 +30,8 @@ func (l *LocalStorage) MkdirAll(path string) error {
 	return nil
 }
 
-func (l *LocalStorage) RemoveAll(path string) error {
-	return os.RemoveAll(path)
-}
-
 func (l *LocalStorage) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	http.ServeFile(w, r, filePath)
-}
-
-func (l *LocalStorage) OpenFile(fileName string, flag int, perm os.FileMode) (*os.File, error) {
-	return os.OpenFile(fileName, flag, perm)
 }
 
 // Unzip archive file to target dir
