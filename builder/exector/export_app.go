@@ -128,6 +128,10 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 	if re != nil {
 		// move package file to download dir
 		downloadPath := path.Dir(i.SourceDir)
+		err = storage.Default().StorageCli.CopyFileWithProgress(re.PackagePath, re.PackagePath, nil)
+		if err != nil {
+			return errors.New("copy file with progress failure: %v" + err.Error())
+		}
 		os.Rename(re.PackagePath, path.Join(downloadPath, re.PackageName))
 		packageDownloadPath := path.Join("/v2/app/download/", i.Format, re.PackageName)
 		// update export event status
