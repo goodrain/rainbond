@@ -1,37 +1,37 @@
 name: commit-ci-build
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
-  build:
+  rainbond:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [api, chaos, worker, init-probe, mq]
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Go environment
-        uses: actions/setup-go@v2.1.3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set release description
+        run: |
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          release_desc="dev-${git_commit}-${buildTime}"
+          echo "release_desc=$release_desc" >> $GITHUB_ENV
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          # The Go version to download (if necessary) and use. Supports semver spec and ranges.
-          go-version: 1.18
-
-#      - name: SonarQube Scan
-#        uses: kitabisa/sonarqube-action@v1.1.0
-#        with:
-#          host: ${{ secrets.SONARQUBE_HOST }}
-#          login: ${{ secrets.SONARQUBE_TOKEN }}
-#          projectName: rainbond
-
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-
-      - name: Build the Docker image
-        env:
-          DISABLE_GOPROXY: true
-          DOMESTIC_BASE_NAME: registry.cn-hangzhou.aliyuncs.com
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-          DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-        run: VERSION=${{ steps.extract_branch.outputs.branch }}-dev ./release.sh all push
+          platforms: linux/amd64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+          context: .
+          file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          push: false
+          tags: |
+            rainbond/rbd-${{ matrix.component }}:dev

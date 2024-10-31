@@ -1,15 +1,15 @@
-name: "release-v6-dind"
+name: "release-v6-standalone"
 on:
   workflow_dispatch:
     inputs:
       branch:
         description: 'branch'
         required: true
-        default: 'V6.0'
+        default: 'main'
       version:
         description: 'version'
         required: true
-        default: 'v6.0.0-release'
+        default: 'v6.0-dev'
       platforms:
         description: 'platforms'
         required: true
@@ -18,21 +18,13 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
-      os:
-        description: 'os'
-        required: true
-        default: 'ubuntu-latest'
-        type: choice
-        options:
-          - ubuntu-latest
-          - self-hosted
       
 env:
   VERSION: ${{ github.event.inputs.version }}
   
 jobs:
-  rainbond-allinone:
-    runs-on: ${{ github.event.inputs.os }}
+  standalone:
+    runs-on: ubuntu-latest
     environment: release-v6
     steps:
       - name: Checkout repository
