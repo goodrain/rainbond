@@ -272,6 +272,11 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
+	var count int64
+	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
+	if count == 0 {
+		m.initLanguageVersion()
+	}
 	if m.config.DBType == "sqlite" {
 		return
 	}
@@ -311,11 +316,6 @@ func (m *Manager) patchTable() {
 
 	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
 		logrus.Errorf("alter table applications error: %s", err.Error())
-	}
-	var count int64
-	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
-	if count == 0 {
-		m.initLanguageVersion()
 	}
 }
 
