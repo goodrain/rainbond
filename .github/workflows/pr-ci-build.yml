@@ -5,32 +5,33 @@ on:
     types: [opened, edited, synchronize, labeled, unlabeled]
 
 jobs:
-  build:
+  rainbond:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [api, chaos, worker, init-probe, mq]
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Setup Go environment
-        uses: actions/setup-go@v2.1.3
-        with:
-          # The Go version to download (if necessary) and use. Supports semver spec and ranges.
-          go-version: 1.18
-      - name: install-golint
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set release description
         run: |
-          git clone https://github.com/golang/lint.git
-          cd lint/golint
-          go install
-      - name: Go-linter
-        run: ./check.sh
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          release_desc="dev-${git_commit}-${buildTime}"
+          echo "release_desc=$release_desc" >> $GITHUB_ENV
 
-#       - name: SonarQube Scan
-#         uses: kitabisa/sonarqube-action@v1.1.0
-#         with:
-#           host: ${{ secrets.SONARQUBE_HOST }}
-#           login: ${{ secrets.SONARQUBE_TOKEN }}
-#           projectName: rainbond
-
-      - name: Build the Docker image
-        env:
-          DISABLE_GOPROXY: true
-        run: VERSION=${{ github.base_ref }}-dev ./release.sh all
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+          context: .
+          file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          push: false
+          tags: |
+            rainbond/rbd-${{ matrix.component }}:dev
