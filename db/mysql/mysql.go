@@ -272,7 +272,7 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
-	var count int64
+	count := -1
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
 		m.initLanguageVersion()
