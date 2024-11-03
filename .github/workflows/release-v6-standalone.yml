@@ -39,9 +39,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Pull Docker image
+      - name: Pull Amd64 Docker image
         run: |
           ARCH=amd64 VERSION=${{ env.VERSION }} sh standalone/images-package.sh
+
+      - name: Pull Arm64 Docker image
+        run: |
           ARCH=arm64 VERSION=${{ env.VERSION }} sh standalone/images-package.sh
       
       - name: Login to Docker Hub
