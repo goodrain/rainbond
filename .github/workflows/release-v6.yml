@@ -208,5 +208,5 @@ jobs:
           file: ./Dockerfile.allinone
           push: true
           tags: |
-            rainbond/rainbond:${{ env.VERSION }}-allinone
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}-allinone
+            rainbond/rainbond:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}

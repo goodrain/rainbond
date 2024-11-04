@@ -70,5 +70,5 @@ jobs:
           file: standalone/Dockerfile
           push: true
           tags: |
-            rainbond/rainbond:${{ env.VERSION }}-dind
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}-dind
+            rainbond/rainbond:${{ env.VERSION }}-k3s
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}-k3s
