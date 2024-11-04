@@ -205,7 +205,7 @@ jobs:
             RELEASE_DESC=${{ env.release_desc }}
             VERSION=${{ env.VERSION }}
           context: .
-          file: ./Dockerfile.allinone
+          file: ./Dockerfile
           push: true
           tags: |
             rainbond/rainbond:${{ env.VERSION }}
