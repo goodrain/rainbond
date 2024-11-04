@@ -58,11 +58,11 @@ func NewMonitorMessageServer(conf conf.MonitorMessageServerConf, log *logrus.Ent
 		listenErr:    make(chan error),
 	}
 	server, err := zmq4.NewSocket(zmq4.SUB)
-	server.SetSubscribe(conf.SubSubscribe)
 	if err != nil {
 		s.log.Error("create rep zmq socket error.", err.Error())
 		return nil, err
 	}
+	server.SetSubscribe(conf.SubSubscribe)
 	for _, add := range conf.SubAddress {
 		server.Connect(add)
 		s.log.Infof("Monitor message server sub %s", add)
