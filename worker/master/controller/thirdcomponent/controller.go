@@ -176,7 +176,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 				service := service
 				for _, port := range service.Spec.Ports {
 					// if component port not exist in endpoint port list, ignore it.
-					sourceEndpoint, ok := portMap[int(port.Port)]
+					sourceEndpoint, ok := portMap[port.TargetPort.IntValue()]
 					if !ok {
 						continue
 					}
