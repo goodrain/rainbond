@@ -77,12 +77,6 @@ func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	format := strings.TrimSpace(chi.URLParam(r, "format"))
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
 	tarFile := fmt.Sprintf("%s/%s/%s", handler.GetAppHandler().GetStaticDir(), format, fileName)
-
-	// return status code 404 if the file not exists.
-	if _, err := os.Stat(tarFile); os.IsNotExist(err) {
-		httputil.ReturnError(r, w, 404, fmt.Sprintf("Not found export app tar file: %s", tarFile))
-		return
-	}
 	storage.Default().StorageCli.ServeFile(w, r, tarFile)
 }
 
