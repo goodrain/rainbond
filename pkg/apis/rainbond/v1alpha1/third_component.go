@@ -338,7 +338,7 @@ func (e EndpointAddress) getIP() string {
 		return info[0]
 	}
 	if len(info) == 3 {
-		return info[1]
+		return strings.TrimPrefix(info[1], "//")
 	}
 	return ""
 }
@@ -349,6 +349,10 @@ func (e EndpointAddress) GetPort() int {
 		info := strings.Split(string(e), ":")
 		if len(info) == 2 {
 			port, _ := strconv.Atoi(info[1])
+			return port
+		}
+		if len(info) == 3 {
+			port, _ := strconv.Atoi(info[2])
 			return port
 		}
 		return 0
