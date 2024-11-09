@@ -142,8 +142,8 @@ func (k *AppGrayRelease) TableName() string {
 // EnterpriseLanguageVersion language model
 type EnterpriseLanguageVersion struct {
 	Model
-	Lang        string `gorm:"column:lang" json:"lang"`
-	Version     string `gorm:"column:version" json:"version"`
+	Lang        string `gorm:"column:lang;uniqueIndex:idx_lang_version" json:"lang"`
+	Version     string `gorm:"column:version;uniqueIndex:idx_lang_version" json:"version"`
 	FirstChoice bool   `gorm:"column:first_choice" json:"first_choice"`
 	EventID     string `gorm:"column:event_id" json:"event_id"`
 	FileName    string `gorm:"column:file_name" json:"file_name"`
