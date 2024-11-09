@@ -220,7 +220,7 @@ func (in *Handler) Equals(target *Handler) bool {
 	return in.TCPSocket.Equals(target.TCPSocket)
 }
 
-//ComponentPort component port define
+// ComponentPort component port define
 type ComponentPort struct {
 	Name      string `json:"name"`
 	Port      int    `json:"port"`
@@ -228,7 +228,7 @@ type ComponentPort struct {
 	OpenOuter bool   `json:"openOuter"`
 }
 
-//TCPSocketAction enable tcp check
+// TCPSocketAction enable tcp check
 type TCPSocketAction struct {
 }
 
@@ -237,7 +237,7 @@ func (in *TCPSocketAction) Equals(target *TCPSocketAction) bool {
 	return true
 }
 
-//HTTPGetAction enable http check
+// HTTPGetAction enable http check
 type HTTPGetAction struct {
 	// Path to access on the HTTP server.
 	// +optional
@@ -337,6 +337,9 @@ func (e EndpointAddress) getIP() string {
 	if len(info) == 2 {
 		return info[0]
 	}
+	if len(info) == 3 {
+		return info[1]
+	}
 	return ""
 }
 
@@ -399,7 +402,7 @@ func NewEndpointAddress(host string, port int) *EndpointAddress {
 	return &ea
 }
 
-//ThirdComponentEndpointStatus endpoint status
+// ThirdComponentEndpointStatus endpoint status
 type ThirdComponentEndpointStatus struct {
 	// The address including the port number.
 	Address EndpointAddress `json:"address"`
