@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi"
@@ -99,32 +98,17 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
 	case "GET":
-		_, err := os.Stat(dirName)
+
+		err := storage.Default().StorageCli.MkdirAll(dirName)
 		if err != nil {
-			if !os.IsExist(err) {
-				err := os.MkdirAll(dirName, 0755)
-				if err != nil {
-					httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
-					return
-				}
-			}
-		}
-		apps, err := ioutil.ReadDir(dirName)
-		if err != nil {
-			httputil.ReturnSuccess(r, w, map[string][]string{"apps": {}})
+			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
 			return
 		}
-
-		appArr := make([]string, 0, 10)
-		for _, dir := range apps {
-			if dir.IsDir() {
-				continue
-			}
-			ex := filepath.Ext(dir.Name())
-			if ex != ".zip" && ex != ".tar.gz" && ex != ".gz" && ex != ".tgz" {
-				continue
-			}
-			appArr = append(appArr, dir.Name())
+		appArr, err := storage.Default().StorageCli.ReadDir(dirName)
+		if err != nil {
+			logrus.Errorf("read dir failure")
+			httputil.ReturnSuccess(r, w, map[string][]string{"packages": {}})
+			return
 		}
 
 		httputil.ReturnSuccess(r, w, map[string][]string{"apps": appArr})
