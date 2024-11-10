@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"strings"
 	"time"
 
@@ -82,7 +83,7 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckR
 	var si exector.ServiceCheckResult
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	resp, err := s.EtcdCli.Get(ctx, k)
+	resp, err := etcd.Default().EtcdClient.Get(ctx, k)
 	if err != nil {
 		logrus.Errorf("get etcd k %s error, %v", k, err)
 		return nil, util.CreateAPIHandleError(503, err)
