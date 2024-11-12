@@ -19,8 +19,6 @@ import (
 	"net/http"
 	"sigs.k8s.io/yaml"
 	"strings"
-	"sync"
-	"time"
 )
 
 // OpenOrCloseDomains -
@@ -90,17 +88,6 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, hosts)
 }
 
-type CacheItem struct {
-	Data      []*v2.ApisixRouteHTTP
-	ExpiresAt time.Time
-}
-
-var (
-	cache      = make(map[string]*CacheItem)
-	cacheMutex sync.Mutex
-	cacheTTL   = 15 * time.Second
-)
-
 // GetHTTPAPIRoute -
 func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
@@ -112,22 +99,6 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if appID != "" {
 		labelSelector = "app_id=" + appID
 	}
-
-	// 使用命名空间和 labelSelector 作为缓存 key
-	cacheKey := tenant.Namespace + "|" + labelSelector
-	// 从缓存中获取数据
-	cacheMutex.Lock()
-	cachedItem, found := cache[cacheKey]
-	cacheMutex.Unlock()
-
-	if found && time.Now().Before(cachedItem.ExpiresAt) {
-		// 返回缓存数据
-		resp = cachedItem.Data
-		httputil.ReturnSuccess(r, w, resp)
-		return
-	}
-
-	// 如果缓存不存在或已过期，则从 API 获取数据
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -141,15 +112,6 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httpRoute.Name = v.Name + "|" + v.ObjectMeta.Labels["service_alias"]
 		resp = append(resp, httpRoute)
 	}
-
-	// 更新缓存
-	cacheMutex.Lock()
-	cache[cacheKey] = &CacheItem{
-		Data:      resp,
-		ExpiresAt: time.Now().Add(cacheTTL),
-	}
-	cacheMutex.Unlock()
-
 	httputil.ReturnSuccess(r, w, resp)
 }
 
@@ -341,8 +303,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-	name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
+	name := serviceName
 	if r.URL.Query().Get("port") != "" {
+		name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
 		name = name + "-" + r.URL.Query().Get("port")
 	}
 	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
@@ -370,7 +333,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		Type: corev1.ServiceTypeNodePort,
 	}
 	serviceID := r.URL.Query().Get("service_id")
-	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+	_, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
 				"tcp":        "true",
@@ -382,28 +345,20 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		Spec: spec,
 	}, v1.CreateOptions{})
 	if err != nil {
-		logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-		return
+		if errors.IsAlreadyExists(err) {
+			logrus.Infof("Service %s already exists, skipping creation", name)
+		} else {
+			logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
 	}
 	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
 	if r.URL.Query().Get("service_type") != "third_party" {
 		spec.Selector = map[string]string{
 			"service_alias": serviceName,
 		}
-		get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("get route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-			return
-		}
-		get.Spec = spec
-		_, err = k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("update route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-			return
-		}
+
 	} else {
 		// 找到这个第三方组件，去更新状态
 		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
@@ -426,6 +381,19 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("get route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+		return
+	}
+	get.Spec = spec
+	_, err = k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
+	if err != nil {
+		logrus.Errorf("update route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+		return
+	}
 	tcpRule := &dbmodel.TCPRule{
 		UUID:          r.URL.Query().Get("service_id"),
 		ServiceID:     r.URL.Query().Get("service_id"),
@@ -438,7 +406,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
-	httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
+	httputil.ReturnSuccess(r, w, get.Spec.Ports[0].NodePort)
 	return
 }
 
