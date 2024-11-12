@@ -303,8 +303,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-	name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
+	name := serviceName
 	if r.URL.Query().Get("port") != "" {
+		name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
 		name = name + "-" + r.URL.Query().Get("port")
 	}
 	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
