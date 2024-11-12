@@ -147,7 +147,7 @@ func (g *GatewayAction) BatchGetGatewayHTTPRoute(namespace, appID string) ([]*ap
 
 // AddGatewayCertificate create gateway certificate
 func (g *GatewayAction) AddGatewayCertificate(req *apimodel.GatewayCertificate) error {
-	_, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Create(context.Background(), &corev1.Secret{
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       apimodel.Secret,
 			APIVersion: controller.APIVersionSecret,
@@ -161,8 +161,16 @@ func (g *GatewayAction) AddGatewayCertificate(req *apimodel.GatewayCertificate) 
 			"tls.key": []byte(req.PrivateKey),
 		},
 		Type: corev1.SecretTypeTLS,
-	}, metav1.CreateOptions{})
+	}
+	_, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	if err != nil {
+		if k8serror.IsAlreadyExists(err) {
+			_, err = g.kubeClient.CoreV1().Secrets(req.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("update gateway certificate secret failure: %v", err)
+				return err
+			}
+		}
 		logrus.Errorf("add gateway certificate secret failure: %v", err)
 		return err
 	}
