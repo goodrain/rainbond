@@ -225,6 +225,11 @@ func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
 		logrus.Errorf("delete gateway certificate secret failure: %v", err)
 		return err
 	}
+	err = g.apisixClient.ApisixV2().ApisixTlses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !k8serror.IsNotFound(err) {
+		logrus.Errorf("delete gateway certificate apisix tls failure: %v", err)
+		return err
+	}
 	return nil
 }
 
