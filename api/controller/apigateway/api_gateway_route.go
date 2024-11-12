@@ -345,28 +345,20 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		Spec: spec,
 	}, v1.CreateOptions{})
 	if err != nil {
-		logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-		return
+		if errors.IsAlreadyExists(err) {
+			logrus.Infof("Service %s already exists, skipping creation", name)
+		} else {
+			logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
 	}
 	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
 	if r.URL.Query().Get("service_type") != "third_party" {
 		spec.Selector = map[string]string{
 			"service_alias": serviceName,
 		}
-		get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("get route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-			return
-		}
-		get.Spec = spec
-		_, err = k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("update route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-			return
-		}
+
 	} else {
 		// 找到这个第三方组件，去更新状态
 		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
@@ -388,6 +380,19 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("get route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+		return
+	}
+	get.Spec = spec
+	_, err = k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
+	if err != nil {
+		logrus.Errorf("update route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+		return
 	}
 	tcpRule := &dbmodel.TCPRule{
 		UUID:          r.URL.Query().Get("service_id"),
