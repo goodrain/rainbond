@@ -19,8 +19,6 @@ import (
 	"net/http"
 	"sigs.k8s.io/yaml"
 	"strings"
-	"sync"
-	"time"
 )
 
 // OpenOrCloseDomains -
@@ -90,17 +88,6 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, hosts)
 }
 
-type CacheItem struct {
-	Data      []*v2.ApisixRouteHTTP
-	ExpiresAt time.Time
-}
-
-var (
-	cache      = make(map[string]*CacheItem)
-	cacheMutex sync.Mutex
-	cacheTTL   = 15 * time.Second
-)
-
 // GetHTTPAPIRoute -
 func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
@@ -112,22 +99,6 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if appID != "" {
 		labelSelector = "app_id=" + appID
 	}
-
-	// 使用命名空间和 labelSelector 作为缓存 key
-	cacheKey := tenant.Namespace + "|" + labelSelector
-	// 从缓存中获取数据
-	cacheMutex.Lock()
-	cachedItem, found := cache[cacheKey]
-	cacheMutex.Unlock()
-
-	if found && time.Now().Before(cachedItem.ExpiresAt) {
-		// 返回缓存数据
-		resp = cachedItem.Data
-		httputil.ReturnSuccess(r, w, resp)
-		return
-	}
-
-	// 如果缓存不存在或已过期，则从 API 获取数据
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -141,15 +112,6 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httpRoute.Name = v.Name + "|" + v.ObjectMeta.Labels["service_alias"]
 		resp = append(resp, httpRoute)
 	}
-
-	// 更新缓存
-	cacheMutex.Lock()
-	cache[cacheKey] = &CacheItem{
-		Data:      resp,
-		ExpiresAt: time.Now().Add(cacheTTL),
-	}
-	cacheMutex.Unlock()
-
 	httputil.ReturnSuccess(r, w, resp)
 }
 
