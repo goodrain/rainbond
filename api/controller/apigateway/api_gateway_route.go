@@ -406,7 +406,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
-	httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
+	httputil.ReturnSuccess(r, w, get.Spec.Ports[0].NodePort)
 	return
 }
 
