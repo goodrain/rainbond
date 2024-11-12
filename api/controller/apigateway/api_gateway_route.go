@@ -333,7 +333,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		Type: corev1.ServiceTypeNodePort,
 	}
 	serviceID := r.URL.Query().Get("service_id")
-	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+	_, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
 				"tcp":        "true",
