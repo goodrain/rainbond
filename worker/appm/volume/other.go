@@ -34,10 +34,8 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
-	var shareFile bool
 	if v.svm.VolumeType == dbmodel.ShareFileVolumeType.String() {
 		v.svm.VolumeType = v.as.SharedStorageClass
-		shareFile = true
 	}
 	volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(v.svm.VolumeType)
 	if err != nil {
@@ -64,9 +62,7 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 		logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
 	} else {
-		if shareFile {
-			v.as.SetClaimManually(claim)
-		}
+		v.as.SetClaimManually(claim)
 		define.volumes = append(define.volumes, vo)
 	}
 
