@@ -477,8 +477,11 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 		for i := range usedNodeList {
 			node := usedNodeList[i]
 			time.Sleep(50 * time.Microsecond)
+			labelSelector := "creator=Rainbond"
 			podList, err := t.kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-				FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}).String()})
+				FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}).String(),
+				LabelSelector: labelSelector,
+			})
 			if err != nil {
 				logrus.Errorf("get node %v pods error:%v", node.Name, err)
 				continue
