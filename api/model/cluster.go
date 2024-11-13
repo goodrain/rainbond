@@ -4,7 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//ClusterResource -
+// ClusterResource -
 type ClusterResource struct {
 	AllNode                          int           `json:"all_node"`
 	NotReadyNode                     int           `json:"notready_node"`
@@ -30,6 +30,7 @@ type ClusterResource struct {
 	ResourceProxyStatus              bool          `json:"resource_proxy_status"`
 	K8sVersion                       string        `json:"k8s_version"`
 	NodeReady                        int32         `json:"node_ready"`
+	RunPodNumber                     int           `json:"run_pod_number"`
 }
 
 // NodeResource is a collection of compute resource.
@@ -70,7 +71,7 @@ func (r *NodeResource) Add(rl corev1.ResourceList) {
 	}
 }
 
-//GatewayResource -
+// GatewayResource -
 type GatewayResource struct {
 	Name           string   `json:"name"`
 	Namespace      string   `json:"namespace"`

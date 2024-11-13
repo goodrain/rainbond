@@ -159,8 +159,10 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 	query := fmt.Sprint(`rbd_api_exporter_cluster_pod_number`)
 	podNumber := c.prometheusCli.GetMetric(query, time.Now())
 	var instance string
+	var runPodNumber int
 	for _, podNum := range podNumber.MetricData.MetricValues {
 		instance = podNum.Metadata["instance"]
+		runPodNumber = int(podNum.Sample.Value())
 	}
 
 	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_memory{instance="%v"}`, instance)
@@ -274,6 +276,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		ResourceProxyStatus:              true,
 		K8sVersion:                       k8sutil.GetKubeVersion().String(),
 		NodeReady:                        nodeReady,
+		RunPodNumber:                     runPodNumber,
 	}
 
 	result.AllNode = len(nodes)
