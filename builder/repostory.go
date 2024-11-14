@@ -118,4 +118,4 @@ func GetRunnerImage(brVersion string) string {
 }
 
 // CIVERSION -
-var CIVERSION = "v5.16.0-release"
+var CIVERSION = "stable"
