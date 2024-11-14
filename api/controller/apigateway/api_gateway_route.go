@@ -273,7 +273,7 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 	k := k8s.Default().Clientset.CoreV1()
 
 	appID := r.URL.Query().Get("appID")
-	labelSelector := "tcp=true"
+	labelSelector := "tcp=true,route_create=true"
 	if appID != "" {
 		labelSelector += ",app_id=" + appID
 	}
@@ -295,7 +295,7 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 // CreateTCPRoute -
 func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-
+	serviceType := r.URL.Query().Get("service_type")
 	k := k8s.Default().Clientset.CoreV1()
 
 	var apisixRouteStream v2.ApisixRouteStream
@@ -341,16 +341,18 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
 			return
 		}
-
+		labels := make(map[string]string)
+		labels["tcp"] = "true"
+		labels["app_id"] = r.URL.Query().Get("appID")
+		labels["service_id"] = r.URL.Query().Get("service_id")
+		if serviceType == "" {
+			labels["route_create"] = "true"
+		}
 		// 如果服务不存在，创建新的服务
 		svc, err = k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
-				Labels: map[string]string{
-					"tcp":        "true",
-					"app_id":     r.URL.Query().Get("appID"),
-					"service_id": r.URL.Query().Get("service_id"),
-				},
-				Name: name,
+				Labels: labels,
+				Name:   name,
 			},
 			Spec: spec,
 		}, v1.CreateOptions{})
