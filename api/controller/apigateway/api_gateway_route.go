@@ -305,7 +305,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	serviceName := apisixRouteStream.Backend.ServiceName
 	name := serviceName
 	if r.URL.Query().Get("port") != "" {
-		name := fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
+		name = fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
 		name = name + "-" + r.URL.Query().Get("port")
 	}
 	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
@@ -332,68 +332,44 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Type: corev1.ServiceTypeNodePort,
 	}
-	serviceID := r.URL.Query().Get("service_id")
-	_, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
-		ObjectMeta: v1.ObjectMeta{
-			Labels: map[string]string{
-				"tcp":        "true",
-				"app_id":     r.URL.Query().Get("appID"),
-				"service_id": r.URL.Query().Get("service_id"),
-			},
-			Name: name,
-		},
-		Spec: spec,
-	}, v1.CreateOptions{})
+	// 获取现有服务，若不存在则创建
+	svc, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			logrus.Infof("Service %s already exists, skipping creation", name)
-		} else {
+		if !errors.IsNotFound(err) {
+			logrus.Errorf("get service error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+
+		// 如果服务不存在，创建新的服务
+		_, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+			ObjectMeta: v1.ObjectMeta{
+				Labels: map[string]string{
+					"tcp":        "true",
+					"app_id":     r.URL.Query().Get("appID"),
+					"service_id": r.URL.Query().Get("service_id"),
+				},
+				Name: name,
+			},
+			Spec: spec,
+		}, v1.CreateOptions{})
+		if err != nil {
 			logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
-	}
-	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
-	if r.URL.Query().Get("service_type") != "third_party" {
-		spec.Selector = map[string]string{
-			"service_alias": serviceName,
-		}
-
 	} else {
-		// 找到这个第三方组件，去更新状态
-		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
-			LabelSelector: "service_id=" + serviceID,
-		})
+		// 服务已存在，直接更新
+		svc.Spec = spec
+		_, err = k.Services(tenant.Namespace).Update(r.Context(), svc, v1.UpdateOptions{})
 		if err != nil {
-			logrus.Errorf("get route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			logrus.Errorf("update route error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
-		for _, v := range list.Items {
-			for i := range v.Spec.Ports {
-				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
-				_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
-				if err != nil {
-					logrus.Errorf("update third component failure: %v", err)
-					httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-					return
-				}
-			}
-		}
 	}
-	get, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("get route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-		return
-	}
-	get.Spec = spec
-	_, err = k.Services(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
-	if err != nil {
-		logrus.Errorf("update route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-		return
-	}
+
+	// 更新或创建 TCPRule
 	tcpRule := &dbmodel.TCPRule{
 		UUID:          r.URL.Query().Get("service_id"),
 		ServiceID:     r.URL.Query().Get("service_id"),
@@ -406,8 +382,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
-	httputil.ReturnSuccess(r, w, get.Spec.Ports[0].NodePort)
-	return
+	// 返回服务的 NodePort
+	httputil.ReturnSuccess(r, w, svc.Spec.Ports[0].NodePort)
 }
 
 // UpdateTCPRoute -
