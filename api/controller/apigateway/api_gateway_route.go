@@ -333,14 +333,18 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Type: corev1.ServiceTypeNodePort,
 	}
-	// 获取现有服务，若不存在则创建
-	svc, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
+
+	serviceID := r.URL.Query().Get("service_id")
+	// Try to get the existing service first
+	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			logrus.Errorf("get service error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			logrus.Errorf("get route error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
+		// Service doesn't exist, create a new one
+		logrus.Infof("Service %s does not exist, creating a new service", name)
 		labels := make(map[string]string)
 		labels["tcp"] = "true"
 		labels["app_id"] = r.URL.Query().Get("appID")
@@ -348,23 +352,24 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		if serviceType == "" {
 			labels["route_create"] = "true"
 		}
-		// 如果服务不存在，创建新的服务
-		svc, err = k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+		service = &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Labels: labels,
 				Name:   name,
 			},
 			Spec: spec,
-		}, v1.CreateOptions{})
+		}
+		_, err = k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
 		if err != nil {
 			logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
 	} else {
-		// 服务已存在，直接更新
-		svc.Spec = spec
-		_, err = k.Services(tenant.Namespace).Update(r.Context(), svc, v1.UpdateOptions{})
+		// Service exists, update it
+		logrus.Infof("Service %s already exists, updating it", name)
+		service.Spec = spec
+		_, err = k.Services(tenant.Namespace).Update(r.Context(), service, v1.UpdateOptions{})
 		if err != nil {
 			logrus.Errorf("update route error %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
@@ -372,7 +377,35 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 更新或创建 TCPRule
+	// If not a third-party component, bind the service_alias
+	if r.URL.Query().Get("service_type") != "third_party" {
+		service.Spec.Selector = map[string]string{
+			"service_alias": serviceName,
+		}
+	} else {
+		// For third-party components, update the third component state
+		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
+			LabelSelector: "service_id=" + serviceID,
+		})
+		if err != nil {
+			logrus.Errorf("get route error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+		for _, v := range list.Items {
+			for i := range v.Spec.Ports {
+				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
+				_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+				if err != nil {
+					logrus.Errorf("update third component failure: %v", err)
+					httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+					return
+				}
+			}
+		}
+	}
+
+	// Add or update the TCP rule in the database
 	tcpRule := &dbmodel.TCPRule{
 		UUID:          r.URL.Query().Get("service_id"),
 		ServiceID:     r.URL.Query().Get("service_id"),
@@ -385,8 +418,10 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
-	// 返回服务的 NodePort
-	httputil.ReturnSuccess(r, w, svc.Spec.Ports[0].NodePort)
+
+	// Return success response with NodePort
+	httputil.ReturnSuccess(r, w, service.Spec.Ports[0].NodePort)
+	return
 }
 
 // UpdateTCPRoute -
