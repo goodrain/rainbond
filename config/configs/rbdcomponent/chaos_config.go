@@ -44,5 +44,5 @@ func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
 	fs.BoolVar(&cc.BuildKitCache, "buildkit-cache", false, "whether to enable the buildkit image cache")
 	fs.IntVar(&cc.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 	fs.IntVar(&cc.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
-	fs.StringVar(&cc.BRVersion, "br-version", "v5.16.0-release", "builder and runner version")
+	fs.StringVar(&cc.BRVersion, "br-version", "v5.17.3-release", "builder and runner version")
 }
