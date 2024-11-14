@@ -1,19 +1,16 @@
 package apigateway
 
 import (
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
-	v1k8s "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -43,7 +40,7 @@ func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrorK8sGetSecret)
 		return
 	}
-	hosts, err := getCertificateDomains(tlsCert)
+	hosts, err := util.GetCertificateDomains(tlsCert)
 	if err != nil {
 		logrus.Errorf("get cert error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrorK8sGetSecret)
@@ -53,8 +50,8 @@ func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixTlses(tenant.Namespace).Create(r.Context(), &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
-			Kind:       ApisixTLS,
-			APIVersion: APIVersion,
+			Kind:       util.ApisixTLS,
+			APIVersion: util.APIVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
 			GenerateName: "rbd",
@@ -104,49 +101,6 @@ func marshalApisixTlses(r *v2.ApisixTls) map[string]interface{} {
 	resp["kind"] = r.TypeMeta.Kind
 	resp["content"] = string(contentBytes)
 	return resp
-}
-
-func getCertificateDomains(tlsCert *v1k8s.Secret) ([]v2.HostType, error) {
-	// Decode the certificate and private key from base64
-	certData, certExists := tlsCert.Data["tls.crt"]
-	keyData, keyExists := tlsCert.Data["tls.key"]
-
-	if !certExists || !keyExists {
-		return nil, fmt.Errorf("TLS certificate or key not found in the secret")
-	}
-
-	certBlock, _ := pem.Decode(certData)
-	keyBlock, _ := pem.Decode(keyData)
-
-	if certBlock == nil || keyBlock == nil {
-		return nil, fmt.Errorf("failed to decode PEM block from certificate or private key")
-	}
-
-	// Parse the certificate to get the domains
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate: %v", err)
-	}
-
-	// Use a map to store unique domains
-	uniqueDomains := make(map[v2.HostType]struct{})
-
-	// Add the Common Name (CN) to unique domains
-	uniqueDomains[v2.HostType(cert.Subject.CommonName)] = struct{}{}
-
-	// Add Subject Alternative Names (SANs) to unique domains
-	for _, dnsName := range cert.DNSNames {
-		uniqueDomains[v2.HostType(dnsName)] = struct{}{}
-	}
-
-	// Convert the map to a slice
-	var domains []v2.HostType
-	for domain := range uniqueDomains {
-		if domain != "" {
-			domains = append(domains, domain)
-		}
-	}
-	return domains, nil
 }
 
 // UpdateCert -

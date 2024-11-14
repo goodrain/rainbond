@@ -5,6 +5,7 @@ import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
@@ -32,14 +33,14 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 		var plugins = item.Spec.HTTP[0].Plugins
 		var newPlugins = make([]v2.ApisixRoutePlugin, 0)
 		for _, plugin := range plugins {
-			if plugin.Name != ResponseRewrite {
+			if plugin.Name != util.ResponseRewrite {
 				newPlugins = append(newPlugins, plugin)
 			}
 		}
 
 		if r.URL.Query().Get("act") == "close" {
 			newPlugins = append(newPlugins, v2.ApisixRoutePlugin{
-				Name:   ResponseRewrite,
+				Name:   util.ResponseRewrite,
 				Enable: true,
 				Config: map[string]interface{}{
 					"status_code": 404,
@@ -76,7 +77,7 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	for _, item := range list.Items {
 		var has bool
 		for _, plugin := range item.Spec.HTTP[0].Plugins {
-			if plugin.Name == ResponseRewrite {
+			if plugin.Name == util.ResponseRewrite {
 				has = true
 				break
 			}
@@ -122,12 +123,12 @@ func (g Struct) UpdateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 func addResponseRewritePlugin(apisixRouteHTTP v2.ApisixRouteHTTP) v2.ApisixRouteHTTP {
 	for _, v := range apisixRouteHTTP.Plugins {
-		if v.Name == ResponseRewrite {
+		if v.Name == util.ResponseRewrite {
 			return apisixRouteHTTP
 		}
 	}
 	apisixRouteHTTP.Plugins = append(apisixRouteHTTP.Plugins, v2.ApisixRoutePlugin{
-		Name:   ResponseRewrite,
+		Name:   util.ResponseRewrite,
 		Enable: false,
 		Config: map[string]interface{}{
 			"status_code": 404,
@@ -167,8 +168,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), &v2.ApisixRoute{
 		TypeMeta: v1.TypeMeta{
-			Kind:       ApisixRoute,
-			APIVersion: APIVersion,
+			Kind:       util.ApisixRoute,
+			APIVersion: util.APIVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
 			Labels:       labels,
@@ -215,8 +216,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func marshalApisixRoute(r *v2.ApisixRoute) map[string]interface{} {
-	r.TypeMeta.Kind = ApisixRoute
-	r.TypeMeta.APIVersion = APIVersion
+	r.TypeMeta.Kind = util.ApisixRoute
+	r.TypeMeta.APIVersion = util.APIVersion
 
 	r.ObjectMeta.ManagedFields = nil
 	resp := make(map[string]interface{})

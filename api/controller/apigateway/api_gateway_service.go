@@ -3,6 +3,7 @@ package apigateway
 import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -68,8 +69,8 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 	}
 	create, err := c.ApisixUpstreams(tenant.Namespace).Create(r.Context(), &v2.ApisixUpstream{
 		TypeMeta: v1.TypeMeta{
-			Kind:       ApisixUpstream,
-			APIVersion: APIVersion,
+			Kind:       util.ApisixUpstream,
+			APIVersion: util.APIVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
 			Name:         chi.URLParam(r, "name"),
@@ -100,8 +101,8 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 }
 
 func marshalApisixUpstream(r *v2.ApisixUpstream) map[string]interface{} {
-	r.TypeMeta.Kind = ApisixUpstream
-	r.TypeMeta.APIVersion = APIVersion
+	r.TypeMeta.Kind = util.ApisixUpstream
+	r.TypeMeta.APIVersion = util.APIVersion
 	r.ObjectMeta.ManagedFields = nil
 	resp := make(map[string]interface{})
 	contentBytes, _ := yaml.Marshal(r)

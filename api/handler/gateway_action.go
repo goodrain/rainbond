@@ -21,8 +21,10 @@ package handler
 import (
 	"context"
 	"fmt"
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	apimodel "github.com/goodrain/rainbond/api/model"
+	apiutil "github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -213,6 +215,42 @@ func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificat
 	secret, err = g.kubeClient.CoreV1().Secrets(req.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		logrus.Errorf("update gateway certificate secret, update failure: %v", err)
+		return err
+	}
+	hosts, err := apiutil.GetCertificateDomains(secret)
+	oldApisixTls, err := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
+	if err != nil {
+		if k8serror.IsNotFound(err) {
+			_, err = g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Create(context.Background(), &v2.ApisixTls{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       apiutil.ApisixTLS,
+					APIVersion: apiutil.APIVersion,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.Name,
+					Namespace: req.Namespace,
+				},
+				Spec: &v2.ApisixTlsSpec{
+					IngressClassName: "apisix",
+					Hosts:            hosts,
+					Secret: v2.ApisixSecret{
+						Name:      req.Name,
+						Namespace: req.Namespace,
+					},
+				},
+			}, metav1.CreateOptions{})
+			if err != nil {
+				logrus.Errorf("update gateway certificate apisix tls, add failure: %v", err)
+				return err
+			}
+			return nil
+		}
+		logrus.Errorf("update gateway certificate apisix tls, get failure: %v", err)
+		return err
+	}
+	oldApisixTls.Spec.Hosts = hosts
+	_, err = g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Update(context.Background(), oldApisixTls, metav1.UpdateOptions{})
+	if err != nil {
 		return err
 	}
 	return nil
