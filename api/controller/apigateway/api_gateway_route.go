@@ -52,6 +52,10 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 		item.Status = v2.ApisixStatus{}
 		_, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
 		if err != nil {
+			if errors.IsConflict(err) {
+				logrus.Warnf("update route %v conflict", item.Name)
+				continue
+			}
 			logrus.Errorf("update route %v failure: %v", item.Name, err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
 		}
@@ -196,6 +200,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(route))
 		return
 	}
+	logrus.Warnf("create route error %s, will update route", err.Error())
 	// 创建失败去更新路由
 	get, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), routeName, v1.GetOptions{})
 	if err != nil {
