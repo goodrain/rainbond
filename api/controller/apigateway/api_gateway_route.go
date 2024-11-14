@@ -295,6 +295,7 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 // CreateTCPRoute -
 func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	serviceID := r.URL.Query().Get("service_id")
 	serviceType := r.URL.Query().Get("service_type")
 	k := k8s.Default().Clientset.CoreV1()
 
@@ -333,8 +334,36 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Type: corev1.ServiceTypeNodePort,
 	}
+	// If not a third-party component, bind the service_alias
+	if r.URL.Query().Get("service_type") != "third_party" {
+		spec.Selector = map[string]string{
+			"service_alias": serviceName,
+		}
+	} else {
+		defer func() {
+			// For third-party components, update the third component state
+			list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
+				LabelSelector: "service_id=" + serviceID,
+			})
+			if err != nil {
+				logrus.Errorf("get route error %s", err.Error())
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+				return
+			}
+			for _, v := range list.Items {
+				for i := range v.Spec.Ports {
+					v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
+					_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+					if err != nil {
+						logrus.Errorf("update third component failure: %v", err)
+						httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+						return
+					}
+				}
+			}
+		}()
+	}
 
-	serviceID := r.URL.Query().Get("service_id")
 	// Try to get the existing service first
 	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
@@ -374,34 +403,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			logrus.Errorf("update route error %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
-		}
-	}
-
-	// If not a third-party component, bind the service_alias
-	if r.URL.Query().Get("service_type") != "third_party" {
-		service.Spec.Selector = map[string]string{
-			"service_alias": serviceName,
-		}
-	} else {
-		// For third-party components, update the third component state
-		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
-			LabelSelector: "service_id=" + serviceID,
-		})
-		if err != nil {
-			logrus.Errorf("get route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-			return
-		}
-		for _, v := range list.Items {
-			for i := range v.Spec.Ports {
-				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
-				_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
-				if err != nil {
-					logrus.Errorf("update third component failure: %v", err)
-					httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-					return
-				}
-			}
 		}
 	}
 
