@@ -342,7 +342,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 如果服务不存在，创建新的服务
-		_, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+		svc, err = k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Labels: map[string]string{
 					"tcp":        "true",
