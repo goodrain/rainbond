@@ -213,6 +213,9 @@ func (a *AppService) GetServiceStatus() string {
 	if a.cronjob != nil {
 		succeed := 0
 		failed := 0
+		if len(a.pods) == 0 {
+			return RUNNING
+		}
 		for _, po := range a.pods {
 			if po.Status.Phase == "Succeeded" {
 				succeed++
