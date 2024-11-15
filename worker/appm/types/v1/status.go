@@ -333,6 +333,15 @@ func (a *AppService) Ready() bool {
 			return true
 		}
 	}
+	if a.job != nil {
+		return true
+	}
+	if a.cronjob != nil {
+		return true
+	}
+	if a.betaCronJob != nil {
+		return true
+	}
 	return false
 }
 

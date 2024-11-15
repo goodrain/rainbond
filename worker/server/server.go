@@ -323,7 +323,6 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		}
 		podStatus := &pb.PodStatus{}
 		wutil.DescribePodStatus(r.k8sComponent.Clientset, pod, podStatus, k8sutil.DefListEventsByPod)
-		logrus.Infof("DescribePodStatus fun podStatus %v", podStatus.Type.String())
 		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)
