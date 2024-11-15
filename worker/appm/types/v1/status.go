@@ -191,25 +191,6 @@ func (a *AppService) GetServiceStatus() string {
 		}
 		return RUNNING
 	}
-	if a.job != nil {
-		succeed := 0
-		failed := 0
-		for _, po := range a.pods {
-			if po.Status.Phase == "Succeeded" {
-				succeed++
-			}
-			if po.Status.Phase == "Failed" {
-				failed++
-			}
-		}
-		if len(a.pods) == succeed {
-			return SUCCEEDED
-		}
-		if failed > 0 {
-			return ABNORMAL
-		}
-		return RUNNING
-	}
 	if a.cronjob != nil {
 		succeed := 0
 		failed := 0
@@ -232,6 +213,27 @@ func (a *AppService) GetServiceStatus() string {
 		}
 		return RUNNING
 	}
+
+	if a.job != nil {
+		succeed := 0
+		failed := 0
+		for _, po := range a.pods {
+			if po.Status.Phase == "Succeeded" {
+				succeed++
+			}
+			if po.Status.Phase == "Failed" {
+				failed++
+			}
+		}
+		if len(a.pods) == succeed {
+			return SUCCEEDED
+		}
+		if failed > 0 {
+			return ABNORMAL
+		}
+		return RUNNING
+	}
+
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING
 	}
