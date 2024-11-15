@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -220,6 +221,16 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 		Credentials: func(host string) (string, string, error) {
 			return user, pass, nil
 		},
+	}
+	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
+	if strings.HasPrefix(image, "https://") {
+		image = strings.TrimPrefix(image, "https://")
+
+	} else if strings.HasPrefix(image, "http://") {
+		image = strings.TrimPrefix(image, "http://")
+		hostOptions.DefaultScheme = "http"
+	} else {
+		hostOptions.DefaultScheme = "http"
 	}
 	options.Hosts = config.ConfigureHosts(ctx, hostOptions)
 	resolver := docker.NewResolver(options)
