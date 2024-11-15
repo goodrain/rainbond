@@ -27,9 +27,10 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias") + ",port=" + r.URL.Query().Get("port"),
+		LabelSelector: r.URL.Query().Get("service_alias") + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
 	})
-	for _, item := range list.Items {
+	for _, itemL := range list.Items {
+		item := itemL
 		var plugins = item.Spec.HTTP[0].Plugins
 		var newPlugins = make([]v2.ApisixRoutePlugin, 0)
 		for _, plugin := range plugins {
@@ -69,7 +70,7 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias") + ",port=" + r.URL.Query().Get("port"),
+		LabelSelector: r.URL.Query().Get("service_alias") + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
 	})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
@@ -112,9 +113,17 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
+
 	for _, v := range list.Items {
 		httpRoute := v.Spec.HTTP[0].DeepCopy()
-		httpRoute.Name = v.Name + "|" + v.ObjectMeta.Labels["service_alias"]
+		labels := v.Labels
+		service_alias := ""
+		for labelK, labelV := range labels {
+			if labelV == "service_alias" {
+				service_alias = service_alias + "-" + labelK
+			}
+		}
+		httpRoute.Name = v.Name + "|" + service_alias
 		resp = append(resp, httpRoute)
 	}
 	httputil.ReturnSuccess(r, w, resp)
@@ -149,8 +158,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteHTTP, nil) {
 		return
 	}
-	s := strings.ReplaceAll(r.URL.Query().Get("service_alias"), ",", "-")
-
+	sLabel := strings.Split(r.URL.Query().Get("service_alias"), ",")
 	// 如果没有绑定appId，那么不要加这个lable
 	labels := make(map[string]string)
 	labels["creator"] = "Rainbond"
@@ -158,9 +166,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("appID") != "" {
 		labels["app_id"] = r.URL.Query().Get("appID")
 	}
-	if s != "" {
-		labels["service_alias"] = s
+	for _, sl := range sLabel {
+		labels[sl] = "service_alias"
 	}
+
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {
@@ -359,7 +368,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	// If not a third-party component, bind the service_alias
 	if r.URL.Query().Get("service_type") != "third_party" {
 		spec.Selector = map[string]string{
-			"service_alias": serviceName,
+			serviceName: "service_alias",
 		}
 	} else {
 		defer func() {
