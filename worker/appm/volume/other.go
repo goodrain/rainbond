@@ -34,6 +34,7 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
+	statefulset := v.as.GetStatefulSet() //有状态组件
 	if v.svm.VolumeType == dbmodel.ShareFileVolumeType.String() {
 		v.svm.VolumeType = v.as.SharedStorageClass
 	}
@@ -52,10 +53,12 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 	volumeReadOnly := v.svm.IsReadOnly
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
+	if statefulset == nil {
+		v.svm.AccessMode = "RWX"
+	}
 	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeType, v.svm.VolumeCapacity, labels, annotations)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeType, claim.GetName())
-	v.as.SetClaim(claim)                 // store claim to appService
-	statefulset := v.as.GetStatefulSet() //有状态组件
+	v.as.SetClaim(claim) // store claim to appService
 	vo := corev1.Volume{Name: volumeMountName}
 	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 	if statefulset != nil {
