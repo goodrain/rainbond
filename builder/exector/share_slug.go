@@ -134,13 +134,13 @@ func (i *SlugShareItem) ShareToLocal() error {
 		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "success"})
 		return err
 	}
-	if err := storage.Default().StorageCli.CopyFileWithProgress(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
+	if err := storage.Default().StorageCli.UploadFileToFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		logrus.Errorf("copy file to share path error: %s", err.Error())
 		i.Logger.Error("复制文件失败", map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
-	if err := storage.Default().StorageCli.CopyFileWithProgress(md5, i.SlugPath+".md5", i.Logger); err != nil {
+	if err := storage.Default().StorageCli.UploadFileToFile(md5, i.SlugPath+".md5", i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		os.Remove(i.SlugPath + ".md5")
 		logrus.Errorf("copy file to share path error: %s", err.Error())

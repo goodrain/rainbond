@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/util"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -99,6 +100,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	} else if strings.HasPrefix(d.source, "event") {
 		eventID := strings.Split(d.source, " ")[1]
 		tarPath := path.Join("/grdata/package_build/temp/events", eventID)
+		err := storage.Default().StorageCli.DownloadDirToDir(tarPath, tarPath)
 		files, _ := filepath.Glob(path.Join(tarPath, "*"))
 		if len(files) == 1 {
 			if !strings.HasSuffix(files[0], ".tar") && !strings.HasSuffix(files[0], ".tar.gz") {

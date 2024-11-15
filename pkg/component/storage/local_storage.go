@@ -114,7 +114,7 @@ func (l *LocalStorage) SaveFile(fileName string, reader multipart.File) error {
 }
 
 // CopyFileWithProgress 复制文件，带进度
-func (l *LocalStorage) CopyFileWithProgress(src, dst string, logger event.Logger) error {
+func (l *LocalStorage) UploadFileToFile(src, dst string, logger event.Logger) error {
 	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
 	if err != nil {
 		if logger != nil {
