@@ -310,6 +310,11 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 		if res.Status == "success" {
 			metadatasFile := fmt.Sprintf("%s/metadatas.json", res.SourceDir)
+			err := storage.Default().StorageCli.DownloadDirToDir(res.SourceDir, res.SourceDir)
+			if err != nil {
+				httputil.ReturnError(r, w, 503, fmt.Sprintf("download dir to dir failure: %v", err))
+				return
+			}
 			data, err := ioutil.ReadFile(metadatasFile)
 			if err != nil {
 				httputil.ReturnError(r, w, 503, fmt.Sprintf("Can not read apps metadata from metadatas.json file: %v", err))
