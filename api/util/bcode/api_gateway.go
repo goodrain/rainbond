@@ -60,6 +60,9 @@ var (
 	// ErrRouteNotFound 表示路由未找到错误
 	ErrRouteNotFound = newByMessage(http.StatusNotFound, RouteNotFound, "route not found")
 
+	// ErrRouteExist 标识路由已存在
+	ErrRouteExist = newByMessage(http.StatusNotFound, RouteNotFound, "route exist")
+
 	// ErrRouteUpdate 表示路由更新错误
 	ErrRouteUpdate = newByMessage(http.StatusBadRequest, RouteUpdateError, "路由更新错误,请检查参数")
 
