@@ -274,7 +274,7 @@ func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
 	return nil
 }
 
-func (s3s *S3Storage) CopyFileWithProgress(src, dst string, logger event.Logger) error {
+func (s3s *S3Storage) UploadFileToFile(src, dst string, logger event.Logger) error {
 	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
 	if err != nil {
 		if logger != nil {

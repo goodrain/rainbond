@@ -369,7 +369,7 @@ func (b *BackupAPPRestore) getOldServiceID(new string) string {
 }
 func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-	if err := storage.Default().StorageCli.CopyFileWithProgress(dstDir, version.DeliveredPath, b.Logger); err != nil {
+	if err := storage.Default().StorageCli.UploadFileToFile(dstDir, version.DeliveredPath, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("down slug file from local dir error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
 		return err

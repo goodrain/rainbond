@@ -363,7 +363,7 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 func (b *BackupAPPNew) saveSlugPkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.SourceDir, app.ServiceID, version.BuildVersion)
 	util.CheckAndCreateDir(filepath.Dir(dstDir))
-	if err := storage.Default().StorageCli.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
+	if err := storage.Default().StorageCli.UploadFileToFile(version.DeliveredPath, dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("push slug file to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
 		return err

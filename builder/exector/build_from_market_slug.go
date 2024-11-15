@@ -85,7 +85,7 @@ func (i *MarketSlugItem) Run() error {
 			return nil
 		}
 	} else {
-		if err := storage.Default().StorageCli.CopyFileWithProgress(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
+		if err := storage.Default().StorageCli.UploadFileToFile(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
 			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
 			return nil

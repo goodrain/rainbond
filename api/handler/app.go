@@ -115,7 +115,7 @@ func saveMetadata(tr *model.ExportAppStruct) error {
 		logrus.Error("Failed to save metadata", err)
 		return err
 	}
-	err = storage.Default().StorageCli.CopyFileWithProgress(path.Join(tr.SourceDir, "metadata.json"), path.Join(tr.SourceDir, "metadata.json"), nil)
+	err = storage.Default().StorageCli.UploadFileToFile(path.Join(tr.SourceDir, "metadata.json"), path.Join(tr.SourceDir, "metadata.json"), nil)
 	if err != nil {
 		return err
 	}

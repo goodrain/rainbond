@@ -66,11 +66,11 @@ func Default() *StorageComponent {
 
 type InterfaceStorage interface {
 	MkdirAll(path string) error
-	ServeFile(w http.ResponseWriter, r *http.Request, filePath string)
 	Unzip(archive, target string, currentDirectory bool) error
-	SaveFile(fileName string, reader multipart.File) error
-	CopyFileWithProgress(src string, dst string, logger event.Logger) error
 	ReadDir(dirName string) ([]string, error)
+	ServeFile(w http.ResponseWriter, r *http.Request, filePath string)
+	SaveFile(fileName string, reader multipart.File) error
+	UploadFileToFile(src string, dst string, logger event.Logger) error
 	DownloadDirToDir(srcDir, dstDir string) error
 }
 
