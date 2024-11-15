@@ -18,6 +18,7 @@ server {
     {{ if .SSLProtocols }}
     ssl_protocols {{.SSLProtocols}};
     {{ end }}
+    ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4:!RSA;
     {{ if .EnableSSLStapling }}
     ssl_stapling on;
     resolver 8.8.8.8 8.8.4.4 114.114.114.114 valid=300s;
