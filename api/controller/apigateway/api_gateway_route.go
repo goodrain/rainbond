@@ -172,9 +172,14 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
+	routeName := r.URL.Query().Get("intID") + apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
+
+	routeName = strings.ReplaceAll(routeName, "/", "p-p")
+	routeName = strings.ReplaceAll(routeName, "*", "s-s")
+
 	for _, host := range apisixRouteHTTP.Match.Hosts {
 		labels[host] = "host"
-		list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
+		roueList, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 			LabelSelector: host + "=host",
 		})
 		if err != nil {
@@ -182,17 +187,12 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 			return
 		}
-		if list != nil && len(list.Items) > 0 {
+		if roueList != nil && len(roueList.Items) > 0 && roueList.Items[0].Name != routeName {
 			logrus.Errorf("list check route failure: %v", err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
 			return
 		}
 	}
-
-	routeName := r.URL.Query().Get("intID") + apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
-
-	routeName = strings.ReplaceAll(routeName, "/", "p-p")
-	routeName = strings.ReplaceAll(routeName, "*", "s-s")
 
 	apisixRouteHTTP.Name = uuid.NewV4().String()[0:8] //每次都让他变化，让 apisix controller去更新
 
