@@ -5,8 +5,10 @@ import "net/http"
 // 定义错误码
 const (
 	// RouteNotFound 表示路由未找到错误码
-	RouteNotFound = iota + 5000001
+	RouteNotFound = iota + 50001
 
+	//RouteExists 标识路由已存在
+	RouteExists
 	// RouteUpdateError 表示路由更新错误码
 	RouteUpdateError
 
@@ -61,7 +63,7 @@ var (
 	ErrRouteNotFound = newByMessage(http.StatusNotFound, RouteNotFound, "route not found")
 
 	// ErrRouteExist 标识路由已存在
-	ErrRouteExist = newByMessage(http.StatusNotFound, RouteNotFound, "route exist")
+	ErrRouteExist = newByMessage(http.StatusConflict, RouteExists, "route exist")
 
 	// ErrRouteUpdate 表示路由更新错误
 	ErrRouteUpdate = newByMessage(http.StatusBadRequest, RouteUpdateError, "路由更新错误,请检查参数")
