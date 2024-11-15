@@ -163,6 +163,23 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
+	for _, host := range apisixRouteHTTP.Match.Hosts {
+		labels[host] = "host"
+		list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
+			LabelSelector: host + "=host",
+		})
+		if err != nil {
+			logrus.Errorf("list check route failure: %v", err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+			return
+		}
+		if list != nil && len(list.Items) > 0 {
+			logrus.Errorf("list check route failure: %v", err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
+			return
+		}
+	}
+
 	routeName := r.URL.Query().Get("intID") + apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
