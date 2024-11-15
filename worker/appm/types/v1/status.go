@@ -58,7 +58,7 @@ func (a *AppService) IsClosed() bool {
 			return true
 		}
 	} else {
-		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil {
+		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil && a.cronjob == nil && a.betaCronJob == nil {
 			return true
 		}
 		if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
