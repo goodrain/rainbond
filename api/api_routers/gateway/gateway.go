@@ -12,7 +12,7 @@ func Routes() chi.Router {
 	r.Use(middleware.InitTenant)
 	// 关于路由的接口
 	r.Route("/routes/http", func(r chi.Router) {
-		r.Get("/domains", controller.GetManager().GetBindDomains)
+		r.Get("/domains", controller.GetManager().GetHTTPBindDomains)
 		r.Get("/port", controller.GetManager().OpenOrCloseDomains)
 		r.Get("/", controller.GetManager().GetHTTPAPIRoute)
 		r.Post("/", controller.GetManager().CreateHTTPAPIRoute)
@@ -21,6 +21,7 @@ func Routes() chi.Router {
 
 	// 关于路由的接口
 	r.Route("/routes/tcp", func(r chi.Router) {
+		r.Get("/domains", controller.GetManager().GetTCPBindDomains)
 		r.Get("/", controller.GetManager().GetTCPRoute)
 		r.Post("/", controller.GetManager().CreateTCPRoute)
 		r.Delete("/{name}", controller.GetManager().DeleteTCPRoute)
