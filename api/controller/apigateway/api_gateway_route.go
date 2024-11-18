@@ -2,6 +2,9 @@ package apigateway
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -17,9 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 // OpenOrCloseDomains -
@@ -368,7 +369,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	// If not a third-party component, bind the service_alias
 	if r.URL.Query().Get("service_type") != "third_party" {
 		spec.Selector = map[string]string{
-			serviceName: "service_alias",
+			"service_alias": serviceName,
 		}
 	} else {
 		defer func() {
