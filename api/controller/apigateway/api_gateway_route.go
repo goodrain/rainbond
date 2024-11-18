@@ -305,7 +305,7 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 	k := k8s.Default().Clientset.CoreV1()
 
 	appID := r.URL.Query().Get("appID")
-	labelSelector := "tcp=true,route_create=true"
+	labelSelector := "tcp=true"
 	if appID != "" {
 		labelSelector += ",app_id=" + appID
 	}
@@ -410,9 +410,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		labels["tcp"] = "true"
 		labels["app_id"] = r.URL.Query().Get("appID")
 		labels["service_id"] = r.URL.Query().Get("service_id")
-		if serviceType == "" {
-			labels["route_create"] = "true"
-		}
 		service = &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Labels: labels,
