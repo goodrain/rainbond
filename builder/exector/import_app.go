@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"io/ioutil"
@@ -45,7 +46,7 @@ func init() {
 	RegisterWorker("import_app", NewImportApp)
 }
 
-//ImportApp Export app to specified format(rainbond-app or dockercompose)
+// ImportApp Export app to specified format(rainbond-app or dockercompose)
 type ImportApp struct {
 	EventID       string             `json:"event_id"`
 	Format        string             `json:"format"`
@@ -58,7 +59,7 @@ type ImportApp struct {
 	ImageClient   sources.ImageClient
 }
 
-//NewImportApp create
+// NewImportApp create
 func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	var importApp ImportApp
 	if err := json.Unmarshal(in, &importApp); err != nil {
@@ -78,27 +79,27 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	return &importApp, nil
 }
 
-//Stop stop
+// Stop stop
 func (i *ImportApp) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (i *ImportApp) Name() string {
 	return "import_app"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (i *ImportApp) GetLogger() event.Logger {
 	return i.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (i *ImportApp) ErrorCallBack(err error) {
 	i.updateStatus("failed")
 }
 
-//Run Run
+// Run Run
 func (i *ImportApp) Run(timeout time.Duration) error {
 	if i.Format == "rainbond-app" {
 		err := i.importApp()
@@ -139,6 +140,12 @@ func (i *ImportApp) importApp() error {
 			})
 			if err != nil {
 				logrus.Errorf("Failed to load app %s: %v", appFile, err)
+				i.updateStatusForApp(app, "failed")
+				return
+			}
+			err = storage.Default().StorageCli.UploadFileToFile(path.Join(tmpDir, "metadatas.json"), path.Join(tmpDir, "metadatas.json"), nil)
+			if err != nil {
+				logrus.Errorf("Failed to upload app %s metadatas.json: %v", appFile, err)
 				i.updateStatusForApp(app, "failed")
 				return
 			}
