@@ -271,6 +271,12 @@ func (i *ExportApp) parseRAM() (*ramv1alpha1.RainbondApplicationConfig, error) {
 		logrus.Error("Failed to read metadata file: ", err)
 		return nil, err
 	}
+	err = storage.Default().StorageCli.UploadFileToFile(fmt.Sprintf("%s/metadata.json", i.SourceDir), fmt.Sprintf("%s/metadata.json", i.SourceDir), nil)
+	if err != nil {
+		i.Logger.Error("导出应用失败，上传 metadata.json 失败", map[string]string{"step": "upload-metadata", "status": "failure"})
+		logrus.Error("failed to upload metadata file: ", err)
+		return nil, err
+	}
 	var ram ramv1alpha1.RainbondApplicationConfig
 	if err := json.Unmarshal(data, &ram); err != nil {
 		return nil, err
