@@ -315,7 +315,9 @@ type GatewayInterface interface {
 
 // GatewayRouteInterface api gateway route interface
 type GatewayRouteInterface interface {
-	GetBindDomains(w http.ResponseWriter, r *http.Request)
+	GetHTTPBindDomains(w http.ResponseWriter, r *http.Request)
+	GetTCPBindDomains(w http.ResponseWriter, r *http.Request)
+
 	OpenOrCloseDomains(w http.ResponseWriter, r *http.Request)
 
 	GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request)

@@ -65,8 +65,8 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-// GetBindDomains -
-func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
+// GetHTTPBindDomains -
+func (g Struct) GetHTTPBindDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
@@ -93,6 +93,27 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httputil.ReturnSuccess(r, w, hosts)
+}
+
+func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	k := k8s.Default().Clientset.CoreV1()
+	serviceAlias := r.URL.Query().Get("service_alias")
+	labelSelector := fmt.Sprintf("tcp=true,service_alias=%v,outer=true" + serviceAlias)
+
+	list, err := k.Services(tenant.Namespace).List(r.Context(), v1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		return
+	}
+	var resp []int32
+	for _, v := range list.Items {
+		resp = append(resp, v.Spec.Ports[0].NodePort)
+	}
+	httputil.ReturnSuccess(r, w, resp)
 }
 
 // GetHTTPAPIRoute -
@@ -328,7 +349,6 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	serviceID := r.URL.Query().Get("service_id")
-	serviceType := r.URL.Query().Get("service_type")
 	k := k8s.Default().Clientset.CoreV1()
 
 	var apisixRouteStream v2.ApisixRouteStream
@@ -410,6 +430,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		labels["tcp"] = "true"
 		labels["app_id"] = r.URL.Query().Get("appID")
 		labels["service_id"] = r.URL.Query().Get("service_id")
+		labels["service_alias"] = serviceName
+		labels["outer"] = "true"
 		service = &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Labels: labels,
