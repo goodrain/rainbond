@@ -86,8 +86,9 @@ func NewVolumeManager(as *v1.AppService,
 		logrus.Warnf("other volume type[%s]", volumeType)
 		if serviceMountR != nil {
 			v = new(ShareFileVolume)
+		} else {
+			v = new(OtherVolume)
 		}
-		v = new(OtherVolume)
 	}
 	v.setBaseInfo(as, serviceVolume, serviceMountR, version, dbmanager)
 	return v
