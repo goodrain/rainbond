@@ -200,6 +200,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
+	name := r.URL.Query().Get("name")
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {
 		labels[host] = "host"
@@ -212,8 +213,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 			return
 		}
-		logrus.Infof("?????????????????%v, -------%v,,,,,,,,,%v", len(roueList.Items), roueList.Items[0].Name, routeName)
-		if roueList != nil && len(roueList.Items) > 0 && roueList.Items[0].Name != routeName {
+		if roueList != nil && len(roueList.Items) > 0 && roueList.Items[0].Name != name {
 			logrus.Errorf("list check route failure: %v", err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
 			return
