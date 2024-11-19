@@ -10,6 +10,15 @@ on:
         description: 'version'
         required: true
         default: 'stable'
+      platforms:
+        description: 'platforms'
+        required: true
+        default: 'linux/amd64'
+        type: choice
+        options:
+          - linux/amd64
+          - linux/arm64
+          - linux/amd64,linux/arm64
       
 env:
   VERSION: ${{ github.event.inputs.version }}
@@ -54,7 +63,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event.inputs.platforms }}
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
           context: .
@@ -103,7 +112,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event.inputs.platforms }}
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
           context: .
