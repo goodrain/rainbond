@@ -321,6 +321,13 @@ func (c *containerdImageCliImpl) ImageTag(source, target string, logger event.Lo
 		return err
 	}
 	srcImage := srcNamed.String()
+
+	if strings.HasPrefix(target, "https://") {
+		target = strings.TrimPrefix(target, "https://")
+	} else if strings.HasPrefix(target, "http://") {
+		target = strings.TrimPrefix(target, "http://")
+	}
+
 	targetNamed, err := refdocker.ParseDockerRef(target)
 	if err != nil {
 		return err
