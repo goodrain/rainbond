@@ -102,6 +102,26 @@ func (c *containerdImageCliImpl) GetDockerClient() *dockercli.Client {
 
 func (c *containerdImageCliImpl) ImagePull(image string, username, password string, logger event.Logger, timeout int) (*ocispec.ImageConfig, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
+
+	defaultTLS := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	hostOpt := config.HostOptions{}
+	hostOpt.DefaultTLS = defaultTLS
+	hostOpt.Credentials = func(host string) (string, string, error) {
+		return username, password, nil
+	}
+	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
+	if strings.HasPrefix(image, "https://") {
+		image = strings.TrimPrefix(image, "https://")
+
+	} else if strings.HasPrefix(image, "http://") {
+		image = strings.TrimPrefix(image, "http://")
+		hostOpt.DefaultScheme = "http"
+	} else {
+		hostOpt.DefaultScheme = "http"
+	}
+
 	named, err := refdocker.ParseDockerRef(image)
 	if err != nil {
 		return nil, err
@@ -122,24 +142,7 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 		}
 		return nil, nil
 	})
-	defaultTLS := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	hostOpt := config.HostOptions{}
-	hostOpt.DefaultTLS = defaultTLS
-	hostOpt.Credentials = func(host string) (string, string, error) {
-		return username, password, nil
-	}
-	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
-	if strings.HasPrefix(image, "https://") {
-		image = strings.TrimPrefix(image, "https://")
 
-	} else if strings.HasPrefix(image, "http://") {
-		image = strings.TrimPrefix(image, "http://")
-		hostOpt.DefaultScheme = "http"
-	} else {
-		hostOpt.DefaultScheme = "http"
-	}
 	Tracker := docker.NewInMemoryTracker()
 	options := docker.ResolverOptions{
 		Tracker: Tracker,
@@ -189,6 +192,24 @@ func getImageConfig(ctx context.Context, image containerd.Image) (*ocispec.Image
 
 func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger event.Logger, timeout int) error {
 	printLog(logger, "info", fmt.Sprintf("开始推送镜像：%s", image), map[string]string{"step": "pushimage"})
+	hostOptions := config.HostOptions{
+		DefaultTLS: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		Credentials: func(host string) (string, string, error) {
+			return user, pass, nil
+		},
+	}
+	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
+	if strings.HasPrefix(image, "https://") {
+		image = strings.TrimPrefix(image, "https://")
+
+	} else if strings.HasPrefix(image, "http://") {
+		image = strings.TrimPrefix(image, "http://")
+		hostOptions.DefaultScheme = "http"
+	} else {
+		hostOptions.DefaultScheme = "http"
+	}
 
 	named, err := refdocker.ParseDockerRef(image)
 	if err != nil {
@@ -224,24 +245,6 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 		Tracker: NewTracker,
 	}
 
-	hostOptions := config.HostOptions{
-		DefaultTLS: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-		Credentials: func(host string) (string, string, error) {
-			return user, pass, nil
-		},
-	}
-	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
-	if strings.HasPrefix(image, "https://") {
-		image = strings.TrimPrefix(image, "https://")
-
-	} else if strings.HasPrefix(image, "http://") {
-		image = strings.TrimPrefix(image, "http://")
-		hostOptions.DefaultScheme = "http"
-	} else {
-		hostOptions.DefaultScheme = "http"
-	}
 	options.Hosts = config.ConfigureHosts(ctx, hostOptions)
 	resolver := docker.NewResolver(options)
 	ongoing := newPushJobs(NewTracker)
