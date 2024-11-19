@@ -123,6 +123,11 @@ func (i *ImportApp) importApp() error {
 		go func(app string) {
 			defer wait.Done()
 			appFile := filepath.Join(oldSourceDir, app)
+			err := storage.Default().StorageCli.DownloadDirToDir(oldSourceDir, oldSourceDir)
+			if err != nil {
+				logrus.Errorf("s3 download dir to dir failure %s", err.Error())
+				return
+			}
 			tmpDir := path.Join(oldSourceDir, app+"-cache")
 			li, err := localimport.New(logrus.StandardLogger(), i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), tmpDir)
 			if err != nil {
