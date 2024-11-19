@@ -59,7 +59,7 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 	return resources, nil
 }
 
-//DeleteK8sResourceByIDs -
+// DeleteK8sResourceByIDs -
 func (t *K8sResourceDaoImpl) DeleteK8sResourceByIDs(ids []uint) error {
 	if err := t.DB.Where("ID in (?)", ids).Delete(&model.K8sResource{}).Error; err != nil {
 		return err
@@ -72,7 +72,8 @@ func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, cg := range k8sResources {
-			if err := t.DB.Create(&cg).Error; err != nil {
+			cgBak := cg
+			if err := t.DB.Create(&cgBak).Error; err != nil {
 				logrus.Error("batch Update or update k8sResources error:", err)
 				return err
 			}
