@@ -130,6 +130,16 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	hostOpt.Credentials = func(host string) (string, string, error) {
 		return username, password, nil
 	}
+	// 如果 image 以 "https://" 或 "http://" 开头，去掉前缀
+	if strings.HasPrefix(image, "https://") {
+		image = strings.TrimPrefix(image, "https://")
+
+	} else if strings.HasPrefix(image, "http://") {
+		image = strings.TrimPrefix(image, "http://")
+		hostOpt.DefaultScheme = "http"
+	} else {
+		hostOpt.DefaultScheme = "http"
+	}
 	Tracker := docker.NewInMemoryTracker()
 	options := docker.ResolverOptions{
 		Tracker: Tracker,
