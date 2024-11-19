@@ -188,6 +188,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("appID") != "" {
 		labels["app_id"] = r.URL.Query().Get("appID")
 	}
+	defaultDomain := r.URL.Query().Get("default") == "true"
+
 	for _, sl := range sLabel {
 		labels[sl] = "service_alias"
 	}
@@ -254,6 +256,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		return
+	}
+	if defaultDomain {
+		httputil.ReturnSuccess(r, w, marshalApisixRoute(get))
 		return
 	}
 	get.Spec.HTTP[0] = apisixRouteHTTP
