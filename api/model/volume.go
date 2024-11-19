@@ -18,7 +18,8 @@
 
 package model
 
-//AddVolumeStruct AddVolumeStruct
+// AddVolumeStruct AddVolumeStruct
+//
 //swagger:parameters addVolumes
 type AddVolumeStruct struct {
 	// in: path
@@ -65,7 +66,8 @@ type AddVolumeStruct struct {
 	}
 }
 
-//DeleteVolumeStruct DeleteVolumeStruct
+// DeleteVolumeStruct DeleteVolumeStruct
+//
 //swagger:parameters deleteVolumes
 type DeleteVolumeStruct struct {
 	// in: path
@@ -80,7 +82,8 @@ type DeleteVolumeStruct struct {
 	VolumeName string `json:"volume_name"`
 }
 
-//AddVolumeDependencyStruct AddVolumeDependencyStruct
+// AddVolumeDependencyStruct AddVolumeDependencyStruct
+//
 //swagger:parameters addDepVolume
 type AddVolumeDependencyStruct struct {
 	// in: path
@@ -104,11 +107,12 @@ type AddVolumeDependencyStruct struct {
 		// required: true
 		VolumeName string `json:"volume_name" validate:"volume_name|required|max:50"`
 
-		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,config-file"`
+		VolumeType string `json:"volume_type" validate:"volume_type|required"`
 	}
 }
 
-//DeleteVolumeDependencyStruct DeleteVolumeDependencyStruct
+// DeleteVolumeDependencyStruct DeleteVolumeDependencyStruct
+//
 //swagger:parameters  delDepVolume
 type DeleteVolumeDependencyStruct struct {
 	// in: path
@@ -132,7 +136,8 @@ type DeleteVolumeDependencyStruct struct {
 
 //以下为v2旧版API参数定义
 
-//V2AddVolumeStruct AddVolumeStruct
+// V2AddVolumeStruct AddVolumeStruct
+//
 //swagger:parameters addVolume
 type V2AddVolumeStruct struct {
 	// in: path
@@ -172,7 +177,8 @@ type V2AddVolumeStruct struct {
 	}
 }
 
-//V2DelVolumeStruct AddVolumeStruct
+// V2DelVolumeStruct AddVolumeStruct
+//
 //swagger:parameters deleteVolume
 type V2DelVolumeStruct struct {
 	// in: path
@@ -194,7 +200,8 @@ type V2DelVolumeStruct struct {
 	}
 }
 
-//V2AddVolumeDependencyStruct AddVolumeDependencyStruct
+// V2AddVolumeDependencyStruct AddVolumeDependencyStruct
+//
 //swagger:parameters addVolumeDependency
 type V2AddVolumeDependencyStruct struct {
 	// in: path
@@ -220,7 +227,8 @@ type V2AddVolumeDependencyStruct struct {
 	}
 }
 
-//V2DelVolumeDependencyStruct V2DelVolumeDependencyStruct
+// V2DelVolumeDependencyStruct V2DelVolumeDependencyStruct
+//
 //swagger:parameters deleteVolumeDependency
 type V2DelVolumeDependencyStruct struct {
 	// in: path
