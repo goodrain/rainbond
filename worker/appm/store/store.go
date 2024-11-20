@@ -1968,7 +1968,7 @@ func (a *appRuntimeStore) ListServices(namespace string, selector labels.Selecto
 
 func (a *appRuntimeStore) SyncUpdateApisixRoute(namespace, serviceAlias, serviceName string) {
 	routes, err := a.k8sClient.ApiSixClient.ApisixV2().ApisixRoutes(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: "service_alias=" + serviceAlias,
+		LabelSelector: serviceAlias + "=service_alias",
 	})
 	if err != nil {
 		logrus.Errorf("list routes failure: %v", err)
@@ -1986,9 +1986,8 @@ func (a *appRuntimeStore) SyncUpdateApisixRoute(namespace, serviceAlias, service
 				if backends != nil && len(backends) > 0 {
 					backend := backends[i]
 					if backend.ServiceName != serviceName {
-						// 更新 ServiceName
-						backend.ServiceName = serviceName
 						// 更新路由
+						route.Spec.HTTP[0].Backends[i].ServiceName = serviceName
 						_, err := a.k8sClient.ApiSixClient.ApisixV2().ApisixRoutes(namespace).Update(context.Background(), &route, metav1.UpdateOptions{})
 						if err != nil {
 							logrus.Errorf("update route failure: %v", err)
