@@ -148,20 +148,6 @@ func (i *ImportApp) importApp() error {
 				i.updateStatusForApp(app, "failed")
 				return
 			}
-
-			files, _ := ioutil.ReadDir(tmpDir)
-			if len(files) < 1 {
-				logrus.Errorf("Failed to readDir %s: %v", appFile, err)
-				i.updateStatusForApp(app, "failed")
-				return
-			}
-			metadataJsonPath := path.Join(tmpDir, files[0].Name(), "metadata.json")
-			err = storage.Default().StorageCli.UploadFileToFile(metadataJsonPath, metadataJsonPath, nil)
-			if err != nil {
-				logrus.Errorf("Failed to upload app %s metadatas.json: %v", appFile, err)
-				i.updateStatusForApp(app, "failed")
-				return
-			}
 			os.Rename(appFile, appFile+".success")
 			datas = append(datas, *ram)
 			logrus.Infof("Successful import app: %s", appFile)
@@ -177,6 +163,11 @@ func (i *ImportApp) importApp() error {
 	}
 	if err := i.updateStatus("success"); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
+		return err
+	}
+	err := storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
+	if err != nil {
+		logrus.Errorf("Failed to upload app %s metadatas.json: %v", appFile, err)
 		return err
 	}
 	return nil
