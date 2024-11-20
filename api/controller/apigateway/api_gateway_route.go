@@ -180,11 +180,13 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteHTTP, nil) {
 		return
 	}
-	sLabel := strings.Split(r.URL.Query().Get("service_alias"), ",")
+	sa := r.URL.Query().Get("service_alias")
+	sLabel := strings.Split(sa, ",")
 	// 如果没有绑定appId，那么不要加这个lable
 	labels := make(map[string]string)
 	labels["creator"] = "Rainbond"
 	labels["port"] = r.URL.Query().Get("port")
+	labels["component_sort"] = sa
 	if r.URL.Query().Get("appID") != "" {
 		labels["app_id"] = r.URL.Query().Get("appID")
 	}
@@ -274,6 +276,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, marshalApisixRoute(update))
+}
+
+func (g Struct) UpdateHTTPAPIRoute() {
+
 }
 
 func marshalApisixRoute(r *v2.ApisixRoute) map[string]interface{} {
