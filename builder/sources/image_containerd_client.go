@@ -147,6 +147,7 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	var img containerd.Image
 	img, err = c.client.Pull(pctx, reference, opts...)
 	if err != nil {
+		logrus.Infof("pull image failure, try http")
 		hostOpt.DefaultScheme = "http"
 		options := docker.ResolverOptions{
 			Tracker: Tracker,
@@ -159,7 +160,7 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 			containerd.WithPlatformMatcher(platformMC),
 			containerd.WithResolver(docker.NewResolver(options)),
 		}
-		c.client.Pull(pctx, reference, opts...)
+		img, err = c.client.Pull(pctx, reference, opts...)
 	}
 	stopProgress()
 	if err != nil {
