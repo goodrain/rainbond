@@ -294,7 +294,7 @@ replace (
 	github.com/docker/docker => github.com/docker/docker v20.10.2+incompatible
 	github.com/envoyproxy/go-control-plane => github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
-	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20231124034417-c9417f778e7f
+	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20241120144629-054e5799e57d
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common => github.com/prometheus/common v0.15.0
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.7.3
