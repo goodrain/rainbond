@@ -582,6 +582,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := service.Labels["service_id"]
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
+		serviceAlias := service.Labels["service_alias"]
 		appID := service.Labels["app_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
@@ -589,6 +590,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.k8sClient.Clientset.CoreV1().Services(service.Namespace).Delete(context.Background(), service.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.SyncUpdateApisixRoute(service.Namespace, serviceAlias, service.Name)
 				appservice.SetService(service)
 				return
 			}
@@ -1962,6 +1964,42 @@ func (a *appRuntimeStore) ListReplicaSets(namespace string, selector labels.Sele
 
 func (a *appRuntimeStore) ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error) {
 	return a.listers.Service.Services(namespace).List(selector)
+}
+
+func (a *appRuntimeStore) SyncUpdateApisixRoute(namespace, serviceAlias, serviceName string) {
+	routes, err := a.k8sClient.ApiSixClient.ApisixV2().ApisixRoutes(namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_alias=" + serviceAlias,
+	})
+	if err != nil {
+		logrus.Errorf("list routes failure: %v", err)
+	}
+	for _, route := range routes.Items {
+		sort := route.Labels["component_sort"]
+		sortList := strings.Split(sort, ",")
+		for i, sa := range sortList {
+			if sa != serviceAlias {
+				continue
+			}
+			routeHTTP := route.Spec.HTTP
+			if routeHTTP != nil && len(routeHTTP) > 0 {
+				backends := routeHTTP[0].Backends
+				if backends != nil && len(backends) > 0 {
+					backend := backends[i]
+					if backend.ServiceName != serviceName {
+						// 更新 ServiceName
+						backend.ServiceName = serviceName
+						// 更新路由
+						_, err := a.k8sClient.ApiSixClient.ApisixV2().ApisixRoutes(namespace).Update(context.Background(), &route, metav1.UpdateOptions{})
+						if err != nil {
+							logrus.Errorf("update route failure: %v", err)
+						} else {
+							logrus.Infof("successfully updated route %s with new service name %s", route.Name, serviceName)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func isImagePullSecretEqual(a, b *corev1.Secret) bool {
