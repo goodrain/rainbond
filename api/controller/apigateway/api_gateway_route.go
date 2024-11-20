@@ -278,10 +278,6 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, marshalApisixRoute(update))
 }
 
-func (g Struct) UpdateHTTPAPIRoute() {
-
-}
-
 func marshalApisixRoute(r *v2.ApisixRoute) map[string]interface{} {
 	r.TypeMeta.Kind = util.ApisixRoute
 	r.TypeMeta.APIVersion = util.APIVersion
