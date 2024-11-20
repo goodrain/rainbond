@@ -102,16 +102,6 @@ func (c *containerdImageCliImpl) GetDockerClient() *dockercli.Client {
 
 func (c *containerdImageCliImpl) ImagePull(image string, username, password string, logger event.Logger, timeout int) (*ocispec.ImageConfig, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
-
-	defaultTLS := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	hostOpt := config.HostOptions{}
-	hostOpt.DefaultTLS = defaultTLS
-	hostOpt.Credentials = func(host string) (string, string, error) {
-		return username, password, nil
-	}
-
 	named, err := refdocker.ParseDockerRef(image)
 	if err != nil {
 		return nil, err
@@ -120,8 +110,6 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	ongoing := NewJobs(reference)
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	pctx, stopProgress := context.WithCancel(ctx)
-	defer stopProgress()
-
 	progress := make(chan struct{})
 
 	go func() {
@@ -134,50 +122,49 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 		}
 		return nil, nil
 	})
-
-	Tracker := docker.NewInMemoryTracker()
-
-	platformMC := platforms.Ordered([]ocispec.Platform{platforms.DefaultSpec()}...)
-	opts := []containerd.RemoteOpt{
-		containerd.WithImageHandler(h),
-		containerd.WithSchema1Conversion, //lint:ignore SA1019 nerdctl should support schema1 as well.
-		containerd.WithPlatformMatcher(platformMC),
+	defaultTLS := &tls.Config{
+		InsecureSkipVerify: true,
 	}
-
-	// First attempt with HTTPS
-	hostOpt.DefaultScheme = "https"
+	hostOpt := config.HostOptions{}
+	hostOpt.DefaultTLS = defaultTLS
+	hostOpt.Credentials = func(host string) (string, string, error) {
+		return username, password, nil
+	}
+	Tracker := docker.NewInMemoryTracker()
 	options := docker.ResolverOptions{
 		Tracker: Tracker,
 		Hosts:   config.ConfigureHosts(pctx, hostOpt),
 	}
-	opts = append(opts, containerd.WithResolver(docker.NewResolver(options)))
 
+	platformMC := platforms.Ordered([]ocispec.Platform{platforms.DefaultSpec()}...)
+	opts := []containerd.RemoteOpt{
+		containerd.WithImageHandler(h),
+		//nolint:staticcheck
+		containerd.WithSchema1Conversion, //lint:ignore SA1019 nerdctl should support schema1 as well.
+		containerd.WithPlatformMatcher(platformMC),
+		containerd.WithResolver(docker.NewResolver(options)),
+	}
 	var img containerd.Image
 	img, err = c.client.Pull(pctx, reference, opts...)
 	if err != nil {
-		logrus.Errorf("HTTPS pull failed for image %s, trying HTTP", reference)
-		printLog(logger, "warn", fmt.Sprintf("HTTPS pull failed for image %s, trying HTTP", reference), map[string]string{"step": "pullimage"})
 		hostOpt.DefaultScheme = "http"
-		opts := []containerd.RemoteOpt{
-			containerd.WithImageHandler(h),
-			containerd.WithSchema1Conversion, //lint:ignore SA1019 nerdctl should support schema1 as well.
-			containerd.WithPlatformMatcher(platformMC),
-		}
-
-		options = docker.ResolverOptions{
+		options := docker.ResolverOptions{
 			Tracker: Tracker,
 			Hosts:   config.ConfigureHosts(pctx, hostOpt),
 		}
-		opts = append(opts, containerd.WithResolver(docker.NewResolver(options)))
-		logrus.Infof("try again http")
-		img, err = c.client.Pull(pctx, reference, opts...)
+		opts = []containerd.RemoteOpt{
+			containerd.WithImageHandler(h),
+			//nolint:staticcheck
+			containerd.WithSchema1Conversion, //lint:ignore SA1019 nerdctl should support schema1 as well.
+			containerd.WithPlatformMatcher(platformMC),
+			containerd.WithResolver(docker.NewResolver(options)),
+		}
+		c.client.Pull(pctx, reference, opts...)
 	}
-
+	stopProgress()
 	if err != nil {
-		stopProgress()
 		return nil, err
 	}
-
 	<-progress
 	printLog(logger, "info", fmt.Sprintf("Success Pull Image：%s", reference), map[string]string{"step": "pullimage"})
 	return getImageConfig(ctx, img)
