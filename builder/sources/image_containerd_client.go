@@ -155,12 +155,9 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	var img containerd.Image
 	img, err = c.client.Pull(pctx, reference, opts...)
 	if err != nil {
-		// If protocol error occurs, try HTTP
-		if isProtocolError(err) {
-			printLog(logger, "warn", fmt.Sprintf("HTTPS pull failed for image %s, trying HTTP", reference), map[string]string{"step": "pullimage"})
-			hostOpt.DefaultScheme = "http"
-			img, err = c.client.Pull(pctx, reference, opts...)
-		}
+		printLog(logger, "warn", fmt.Sprintf("HTTPS pull failed for image %s, trying HTTP", reference), map[string]string{"step": "pullimage"})
+		hostOpt.DefaultScheme = "http"
+		img, err = c.client.Pull(pctx, reference, opts...)
 	}
 
 	if err != nil {
@@ -316,10 +313,8 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 	err = pushFunc("https")
 	if err != nil {
 		// 如果是协议相关错误，尝试降级为 HTTP
-		if isProtocolError(err) {
-			printLog(logger, "warn", fmt.Sprintf("HTTPS 推送失败，尝试使用 HTTP：%s", err.Error()), map[string]string{"step": "pushimage"})
-			err = pushFunc("http")
-		}
+		printLog(logger, "warn", fmt.Sprintf("HTTPS 推送失败，尝试使用 HTTP：%s", err.Error()), map[string]string{"step": "pushimage"})
+		err = pushFunc("http")
 	}
 
 	if err != nil {
