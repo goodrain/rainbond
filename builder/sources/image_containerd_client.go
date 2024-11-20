@@ -136,10 +136,6 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	})
 
 	Tracker := docker.NewInMemoryTracker()
-	options := docker.ResolverOptions{
-		Tracker: Tracker,
-		Hosts:   config.ConfigureHosts(pctx, hostOpt),
-	}
 
 	platformMC := platforms.Ordered([]ocispec.Platform{platforms.DefaultSpec()}...)
 	opts := []containerd.RemoteOpt{
@@ -150,6 +146,10 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 
 	// First attempt with HTTPS
 	hostOpt.DefaultScheme = "https"
+	options := docker.ResolverOptions{
+		Tracker: Tracker,
+		Hosts:   config.ConfigureHosts(pctx, hostOpt),
+	}
 	opts = append(opts, containerd.WithResolver(docker.NewResolver(options)))
 
 	var img containerd.Image
@@ -157,6 +157,10 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	if err != nil {
 		printLog(logger, "warn", fmt.Sprintf("HTTPS pull failed for image %s, trying HTTP", reference), map[string]string{"step": "pullimage"})
 		hostOpt.DefaultScheme = "http"
+		options = docker.ResolverOptions{
+			Tracker: Tracker,
+			Hosts:   config.ConfigureHosts(pctx, hostOpt),
+		}
 		img, err = c.client.Pull(pctx, reference, opts...)
 	}
 
