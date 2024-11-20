@@ -167,7 +167,7 @@ func (i *ImportApp) importApp() error {
 	}
 	err := storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
 	if err != nil {
-		logrus.Errorf("Failed to upload app %s metadatas.json: %v", appFile, err)
+		logrus.Errorf("Failed to upload apps %s metadatas.json: %v", i.SourceDir, err)
 		return err
 	}
 	return nil
