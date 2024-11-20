@@ -155,12 +155,14 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	var img containerd.Image
 	img, err = c.client.Pull(pctx, reference, opts...)
 	if err != nil {
+		logrus.Errorf("HTTPS pull failed for image %s, trying HTTP", reference)
 		printLog(logger, "warn", fmt.Sprintf("HTTPS pull failed for image %s, trying HTTP", reference), map[string]string{"step": "pullimage"})
 		hostOpt.DefaultScheme = "http"
 		options = docker.ResolverOptions{
 			Tracker: Tracker,
 			Hosts:   config.ConfigureHosts(pctx, hostOpt),
 		}
+		logrus.Infof("try again http")
 		img, err = c.client.Pull(pctx, reference, opts...)
 	}
 
