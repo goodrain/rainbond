@@ -93,12 +93,9 @@ func NewManager() (Manager, error) {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	var maxConcurrentTask int
-	if configDefault.ChaosConfig.MaxTasks == 0 {
-		maxConcurrentTask = 50
-	} else {
-		maxConcurrentTask = configDefault.ChaosConfig.MaxTasks
-	}
+	numCPU := runtime.NumCPU()
+	// 示例逻辑：根据 CPU 核数设置基准最大并发数，实际中可以加上内存的判断
+	maxConcurrentTask := numCPU * 2
 	stop := make(chan struct{})
 	if err := job.InitJobController(configDefault.PublicConfig.RbdNamespace, stop, kubeClient); err != nil {
 		cancel()
@@ -170,6 +167,12 @@ func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 // share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	if task.TaskType == "" {
+		return nil
+	}
+	if e.callback != nil && len(e.tasks) > e.maxConcurrentTask {
+		e.callback(task)
+		time.Sleep(time.Second * 2)
+		MetricBackTaskNum++
 		return nil
 	}
 	if e.callback != nil && task.Arch != "" && task.Arch != runtime.GOARCH {
