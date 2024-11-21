@@ -34,18 +34,21 @@
 package conversion
 
 import (
+	"context"
 	"fmt"
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/api/util"
+	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/twinj/uuid"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util/k8s"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	betav1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -74,7 +77,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		return err
 	}
 
-	k8s, err := builder.Build()
+	k8s, err := builder.Build(as)
 	if err != nil {
 		logrus.Error("error creating app service: ", err.Error())
 		return err
@@ -91,7 +94,16 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	for _, sec := range k8s.Secrets {
 		as.SetSecret(sec)
 	}
-
+	for _, route := range k8s.ApiSixRoute {
+		_, createErr := k8s2.Default().ApiSixClient.ApisixV2().
+			ApisixRoutes(as.GetNamespace()).
+			Create(context.Background(), route, metav1.CreateOptions{})
+		if createErr != nil {
+			logrus.Errorf("failed to create ApisixRoute %s: %v\n", route.Name, createErr)
+		} else {
+			logrus.Infof("successfully created ApisixRoute %s.\n", route.Name)
+		}
+	}
 	return nil
 }
 
@@ -134,7 +146,7 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, 
 }
 
 // Build builds service, ingress and secret for each port
-func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
+func (a *AppServiceBuild) Build(as *v1.AppService) (*v1.K8sResources, error) {
 	ports, err := a.dbmanager.TenantServicesPortDao().GetPortsByServiceID(a.serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("find service port from db error %s", err.Error())
@@ -158,13 +170,21 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 
 	var services []*corev1.Service
 	var ingresses []interface{}
+	var apiSixRoutes []*v2.ApisixRoute
 	var secrets []*corev1.Secret
 	var innerService []*model.TenantServicesPort
+
 	if len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {
 				innerService = append(innerService, port)
+			}
+			if *port.IsOuterService {
+				route := a.generateOuterDomain(as, port)
+				if route != nil {
+					apiSixRoutes = append(apiSixRoutes, route)
+				}
 			}
 		}
 	}
@@ -180,9 +200,10 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	}
 
 	return &v1.K8sResources{
-		Services:  services,
-		Secrets:   secrets,
-		Ingresses: ingresses,
+		Services:    services,
+		Secrets:     secrets,
+		Ingresses:   ingresses,
+		ApiSixRoute: apiSixRoutes,
 	}, nil
 }
 
@@ -346,73 +367,6 @@ func createIngressMeta(name, namespace string, labels map[string]string) metav1.
 	}
 }
 
-func createNtwIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *networkingv1.Ingress {
-	return &networkingv1.Ingress{
-		ObjectMeta: createIngressMeta(name, namespace, labels),
-		Spec: networkingv1.IngressSpec{
-			Rules: []networkingv1.IngressRule{
-				{
-					Host: domain,
-					IngressRuleValue: networkingv1.IngressRuleValue{
-						HTTP: &networkingv1.HTTPIngressRuleValue{
-							Paths: []networkingv1.HTTPIngressPath{
-								{
-									Path:     path,
-									PathType: k8s.IngressPathType(networkingv1.PathTypeExact),
-									Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{
-											Name: serviceName,
-											Port: networkingv1.ServiceBackendPort{
-												Number: int32(pluginContainerPort),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			DefaultBackend: &networkingv1.IngressBackend{
-				Service: &networkingv1.IngressServiceBackend{
-					Name: serviceName,
-					Port: networkingv1.ServiceBackendPort{
-						Number: int32(pluginContainerPort),
-					},
-				},
-			},
-		},
-	}
-}
-
-func createBetaIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *betav1.Ingress {
-	logrus.Infof("start create beta ingress,serviceName is %s", serviceName)
-	betaIngress := &betav1.Ingress{
-		ObjectMeta: createIngressMeta(name, namespace, labels),
-		Spec: betav1.IngressSpec{
-			Rules: []betav1.IngressRule{
-				{
-					Host: domain,
-					IngressRuleValue: betav1.IngressRuleValue{
-						HTTP: &betav1.HTTPIngressRuleValue{
-							Paths: []betav1.HTTPIngressPath{
-								{
-									Path: path,
-									Backend: betav1.IngressBackend{
-										ServiceName: serviceName,
-										ServicePort: intstr.FromInt(pluginContainerPort),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	return betaIngress
-}
-
 func generateSVCPortName(protocol string, containerPort int) string {
 	protocols := map[string]struct{}{
 		"http":  {},
@@ -426,4 +380,80 @@ func generateSVCPortName(protocol string, containerPort int) string {
 		protocol = "tcp"
 	}
 	return fmt.Sprintf("%s-%d", strings.ToLower(protocol), containerPort)
+}
+
+func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute) {
+	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
+	if err != nil {
+		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", as.ServiceID, err)
+	}
+	// create http ingresses
+	logrus.Debugf("find %d count http rule", len(httpRules))
+	if len(httpRules) > 0 {
+		httpRule := httpRules[0]
+		routes, err := k8s2.Default().ApiSixClient.ApisixV2().ApisixRoutes(as.GetNamespace()).List(
+			context.Background(),
+			metav1.ListOptions{
+				LabelSelector: as.ServiceAlias + "=service_alias" + ",port=" + strconv.Itoa(port.ContainerPort),
+			},
+		)
+		if err != nil {
+			logrus.Errorf("generate outer domain list apisixRoute failure: %v", err)
+		} else {
+			if routes != nil && len(routes.Items) > 0 {
+				logrus.Infof("%v route num > 0, not create", as.ServiceAlias)
+			} else {
+				// 创建 label
+				labels := make(map[string]string)
+				labels["creator"] = "Rainbond"
+				labels["port"] = strconv.Itoa(port.ContainerPort)
+				labels["component_sort"] = as.ServiceAlias
+				labels["app_id"] = as.AppID
+				labels[as.ServiceAlias] = "service_alias"
+				labels[httpRule.Domain] = "host"
+
+				routeName := httpRule.Domain + "/*"
+				routeName = strings.ReplaceAll(routeName, "/", "p-p")
+				routeName = strings.ReplaceAll(routeName, "*", "s-s")
+				weight := 100
+				apisixRouteHTTP := v2.ApisixRouteHTTP{
+					Name: uuid.NewV4().String()[0:8],
+					Match: v2.ApisixRouteHTTPMatch{
+						Paths: []string{"/*"},
+						Hosts: []string{httpRule.Domain},
+					},
+					Backends: []v2.ApisixRouteHTTPBackend{
+						{
+							ServiceName: port.K8sServiceName,
+							ServicePort: intstr.FromInt(port.ContainerPort),
+							Weight:      &weight,
+						},
+					},
+					Authentication: v2.ApisixRouteAuthentication{
+						Enable:  false,
+						Type:    "basicAuth",
+						KeyAuth: v2.ApisixRouteAuthenticationKeyAuth{},
+					},
+				}
+				outerRoutes = &v2.ApisixRoute{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       util.ApisixRoute,
+						APIVersion: util.APIVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Labels:       labels,
+						Name:         routeName,
+						GenerateName: "rbd",
+					},
+					Spec: v2.ApisixRouteSpec{
+						IngressClassName: "apisix",
+						HTTP: []v2.ApisixRouteHTTP{
+							apisixRouteHTTP,
+						},
+					},
+				}
+			}
+		}
+	}
+	return
 }
