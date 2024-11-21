@@ -129,7 +129,7 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 	}
 
 	if err := registry.Ping(); err != nil {
-		if errors.Is(err, ErrRegistryNotFound) && !containsScheme {
+		if err != nil {
 			// try again with http url
 			registry.URL = strings.Replace(url, "https", "http", 1)
 			if err := registry.Ping(); err != nil {
