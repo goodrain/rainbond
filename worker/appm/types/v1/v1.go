@@ -20,6 +20,7 @@ package v1
 
 import (
 	"fmt"
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/event"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"os"
@@ -1281,9 +1282,10 @@ type TenantResource struct {
 
 // K8sResources holds kubernetes resources(svc, sercert, ep, ing).
 type K8sResources struct {
-	Services  []*corev1.Service
-	Secrets   []*corev1.Secret
-	Ingresses []interface{}
+	Services    []*corev1.Service
+	Secrets     []*corev1.Secret
+	Ingresses   []interface{}
+	ApiSixRoute []*v2.ApisixRoute
 }
 
 // GetTCPMeshImageName get tcp mesh image name
