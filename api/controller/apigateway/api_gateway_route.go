@@ -140,12 +140,16 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httpRoute := v.Spec.HTTP[0].DeepCopy()
 		labels := v.Labels
 		service_alias := ""
+		regionAppID := ""
 		for labelK, labelV := range labels {
 			if labelV == "service_alias" {
 				service_alias = service_alias + "-" + labelK
 			}
+			if labelK == "app_id" {
+				regionAppID = labelV
+			}
 		}
-		httpRoute.Name = v.Name + "|" + service_alias
+		httpRoute.Name = regionAppID + "|" + v.Name + "|" + service_alias
 		resp = append(resp, httpRoute)
 	}
 	httputil.ReturnSuccess(r, w, resp)
@@ -198,7 +202,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
-	routeName := r.URL.Query().Get("intID") + apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
+	routeName := apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
@@ -442,6 +446,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		labels["service_id"] = r.URL.Query().Get("service_id")
 		labels["service_alias"] = serviceName
 		labels["outer"] = "true"
+		labels["port"] = apisixRouteStream.Backend.ServicePort.String()
 		service = &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
 				Labels: labels,
