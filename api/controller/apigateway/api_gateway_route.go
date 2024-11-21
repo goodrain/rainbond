@@ -248,6 +248,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}, v1.CreateOptions{})
 	if err == nil {
 		name := r.URL.Query().Get("name")
+		name = name[1:]
 		if name != "" {
 			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 			if err != nil {
@@ -302,30 +303,12 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	var deleteName = make([]string, 0)
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-
+	name = name[1:]
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	err := c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err == nil {
 		deleteName = append(deleteName, name)
-		httputil.ReturnSuccess(r, w, deleteName)
-		return
-	}
-	if errors.IsNotFound(err) {
-		list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-			LabelSelector: "host=" + name,
-		})
-
-		for _, item := range list.Items {
-			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), item.Spec.HTTP[0].Name, v1.DeleteOptions{})
-			if err != nil {
-				logrus.Errorf("delete route %v failure: %v", item.Name, err)
-				httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
-				return
-			}
-			deleteName = append(deleteName, item.Spec.HTTP[0].Name)
-
-		}
 		httputil.ReturnSuccess(r, w, deleteName)
 		return
 	}
