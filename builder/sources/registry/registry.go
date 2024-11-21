@@ -116,10 +116,11 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 	if containsScheme {
 		url = strings.Replace(url, "http", "https", 1)
 	}
-
+	logrus.Infof("username: %v", username)
 	if username != "" {
 		transport = WrapTransport(transport, url, username, password)
 	}
+	logrus.Infof("url: %v", url)
 	registry := &Registry{
 		URL: url,
 		Client: &http.Client{
@@ -130,8 +131,17 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 
 	if err := registry.Ping(); err != nil {
 		if err != nil {
-			// try again with http url
-			registry.URL = strings.Replace(url, "https", "http", 1)
+			logrus.Infof("---------in")
+			if username != "" {
+				transport = WrapTransport(transport, url, username, password)
+			}
+			registry := &Registry{
+				URL: strings.Replace(url, "https", "http", 1),
+				Client: &http.Client{
+					Transport: transport,
+				},
+				Logf: logf,
+			}
 			if err := registry.Ping(); err != nil {
 				return nil, errors.Wrap(err, "registry url "+url)
 			}
