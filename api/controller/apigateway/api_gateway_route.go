@@ -248,8 +248,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}, v1.CreateOptions{})
 	if err == nil {
 		name := r.URL.Query().Get("name")
-		name = name[1:]
 		if name != "" {
+			name = name[1:]
 			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("delete route %v failure: %v", name, err)
