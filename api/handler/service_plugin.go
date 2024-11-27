@@ -145,7 +145,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs, tx); err != nil {
 			tx.Rollback()
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
@@ -261,7 +261,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *apimodel.SetVersionEnv) *util.APIH
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.SavePluginConfig(uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs, tx); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
@@ -291,7 +291,7 @@ func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *apimodel.SetVersionEnv) *
 }
 
 // SavePluginConfig save plugin dynamic discovery config
-func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *apimodel.ResourceSpec) *util.APIHandleError {
+func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *apimodel.ResourceSpec, tx *gorm.DB) *util.APIHandleError {
 	if config == nil {
 		return nil
 	}
@@ -300,7 +300,7 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		logrus.Errorf("mashal plugin config value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	if err := db.GetManager().TenantPluginVersionConfigDao().AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
 		PluginID:  pluginID,
 		ServiceID: serviceID,
 		ConfigStr: string(v),
