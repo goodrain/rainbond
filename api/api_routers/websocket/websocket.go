@@ -80,3 +80,10 @@ func LongVersionRoutes() chi.Router {
 	r.Head("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
 	return r
 }
+
+// HelmInstallRegionStatus Helm安装集群状态查询
+func HelmInstallRegionStatus() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/region_status/{token}", controller.GetManager().GetRegionStatus)
+	return r
+}

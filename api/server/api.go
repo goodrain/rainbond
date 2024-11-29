@@ -176,6 +176,7 @@ func (m *Manager) Run() {
 		websocketRouter.Mount("/logs", websocket.LogRoutes())
 		websocketRouter.Mount("/app", websocket.AppRoutes())
 		websocketRouter.Mount("/package_build", websocket.PackageBuildRoutes())
+		websocketRouter.Mount("/helm_install", websocket.HelmInstallRegionStatus())
 		// 共享存储的文件操作路由
 		websocketRouter.Mount("/v2/file-operate", websocket.FileOperateRoutes())
 		// 语言包处理

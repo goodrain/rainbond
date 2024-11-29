@@ -647,3 +647,17 @@ func copyDirectory(srcDir, dstDir string) error {
 	})
 	return err
 }
+
+func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token != os.Getenv("HELM_TOKEN") {
+		httputil.ReturnError(r, w, 400, "failed to verify token")
+		return
+	}
+	regionInfo, err := handler.GetClusterHandler().GetClusterRegionStatus()
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, regionInfo)
+}
