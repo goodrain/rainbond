@@ -732,7 +732,17 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 		appNameMap[appName]++
 		pods[appName] = append(pods[appName], pod)
 		if pod.Status.Phase == "Running" {
-			ComponentRunPods[appName]++
+			// 检查容器是否处于等待或崩溃重启状态
+			isContainerRunning := true
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
+					isContainerRunning = false
+					break
+				}
+			}
+			if isContainerRunning {
+				ComponentRunPods[appName]++
+			}
 		}
 		ComponentAllPods[appName]++
 	}
