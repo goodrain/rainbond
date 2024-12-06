@@ -437,11 +437,28 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			},
 			Spec: spec,
 		}
-		_, err = k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
-		if err != nil {
-			logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-			return
+		for {
+			// 设置服务的 NodePort
+			nodePort := service.Spec.Ports[0].NodePort
+			// 创建服务
+			_, err = k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
+			if err != nil {
+				if strings.Contains(err.Error(), "provided port is already allocated") {
+					// 如果端口已被占用，增加端口号并重新尝试
+					logrus.Infof("NodePort %d is already allocated, trying next port...", nodePort)
+					nodePort++
+					continue // 重新尝试创建服务
+				} else {
+					// 其他错误，返回失败
+					logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
+					httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+					return
+				}
+			}
+			apisixRouteStream.Match.IngressPort = nodePort
+			// 如果创建成功，退出循环
+			logrus.Infof("Service created successfully with NodePort %d", nodePort)
+			break
 		}
 	} else {
 		// Service exists, update it
