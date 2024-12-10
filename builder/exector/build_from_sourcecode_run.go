@@ -416,9 +416,6 @@ func (i *SourceCodeBuildItem) prepare() error {
 		return err
 	}
 	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
-		if !util.DirIsEmpty(i.RepoInfo.GetCodeHome()) {
-			os.RemoveAll(i.RepoInfo.GetCodeHome())
-		}
 		if err := os.RemoveAll(i.CacheDir); err != nil {
 			logrus.Error("remove cache dir error", err.Error())
 		}
