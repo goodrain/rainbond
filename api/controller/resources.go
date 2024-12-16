@@ -1015,7 +1015,7 @@ func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Re
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 
 	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(tenant.Namespace).DeleteCollection(r.Context(), v1.DeleteOptions{}, v1.ListOptions{
-		LabelSelector: "service_alias=" + service.ServiceAlias,
+		LabelSelector: service.ServiceAlias + "service_alias=",
 	})
 	if err != nil {
 		logrus.Errorf("delete apisix route error: %v", err)
