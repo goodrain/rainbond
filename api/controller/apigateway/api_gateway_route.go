@@ -425,6 +425,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		// Service doesn't exist, create a new one
 		logrus.Infof("Service %s does not exist, creating a new service", name)
 		labels := make(map[string]string)
+		labels["creator"] = "Rainbond"
 		labels["tcp"] = "true"
 		labels["app_id"] = r.URL.Query().Get("appID")
 		labels["service_id"] = r.URL.Query().Get("service_id")
