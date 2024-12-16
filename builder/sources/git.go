@@ -479,16 +479,24 @@ func GetPublicKey(tenantID string) string {
 	}
 	PrivateKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PrivateKey))
 	if err != nil {
-		fmt.Println(err)
+		logrus.Errorf("create private key failure: %v", err)
+		return ""
 	} else {
-		PrivateKeyFile.WriteString(Private)
+		_, err = PrivateKeyFile.WriteString(Private)
+		if err != nil {
+			logrus.Errorf("write private key failure: %v", err)
+			return ""
+		}
 	}
-	PublicKeyFile, err2 := os.Create(path.Join(home, "/.ssh/"+PublicKey))
-
-	if err2 != nil {
-		fmt.Println(err)
+	PublicKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PublicKey))
+	if err != nil {
+		logrus.Errorf("create public key failure: %v", err)
 	} else {
-		PublicKeyFile.WriteString(Public)
+		_, err = PublicKeyFile.WriteString(Public)
+		if err != nil {
+			logrus.Errorf("write public key failure: %v", err)
+			return ""
+		}
 	}
 	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
 	return string(body)
