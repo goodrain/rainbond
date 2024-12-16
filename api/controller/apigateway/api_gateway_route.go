@@ -3,6 +3,7 @@ package apigateway
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
@@ -248,7 +249,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		name := r.URL.Query().Get("name")
 		if name != "" {
-			name = name[1:]
+			name = removeLeadingDigits(name)
 			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("delete route %v failure: %v", name, err)
@@ -302,7 +303,7 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	var deleteName = make([]string, 0)
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-	name = name[1:]
+	name = removeLeadingDigits(name)
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	err := c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
@@ -514,4 +515,11 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, name)
+}
+
+func removeLeadingDigits(name string) string {
+	// 使用正则表达式匹配前面的数字
+	re := regexp.MustCompile(`^\d+`)
+	// 将匹配到的数字替换为空字符串
+	return re.ReplaceAllString(name, "")
 }
