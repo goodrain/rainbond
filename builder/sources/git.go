@@ -477,6 +477,13 @@ func GetPublicKey(tenantID string) string {
 	if err != nil {
 		logrus.Error("MakeSSHKeyPairError:", err)
 	}
+	sshDir := path.Join(home, ".ssh")
+	// 确保目录存在
+	err = os.MkdirAll(sshDir, 0700)
+	if err != nil {
+		logrus.Errorf("Failed to create directory: %v\n", err)
+		return ""
+	}
 	PrivateKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PrivateKey))
 	if err != nil {
 		logrus.Errorf("create private key failure: %v", err)
