@@ -43,9 +43,9 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.release_desc }}
 
       - name: Save image info to file
-          run: |
-            IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.release_desc }}"
-            echo "- ${IMAGE_TAG}" >> image_tags.txt
+        run: |
+          IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.release_desc }}"
+          echo "- ${IMAGE_TAG}" >> image_tags.txt
 
       - name: Upload image info to be used in final step
         uses: actions/upload-artifact@v3
