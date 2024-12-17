@@ -566,6 +566,7 @@ type TCPRuleDao interface {
 	Dao
 	GetTCPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error)
 	GetTCPRuleByID(id string) (*model.TCPRule, error)
+	GetTCPRuleByPort(port int) (*model.TCPRule, error)
 	GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error)
 	DeleteByID(uuid string) error
 	DeleteTCPRuleByServiceID(serviceID string) error
