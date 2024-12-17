@@ -579,6 +579,29 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		}
 	}
 	if service, ok := obj.(*corev1.Service); ok {
+		for _, port := range service.Spec.Ports {
+			if port.NodePort != 0 {
+				nodePort := int(port.NodePort)
+				// 查询数据库是否存在该端口
+				exist, err := a.dbmanager.TCPRuleDao().GetTCPRuleByPort(nodePort)
+				if err != nil {
+					logrus.Errorf("get tcp rule by port failure: %v", err)
+				}
+				if exist == nil {
+					tcpRule := &model.TCPRule{
+						UUID:          "",
+						ServiceID:     "",
+						ContainerPort: int(port.Port),
+						IP:            "0.0.0.0",
+						Port:          int(port.NodePort),
+					}
+					err = a.dbmanager.TCPRuleDao().AddModel(tcpRule)
+					if err != nil {
+						logrus.Errorf("add tcp rule failure: %v", err)
+					}
+				}
+			}
+		}
 		serviceID := service.Labels["service_id"]
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]

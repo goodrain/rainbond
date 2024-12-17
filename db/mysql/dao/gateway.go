@@ -495,6 +495,18 @@ func (t *TCPRuleDaoTmpl) GetTCPRuleByID(id string) (*model.TCPRule, error) {
 	return result, nil
 }
 
+// GetTCPRuleByPort gets a TCPRule based on port
+func (t *TCPRuleDaoTmpl) GetTCPRuleByPort(port int) (*model.TCPRule, error) {
+	result := &model.TCPRule{}
+	if err := t.DB.Where("port = ?", port).Find(result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
 // GetTCPRuleByServiceID gets a TCPRules based on service id.
 func (t *TCPRuleDaoTmpl) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error) {
 	var result []*model.TCPRule

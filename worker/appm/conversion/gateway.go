@@ -181,9 +181,12 @@ func (a *AppServiceBuild) Build(as *v1.AppService) (*v1.K8sResources, error) {
 				innerService = append(innerService, port)
 			}
 			if *port.IsOuterService {
-				route := a.generateOuterDomain(as, port)
+				route, svc := a.generateOuterDomain(as, port)
 				if route != nil {
 					apiSixRoutes = append(apiSixRoutes, route)
+				}
+				if svc != nil {
+					services = append(services, svc)
 				}
 			}
 		}
@@ -382,8 +385,12 @@ func generateSVCPortName(protocol string, containerPort int) string {
 	return fmt.Sprintf("%s-%d", strings.ToLower(protocol), containerPort)
 }
 
-func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute) {
+func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute, outerSVC *corev1.Service) {
 	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
+	if err != nil {
+		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", as.ServiceID, err)
+	}
+	tcpRules, err := a.dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", as.ServiceID, err)
 	}
@@ -451,6 +458,51 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 							apisixRouteHTTP,
 						},
 					},
+				}
+			}
+		}
+	}
+	if len(tcpRules) > 0 {
+		tcpRule := tcpRules[0]
+		svcs, err := k8s2.Default().Clientset.CoreV1().Services(as.GetNamespace()).List(
+			context.Background(),
+			metav1.ListOptions{
+				LabelSelector: "service_alias=" + as.ServiceAlias + ",port=" + strconv.Itoa(tcpRule.Port),
+			},
+		)
+		if err != nil {
+			logrus.Errorf("generate outer domain list svcs failure: %v", err)
+		} else {
+			if svcs != nil && len(svcs.Items) > 0 {
+				logrus.Infof("%v svc num > 0, not create", as.ServiceAlias)
+			} else {
+				labels := make(map[string]string)
+				labels["creator"] = "Rainbond"
+				labels["tcp"] = "true"
+				labels["app_id"] = as.AppID
+				labels["service_id"] = as.ServiceID
+				labels["service_alias"] = as.ServiceAlias
+				labels["outer"] = "true"
+				labels["port"] = fmt.Sprintf("%v", tcpRule.ContainerPort)
+				name := fmt.Sprintf("%v-%v", as.ServiceAlias, tcpRule.Port)
+				spec := corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Protocol:   corev1.Protocol("TCP"),
+							Name:       name,
+							Port:       int32(tcpRule.ContainerPort),
+							TargetPort: intstr.FromInt(tcpRule.ContainerPort),
+							NodePort:   int32(tcpRule.Port),
+						},
+					},
+					Type: corev1.ServiceTypeNodePort,
+				}
+				outerSVC = &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+						Name:   name,
+					},
+					Spec: spec,
 				}
 			}
 		}
