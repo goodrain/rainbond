@@ -7,6 +7,7 @@ on:
 jobs:
   rainbond:
     runs-on: ubuntu-latest
+    environment: pr
     strategy:
       matrix:
         component: [api, chaos, worker, init-probe, mq]
@@ -17,11 +18,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
       - name: Set release description
         run: |
-          buildTime=$(date +%F-%H)
-          git_commit=$(git log -n 1 --pretty --format=%h)
-          release_desc="dev-${git_commit}-${buildTime}"
+          release_desc="pr-${{ github.event.pull_request.number }}"
           echo "release_desc=$release_desc" >> $GITHUB_ENV
 
       - name: Build and push
@@ -32,6 +38,46 @@ jobs:
             RELEASE_DESC=${{ env.release_desc }}
           context: .
           file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
-          push: false
+          push: true
           tags: |
-            rainbond/rbd-${{ matrix.component }}:dev
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.release_desc }}
+
+      - name: Save image info to file
+          run: |
+            IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.release_desc }}"
+            echo "- ${IMAGE_TAG}" >> image_tags.txt
+
+      - name: Upload image info to be used in final step
+        uses: actions/upload-artifact@v3
+        with:
+          name: image-tags
+          path: image_tags.txt
+
+  comment:
+    runs-on: ubuntu-latest
+    environment: pr
+    needs: rainbond
+    steps:
+      - name: Download image tags
+        uses: actions/download-artifact@v3
+        with:
+          name: image-tags
+
+      - name: Set PR number
+        run: echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+
+      - name: Generate comment content
+        run: |
+          IMAGE_TAGS=$(cat image_tags.txt)
+          COMMENT="### Preview Docker Images\n$IMAGE_TAGS"
+          echo "COMMENT_CONTENT=$COMMENT" >> $GITHUB_ENV
+
+      - name: Comment PR with Docker Image IDs
+        run: |
+          PR_NUMBER=${{ env.PR_NUMBER }}
+          COMMENT_CONTENT="${{ env.COMMENT_CONTENT }}"
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "{\"body\": \"$COMMENT_CONTENT\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
