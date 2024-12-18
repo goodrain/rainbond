@@ -64,6 +64,7 @@ func (m *filePlugin) getStdFilePath(serviceID string) (string, error) {
 }
 
 func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
+	logrus.Info("init file plugin save message")
 	if len(events) == 0 {
 		return nil
 	}

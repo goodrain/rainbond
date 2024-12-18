@@ -3,11 +3,10 @@ package rbdcomponent
 import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/eventlog/conf"
-	"github.com/goodrain/rainbond/api/eventlog/entry"
-	"github.com/goodrain/rainbond/api/eventlog/exit/web"
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"github.com/thejerf/suture"
 )
 
 // APIConfig config
@@ -62,10 +61,49 @@ func AddAPIFlags(fs *pflag.FlagSet, apic *APIConfig) {
 }
 
 type EventLogConfig struct {
-	Conf         conf.Conf
-	Entry        *entry.Entry
-	Logger       *logrus.Logger
-	SocketServer *web.SocketServer
+	Conf   conf.Conf
+	Entry  *Entry
+	Logger *logrus.Logger
+}
+
+type Entry struct {
+	supervisor *suture.Supervisor
+	log        *logrus.Entry
+	conf       EntryConf
+}
+
+type EntryConf struct {
+	EventLogServer              EventLogServerConf
+	DockerLogServer             DockerLogServerConf
+	MonitorMessageServer        MonitorMessageServerConf
+	NewMonitorMessageServerConf NewMonitorMessageServerConf
+}
+
+type EventLogServerConf struct {
+	BindIP           string
+	BindPort         int
+	CacheMessageSize int
+}
+
+// MonitorMessageServerConf monitor message server conf
+type MonitorMessageServerConf struct {
+	SubAddress       []string
+	SubSubscribe     string
+	CacheMessageSize int
+}
+
+// NewMonitorMessageServerConf new monitor message server conf
+type NewMonitorMessageServerConf struct {
+	ListenerHost string
+	ListenerPort int
+}
+
+// DockerLogServerConf docker log server conf
+type DockerLogServerConf struct {
+	BindIP           string
+	BindPort         int
+	CacheMessageSize int
+	Mode             string
 }
 
 func AddEventLogFlags(fs *pflag.FlagSet, elc *EventLogConfig) {

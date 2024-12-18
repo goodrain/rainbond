@@ -72,6 +72,7 @@ type InterfaceStorage interface {
 	SaveFile(fileName string, reader multipart.File) error
 	UploadFileToFile(src string, dst string, logger event.Logger) error
 	DownloadDirToDir(srcDir, dstDir string) error
+	DownloadFileToDir(srcFile, dstDir string) error
 }
 
 type SrcFile interface {
