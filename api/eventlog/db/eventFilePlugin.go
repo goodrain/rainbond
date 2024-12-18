@@ -22,6 +22,7 @@ import (
 	"bufio"
 	"fmt"
 	eventutil "github.com/goodrain/rainbond/api/eventlog/util"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io"
 	"os"
 	"path"
@@ -43,6 +44,7 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
 	}
+	logrus.Info("init event file plugin save message")
 	filePath := eventutil.EventLogFilePath(m.HomePath)
 	if err := util.CheckAndCreateDir(filePath); err != nil {
 		return err
@@ -67,7 +69,7 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 		writeFile.Write([]byte(e.Message))
 		writeFile.Write([]byte("\n"))
 	}
-	return nil
+	return storage.Default().StorageCli.UploadFileToFile(filename, filename, nil)
 }
 
 // MessageData message data 获取指定操作的操作日志
@@ -92,7 +94,11 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		if err != nil {
 			logrus.Errorf("check file exist error %s", err.Error())
 		}
-		return message, nil
+		err = storage.Default().StorageCli.DownloadFileToDir(apath, path.Join(m.HomePath, "eventlog"))
+		if err != nil {
+			logrus.Errorf("download file to dir failure:%v", err)
+			return message, nil
+		}
 	}
 	eventFile, err := os.Open(apath)
 	if err != nil {

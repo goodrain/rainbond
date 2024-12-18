@@ -225,3 +225,7 @@ func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger ev
 func (l *LocalStorage) DownloadDirToDir(srcDir, dstDir string) error {
 	return nil
 }
+
+func (l *LocalStorage) DownloadFileToDir(srcFile, dstDir string) error {
+	return nil
+}
