@@ -753,7 +753,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	// rainbond operator
 	roPods, err := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(ctx, metav1.ListOptions{
 		LabelSelector: fields.SelectorFromSet(map[string]string{
-			"release": "rainbond-operator",
+			"name": "rainbond-operator",
 		}).String(),
 	})
 	if err != nil {
