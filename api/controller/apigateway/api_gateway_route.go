@@ -355,11 +355,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-	name := serviceName
-	if r.URL.Query().Get("port") != "" {
-		name = fmt.Sprintf("%s-%s", serviceName, strings.ToLower(apisixRouteStream.Protocol))
-		name = name + "-" + r.URL.Query().Get("port")
-	}
 	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
 	if apisixRouteStream.Match.IngressPort == 0 {
 		logrus.Infof("change ingressPort")
@@ -372,6 +367,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 		apisixRouteStream.Match.IngressPort = int32(res)
 	}
+	name := fmt.Sprintf("%v-%v", serviceName, apisixRouteStream.Match.IngressPort)
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
