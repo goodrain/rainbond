@@ -220,7 +220,9 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 			return
 		}
-		if roueList != nil && len(roueList.Items) > 0 && r.URL.Query().Get("intID")+roueList.Items[0].Name != name && !defaultDomain {
+		parts := strings.Split(name, "-")
+		bName := strings.Join(parts[:len(parts)-1], "-")
+		if roueList != nil && len(roueList.Items) > 0 && r.URL.Query().Get("intID")+roueList.Items[0].Name != bName && !defaultDomain {
 			logrus.Errorf("list check route failure: %v", err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
 			return
