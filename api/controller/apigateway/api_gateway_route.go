@@ -515,8 +515,18 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func removeLeadingDigits(name string) string {
-	// 使用正则表达式匹配前面的数字
+	// 使用正则表达式移除开头的数字
 	re := regexp.MustCompile(`^\d+`)
-	// 将匹配到的数字替换为空字符串
-	return re.ReplaceAllString(name, "")
+	name = re.ReplaceAllString(name, "")
+
+	// 按照 "-" 切割
+	parts := strings.Split(name, "-")
+
+	// 如果切割后长度小于等于1，直接返回空字符串
+	if len(parts) <= 1 {
+		return ""
+	}
+
+	// 移除最后一个部分并重新拼接
+	return strings.Join(parts[:len(parts)-1], "-")
 }
