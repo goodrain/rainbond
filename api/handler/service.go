@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
@@ -84,6 +85,7 @@ type ServiceAction struct {
 	dbmanager      db.Manager
 	registryCli    *registry.Registry
 	config         *rest.Config
+	apisixClient   *apisixversioned.Clientset
 }
 
 type dCfg struct {
@@ -101,6 +103,7 @@ func CreateManager() *ServiceAction {
 		statusCli:      grpc.Default().StatusClient,
 		prometheusCli:  prom.Default().PrometheusCli,
 		rainbondClient: k8s.Default().RainbondClient,
+		apisixClient:   k8s.Default().ApiSixClient,
 		kubeClient:     k8s.Default().Clientset,
 		kubevirtClient: k8s.Default().KubevirtCli,
 		dbmanager:      db.GetManager(),
@@ -1250,9 +1253,23 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *apimodel.Se
 	return nil
 }
 
-func (s *ServiceAction) deletePorts(componentID string, ports *apimodel.ServicePorts) error {
+func (s *ServiceAction) deletePorts(componentID string, tenantID string, ports *apimodel.ServicePorts) error {
+	component, err := db.GetManager().TenantServiceDao().GetServiceByID(componentID)
+	if err != nil {
+		return err
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		return err
+	}
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		for _, port := range ports.Port {
+			err = k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(tenant.Namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
+				LabelSelector: "component_sort=" + component.ServiceAlias + ",port=" + strconv.Itoa(port.ContainerPort),
+			})
+			if err != nil {
+				return err
+			}
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(componentID, port.ContainerPort); err != nil {
 				return err
 			}
@@ -1299,7 +1316,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *apimode
 	}
 	switch action {
 	case "delete":
-		return s.deletePorts(serviceID, vps)
+		return s.deletePorts(serviceID, tenantID, vps)
 	case "update":
 		tx := db.GetManager().Begin()
 		defer func() {
