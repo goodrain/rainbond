@@ -496,6 +496,9 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 						},
 					},
 					Type: corev1.ServiceTypeNodePort,
+					Selector: map[string]string{
+						"service_alias": as.ServiceAlias,
+					},
 				}
 				outerSVC = &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
