@@ -207,26 +207,26 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
-	name := r.URL.Query().Get("name")
+	//name := r.URL.Query().Get("name")
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {
 		labels[host] = "host"
-		labelSelector := host + "=host"
-		roueList, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-			LabelSelector: labelSelector,
-		})
-		if err != nil {
-			logrus.Errorf("list check route failure: %v", err)
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
-			return
-		}
-		parts := strings.Split(name, "-")
-		bName := strings.Join(parts[:len(parts)-1], "-")
-		if roueList != nil && len(roueList.Items) > 0 && r.URL.Query().Get("intID")+roueList.Items[0].Name != bName && !defaultDomain {
-			logrus.Errorf("list check route failure: %v", err)
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
-			return
-		}
+		//labelSelector := host + "=host"
+		//roueList, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
+		//	LabelSelector: labelSelector,
+		//})
+		//if err != nil {
+		//	logrus.Errorf("list check route failure: %v", err)
+		//	httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		//	return
+		//}
+		//parts := strings.Split(name, "-")
+		//bName := strings.Join(parts[:len(parts)-1], "-")
+		//if roueList != nil && len(roueList.Items) > 0 && r.URL.Query().Get("intID")+roueList.Items[0].Name != bName && !defaultDomain {
+		//	logrus.Errorf("list check route failure: %v", err)
+		//	httputil.ReturnBcodeError(r, w, bcode.ErrRouteExist)
+		//	return
+		//}
 	}
 
 	apisixRouteHTTP.Name = uuid.NewV4().String()[0:8] //每次都让他变化，让 apisix controller去更新
