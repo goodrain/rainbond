@@ -19,6 +19,8 @@
 package websocket
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/pkg/component/eventlog"
@@ -64,14 +66,26 @@ func PackageBuildRoutes() chi.Router {
 // FileOperateRoutes 共享存储的文件操作路由
 func FileOperateRoutes() chi.Router {
 	r := chi.NewRouter()
+	// 添加全局 CORS 中间件
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			w.Header().Add("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+			w.Header().Add("Access-Control-Allow-Credentials", "true")
+			w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	r.Get("/download/{fileName}", controller.GetFileManage().Get)
-	r.Options("/download/{fileName}", controller.GetFileManage().Get)
 	r.Post("/upload", controller.GetFileManage().UploadFile)
-	r.Options("/upload", controller.GetFileManage().UploadFile)
 	r.Post("/mkdir", controller.GetFileManage().CreateDirectory)
-	r.Options("/mkdir", controller.GetFileManage().CreateDirectory)
-	r.Post("/upload_dir", controller.GetFileManage().UploadDirectory)
-	r.Options("/upload_dir", controller.GetFileManage().UploadDirectory)
 	return r
 }
 
