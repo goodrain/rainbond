@@ -3,24 +3,25 @@ package controller
 import (
 	"archive/tar"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/sirupsen/logrus"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 
@@ -288,6 +289,18 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 保存多个文件到临时目录
 		logrus.Debugf("处理多文件上传，文件数量: %d", len(files))
+
+		// 获取基础目录名称（如果有的话）
+		var baseDir string
+		if len(files) > 0 {
+			// 从第一个文件的路径中提取基础目录
+			firstPath := files[0].Filename
+			if idx := strings.Index(firstPath, "/"); idx > 0 {
+				baseDir = firstPath[:idx]
+				logrus.Debugf("检测到基础目录: %s", baseDir)
+			}
+		}
+
 		for _, fileHeader := range files {
 			logrus.Debugf("处理文件: %s", fileHeader.Filename)
 			file, err := fileHeader.Open()
@@ -298,9 +311,20 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 			}
 			defer file.Close()
 
-			filePath := filepath.Join(tempDir, fileHeader.Filename)
-			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-				logrus.Errorf("创建目录失败: %v", err)
+			// 构建完整的目标路径，保持原有的目录结构
+			relativePath := fileHeader.Filename
+			if baseDir != "" && strings.HasPrefix(relativePath, baseDir+"/") {
+				// 如果文件在基础目录下，移除基础目录前缀
+				relativePath = strings.TrimPrefix(relativePath, baseDir+"/")
+			}
+
+			filePath := filepath.Join(tempDir, relativePath)
+			logrus.Debugf("创建文件: %s", filePath)
+
+			// 确保目标目录存在
+			targetDir := filepath.Dir(filePath)
+			if err := os.MkdirAll(targetDir, 0755); err != nil {
+				logrus.Errorf("创建目录失败 %s: %v", targetDir, err)
 				httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
 				return
 			}
@@ -318,6 +342,7 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 				httputil.ReturnError(r, w, 500, fmt.Sprintf("保存文件失败: %v", err))
 				return
 			}
+			logrus.Debugf("成功保存文件: %s", filePath)
 		}
 	}
 
