@@ -111,7 +111,21 @@ func (v *VMBuildItem) RunVMBuild() error {
 }
 
 func downloadFile(downPath, url string, Logger event.Logger) error {
-	rsp, err := http.Get(url)
+	// 创建一个 HTTP client 和 request
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	// 添加请求头，例如设置 User-Agent
+	req.Header.Set("User-Agent", "MyCustomDownloader/1.0")
+
+	// 发送请求
+	rsp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		_ = rsp.Body.Close()
 	}()
@@ -143,7 +157,7 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 
 	_, err = io.Copy(f, myDownloader)
 	if err != nil {
-		downError := fmt.Sprintf("download vm image %v failre: %v", url, err.Error())
+		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
 	}
 	return err
