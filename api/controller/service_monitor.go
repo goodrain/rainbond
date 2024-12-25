@@ -468,3 +468,146 @@ func unTarAll(reader io.Reader, destDir, prefix string) error {
 func getPrefix(file string) string {
 	return strings.TrimLeft(file, "/")
 }
+
+// CreateDirectory 在容器内创建目录
+func (f FileManage) CreateDirectory(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	w.Header().Add("Access-Control-Allow-Origin", origin)
+	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+	w.Header().Add("Access-Control-Allow-Credentials", "true")
+	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+
+	if r.Method == "OPTIONS" {
+		httputil.ReturnSuccess(r, w, nil)
+		return
+	}
+
+	podName := r.FormValue("pod_name")
+	namespace := r.FormValue("namespace")
+	containerName := r.FormValue("container_name")
+	dirPath := r.FormValue("path")
+
+	if dirPath == "" {
+		httputil.ReturnError(r, w, 400, "目录路径不能为空")
+		return
+	}
+
+	// 构建在容器中创建目录的命令
+	req := f.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"mkdir", "-p", dirPath},
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		logrus.Errorf("创建目录执行器失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+		return
+	}
+
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  nil,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		logrus.Errorf("在容器中创建目录失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// UploadDirectory 上传文件夹到容器
+func (f FileManage) UploadDirectory(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	w.Header().Add("Access-Control-Allow-Origin", origin)
+	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+	w.Header().Add("Access-Control-Allow-Credentials", "true")
+	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+
+	if r.Method == "OPTIONS" {
+		httputil.ReturnSuccess(r, w, nil)
+		return
+	}
+
+	podName := r.FormValue("pod_name")
+	namespace := r.FormValue("namespace")
+	containerName := r.FormValue("container_name")
+	destPath := r.FormValue("path")
+
+	if destPath == "" {
+		httputil.ReturnError(r, w, 400, "目标路径不能为空")
+		return
+	}
+
+	// 解析上传的文件
+	err := r.ParseMultipartForm(32 << 20) // 32MB
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("解析表单失败: %v", err))
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		httputil.ReturnError(r, w, 400, "没有上传文件")
+		return
+	}
+
+	// 创建临时目录存储上传的文件
+	tempDir, err := os.MkdirTemp("", "upload-*")
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建临时目录失败: %v", err))
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	// 保存上传的文件到临时目录
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("打开上传文件失败: %v", err))
+			return
+		}
+		defer file.Close()
+
+		filePath := filepath.Join(tempDir, fileHeader.Filename)
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+			return
+		}
+
+		dst, err := os.Create(filePath)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建文件失败: %v", err))
+			return
+		}
+		defer dst.Close()
+
+		if _, err = io.Copy(dst, file); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("保存文件失败: %v", err))
+			return
+		}
+	}
+
+	// 上传整个目录到容器
+	err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	if err != nil {
+		logrus.Errorf("上传目录到容器失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("上传目录失败: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}

@@ -216,7 +216,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 									Masquerade: &kubevirtv1.InterfaceMasquerade{},
 								},
-								Ports:
 							},
 						},
 					},

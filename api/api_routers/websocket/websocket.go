@@ -66,8 +66,12 @@ func FileOperateRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{fileName}", controller.GetFileManage().Get)
 	r.Options("/download/{fileName}", controller.GetFileManage().Get)
-	r.Post("/upload", controller.GetFileManage().Get)
-	r.Options("/upload", controller.GetFileManage().Get)
+	r.Post("/upload", controller.GetFileManage().UploadFile)
+	r.Options("/upload", controller.GetFileManage().UploadFile)
+	r.Post("/mkdir", controller.GetFileManage().CreateDirectory)
+	r.Options("/mkdir", controller.GetFileManage().CreateDirectory)
+	r.Post("/upload_dir", controller.GetFileManage().UploadDirectory)
+	r.Options("/upload_dir", controller.GetFileManage().UploadDirectory)
 	return r
 }
 
