@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
@@ -203,24 +204,35 @@ func (f FileManage) UploadEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
+	// 设置 CORS 头
 	origin := r.Header.Get("Origin")
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+	if origin == "" {
+		origin = "*"
+	}
 
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Custom-Header")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Max-Age", "3600")
+
+	// 处理预检请求
 	if r.Method == "OPTIONS" {
-		httputil.ReturnSuccess(r, w, nil)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	logrus.Debugf("开始处理文件上传请求，Method: %s, ContentType: %s", r.Method, r.Header.Get("Content-Type"))
+	logrus.Debugf("开始处理文件上传请求，Method: %s, ContentType: %s, Origin: %s",
+		r.Method, r.Header.Get("Content-Type"), origin)
 
-	w.Header().Add("volume_name", r.FormValue("volume_name"))
-	w.Header().Add("user_name", r.FormValue("user_name"))
-	w.Header().Add("tenant_id", r.FormValue("tenant_id"))
-	w.Header().Add("service_id", r.FormValue("service_id"))
-	w.Header().Add("status", "failed")
+	// 设置响应头
+	w.Header().Set("volume_name", r.FormValue("volume_name"))
+	w.Header().Set("user_name", r.FormValue("user_name"))
+	w.Header().Set("tenant_id", r.FormValue("tenant_id"))
+	w.Header().Set("service_id", r.FormValue("service_id"))
+	w.Header().Set("status", "failed")
+
+	// 获取上传参数
 	destPath := r.FormValue("path")
 	podName := r.FormValue("pod_name")
 	namespace := r.FormValue("namespace")
@@ -234,6 +246,39 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 解析multipart form数据
+	err := r.ParseMultipartForm(32 << 20) // 32MB
+	if err != nil {
+		logrus.Errorf("解析multipart form失败: %v", err)
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("解析上传数据失败: %v", err))
+		return
+	}
+
+	// 检查form是否为nil
+	if r.MultipartForm == nil {
+		logrus.Error("MultipartForm为空")
+		httputil.ReturnError(r, w, 400, "未找到上传文件")
+		return
+	}
+
+	// 打印所有可用的form字段
+	logrus.Debugf("Form字段: %+v", r.MultipartForm.Value)
+	logrus.Debugf("文件字段: %+v", r.MultipartForm.File)
+
+	// 尝试获取文件
+	var files []*multipart.FileHeader
+	if formFiles := r.MultipartForm.File["files"]; len(formFiles) > 0 {
+		files = formFiles
+	} else if formFiles := r.MultipartForm.File["file"]; len(formFiles) > 0 {
+		files = formFiles
+	}
+
+	if len(files) == 0 {
+		logrus.Error("未找到上传文件")
+		httputil.ReturnError(r, w, 400, "未找到上传文件")
+		return
+	}
+
 	// 创建临时目录存储上传的文件
 	tempDir, err := os.MkdirTemp("", "upload-*")
 	if err != nil {
@@ -243,37 +288,40 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// 解析上传的文件
-	err = r.ParseMultipartForm(32 << 20) // 32MB
-	if err != nil {
-		logrus.Errorf("解析表单失败: %v", err)
-		httputil.ReturnError(r, w, 400, fmt.Sprintf("解析表单失败: %v", err))
-		return
-	}
+	// 保存文件到临时目录
+	for _, fileHeader := range files {
+		logrus.Debugf("处理文件: %s", fileHeader.Filename)
 
-	// 尝试获取多文件上传
-	files := r.MultipartForm.File["files"]
-	if len(files) == 0 {
-		// 如果没有多文件，尝试获取单文件上传
-		file, header, err := r.FormFile("file")
+		// 获取文件的相对路径
+		var relativePath string
+		if webkitPath := fileHeader.Header.Get("webkitRelativePath"); webkitPath != "" {
+			relativePath = webkitPath
+			logrus.Debugf("使用 webkitRelativePath: %s", relativePath)
+		} else {
+			relativePath = fileHeader.Filename
+			logrus.Debugf("使用文件名作为路径: %s", relativePath)
+		}
+
+		file, err := fileHeader.Open()
 		if err != nil {
-			logrus.Errorf("没有找到上传文件: %v", err)
-			httputil.ReturnError(r, w, 400, "没有上传文件")
+			logrus.Errorf("打开上传文件失败: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("打开上传文件失败: %v", err))
 			return
 		}
 		defer file.Close()
-		w.Header().Add("file_name", header.Filename)
-		logrus.Debugf("处理单文件上传: %s", header.Filename)
 
-		// 保存单个文件
-		filePath := filepath.Join(tempDir, header.Filename)
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		// 构建临时目录中的完整路径
+		tempPath := filepath.Join(tempDir, relativePath)
+		logrus.Debugf("临时文件路径: %s", tempPath)
+
+		// 确保目标目录存在
+		if err := os.MkdirAll(filepath.Dir(tempPath), 0755); err != nil {
 			logrus.Errorf("创建目录失败: %v", err)
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
 			return
 		}
 
-		dst, err := os.Create(filePath)
+		dst, err := os.Create(tempPath)
 		if err != nil {
 			logrus.Errorf("创建文件失败: %v", err)
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建文件失败: %v", err))
@@ -286,68 +334,11 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 500, fmt.Sprintf("保存文件失败: %v", err))
 			return
 		}
-	} else {
-		// 保存多个文件到临时目录
-		logrus.Debugf("处理多文件上传，文件数量: %d", len(files))
-
-		// 获取基础目录名称（如果有的话）
-		var baseDir string
-		if len(files) > 0 {
-			// 从第一个文件的路径中提取基础目录
-			firstPath := files[0].Filename
-			if idx := strings.Index(firstPath, "/"); idx > 0 {
-				baseDir = firstPath[:idx]
-				logrus.Debugf("检测到基础目录: %s", baseDir)
-			}
-		}
-
-		for _, fileHeader := range files {
-			logrus.Debugf("处理文件: %s", fileHeader.Filename)
-			file, err := fileHeader.Open()
-			if err != nil {
-				logrus.Errorf("打开上传文件失败: %v", err)
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("打开上传文件失败: %v", err))
-				return
-			}
-			defer file.Close()
-
-			// 构建完整的目标路径，保持原有的目录结构
-			relativePath := fileHeader.Filename
-			if baseDir != "" && strings.HasPrefix(relativePath, baseDir+"/") {
-				// 如果文件在基础目录下，移除基础目录前缀
-				relativePath = strings.TrimPrefix(relativePath, baseDir+"/")
-			}
-
-			filePath := filepath.Join(tempDir, relativePath)
-			logrus.Debugf("创建文件: %s", filePath)
-
-			// 确保目标目录存在
-			targetDir := filepath.Dir(filePath)
-			if err := os.MkdirAll(targetDir, 0755); err != nil {
-				logrus.Errorf("创建目录失败 %s: %v", targetDir, err)
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
-				return
-			}
-
-			dst, err := os.Create(filePath)
-			if err != nil {
-				logrus.Errorf("创建文件失败: %v", err)
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("创建文件失败: %v", err))
-				return
-			}
-			defer dst.Close()
-
-			if _, err = io.Copy(dst, file); err != nil {
-				logrus.Errorf("保存文件失败: %v", err)
-				httputil.ReturnError(r, w, 500, fmt.Sprintf("保存文件失败: %v", err))
-				return
-			}
-			logrus.Debugf("成功保存文件: %s", filePath)
-		}
+		logrus.Debugf("成功保存文件: %s", tempPath)
 	}
 
 	// 上传文件到容器
-	logrus.Debugf("开始上传文件到容器")
+	logrus.Debugf("开始上传文件到容器，源目录: %s，目标路径: %s", tempDir, destPath)
 	err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
 	if err != nil {
 		logrus.Errorf("上传到容器失败: %v", err)
