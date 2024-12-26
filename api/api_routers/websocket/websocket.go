@@ -19,6 +19,7 @@
 package websocket
 
 import (
+	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -81,7 +82,9 @@ func FileOperateRoutes() chi.Router {
 
 			// 处理预检请求
 			if r.Method == "OPTIONS" {
+				// 确保发送正确的响应状态码和头信息
 				w.WriteHeader(http.StatusOK)
+				httputil.ReturnSuccess(r, w, nil)
 				return
 			}
 

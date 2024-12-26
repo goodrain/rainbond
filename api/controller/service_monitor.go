@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/proxy"
@@ -294,7 +295,13 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 		// 获取文件的相对路径
 		var relativePath string
-		if webkitPath := fileHeader.Header.Get("webkitRelativePath"); webkitPath != "" {
+		contentDisposition := fileHeader.Header.Get("Content-Disposition")
+		filenameRegex := regexp.MustCompile(`filename="([^"]+)"`)
+		matches := filenameRegex.FindStringSubmatch(contentDisposition)
+		if len(matches) > 1 {
+			relativePath = matches[1] // 使用正则表达式从Content-Disposition中提取filename
+			logrus.Debugf("使用 Content-Disposition 中的 filename: %s", relativePath)
+		} else if webkitPath := fileHeader.Header.Get("webkitRelativePath"); webkitPath != "" {
 			relativePath = webkitPath
 			logrus.Debugf("使用 webkitRelativePath: %s", relativePath)
 		} else {
@@ -339,7 +346,20 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// 上传文件到容器
 	logrus.Debugf("开始上传文件到容器，源目录: %s，目标路径: %s", tempDir, destPath)
-	err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	// 获取第一个文件的目录结构信息来判断是单文件还是目录上传
+	firstFile := files[0]
+	if webkitPath := firstFile.Header.Get("webkitRelativePath"); webkitPath != "" {
+		// 如果是目录上传(有webkitRelativePath),使用临时目录内容
+		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	} else if len(files) == 1 {
+		// 如果是单文件上传
+		uploadPath := filepath.Join(tempDir, firstFile.Filename)
+		err = f.AppFileUpload(containerName, podName, uploadPath, destPath, namespace)
+	} else {
+		// 多文件上传
+		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	}
+
 	if err != nil {
 		logrus.Errorf("上传到容器失败: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("上传失败: %v", err))
@@ -372,21 +392,74 @@ func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {
-	reader, writer := io.Pipe()
-	if destPath != "/" && strings.HasSuffix(string(destPath[len(destPath)-1]), "/") {
-		destPath = destPath[:len(destPath)-1]
+	logrus.Debugf("开始上传目录/文件: 源路径=%s, 目标路径=%s", srcPath, destPath)
+	
+	// 检查源路径是否存在
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return fmt.Errorf("源路径检查失败: %v", err)
 	}
-	destPath = destPath + "/" + path.Base(srcPath)
+
+	reader, writer := io.Pipe()
+
+	// 在goroutine中处理tar打包
 	go func() {
 		defer writer.Close()
-		cmdutil.CheckErr(cpMakeTar(srcPath, destPath, writer))
+		
+		// 如果是目录,使用完整目录路径
+		if srcInfo.IsDir() {
+			logrus.Debugf("正在打包目录: %s", srcPath)
+			err = cpMakeTar(srcPath, destPath, writer)
+		} else {
+			logrus.Debugf("正在打包文件: %s", srcPath) 
+			err = cpMakeTar(filepath.Dir(srcPath), destPath, writer)
+		}
+
+		if err != nil {
+			logrus.Errorf("tar打包失败: %v", err)
+			writer.CloseWithError(err)
+			return
+		}
 	}()
+
+	// 构建在容器中解压的命令
 	var cmdArr []string
 	cmdArr = []string{"tar", "-xmf", "-"}
-	destDir := path.Dir(destPath)
-	if len(destDir) > 0 {
-		cmdArr = append(cmdArr, "-C", destDir)
+	
+	// 确保目标路径存在
+	if len(destPath) > 0 {
+		// 先创建目标目录
+		mkdirCmd := []string{"mkdir", "-p", destPath}
+		mkdirReq := f.clientset.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(podName).
+			Namespace(namespace).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   mkdirCmd,
+				Stdin:     false,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+			}, scheme.ParameterCodec)
+
+		mkdirExec, err := remotecommand.NewSPDYExecutor(f.config, "POST", mkdirReq.URL())
+		if err != nil {
+			return fmt.Errorf("创建目标目录执行器失败: %v", err)
+		}
+
+		if err := mkdirExec.Stream(remotecommand.StreamOptions{
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+		}); err != nil {
+			return fmt.Errorf("在容器中创建目录失败: %v", err)
+		}
+
+		cmdArr = append(cmdArr, "-C", destPath)
 	}
+
+	// 执行解压命令
 	req := f.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -395,22 +468,30 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   cmdArr,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
 	if err != nil {
-		return err
+		return fmt.Errorf("创建解压执行器失败: %v", err)
 	}
-	return exec.Stream(remotecommand.StreamOptions{
+
+	logrus.Debug("开始在容器中解压文件")
+	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  reader,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Tty:    false,
 	})
+	if err != nil {
+		return fmt.Errorf("在容器中解压失败: %v", err)
+	}
+
+	logrus.Debug("文件/目录上传完成")
+	return nil
 }
 
 func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
@@ -455,12 +536,7 @@ func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace 
 
 func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 	tw := tar.NewWriter(out)
-
-	defer func() {
-		if err := tw.Close(); err != nil {
-			logrus.Errorf("Error closing tar writer: %v\n", err)
-		}
-	}()
+	defer tw.Close()
 
 	// 获取源路径的信息
 	srcInfo, err := os.Stat(srcPath)
@@ -468,8 +544,13 @@ func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 		return fmt.Errorf("failed to get info for %s: %v", srcPath, err)
 	}
 
+	// 确定基础路径
 	basePath := srcPath
 	if srcInfo.IsDir() {
+		// 如果是目录,使用目录本身作为基础路径
+		basePath = srcPath
+	} else {
+		// 如果是文件,使用父目录作为基础路径
 		basePath = filepath.Dir(srcPath)
 	}
 
@@ -478,34 +559,53 @@ func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 			return err
 		}
 
-		// 获取相对于源路径的相对路径
+		// 获取相对路径
 		relPath, err := filepath.Rel(basePath, path)
 		if err != nil {
 			return err
 		}
 
-		// 创建 tar 归档文件的文件头信息
-		hdr, err := tar.FileInfoHeader(info, relPath)
+		// 如果是根目录,跳过
+		if relPath == "." && srcInfo.IsDir() {
+			return nil
+		}
+
+		// 创建header
+		hdr, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return fmt.Errorf("failed to create header for %s: %v", path, err)
 		}
 
-		// 写入文件头信息到 tar 归档
+		// 修改header名称,使用相对路径
+		if srcInfo.IsDir() {
+			// 如果源路径是目录,保持相对路径结构
+			hdr.Name = relPath
+		} else {
+			// 如果源路径是文件,直接使用文件名
+			hdr.Name = filepath.Base(srcPath)
+		}
+
+		if info.IsDir() {
+			hdr.Name += "/"
+		}
+
+		logrus.Debugf("Adding to tar: %s", hdr.Name)
+
+		// 写入header
 		if err := tw.WriteHeader(hdr); err != nil {
 			return fmt.Errorf("failed to write header for %s: %v", path, err)
 		}
 
-		if info.Mode().IsRegular() {
-			// 如果是普通文件，则将文件内容写入到 tar 归档
+		// 如果是普通文件,写入文件内容
+		if !info.IsDir() {
 			file, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("failed to open %s: %v", path, err)
+				return err
 			}
 			defer file.Close()
 
-			_, err = io.Copy(tw, file)
-			if err != nil {
-				return fmt.Errorf("failed to write file %s to tar: %v", path, err)
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write file %s: %v", path, err)
 			}
 		}
 
