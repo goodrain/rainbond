@@ -19,17 +19,33 @@
 package websocket
 
 import (
-	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/pkg/component/eventlog"
+	"github.com/sirupsen/logrus"
 )
 
 // Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/docker_console", controller.GetWebCli().HandleWS)
 	r.Get("/docker_log", eventlog.Default().SocketServer.PushDockerLog)
 	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
@@ -42,6 +58,22 @@ func Routes() chi.Router {
 // LogRoutes 日志下载路由
 func LogRoutes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/{gid}/{filename}", controller.GetLogFile().Get)
 	r.Get("/install_log/{filename}", controller.GetLogFile().GetInstallLog)
 	return r
@@ -50,6 +82,22 @@ func LogRoutes() chi.Router {
 // AppRoutes 应用导出包下载路由
 func AppRoutes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
 	r.Post("/upload/{eventID}", controller.GetManager().Upload)
 	r.Options("/upload/{eventID}", controller.GetManager().Upload)
@@ -59,6 +107,22 @@ func AppRoutes() chi.Router {
 // PackageBuildRoutes 本地文件上传路由
 func PackageBuildRoutes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
 	r.Options("/component/events/{eventID}", controller.GetManager().UploadPackage)
 	return r
@@ -67,24 +131,27 @@ func PackageBuildRoutes() chi.Router {
 // FileOperateRoutes 共享存储的文件操作路由
 func FileOperateRoutes() chi.Router {
 	r := chi.NewRouter()
-	// 添加全局 CORS 中间件
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logrus.Debugf("处理请求: %s %s", r.Method, r.URL.Path)
+
+			// 获取 Origin
 			origin := r.Header.Get("Origin")
 			if origin == "" {
 				origin = "*"
 			}
+
+			// 设置 CORS 头
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Custom-Header")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header, X-Requested-With")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "3600")
 
-			// 处理预检请求
+			// 处理 OPTIONS 请求
 			if r.Method == "OPTIONS" {
-				// 确保发送正确的响应状态码和头信息
+				logrus.Debug("处理 OPTIONS 预检请求")
 				w.WriteHeader(http.StatusOK)
-				httputil.ReturnSuccess(r, w, nil)
 				return
 			}
 
@@ -92,15 +159,33 @@ func FileOperateRoutes() chi.Router {
 		})
 	})
 
-	r.Get("/download/{fileName}", controller.GetFileManage().Get)
-	r.Post("/upload", controller.GetFileManage().UploadFile)
-	r.Post("/mkdir", controller.GetFileManage().CreateDirectory)
+	r.Route("/", func(r chi.Router) {
+		r.Get("/download/{fileName}", controller.GetFileManage().DownloadFile)
+		r.Post("/upload", controller.GetFileManage().UploadFile)
+		r.Post("/mkdir", controller.GetFileManage().CreateDirectory)
+	})
 	return r
 }
 
 // LongVersionRoutes 语言包处理
 func LongVersionRoutes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Options("/upload", controller.GetManager().OptionLongVersion)
 	r.Post("/upload", controller.GetManager().UploadLongVersion)
 	r.Get("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
@@ -111,6 +196,22 @@ func LongVersionRoutes() chi.Router {
 // HelmInstallRegionStatus Helm安装集群状态查询
 func HelmInstallRegionStatus() chi.Router {
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/region_status/{token}", controller.GetManager().GetRegionStatus)
 	return r
 }

@@ -3073,12 +3073,12 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 		fileElements := strings.Split(file, " ")
 		if strings.HasPrefix(fileElements[0], "d") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  fileElements[len(fileElements)-1],
+				Title:  strings.Join(fileElements[8:], ""),
 				IsLeaf: true,
 			})
 		} else if strings.HasPrefix(fileElements[0], "-") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  fileElements[len(fileElements)-1],
+				Title:  strings.Join(fileElements[8:], ""),
 				IsLeaf: false,
 			})
 		}

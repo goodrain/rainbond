@@ -2,6 +2,7 @@ package controller
 
 import (
 	"archive/tar"
+	"bytes"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -12,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -23,9 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
-	"github.com/goodrain/rainbond/api/client/prometheus"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -33,28 +32,6 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
-
-// CORS Middleware
-func CORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*" // 或者指定您的前端应用的域名
-		}
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Custom-Header")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Max-Age", "3600") // 预检请求的结果缓存最大时间
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
 
 // AddServiceMonitors add service monitor
 func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request) {
@@ -185,30 +162,6 @@ func GetFileManage() *FileManage {
 	return fileManage
 }
 
-// Get get
-func (f FileManage) Get(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
-
-	if r.Method == "OPTIONS" {
-		httputil.ReturnSuccess(r, w, nil)
-		return
-	}
-
-	switch r.Method {
-	case "GET":
-		w.Header().Set("Content-Type", "application/octet-stream")
-		f.DownloadFile(w, r)
-	case "POST":
-		f.UploadFile(w, r)
-	default:
-		httputil.ReturnError(r, w, 405, "Method not allowed")
-	}
-}
-
 // UploadEvent volume file upload event
 func (f FileManage) UploadEvent(w http.ResponseWriter, r *http.Request) {
 	volumeName := w.Header().Get("volume_name")
@@ -235,7 +188,7 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", origin)
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Custom-Header")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Max-Age", "3600")
 
@@ -394,23 +347,129 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("接收到文件下载请求: Method=%s, ContentType=%s", r.Method, r.Header.Get("Content-Type"))
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("volume_name", r.FormValue("volume_name"))
+	w.Header().Set("user_name", r.FormValue("user_name"))
+	w.Header().Set("tenant_id", r.FormValue("tenant_id"))
+	w.Header().Set("service_id", r.FormValue("service_id"))
+	w.Header().Set("status", "failed")
+
+	// 获取请求参数
 	podName := r.FormValue("pod_name")
 	p := r.FormValue("path")
 	namespace := r.FormValue("namespace")
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
+	containerName := r.FormValue("container_name")
+
+	logrus.Debugf("下载文件参数: podName=%s, path=%s, namespace=%s, fileName=%s, containerName=%s",
+		podName, p, namespace, fileName, containerName)
+
+	if fileName == "" {
+		logrus.Error("文件名为空")
+		httputil.ReturnError(r, w, 400, "文件名不能为空")
+		return
+	}
 
 	filePath := path.Join(p, fileName)
-	containerName := r.FormValue("container_name")
+	logrus.Debugf("完整文件路径: %s", filePath)
 
 	err := f.AppFileDownload(containerName, podName, filePath, namespace)
 	if err != nil {
-		logrus.Errorf("downloading file from Pod failure: %v", err)
-		http.Error(w, "Error downloading file from Pod", http.StatusInternalServerError)
+		logrus.Errorf("从Pod下载文件失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("下载文件失败: %v", err))
 		return
 	}
-	defer os.Remove(path.Join("./", fileName))
+
+	defer func() {
+		if err := os.Remove(path.Join("./", fileName)); err != nil {
+			logrus.Errorf("删除临时文件失败: %v", err)
+		}
+	}()
+
+	// 设置成功状态和文件下载头
+	w.Header().Set("status", "success")
 	w.Header().Set("Content-Disposition", "attachment;filename="+fileName)
-	storage.Default().StorageCli.ServeFile(w, r, path.Join("./", fileName))
+
+	logrus.Debugf("开始传输文件: %s", fileName)
+	http.ServeFile(w, r, fileName)
+}
+
+func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
+	reader, outStream := io.Pipe()
+	// Check if the file exists first
+	checkCmd := []string{"test", "-e", filePath}
+	req := f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   checkCmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	var checkStdout, checkStderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &checkStdout,
+		Stderr: &checkStderr,
+	})
+	if err != nil {
+		return fmt.Errorf("file not found: %s", filePath)
+	}
+
+	// If file exists, proceed with tar
+	req = f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"tar", "cf", "-", filePath},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err = remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	go func() {
+		defer outStream.Close()
+		err = exec.Stream(remotecommand.StreamOptions{
+			Stdin:  os.Stdin,
+			Stdout: outStream,
+			Stderr: os.Stderr,
+			Tty:    false,
+		})
+		if err != nil {
+			logrus.Errorf("stream error: %v", err)
+		}
+	}()
+
+	prefix := getPrefix(filePath)
+	prefix = path.Clean(prefix)
+	destPath := path.Join("./", path.Base(prefix))
+	err = unTarAll(reader, destPath, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to untar: %v", err)
+	}
+	return nil
 }
 
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {
@@ -513,48 +572,6 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 	}
 
 	logrus.Debug("文件/目录上传完成")
-	return nil
-}
-
-func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
-	reader, outStream := io.Pipe()
-	// 确保文件路径是相对路径，没有前导斜杠
-	relativeFilePath := strings.TrimPrefix(filePath, "/")
-	req := f.clientset.CoreV1().RESTClient().Get().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: containerName,
-			Command:   []string{"tar", "cf", "-", relativeFilePath},
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
-	if err != nil {
-		return err
-	}
-	go func() {
-		defer outStream.Close()
-		err = exec.Stream(remotecommand.StreamOptions{
-			Stdin:  os.Stdin,
-			Stdout: outStream,
-			Stderr: os.Stderr,
-			Tty:    false,
-		})
-		cmdutil.CheckErr(err)
-	}()
-	prefix := getPrefix(relativeFilePath)
-	prefix = path.Clean(prefix)
-	destPath := path.Join("./", path.Base(prefix))
-	err = unTarAll(reader, destPath, prefix)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -705,23 +722,19 @@ func getPrefix(file string) string {
 
 // CreateDirectory 在容器内创建目录
 func (f FileManage) CreateDirectory(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+	logrus.Debugf("接收到创建目录请求: Method=%s, ContentType=%s", r.Method, r.Header.Get("Content-Type"))
 
-	if r.Method == "OPTIONS" {
-		httputil.ReturnSuccess(r, w, nil)
-		return
-	}
-
+	// 获取请求参数
 	podName := r.FormValue("pod_name")
 	namespace := r.FormValue("namespace")
 	containerName := r.FormValue("container_name")
 	dirPath := r.FormValue("path")
 
+	logrus.Debugf("创建目录参数: podName=%s, namespace=%s, containerName=%s, dirPath=%s",
+		podName, namespace, containerName, dirPath)
+
 	if dirPath == "" {
+		logrus.Error("目录路径为空")
 		httputil.ReturnError(r, w, 400, "目录路径不能为空")
 		return
 	}
@@ -748,17 +761,29 @@ func (f FileManage) CreateDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 创建缓冲区来捕获输出
+	var stdout, stderr bytes.Buffer
 	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  nil,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Stdout: &stdout,
+		Stderr: &stderr,
 		Tty:    false,
 	})
+
+	// 记录命令输出
+	if stdout.Len() > 0 {
+		logrus.Debugf("命令输出: %s", stdout.String())
+	}
+	if stderr.Len() > 0 {
+		logrus.Debugf("错误输出: %s", stderr.String())
+	}
+
 	if err != nil {
 		logrus.Errorf("在容器中创建目录失败: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
 		return
 	}
 
+	logrus.Debugf("目录创建成功: %s", dirPath)
 	httputil.ReturnSuccess(r, w, nil)
 }
