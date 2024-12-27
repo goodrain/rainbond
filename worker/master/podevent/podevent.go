@@ -163,12 +163,15 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		}
 
 		// running time
-		var rtime time.Time
+		var rtime metav1.Time
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type != corev1.PodReady || condition.Status != corev1.ConditionTrue {
 				continue
 			}
-			rtime = condition.LastTransitionTime.Time
+			if condition.LastTransitionTime.IsZero() {
+				continue
+			}
+			rtime = condition.LastTransitionTime
 		}
 
 		// the container state of the pod in the PodStatus_Running must be running
@@ -178,7 +181,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		logrus.Debugf("Service id: %s; %s.", serviceID, msg)
 		loggerOpt := event.GetLoggerOption("failure")
 
-		if !rtime.IsZero() && time.Now().Sub(rtime) > 2*time.Minute {
+		if !rtime.IsZero() && time.Now().Sub(rtime.Time) > 2*time.Minute {
 			evt.FinalStatus = model.EventFinalStatusEmptyComplete.String()
 			if err := db.GetManager().ServiceEventDao().UpdateModel(evt); err != nil {
 				logrus.Warningf("event id: %s; failed to update service event: %v", evt.EventID, err)
