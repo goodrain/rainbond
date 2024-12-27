@@ -34,6 +34,28 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
+// CORS Middleware
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*" // 或者指定您的前端应用的域名
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Custom-Header")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "3600") // 预检请求的结果缓存最大时间
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // AddServiceMonitors add service monitor
 func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request) {
 	var add api_model.AddServiceMonitorRequestStruct
@@ -393,7 +415,7 @@ func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {
 	logrus.Debugf("开始上传目录/文件: 源路径=%s, 目标路径=%s", srcPath, destPath)
-	
+
 	// 检查源路径是否存在
 	srcInfo, err := os.Stat(srcPath)
 	if err != nil {
@@ -405,13 +427,13 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 	// 在goroutine中处理tar打包
 	go func() {
 		defer writer.Close()
-		
+
 		// 如果是目录,使用完整目录路径
 		if srcInfo.IsDir() {
 			logrus.Debugf("正在打包目录: %s", srcPath)
 			err = cpMakeTar(srcPath, destPath, writer)
 		} else {
-			logrus.Debugf("正在打包文件: %s", srcPath) 
+			logrus.Debugf("正在打包文件: %s", srcPath)
 			err = cpMakeTar(filepath.Dir(srcPath), destPath, writer)
 		}
 
@@ -425,7 +447,7 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 	// 构建在容器中解压的命令
 	var cmdArr []string
 	cmdArr = []string{"tar", "-xmf", "-"}
-	
+
 	// 确保目标路径存在
 	if len(destPath) > 0 {
 		// 先创建目标目录
@@ -468,10 +490,10 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   cmdArr,
-				Stdin:     true,
-				Stdout:    true,
-				Stderr:    true,
-				TTY:       false,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
@@ -496,6 +518,8 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 
 func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
 	reader, outStream := io.Pipe()
+	// 确保文件路径是相对路径，没有前导斜杠
+	relativeFilePath := strings.TrimPrefix(filePath, "/")
 	req := f.clientset.CoreV1().RESTClient().Get().
 		Resource("pods").
 		Name(podName).
@@ -503,7 +527,7 @@ func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace 
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
-			Command:   []string{"tar", "cf", "-", filePath},
+			Command:   []string{"tar", "cf", "-", relativeFilePath},
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
@@ -524,7 +548,7 @@ func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace 
 		})
 		cmdutil.CheckErr(err)
 	}()
-	prefix := getPrefix(filePath)
+	prefix := getPrefix(relativeFilePath)
 	prefix = path.Clean(prefix)
 	destPath := path.Join("./", path.Base(prefix))
 	err = unTarAll(reader, destPath, prefix)
