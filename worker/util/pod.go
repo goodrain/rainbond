@@ -75,14 +75,16 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 		for _, cstatus := range pod.Status.ContainerStatuses {
 			for _, OwnerReference := range pod.OwnerReferences {
 				if OwnerReference.Kind == "Job" {
-					if cstatus.State.Terminated.Reason == "Completed" {
-						podStatus.Type = pb.PodStatus_SUCCEEDED
-					}
-					if cstatus.State.Terminated.Reason == "DeadlineExceeded" {
-						podStatus.Type = pb.PodStatus_FAILED
-					}
-					if cstatus.State.Terminated.Reason == "Error" {
-						podStatus.Type = pb.PodStatus_ABNORMAL
+					if cstatus.State.Terminated != nil {
+						if cstatus.State.Terminated.Reason == "Completed" {
+							podStatus.Type = pb.PodStatus_SUCCEEDED
+						}
+						if cstatus.State.Terminated.Reason == "DeadlineExceeded" {
+							podStatus.Type = pb.PodStatus_FAILED
+						}
+						if cstatus.State.Terminated.Reason == "Error" {
+							podStatus.Type = pb.PodStatus_ABNORMAL
+						}
 					}
 				}
 			}
