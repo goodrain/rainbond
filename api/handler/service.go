@@ -3086,12 +3086,12 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 		if strings.HasSuffix(file, "/") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
 				Title:  strings.TrimSuffix(file, "/"), // 去掉末尾的 "/"
-				IsLeaf: false,                         // 目录
+				IsLeaf: true,                          // 目录
 			})
 		} else {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  file, // 文件名
-				IsLeaf: true, // 文件
+				Title:  file,  // 文件名
+				IsLeaf: false, // 文件
 			})
 		}
 	}
