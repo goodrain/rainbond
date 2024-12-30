@@ -3060,32 +3060,42 @@ func TransStatus(eStatus string) string {
 
 func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
+
+	// 获取服务信息
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, err
 	}
 	containerName := service.K8sComponentName
-	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-l", tarPath})
+
+	// 执行 shell 命令 `ls -p -1`，列出指定路径下的文件和目录
+	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-p", "-1", tarPath})
 	if err != nil {
 		return nil, err
 	}
+
+	// 按行解析命令输出
 	files := strings.Split(output, "\n")
 	for _, file := range files {
-		fileElements := strings.Split(file, " ")
-		if len(fileElements) >= 11 {
-			if strings.HasPrefix(fileElements[0], "d") {
-				fileInfos = append(fileInfos, apimodel.FileInfo{
-					Title:  strings.Join(fileElements[11:], ""),
-					IsLeaf: true,
-				})
-			} else if strings.HasPrefix(fileElements[0], "-") {
-				fileInfos = append(fileInfos, apimodel.FileInfo{
-					Title:  strings.Join(fileElements[11:], ""),
-					IsLeaf: false,
-				})
-			}
+		file = strings.TrimSpace(file) // 去除行首尾空格
+		if len(file) == 0 {
+			continue // 跳过空行
+		}
+
+		// 判断是否为目录（以 "/" 结尾）
+		if strings.HasSuffix(file, "/") {
+			fileInfos = append(fileInfos, apimodel.FileInfo{
+				Title:  strings.TrimSuffix(file, "/"), // 去掉末尾的 "/"
+				IsLeaf: false,                         // 目录
+			})
+		} else {
+			fileInfos = append(fileInfos, apimodel.FileInfo{
+				Title:  file, // 文件名
+				IsLeaf: true, // 文件
+			})
 		}
 	}
+
 	return fileInfos, nil
 }
 
