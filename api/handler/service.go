@@ -23,6 +23,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
@@ -31,17 +38,11 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
-	"io"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -3073,12 +3074,12 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 		fileElements := strings.Split(file, " ")
 		if strings.HasPrefix(fileElements[0], "d") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  strings.Join(fileElements[8:], ""),
+				Title:  strings.Join(fileElements[11:], ""),
 				IsLeaf: true,
 			})
 		} else if strings.HasPrefix(fileElements[0], "-") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  strings.Join(fileElements[8:], ""),
+				Title:  strings.Join(fileElements[11:], ""),
 				IsLeaf: false,
 			})
 		}
