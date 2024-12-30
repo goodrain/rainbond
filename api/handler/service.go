@@ -3072,16 +3072,18 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 	files := strings.Split(output, "\n")
 	for _, file := range files {
 		fileElements := strings.Split(file, " ")
-		if strings.HasPrefix(fileElements[0], "d") {
-			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  strings.Join(fileElements[11:], ""),
-				IsLeaf: true,
-			})
-		} else if strings.HasPrefix(fileElements[0], "-") {
-			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  strings.Join(fileElements[11:], ""),
-				IsLeaf: false,
-			})
+		if len(fileElements) >= 11 {
+			if strings.HasPrefix(fileElements[0], "d") {
+				fileInfos = append(fileInfos, apimodel.FileInfo{
+					Title:  strings.Join(fileElements[11:], ""),
+					IsLeaf: true,
+				})
+			} else if strings.HasPrefix(fileElements[0], "-") {
+				fileInfos = append(fileInfos, apimodel.FileInfo{
+					Title:  strings.Join(fileElements[11:], ""),
+					IsLeaf: false,
+				})
+			}
 		}
 	}
 	return fileInfos, nil
