@@ -2,27 +2,29 @@ package controller
 
 import (
 	"archive/tar"
+	"bytes"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/sirupsen/logrus"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-
-	"github.com/goodrain/rainbond/api/client/prometheus"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -160,25 +162,6 @@ func GetFileManage() *FileManage {
 	return fileManage
 }
 
-// Get get
-func (f FileManage) Get(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
-	switch r.Method {
-	case "GET":
-		w.Header().Set("Content-Type", "application/octet-stream")
-		f.DownloadFile(w, r)
-	case "POST":
-		f.UploadFile(w, r)
-		f.UploadEvent(w, r)
-	case "OPTIONS":
-		httputil.ReturnSuccess(r, w, nil)
-	}
-}
-
 // UploadEvent volume file upload event
 func (f FileManage) UploadEvent(w http.ResponseWriter, r *http.Request) {
 	volumeName := w.Header().Get("volume_name")
@@ -197,86 +180,367 @@ func (f FileManage) UploadEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("volume_name", r.FormValue("volume_name"))
-	w.Header().Add("user_name", r.FormValue("user_name"))
-	w.Header().Add("tenant_id", r.FormValue("tenant_id"))
-	w.Header().Add("service_id", r.FormValue("service_id"))
-	w.Header().Add("status", "failed")
+	// 设置 CORS 头
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		origin = "*"
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Max-Age", "3600")
+
+	// 处理预检请求
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	logrus.Debugf("开始处理文件上传请求，Method: %s, ContentType: %s, Origin: %s",
+		r.Method, r.Header.Get("Content-Type"), origin)
+
+	// 设置响应头
+	w.Header().Set("volume_name", r.FormValue("volume_name"))
+	w.Header().Set("user_name", r.FormValue("user_name"))
+	w.Header().Set("tenant_id", r.FormValue("tenant_id"))
+	w.Header().Set("service_id", r.FormValue("service_id"))
+	w.Header().Set("status", "failed")
+
+	// 获取上传参数
 	destPath := r.FormValue("path")
 	podName := r.FormValue("pod_name")
 	namespace := r.FormValue("namespace")
 	containerName := r.FormValue("container_name")
+
+	logrus.Debugf("上传参数: destPath=%s, podName=%s, namespace=%s, containerName=%s",
+		destPath, podName, namespace, containerName)
+
 	if destPath == "" {
-		httputil.ReturnError(r, w, 400, "Path cannot be empty")
-		return
-	}
-	reader, header, err := r.FormFile("file")
-	if err != nil {
-		logrus.Errorf("Failed to parse upload file: %s", err.Error())
-		httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
-		return
-	}
-	defer reader.Close()
-	w.Header().Add("file_name", header.Filename)
-	srcPath := path.Join("./", header.Filename)
-	file, err := os.OpenFile(srcPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		logrus.Errorf("upload file open %v failure: %v", header.Filename, err.Error())
-		httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
-	}
-	defer os.Remove(srcPath)
-	defer file.Close()
-	if _, err := io.Copy(file, reader); err != nil {
-		logrus.Errorf("upload file write %v failure: %v", srcPath, err.Error())
-		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
+		httputil.ReturnError(r, w, 400, "目标路径不能为空")
 		return
 	}
 
-	err = f.AppFileUpload(containerName, podName, srcPath, destPath, namespace)
+	// 解析multipart form数据
+	err := r.ParseMultipartForm(32 << 20) // 32MB
 	if err != nil {
-		logrus.Errorf("upload file %v to %v %v failure: %v", header.Filename, podName, destPath, err.Error())
-		httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
+		logrus.Errorf("解析multipart form失败: %v", err)
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("解析上传数据失败: %v", err))
 		return
 	}
+
+	// 检查form是否为nil
+	if r.MultipartForm == nil {
+		logrus.Error("MultipartForm为空")
+		httputil.ReturnError(r, w, 400, "未找到上传文件")
+		return
+	}
+
+	// 打印所有可用的form字段
+	logrus.Debugf("Form字段: %+v", r.MultipartForm.Value)
+	logrus.Debugf("文件字段: %+v", r.MultipartForm.File)
+
+	// 尝试获取文件
+	var files []*multipart.FileHeader
+	if formFiles := r.MultipartForm.File["files"]; len(formFiles) > 0 {
+		files = formFiles
+	} else if formFiles := r.MultipartForm.File["file"]; len(formFiles) > 0 {
+		files = formFiles
+	}
+
+	if len(files) == 0 {
+		logrus.Error("未找到上传文件")
+		httputil.ReturnError(r, w, 400, "未找到上传文件")
+		return
+	}
+
+	// 创建临时目录存储上传的文件
+	tempDir, err := os.MkdirTemp("", "upload-*")
+	if err != nil {
+		logrus.Errorf("创建临时目录失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建临时目录失败: %v", err))
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	// 保存文件到临时目录
+	for _, fileHeader := range files {
+		logrus.Debugf("处理文件: %s", fileHeader.Filename)
+
+		// 获取文件的相对路径
+		var relativePath string
+		contentDisposition := fileHeader.Header.Get("Content-Disposition")
+		filenameRegex := regexp.MustCompile(`filename="([^"]+)"`)
+		matches := filenameRegex.FindStringSubmatch(contentDisposition)
+		if len(matches) > 1 {
+			relativePath = matches[1] // 使用正则表达式从Content-Disposition中提取filename
+			logrus.Debugf("使用 Content-Disposition 中的 filename: %s", relativePath)
+		} else if webkitPath := fileHeader.Header.Get("webkitRelativePath"); webkitPath != "" {
+			relativePath = webkitPath
+			logrus.Debugf("使用 webkitRelativePath: %s", relativePath)
+		} else {
+			relativePath = fileHeader.Filename
+			logrus.Debugf("使用文件名作为路径: %s", relativePath)
+		}
+
+		file, err := fileHeader.Open()
+		if err != nil {
+			logrus.Errorf("打开上传文件失败: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("打开上传文件失败: %v", err))
+			return
+		}
+		defer file.Close()
+
+		// 构建临时目录中的完整路径
+		tempPath := filepath.Join(tempDir, relativePath)
+		logrus.Debugf("临时文件路径: %s", tempPath)
+
+		// 确保目标目录存在
+		if err := os.MkdirAll(filepath.Dir(tempPath), 0755); err != nil {
+			logrus.Errorf("创建目录失败: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+			return
+		}
+
+		dst, err := os.Create(tempPath)
+		if err != nil {
+			logrus.Errorf("创建文件失败: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("创建文件失败: %v", err))
+			return
+		}
+		defer dst.Close()
+
+		if _, err = io.Copy(dst, file); err != nil {
+			logrus.Errorf("保存文件失败: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("保存文件失败: %v", err))
+			return
+		}
+		logrus.Debugf("成功保存文件: %s", tempPath)
+	}
+
+	// 上传文件到容器
+	logrus.Debugf("开始上传文件到容器，源目录: %s，目标路径: %s", tempDir, destPath)
+	// 获取第一个文件的目录结构信息来判断是单文件还是目录上传
+	firstFile := files[0]
+	if webkitPath := firstFile.Header.Get("webkitRelativePath"); webkitPath != "" {
+		// 如果是目录上传(有webkitRelativePath),使用临时目录内容
+		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	} else if len(files) == 1 {
+		// 如果是单文件上传
+		uploadPath := filepath.Join(tempDir, firstFile.Filename)
+		err = f.AppFileUpload(containerName, podName, uploadPath, destPath, namespace)
+	} else {
+		// 多文件上传
+		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
+	}
+
+	if err != nil {
+		logrus.Errorf("上传到容器失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("上传失败: %v", err))
+		return
+	}
+
+	logrus.Debug("文件上传成功")
 	w.Header().Set("status", "success")
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("接收到文件下载请求: Method=%s, ContentType=%s", r.Method, r.Header.Get("Content-Type"))
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("volume_name", r.FormValue("volume_name"))
+	w.Header().Set("user_name", r.FormValue("user_name"))
+	w.Header().Set("tenant_id", r.FormValue("tenant_id"))
+	w.Header().Set("service_id", r.FormValue("service_id"))
+	w.Header().Set("status", "failed")
+
+	// 获取请求参数
 	podName := r.FormValue("pod_name")
 	p := r.FormValue("path")
 	namespace := r.FormValue("namespace")
 	fileName := strings.TrimSpace(chi.URLParam(r, "fileName"))
+	containerName := r.FormValue("container_name")
+
+	logrus.Debugf("下载文件参数: podName=%s, path=%s, namespace=%s, fileName=%s, containerName=%s",
+		podName, p, namespace, fileName, containerName)
+
+	if fileName == "" {
+		logrus.Error("文件名为空")
+		httputil.ReturnError(r, w, 400, "文件名不能为空")
+		return
+	}
 
 	filePath := path.Join(p, fileName)
-	containerName := r.FormValue("container_name")
+	logrus.Debugf("完整文件路径: %s", filePath)
 
 	err := f.AppFileDownload(containerName, podName, filePath, namespace)
 	if err != nil {
-		logrus.Errorf("downloading file from Pod failure: %v", err)
-		http.Error(w, "Error downloading file from Pod", http.StatusInternalServerError)
+		logrus.Errorf("从Pod下载文件失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("下载文件失败: %v", err))
 		return
 	}
-	defer os.Remove(path.Join("./", fileName))
+
+	defer func() {
+		if err := os.Remove(path.Join("./", fileName)); err != nil {
+			logrus.Errorf("删除临时文件失败: %v", err)
+		}
+	}()
+
+	// 设置成功状态和文件下载头
+	w.Header().Set("status", "success")
 	w.Header().Set("Content-Disposition", "attachment;filename="+fileName)
-	storage.Default().StorageCli.ServeFile(w, r, path.Join("./", fileName))
+
+	logrus.Debugf("开始传输文件: %s", fileName)
+	http.ServeFile(w, r, fileName)
+}
+
+func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
+	reader, outStream := io.Pipe()
+	// Check if the file exists first
+	checkCmd := []string{"test", "-e", filePath}
+	req := f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   checkCmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	var checkStdout, checkStderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &checkStdout,
+		Stderr: &checkStderr,
+	})
+	if err != nil {
+		return fmt.Errorf("file not found: %s", filePath)
+	}
+
+	// If file exists, proceed with tar
+	req = f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"tar", "cf", "-", filePath},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err = remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	go func() {
+		defer outStream.Close()
+		err = exec.Stream(remotecommand.StreamOptions{
+			Stdin:  os.Stdin,
+			Stdout: outStream,
+			Stderr: os.Stderr,
+			Tty:    false,
+		})
+		if err != nil {
+			logrus.Errorf("stream error: %v", err)
+		}
+	}()
+
+	prefix := getPrefix(filePath)
+	prefix = path.Clean(prefix)
+	destPath := path.Join("./", path.Base(prefix))
+	err = unTarAll(reader, destPath, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to untar: %v", err)
+	}
+	return nil
 }
 
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {
-	reader, writer := io.Pipe()
-	if destPath != "/" && strings.HasSuffix(string(destPath[len(destPath)-1]), "/") {
-		destPath = destPath[:len(destPath)-1]
+	logrus.Debugf("开始上传目录/文件: 源路径=%s, 目标路径=%s", srcPath, destPath)
+
+	// 检查源路径是否存在
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return fmt.Errorf("源路径检查失败: %v", err)
 	}
-	destPath = destPath + "/" + path.Base(srcPath)
+
+	reader, writer := io.Pipe()
+
+	// 在goroutine中处理tar打包
 	go func() {
 		defer writer.Close()
-		cmdutil.CheckErr(cpMakeTar(srcPath, destPath, writer))
+
+		// 如果是目录,使用完整目录路径
+		if srcInfo.IsDir() {
+			logrus.Debugf("正在打包目录: %s", srcPath)
+			err = cpMakeTar(srcPath, destPath, writer)
+		} else {
+			logrus.Debugf("正在打包文件: %s", srcPath)
+			err = cpMakeTar(filepath.Dir(srcPath), destPath, writer)
+		}
+
+		if err != nil {
+			logrus.Errorf("tar打包失败: %v", err)
+			writer.CloseWithError(err)
+			return
+		}
 	}()
+
+	// 构建在容器中解压的命令
 	var cmdArr []string
 	cmdArr = []string{"tar", "-xmf", "-"}
-	destDir := path.Dir(destPath)
-	if len(destDir) > 0 {
-		cmdArr = append(cmdArr, "-C", destDir)
+
+	// 确保目标路径存在
+	if len(destPath) > 0 {
+		// 先创建目标目录
+		mkdirCmd := []string{"mkdir", "-p", destPath}
+		mkdirReq := f.clientset.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(podName).
+			Namespace(namespace).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   mkdirCmd,
+				Stdin:     false,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+			}, scheme.ParameterCodec)
+
+		mkdirExec, err := remotecommand.NewSPDYExecutor(f.config, "POST", mkdirReq.URL())
+		if err != nil {
+			return fmt.Errorf("创建目标目录执行器失败: %v", err)
+		}
+
+		if err := mkdirExec.Stream(remotecommand.StreamOptions{
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+		}); err != nil {
+			return fmt.Errorf("在容器中创建目录失败: %v", err)
+		}
+
+		cmdArr = append(cmdArr, "-C", destPath)
 	}
+
+	// 执行解压命令
 	req := f.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -293,64 +557,27 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 
 	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
 	if err != nil {
-		return err
+		return fmt.Errorf("创建解压执行器失败: %v", err)
 	}
-	return exec.Stream(remotecommand.StreamOptions{
+
+	logrus.Debug("开始在容器中解压文件")
+	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  reader,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Tty:    false,
 	})
-}
-
-func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
-	reader, outStream := io.Pipe()
-	req := f.clientset.CoreV1().RESTClient().Get().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: containerName,
-			Command:   []string{"tar", "cf", "-", filePath},
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
 	if err != nil {
-		return err
+		return fmt.Errorf("在容器中解压失败: %v", err)
 	}
-	go func() {
-		defer outStream.Close()
-		err = exec.Stream(remotecommand.StreamOptions{
-			Stdin:  os.Stdin,
-			Stdout: outStream,
-			Stderr: os.Stderr,
-			Tty:    false,
-		})
-		cmdutil.CheckErr(err)
-	}()
-	prefix := getPrefix(filePath)
-	prefix = path.Clean(prefix)
-	destPath := path.Join("./", path.Base(prefix))
-	err = unTarAll(reader, destPath, prefix)
-	if err != nil {
-		return err
-	}
+
+	logrus.Debug("文件/目录上传完成")
 	return nil
 }
 
 func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 	tw := tar.NewWriter(out)
-
-	defer func() {
-		if err := tw.Close(); err != nil {
-			logrus.Errorf("Error closing tar writer: %v\n", err)
-		}
-	}()
+	defer tw.Close()
 
 	// 获取源路径的信息
 	srcInfo, err := os.Stat(srcPath)
@@ -358,8 +585,13 @@ func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 		return fmt.Errorf("failed to get info for %s: %v", srcPath, err)
 	}
 
+	// 确定基础路径
 	basePath := srcPath
 	if srcInfo.IsDir() {
+		// 如果是目录,使用目录本身作为基础路径
+		basePath = srcPath
+	} else {
+		// 如果是文件,使用父目录作为基础路径
 		basePath = filepath.Dir(srcPath)
 	}
 
@@ -368,34 +600,53 @@ func cpMakeTar(srcPath string, destPath string, out io.Writer) error {
 			return err
 		}
 
-		// 获取相对于源路径的相对路径
+		// 获取相对路径
 		relPath, err := filepath.Rel(basePath, path)
 		if err != nil {
 			return err
 		}
 
-		// 创建 tar 归档文件的文件头信息
-		hdr, err := tar.FileInfoHeader(info, relPath)
+		// 如果是根目录,跳过
+		if relPath == "." && srcInfo.IsDir() {
+			return nil
+		}
+
+		// 创建header
+		hdr, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return fmt.Errorf("failed to create header for %s: %v", path, err)
 		}
 
-		// 写入文件头信息到 tar 归档
+		// 修改header名称,使用相对路径
+		if srcInfo.IsDir() {
+			// 如果源路径是目录,保持相对路径结构
+			hdr.Name = relPath
+		} else {
+			// 如果源路径是文件,直接使用文件名
+			hdr.Name = filepath.Base(srcPath)
+		}
+
+		if info.IsDir() {
+			hdr.Name += "/"
+		}
+
+		logrus.Debugf("Adding to tar: %s", hdr.Name)
+
+		// 写入header
 		if err := tw.WriteHeader(hdr); err != nil {
 			return fmt.Errorf("failed to write header for %s: %v", path, err)
 		}
 
-		if info.Mode().IsRegular() {
-			// 如果是普通文件，则将文件内容写入到 tar 归档
+		// 如果是普通文件,写入文件内容
+		if !info.IsDir() {
 			file, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("failed to open %s: %v", path, err)
+				return err
 			}
 			defer file.Close()
 
-			_, err = io.Copy(tw, file)
-			if err != nil {
-				return fmt.Errorf("failed to write file %s to tar: %v", path, err)
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write file %s: %v", path, err)
 			}
 		}
 
@@ -467,4 +718,72 @@ func unTarAll(reader io.Reader, destDir, prefix string) error {
 
 func getPrefix(file string) string {
 	return strings.TrimLeft(file, "/")
+}
+
+// CreateDirectory 在容器内创建目录
+func (f FileManage) CreateDirectory(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("接收到创建目录请求: Method=%s, ContentType=%s", r.Method, r.Header.Get("Content-Type"))
+
+	// 获取请求参数
+	podName := r.FormValue("pod_name")
+	namespace := r.FormValue("namespace")
+	containerName := r.FormValue("container_name")
+	dirPath := r.FormValue("path")
+
+	logrus.Debugf("创建目录参数: podName=%s, namespace=%s, containerName=%s, dirPath=%s",
+		podName, namespace, containerName, dirPath)
+
+	if dirPath == "" {
+		logrus.Error("目录路径为空")
+		httputil.ReturnError(r, w, 400, "目录路径不能为空")
+		return
+	}
+
+	// 构建在容器中创建目录的命令
+	req := f.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"mkdir", "-p", dirPath},
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		logrus.Errorf("创建目录执行器失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+		return
+	}
+
+	// 创建缓冲区来捕获输出
+	var stdout, stderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  nil,
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+
+	// 记录命令输出
+	if stdout.Len() > 0 {
+		logrus.Debugf("命令输出: %s", stdout.String())
+	}
+	if stderr.Len() > 0 {
+		logrus.Debugf("错误输出: %s", stderr.String())
+	}
+
+	if err != nil {
+		logrus.Errorf("在容器中创建目录失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("创建目录失败: %v", err))
+		return
+	}
+
+	logrus.Debugf("目录创建成功: %s", dirPath)
+	httputil.ReturnSuccess(r, w, nil)
 }

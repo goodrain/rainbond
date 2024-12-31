@@ -22,16 +22,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/twinj/uuid"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/twinj/uuid"
+	"k8s.io/apimachinery/pkg/api/resource"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/goodrain/rainbond/builder/sources"
 
@@ -199,7 +201,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				Domain: kubevirtv1.DomainSpec{
 					Resources: reource,
 					CPU: &kubevirtv1.CPU{
-						Cores: 2,
+						Cores: uint32(as.ContainerCPU / 1000),
+					},
+					Memory: &kubevirtv1.Memory{
+						Guest: resource.NewScaledQuantity(int64(as.ContainerMemory), resource.Mega),
 					},
 					Machine: &kubevirtv1.Machine{Type: "q35"},
 					Devices: kubevirtv1.Devices{
@@ -207,7 +212,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 						Interfaces: []kubevirtv1.Interface{
 							{
 								Name:  "default",
-								Model: "e1000",
+								Model: "virtio",
 								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 									Masquerade: &kubevirtv1.InterfaceMasquerade{},
 								},

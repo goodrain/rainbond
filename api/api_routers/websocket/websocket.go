@@ -19,9 +19,12 @@
 package websocket
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/pkg/component/eventlog"
+	"github.com/sirupsen/logrus"
 )
 
 // Routes routes
@@ -64,10 +67,39 @@ func PackageBuildRoutes() chi.Router {
 // FileOperateRoutes 共享存储的文件操作路由
 func FileOperateRoutes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/download/{fileName}", controller.GetFileManage().Get)
-	r.Options("/download/{fileName}", controller.GetFileManage().Get)
-	r.Post("/upload", controller.GetFileManage().Get)
-	r.Options("/upload", controller.GetFileManage().Get)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logrus.Debugf("处理请求: %s %s", r.Method, r.URL.Path)
+
+			// 获取 Origin
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				origin = "*"
+			}
+
+			// 设置 CORS 头
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header, X-Requested-With")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "3600")
+
+			// 处理 OPTIONS 请求
+			if r.Method == "OPTIONS" {
+				logrus.Debug("处理 OPTIONS 预检请求")
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/download/{fileName}", controller.GetFileManage().DownloadFile)
+		r.Post("/upload", controller.GetFileManage().UploadFile)
+		r.Post("/mkdir", controller.GetFileManage().CreateDirectory)
+	})
 	return r
 }
 

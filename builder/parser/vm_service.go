@@ -19,14 +19,15 @@
 package parser
 
 import (
-	"github.com/goodrain/rainbond/builder/parser/discovery"
-	"github.com/goodrain/rainbond/event"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/goodrain/rainbond/builder/parser/discovery"
+	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 )
 
 // VMServiceParse is one of the implematation of parser.Parser
@@ -68,9 +69,19 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 		}
 		fileExt = path.Ext(fileInfoList[0].Name())
 	} else {
-		rsp, err := http.Get(t.sourceBody)
+		req, err := http.NewRequest("GET", t.sourceBody, nil)
 		if err != nil {
-			logrus.Errorf("http get %v failure: %v", t.sourceBody, err)
+			logrus.Errorf("创建 HTTP 请求失败 %v: %v", t.sourceBody, err)
+			t.errappend(Errorf(FatalError, "create http request failed"))
+			return t.errors
+		}
+
+		req.Header.Add("User-Agent", "RainbondBuilder/1.0")
+		req.Header.Add("Accept", "application/json")
+
+		rsp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logrus.Errorf("HTTP GET 请求失败 %v: %v", t.sourceBody, err)
 			t.errappend(Errorf(FatalError, "http get failure"))
 			return t.errors
 		}
@@ -81,7 +92,9 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 			return t.errors
 		}
 		defer func() {
-			_ = rsp.Body.Close()
+			if err := rsp.Body.Close(); err != nil {
+				logrus.Errorf("关闭响应体失败: %v", err)
+			}
 		}()
 
 		baseURL := filepath.Base(t.sourceBody)

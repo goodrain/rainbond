@@ -83,6 +83,7 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, marshalApisixUpstream(create))
 		return
 	}
+	logrus.Errorf("create ApisixUpstreams failure: %v", err)
 	// 去更新 yaml
 	get, err := c.ApisixUpstreams(tenant.Namespace).Get(r.Context(), chi.URLParam(r, "name"), v1.GetOptions{})
 	if err != nil {

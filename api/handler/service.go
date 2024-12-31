@@ -23,6 +23,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
@@ -31,17 +38,11 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
-	"io"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -3059,30 +3060,42 @@ func TransStatus(eStatus string) string {
 
 func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
+
+	// 获取服务信息
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, err
 	}
 	containerName := service.K8sComponentName
-	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-l", tarPath})
+
+	// 执行 shell 命令 `ls -p -1`，列出指定路径下的文件和目录
+	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-p", "-1", tarPath})
 	if err != nil {
 		return nil, err
 	}
+
+	// 按行解析命令输出
 	files := strings.Split(output, "\n")
 	for _, file := range files {
-		fileElements := strings.Split(file, " ")
-		if strings.HasPrefix(fileElements[0], "d") {
+		file = strings.TrimSpace(file) // 去除行首尾空格
+		if len(file) == 0 {
+			continue // 跳过空行
+		}
+
+		// 判断是否为目录（以 "/" 结尾）
+		if strings.HasSuffix(file, "/") {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  fileElements[len(fileElements)-1],
-				IsLeaf: true,
+				Title:  strings.TrimSuffix(file, "/"), // 去掉末尾的 "/"
+				IsLeaf: true,                          // 目录
 			})
-		} else if strings.HasPrefix(fileElements[0], "-") {
+		} else {
 			fileInfos = append(fileInfos, apimodel.FileInfo{
-				Title:  fileElements[len(fileElements)-1],
-				IsLeaf: false,
+				Title:  file,  // 文件名
+				IsLeaf: false, // 文件
 			})
 		}
 	}
+
 	return fileInfos, nil
 }
 
