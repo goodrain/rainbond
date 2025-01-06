@@ -413,6 +413,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
 	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
 	r.Delete("/langVersion", controller.GetManager().DeleteLangVersion)
+	r.Post("/over_score", controller.GetManager().SetOverScore)
 	return r
 }
 

@@ -2361,3 +2361,8 @@ type UpdateLangVersion struct {
 	Show        bool   `json:"show"`
 	FirstChoice bool   `json:"first_choice"`
 }
+
+// OverScore -
+type OverScore struct {
+	OverScoreRate string `json:"over_score_rate"`
+}
