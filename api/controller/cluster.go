@@ -661,3 +661,18 @@ func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Reque
 	}
 	httputil.ReturnSuccess(r, w, regionInfo)
 }
+
+func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request) {
+	var overScore model.OverScore
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &overScore, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	// 根据语言标识和版本号，获取语言版本信息。
+	err := db.GetManager().OverScoreDao().UpdateOverScoreRat(overScore.OverScoreRate)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("update over score failure: %v", err))
+		return
+	}
+	return
+}

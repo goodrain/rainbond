@@ -676,3 +676,10 @@ type LongVersionDao interface {
 	CreateLangVersion(lang, version, eventID, fileName string, show bool) error
 	DeleteLangVersion(lang, version string) (string, error)
 }
+
+// OverScoreDao over score pack
+type OverScoreDao interface {
+	Dao
+	UpdateOverScoreRat(OverScoreRate string) error
+	GetOverScoreRate() (*model.EnterpriseOverScore, error)
+}

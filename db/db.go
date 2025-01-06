@@ -52,6 +52,8 @@ type Manager interface {
 	K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao
 	LongVersionDao() dao.LongVersionDao
 	LongVersionDaoTransactions(db *gorm.DB) dao.LongVersionDao
+	OverScoreDao() dao.OverScoreDao
+	OverScoreDaoTransactions(db *gorm.DB) dao.OverScoreDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao

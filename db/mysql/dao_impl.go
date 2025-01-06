@@ -695,3 +695,17 @@ func (m *Manager) LongVersionDaoTransactions(db *gorm.DB) dao.LongVersionDao {
 		DB: db,
 	}
 }
+
+// OverScoreDao 超分比例
+func (m *Manager) OverScoreDao() dao.OverScoreDao {
+	return &mysqldao.OverScoreDaoImpl{
+		DB: m.db,
+	}
+}
+
+// OverScoreDaoTransactions 超分比例 事务
+func (m *Manager) OverScoreDaoTransactions(db *gorm.DB) dao.OverScoreDao {
+	return &mysqldao.OverScoreDaoImpl{
+		DB: db,
+	}
+}

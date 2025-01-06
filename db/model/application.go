@@ -155,3 +155,14 @@ type EnterpriseLanguageVersion struct {
 func (k *EnterpriseLanguageVersion) TableName() string {
 	return "enterprise_language_version"
 }
+
+// EnterpriseOverScore language model
+type EnterpriseOverScore struct {
+	Model
+	OverScoreRate string `gorm:"column:over_score_rate;uniqueIndex:idx_over_score_rate" json:"over_score_rate"`
+}
+
+// TableName return tableName "k8s_resources"
+func (k *EnterpriseOverScore) TableName() string {
+	return "enterprise_over_score"
+}

@@ -355,7 +355,11 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if err != nil {
 		return nil, err
 	}
-	resources := handleResource(defaultResources, customResources)
+	osr, err := dbmanager.OverScoreDao().GetOverScoreRate()
+	if err != nil {
+		return nil, err
+	}
+	resources := handleResource(defaultResources, customResources, osr.OverScoreRate)
 	ports := createPorts(as, dbmanager)
 	imagename := version.ImageName
 	if imagename == "" {
@@ -1513,8 +1517,15 @@ func createSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.Sec
 	return &securityContext, nil
 }
 
-func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements) (res corev1.ResourceRequirements) {
+func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements, OverScoreRate string) (res corev1.ResourceRequirements) {
 	var haveMemory bool
+
+	// 解析超分比例
+	overScore := map[string]float64{"CPU": 1.0, "MEMORY": 1.0} // 默认值
+	if err := json.Unmarshal([]byte(OverScoreRate), &overScore); err != nil {
+		fmt.Printf("Error parsing OverScoreRate: %v, using defaults\n", err)
+	}
+
 	if customResources != nil {
 		for resourceName, quantity := range customResources.Limits {
 			if resourceName == "memory" && quantity.String() != "" {
@@ -1542,5 +1553,22 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 			resources = *customResources
 		}
 	}
+
+	// 根据超分比例调整 Requests 和 Limits
+	if cpuRequest, ok := resources.Requests[corev1.ResourceCPU]; ok {
+		adjustedCPURequest := adjustResource(cpuRequest, overScore["CPU"])
+		resources.Requests[corev1.ResourceCPU] = adjustedCPURequest
+	}
+	if memoryRequest, ok := resources.Requests[corev1.ResourceMemory]; ok {
+		adjustedMemoryRequest := adjustResource(memoryRequest, overScore["MEMORY"])
+		resources.Requests[corev1.ResourceMemory] = adjustedMemoryRequest
+	}
 	return resources
+}
+
+// 辅助函数：根据超分比例调整资源值
+func adjustResource(original resource.Quantity, rate float64) resource.Quantity {
+	originalValue := original.Value()
+	adjustedValue := int64(float64(originalValue) * rate)
+	return *resource.NewQuantity(adjustedValue, original.Format)
 }
