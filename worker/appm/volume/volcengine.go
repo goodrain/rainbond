@@ -26,13 +26,13 @@ type VolcengineVolume struct {
 func (v *VolcengineVolume) CreateVolume(define *Define) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	sc, err := k8s.Default().Clientset.StorageV1().StorageClasses().Get(ctx, define.as.K8sComponentName, metav1.GetOptions{})
+	sc, err := k8s.Default().Clientset.StorageV1().StorageClasses().Get(ctx, v.as.K8sComponentName, metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			fileDomain, err := filepersistence.Default().FilePersistenceCli.CreateFileSystem(
 				ctx,
 				&filepersistence.CreateFileSystemOptions{
-					Name:           define.as.K8sComponentName,
+					Name:           v.as.K8sComponentName,
 					ProtocolType:   "NFS",
 					StorageType:    "Standard",
 					Size:           100 * 1024 * 1024 * 1024,
@@ -47,7 +47,7 @@ func (v *VolcengineVolume) CreateVolume(define *Define) error {
 			volumeBindingMode := storagev1.VolumeBindingImmediate
 			sc = &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: define.as.K8sComponentName,
+					Name: v.as.K8sComponentName,
 				},
 				Provisioner: "nas.csi.volcengine.com",
 				Parameters: map[string]string{
