@@ -203,6 +203,14 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 				Path:   newPath(persistentVolumeSource.CSI.VolumeAttributes["path"]),
 			}
 		}
+	case persistentVolumeSource.CSI != nil && persistentVolumeSource.CSI.Driver == "nas.csi.volcengine.com":
+		// convert volcengine nas to nfs
+		if persistentVolumeSource.CSI.VolumeAttributes != nil {
+			source.NFS = &v1.NFSVolumeSource{
+				Server: persistentVolumeSource.CSI.VolumeAttributes["server"],
+				Path:   newPath(persistentVolumeSource.CSI.VolumeAttributes["path"]),
+			}
+		}
 	case persistentVolumeSource.Glusterfs != nil:
 		//glusterfs:
 		//	endpoints: glusterfs-cluster
