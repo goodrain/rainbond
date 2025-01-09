@@ -496,6 +496,8 @@ var LocalVolumeType VolumeType = "local"
 // PluginStorageType 插件存储
 var PluginStorageType VolumeType = "plugin-storage"
 
+var VolcengineType VolumeType = "volcengine"
+
 // MemoryFSVolumeType 内存文件存储
 var MemoryFSVolumeType VolumeType = "memoryfs"
 
