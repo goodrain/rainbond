@@ -100,6 +100,7 @@ require (
 )
 
 require (
+	github.com/aliyun/alibaba-cloud-sdk-go v1.63.79
 	github.com/apache/apisix-ingress-controller v1.7.1
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -109,6 +110,8 @@ require (
 	github.com/grafana/pyroscope-go v1.2.0
 	github.com/helm/helm v2.17.0+incompatible
 	github.com/openkruise/kruise-api v1.4.0-rc.0
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cfs v1.0.1077
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1077
 	github.com/volcengine/volcengine-go-sdk v1.0.176
 	golang.org/x/sync v0.3.0
 	k8s.io/klog/v2 v2.100.1
@@ -227,6 +230,7 @@ require (
 	github.com/openshift/api v0.0.0-20230503133300-8bbcb7ca7183 // indirect
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
+	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -261,6 +265,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20230815205213-6bfd019c3878 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230815205213-6bfd019c3878 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect

@@ -41,6 +41,7 @@ func (c *Config) SetPublicFlags() *Config {
 	AddESFlags(c.fs, c.ESConfig)
 	AddLogFlags(c.fs, c.LogConfig)
 	AddStorageFlags(c.fs, c.StorageConfig)
+	AddFilePersistenceFlags(c.fs, c.FilePersistenceConfig)
 	AddWebSocketFlags(c.fs, c.WebSocketConfig)
 	AddK8SFlags(c.fs, c.K8SConfig)
 	AddPrometheusFlags(c.fs, c.PrometheusConfig)
