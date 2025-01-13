@@ -198,7 +198,9 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	defaultDomain := r.URL.Query().Get("default") == "true"
 
 	for _, sl := range sLabel {
-		labels[sl] = "service_alias"
+		if sl != "" {
+			labels[sl] = "service_alias"
+		}
 	}
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
