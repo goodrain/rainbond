@@ -266,6 +266,7 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 		}
 		continue
 	}
+	logrus.Infof("show node role %v", roles)
 	// req resource from Prometheus
 	var query string
 	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{node_name="%v"}) by (instance)`, node.Name)
