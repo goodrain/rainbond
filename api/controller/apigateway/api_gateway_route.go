@@ -560,6 +560,11 @@ func removeLeadingDigits(name string) string {
 		return ""
 	}
 
+	// 如果最后一个部分是 "s"，直接返回整个字符串
+	if parts[len(parts)-1] == "s" {
+		return name
+	}
+
 	// 移除最后一个部分并重新拼接
 	return strings.Join(parts[:len(parts)-1], "-")
 }
