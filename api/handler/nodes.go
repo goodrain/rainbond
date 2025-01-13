@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -264,8 +265,8 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 			}
 			roles = append(roles, role)
 		}
-		continue
 	}
+	sort.Strings(roles)
 	logrus.Infof("show node role %v", roles)
 	// req resource from Prometheus
 	var query string
