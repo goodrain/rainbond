@@ -518,6 +518,7 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 
 	k := k8s.Default().Clientset.CoreV1()
 	// List services with the specified labels
+	logrus.Infof("show tenant namespace %v and labelSelector %v", tenant.Namespace, labelSelector)
 	services, err := k.Services(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -526,7 +527,7 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
 		return
 	}
-
+	logrus.Infof("show service len %v", len(services.Items))
 	if len(services.Items) == 0 {
 		// No services found with these labels
 		httputil.ReturnSuccess(r, w, name)
