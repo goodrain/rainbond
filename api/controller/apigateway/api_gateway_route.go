@@ -504,46 +504,17 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
 
-	// Split name by "-" to get alias and port
-	parts := strings.Split(name, "-")
-	if len(parts) != 2 {
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
-		return
-	}
-	serviceAlias := parts[0]
-	port := parts[1]
-
-	// Create label selector
-	labelSelector := fmt.Sprintf("outer=true,port=%s,service_alias=%s", port, serviceAlias)
-
 	k := k8s.Default().Clientset.CoreV1()
-	// List services with the specified labels
-	logrus.Infof("show tenant namespace %v and labelSelector %v", tenant.Namespace, labelSelector)
-	services, err := k.Services(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: labelSelector,
-	})
+	err := k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err != nil {
-		logrus.Errorf("list services error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
-		return
-	}
-	logrus.Infof("show service len %v", len(services.Items))
-	if len(services.Items) == 0 {
-		// No services found with these labels
-		httputil.ReturnSuccess(r, w, name)
-		return
-	}
-
-	// Delete all matching services
-	for _, svc := range services.Items {
-		err := k.Services(tenant.Namespace).Delete(r.Context(), svc.Name, v1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			logrus.Errorf("delete service %s error %s", svc.Name, err.Error())
+		if errors.IsNotFound(err) {
+			httputil.ReturnSuccess(r, w, name)
+		} else {
+			logrus.Errorf("delete route error %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
-			return
 		}
+		return
 	}
-
 	httputil.ReturnSuccess(r, w, name)
 }
 
