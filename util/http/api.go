@@ -61,8 +61,8 @@ type Result struct {
 	Msg  string `json:"msg"`
 }
 
-//ValidatorStructRequest 验证请求数据
-//data 传入指针
+// ValidatorStructRequest 验证请求数据
+// data 传入指针
 func ValidatorStructRequest(r *http.Request, data interface{}, message govalidator.MapData) url.Values {
 	opts := govalidator.Options{
 		Request: r,
@@ -76,7 +76,7 @@ func ValidatorStructRequest(r *http.Request, data interface{}, message govalidat
 	return result
 }
 
-//ValidatorMapRequest 验证请求数据从map
+// ValidatorMapRequest 验证请求数据从map
 func ValidatorMapRequest(r *http.Request, rule govalidator.MapData, message govalidator.MapData) (map[string]interface{}, url.Values) {
 	data := make(map[string]interface{}, 0)
 	opts := govalidator.Options{
@@ -94,7 +94,7 @@ func ValidatorMapRequest(r *http.Request, rule govalidator.MapData, message gova
 	return data, e
 }
 
-//ValidatorRequestStructAndErrorResponse 验证并格式化请求数据为对象
+// ValidatorRequestStructAndErrorResponse 验证并格式化请求数据为对象
 // retrun true 继续执行
 // return false 参数错误，终止
 func ValidatorRequestStructAndErrorResponse(r *http.Request, w http.ResponseWriter, data interface{}, message govalidator.MapData) bool {
@@ -105,7 +105,7 @@ func ValidatorRequestStructAndErrorResponse(r *http.Request, w http.ResponseWrit
 	return true
 }
 
-//ValidatorRequestMapAndErrorResponse 验证并格式化请求数据为对象
+// ValidatorRequestMapAndErrorResponse 验证并格式化请求数据为对象
 // retrun true 继续执行
 // return false 参数错误，终止
 func ValidatorRequestMapAndErrorResponse(r *http.Request, w http.ResponseWriter, rule govalidator.MapData, messgae govalidator.MapData) (map[string]interface{}, bool) {
@@ -117,7 +117,7 @@ func ValidatorRequestMapAndErrorResponse(r *http.Request, w http.ResponseWriter,
 	return data, true
 }
 
-//ResponseBody api返回数据格式
+// ResponseBody api返回数据格式
 type ResponseBody struct {
 	ValidationError url.Values  `json:"validation_error,omitempty"`
 	Msg             string      `json:"msg,omitempty"`
@@ -129,7 +129,7 @@ type ResponseBody struct {
 	Page int `json:"page,omitempty"`
 }
 
-//ParseResponseBody 解析成ResponseBody
+// ParseResponseBody 解析成ResponseBody
 func ParseResponseBody(red io.ReadCloser, dataType string) (re ResponseBody, err error) {
 	if red == nil {
 		err = errors.New("readcloser can not be nil")
@@ -148,14 +148,14 @@ func ParseResponseBody(red io.ReadCloser, dataType string) (re ResponseBody, err
 	return
 }
 
-//ReturnValidationError 参数错误返回
+// ReturnValidationError 参数错误返回
 func ReturnValidationError(r *http.Request, w http.ResponseWriter, err url.Values) {
 	logrus.Debugf("validation error, uri: %s; msg: %v", r.RequestURI, ResponseBody{ValidationError: err})
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusBadRequest))
 	render.DefaultResponder(w, r, ResponseBody{ValidationError: err})
 }
 
-//ReturnSuccess 成功返回
+// ReturnSuccess 成功返回
 func ReturnSuccess(r *http.Request, w http.ResponseWriter, datas interface{}) {
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusOK))
 	if datas == nil {
@@ -171,32 +171,32 @@ func ReturnSuccess(r *http.Request, w http.ResponseWriter, datas interface{}) {
 	return
 }
 
-//ReturnList return list with page and count
+// ReturnList return list with page and count
 func ReturnList(r *http.Request, w http.ResponseWriter, listAllNumber, page int, list interface{}) {
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusOK))
 	render.DefaultResponder(w, r, ResponseBody{List: list, ListAllNumber: listAllNumber, Page: page})
 }
 
-//ReturnError 返回错误信息
+// ReturnError 返回错误信息
 func ReturnError(r *http.Request, w http.ResponseWriter, code int, msg string) {
 	logrus.Debugf("error code: %d; error uri: %s; error msg: %s", code, r.RequestURI, msg)
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
 }
 
-//Return  自定义
+// Return  自定义
 func Return(r *http.Request, w http.ResponseWriter, code int, reb ResponseBody) {
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, reb)
 }
 
-//ReturnNoFomart  http return no format result
+// ReturnNoFomart  http return no format result
 func ReturnNoFomart(r *http.Request, w http.ResponseWriter, code int, reb interface{}) {
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, reb)
 }
 
-//ReturnResNotEnough http return node resource not enough, http code = 412
+// ReturnResNotEnough http return node resource not enough, http code = 412
 func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, eventID, msg string) {
 	logrus.Debugf("resource not enough, msg: %s", msg)
 	if err := db.GetManager().ServiceEventDao().UpdateReason(eventID, msg); err != nil {
@@ -209,7 +209,7 @@ func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, eventID, msg str
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
 }
 
-//ReturnBcodeError bcode error
+// ReturnBcodeError bcode error
 func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 	berr := bcode.Err2Coder(err)
 	logrus.Debugf("path %s error code: %d; status: %d; error msg: %+v", r.RequestURI, berr.GetCode(), berr.GetStatus(), err)
@@ -228,6 +228,7 @@ func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 
 	if berr.GetStatus() == 500 {
 		logrus.Errorf("path: %s\n: %+v", r.RequestURI, err)
+		result.Msg = err.Error()
 	}
 
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, status))
