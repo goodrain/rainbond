@@ -1961,7 +1961,7 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 	if _, err := a.k8sClient.Clientset.CoreV1().Secrets(ns).Update(context.Background(), curSecret, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("update secret for pulling images: %v", err)
 	}
-	logrus.Infof("successfully update secret: %s", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String())
+	logrus.Debugf("successfully update secret: %s", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String())
 	return nil
 }
 
@@ -2015,7 +2015,7 @@ func (a *appRuntimeStore) SyncUpdateApisixRoute(namespace, serviceAlias, service
 						if err != nil {
 							logrus.Errorf("update route failure: %v", err)
 						} else {
-							logrus.Infof("successfully updated route %s with new service name %s", route.Name, serviceName)
+							logrus.Debugf("successfully updated route %s with new service name %s", route.Name, serviceName)
 						}
 					}
 				}

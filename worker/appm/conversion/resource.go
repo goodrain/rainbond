@@ -31,6 +31,7 @@ func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimi
 	request := corev1.ResourceList{}
 	if memory > 0 {
 		limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
+		request[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 	}
 	if setCPULimit > 0 {
 		limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPULimit, resource.DecimalSI)
