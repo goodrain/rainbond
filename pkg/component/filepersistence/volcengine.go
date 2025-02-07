@@ -147,3 +147,43 @@ func (p *VolcengineProvider) CreateFileSystem(ctx context.Context, opts *CreateF
 	}
 	return "", fmt.Errorf("failed to describe mount point: %v", opts.Name)
 }
+
+// DeleteFileSystem deletes a file system by its name
+func (p *VolcengineProvider) DeleteFileSystem(ctx context.Context, fileSystemName string) error {
+	if err := p.init(); err != nil {
+		return err
+	}
+
+	// Step 1: Find the file system ID by name
+	describeInput := &filenas.DescribeFileSystemsInput{
+		Filters: []*filenas.FilterForDescribeFileSystemsInput{
+			{
+				Key:   volcengine.String("FileSystemName"),
+				Value: &fileSystemName,
+			},
+		},
+	}
+	describeOutput, err := p.client.DescribeFileSystems(describeInput)
+	if err != nil {
+		return fmt.Errorf("failed to describe file system: %v", err)
+	}
+
+	if len(describeOutput.FileSystems) == 0 {
+		// Skip deletion if the file system does not exist
+		return nil
+	}
+
+	fileSystemId := describeOutput.FileSystems[0].FileSystemId
+
+	// Step 2: Delete the file system by ID
+	deleteInput := &filenas.DeleteFileSystemInput{
+		FileSystemId: fileSystemId,
+	}
+
+	_, err = p.client.DeleteFileSystem(deleteInput)
+	if err != nil {
+		return fmt.Errorf("failed to delete file system: %v", err)
+	}
+
+	return nil
+}

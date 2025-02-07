@@ -42,6 +42,7 @@ type CreateStorageClassOptions struct {
 type InterfaceFilePersistence interface {
 	FindFileSystem(ctx context.Context, name string) (*FileSystem, error)
 	CreateFileSystem(ctx context.Context, opts *CreateFileSystemOptions) (string, error)
+	DeleteFileSystem(ctx context.Context, fileSystemName string) error
 }
 
 // ComponentFilePersistence -
