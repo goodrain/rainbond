@@ -270,6 +270,12 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 
 			// 尝试多次推送，确保清理缓存后重新拉取并推送
 			for attempts := 0; attempts < 3; attempts++ {
+				// 从 image 中提取仓库名称，使用 Name() 获取
+				repository := named.Name() // 使用 .Name() 获取仓库路径
+				// 使用 WithScope 设置作用域，采用 repository:镜像名称:操作类型 格式
+				scope := fmt.Sprintf("repository:%s:%s", repository, "push") // 构造作用域
+				ctx := namespaces.WithNamespace(context.Background(), Namespace)
+				ctx = docker.WithScope(ctx, scope)
 				if err := c.client.Push(ctx, reference, desc, ropts...); err != nil {
 					if attempts < 2 {
 						printLog(logger, "warn", fmt.Sprintf("推送失败，重试中... (%d/3)", attempts+1), map[string]string{"step": "pushimage"})
