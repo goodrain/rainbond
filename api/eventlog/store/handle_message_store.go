@@ -284,6 +284,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 						logrus.Errorf("get event by event id %s failure %s", eventID, err.Error())
 
 					} else {
+						event.CreatedAt, _ = formatTime(event.CreatedAt)
 						event.Status = status
 						if strings.Contains(event.FinalStatus, "empty") {
 							event.FinalStatus = model.EventFinalStatusEmptyComplete.String()
@@ -305,6 +306,19 @@ func (h *handleMessageStore) handleBarrelEvent() {
 		}
 	}
 }
+
+func formatTime(input string) (string, error) {
+	// 尝试解析输入的时间
+	parsedTime, err := time.Parse("2006-01-02 15:04:05.999999999", input)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse time: %v", err)
+	}
+
+	// 格式化为指定格式（带时区偏移）
+	formattedTime := parsedTime.Format("2006-01-02T15:04:05-07:00")
+	return formattedTime, nil
+}
+
 func (h *handleMessageStore) GetHistoryMessage(eventID string, length int) (re []string) {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
