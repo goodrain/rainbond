@@ -1,0 +1,41 @@
+name: 🚀 功能建议
+description: Request a new feature
+title: "🚀 功能建议：请填写标题，不要留空"
+labels: ["Feature"]
+assignees: ["zzzhangqi"]
+
+body:
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: 功能描述
+      description: 请描述你希望的功能，有必要的话可以提供截图，以供参考。
+      placeholder: 功能描述
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature_usecase
+    attributes:
+      label: 使用场景
+      description: |
+        请描述你希望功能的使用场景。
+        如果该功能没有明确的使用场景，或是无法被理解，可能会被降低优先级或忽略，因此请务必清晰描述。
+      placeholder: 使用场景
+    validations:
+      required: true
+
+  - type: textarea
+    id: resolution
+    attributes:
+      label: 实现方案（可选）
+      description: 对于该功能，您有什么预想的实现方案，或者建议？
+      placeholder: 实现方案
+
+  - type: checkboxes
+    id: PR
+    attributes:
+      label: 是否愿意提交 PR 实现该功能
+      description: 我们非常欢迎您提交 PR，提交 PR 是实现该功能的最快的方式。
+      options:
+        - label: 我愿意提交 PR 实现该功能

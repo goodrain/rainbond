@@ -1,0 +1,43 @@
+name: 🚀 Feature request
+description: Request a new feature
+title: "🚀 Feature request: Please fill in the title, do not leave blank"
+labels: ["Feature"]
+assignees: ["zzzhangqi"]
+
+body:
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature description
+      description: Please describe the feature, with screenshots if necessary.
+      placeholder: Feature description
+    validations:
+      required: true
+
+  - type: textarea
+    id: feature_usecase
+    attributes:
+      label: Use case
+      description: |
+        Please describe the use case of the feature.
+        If the feature does not have a clear use case, or is unclear, it may be ignored or downgraded in priority, so please be as clear as possible.
+      placeholder: Use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: resolution
+    attributes:
+      label: Implementation plan (optional)
+      description: Please describe the implementation plan if necessary.
+      placeholder: Implementation plan
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: PR
+    attributes:
+      label: Whether to submit a PR to implement the feature
+      description: We welcome your PR to implement the feature, the fastest way to implement the feature is to submit a PR.
+      options:
+        - label: I want to submit a PR to implement the feature

@@ -1,0 +1,104 @@
+name: 🐞 Bug report
+description: Report a bug
+title: "🐞 Bug report: Please fill in the title, do not leave blank"
+labels: ["Bug"]
+assignees: ["zzzhangqi"]
+
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Please confirm the following items
+      options:
+        - label: Please read the [FAQ](https://www.rainbond.com/docs/faq) and [troubleshooting](https://www.rainbond.com/docs/troubleshooting) documents
+          required: true
+        - label: Search for the issue in the [issues](https://github.com/goodrain/rainbond/issues) page, but could not find a solution
+          required: true
+        - label: Rainbond has been upgraded to the [latest version](https://github.com/goodrain/rainbond/releases)
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: |
+        Please describe the problem in detail, ensuring that the issue can be understood and reproduced. If the context is insufficient, the issue may be downgraded in priority or ignored.
+        A single issue should only describe one problem, if there are multiple problems, please submit separate issues.
+      placeholder: Problem description
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: Can the problem be reproduced?
+      multiple: false
+      options:
+        - Reproducible
+        - Not reproducible
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduce steps
+      description: |
+        If the problem can be reproduced, please provide detailed reproduction steps, otherwise the issue will be downgraded in priority or ignored.
+      placeholder: Reproduce steps
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: |
+        Please provide relevant screenshots to describe the problem. If the screenshots are not convenient, please provide a recording to make it easier to diagnose.
+      placeholder: Please provide relevant screenshots
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: "Please provide logs, go to Platform Management -> Logs."
+      placeholder: Please provide logs
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected results
+      description: Please describe the expected results.
+      placeholder: Expected results
+    validations:
+      required: true
+
+  - type: textarea
+    id: resolution
+    attributes:
+      label: Resolution
+      description: "Please describe the resolution to the problem, or provide suggestions."
+      placeholder: Your resolution
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Operating system && Rainbond version
+      description: Please provide the operating system version, K8s version and Rainbond version, which can help diagnose the problem.
+      placeholder: Ubuntu 22.04, K8s 1.29.7, Rainbond v6.1.1-release
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: PR
+    attributes:
+      label: Is it OK to submit a PR to solve the problem?
+      description: We welcome you to submit a PR to solve the problem the fastest way.
+      options:
+        - label: I want to submit a PR to implement the feature
