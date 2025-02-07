@@ -2220,10 +2220,6 @@ func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, servi
 		return fmt.Errorf("GC task body: %v", err)
 	}
 
-	if err := s.delServiceMetadata(ctx, serviceID); err != nil {
-		return fmt.Errorf("delete service-related metadata: %v", err)
-	}
-
 	// let rbd-chaos remove related persistent data
 	logrus.Info("let rbd-chaos remove related persistent data")
 	topic := gclient.WorkerTopic
@@ -2233,6 +2229,10 @@ func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, servi
 		TaskBody: body,
 	}); err != nil {
 		logrus.Warningf("send gc task: %v", err)
+	}
+
+	if err := s.delServiceMetadata(ctx, serviceID); err != nil {
+		return fmt.Errorf("delete service-related metadata: %v", err)
 	}
 
 	return nil
