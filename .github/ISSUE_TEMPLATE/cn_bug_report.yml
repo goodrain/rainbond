@@ -1,0 +1,102 @@
+name: 🐞 反馈问题
+description: Report a bug
+title: "🐞 反馈问题：请填写标题，不要留空"
+labels: ["Bug"]
+assignees: ["zzzhangqi"]
+
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 请先确认以下事项：
+      options:
+        - label: 请务必查看[常见问题](https://www.rainbond.com/docs/faq)和[故障排除](https://www.rainbond.com/docs/troubleshooting)
+          required: true
+        - label: 在 [issues](https://github.com/goodrain/rainbond/issues) 页面搜索过问题（包括已关闭的 issue），但未能找到解决方法
+          required: true
+        - label: Rainbond 已升级到 [最新版本](https://github.com/goodrain/rainbond/releases)
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: |
+        请详练描述你所遇到的问题，确保能够理解、重现该问题。如果上下文信息不足，会导致无法定位，问题会被降低优先级或忽略。
+        一个 issue 只描述一个问题，如果有多个问题，请分开提交。
+      placeholder: 问题描述
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: 该问题是否可以稳定重现？
+      multiple: false
+      options:
+        - 可重现
+        - 不可重现
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 重现步骤
+      description: |
+        如果该问题可重现，请一定要详细提供重现步骤，否则无法定位问题。
+      placeholder: 重现步骤
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 截图
+      description: |
+        请提供问题截图。若截图不便于描述问题，请提供录屏，方便排查。
+      placeholder: 请提供问题相关截图
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志
+      description: "请提供日志，平台管理 -> 日志。"
+      placeholder: 请提供日志
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+      description: 请描述您期望的结果。
+      placeholder: 你期望的结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: resolution
+    attributes:
+      label: 解决方案（可选）
+      description: 对于该问题，您有什么预想的解决方案，或者建议？
+      placeholder: 你的解决方案
+
+  - type: input
+    id: device
+    attributes:
+      label: 操作系统 && Rainbond 版本
+      description: 请提供操作系统版本、K8s版本和 Rainbond 版本，方便排查。
+      placeholder: Ubuntu 22.04, K8s 1.29.7, Rainbond v6.1.1-release
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: PR
+    attributes:
+      label: 是否愿意提交 PR 解决该问题？
+      description: 我们非常欢迎您提交 PR，提交 PR 是解决该问题最快的方式。
+      options:
+        - label: 我愿意提交 PR 来解决该问题
