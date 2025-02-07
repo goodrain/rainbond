@@ -283,6 +283,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 			TargetID:  req.GetComponentID(),
 			UserName:  operator,
 			StartTime: time.Now().Format(time.RFC3339),
+			CreatedAt: time.Now().Format(time.RFC3339),
 			SynType:   dbmodel.ASYNEVENTTYPE,
 			OptType:   req.OpType(),
 		}
