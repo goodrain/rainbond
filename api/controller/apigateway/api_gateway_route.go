@@ -453,7 +453,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				} else {
 					// 其他错误，返回失败
 					logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-					httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+					httputil.ReturnBcodeError(r, w, fmt.Errorf("create tcp rule func, create svc failure: %s", err.Error()))
 					return
 				}
 			}
