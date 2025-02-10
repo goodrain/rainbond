@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // PodController is an implementation of PodInterface
@@ -167,9 +168,12 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 	logChannel := make(chan string)
 	ctx := r.Context()
 
+	// Use WaitGroup to wait for all goroutines to finish
+	var wg sync.WaitGroup
+
 	// Function to stream logs from a container
 	streamLogs := func(containerName string) {
-		defer close(logChannel)
+		defer wg.Done()
 		logrus.Infof("Fetching logs for container %s", containerName)
 		req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 			Container:  containerName,
@@ -197,16 +201,24 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 	// Start goroutines for init containers
 	for _, initContainer := range pod.Spec.InitContainers {
+		wg.Add(1)
 		go streamLogs(initContainer.Name)
 	}
 
 	// Stream logs for the main container
+	wg.Add(1)
 	go streamLogs(container)
 
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+
+	// Close the channel once all goroutines are done
+	go func() {
+		wg.Wait()
+		close(logChannel)
+	}()
 
 	// Accumulate logs and write to response
 	for logMsg := range logChannel {
