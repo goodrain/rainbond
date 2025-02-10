@@ -146,22 +146,8 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 	if strings.HasPrefix(podName, "rbd-gateway") {
 		container = "ingress-apisix"
 	}
-	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
-		Follow:     true,
-		Timestamps: true,
-		TailLines:  &tailLines,
-		Container:  container,
-	})
-	logrus.Infof("Opening log stream for pod %s", podName)
 
-	stream, err := req.Stream(r.Context())
-	if err != nil {
-		logrus.Errorf("Error opening log stream: %v", err)
-		http.Error(w, "Error opening log stream", http.StatusInternalServerError)
-		return
-	}
-	defer stream.Close()
-	// Use Flusher to send headers to the client
+	// Initialize flusher before processing logs
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		logrus.Errorf("Streaming not supported")
@@ -169,25 +155,66 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		return
 	}
 
+	// Fetch the pod to get init containers
+	pod, err := k8s.Default().Clientset.CoreV1().Pods(namespace).Get(r.Context(), podName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Error fetching pod details: %v", err)
+		http.Error(w, "Error fetching pod details", http.StatusInternalServerError)
+		return
+	}
+
+	// Channel to accumulate logs from all containers
+	logChannel := make(chan string)
+	ctx := r.Context()
+
+	// Function to stream logs from a container
+	streamLogs := func(containerName string) {
+		defer close(logChannel)
+		logrus.Infof("Fetching logs for container %s", containerName)
+		req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+			Container:  containerName,
+			TailLines:  &tailLines,
+			Timestamps: true,
+		})
+		stream, err := req.Stream(ctx)
+		if err != nil {
+			logrus.Errorf("Error opening log stream for container %s: %v", containerName, err)
+			return
+		}
+		defer stream.Close()
+
+		scanner := bufio.NewScanner(stream)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				logrus.Warningf("Request context done: %v", ctx.Err())
+				return
+			default:
+				logChannel <- scanner.Text()
+			}
+		}
+	}
+
+	// Start goroutines for init containers
+	for _, initContainer := range pod.Spec.InitContainers {
+		go streamLogs(initContainer.Name)
+	}
+
+	// Stream logs for the main container
+	go streamLogs(container)
+
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	scanner := bufio.NewScanner(stream)
-
-	for scanner.Scan() {
-		select {
-		case <-r.Context().Done():
-			logrus.Warningf("Request context done: %v", r.Context().Err())
-			return
-		default:
-			msg := "data: " + scanner.Text() + "\n\n"
-			_, err := fmt.Fprintf(w, msg)
-			flusher.Flush()
-			if err != nil {
-				logrus.Errorf("Error writing to response: %v", err)
-			}
+	// Accumulate logs and write to response
+	for logMsg := range logChannel {
+		msg := "data: " + logMsg + "\n\n"
+		_, err := fmt.Fprintf(w, msg)
+		flusher.Flush()
+		if err != nil {
+			logrus.Errorf("Error writing to response: %v", err)
 		}
 	}
 }
