@@ -227,7 +227,19 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		var dependentComponents []healthy.DependentComponents
 		services, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 		var dependServiceIDs []string
+		relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
+		if err != nil {
+			logrus.Errorf("GetTenantServiceRelationsByDependServiceID failure: %v", err)
+		}
+		relationServiceIDs := make(map[string]struct{})
+		for _, relation := range relations {
+			relationServiceIDs[relation.ServiceID] = struct{}{}
+		}
 		for _, service := range services {
+			if _, exists := relationServiceIDs[service.DependServiceID]; exists {
+				logrus.Infof("Skipping service with DependServiceID %v as it already exists in relations", service.DependServiceID)
+				continue
+			}
 			dependServiceIDs = append(dependServiceIDs, service.DependServiceID)
 		}
 		servicePorts, err := db.GetManager().TenantServicesPortDao().ListInnerPortsByServiceIDs(dependServiceIDs)
