@@ -104,13 +104,7 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 		logrus.Warningf("service id: %s; delete a collection for PVC: %v", serviceGCReq.ServiceID, err)
 	}
 
-	logrus.Infof("begin delete filesystem%v", serviceGCReq.ServiceID)
-	component, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceGCReq.ServiceID)
-	if err != nil {
-		logrus.Warningf("get component failure: %v", err)
-	}
-	logrus.Infof("---------------------------------where is nil component: %v, filepersistence.Default().FilePersistenceCli: %v", component, filepersistence.Default().FilePersistenceCli)
-	err = filepersistence.Default().FilePersistenceCli.DeleteFileSystem(context.Background(), component.ServiceAlias)
+	err = filepersistence.Default().FilePersistenceCli.DeleteFileSystem(context.Background(), serviceGCReq.ServiceAlias)
 	if err != nil {
 		logrus.Errorf("delete file system failure: %v", err)
 	}
