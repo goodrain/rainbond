@@ -84,6 +84,16 @@ func (g *GarbageCollector) DelVolumeData(serviceGCReq model.ServiceGCTaskBody) {
 
 // DelPvPvcByServiceID -
 func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskBody) {
+	if g.clientset == nil {
+		logrus.Errorf("clientset is not initialized")
+		return
+	}
+
+	if serviceGCReq.ServiceID == "" || serviceGCReq.TenantID == "" {
+		logrus.Errorf("invalid ServiceGCTaskBody: ServiceID or TenantID is empty")
+		return
+	}
+
 	logrus.Infof("service_id: %s", serviceGCReq.ServiceID)
 	deleteOpts := metav1.DeleteOptions{}
 	listOpts := g.listOptionsServiceID(serviceGCReq.ServiceID)
