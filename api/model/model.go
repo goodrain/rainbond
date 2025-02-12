@@ -2261,6 +2261,7 @@ type RainbondPlugins struct {
 	PluginType          string            `json:"plugin_type"`
 	PluginViews         []string          `json:"plugin_views"`
 	EnableStatus        string            `json:"enable_status"`
+	Backend             string            `json:"backend"`
 }
 
 // CreateUpdateGovernanceModeReq -
