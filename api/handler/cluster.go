@@ -974,6 +974,7 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 			PluginType:          plugin.Spec.PluginType.String(),
 			PluginViews:         pluginViews,
 			EnableStatus:        enableStatus,
+			Backend:             plugin.Spec.Backend,
 		})
 	}
 	return plugins, nil

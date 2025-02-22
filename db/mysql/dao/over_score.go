@@ -47,7 +47,7 @@ func (t *OverScoreDaoImpl) GetOverScoreRate() (*model.EnterpriseOverScore, error
 		if err == gorm.ErrRecordNotFound {
 			// Create default record with rate 1
 			overScore = model.EnterpriseOverScore{
-				OverScoreRate: "1",
+				OverScoreRate: "{\"CPU\":1,\"MEMORY\":1}",
 			}
 			if err := t.DB.Create(&overScore).Error; err != nil {
 				return nil, err

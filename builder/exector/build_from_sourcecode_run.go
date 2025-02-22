@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	utils "github.com/goodrain/rainbond/util"
 	"io/ioutil"
 	"os"
@@ -227,8 +228,19 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 		packages, err := ioutil.ReadDir(filePath)
 		if err != nil {
-			logrus.Errorf("read dir error: %s", err.Error())
-			return err
+			logrus.Errorf("first attempt read dir error: %s", err.Error())
+			// Try to download and retry
+			err = storage.Default().StorageCli.DownloadDirToDir(filePath, filePath)
+			if err != nil {
+				logrus.Errorf("download dir to dir %v failure: %v", filePath, err)
+				return err
+			}
+			// Second attempt
+			packages, err = ioutil.ReadDir(filePath)
+			if err != nil {
+				logrus.Errorf("second attempt read dir error: %s", err.Error())
+				return err
+			}
 		}
 		packageArr := make([]string, 0, 10)
 		for _, dir := range packages {

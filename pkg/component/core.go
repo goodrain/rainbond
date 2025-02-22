@@ -37,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/mq/mqcomponent/metrics"
 	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
 	"github.com/goodrain/rainbond/pkg/component/eventlog"
+	"github.com/goodrain/rainbond/pkg/component/filepersistence"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -73,6 +74,11 @@ func K8sClient() rainbond.Component {
 // StorageClient -
 func StorageClient() rainbond.Component {
 	return storage.New()
+}
+
+// FilePersistenceClient -
+func FilePersistenceClient() rainbond.Component {
+	return filepersistence.New()
 }
 
 // HubRegistry -

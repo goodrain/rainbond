@@ -20,6 +20,7 @@ package handler
 
 import (
 	"encoding/json"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"strings"
 
@@ -122,7 +123,24 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*apimodel.VolumeTypeStruct, 
 			Enable:             vt.Enable,
 		})
 	}
-
+	if configs.Default().FilePersistenceConfig.FilePersistenceEnable == "open" {
+		optionList = []*apimodel.VolumeTypeStruct{
+			{
+				VolumeType:         "volcengine",
+				NameShow:           "火山云文件存储",
+				Provisioner:        configs.Default().FilePersistenceConfig.FilePersistenceProvisioner,
+				CapacityValidation: map[string]interface{}{"max": 99999999999, "min": 0, "required": true},
+				Description:        "",
+				AccessMode:         []string{"RWO"},
+				SharePolicy:        []string{"exclusive"},
+				BackupPolicy:       []string{"exclusive"},
+				ReclaimPolicy:      "Delete",
+				StorageClassDetail: nil,
+				Sort:               999,
+				Enable:             true,
+			},
+		}
+	}
 	return optionList, nil
 }
 
