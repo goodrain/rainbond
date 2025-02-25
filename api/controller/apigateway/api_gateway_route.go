@@ -205,7 +205,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
-	routeName := apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
+	routeName := strings.ToLower(apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0])
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
