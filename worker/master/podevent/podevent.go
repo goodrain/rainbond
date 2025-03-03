@@ -104,7 +104,7 @@ func (p *PodEvent) Handle() {
 			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Minute {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 			}
-			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Second {
+			if time.Now().Sub(pod.CreationTimestamp.Time) > 30*time.Second {
 				AbnormalEvent(p.clientset, pod)
 			}
 		case <-p.stopCh:
