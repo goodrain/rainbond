@@ -96,6 +96,16 @@ func (p *VolcengineProvider) CreateFileSystem(ctx context.Context, opts *CreateF
 
 	capacityGB := int32(opts.Size / (1024 * 1024 * 1024)) // Convert bytes to GB
 	chargeType := "PayAsYouGo"
+	key := "service_alias"
+	value := opts.Name
+	tagType := "Custom"
+	tags := []*filenas.TagForCreateFileSystemInput{
+		{
+			Key:   &key,
+			Value: &value,
+			Type:  &tagType,
+		},
+	}
 	input := &filenas.CreateFileSystemInput{
 		ZoneId:         &p.config.ZoneID,
 		FileSystemName: &opts.Name,
@@ -104,6 +114,7 @@ func (p *VolcengineProvider) CreateFileSystem(ctx context.Context, opts *CreateF
 		ChargeType:     &chargeType,
 		Description:    &opts.Description,
 		Capacity:       &capacityGB,
+		Tags:           tags,
 	}
 	output, err := p.client.CreateFileSystem(input)
 	if err != nil {
