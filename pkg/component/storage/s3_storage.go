@@ -24,10 +24,6 @@ type S3Storage struct {
 	bucket   string
 }
 
-func (s3s *S3Storage) Test() {
-
-}
-
 func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
 	bucketName, prefix, err := s3s.ParseDirPath(dirName, false)
 	if err != nil {
@@ -39,6 +35,10 @@ func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
 		Bucket: aws.String(bucketName),
 		Prefix: aws.String(prefix),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects: %w", err)
+	}
+
 	for _, item := range result.Contents {
 		if *item.Key == prefix {
 			continue
@@ -47,9 +47,6 @@ func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
 		sPath := strings.Split(syPath, "/")
 		nextPath := sPath[0]
 		matchedKeys = append(matchedKeys, nextPath)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
 	return matchedKeys, nil
 }
@@ -94,46 +91,6 @@ func (s3s *S3Storage) CheckDirExists(bucketName, dirPath string) (bool, error) {
 		return false, err
 	}
 	return len(resp.Contents) > 0, nil
-}
-
-// ClearDirectory 清空目录下的内容
-func (s3s *S3Storage) ClearDirectory(bucketName, dirPath string) error {
-	// 列出所有需要删除的对象
-	objectsToDelete := &s3.Delete{
-		Objects: []*s3.ObjectIdentifier{},
-		Quiet:   aws.Bool(true),
-	}
-
-	// 使用分页方式删除所有对象
-	err := s3s.s3Client.ListObjectsV2Pages(&s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String(dirPath),
-	}, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-		for _, obj := range page.Contents {
-			objectsToDelete.Objects = append(objectsToDelete.Objects, &s3.ObjectIdentifier{
-				Key: aws.String(*obj.Key),
-			})
-		}
-		return !lastPage
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list objects for deletion: %w", err)
-	}
-
-	if len(objectsToDelete.Objects) == 0 {
-		return nil // 目录为空，无需清空
-	}
-
-	// 批量删除对象
-	_, err = s3s.s3Client.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: aws.String(bucketName),
-		Delete: objectsToDelete,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete objects: %w", err)
-	}
-
-	return nil
 }
 
 func (s3s *S3Storage) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
@@ -216,12 +173,17 @@ func (s3s *S3Storage) ParseDirPath(dirPath string, isFile bool) (string, string,
 
 func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error {
 	bucketName, key, err := s3s.ParseDirPath(archive, true)
+	if err != nil {
+		return err
+	}
+
 	// 下载 S3 中的 ZIP 文件
 	zipFile, err := os.CreateTemp("", "archive-*.zip")
 	if err != nil {
 		return fmt.Errorf("error creating temp file: %v", err)
 	}
 	defer os.Remove(zipFile.Name()) // 确保临时文件在函数退出时被删除
+	defer zipFile.Close()
 
 	obj, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
@@ -230,7 +192,8 @@ func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error
 	if err != nil {
 		return fmt.Errorf("error downloading file from S3: %v", err)
 	}
-	defer zipFile.Close()
+	defer obj.Body.Close() // 确保关闭 obj.Body
+
 	if _, err := io.Copy(zipFile, obj.Body); err != nil {
 		return fmt.Errorf("error writing to temp file: %v", err)
 	}
@@ -306,82 +269,72 @@ func (s3s *S3Storage) S3CopyWithProgress(srcFile io.Reader, bucket, key string, 
 	var written int64
 	buf := make([]byte, 1024*1024)
 	progressID := uuid.New().String()[0:7]
-	// 使用 bytes.Buffer 来保存所有数据
-	var buffer bytes.Buffer
+
+	// 创建错误通道
+	errChan := make(chan error, 1)
+
 	// 创建一个 WaitGroup
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	// 启动一个 goroutine 处理源文件的读取
 	go func() {
 		defer wg.Done()
 		for {
 			nr, er := srcFile.Read(buf)
 			if nr > 0 {
-				nw, ew := buffer.Write(buf[:nr])
-				if nw > 0 {
-					written += int64(nw)
+				// 直接将读取的数据写入 S3
+				input := &s3.PutObjectInput{
+					Bucket: aws.String(bucket),
+					Key:    aws.String(key),
+					Body:   bytes.NewReader(buf[:nr]),
 				}
+				_, ew := s3s.s3Client.PutObject(input)
 				if ew != nil {
-					logrus.Errorf("写入缓冲区失败: %v", ew)
-					break
+					errChan <- fmt.Errorf("上传到 S3 失败: %v", ew)
+					return
 				}
-				if nr != nw {
-					logrus.Error("写入字节数不匹配")
-					break
+				written += int64(nr)
+
+				// 记录进度
+				if logger != nil {
+					progress := "["
+					i := int((float64(written) / float64(allSize)) * 50)
+					if i == 0 {
+						i = 1
+					}
+					for j := 0; j < i; j++ {
+						progress += "="
+					}
+					progress += ">"
+					for len(progress) < 50 {
+						progress += " "
+					}
+					progress += fmt.Sprintf("] %d MB/%d MB", int(written/1024/1024), int(allSize/1024/1024))
+					message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
+					logger.Debug(message, map[string]string{"step": "progress"})
 				}
 			}
 			if er != nil {
 				if er != io.EOF {
-					logrus.Errorf("读取源文件失败: %v", er)
+					errChan <- fmt.Errorf("读取源文件失败: %v", er)
 				}
-				break
-			}
-
-			// 记录进度
-			if logger != nil {
-				progress := "["
-				i := int((float64(written) / float64(allSize)) * 50)
-				if i == 0 {
-					i = 1
-				}
-				for j := 0; j < i; j++ {
-					progress += "="
-				}
-				progress += ">"
-				for len(progress) < 50 {
-					progress += " "
-				}
-				progress += fmt.Sprintf("] %d MB/%d MB", int(written/1024/1024), int(allSize/1024/1024))
-				message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
-				logger.Debug(message, map[string]string{"step": "progress"})
+				return
 			}
 		}
 	}()
 
-	wg.Wait() // 等待 goroutine 完成
-
-	// 生成 io.ReadSeeker
-	body := bytes.NewReader(buffer.Bytes())
-
-	// 执行 S3 上传
-	input := &s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-		Body:   body,
-	}
-
-	_, err := s3s.s3Client.PutObject(input)
-	if err != nil {
-		if logger != nil {
-			logger.Error("上传文件到 S3 失败", map[string]string{"step": "share"})
-		}
+	// 等待上传完成并检查错误
+	wg.Wait()
+	select {
+	case err := <-errChan:
 		return err
+	default:
+		if written != allSize {
+			return io.ErrShortWrite
+		}
+		return nil
 	}
-
-	if written != allSize {
-		return io.ErrShortWrite
-	}
-	return nil
 }
 
 // extractFile 解压 ZIP 文件中的每个文件
