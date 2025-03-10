@@ -94,7 +94,7 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		if err != nil {
 			logrus.Errorf("check file exist error %s", err.Error())
 		}
-		err = storage.Default().StorageCli.DownloadFileToDir(apath, path.Join(m.HomePath, "eventlog"))
+		err = storage.Default().StorageCli.DownloadFileToDir(path.Join("grdata", apath), path.Join(m.HomePath, "eventlog"))
 		if err != nil {
 			logrus.Errorf("download file to dir failure:%v", err)
 			return message, nil
