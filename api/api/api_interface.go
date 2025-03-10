@@ -331,6 +331,9 @@ type GatewayRouteInterface interface {
 	CreateTCPRoute(w http.ResponseWriter, r *http.Request)
 	UpdateTCPRoute(w http.ResponseWriter, r *http.Request)
 	DeleteTCPRoute(w http.ResponseWriter, r *http.Request)
+
+	CreateCertManager(w http.ResponseWriter, r *http.Request)
+	GetCertManager(w http.ResponseWriter, r *http.Request)
 }
 
 // GatewayServiceInterface api gateway service interface

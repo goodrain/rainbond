@@ -33,7 +33,6 @@ import (
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	kubevirtv1 "kubevirt.io/api/core/v1"
-	"sigs.k8s.io/gateway-api/apis/v1alpha2"
 	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"strconv"
 	"strings"
@@ -547,23 +546,23 @@ func CreateRollout(k8sApp, namespace string, service []*dbmodel.TenantServicesPo
 }
 
 func HandleRolloutSpec(gray *dbmodel.AppGrayRelease, serviceName, httpRouteName, deployName string) (v1alpha1.RolloutSpec, error) {
-	var matches []v1alpha2.HTTPRouteMatch
+	var matches []gatewayv1beta1.HTTPRouteMatch
 	var flowEntryRule [][]apimodel.FlowEntryRule
 	err := json.Unmarshal([]byte(gray.FlowEntryRule), &flowEntryRule)
 	if err != nil {
 		return v1alpha1.RolloutSpec{}, err
 	}
 	for _, rules := range flowEntryRule {
-		var headers []v1alpha2.HTTPHeaderMatch
+		var headers []gatewayv1beta1.HTTPHeaderMatch
 		for _, header := range rules {
-			headerType := v1alpha2.HeaderMatchType(header.HeaderType)
-			headers = append(headers, v1alpha2.HTTPHeaderMatch{
+			headerType := gatewayv1beta1.HeaderMatchType(header.HeaderType)
+			headers = append(headers, gatewayv1beta1.HTTPHeaderMatch{
 				//Name:  v1beta1.HTTPRouteInterface(header.HeaderKey),
 				Type:  &headerType,
 				Value: header.HeaderValue,
 			})
 		}
-		httpRouteMatch := v1alpha2.HTTPRouteMatch{Headers: headers}
+		httpRouteMatch := gatewayv1beta1.HTTPRouteMatch{Headers: headers}
 		matches = append(matches, httpRouteMatch)
 	}
 	var grayStrategy []int32
