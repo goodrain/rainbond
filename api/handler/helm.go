@@ -8,6 +8,7 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/pkg/helm"
 	rutil "github.com/goodrain/rainbond/util"
@@ -179,6 +180,16 @@ func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmC
 	files, err := filepath.Glob(path.Join(basePath, "*"))
 	if err != nil {
 		return nil, err
+	}
+	if len(files) == 0 {
+		err = storage.Default().StorageCli.DownloadDirToDir(basePath, basePath)
+		if err != nil {
+			return nil, err
+		}
+		files, err = filepath.Glob(path.Join(basePath, "*"))
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(files) != 1 {
 		return nil, fmt.Errorf("number of files is incorrect, make sure there is only one compressed package")
