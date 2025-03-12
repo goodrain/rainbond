@@ -284,7 +284,13 @@ func (h *handleMessageStore) handleBarrelEvent() {
 						logrus.Errorf("get event by event id %s failure %s", eventID, err.Error())
 
 					} else {
-						event.CreatedAt, _ = formatTime(event.CreatedAt)
+						createAt, err := formatTime(event.CreatedAt)
+						if err != nil {
+							logrus.Errorf("format time failure: %v", err)
+						}
+						if createAt != "" {
+							event.CreatedAt = createAt
+						}
 						event.Status = status
 						if strings.Contains(event.FinalStatus, "empty") {
 							event.FinalStatus = model.EventFinalStatusEmptyComplete.String()
@@ -308,15 +314,28 @@ func (h *handleMessageStore) handleBarrelEvent() {
 }
 
 func formatTime(input string) (string, error) {
-	// 尝试解析输入的时间
-	parsedTime, err := time.Parse("2006-01-02 15:04:05.999999999", input)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse time: %v", err)
+	// 手动定义 Asia/Shanghai 时区（东八区）
+	loc := time.FixedZone("CST", 8*3600)
+
+	// 解析时间
+	layouts := []string{
+		time.RFC3339, "2006-01-02 15:04:05",
 	}
 
-	// 格式化为指定格式（带时区偏移）
-	formattedTime := parsedTime.Format("2006-01-02T15:04:05-07:00")
-	return formattedTime, nil
+	var t time.Time
+	var parseErr error
+	for _, layout := range layouts {
+		t, parseErr = time.ParseInLocation(layout, input, loc)
+		if parseErr == nil {
+			break
+		}
+	}
+	if parseErr != nil {
+		return "", parseErr
+	}
+
+	// 返回格式化时间
+	return t.Format("2006-01-02T15:04:05Z07:00"), nil
 }
 
 func (h *handleMessageStore) GetHistoryMessage(eventID string, length int) (re []string) {
