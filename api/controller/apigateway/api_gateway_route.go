@@ -209,6 +209,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
+	routeName = strings.ReplaceAll(routeName, "_", "")
 	//name := r.URL.Query().Get("name")
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {
