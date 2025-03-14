@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/gateway-api/apis/v1beta1"
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"sort"
@@ -271,30 +272,30 @@ func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
 	return nil
 }
 
-func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRouteRule {
-	var rules []v1beta1.HTTPRouteRule
+func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1.HTTPRouteRule {
+	var rules []v1.HTTPRouteRule
 	for _, rule := range req.Rules {
 		var (
-			backendRefs []v1beta1.HTTPBackendRef
-			matches     []v1beta1.HTTPRouteMatch
-			filters     []v1beta1.HTTPRouteFilter
+			backendRefs []v1.HTTPBackendRef
+			matches     []v1.HTTPRouteMatch
+			filters     []v1.HTTPRouteFilter
 		)
 		if rule.MatchesRules != nil {
 			for _, match := range rule.MatchesRules {
-				var httpRouteMatch v1beta1.HTTPRouteMatch
+				var httpRouteMatch v1.HTTPRouteMatch
 				if path := match.Path; path != nil {
-					pathType := v1beta1.PathMatchType(path.Type)
+					pathType := v1.PathMatchType(path.Type)
 					value := path.Value
-					httpRouteMatch.Path = &v1beta1.HTTPPathMatch{
+					httpRouteMatch.Path = &v1.HTTPPathMatch{
 						Type:  &pathType,
 						Value: &value,
 					}
 				}
 				if headers := match.Headers; headers != nil {
 					for _, header := range headers {
-						headerType := v1beta1.HeaderMatchType(header.Type)
-						httpRouteMatch.Headers = append(httpRouteMatch.Headers, v1beta1.HTTPHeaderMatch{
-							Name:  v1beta1.HTTPHeaderName(header.Name),
+						headerType := v1.HeaderMatchType(header.Type)
+						httpRouteMatch.Headers = append(httpRouteMatch.Headers, v1.HTTPHeaderMatch{
+							Name:  v1.HTTPHeaderName(header.Name),
 							Type:  &headerType,
 							Value: header.Value,
 						})
@@ -305,24 +306,24 @@ func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRout
 		}
 		if rule.BackendRefsRules != nil {
 			for _, backendRef := range rule.BackendRefsRules {
-				var group v1beta1.Group
+				var group v1.Group
 				if backendRef.Kind == apimodel.HTTPRoute {
-					group = v1beta1.GroupName
+					group = v1.GroupName
 				}
-				kind := v1beta1.Kind(backendRef.Kind)
-				namespace := v1beta1.Namespace(backendRef.Namespace)
-				var port *v1beta1.PortNumber
+				kind := v1.Kind(backendRef.Kind)
+				namespace := v1.Namespace(backendRef.Namespace)
+				var port *v1.PortNumber
 				if backendRef.Port != 0 {
-					p := v1beta1.PortNumber(backendRef.Port)
+					p := v1.PortNumber(backendRef.Port)
 					port = &p
 				}
 				weight := int32(backendRef.Weight)
-				backendRefs = append(backendRefs, v1beta1.HTTPBackendRef{
-					BackendRef: v1beta1.BackendRef{
-						BackendObjectReference: v1beta1.BackendObjectReference{
+				backendRefs = append(backendRefs, v1.HTTPBackendRef{
+					BackendRef: v1.BackendRef{
+						BackendObjectReference: v1.BackendObjectReference{
 							Group:     &group,
 							Kind:      &kind,
-							Name:      v1beta1.ObjectName(backendRef.Name),
+							Name:      v1.ObjectName(backendRef.Name),
 							Namespace: &namespace,
 							Port:      port,
 						},
@@ -333,27 +334,27 @@ func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRout
 		}
 		if rule.FiltersRules != nil {
 			for _, filter := range rule.FiltersRules {
-				var httpRoutefilter v1beta1.HTTPRouteFilter
+				var httpRoutefilter v1.HTTPRouteFilter
 				if filter.RequestHeaderModifier != nil {
-					var setHTTPHeader []v1beta1.HTTPHeader
-					var addHTTPHeader []v1beta1.HTTPHeader
+					var setHTTPHeader []v1.HTTPHeader
+					var addHTTPHeader []v1.HTTPHeader
 					if filter.RequestHeaderModifier.Set != nil {
 						for _, set := range filter.RequestHeaderModifier.Set {
-							setHTTPHeader = append(setHTTPHeader, v1beta1.HTTPHeader{
-								Name:  v1beta1.HTTPHeaderName(set.Name),
+							setHTTPHeader = append(setHTTPHeader, v1.HTTPHeader{
+								Name:  v1.HTTPHeaderName(set.Name),
 								Value: set.Value,
 							})
 						}
 					}
 					if filter.RequestHeaderModifier.Add != nil {
 						for _, add := range filter.RequestHeaderModifier.Add {
-							addHTTPHeader = append(addHTTPHeader, v1beta1.HTTPHeader{
-								Name:  v1beta1.HTTPHeaderName(add.Name),
+							addHTTPHeader = append(addHTTPHeader, v1.HTTPHeader{
+								Name:  v1.HTTPHeaderName(add.Name),
 								Value: add.Value,
 							})
 						}
 					}
-					httpRoutefilter.RequestHeaderModifier = &v1beta1.HTTPHeaderFilter{
+					httpRoutefilter.RequestHeaderModifier = &v1.HTTPHeaderFilter{
 						Set:    setHTTPHeader,
 						Add:    addHTTPHeader,
 						Remove: filter.RequestHeaderModifier.Remove,
@@ -361,29 +362,29 @@ func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRout
 				}
 				if filter.RequestRedirect != nil {
 					scheme := filter.RequestRedirect.Scheme
-					hostname := v1beta1.PreciseHostname(filter.RequestRedirect.Hostname)
-					var port *v1beta1.PortNumber
+					hostname := v1.PreciseHostname(filter.RequestRedirect.Hostname)
+					var port *v1.PortNumber
 					var sc *int
-					if v1beta1.PortNumber(filter.RequestRedirect.Port) != 0 {
-						p := v1beta1.PortNumber(filter.RequestRedirect.Port)
+					if v1.PortNumber(filter.RequestRedirect.Port) != 0 {
+						p := v1.PortNumber(filter.RequestRedirect.Port)
 						port = &p
 					}
 					if filter.RequestRedirect.StatusCode != 0 {
 						s := filter.RequestRedirect.StatusCode
 						sc = &s
 					}
-					httpRoutefilter.RequestRedirect = &v1beta1.HTTPRequestRedirectFilter{
+					httpRoutefilter.RequestRedirect = &v1.HTTPRequestRedirectFilter{
 						Scheme:     &scheme,
 						Hostname:   &hostname,
 						Port:       port,
 						StatusCode: sc,
 					}
 				}
-				httpRoutefilter.Type = v1beta1.HTTPRouteFilterType(filter.Type)
+				httpRoutefilter.Type = v1.HTTPRouteFilterType(filter.Type)
 				filters = append(filters, httpRoutefilter)
 			}
 		}
-		rule := v1beta1.HTTPRouteRule{
+		rule := v1.HTTPRouteRule{
 			Matches:     matches,
 			BackendRefs: backendRefs,
 			Filters:     filters,
@@ -395,17 +396,17 @@ func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRout
 
 // AddGatewayHTTPRoute create gateway http route
 func (g *GatewayAction) AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*model.K8sResource, error) {
-	gatewayNamespace := v1beta1.Namespace(req.GatewayNamespace)
-	var hosts []v1beta1.Hostname
+	gatewayNamespace := v1.Namespace(req.GatewayNamespace)
+	var hosts []v1.Hostname
 	for _, host := range req.Hosts {
-		hosts = append(hosts, v1beta1.Hostname(host))
+		hosts = append(hosts, v1.Hostname(host))
 	}
 	rules := handleGatewayRules(req)
 	labels := make(map[string]string)
 	labels["app_id"] = req.AppID
-	var sectionName *v1beta1.SectionName
+	var sectionName *v1.SectionName
 	if req.SectionName != "" {
-		sn := v1beta1.SectionName(req.SectionName)
+		sn := v1.SectionName(req.SectionName)
 		sectionName = &sn
 	}
 	httpRoute, err := g.gatewayClient.HTTPRoutes(req.Namespace).Create(context.Background(), &v1beta1.HTTPRoute{
@@ -418,10 +419,10 @@ func (g *GatewayAction) AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct
 			Namespace: req.Namespace,
 			Labels:    labels,
 		},
-		Spec: v1beta1.HTTPRouteSpec{
-			CommonRouteSpec: v1beta1.CommonRouteSpec{
-				ParentRefs: []v1beta1.ParentReference{{
-					Name:        v1beta1.ObjectName(req.GatewayName),
+		Spec: v1.HTTPRouteSpec{
+			CommonRouteSpec: v1.CommonRouteSpec{
+				ParentRefs: []v1.ParentReference{{
+					Name:        v1.ObjectName(req.GatewayName),
 					Namespace:   &gatewayNamespace,
 					SectionName: sectionName,
 				}},
@@ -632,24 +633,24 @@ func (g *GatewayAction) GetGatewayHTTPRoute(name, namespace string) (*apimodel.G
 // UpdateGatewayHTTPRoute update gateway http route
 func (g *GatewayAction) UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*model.K8sResource, error) {
 	rules := handleGatewayRules(req)
-	gatewayNamespace := v1beta1.Namespace(req.GatewayNamespace)
-	var hosts []v1beta1.Hostname
+	gatewayNamespace := v1.Namespace(req.GatewayNamespace)
+	var hosts []v1.Hostname
 	for _, host := range req.Hosts {
-		hosts = append(hosts, v1beta1.Hostname(host))
+		hosts = append(hosts, v1.Hostname(host))
 	}
 	httpRoute, err := g.gatewayClient.HTTPRoutes(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("update gateway http route get failure: %v", err)
 		return nil, err
 	}
-	var sectionName *v1beta1.SectionName
+	var sectionName *v1.SectionName
 	if req.SectionName != "" {
-		sn := v1beta1.SectionName(req.SectionName)
+		sn := v1.SectionName(req.SectionName)
 		sectionName = &sn
 	}
 	httpRoute.Spec.Hostnames = hosts
-	httpRoute.Spec.ParentRefs = []v1beta1.ParentReference{{
-		Name:        v1beta1.ObjectName(req.GatewayName),
+	httpRoute.Spec.ParentRefs = []v1.ParentReference{{
+		Name:        v1.ObjectName(req.GatewayName),
 		Namespace:   &gatewayNamespace,
 		SectionName: sectionName,
 	}}

@@ -2,9 +2,17 @@ package apigateway
 
 import (
 	"fmt"
+	v13 "github.com/cert-manager/cert-manager/pkg/apis/acme/v1"
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	v12 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"strings"
+	"time"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
@@ -120,7 +128,14 @@ func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 // GetHTTPAPIRoute -
 func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-	var resp = make([]*v2.ApisixRouteHTTP, 0)
+
+	type routeResponse struct {
+		*v2.ApisixRouteHTTP
+		Enabled     bool   `json:"enabled"`
+		RegionAppID string `json:"region_app_id"`
+	}
+
+	var resp = make([]*routeResponse, 0)
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	appID := r.URL.Query().Get("appID")
@@ -142,6 +157,7 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		labels := v.Labels
 		service_alias := ""
 		regionAppID := ""
+		enabled := false // Default to enabled if not specified
 		for labelK, labelV := range labels {
 			if labelV == "service_alias" {
 				service_alias = service_alias + "-" + labelK
@@ -149,9 +165,16 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			if labelK == "app_id" {
 				regionAppID = labelV
 			}
+			if labelK == "cert-manager-enabled" {
+				enabled = labelV == "true"
+			}
 		}
 		httpRoute.Name = regionAppID + "|" + v.Name + "|" + service_alias
-		resp = append(resp, httpRoute)
+		resp = append(resp, &routeResponse{
+			ApisixRouteHTTP: httpRoute,
+			Enabled:         enabled,
+			RegionAppID:     regionAppID,
+		})
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -539,4 +562,262 @@ func removeLeadingDigits(name string) string {
 
 	// 移除最后一个部分并重新拼接
 	return strings.Join(parts[:len(parts)-1], "-")
+}
+
+// CreateCertManager creates cert-manager resources and updates apisix route labels
+func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	// Parse request body
+	var req struct {
+		RouteName string   `json:"route_name"`
+		Domains   []string `json:"domains"`
+		AppID     string   `json:"app_id"`
+	}
+	if err := httputil.ReadEntity(r, &req); err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	resourceLabel := make(map[string]string)
+	resourceLabel["app_id"] = req.AppID
+	// Validate request
+	if len(req.Domains) == 0 {
+		httputil.ReturnError(r, w, 400, "domains cannot be empty")
+		return
+	}
+	req.RouteName = removeLeadingDigits(req.RouteName)
+	cert := &cmapi.Certificate{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      req.RouteName,
+			Namespace: tenant.Namespace,
+			Labels:    resourceLabel,
+		},
+		Spec: cmapi.CertificateSpec{
+			DNSNames:   req.Domains,
+			SecretName: req.RouteName,
+			IssuerRef: v12.ObjectReference{
+				Kind: "ClusterIssuer",
+				Name: "letsencrypt-http",
+			},
+		},
+	}
+
+	// Create Certificate using controller-runtime client
+	scheme := runtime.NewScheme()
+	_ = cmapi.AddToScheme(scheme)
+	kubeConfig := config.GetConfigOrDie()
+	k8sClient, err := client.New(kubeConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		logrus.Errorf("failed to create k8s client: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create k8s client: %v", err))
+		return
+	}
+
+	// Create Certificate
+	err = k8sClient.Create(r.Context(), cert)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		logrus.Errorf("create certificate error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("create certificate error: %v", err))
+		return
+	}
+
+	// Create ApisixTls resource
+	apisixTls := &v2.ApisixTls{
+		TypeMeta: v1.TypeMeta{
+			Kind:       util.ApisixTLS,
+			APIVersion: util.APIVersion,
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      req.RouteName,
+			Namespace: tenant.Namespace,
+			Labels:    resourceLabel,
+		},
+		Spec: &v2.ApisixTlsSpec{
+			IngressClassName: "apisix",
+			Hosts: func() []v2.HostType {
+				hosts := make([]v2.HostType, len(req.Domains))
+				for i, domain := range req.Domains {
+					hosts[i] = v2.HostType(domain)
+				}
+				return hosts
+			}(),
+			Secret: v2.ApisixSecret{
+				Name:      req.RouteName,
+				Namespace: tenant.Namespace,
+			},
+		},
+	}
+
+	// Create the ApisixTls resource
+	c := k8s.Default().ApiSixClient.ApisixV2()
+	_, err = c.ApisixTlses(tenant.Namespace).Create(r.Context(), apisixTls, v1.CreateOptions{})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		logrus.Errorf("create certificate error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("create certificate error: %v", err))
+		return
+	}
+
+	// Update ApisixRoute with cert-manager label
+	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), req.RouteName, v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("get apisix route error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get apisix route error: %v", err))
+		return
+	}
+
+	// Add or update cert-manager label
+	if route.Labels == nil {
+		route.Labels = make(map[string]string)
+	}
+	route.Labels["cert-manager-enabled"] = "true"
+
+	// Update the route
+	_, err = c.ApisixRoutes(tenant.Namespace).Update(r.Context(), route, v1.UpdateOptions{})
+	if err != nil {
+		logrus.Errorf("update apisix route error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("update apisix route error: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// GetCertManager 获取证书管理器信息
+func (g Struct) GetCertManager(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	// 定义响应结构
+	type CertificateInfo struct {
+		Domains     []string  `json:"domains"`      // 域名列表
+		Status      string    `json:"status"`       // 签发状态
+		ExpiryDate  time.Time `json:"expiry_date"`  // 过期时间
+		AutoRenew   bool      `json:"auto_renew"`   // 自动续签
+		IssueDetail string    `json:"issue_detail"` // 签发详情
+		Name        string    `json:"name"`         // 证书名称
+	}
+
+	// 设置 scheme
+	scheme := runtime.NewScheme()
+	if err := cmapi.AddToScheme(scheme); err != nil {
+		logrus.Errorf("failed to add cert-manager scheme: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to add cert-manager scheme: %v", err))
+		return
+	}
+	// 添加 ACME scheme
+	if err := v13.AddToScheme(scheme); err != nil {
+		logrus.Errorf("failed to add acme scheme: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to add acme scheme: %v", err))
+		return
+	}
+
+	// 创建 k8s 客户端
+	kubeConfig := config.GetConfigOrDie()
+	k8sClient, err := client.New(kubeConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		logrus.Errorf("failed to create k8s client: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create k8s client: %v", err))
+		return
+	}
+
+	// 获取 app_id 参数
+	appID := r.URL.Query().Get("region_app_id")
+	if appID == "" {
+		httputil.ReturnError(r, w, 400, "region_app_id is required")
+		return
+	}
+
+	selector, _ := labels.Parse(labels.FormatLabels(map[string]string{
+		"app_id": appID,
+	}))
+
+	// 获取证书列表
+	certList := &cmapi.CertificateList{}
+	err = k8sClient.List(r.Context(), certList, &client.ListOptions{
+		Namespace:     tenant.Namespace,
+		LabelSelector: selector,
+	})
+
+	if err != nil {
+		logrus.Errorf("list certificates error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("list certificates error: %v", err))
+		return
+	}
+
+	// 获取所有的 Challenge 资源
+	challengeList := &v13.ChallengeList{}
+	err = k8sClient.List(r.Context(), challengeList, &client.ListOptions{
+		Namespace: tenant.Namespace,
+	})
+	if err != nil {
+		logrus.Errorf("list challenges error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("list challenges error: %v", err))
+		return
+	}
+
+	// 创建 Challenge 映射表
+	challengeMap := make(map[string]*v13.Challenge)
+	for i := range challengeList.Items {
+		challenge := &challengeList.Items[i]
+		// 提取基础名称（去除后缀）
+		baseName := extractBaseName(challenge.Name)
+		challengeMap[baseName] = challenge
+	}
+
+	// 构建响应信息列表
+	var certInfoList []CertificateInfo
+	for _, cert := range certList.Items {
+		certInfo := CertificateInfo{
+			Name:      cert.Name,
+			Domains:   cert.Spec.DNSNames,
+			AutoRenew: true, // cert-manager 默认会自动续签
+		}
+
+		// 获取证书状态
+		if len(cert.Status.Conditions) > 0 {
+			for _, condition := range cert.Status.Conditions {
+				if condition.Type == cmapi.CertificateConditionReady {
+					certInfo.Status = string(condition.Status)
+					certInfo.IssueDetail = condition.Message
+					break
+				}
+			}
+		}
+
+		// 获取过期时间
+		if cert.Status.NotAfter != nil {
+			certInfo.ExpiryDate = cert.Status.NotAfter.Time
+		}
+
+		// 查找对应的 Challenge 并补充详细信息
+		if challenge, exists := challengeMap[cert.Name]; exists {
+			// 如果证书未就绪，使用 Challenge 的状态信息
+			if certInfo.Status != "True" {
+				certInfo.IssueDetail = fmt.Sprintf("%s: %s",
+					challenge.Status.State,
+					challenge.Status.Reason)
+
+				// 如果有详细错误信息，添加到详情中
+				if challenge.Status.Processing {
+					certInfo.IssueDetail = fmt.Sprintf("%v\nProcessing: %v", certInfo.IssueDetail, challenge.Status.Presented)
+				}
+			}
+		}
+
+		certInfoList = append(certInfoList, certInfo)
+	}
+
+	httputil.ReturnSuccess(r, w, certInfoList)
+}
+
+// extractBaseName 从 Challenge 名称中提取基础名称
+func extractBaseName(challengeName string) string {
+	// 按照 "-" 分割
+	parts := strings.Split(challengeName, "-")
+
+	// 如果部分数量小于4，返回原始名称
+	if len(parts) < 4 {
+		return challengeName
+	}
+
+	// 移除最后三个部分（数字后缀）
+	return strings.Join(parts[:len(parts)-3], "-")
 }

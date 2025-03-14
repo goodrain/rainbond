@@ -364,8 +364,8 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 		tr, _ := resources[tenantID]
 		if tr != nil {
 			result[tenantID]["service_running_num"] = tr.RunningAppNum
-			result[tenantID]["cpu"] = tr.CpuRequest
-			result[tenantID]["memory"] = tr.MemoryRequest
+			result[tenantID]["cpu"] = tr.CpuLimit
+			result[tenantID]["memory"] = tr.MemoryLimit
 			result[tenantID]["app_running_num"] = tr.RunningApplications
 		}
 

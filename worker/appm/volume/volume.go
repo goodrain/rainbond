@@ -51,7 +51,8 @@ func NewVolumeManager(as *v1.AppService,
 	version *dbmodel.VersionInfo,
 	envs []corev1.EnvVar,
 	envVarSecrets []*corev1.Secret,
-	dbmanager db.Manager) Volume {
+	dbmanager db.Manager,
+	tsmr bool) Volume {
 	var v Volume
 	volumeType := ""
 	if serviceVolume != nil {
@@ -82,6 +83,8 @@ func NewVolumeManager(as *v1.AppService,
 		v = new(LocalVolume)
 	case dbmodel.PluginStorageType.String():
 		v = new(PluginStorageVolume)
+	case dbmodel.VolcengineType.String():
+		v = new(VolcengineVolume)
 	default:
 		logrus.Warnf("other volume type[%s]", volumeType)
 		if serviceMountR != nil {
@@ -89,6 +92,9 @@ func NewVolumeManager(as *v1.AppService,
 		} else {
 			v = new(OtherVolume)
 		}
+	}
+	if tsmr {
+		v = new(ShareFileVolume)
 	}
 	v.setBaseInfo(as, serviceVolume, serviceMountR, version, dbmanager)
 	return v

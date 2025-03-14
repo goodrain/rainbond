@@ -147,9 +147,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 		if err = r.Client.List(ctx, &services, &client.ListOptions{LabelSelector: selector}); err != nil {
 			return commonResult, nil
 		}
-		log.Infof("list component service success, size:%d", len(services.Items))
+		log.Debugf("list component service success, size:%d", len(services.Items))
 		if len(services.Items) == 0 {
-			log.Warning("component service is empty")
+			log.Debugf("component service is empty")
 			return commonResult, nil
 		}
 

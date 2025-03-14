@@ -92,11 +92,14 @@ func NewMasterController(store store.Storer) (*Controller, error) {
 	rainbondssscProvisioner := provider.NewRainbondssscProvisioner()
 	//statefulset local controller
 	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(k8s.Default().Clientset, store)
+	//volcengine nas controller
+	//volcengineNasProvisioner := provider.NewVolcengineNasProvisioner()
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
 	pc := controller.NewProvisionController(map[string]controller.Provisioner{
 		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
+		//volcengineNasProvisioner.Name(): volcengineNasProvisioner,
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 

@@ -17,6 +17,11 @@ func Routes() chi.Router {
 		r.Get("/", controller.GetManager().GetHTTPAPIRoute)
 		r.Post("/", controller.GetManager().CreateHTTPAPIRoute)
 		r.Delete("/{name}", controller.GetManager().DeleteHTTPAPIRoute)
+
+		//自动化签发证书
+		r.Post("/cert-manager", controller.GetManager().CreateCertManager)
+		r.Get("/cert-manager", controller.GetManager().GetCertManager)
+
 	})
 
 	// 关于路由的接口

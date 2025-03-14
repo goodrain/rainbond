@@ -298,6 +298,16 @@ func handleFileORYamlToObject(fileName string, yamlFileBytes []byte, config *res
 			continue
 		}
 		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
+		if gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" && gvk.Kind != "Deployment" && gvk.Kind != "StatefulSet" {
+			errMsg := fmt.Sprintf("无效的资源类型: %s. 只允许 ConfigMap、Secret、Deployment 和 StatefulSet.", gvk.Kind)
+			logrus.Errorf(errMsg)
+			fileBuildResourceList = append(fileBuildResourceList, apimodel.K8sResourceObject{
+				FileName:       fileName,
+				BuildResources: nil,
+				Error:          errMsg,
+			})
+			continue
+		}
 		buildResourceList = append(buildResourceList, apimodel.BuildResource{
 			Resource:      unstructuredObj,
 			State:         apimodel.CreateError,

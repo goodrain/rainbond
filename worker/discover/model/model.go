@@ -393,9 +393,10 @@ type GroupStopTaskBody struct {
 
 // ServiceGCTaskBody holds the request body to execute service gc task.
 type ServiceGCTaskBody struct {
-	TenantID  string   `json:"tenant_id"`
-	ServiceID string   `json:"service_id"`
-	EventIDs  []string `json:"event_ids"`
+	TenantID     string   `json:"tenant_id"`
+	ServiceID    string   `json:"service_id"`
+	EventIDs     []string `json:"event_ids"`
+	ServiceAlias string   `json:"service_alias"`
 }
 
 // DeleteTenantTaskBody -
