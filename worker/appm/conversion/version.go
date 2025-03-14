@@ -448,7 +448,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	})
 
 	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
-	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
+	logrus.Debugf("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
 
 	//set relation app outer env
 	var relationIDs []string
@@ -724,7 +724,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		return nil, err
 	}
 	for _, v := range vs {
-		vol := volume.NewVolumeManager(as, v, nil, version, envs, secrets, dbmanager)
+		vol := volume.NewVolumeManager(as, v, nil, version, envs, secrets, dbmanager, false)
 		if vol != nil {
 			if err = vol.CreateVolume(define); err != nil {
 				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
@@ -752,7 +752,7 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 				}
 				return nil, fmt.Errorf("service id: %s; volume name: %s; get dep volume: %v", t.DependServiceID, t.VolumeName, err)
 			}
-			vol := volume.NewVolumeManager(as, sv, t, version, envs, secrets, dbmanager)
+			vol := volume.NewVolumeManager(as, sv, t, version, envs, secrets, dbmanager, true)
 			if vol != nil {
 				if err = vol.CreateDependVolume(define); err != nil {
 					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, t.VolumeName, err.Error())
@@ -786,7 +786,7 @@ func getVolumeClaimTemplate(as *v1.AppService, dbmanager db.Manager) ([]corev1.P
 }
 
 func getENVFromSource(as *v1.AppService, dbmanager db.Manager) ([]corev1.EnvFromSource, error) {
-	logrus.Infof("component getVolumeClaimTemplateYaml")
+	logrus.Debugf("component getVolumeClaimTemplateYaml")
 	envFromAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameENVFromSource)
 	if err != nil {
 		return nil, err
@@ -1523,7 +1523,7 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 	// 解析超分比例
 	overScore := map[string]float64{"CPU": 1.0, "MEMORY": 1.0} // 默认值
 	if err := json.Unmarshal([]byte(OverScoreRate), &overScore); err != nil {
-		fmt.Printf("Error parsing OverScoreRate: %v, using defaults\n", err)
+		logrus.Errorf("Error parsing OverScoreRate: %v, using defaults\n", err)
 	}
 
 	if customResources != nil {
@@ -1553,21 +1553,26 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 			resources = *customResources
 		}
 	}
-
 	// 根据超分比例调整 Requests 和 Limits
 	if cpuRequest, ok := resources.Requests[corev1.ResourceCPU]; ok {
-		adjustedCPURequest := adjustResource(cpuRequest, overScore["CPU"])
+		adjustedCPURequest := adjustResource(cpuRequest, overScore["CPU"], true)
 		resources.Requests[corev1.ResourceCPU] = adjustedCPURequest
 	}
 	if memoryRequest, ok := resources.Requests[corev1.ResourceMemory]; ok {
-		adjustedMemoryRequest := adjustResource(memoryRequest, overScore["MEMORY"])
+		adjustedMemoryRequest := adjustResource(memoryRequest, overScore["MEMORY"], false)
 		resources.Requests[corev1.ResourceMemory] = adjustedMemoryRequest
 	}
 	return resources
 }
 
 // 辅助函数：根据超分比例调整资源值
-func adjustResource(original resource.Quantity, rate float64) resource.Quantity {
+func adjustResource(original resource.Quantity, rate float64, cpu bool) resource.Quantity {
+	if cpu {
+		originalValue := original.MilliValue()
+		adjustedValue := int64(float64(originalValue) * rate)
+		return *resource.NewMilliQuantity(adjustedValue, resource.DecimalSI)
+
+	}
 	originalValue := original.Value()
 	adjustedValue := int64(float64(originalValue) * rate)
 	return *resource.NewQuantity(adjustedValue, original.Format)

@@ -2209,19 +2209,15 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 
 // TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, serviceID string) error {
-	_, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	component, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil && gorm.ErrRecordNotFound == err {
 		logrus.Infof("service[%s] of tenant[%s] do not exist, ignore it", serviceID, tenantID)
 		return nil
 	}
 
-	body, err := s.gcTaskBody(tenantID, serviceID)
+	body, err := s.gcTaskBody(tenantID, serviceID, component.ServiceAlias)
 	if err != nil {
 		return fmt.Errorf("GC task body: %v", err)
-	}
-
-	if err := s.delServiceMetadata(ctx, serviceID); err != nil {
-		return fmt.Errorf("delete service-related metadata: %v", err)
 	}
 
 	// let rbd-chaos remove related persistent data
@@ -2233,6 +2229,10 @@ func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, servi
 		TaskBody: body,
 	}); err != nil {
 		logrus.Warningf("send gc task: %v", err)
+	}
+
+	if err := s.delServiceMetadata(ctx, serviceID); err != nil {
+		return fmt.Errorf("delete service-related metadata: %v", err)
 	}
 
 	return nil
@@ -2347,7 +2347,7 @@ func (s *ServiceAction) deleteThirdComponent(ctx context.Context, component *dbm
 	return nil
 }
 
-func (s *ServiceAction) gcTaskBody(tenantID, serviceID string) (map[string]interface{}, error) {
+func (s *ServiceAction) gcTaskBody(tenantID, serviceID, serviceAlias string) (map[string]interface{}, error) {
 	events, err := db.GetManager().ServiceEventDao().ListByTargetID(serviceID)
 	if err != nil {
 		logrus.Errorf("list events based on serviceID: %v", err)
@@ -2358,9 +2358,10 @@ func (s *ServiceAction) gcTaskBody(tenantID, serviceID string) (map[string]inter
 	}
 
 	return map[string]interface{}{
-		"tenant_id":  tenantID,
-		"service_id": serviceID,
-		"event_ids":  eventIDs,
+		"tenant_id":     tenantID,
+		"service_id":    serviceID,
+		"event_ids":     eventIDs,
+		"service_alias": serviceAlias,
 	}, nil
 }
 

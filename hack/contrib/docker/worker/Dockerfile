@@ -1,4 +1,4 @@
-FROM rainbond/golang:1.19-alpine as compile
+FROM rainbond/golang:1.23-alpine as compile
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY

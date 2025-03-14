@@ -259,7 +259,18 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			Resource: &unstructuredObj,
 			Dri:      dri,
 		}
-		buildResourceList = append(buildResourceList, br)
+		// 在解码资源后，处理之前添加检查
+		if gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" {
+			errMsg := fmt.Sprintf("无效的资源类型: %s. 只允许 ConfigMap、Secret", gvk.Kind)
+			logrus.Errorf(errMsg)
+			buildResourceList = append(buildResourceList, &model.BuildResource{
+				State:         model.CreateError,
+				ErrorOverview: errMsg,
+			})
+			return buildResourceList
+		} else {
+			buildResourceList = append(buildResourceList, br)
+		}
 	}
 	for _, buildResource := range buildResourceList {
 		unstructuredObj := buildResource.Resource

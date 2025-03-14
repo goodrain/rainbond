@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -88,6 +89,16 @@ func NewInsecure(registryURL, username, password string) (*Registry, error) {
 // This adds in support for OAuth bearer tokens and HTTP Basic auth, and sets up
 // error handling this library relies on.
 func WrapTransport(transport http.RoundTripper, url, username, password string) http.RoundTripper {
+	if transport == nil {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+			ResponseHeaderTimeout: 180 * time.Second,  // 设置响应超时
+			TLSHandshakeTimeout:  60 * time.Second,   // TLS握手超时
+			IdleConnTimeout:      90 * time.Second,   // 空闲连接超时
+		}
+	}
 	tokenTransport := &TokenTransport{
 		Transport: transport,
 		Username:  username,

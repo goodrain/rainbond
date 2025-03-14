@@ -19,10 +19,15 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
+	"strings"
+	"time"
 )
 
 var (
@@ -50,7 +55,15 @@ func (registry *Registry) getJSON(url string, response interface{}) error {
 // next page URL while updating pointed-to variable with a parsed JSON
 // value. When there are no more pages it returns `ErrNoMorePages`.
 func (registry *Registry) getPaginatedJSON(url string, response interface{}) (string, error) {
-	resp, err := registry.Client.Get(url)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	
+	resp, err := registry.Client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +91,16 @@ func getNextLink(resp *http.Response) (string, error) {
 	for _, link := range resp.Header[http.CanonicalHeaderKey("Link")] {
 		parts := nextLinkRE.FindStringSubmatch(link)
 		if parts != nil {
-			return parts[1], nil
+			nextURL := parts[1]
+			// If the URL is relative (starts with '/'), make it absolute using the request URL
+			if strings.HasPrefix(nextURL, "/") {
+				parsedURL, err := url.Parse(resp.Request.URL.String())
+				if err != nil {
+					return "", err
+				}
+				nextURL = fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, nextURL)
+			}
+			return nextURL, nil
 		}
 	}
 	return "", ErrNoMorePages
