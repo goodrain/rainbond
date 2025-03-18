@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	eventutil "github.com/goodrain/rainbond/api/eventlog/util"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/component/filepersistence"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -106,6 +107,36 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 	if tenant != nil {
 		namespace = tenant.Namespace
 	}
+
+	fpConfig := configs.Default().FilePersistenceConfig
+	if fpConfig.FilePersistenceType != "" {
+		//旧逻辑兼容
+		err = filepersistence.Default().FilePersistenceCli.DeleteFileSystem(context.Background(), serviceGCReq.ServiceAlias)
+		if err != nil {
+			logrus.Errorf("delete file system failure: %v", err)
+		}
+		//新逻辑
+		pvcList, err := g.clientset.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), listOpts)
+		if err != nil {
+			logrus.Errorf("list pvc failure: %v", err)
+		}
+		if pvcList != nil && len(pvcList.Items) > 0 {
+			scName := pvcList.Items[0].Name
+			fileSystem, err := filepersistence.Default().FilePersistenceCli.FindFileSystem(nil, scName)
+			if err != nil {
+				logrus.Errorf("find file system failure: %v", err)
+			}
+			if fileSystem != nil {
+				for _, pvc := range pvcList.Items {
+					err = filepersistence.Default().FilePersistenceCli.CancelDirQuota(fileSystem.ID, fmt.Sprintf("/%v", pvc.Spec.VolumeName))
+					if err != nil {
+						logrus.Errorf("cancel dir quota failure: %v", err)
+					}
+				}
+			}
+		}
+	}
+
 	if err := g.clientset.CoreV1().PersistentVolumes().DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("service id: %s; delete a collection for PV: %v", serviceGCReq.ServiceID, err)
 	}

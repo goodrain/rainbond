@@ -3,6 +3,7 @@ package filepersistence
 import (
 	"context"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/volcengine/volcengine-go-sdk/service/filenas"
 )
 
 // FileSystem represents a file storage system
@@ -43,6 +44,9 @@ type InterfaceFilePersistence interface {
 	FindFileSystem(ctx context.Context, name string) (*FileSystem, error)
 	CreateFileSystem(ctx context.Context, opts *CreateFileSystemOptions) (string, error)
 	DeleteFileSystem(ctx context.Context, fileSystemName string) error
+	SetDirQuota(fileSystemId, path string) error
+	CancelDirQuota(fileSystemId, path string) error
+	DescribeDirQuota(fileSystemId, path string) ([]*filenas.DirQuotaInfoForDescribeDirQuotasOutput, error)
 }
 
 // ComponentFilePersistence -

@@ -1983,8 +1983,8 @@ github.com/vmihailenco/tagparser v0.1.1/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgq
 github.com/vmware/govmomi v0.20.3/go.mod h1:URlwyTFZX72RmxtxuaFL2Uj3fD1JTvZdx59bHWk6aFU=
 github.com/volcengine/volc-sdk-golang v1.0.23 h1:anOslb2Qp6ywnsbyq9jqR0ljuO63kg9PY+4OehIk5R8=
 github.com/volcengine/volc-sdk-golang v1.0.23/go.mod h1:AfG/PZRUkHJ9inETvbjNifTDgut25Wbkm2QoYBTbvyU=
-github.com/volcengine/volcengine-go-sdk v1.0.176 h1:PJhKH9e5z/FMVYJthh9jzGYDY7kwnuQXvU+M3701hQg=
-github.com/volcengine/volcengine-go-sdk v1.0.176/go.mod h1:gfEDc1s7SYaGoY+WH2dRrS3qiuDJMkwqyfXWCa7+7oA=
+github.com/volcengine/volcengine-go-sdk v1.0.186 h1:cbGn886BAetn7oM+pQc33hjGcIsciZxV25a7Gq7UOHM=
+github.com/volcengine/volcengine-go-sdk v1.0.186/go.mod h1:gfEDc1s7SYaGoY+WH2dRrS3qiuDJMkwqyfXWCa7+7oA=
 github.com/wercker/stern v0.0.0-20190705090245-4fa46dd6987f/go.mod h1:+72MfLYlS87s4tqq+eVDANQ9GdILz0lkpAFlX/1+WWY=
 github.com/willf/bitset v1.1.3/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/wonderflow/cert-manager-api v1.0.3/go.mod h1:1Se7MSg11/eNYlo4fWv6vOM55/jTBMOzg2DN1kVFiSc=

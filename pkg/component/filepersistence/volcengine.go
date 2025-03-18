@@ -96,8 +96,8 @@ func (p *VolcengineProvider) CreateFileSystem(ctx context.Context, opts *CreateF
 
 	capacityGB := int32(opts.Size / (1024 * 1024 * 1024)) // Convert bytes to GB
 	chargeType := "PayAsYouGo"
-	key := "service_alias"
-	value := opts.Name
+	key := "new_system"
+	value := "true"
 	tagType := "Custom"
 	tags := []*filenas.TagForCreateFileSystemInput{
 		{
@@ -197,4 +197,66 @@ func (p *VolcengineProvider) DeleteFileSystem(ctx context.Context, fileSystemNam
 	}
 
 	return nil
+}
+
+func (p *VolcengineProvider) SetDirQuota(fileSystemId, path string) error {
+	if err := p.init(); err != nil {
+		return err
+	}
+
+	setDirQuotaInput := &filenas.SetDirQuotaInput{
+		FileSystemId:   volcengine.String(fileSystemId),
+		Path:           volcengine.String(path),
+		QuotaType:      volcengine.String("Enforcement"),
+		UserType:       volcengine.String("AllUsers"),
+		FileCountLimit: volcengine.Int64(9999999),
+		SizeLimit:      volcengine.Int64(9999999),
+	}
+
+	// 复制代码运行示例，请自行打印API返回值。
+	_, err := p.client.SetDirQuota(setDirQuotaInput)
+	if err != nil {
+		// 复制代码运行示例，请自行打印API错误信息。
+		return fmt.Errorf("failed to set dir quota: %v", err)
+	}
+	return nil
+}
+
+func (p *VolcengineProvider) CancelDirQuota(fileSystemId, path string) error {
+	if err := p.init(); err != nil {
+		return err
+	}
+	cancelDirQuotaInput := &filenas.CancelDirQuotaInput{
+		FileSystemId: volcengine.String(fileSystemId),
+		Path:         volcengine.String(path),
+		UserType:     volcengine.String("AllUsers"),
+	}
+
+	// 复制代码运行示例，请自行打印API返回值。
+	test, err := p.client.CancelDirQuota(cancelDirQuotaInput)
+	if err != nil {
+		// 复制代码运行示例，请自行打印API错误信息。
+		return fmt.Errorf("failed to cancel dir quota: %v", err)
+	}
+	fmt.Println(test)
+	return nil
+}
+
+func (p *VolcengineProvider) DescribeDirQuota(fileSystemId, path string) ([]*filenas.DirQuotaInfoForDescribeDirQuotasOutput, error) {
+	if err := p.init(); err != nil {
+		return nil, err
+	}
+	describeDirQuotasInput := &filenas.DescribeDirQuotasInput{
+		FileSystemId: volcengine.String(fileSystemId),
+		PageNumber:   volcengine.Int32(1),
+		PageSize:     volcengine.Int32(2000),
+		Path:         &path,
+	}
+
+	// 复制代码运行示例，请自行打印API返回值。
+	dirQuotasList, err := p.client.DescribeDirQuotas(describeDirQuotasInput)
+	if err != nil {
+		return nil, fmt.Errorf("describe to cancel dir quota: %v", err)
+	}
+	return dirQuotasList.DirQuotaInfos, nil
 }

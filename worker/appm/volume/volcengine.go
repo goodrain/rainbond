@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/config/configs"
+	"os"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/component/filepersistence"
@@ -28,10 +29,14 @@ func (v *VolcengineVolume) CreateVolume(define *Define) error {
 	sc, err := k8s.Default().Clientset.StorageV1().StorageClasses().Get(ctx, v.as.ServiceAlias, metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
+			fileSystemName := os.Getenv("FILE_SYSTEM_NAME")
+			if fileSystemName == "" {
+				fileSystemName = "zqh"
+			}
 			fileDomain, err := filepersistence.Default().FilePersistenceCli.CreateFileSystem(
 				ctx,
 				&filepersistence.CreateFileSystemOptions{
-					Name:           v.as.ServiceAlias,
+					Name:           fileSystemName,
 					ProtocolType:   "NFS",
 					StorageType:    "Standard",
 					Size:           100 * 1024 * 1024 * 1024,
@@ -50,7 +55,7 @@ func (v *VolcengineVolume) CreateVolume(define *Define) error {
 			volumeBindingMode := storagev1.VolumeBindingImmediate
 			sc = &storagev1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: v.as.ServiceAlias,
+					Name: fileSystemName,
 				},
 				// 配置成启动参数
 				Provisioner: configs.Default().FilePersistenceConfig.FilePersistenceProvisioner,
@@ -90,6 +95,8 @@ func (v *VolcengineVolume) CreateVolume(define *Define) error {
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy})
+	labels["new_system"] = "true"
+	labels["storage_class_name"] = sc.Name
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	if statefulset == nil {
 		v.svm.AccessMode = "RWX"
