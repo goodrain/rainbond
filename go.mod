@@ -110,7 +110,7 @@ require (
 	github.com/grafana/pyroscope-go v1.2.0
 	github.com/helm/helm v2.17.0+incompatible
 	github.com/openkruise/kruise-api v1.4.0-rc.0
-	github.com/volcengine/volcengine-go-sdk v1.0.176
+	github.com/volcengine/volcengine-go-sdk v1.0.186
 	golang.org/x/sync v0.10.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/metrics v0.26.4
