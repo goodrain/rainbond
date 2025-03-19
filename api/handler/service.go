@@ -66,6 +66,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/util/flushwriter"
@@ -2058,6 +2059,37 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 			}
 			return err
 		}
+
+		if os.Getenv("USE_SAAS") == "true" {
+			// 创建简化版 NetworkPolicy
+			networkPolicy := &networkingv1.NetworkPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      t.Namespace,
+					Namespace: t.Namespace, // 使用创建的命名空间
+				},
+				Spec: networkingv1.NetworkPolicySpec{
+					PodSelector: metav1.LabelSelector{}, // 选择所有Pod
+					Ingress: []networkingv1.NetworkPolicyIngressRule{
+						{
+							From: []networkingv1.NetworkPolicyPeer{
+								{
+									PodSelector: &metav1.LabelSelector{}, // 允许所有Pod的流量
+								},
+							},
+						},
+					},
+					PolicyTypes: []networkingv1.PolicyType{
+						networkingv1.PolicyTypeIngress,
+					},
+				},
+			}
+
+			// 创建 NetworkPolicy
+			if _, err := s.kubeClient.NetworkingV1().NetworkPolicies(t.Namespace).Create(context.Background(), networkPolicy, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
