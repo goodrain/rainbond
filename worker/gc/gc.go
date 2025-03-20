@@ -144,11 +144,6 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 	if err := g.clientset.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("service id: %s; delete a collection for PVC: %v", serviceGCReq.ServiceID, err)
 	}
-
-	err = filepersistence.Default().FilePersistenceCli.DeleteFileSystem(context.Background(), serviceGCReq.ServiceAlias)
-	if err != nil {
-		logrus.Errorf("delete file system failure: %v", err)
-	}
 }
 
 // DelKubernetesObjects deletes all kubernetes objects.

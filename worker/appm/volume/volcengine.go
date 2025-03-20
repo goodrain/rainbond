@@ -33,56 +33,59 @@ func (v *VolcengineVolume) CreateVolume(define *Define) error {
 			if fileSystemName == "" {
 				fileSystemName = "zqh"
 			}
-			fileDomain, err := filepersistence.Default().FilePersistenceCli.CreateFileSystem(
-				ctx,
-				&filepersistence.CreateFileSystemOptions{
-					Name:           fileSystemName,
-					ProtocolType:   "NFS",
-					StorageType:    "Standard",
-					Size:           100 * 1024 * 1024 * 1024,
-					FileSystemType: "Capacity",
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("create file system failure:%v", err)
-			}
 
-			// 创建 StorageClass 设置 1 分钟超时
-			scCtx, scCancel := context.WithTimeout(context.Background(), 1*time.Minute)
-			defer scCancel()
+			sc, err = k8s.Default().Clientset.StorageV1().StorageClasses().Get(ctx, fileSystemName, metav1.GetOptions{})
+			if k8serror.IsNotFound(err) {
+				fileDomain, err := filepersistence.Default().FilePersistenceCli.CreateFileSystem(
+					ctx,
+					&filepersistence.CreateFileSystemOptions{
+						Name:           fileSystemName,
+						ProtocolType:   "NFS",
+						StorageType:    "Standard",
+						Size:           100 * 1024 * 1024 * 1024,
+						FileSystemType: "Capacity",
+					},
+				)
+				if err != nil {
+					return fmt.Errorf("create file system failure:%v", err)
+				}
+				logrus.Infof("create filesystem name %v", sc.Name)
+				// 创建 StorageClass 设置 1 分钟超时
+				scCtx, scCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+				defer scCancel()
 
-			reclaimPolicy := corev1.PersistentVolumeReclaimDelete
-			volumeBindingMode := storagev1.VolumeBindingImmediate
-			sc = &storagev1.StorageClass{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: fileSystemName,
-				},
-				// 配置成启动参数
-				Provisioner: configs.Default().FilePersistenceConfig.FilePersistenceProvisioner,
-				Parameters: map[string]string{
-					"ChargeType":      "PostPaid",
-					"archiveOnDelete": "false",
-					"fsType":          "Capacity",
-					"server":          fileDomain,
-					"subPath":         "/",
-					"volumeAs":        "subpath",
-				},
-				MountOptions: []string{
-					"nolock,proto=tcp,noresvport",
-					"vers=3",
-				},
-				ReclaimPolicy:     &reclaimPolicy,
-				VolumeBindingMode: &volumeBindingMode,
+				reclaimPolicy := corev1.PersistentVolumeReclaimDelete
+				volumeBindingMode := storagev1.VolumeBindingImmediate
+				sc = &storagev1.StorageClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fileSystemName,
+					},
+					// 配置成启动参数
+					Provisioner: configs.Default().FilePersistenceConfig.FilePersistenceProvisioner,
+					Parameters: map[string]string{
+						"ChargeType":      "PostPaid",
+						"archiveOnDelete": "false",
+						"fsType":          "Capacity",
+						"server":          fileDomain,
+						"subPath":         "/",
+						"volumeAs":        "subpath",
+					},
+					MountOptions: []string{
+						"nolock,proto=tcp,noresvport",
+						"vers=3",
+					},
+					ReclaimPolicy:     &reclaimPolicy,
+					VolumeBindingMode: &volumeBindingMode,
+				}
+				logrus.Infof("create sc name %v", sc.Name)
+				sc, err = k8s.Default().Clientset.StorageV1().StorageClasses().Create(scCtx, sc, metav1.CreateOptions{})
+				if err != nil {
+					return fmt.Errorf("create storage class failure: %v", err)
+				}
 			}
-
-			sc, err = k8s.Default().Clientset.StorageV1().StorageClasses().Create(scCtx, sc, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("create storage class failure: %v", err)
-			}
-		} else {
-			return fmt.Errorf("get storage class failure: %v", err)
 		}
 	}
+	logrus.Infof("create pvc use sc name %v", sc.Name)
 	v.as.SharedStorageClass = sc.Name
 	v.svm.VolumeType = sc.Name
 	statefulset := v.as.GetStatefulSet() //有状态组件
