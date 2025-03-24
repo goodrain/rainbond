@@ -21,6 +21,7 @@ func Routes() chi.Router {
 		//自动化签发证书
 		r.Post("/cert-manager", controller.GetManager().CreateCertManager)
 		r.Get("/cert-manager", controller.GetManager().GetCertManager)
+		r.Delete("/cert-manager", controller.GetManager().DeleteCertManager)
 
 	})
 
