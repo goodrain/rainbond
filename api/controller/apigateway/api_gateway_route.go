@@ -813,21 +813,15 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
 	// 解析请求参数
-	var req struct {
-		RouteName string `json:"route_name"`
-	}
-	if err := httputil.ReadEntity(r, &req); err != nil {
-		httputil.ReturnError(r, w, 400, err.Error())
-		return
-	}
+	RouteName := r.URL.Query().Get("route_name")
 
 	// 验证路由名称
-	if req.RouteName == "" {
+	if RouteName == "" {
 		httputil.ReturnError(r, w, 400, "route_name is required")
 		return
 	}
 
-	req.RouteName = removeLeadingDigits(req.RouteName)
+	RouteName = removeLeadingDigits(RouteName)
 
 	// 删除 Certificate 资源
 	scheme := runtime.NewScheme()
@@ -843,7 +837,7 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	// 删除 Certificate
 	cert := &cmapi.Certificate{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      req.RouteName,
+			Name:      RouteName,
 			Namespace: tenant.Namespace,
 		},
 	}
@@ -856,7 +850,7 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 
 	// 删除 ApisixTls 资源
 	c := k8s.Default().ApiSixClient.ApisixV2()
-	err = c.ApisixTlses(tenant.Namespace).Delete(r.Context(), req.RouteName, v1.DeleteOptions{})
+	err = c.ApisixTlses(tenant.Namespace).Delete(r.Context(), RouteName, v1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logrus.Errorf("delete apisix tls error: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete apisix tls error: %v", err))
@@ -864,7 +858,7 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 更新 ApisixRoute，移除 cert-manager 标签
-	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), req.RouteName, v1.GetOptions{})
+	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), RouteName, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// 如果路由不存在，返回成功
