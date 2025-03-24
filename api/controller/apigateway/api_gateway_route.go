@@ -808,6 +808,90 @@ func (g Struct) GetCertManager(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, certInfoList)
 }
 
+func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
+	// 从上下文中获取租户信息
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	// 解析请求参数
+	var req struct {
+		RouteName string `json:"route_name"`
+	}
+	if err := httputil.ReadEntity(r, &req); err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+
+	// 验证路由名称
+	if req.RouteName == "" {
+		httputil.ReturnError(r, w, 400, "route_name is required")
+		return
+	}
+
+	req.RouteName = removeLeadingDigits(req.RouteName)
+
+	// 删除 Certificate 资源
+	scheme := runtime.NewScheme()
+	_ = cmapi.AddToScheme(scheme)
+	kubeConfig := config.GetConfigOrDie()
+	k8sClient, err := client.New(kubeConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		logrus.Errorf("failed to create k8s client: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create k8s client: %v", err))
+		return
+	}
+
+	// 删除 Certificate
+	cert := &cmapi.Certificate{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      req.RouteName,
+			Namespace: tenant.Namespace,
+		},
+	}
+	err = k8sClient.Delete(r.Context(), cert)
+	if err != nil && !errors.IsNotFound(err) {
+		logrus.Errorf("delete certificate error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete certificate error: %v", err))
+		return
+	}
+
+	// 删除 ApisixTls 资源
+	c := k8s.Default().ApiSixClient.ApisixV2()
+	err = c.ApisixTlses(tenant.Namespace).Delete(r.Context(), req.RouteName, v1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logrus.Errorf("delete apisix tls error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete apisix tls error: %v", err))
+		return
+	}
+
+	// 更新 ApisixRoute，移除 cert-manager 标签
+	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), req.RouteName, v1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// 如果路由不存在，返回成功
+			httputil.ReturnSuccess(r, w, nil)
+			return
+		}
+		logrus.Errorf("get apisix route error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get apisix route error: %v", err))
+		return
+	}
+
+	// 移除 cert-manager 标签
+	if route.Labels != nil {
+		delete(route.Labels, "cert-manager-enabled")
+
+		// 更新路由
+		_, err = c.ApisixRoutes(tenant.Namespace).Update(r.Context(), route, v1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("update apisix route error: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("update apisix route error: %v", err))
+			return
+		}
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 // extractBaseName 从 Challenge 名称中提取基础名称
 func extractBaseName(challengeName string) string {
 	// 按照 "-" 分割
