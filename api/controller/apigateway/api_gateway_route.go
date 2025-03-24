@@ -27,7 +27,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -562,6 +565,41 @@ func removeLeadingDigits(name string) string {
 
 	// 移除最后一个部分并重新拼接
 	return strings.Join(parts[:len(parts)-1], "-")
+}
+
+func (g Struct) CheckCertManager(w http.ResponseWriter, r *http.Request) {
+	// 创建 Kubernetes 客户端
+	kubeConfig := config.GetConfigOrDie()
+	apiextensionsClient, err := clientset.NewForConfig(kubeConfig)
+	if err != nil {
+		logrus.Errorf("failed to create apiextensions client: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create apiextensions client: %v", err))
+		return
+	}
+
+	// 检查 certificates.cert-manager.io CRD 是否存在
+	crdName := "certificates.cert-manager.io"
+	_, err = apiextensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(r.Context(), crdName, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			// CRD 不存在
+			httputil.ReturnSuccess(r, w, map[string]interface{}{
+				"exists":  false,
+				"message": "Certificate CRD not found. cert-manager may not be installed.",
+			})
+			return
+		}
+		// 其他错误
+		logrus.Errorf("error checking Certificate CRD: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("error checking Certificate CRD: %v", err))
+		return
+	}
+
+	// CRD 存在
+	httputil.ReturnSuccess(r, w, map[string]interface{}{
+		"exists":  true,
+		"message": "Certificate CRD exists. cert-manager is installed.",
+	})
 }
 
 // CreateCertManager creates cert-manager resources and updates apisix route labels

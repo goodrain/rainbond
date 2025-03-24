@@ -333,6 +333,7 @@ type GatewayRouteInterface interface {
 	DeleteTCPRoute(w http.ResponseWriter, r *http.Request)
 
 	CreateCertManager(w http.ResponseWriter, r *http.Request)
+	CheckCertManager(w http.ResponseWriter, r *http.Request)
 	GetCertManager(w http.ResponseWriter, r *http.Request)
 	DeleteCertManager(w http.ResponseWriter, r *http.Request)
 }

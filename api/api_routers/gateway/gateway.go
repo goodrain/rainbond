@@ -19,6 +19,7 @@ func Routes() chi.Router {
 		r.Delete("/{name}", controller.GetManager().DeleteHTTPAPIRoute)
 
 		//自动化签发证书
+		r.Get("/cert-manager/check", controller.GetManager().CheckCertManager)
 		r.Post("/cert-manager", controller.GetManager().CreateCertManager)
 		r.Get("/cert-manager", controller.GetManager().GetCertManager)
 		r.Delete("/cert-manager", controller.GetManager().DeleteCertManager)
