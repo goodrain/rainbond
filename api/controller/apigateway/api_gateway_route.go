@@ -569,16 +569,16 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	// Parse request body
 	var req struct {
-		RouteName string   `json:"route_name"`
-		Domains   []string `json:"domains"`
-		AppID     string   `json:"app_id"`
+		RouteName   string   `json:"route_name"`
+		Domains     []string `json:"domains"`
+		RegionAppID string   `json:"region_app_id"`
 	}
 	if err := httputil.ReadEntity(r, &req); err != nil {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
 	resourceLabel := make(map[string]string)
-	resourceLabel["app_id"] = req.AppID
+	resourceLabel["app_id"] = req.RegionAppID
 	// Validate request
 	if len(req.Domains) == 0 {
 		httputil.ReturnError(r, w, 400, "domains cannot be empty")
