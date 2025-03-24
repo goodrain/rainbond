@@ -334,6 +334,7 @@ type GatewayRouteInterface interface {
 
 	CreateCertManager(w http.ResponseWriter, r *http.Request)
 	GetCertManager(w http.ResponseWriter, r *http.Request)
+	DeleteCertManager(w http.ResponseWriter, r *http.Request)
 }
 
 // GatewayServiceInterface api gateway service interface
