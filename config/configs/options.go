@@ -64,10 +64,6 @@ func (c *Config) SetLog() *Config {
 		return c
 	}
 	logrus.SetLevel(level)
-	// 设置日志格式为文本格式
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true, // 显示完整的时间戳
-	})
 
 	return c
 }
