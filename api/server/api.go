@@ -34,6 +34,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
@@ -224,7 +225,9 @@ func (m *Manager) Run() {
 		logrus.Fatal(http.ListenAndServe(m.APIConfig.APIHealthzAddr, healthzRouter))
 		return nil
 	})
-
+	go func() {
+		http.ListenAndServe(":6789", nil)
+	}()
 	// api
 	logrus.Infof("api listen on (HTTP) %s", m.APIConfig.APIAddr)
 	logrus.Fatal(http.ListenAndServe(m.APIConfig.APIAddr, m.r))

@@ -299,7 +299,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 						}
 						event.Message = message
 						event.EndTime = time.Now().Format(time.RFC3339)
-						logrus.Infof("updating event %s's status: %s", eventID, status)
+						logrus.Debugf("updating event %s's status: %s", eventID, status)
 						if err := cdb.GetManager().ServiceEventDao().UpdateModel(event); err != nil {
 							logrus.Errorf("update event status failure %s", err.Error())
 						}

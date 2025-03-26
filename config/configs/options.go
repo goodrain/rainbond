@@ -6,8 +6,10 @@ import (
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"net"
 	"os"
 	"runtime"
+	"strings"
 )
 
 func (c *Config) SetAppName(name string) *Config {
@@ -65,7 +67,82 @@ func (c *Config) SetLog() *Config {
 	}
 	logrus.SetLevel(level)
 
+	// 获取本机 IP 地址
+	ip := "unknown"
+	addrs, err := net.InterfaceAddrs()
+	if err == nil {
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					ip = ipnet.IP.String()
+					break
+				}
+			}
+		}
+	}
+
+	// 设置自定义日志格式
+	logrus.SetFormatter(&customFormatter{
+		textFormatter: logrus.TextFormatter{
+			TimestampFormat: "2006/01/02 15:04:05",
+			FullTimestamp:   true,
+			DisableColors:   false,
+			ForceColors:     true,
+			DisableQuote:    true,
+		},
+		ip:      ip,
+		appName: c.AppName,
+	})
+
 	return c
+}
+
+// customFormatter 自定义日志格式化器
+type customFormatter struct {
+	textFormatter logrus.TextFormatter
+	ip            string
+	appName       string
+}
+
+// Format 实现 Formatter 接口
+func (f *customFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// 获取时间戳
+	timestamp := entry.Time.Format(f.textFormatter.TimestampFormat)
+
+	// 获取日志级别
+	level := strings.ToUpper(entry.Level.String())
+
+	// 构建日志前缀
+	prefix := fmt.Sprintf("%s[%s] ", level, timestamp)
+
+	// 构建元数据部分
+	metadata := fmt.Sprintf("ip=%s module=%s ", f.ip, f.appName)
+
+	// 构建完整日志
+	log := fmt.Sprintf("%s%s%s\n", prefix, metadata, entry.Message)
+
+	return []byte(log), nil
+}
+
+// logHook 自定义日志钩子
+type logHook struct {
+	ip      string
+	appName string
+}
+
+// Levels 实现 Hook 接口
+func (h *logHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+// Fire 实现 Hook 接口
+func (h *logHook) Fire(entry *logrus.Entry) error {
+	if entry.Data == nil {
+		entry.Data = make(logrus.Fields)
+	}
+	entry.Data["ip"] = h.ip
+	entry.Data["module"] = h.appName
+	return nil
 }
 
 // CheckEnv 检测环境变量
