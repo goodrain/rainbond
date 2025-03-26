@@ -44,7 +44,7 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
 	}
-	logrus.Info("init event file plugin save message")
+	logrus.Debugf("init event file plugin save message")
 	filePath := eventutil.EventLogFilePath(m.HomePath)
 	if err := util.CheckAndCreateDir(filePath); err != nil {
 		return err

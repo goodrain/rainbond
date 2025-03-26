@@ -39,7 +39,7 @@ func Go(fun func(ctx context.Context) error, opts ...Option) error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logrus.Errorf("recovered in goroutine:%v", r)
+				logrus.Warning("recovered in goroutine:%v", r)
 			}
 		}()
 		defer wg.Done()
