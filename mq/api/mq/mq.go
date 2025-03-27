@@ -80,6 +80,8 @@ func (e *etcdQueue) Start() error {
 	e.registerTopic(client.BuilderTopic)
 	e.registerTopic(client.WindowsBuilderTopic)
 	e.registerTopic(client.WorkerTopic)
+	e.registerTopic(client.WorkerHealth)
+	e.registerTopic(client.BuilderHealth)
 	logrus.Info("etcd message queue client started success")
 	return nil
 }
