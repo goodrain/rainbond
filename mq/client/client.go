@@ -31,12 +31,14 @@ import (
 
 // BuilderTopic builder for linux
 var BuilderTopic = "builder"
+var BuilderHealth = "builder-health"
 
 // WindowsBuilderTopic builder for windows
 var WindowsBuilderTopic = "windows_builder"
 
 // WorkerTopic worker topic
 var WorkerTopic = "worker"
+var WorkerHealth = "worker-health"
 
 // MQClient mq  client
 type MQClient interface {
