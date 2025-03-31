@@ -25,5 +25,5 @@ func AddFilePersistenceFlags(fs *pflag.FlagSet, fpc *FilePersistenceConfig) {
 	fs.StringVar(&fpc.FilePersistenceSubnetID, "file-persistence-subnet-id", "", "file persistence subnet id")
 	fs.StringVar(&fpc.FilePersistencePermissionGroupID, "file-persistence-permission-group-id", "", "file persistence permission group id")
 	fs.StringVar(&fpc.FilePersistenceProvisioner, "file-persistence-provisioner", "nas.csi.volcengine.com", "file persistence provisioner")
-	fs.StringVar(&fpc.FilePersistenceEnable, "file-persistence-enable", "open", "open or close")
+	fs.StringVar(&fpc.FilePersistenceEnable, "file-persistence-enable", "close", "open or close")
 }
