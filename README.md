@@ -5,54 +5,79 @@
   [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
   ![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
   [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
-
-  <h3>No need to know Kubernetes' cloud native application management platform</h3>
+  <a href="https://twitter.com/intent/follow?screen_name=Rainbond_"><img src="https://img.shields.io/twitter/follow/Rainbond?style=social" alt="follow on Twitter"></a>
+  <a href="https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ"><img src="https://img.shields.io/badge/Slack-blueviolet?logo=slack&amp;logoColor=white"></a>
+  <a href="https://discord.gg/ecnYFsDJ">
+  <img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord" alt="Discord">
+  </a>
+  <h3>Build Enterprise Applications Like Mobile Apps</h3>
 
   [Website](https://www.rainbond.com/en?channel=github) • [Documentation](https://www.rainbond.com/en/docs/?channel=github)
 </div>
 
-## What is Rainbond ?
+## What is Rainbond?
+Rainbond is 100% open-source, offers a serverless experience, and allows you to easily manage containerized applications without needing to understand Kubernetes. It is an integrated application management platform suitable for private deployment.
 
-Rainbond is 100% open-source, offers a serverless experience, and allows you to easily manage containerized applications without needing to understand Kubernetes. It smoothly transitions to Kubernetes and is an integrated application management platform suitable for private deployment.
+🚀 One-line Definition: Rainbond = Heroku-like Experience + Native Kubernetes Support + Self-hosted Capabilities
 
-### Highlights
+## Why Rainbond?
 
-- **No Need to Write Dockerfile and Yaml:** The platform supports automatic recognition of multiple programming languages such as Java, Python, Golang, NodeJS, Php, .NetCore, etc. You can complete the build and deployment through a guided process without having to write Dockerfile and Yaml.
+### Positioning Differences with Mainstream Platforms
+| **Platform Type**      | Representative Products           | Rainbond's Differentiation                    |
+|------------------------|-----------------------------------|-----------------------------------------------|
+| **Developer-friendly PaaS** | Heroku, Vercel           | ▶ Self-hosted Support ▶ Full K8s Compatibility |
+| **K8s Native Tools**   | Rancher, Devtron         | ▶ Application-level Abstraction ▶ Zero YAML Experience ▶ Complex Application Topology ▶ Offline Environment Support |
+| **Self-hosted Solutions** | CapRover, Coolify        | ▶ Enterprise Multi-tenancy ▶ Hybrid Cloud Management |
 
-- **Modular Assembly:** Business components running on Rainbond can be published as reusable application templates. There is a unified component library storage, and you can achieve the accumulation and reuse of business components through modular assembly.
+### 🎯 What Pain Points Does It Solve?
+**Developer Perspective**
+- "I need to deploy a system with 20 microservices, but don't want to study K8s configs for each component"
+- "The configuration differences between production and test environments make every deployment risky"
+- "How to quickly deliver complex systems in customer's offline environment?"
 
-- **One-Click Installation and Upgrade of Applications:** Hundreds of applications out of the box, and various microservices application templates support one-click installation and upgrade.
+**Ops/Platform Admin Perspective**
+- "Need to give developers autonomy while ensuring cluster stability"
+- "Traditional application cloud-native transformation costs too much"
+- "Unified application management across multi/hybrid cloud environments"
 
-- **Comprehensive Observability:** Rainbond provides comprehensive observability, including cluster monitoring, node monitoring, application monitoring, and component monitoring.
+### 🚀 Core Capabilities
 
-- **Application Full Lifecycle Management:** Serverless experience supports full lifecycle management and operation of applications and components, such as startup, shutdown, build, update, automatic scaling, gateway policy management, etc., in a non-intrusive microservices architecture.
+- **Install Enterprise Software Like Mobile Apps**: Through the built-in application marketplace, various published microservice application templates support one-click installation and upgrades, even for systems with 100+ microservices.
 
-### Experience
+- **Containerization Without Dockerfile and YAML**: The platform automatically recognizes multiple development languages like Java, Python, Golang, NodeJS, PHP, .NetCore, etc., completing build and deployment through a wizard-like process without writing Dockerfile or YAML.
 
-1. **Turn Your Code into Cloud-Native Applications Without Modification:** Whether it's a new or existing business, your code can be containerized without modification. You don't need to understand technologies like Docker and Kubernetes to deploy applications, and you get all the features of a cloud-native application.
+- **Full Application Lifecycle Management**: Serverless experience where regular developers can manage and maintain applications and components without learning, including start, stop, build, update, auto-scaling, gateway policy management, etc., with non-invasive microservice architecture.
 
-2. **Ordinary Developers Can Perform Application Operations Without Learning:** Through application-level abstraction, ordinary developers can perform application operations based on their understanding of the application's relevant attributes. They can extend monitoring, performance analysis, logging, security, and other operational capabilities through plugins, eliminating the need for dedicated SREs.
+- **Microservice Modular Assembly**: Business components running on Rainbond support modular dependency orchestration, one-click publishing as reusable application templates, enabling business component accumulation and reuse.
 
-3. **Install Cloud-Native Applications Like Installing Mobile Apps:** Various cloud-native applications are stored in the form of application templates in the application marketplace. When integrated with various infrastructure or cloud resources, applications can be used immediately or installed/upgraded with one click.
+### Who Is It Designed For?
+👩💻 Developer Users
+- Need URL access within 5 minutes from code
+- Want cloud-native capabilities without learning K8s
+- Zero configuration differences between dev and prod environments
 
-4. **One-Click Delivery of Complex Applications to Customer Environments:** Complex applications can be released as application templates. When the customer environment is connected to the internet, you can install and run them with one click. If the customer environment is offline, you can export offline application templates, import them into the customer environment, and install and run them with one click.
+👨💼 Platform Managers
+- Traditional application cloud-native transformation
+- Building internal PaaS platforms
+- Achieving unified hybrid cloud management
 
-## Architecture
-
-![Rainbond-Arch](docs/arch_en.png)
-
-Rainbond can connect to various private clouds, public clouds, Kubernetes, and other underlying infrastructures. It supports user management, multi-tenancy, multi-cluster management, multi-cloud migration, and allocates and manages resources based on applications, achieving application-centric multi-cloud management.
-
-For developers, there is no need to worry about underlying resources and concepts. Rainbond provides an out-of-the-box platform that supports the full lifecycle management of applications, including development, architecture, delivery, and operation.
-
-Rainbond also wraps and abstracts the entire application, defining an abstract application model. This model includes all the runtime definitions required for application execution and isolates them from underlying technologies and concepts. Developers can reuse and share capabilities based on this model, such as one-click publishing, installation, and upgrade of components.
-
-For more detailed information about the Rainbond architecture, please refer to the [Rainbond Design Concept](https://www.rainbond.com/en/docs/quick-start/architecture/design-concept).
+### ✨ Differentiating Highlights Comparison
+| Dimension          | Traditional Approach              | Rainbond Approach                |
+|-------------------|----------------------------------|----------------------------------|
+| **Deployment Complexity** | Requires K8s experts to write YAML | Visual orchestration, auto-generates K8s resources |
+| **Environment Consistency** | Manual maintenance of multiple configs | Environment config templating, one-click deployment |
+| **Delivery Form** | Docs + scripts + manual deployment | Self-contained app template (code + config) |
+| **Skill Requirements** | Need full container/K8s stack skills | Operation interface based on application model abstraction |
 
 ## Getting Started
 
-### Installation
+## Installation
 
+### Minimum Requirements
+- Linux OS (CentOS 7+/Ubuntu 18.04+)
+- 2 CPU cores / 8GB RAM / 50GB disk space
+
+### 3-Minute Quick Installation
 You only need to execute the following command to run a container and quickly experience the full functionality of Rainbond. For more installation options, refer to [Installation and Upgrade](https://www.rainbond.com/en/docs/installation/).
 
 ```bash
@@ -63,23 +88,23 @@ After the command is executed successfully, open a browser and enter `http://<IP
 
 ### Quick Start
 
-Please refer to the [Quick Start](https://www.rainbond.com/en/docs/quick-start/getting-started/?channel=github) documentation.
+Please refer to the [Quick Start](https://www.rainbond.com/en/docs/quick-start/getting-started?channel=github) documentation.
 
 ## Open Source Community
 
-If you encounter any issues while using Rainbond and need help, please refer to the [Community Support](https://www.rainbond.com/en/community/support/).
-
-You can also add the WeChat assistant to join the Rainbond technical discussion group:
-
-<img width="20%" src="docs/wechat.png"/>
+If you encounter any issues while using Rainbond and need help, please refer to the [Community Support](https://www.rainbond.com/en/docs/support?channel=github).
 
 Slack: [Rainbond Slack Channel](https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ)
+
+Twitter: [Rainbond Twitter](https://twitter.com/Rainbond_)
+
+Discord: [Rainbond Discord](https://discord.gg/ecnYFsDJ)
 
 ## Contribution
 
 We welcome contributions and sharing in the Rainbond community in areas such as platform usage experience, standardized applications, and plugin sharing.
 
-If you are a Rainbond user who has a deep understanding of Rainbond and aligns with its technical direction, and you have significant demands within your organization, we welcome you to [contribute to Rainbond](https://www.rainbond.com/en/community/contribution/?channel=github).
+If you are a Rainbond user who has a deep understanding of Rainbond and aligns with its technical direction, and you have significant demands within your organization, we welcome you to [contribute to Rainbond](https://www.rainbond.com/en/docs/contribution?channel=github).
 
 ## Related Projects
 
