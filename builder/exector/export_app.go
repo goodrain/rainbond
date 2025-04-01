@@ -71,7 +71,7 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 
 // Run Run
 func (i *ExportApp) Run(timeout time.Duration) error {
-	//defer os.RemoveAll(i.SourceDir)
+	defer os.RemoveAll(i.SourceDir)
 	// disable Md5 checksum
 	// if ok := i.isLatest(); ok {
 	// 	i.updateStatus("success")
@@ -116,6 +116,15 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 			return err
 		}
 	} else if i.Format == "helm-chart" {
+		exportPath := path.Join(i.SourceDir, fmt.Sprintf("%s-%s-helm", ram.AppName, ram.AppVersion))
+		helmChartPath := path.Join(exportPath, ram.AppName)
+		// 检查目录是否存在，不存在则创建
+		if err := os.MkdirAll(helmChartPath, 0755); err != nil {
+			logrus.Errorf("create helm chart directory failure: %s", err.Error())
+			i.updateStatus("failed", "")
+			return err
+		}
+
 		re, err = i.exportHelmChart(*ram)
 		if err != nil {
 			logrus.Errorf("export helm chart package failure %s", err.Error())
