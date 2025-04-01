@@ -71,7 +71,7 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 
 // Run Run
 func (i *ExportApp) Run(timeout time.Duration) error {
-	defer os.RemoveAll(i.SourceDir)
+	//defer os.RemoveAll(i.SourceDir)
 	// disable Md5 checksum
 	// if ok := i.isLatest(); ok {
 	// 	i.updateStatus("success")
