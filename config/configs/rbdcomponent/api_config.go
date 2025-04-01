@@ -55,7 +55,7 @@ func AddAPIFlags(fs *pflag.FlagSet, apic *APIConfig) {
 	fs.StringVar(&apic.LicensePath, "license-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
 	fs.StringVar(&apic.LicSoPath, "license-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
 	fs.StringVar(&apic.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard."+utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)+":443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
-	fs.StringVar(&apic.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
+	fs.StringVar(&apic.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:latest", "use shell image")
 	fs.StringSliceVar(&apic.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
 	fs.StringSliceVar(&apic.EventLogEndpoints, "event-log", []string{"local=>rbd-eventlog:6363"}, "event log websocket address")
 }

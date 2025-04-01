@@ -3,6 +3,15 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/rbdutil"
 	"github.com/goodrain/rainbond/api/client/prometheus"
@@ -28,7 +37,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/sirupsen/logrus"
-	"io"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,15 +51,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
-	"net/http"
-	"net/url"
-	"os"
-	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -576,20 +577,6 @@ func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]s
 // CreateShellPod -
 func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err error) {
 	ctx := context.Background()
-	volumes := []corev1.Volume{
-		{
-			Name: "grctl-config",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-	}
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "grctl-config",
-			MountPath: "/root/.rbd",
-		},
-	}
 	labels := make(map[string]string)
 	labels["app.kubernetes.io/part-of"] = "shell-tool"
 	shellPod := &corev1.Pod{
@@ -613,22 +600,8 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 					StdinOnce:       true,
 					Image:           c.grctlImage,
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					VolumeMounts:    volumeMounts,
 				},
 			},
-			InitContainers: []corev1.Container{
-				{
-					Name:            "init-shell",
-					TTY:             true,
-					Stdin:           true,
-					StdinOnce:       true,
-					Image:           c.grctlImage,
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"grctl", "install"},
-					VolumeMounts:    volumeMounts,
-				},
-			},
-			Volumes: volumes,
 		},
 	}
 	pod, err = c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Create(ctx, shellPod, metav1.CreateOptions{})
