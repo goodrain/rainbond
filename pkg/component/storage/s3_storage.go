@@ -445,7 +445,7 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 
 func (s3s *S3Storage) DownloadFileToDir(srcFile, dstDir string) error {
 	// 解析 S3 路径
-	bucketName, key, err := s3s.ParseDirPath(srcFile, false)
+	bucketName, key, err := s3s.ParseDirPath(srcFile, true)
 	if err != nil {
 		return fmt.Errorf("解析源路径失败: %v", err)
 	}

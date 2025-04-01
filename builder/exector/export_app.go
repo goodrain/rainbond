@@ -78,11 +78,11 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 	// 	return nil
 	// }
 	// Delete the old application group directory and then regenerate the application package
-	err := storage.Default().StorageCli.DownloadDirToDir(i.SourceDir, i.SourceDir)
-	if err != nil {
-		return err
-	}
 	if i.Format != "helm-chart" {
+		err := storage.Default().StorageCli.DownloadDirToDir(i.SourceDir, i.SourceDir)
+		if err != nil {
+			return err
+		}
 		if err := i.CleanSourceDir(); err != nil {
 			return err
 		}
@@ -265,16 +265,16 @@ func (i *ExportApp) CleanSourceDir() error {
 	return nil
 }
 func (i *ExportApp) parseRAM() (*ramv1alpha1.RainbondApplicationConfig, error) {
+	err := storage.Default().StorageCli.DownloadFileToDir(fmt.Sprintf("%s/metadata.json", i.SourceDir), i.SourceDir)
+	if err != nil {
+		i.Logger.Error("导出应用失败，上传 metadata.json 失败", map[string]string{"step": "upload-metadata", "status": "failure"})
+		logrus.Error("failed to upload metadata file: ", err)
+		return nil, err
+	}
 	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
 	if err != nil {
 		i.Logger.Error("导出应用失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
 		logrus.Error("Failed to read metadata file: ", err)
-		return nil, err
-	}
-	err = storage.Default().StorageCli.UploadFileToFile(fmt.Sprintf("%s/metadata.json", i.SourceDir), fmt.Sprintf("%s/metadata.json", i.SourceDir), nil)
-	if err != nil {
-		i.Logger.Error("导出应用失败，上传 metadata.json 失败", map[string]string{"step": "upload-metadata", "status": "failure"})
-		logrus.Error("failed to upload metadata file: ", err)
 		return nil, err
 	}
 	var ram ramv1alpha1.RainbondApplicationConfig
