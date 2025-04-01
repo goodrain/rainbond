@@ -225,7 +225,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 		allTmpDir := fmt.Sprintf("/grdata/tmp/%s", app.ServiceID)
 		if exist, _ := util.FileExists(allDataFilePath); exist {
 			logrus.Infof("unzip all data from %s to %s", allDataFilePath, allTmpDir)
-			if err := util.Unzip(allDataFilePath, allTmpDir, false); err != nil {
+			if err := util.Unzip(allDataFilePath, allTmpDir); err != nil {
 				logrus.Errorf("unzip all data file failure %s", err.Error())
 			} else {
 				allDataRestore = true
@@ -240,7 +240,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
 				tmpDir = fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
 				logrus.Infof("unzip %s to %s", dstDir, tmpDir)
-				if err := util.Unzip(dstDir, tmpDir, false); err != nil {
+				if err := util.Unzip(dstDir, tmpDir); err != nil {
 					if !strings.Contains(err.Error(), "no such file") {
 						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
@@ -749,7 +749,7 @@ func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
 	}
 	logrus.Debugf("successfully downloading backup file: %s", disDir)
 
-	err = util.Unzip(disDir, b.cacheDir, false)
+	err = util.Unzip(disDir, b.cacheDir)
 	if err != nil {
 		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("error unzipping backup file: %v", err)
