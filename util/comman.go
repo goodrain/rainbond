@@ -539,7 +539,8 @@ func UnTar(archive, target string, zip bool) error {
 }
 
 // Unzip archive file to target dir
-func Unzip(archive, target string, currentDirectory bool) error {
+// currentDirectory 参数已被忽略，函数会自动检测 zip 包结构
+func Unzip(archive, target string) error {
 	reader, err := zip.OpenDirectReader(archive)
 	if err != nil {
 		return fmt.Errorf("error opening archive: %v", err)
@@ -547,26 +548,71 @@ func Unzip(archive, target string, currentDirectory bool) error {
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
 	}
+
+	// 自动检测 zip 包结构
+	hasCommonRoot, commonRoot := detectZipStructure(reader.File)
+
+	// 输出调试信息
+	fmt.Printf("Zip 结构检测结果: hasCommonRoot=%v, commonRoot=%s\n", hasCommonRoot, commonRoot)
+
+	// 创建一个临时目录用于解压
+	tempDir := filepath.Join(target, ".temp_extract")
+	defer os.RemoveAll(tempDir) // 确保临时目录最终被清理
+
+	// 创建临时目录
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("error creating temp directory: %v", err)
+	}
+
+	// 过滤掉 macOS 特定的目录
 	for _, file := range reader.File {
+		// 跳过 __MACOSX 目录
+		if strings.HasPrefix(file.Name, "__MACOSX") || strings.Contains(file.Name, "/__MACOSX/") {
+			continue
+		}
+
 		run := func() error {
-			path := filepath.Join(target, file.Name)
-			if currentDirectory {
-				p := strings.Split(file.Name, "/")[1:]
-				path = filepath.Join(target, strings.Join(p, "/"))
+			// 根据检测结果智能处理路径
+			var path string
+			if hasCommonRoot && commonRoot != "" {
+				// 如果存在公共根目录，自动跳过第一级目录
+				p := strings.Split(file.Name, "/")
+				if len(p) > 1 && p[0] == commonRoot {
+					path = filepath.Join(tempDir, strings.Join(p[1:], "/"))
+				} else {
+					path = filepath.Join(tempDir, file.Name)
+				}
+			} else {
+				// 不存在公共根目录，直接使用原始路径
+				path = filepath.Join(tempDir, file.Name)
 			}
+
+			// 安全检查：防止路径遍历攻击
+			if !strings.HasPrefix(filepath.Clean(path), target) {
+				return fmt.Errorf("invalid file path: %s (path traversal attempt)", file.Name)
+			}
+
 			if file.FileInfo().IsDir() {
 				os.MkdirAll(path, file.Mode())
 				if file.Comment != "" && strings.Contains(file.Comment, "/") {
 					guid := strings.Split(file.Comment, "/")
 					if len(guid) == 2 {
-						uid, _ := strconv.Atoi(guid[0])
-						gid, _ := strconv.Atoi(guid[1])
-						if err := os.Chown(path, uid, gid); err != nil {
-							return fmt.Errorf("error changing owner: %v", err)
+						uid, err1 := strconv.Atoi(guid[0])
+						gid, err2 := strconv.Atoi(guid[1])
+						if err1 == nil && err2 == nil {
+							if err := os.Chown(path, uid, gid); err != nil {
+								return fmt.Errorf("error changing owner: %v", err)
+							}
 						}
 					}
 				}
 				return nil
+			}
+
+			// 确保目标目录存在
+			dir := filepath.Dir(path)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("error creating directory: %v", err)
 			}
 
 			fileReader, err := file.Open()
@@ -586,10 +632,12 @@ func Unzip(archive, target string, currentDirectory bool) error {
 			if file.Comment != "" && strings.Contains(file.Comment, "/") {
 				guid := strings.Split(file.Comment, "/")
 				if len(guid) == 2 {
-					uid, _ := strconv.Atoi(guid[0])
-					gid, _ := strconv.Atoi(guid[1])
-					if err := os.Chown(path, uid, gid); err != nil {
-						return err
+					uid, err1 := strconv.Atoi(guid[0])
+					gid, err2 := strconv.Atoi(guid[1])
+					if err1 == nil && err2 == nil {
+						if err := os.Chown(path, uid, gid); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -600,7 +648,111 @@ func Unzip(archive, target string, currentDirectory bool) error {
 		}
 	}
 
+	// 检查临时目录中是否只有一个子目录，如果是，则将其内容移动到目标目录
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		return fmt.Errorf("error reading temp directory: %v", err)
+	}
+
+	// 过滤掉隐藏文件和目录
+	var visibleEntries []os.DirEntry
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".") {
+			visibleEntries = append(visibleEntries, entry)
+		}
+	}
+
+	// 如果只有一个可见的子目录，将其内容移动到目标目录
+	if len(visibleEntries) == 1 && visibleEntries[0].IsDir() {
+		singleDir := filepath.Join(tempDir, visibleEntries[0].Name())
+		fmt.Printf("检测到单一目录: %s，将其内容移动到目标目录\n", visibleEntries[0].Name())
+
+		// 移动单一目录中的内容到目标目录
+		return moveDirectoryContents(singleDir, target)
+	}
+
+	// 如果不是单一目录，则将临时目录中的所有内容移动到目标目录
+	return moveDirectoryContents(tempDir, target)
+}
+
+// moveDirectoryContents 将源目录中的所有内容移动到目标目录
+func moveDirectoryContents(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("error reading directory %s: %v", src, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		// 如果目标已存在，先删除
+		if _, err := os.Stat(dstPath); err == nil {
+			if err := os.RemoveAll(dstPath); err != nil {
+				return fmt.Errorf("error removing existing path %s: %v", dstPath, err)
+			}
+		}
+
+		if entry.IsDir() {
+			// 创建目标目录
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return fmt.Errorf("error creating directory %s: %v", dstPath, err)
+			}
+
+			// 递归移动目录内容
+			if err := moveDirectoryContents(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			// 移动文件
+			if err := os.Rename(srcPath, dstPath); err != nil {
+				// 如果跨设备移动失败，尝试复制然后删除
+				if err := CopyFile(srcPath, dstPath); err != nil {
+					return fmt.Errorf("error copying file %s to %s: %v", srcPath, dstPath, err)
+				}
+			}
+		}
+	}
+
 	return nil
+}
+
+// detectZipStructure 检测 zip 包的结构
+// 返回是否有公共根目录以及公共根目录名称
+func detectZipStructure(files []*zip.File) (bool, string) {
+	if len(files) == 0 {
+		return false, ""
+	}
+
+	// 检查所有文件是否都有共同的根目录
+	var commonRoot string
+	hasCommonRoot := true
+
+	for i, file := range files {
+		parts := strings.Split(file.Name, "/")
+		if len(parts) == 0 {
+			continue
+		}
+
+		// 第一个非空文件名，用于初始化 commonRoot
+		if i == 0 || commonRoot == "" {
+			commonRoot = parts[0]
+			continue
+		}
+
+		// 如果当前文件的根目录与公共根目录不同，则不存在公共根目录
+		if parts[0] != commonRoot {
+			hasCommonRoot = false
+			break
+		}
+	}
+
+	// 如果只有一个文件，且没有目录结构，则认为没有公共根目录
+	if len(files) == 1 && !strings.Contains(files[0].Name, "/") {
+		hasCommonRoot = false
+	}
+
+	return hasCommonRoot, commonRoot
 }
 
 // CopyFile copy source file to target

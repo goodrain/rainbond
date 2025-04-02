@@ -19,19 +19,23 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/bitly/go-simplejson"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"net/http"
-	"strings"
-
-	"github.com/bitly/go-simplejson"
-	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 )
 
 // AddCodeCheck code check
@@ -149,9 +153,49 @@ func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 
 // CheckHealth Health probe
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
-	healthInfo := discover.HealthCheck()
-	if healthInfo["status"] != "health" {
-		httputil.ReturnError(r, w, 400, "builder service unusual")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	mqClient := mq.Default().MqClient
+	if mqClient == nil {
+		httputil.ReturnError(r, w, 500, "task queue client not available")
+		return
 	}
-	httputil.ReturnSuccess(r, w, healthInfo)
+	taskBody, _ := json.Marshal("health check")
+	err := mqClient.SendBuilderTopic(client.TaskStruct{
+		Topic:    client.BuilderHealth,
+		TaskType: "check_builder_health",
+		TaskBody: taskBody,
+		Arch:     "test",
+	})
+	if err != nil {
+		logrus.Errorf("builder check send builder topic failure: %v", err)
+		httputil.ReturnError(r, w, 500, "health check error")
+		return
+	}
+	// 等待一小段时间确保消息有时间被发送
+	hostName, _ := os.Hostname()
+	// 接收健康检测任务
+	dequeueReq := &pb.DequeueRequest{
+		Topic:      client.BuilderHealth,
+		ClientHost: hostName + "health-chaos",
+	}
+	for i := 0; i < 3; i++ {
+		time.Sleep(2 * time.Second)
+		msg, err := mqClient.Dequeue(ctx, dequeueReq)
+		if err != nil {
+			logrus.Errorf("failed to dequeue health check message: %v", err)
+			continue
+		}
+
+		if msg == nil || len(msg.TaskBody) == 0 {
+			continue
+		}
+		healthInfo := map[string]string{
+			"status":  "health",
+			"message": "builder service is healthy",
+		}
+		httputil.ReturnSuccess(r, w, healthInfo)
+		return
+	}
+	httputil.ReturnError(r, w, 500, "health check error")
 }

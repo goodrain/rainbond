@@ -237,7 +237,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
 			}
 		case ".zip":
-			if err := util.Unzip(filePath, buildInfo.GetCodeHome(), true); err != nil {
+			if err := util.Unzip(filePath, buildInfo.GetCodeHome()); err != nil {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
 			}
@@ -278,7 +278,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
 			}
 		case ".zip":
-			if err := util.Unzip(fileName, buildInfo.GetCodeHome(), false); err != nil {
+			if err := util.Unzip(fileName, buildInfo.GetCodeHome()); err != nil {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
 			}

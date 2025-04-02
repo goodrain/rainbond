@@ -168,7 +168,7 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 	defer slave.Close()
 	opts := []webtty.Option{
 		webtty.WithWindowTitle([]byte(ip)),
-		webtty.WithReconnect(10),
+		webtty.WithReconnect(60),
 		webtty.WithPermitWrite(),
 	}
 	// create web tty and run

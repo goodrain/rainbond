@@ -145,7 +145,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 	tailLines := int64(lines)
 	container := ""
 	if strings.HasPrefix(podName, "rbd-gateway") {
-		container = "ingress-apisix"
+		container = "apisix"
 	}
 
 	// Initialize flusher before processing logs

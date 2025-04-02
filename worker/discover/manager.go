@@ -20,6 +20,7 @@ package discover
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
@@ -145,5 +146,51 @@ func (t *TaskManager) Stop() error {
 
 // HealthCheck health check
 func HealthCheck() map[string]string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	mqClient := mq.Default().MqClient
+	if mqClient == nil {
+		healthStatus["status"] = "un_health"
+		healthStatus["info"] = "worker service un_health"
+		return healthStatus
+	}
+	taskBody, _ := json.Marshal("health check")
+	err := mqClient.SendBuilderTopic(client.TaskStruct{
+		Topic:    client.WorkerHealth,
+		TaskType: "check_worker_health",
+		TaskBody: taskBody,
+		Arch:     "test",
+	})
+	if err != nil {
+		logrus.Errorf("worker check send worker topic failure: %v", err)
+		healthStatus["status"] = "un_health"
+		healthStatus["info"] = "worker service un_health"
+		return healthStatus
+	}
+	// 等待一小段时间确保消息有时间被发送
+	hostName, _ := os.Hostname()
+	// 接收健康检测任务
+	dequeueReq := &pb.DequeueRequest{
+		Topic:      client.WorkerHealth,
+		ClientHost: hostName + "health-worker",
+	}
+	for i := 0; i < 3; i++ {
+		time.Sleep(2 * time.Second)
+		msg, err := mqClient.Dequeue(ctx, dequeueReq)
+		if err != nil {
+			logrus.Errorf("failed to dequeue health check message: %v", err)
+			continue
+		}
+
+		if msg == nil || len(msg.TaskBody) == 0 {
+			continue
+		}
+		healthStatus["status"] = "health"
+		healthStatus["info"] = "worker service health"
+		return healthStatus
+	}
+
+	healthStatus["status"] = "un_health"
+	healthStatus["info"] = "worker service un_health"
 	return healthStatus
 }
