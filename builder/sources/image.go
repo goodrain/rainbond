@@ -45,6 +45,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/constants"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -391,6 +392,19 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
+func getHostAlias(kubeClient kubernetes.Interface) []corev1.HostAlias {
+	var hostAliases []corev1.HostAlias
+	ds, err := kubeClient.AppsV1().DaemonSets(util.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Get(context.Background(), "rbd-chaos", metav1.GetOptions{})
+	if err != nil {
+		logrus.Debugf("get hostAliases from daemonset rbd-chaos error: %s", err.Error())
+		return hostAliases
+	}
+	for _, host := range ds.Spec.Template.Spec.HostAliases {
+		hostAliases = append(hostAliases, host)
+	}
+	return hostAliases
+}
+
 // ImageBuild use buildkit build image
 func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
 	// create image name
@@ -445,6 +459,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 				},
 			},
 		},
+		HostAliases: getHostAlias(kubeClient),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
