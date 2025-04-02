@@ -6,4 +6,6 @@ Private individuals or Legal Entities are allowed to use Rainbond for free, as l
 
 Once private individuals or Legal Entities copy or modify Rainbond source code in any ways, the modified version and copies will fall under the GPLv3 License.
 
+Prohibit the use of Rainbond to provide SaaS (Software as a Service) services.
+
 For any non-GPL usage of Rainbond, one or multiple Commercial Licenses authorized by Goodrain Co., Ltd. must be obtained first.
