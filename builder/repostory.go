@@ -119,11 +119,11 @@ func GetBuilderImage(brVersion string) string {
 func testRegistryLatency(registry string) (bool, time.Duration) {
 	start := time.Now()
 	conn, err := net.DialTimeout("tcp", registry+":443", 2*time.Second)
-	defer conn.Close()
 	if err != nil {
 		logrus.Debugf("test registry %s error: %v", registry, err)
 		return false, 0
 	}
+	defer conn.Close()
 	return true, time.Since(start)
 }
 
