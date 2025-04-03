@@ -305,6 +305,9 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	get.Spec.HTTP[0] = apisixRouteHTTP
+	if get.ObjectMeta.Labels["cert-manager-enabled"] == "true" {
+		labels["cert-manager-enabled"] = "true"
+	}
 	get.ObjectMeta.Labels = labels
 
 	update, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
