@@ -110,7 +110,7 @@ func GetBuilderImage(brVersion string) string {
 	}
 	if isAvailble, latency := testRegistryLatency("docker.io"); isAvailble {
 		logrus.Debugf("docker.io latency: %v", latency)
-		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
+		ONLINEREGISTRYDOMAIN = "rainbond"
 	}
 	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), brVersion, arch)
 }
@@ -135,7 +135,7 @@ func GetRunnerImage(brVersion string) string {
 	}
 	if isAvailble, latency := testRegistryLatency("docker.io"); isAvailble {
 		logrus.Debugf("docker.io latency: %v", latency)
-		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
+		ONLINEREGISTRYDOMAIN = "rainbond"
 	}
 	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), brVersion, arch)
 }
