@@ -67,6 +67,7 @@ func init() {
 
 // GetImageUserInfoV2 -
 func GetImageUserInfoV2(domain, user, pass string) (string, string) {
+	logrus.Debugf("domain: %s, user: %s, pass: %s", domain, user, pass)
 	if user != "" && pass != "" {
 		return user, pass
 	}
