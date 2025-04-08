@@ -410,6 +410,15 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 			if routes != nil && len(routes.Items) > 0 {
 				logrus.Infof("%v route num > 0, not create", as.ServiceAlias)
 			} else {
+				ruleConfigs, _ := db.GetManager().GwRuleConfigDao().ListByRuleID(httpRule.UUID)
+				webSocket := false
+				if ruleConfigs != nil {
+					for _, ruleConfig := range ruleConfigs {
+						if ruleConfig.Key == "set-header-WebSocket" && ruleConfig.Value == "True" {
+							webSocket = true
+						}
+					}
+				}
 				// 创建 label
 				labels := make(map[string]string)
 				labels["creator"] = "Rainbond"
@@ -441,6 +450,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 						Type:    "basicAuth",
 						KeyAuth: v2.ApisixRouteAuthenticationKeyAuth{},
 					},
+					Websocket: webSocket,
 				}
 				outerRoutes = &v2.ApisixRoute{
 					TypeMeta: metav1.TypeMeta{
