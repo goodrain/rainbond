@@ -21,6 +21,7 @@ package job
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -167,6 +168,83 @@ func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Wri
 	if err != nil {
 		return err
 	}
+
+	// 检查 Pod 是否成功创建并运行
+	go func() {
+		// 最多检查 30 次，每次间隔 2 秒
+		for i := 0; i < 30; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(2 * time.Second)
+				pod, err := c.KubeClient.CoreV1().Pods(c.namespace).Get(ctx, job.Name, metav1.GetOptions{})
+				if err != nil {
+					if i == 29 { // 最后一次检查仍然失败
+						logrus.Errorf("[BUILD JOB CHECK] Failed to get pod %s: %v", job.Name, err)
+						if logger != nil {
+							fmt.Fprintf(logger, "[BUILD JOB CHECK] Failed to get pod %s: %v\n", job.Name, err)
+						}
+						if result != nil {
+							result.In() <- "failed"
+						}
+					}
+					continue
+				}
+
+				// 检查 Pod 状态
+				switch pod.Status.Phase {
+				case corev1.PodRunning:
+					logrus.Infof("[BUILD JOB CHECK] Pod %s is now running", job.Name)
+					if logger != nil {
+						fmt.Fprintf(logger, "[BUILD JOB CHECK] Pod %s is now running\n", job.Name)
+					}
+					return
+				case corev1.PodFailed, corev1.PodUnknown:
+					logrus.Errorf("[BUILD JOB CHECK] Pod %s is in %s state", job.Name, pod.Status.Phase)
+					if logger != nil {
+						fmt.Fprintf(logger, "[BUILD JOB CHECK] Pod %s is in %s state\n", job.Name, pod.Status.Phase)
+						// 输出 Pod 事件信息
+						events, err := c.KubeClient.CoreV1().Events(c.namespace).List(ctx, metav1.ListOptions{
+							FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", job.Name),
+						})
+						if err == nil && len(events.Items) > 0 {
+							for _, event := range events.Items {
+								fmt.Fprintf(logger, "[BUILD JOB CHECK] Event: %s - %s\n", event.Reason, event.Message)
+							}
+						}
+					}
+					if result != nil {
+						result.In() <- "failed"
+					}
+					return
+				case corev1.PodSucceeded:
+					logrus.Infof("[BUILD JOB CHECK] Pod %s has completed successfully", job.Name)
+					if logger != nil {
+						fmt.Fprintf(logger, "[BUILD JOB CHECK] Pod %s has completed successfully\n", job.Name)
+					}
+					return
+				default: // PodPending or other states
+					if i == 29 { // 最后一次检查仍然处于 Pending 状态
+						logrus.Warnf("[BUILD JOB CHECK] Pod %s is still in %s state after multiple checks", job.Name, pod.Status.Phase)
+						if logger != nil {
+							fmt.Fprintf(logger, "[BUILD JOB CHECK] Pod %s is still in %s state after multiple checks\n", job.Name, pod.Status.Phase)
+							// 输出 Pod 事件信息，可能有调度失败等原因
+							events, err := c.KubeClient.CoreV1().Events(c.namespace).List(ctx, metav1.ListOptions{
+								FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", job.Name),
+							})
+							if err == nil && len(events.Items) > 0 {
+								for _, event := range events.Items {
+									fmt.Fprintf(logger, "[BUILD JOB CHECK] Event: %s - %s\n", event.Reason, event.Message)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}()
+
 	go c.getLogger(ctx, job.Name, logger, result, jobContainerCh)
 	c.subJobStatus.Store(job.Name, result)
 	return nil
