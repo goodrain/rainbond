@@ -259,7 +259,6 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apisixRouteHTTP.Name = uuid.NewV4().String()[0:8] //每次都让他变化，让 apisix controller去更新
-	apisixRouteHTTP.Backends[0].ResolveGranularity = "service"
 
 	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), &v2.ApisixRoute{
 		TypeMeta: v1.TypeMeta{
