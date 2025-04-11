@@ -7,7 +7,7 @@
   [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
   <a href="https://twitter.com/intent/follow?screen_name=Rainbond_"><img src="https://img.shields.io/twitter/follow/Rainbond?style=social" alt="follow on Twitter"></a>
   <a href="https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ"><img src="https://img.shields.io/badge/Slack-blueviolet?logo=slack&amp;logoColor=white"></a>
-  <a href="https://discord.gg/ecnYFsDJ">
+  <a href="https://discord.com/invite/czusNpcymS">
   <img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord" alt="Discord">
   </a>
   <h3>Build Enterprise Applications Like Mobile Apps</h3>
@@ -78,7 +78,7 @@ Rainbond is 100% open-source, offers a serverless experience, and allows you to 
 - 2 CPU cores / 8GB RAM / 50GB disk space
 
 ### 3-Minute Quick Installation
-You only need to execute the following command to run a container and quickly experience the full functionality of Rainbond. For more installation options, refer to [Installation and Upgrade](https://www.rainbond.com/docs/installation/).
+You only need to execute the following command to run a container and quickly experience the full functionality of Rainbond. For more installation options, refer to [Installation and Upgrade](https://www.rainbond.com/docs/quick-start/quick-install).
 
 ```bash
 curl -o install.sh https://get.rainbond.com && IMGHUB_MIRROR=rainbond bash ./install.sh
@@ -98,7 +98,7 @@ Slack: [Rainbond Slack Channel](https://join.slack.com/t/rainbond-slack/shared_i
 
 Twitter: [Rainbond Twitter](https://twitter.com/Rainbond_)
 
-Discord: [Rainbond Discord](https://discord.gg/ecnYFsDJ)
+Discord: [Rainbond Discord](https://discord.com/invite/czusNpcymS)
 
 ## Contribution
 
