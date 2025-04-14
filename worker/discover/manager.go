@@ -25,6 +25,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -39,6 +40,7 @@ import (
 )
 
 var healthStatus = make(map[string]string, 1)
+var healthStatusLock sync.Mutex
 
 // TaskNum exec task number
 var TaskNum float64
@@ -62,8 +64,10 @@ func NewTaskManager(store store.Storer,
 	garbageCollector *gc.GarbageCollector) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	handleManager := handle.NewManager(ctx, store, controllermanager, garbageCollector)
+	healthStatusLock.Lock()
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
+	healthStatusLock.Unlock()
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -150,9 +154,15 @@ func HealthCheck() map[string]string {
 	defer cancel()
 	mqClient := mq.Default().MqClient
 	if mqClient == nil {
+		healthStatusLock.Lock()
 		healthStatus["status"] = "un_health"
 		healthStatus["info"] = "worker service un_health"
-		return healthStatus
+		result := make(map[string]string)
+		for k, v := range healthStatus {
+			result[k] = v
+		}
+		healthStatusLock.Unlock()
+		return result
 	}
 	taskBody, _ := json.Marshal("health check")
 	err := mqClient.SendBuilderTopic(client.TaskStruct{
@@ -163,9 +173,15 @@ func HealthCheck() map[string]string {
 	})
 	if err != nil {
 		logrus.Errorf("worker check send worker topic failure: %v", err)
+		healthStatusLock.Lock()
 		healthStatus["status"] = "un_health"
 		healthStatus["info"] = "worker service un_health"
-		return healthStatus
+		result := make(map[string]string)
+		for k, v := range healthStatus {
+			result[k] = v
+		}
+		healthStatusLock.Unlock()
+		return result
 	}
 	// 等待一小段时间确保消息有时间被发送
 	hostName, _ := os.Hostname()
@@ -185,12 +201,24 @@ func HealthCheck() map[string]string {
 		if msg == nil || len(msg.TaskBody) == 0 {
 			continue
 		}
+		healthStatusLock.Lock()
 		healthStatus["status"] = "health"
 		healthStatus["info"] = "worker service health"
-		return healthStatus
+		result := make(map[string]string)
+		for k, v := range healthStatus {
+			result[k] = v
+		}
+		healthStatusLock.Unlock()
+		return result
 	}
 
+	healthStatusLock.Lock()
 	healthStatus["status"] = "un_health"
 	healthStatus["info"] = "worker service un_health"
-	return healthStatus
+	result := make(map[string]string)
+	for k, v := range healthStatus {
+		result[k] = v
+	}
+	healthStatusLock.Unlock()
+	return result
 }
