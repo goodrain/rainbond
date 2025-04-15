@@ -1,4 +1,4 @@
-# CONTRIBUTING Guide ｜ [贡献指南](https://www.rainbond.com/community/contribution/)
+# CONTRIBUTING Guide ｜ [贡献指南](https://rainbond.io/docs/contribution)
 
 First off, thank you for considering contributing to Rainbond. It's people like you that make Rainbond such a great platform.
 
@@ -31,11 +31,11 @@ Check Pull Request is another way to contribute.
 
 ## Documents
 
-When you find any spelling mistakes or great content to supplement on the [official website of Rainbond](https://www.rainbond.com/), you can submit a pull request to the [Rainbond docs](https://github.com/goodrain/rainbond-docs).
+When you find any spelling mistakes or great content to supplement on the [official website of Rainbond](https://www.rainbond.io/), you can submit a pull request to the [Rainbond docs](https://github.com/goodrain/rainbond-docs).
 
 ## Compile the project
 
-Rainbond mainly consists of the following three projects. Click to view [Technical architecture](https://www.rainbond.com/docs/architecture/architecture/)
+Rainbond mainly consists of the following three projects.
 
 - [Rainbond-UI](https://github.com/goodrain/rainbond-ui)
 - [Rainbond-Console](https://github.com/goodrain/rainbond-console)

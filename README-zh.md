@@ -53,7 +53,7 @@ Rainbond 底层可以对接各类私有云、公有云、Kubernetes 等基础设
 
 ### 安装
 
-仅需执行以下命令，运行起来一个容器。即可快速体验到 Rainbond 完整功能。更多安装方式参考[安装与升级](https://www.rainbond.com/docs/installation/)。
+仅需执行以下命令，运行起来一个容器。即可快速体验到 Rainbond 完整功能。更多安装方式参考[安装与升级](https://www.rainbond.com/docs/quick-start/quick-install)。
 
 ```bash
 curl -o install.sh https://get.rainbond.com && bash ./install.sh
@@ -67,7 +67,7 @@ curl -o install.sh https://get.rainbond.com && bash ./install.sh
 
 ## 开源社区
 
-如果你在使用 Rainbond 过程中遇到问题需要帮助，请参阅 [社区支持](https://www.rainbond.com/community/support/)。
+如果你在使用 Rainbond 过程中遇到问题需要帮助，请参阅 [社区支持](https://www.rainbond.com/docs/support)。
 
 或添加微信小助手加入 Rainbond 技术交流群:
 
@@ -79,7 +79,7 @@ Slack: [Rainbond Slack 频道](https://join.slack.com/t/rainbond-slack/shared_in
 
 我们非常欢迎你参与 Rainbond 社区关于平台使用经验、标准化应用、插件分享等领域的贡献和分享。
 
-若你是正在使用 Rainbond 的用户，且对 Rainbond 有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与 Rainbond 贡献](https://www.rainbond.com/community/contribution/?channel=github)
+若你是正在使用 Rainbond 的用户，且对 Rainbond 有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与 Rainbond 贡献](https://www.rainbond.com/docs/contribution/code?channel=github)
 
 ## 周边项目
 

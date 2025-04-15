@@ -10,7 +10,7 @@ body:
     attributes:
       label: Please confirm the following items
       options:
-        - label: Please read the [FAQ](https://www.rainbond.com/docs/faq) and [troubleshooting](https://www.rainbond.com/docs/troubleshooting) documents
+        - label: Please read the [FAQ](https://www.rainbond.io/docs/faq) and [troubleshooting](https://www.rainbond.io/docs/troubleshooting) documents
           required: true
         - label: Search for the issue in the [issues](https://github.com/goodrain/rainbond/issues) page, but could not find a solution
           required: true
