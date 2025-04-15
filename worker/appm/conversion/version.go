@@ -1542,12 +1542,24 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 		} else {
 			for resourceName, quantity := range resources.Limits {
 				if resourceName == "memory" {
-					customResources.Limits["memory"] = quantity
+					if customResources.Limits != nil {
+						customResources.Limits["memory"] = quantity
+					} else {
+						limits := make(map[corev1.ResourceName]resource.Quantity)
+						limits["memory"] = quantity
+						customResources.Limits = limits
+					}
 				}
 			}
 			for resourceName, quantity := range resources.Requests {
 				if resourceName == "memory" {
-					customResources.Requests["memory"] = quantity
+					if customResources.Requests != nil {
+						customResources.Requests["memory"] = quantity
+					} else {
+						requests := make(map[corev1.ResourceName]resource.Quantity)
+						requests["memory"] = quantity
+						customResources.Requests = requests
+					}
 				}
 			}
 			resources = *customResources
