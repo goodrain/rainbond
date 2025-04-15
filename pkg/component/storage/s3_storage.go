@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type S3Storage struct {
@@ -232,7 +231,7 @@ func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error
 		return fmt.Errorf("error downloading file from S3: %v", err)
 	}
 	defer obj.Body.Close() // 确保S3连接被关闭
-	
+
 	if _, err := io.Copy(zipFile, obj.Body); err != nil {
 		return fmt.Errorf("error writing to temp file: %v", err)
 	}
@@ -295,8 +294,10 @@ func (s3s *S3Storage) UploadFileToFile(src, dst string, logger event.Logger) err
 		return err
 	}
 	bucket, key, err := s3s.ParseDirPath(dst, true)
-	if err != err {
-		logger.Error("解析目标路径失败", map[string]string{"step": "share"})
+	if err != nil { // 修复了这里的错误判断条件
+		if logger != nil {
+			logger.Error("解析目标路径失败", map[string]string{"step": "share"})
+		}
 		return err
 	}
 	// 开始文件上传
@@ -305,84 +306,138 @@ func (s3s *S3Storage) UploadFileToFile(src, dst string, logger event.Logger) err
 
 // S3CopyWithProgress 从源文件复制到 S3，并记录进度
 func (s3s *S3Storage) S3CopyWithProgress(srcFile io.Reader, bucket, key string, allSize int64, logger event.Logger) error {
-	var written int64
-	buf := make([]byte, 1024*1024)
+	// 使用分块上传来处理大文件
 	progressID := uuid.New().String()[0:7]
-	// 使用 bytes.Buffer 来保存所有数据
-	var buffer bytes.Buffer
-	// 创建一个 WaitGroup
-	var wg sync.WaitGroup
-	wg.Add(1)
-	// 启动一个 goroutine 处理源文件的读取
-	go func() {
-		defer wg.Done()
-		for {
-			nr, er := srcFile.Read(buf)
-			if nr > 0 {
-				nw, ew := buffer.Write(buf[:nr])
-				if nw > 0 {
-					written += int64(nw)
-				}
-				if ew != nil {
-					logrus.Errorf("写入缓冲区失败: %v", ew)
-					break
-				}
-				if nr != nw {
-					logrus.Error("写入字节数不匹配")
-					break
-				}
-			}
-			if er != nil {
-				if er != io.EOF {
-					logrus.Errorf("读取源文件失败: %v", er)
-				}
-				break
-			}
+	var written int64
 
-			// 记录进度
-			if logger != nil {
-				progress := "["
-				i := int((float64(written) / float64(allSize)) * 50)
-				if i == 0 {
-					i = 1
-				}
-				for j := 0; j < i; j++ {
-					progress += "="
-				}
-				progress += ">"
-				for len(progress) < 50 {
-					progress += " "
-				}
-				progress += fmt.Sprintf("] %d MB/%d MB", int(written/1024/1024), int(allSize/1024/1024))
-				message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
-				logger.Debug(message, map[string]string{"step": "progress"})
-			}
-		}
-	}()
-
-	wg.Wait() // 等待 goroutine 完成
-
-	// 生成 io.ReadSeeker
-	body := bytes.NewReader(buffer.Bytes())
-
-	// 执行 S3 上传
-	input := &s3.PutObjectInput{
+	// 初始化分块上传
+	input := &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-		Body:   body,
 	}
 
-	_, err := s3s.s3Client.PutObject(input)
+	resp, err := s3s.s3Client.CreateMultipartUpload(input)
 	if err != nil {
 		if logger != nil {
-			logger.Error("上传文件到 S3 失败", map[string]string{"step": "share"})
+			logger.Error("初始化分块上传失败", map[string]string{"step": "share"})
 		}
+		logrus.Errorf("初始化分块上传失败: %v", err)
 		return err
 	}
 
-	if written != allSize {
+	// 分块大小，设置为5MB（AWS S3要求最小5MB）
+	chunkSize := int64(5 * 1024 * 1024)
+	buffer := make([]byte, chunkSize)
+	var partNum int64 = 1
+	var completedParts []*s3.CompletedPart
+
+	for {
+		n, readErr := io.ReadFull(srcFile, buffer)
+		if n <= 0 {
+			break
+		}
+
+		// 上传分块
+		partInput := &s3.UploadPartInput{
+			Body:          bytes.NewReader(buffer[:n]),
+			Bucket:        aws.String(bucket),
+			Key:           aws.String(key),
+			PartNumber:    aws.Int64(partNum),
+			UploadId:      resp.UploadId,
+			ContentLength: aws.Int64(int64(n)),
+		}
+
+		partResp, uploadErr := s3s.s3Client.UploadPart(partInput)
+		if uploadErr != nil {
+			// 上传失败，中止分块上传
+			abortInput := &s3.AbortMultipartUploadInput{
+				Bucket:   aws.String(bucket),
+				Key:      aws.String(key),
+				UploadId: resp.UploadId,
+			}
+			_, _ = s3s.s3Client.AbortMultipartUpload(abortInput)
+
+			if logger != nil {
+				logger.Error("上传分块失败", map[string]string{"step": "share"})
+			}
+			logrus.Errorf("上传分块失败: %v", uploadErr)
+			return uploadErr
+		}
+
+		// 记录已完成的分块
+		completedPart := &s3.CompletedPart{
+			ETag:       partResp.ETag,
+			PartNumber: aws.Int64(partNum),
+		}
+		completedParts = append(completedParts, completedPart)
+
+		// 更新已写入的字节数和分块编号
+		written += int64(n)
+		partNum++
+
+		// 记录进度
+		if logger != nil {
+			progress := "["
+			i := int((float64(written) / float64(allSize)) * 50)
+			if i == 0 {
+				i = 1
+			}
+			for j := 0; j < i; j++ {
+				progress += "="
+			}
+			progress += ">"
+			for len(progress) < 50 {
+				progress += " "
+			}
+			progress += fmt.Sprintf("] %d MB/%d MB", int(written/1024/1024), int(allSize/1024/1024))
+			message := fmt.Sprintf(`{"progress":"%s","progressDetail":{"current":%d,"total":%d},"id":"%s"}`, progress, written, allSize, progressID)
+			logger.Debug(message, map[string]string{"step": "progress"})
+		}
+
+		// 如果读取到EOF或者读取的数据不足一个完整的buffer，说明已经读完了
+		if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+			break
+		}
+
+		if readErr != nil {
+			// 读取失败，中止分块上传
+			abortInput := &s3.AbortMultipartUploadInput{
+				Bucket:   aws.String(bucket),
+				Key:      aws.String(key),
+				UploadId: resp.UploadId,
+			}
+			_, _ = s3s.s3Client.AbortMultipartUpload(abortInput)
+
+			logrus.Errorf("读取源文件失败: %v", readErr)
+			return readErr
+		}
+	}
+
+	// 完成分块上传
+	completeInput := &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(key),
+		UploadId: resp.UploadId,
+		MultipartUpload: &s3.CompletedMultipartUpload{
+			Parts: completedParts,
+		},
+	}
+
+	_, err = s3s.s3Client.CompleteMultipartUpload(completeInput)
+	if err != nil {
+		if logger != nil {
+			logger.Error("完成分块上传失败", map[string]string{"step": "share"})
+		}
+		logrus.Errorf("完成分块上传失败: %v", err)
+		return err
+	}
+
+	// 检查是否上传了所有数据
+	if written < allSize {
+		logrus.Warnf("文件上传不完整: 已上传 %d 字节，预期 %d 字节", written, allSize)
 		return io.ErrShortWrite
 	}
+
 	return nil
 }
 
@@ -490,7 +545,7 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 			result.Body.Close() // 确保在错误情况下关闭S3连接
 			return fmt.Errorf("无法写入文件 %s: %v", dstFilePath, err)
 		}
-		
+
 		dstFile.Close()
 		result.Body.Close() // 确保在每次循环结束时关闭S3连接
 	}
