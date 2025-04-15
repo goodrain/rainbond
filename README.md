@@ -12,7 +12,7 @@
   </a>
   <h3>Build Enterprise Applications Like Mobile Apps</h3>
 
-  [Website](https://www.rainbond.com?channel=github) • [Documentation](https://www.rainbond.com/docs/?channel=github)
+  [Website](https://www.rainbond.io?channel=github) • [Documentation](https://www.rainbond.io/docs/?channel=github)
 </div>
 
 ## What is Rainbond?
@@ -78,7 +78,7 @@ Rainbond is 100% open-source, offers a serverless experience, and allows you to 
 - 2 CPU cores / 8GB RAM / 50GB disk space
 
 ### 3-Minute Quick Installation
-You only need to execute the following command to run a container and quickly experience the full functionality of Rainbond. For more installation options, refer to [Installation and Upgrade](https://www.rainbond.com/docs/quick-start/quick-install).
+You only need to execute the following command to run a container and quickly experience the full functionality of Rainbond. For more installation options, refer to [Installation and Upgrade](https://www.rainbond.io/docs/quick-start/quick-install).
 
 ```bash
 curl -o install.sh https://get.rainbond.com && IMGHUB_MIRROR=rainbond bash ./install.sh
@@ -88,11 +88,11 @@ After the command is executed successfully, open a browser and enter `http://<IP
 
 ### Quick Start
 
-Please refer to the [Quick Start](https://www.rainbond.com/docs/quick-start/getting-started?channel=github) documentation.
+Please refer to the [Quick Start](https://www.rainbond.io/docs/quick-start/getting-started?channel=github) documentation.
 
 ## Open Source Community
 
-If you encounter any issues while using Rainbond and need help, please refer to the [Community Support](https://www.rainbond.com/docs/support?channel=github).
+If you encounter any issues while using Rainbond and need help, please refer to the [Community Support](https://www.rainbond.io/docs/support?channel=github).
 
 Slack: [Rainbond Slack Channel](https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ)
 
@@ -104,7 +104,7 @@ Discord: [Rainbond Discord](https://discord.com/invite/czusNpcymS)
 
 We welcome contributions and sharing in the Rainbond community in areas such as platform usage experience, standardized applications, and plugin sharing.
 
-If you are a Rainbond user who has a deep understanding of Rainbond and aligns with its technical direction, and you have significant demands within your organization, we welcome you to [contribute to Rainbond](https://www.rainbond.com/docs/contribution?channel=github).
+If you are a Rainbond user who has a deep understanding of Rainbond and aligns with its technical direction, and you have significant demands within your organization, we welcome you to [contribute to Rainbond](https://www.rainbond.io/docs/contribution?channel=github).
 
 ## Related Projects
 
