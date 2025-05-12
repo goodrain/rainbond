@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/object"
 
 	"github.com/sirupsen/logrus"
 
@@ -41,16 +41,16 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
+	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/client"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	netssh "golang.org/x/crypto/ssh"
 	sshkey "golang.org/x/crypto/ssh"
-	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/client"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 // CodeSourceInfo 代码源信息

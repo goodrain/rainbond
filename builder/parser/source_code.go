@@ -30,6 +30,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport" //"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	multi "github.com/goodrain/rainbond/builder/parser/code/multisvc"
@@ -41,8 +43,6 @@ import (
 	"github.com/melbahja/got"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
 )
 
 // SourceCodeParse docker run 命令解析或直接镜像名解析
