@@ -93,7 +93,7 @@ func NewVolumeManager(as *v1.AppService,
 			v = new(OtherVolume)
 		}
 	}
-	if tsmr {
+	if tsmr && volumeType != dbmodel.ConfigFileVolumeType.String() {
 		v = new(ShareFileVolume)
 	}
 	v.setBaseInfo(as, serviceVolume, serviceMountR, version, dbmanager)
