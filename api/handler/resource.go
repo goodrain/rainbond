@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
+	"os"
 	"strings"
 )
 
@@ -260,7 +261,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			Dri:      dri,
 		}
 		// 在解码资源后，处理之前添加检查
-		if gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" {
+		if os.Getenv("USE_SAAS") == "true" && gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" {
 			errMsg := fmt.Sprintf("无效的资源类型: %s. 只允许 ConfigMap、Secret", gvk.Kind)
 			logrus.Errorf(errMsg)
 			buildResourceList = append(buildResourceList, &model.BuildResource{
