@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -298,7 +299,7 @@ func handleFileORYamlToObject(fileName string, yamlFileBytes []byte, config *res
 			continue
 		}
 		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-		if gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" && gvk.Kind != "Deployment" && gvk.Kind != "StatefulSet" {
+		if os.Getenv("USE_SAAS") == "true" && gvk.Kind != "ConfigMap" && gvk.Kind != "Secret" && gvk.Kind != "Deployment" && gvk.Kind != "StatefulSet" {
 			errMsg := fmt.Sprintf("无效的资源类型: %s. 只允许 ConfigMap、Secret、Deployment 和 StatefulSet.", gvk.Kind)
 			logrus.Errorf(errMsg)
 			fileBuildResourceList = append(fileBuildResourceList, apimodel.K8sResourceObject{
