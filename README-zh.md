@@ -65,15 +65,11 @@ curl -o install.sh https://get.rainbond.com && bash ./install.sh
 
 请参考文档 [快速入门](https://www.rainbond.com/docs/quick-start/getting-started/?channel=github) 。
 
-## 开源社区
+## 加入社群
 
-如果你在使用 Rainbond 过程中遇到问题需要帮助，请参阅 [社区支持](https://www.rainbond.com/docs/support)。
+扫码加入 Rainbond 技术交流群:
 
-或添加微信小助手加入 Rainbond 技术交流群:
-
-<img width="20%" src="docs/wechat.png"/>
-
-Slack: [Rainbond Slack 频道](https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ)
+<img width="20%" src="docs/wechatgroup.png"/>
 
 ## 贡献
 
@@ -81,17 +77,15 @@ Slack: [Rainbond Slack 频道](https://join.slack.com/t/rainbond-slack/shared_in
 
 若你是正在使用 Rainbond 的用户，且对 Rainbond 有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与 Rainbond 贡献](https://www.rainbond.com/docs/contribution/code?channel=github)
 
-## 周边项目
+## 子项目
 
 当前仓库为 Rainbond 数据中心端核心服务实现代码，项目还包括以下子项目：
 
 - [Rainbond-Console](https://github.com/goodrain/rainbond-console) Rainbond 控制台服务端项目
 - [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) Rainbond 控制台前端项目
 - [Rainbond-Operator](https://github.com/goodrain/rainbond-operator) Rainbond 安装运维项目
-- [Rainbond-Cloud-adaptor](https://github.com/goodrain/cloud-adaptor) Rainbond 集群安装驱动服务
 - [Rainbond-Builder](https://github.com/goodrain/builder) Rainbond 源码构建工具集
-- [Rainbond-Docs](https://github.com/goodrain/rainbond-docs) Rainbond 文档
 
 ## License
 
-Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看 [LICENSE](https://github.com/goodrain/rainbond/blob/main/LICENSE) 及 [Licensing](https://github.com/goodrain/rainbond/blob/main/Licensing.md) 。
+本项目采用 Apache 许可证 2.0 版授权，并在 `ADDITIONAL_TERMS.md` 中规定了附加条款。请在使用、修改或分发本软件之前，阅读 [Apache 许可证 2.0](LICENSE) 和 [附加条款](ADDITIONAL_TERMS.md)。

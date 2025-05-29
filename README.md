@@ -113,10 +113,8 @@ This repository contains the core service implementation code of the Rainbond da
 - [Rainbond-Console](https://github.com/goodrain/rainbond-console): Rainbond console server project.
 - [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui): Rainbond console frontend project.
 - [Rainbond-Operator](https://github.com/goodrain/rainbond-operator): Rainbond installation and operation project.
-- [Rainbond-Cloud-adaptor](https://github.com/goodrain/cloud-adaptor): Rainbond cluster installation driver service.
 - [Rainbond-Builder](https://github.com/goodrain/builder): Rainbond source code build toolset.
-- [Rainbond-Docs](https://github.com/goodrain/rainbond-docs): Rainbond documentation.
 
 ## License
 
-Rainbond follow LGPL-3.0 license, Details see [LICENSE](https://github.com/goodrain/rainbond/blob/main/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/main/Licensing.md).
+This project is licensed under the Apache License 2.0, with additional terms specified in `ADDITIONAL_TERMS.md`. Please read both the [Apache License 2.0](LICENSE) and [Additional Terms](ADDITIONAL_TERMS.md) before using, modifying, or distributing this software.
