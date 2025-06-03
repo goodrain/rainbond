@@ -3,17 +3,21 @@
 
   [![Rainbond](https://jaywcjlove.github.io/sb/lang/english.svg)](README.md)
   [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-  ![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
+  ![Rainbond version](https://img.shields.io/badge/version-V6.X-brightgreen.svg)
   [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-  <h3>不用懂 Kubernetes 的云原生应用管理平台</h3>
+</div>
+
+<div align="center">
+  <h2>无需学习 Kubernetes 的容器平台</h2>
+  在 Kubernetes 上构建、部署、组装和管理应用，无需 K8s 专业知识，全流程图形化管理
 
   [项目官网](https://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
 </div>
 
 ## Rainbond 是什么
 
-Rainbond 核心100%开源，Serverless体验，不需要懂 Kubernetes 也能轻松管理容器化应用，平滑无缝过渡到 Kubernetes，是国内首个支持国产化信创、适合私有部署的一体化应用管理平台。
+Rainbond 是一款基于 Kubernetes 的云原生应用管理平台， 100% 开源，致力于将复杂的容器编排与应用管理能力转化为简单易用的开发运维体验。无需深入学习 Kubernetes 底层知识，即可通过图形化界面与标准化流程，实现应用的全生命周期管理，适用于企业快速构建云原生应用平台，降低技术门槛与落地成本。
 
 ### 亮点
 
