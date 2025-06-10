@@ -2,17 +2,18 @@ package apigateway
 
 import (
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
 	v13 "github.com/cert-manager/cert-manager/pkg/apis/acme/v1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v12 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"net/http"
-	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"strings"
-	"time"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
@@ -231,7 +232,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
-	routeName := strings.ToLower(apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0])
+	routeName := strings.ToLower(strings.ReplaceAll(apisixRouteHTTP.Match.Hosts[0], "*", "wildcard") + apisixRouteHTTP.Match.Paths[0])
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
@@ -239,7 +240,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	//name := r.URL.Query().Get("name")
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {
-		labels[host] = "host"
+		safeHost := sanitizeLabelKey(host)
+		labels[safeHost] = "host"
 		//labelSelector := host + "=host"
 		//roueList, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		//	LabelSelector: labelSelector,
@@ -939,4 +941,11 @@ func extractBaseName(challengeName string) string {
 
 	// 移除最后三个部分（数字后缀）
 	return strings.Join(parts[:len(parts)-3], "-")
+}
+
+// 新增：label key 合法化函数
+func sanitizeLabelKey(key string) string {
+	// 这里将 * 替换为 wildcard
+	key = strings.ReplaceAll(key, "*", "wildcard")
+	return key
 }
