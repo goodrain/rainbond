@@ -19,18 +19,21 @@
 package mysql
 
 import (
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+
 	//import sqlite
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/sirupsen/logrus"
+
 	// import sql driver manually
 	_ "github.com/go-sql-driver/mysql"
 	// import postgres
@@ -274,6 +277,16 @@ func (m *Manager) CheckTable() {
 
 func (m *Manager) patchTable() {
 	count := -1
+	switch m.config.DBType {
+	case "mysql":
+		if err := m.db.Exec("alter table enterprise_language_version add unique index if not exists lang_version_unique (lang, version);").Error; err != nil {
+			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+		}
+	case "sqlite":
+		if err := m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version);").Error; err != nil {
+			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+		}
+	}
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
 		m.initLanguageVersion()
