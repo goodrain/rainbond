@@ -68,7 +68,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 		for {
 			if err := sqlDB.Ping(); err != nil {
 				logrus.Errorf("failed to connect to database: %v", err)
-				// 等待 10 秒再重试
+				// wait 2 seconds before retry
 				time.Sleep(2 * time.Second)
 			} else {
 				logrus.Info("database connection successful")
