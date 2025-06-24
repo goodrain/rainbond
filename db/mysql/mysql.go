@@ -19,18 +19,21 @@
 package mysql
 
 import (
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+
 	//import sqlite
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/sirupsen/logrus"
+
 	// import sql driver manually
 	_ "github.com/go-sql-driver/mysql"
 	// import postgres
@@ -65,10 +68,10 @@ func CreateManager(config config.Config) (*Manager, error) {
 		for {
 			if err := sqlDB.Ping(); err != nil {
 				logrus.Errorf("failed to connect to database: %v", err)
-				// 等待 10 秒再重试
+				// wait 2 seconds before retry
 				time.Sleep(2 * time.Second)
 			} else {
-				logrus.Info("数据库连接成功")
+				logrus.Info("database connection successful")
 				break
 			}
 		}
