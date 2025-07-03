@@ -40,7 +40,7 @@ func (s *Server) StartCancel(ctx context.Context, cancel context.CancelFunc) err
 	prometheus.MustRegister(monitor.NewExporter(mqclient.Default().ActionMQ()))
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
 		
 		// Check if MQ service is available
