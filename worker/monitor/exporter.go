@@ -20,9 +20,10 @@ package monitor
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
-	"net/http"
 
 	"github.com/goodrain/rainbond/worker/master"
 
@@ -89,6 +90,7 @@ func (t *ExporterManager) Start() error {
 		healthStatus := discover.HealthCheck()
 		if healthStatus["status"] != "health" {
 			httputil.ReturnError(r, w, 400, "worker service unusual")
+			return
 		}
 		httputil.ReturnSuccess(r, w, healthStatus)
 	})

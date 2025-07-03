@@ -22,6 +22,14 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/api/api_routers/gateway"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/config/configs"
@@ -31,13 +39,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
-	"io/ioutil"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -156,6 +157,7 @@ func (m *Manager) Run() {
 		util.ProfilerSetup(m.r)
 	}
 	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
 		res.Write([]byte("ok"))
 	})
 	m.r.Mount("/v2/proxy-pass/gateway/{tenant_name}", gateway.Routes())
@@ -218,8 +220,8 @@ func (m *Manager) Run() {
 	_ = gogo.Go(func(ctx context.Context) error {
 		healthzRouter := chi.NewRouter()
 		healthzRouter.Get("/healthz", func(res http.ResponseWriter, req *http.Request) {
-			res.Write([]byte("ok"))
 			res.WriteHeader(http.StatusOK)
+			res.Write([]byte("ok"))
 		})
 		logrus.Infof("health check listen on (HTTP) %s", m.APIConfig.APIHealthzAddr)
 		logrus.Fatal(http.ListenAndServe(m.APIConfig.APIHealthzAddr, healthzRouter))
