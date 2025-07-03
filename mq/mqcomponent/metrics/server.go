@@ -57,14 +57,14 @@ func (s *Server) StartCancel(ctx context.Context, cancel context.CancelFunc) err
 		// Test enqueue operation
 		if err := mq.Enqueue(ctx, testTopic, testMessage); err != nil {
 			logrus.Errorf("MQ health check enqueue failed: %v", err)
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("MQ enqueue failed: %v", err))
+			httputil.ReturnError(r, w, 500, "MQ enqueue operation failed")
 			return
 		}
 		
 		// Test dequeue operation  
 		if _, err := mq.Dequeue(ctx, testTopic); err != nil {
 			logrus.Errorf("MQ health check dequeue failed: %v", err)
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("MQ dequeue failed: %v", err))
+			httputil.ReturnError(r, w, 500, "MQ dequeue operation failed")
 			return
 		}
 		
