@@ -92,4 +92,4 @@ curl -o install.sh https://get.rainbond.com && bash ./install.sh
 
 ## License
 
-本项目采用 Apache 许可证 2.0 版授权，并在 `ADDITIONAL_TERMS.md` 中规定了附加条款。请在使用、修改或分发本软件之前，阅读 [Apache 许可证 2.0](LICENSE) 和 [附加条款](ADDITIONAL_TERMS.md)。
+This repository is licensed under the [Rainbond Open Source License](LICENSE), based on Apache 2.0 with additional conditions.
