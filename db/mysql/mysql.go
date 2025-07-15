@@ -277,6 +277,16 @@ func (m *Manager) CheckTable() {
 
 func (m *Manager) patchTable() {
 	count := -1
+	switch m.config.DBType {
+	case "mysql":
+		if err := m.db.Exec("alter table enterprise_language_version add unique index if not exists lang_version_unique (lang, version);").Error; err != nil {
+			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+		}
+	case "sqlite":
+		if err := m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version);").Error; err != nil {
+			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+		}
+	}
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
 		m.initLanguageVersion()
