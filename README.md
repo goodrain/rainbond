@@ -125,4 +125,4 @@ This repository contains the core service implementation code of the Rainbond da
 
 ## License
 
-This project is licensed under the Apache License 2.0, with additional terms specified in `ADDITIONAL_TERMS.md`. Please read both the [Apache License 2.0](LICENSE) and [Additional Terms](ADDITIONAL_TERMS.md) before using, modifying, or distributing this software.
+This repository is licensed under the [Rainbond Open Source License](LICENSE), based on Apache 2.0 with additional conditions.
