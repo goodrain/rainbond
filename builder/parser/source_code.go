@@ -164,8 +164,52 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, "获取代码超时", solve))
 				return d.errors
 			}
+			// 网络连接错误
+			if strings.Contains(err.Error(), "no such host") || strings.Contains(err.Error(), "Name or service not known") {
+				solve := "请检查网络连接和DNS解析是否正常"
+				d.errappend(ErrorAndSolve(FatalError, "网络连接失败，无法解析仓库地址", solve))
+				return d.errors
+			}
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "Connection refused") {
+				solve := "请检查网络连接和仓库服务是否正常运行"
+				d.errappend(ErrorAndSolve(FatalError, "网络连接被拒绝，无法连接到仓库服务器", solve))
+				return d.errors
+			}
+			if strings.Contains(err.Error(), "network is unreachable") || strings.Contains(err.Error(), "Network is unreachable") {
+				solve := "请检查网络连接是否正常"
+				d.errappend(ErrorAndSolve(FatalError, "网络不可达，请检查网络连接", solve))
+				return d.errors
+			}
+			if strings.Contains(err.Error(), "timeout") || strings.Contains(err.Error(), "i/o timeout") {
+				solve := "请检查网络连接速度和稳定性"
+				d.errappend(ErrorAndSolve(FatalError, "网络超时，连接仓库服务器失败", solve))
+				return d.errors
+			}
+			// SSL/TLS 相关错误
+			if strings.Contains(err.Error(), "certificate verify failed") || strings.Contains(err.Error(), "x509") {
+				solve := "请检查仓库SSL证书是否有效，或尝试使用HTTP协议"
+				d.errappend(ErrorAndSolve(FatalError, "SSL证书验证失败", solve))
+				return d.errors
+			}
+			// 认证错误
+			if strings.Contains(err.Error(), "authentication failed") || strings.Contains(err.Error(), "401") {
+				solve := "请检查用户名密码或访问令牌是否正确"
+				d.errappend(ErrorAndSolve(FatalError, "身份验证失败", solve))
+				return d.errors
+			}
+			if strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden") {
+				solve := "请检查是否有访问该仓库的权限"
+				d.errappend(ErrorAndSolve(FatalError, "访问被禁止，权限不足", solve))
+				return d.errors
+			}
+			// 代理相关错误
+			if strings.Contains(err.Error(), "proxyconnect") || strings.Contains(err.Error(), "proxy") {
+				solve := "请检查代理设置是否正确"
+				d.errappend(ErrorAndSolve(FatalError, "代理连接失败", solve))
+				return d.errors
+			}
 			logrus.Errorf("git clone error,%s", err.Error())
-			d.errappend(ErrorAndSolve(FatalError, "获取代码失败"+err.Error(), "请确认仓库能否正常访问。"))
+			d.errappend(ErrorAndSolve(FatalError, "获取代码失败: "+err.Error(), "请确认仓库能否正常访问。"))
 			return d.errors
 		}
 		//获取分支
