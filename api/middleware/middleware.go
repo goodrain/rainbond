@@ -94,6 +94,12 @@ func InitService(next http.Handler) http.Handler {
 		service, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenantID.(string), serviceAlias)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
+				// 如果是删除请求且服务不存在，清理相关的 K8s 资源
+				if r.Method == "DELETE" {
+					if err := cleanupKubernetesResources(tenantID.(string), serviceAlias); err != nil {
+						logrus.Errorf("cleanup kubernetes resources error: %v", err)
+					}
+				}
 				httputil.ReturnError(r, w, 404, "cant find service")
 				return
 			}
@@ -108,6 +114,87 @@ func InitService(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
+}
+
+// cleanupKubernetesResources 清理与已删除服务相关的 K8s 资源
+func cleanupKubernetesResources(tenantID, serviceAlias string) error {
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		logrus.Errorf("get tenant by id error: %v", err)
+		return err
+	}
+
+	namespace := tenant.Namespace
+	if namespace == "" {
+		namespace = tenantID // fallback to tenantID as namespace
+	}
+
+	// 清理 ApisixRoute 资源
+	if err := cleanupApisixRoutes(namespace, serviceAlias); err != nil {
+		logrus.Errorf("cleanup apisix routes error: %v", err)
+	}
+
+	// 清理 Service 资源
+	if err := cleanupServices(namespace, serviceAlias); err != nil {
+		logrus.Errorf("cleanup services error: %v", err)
+	}
+
+	logrus.Infof("cleanup kubernetes resources for service %s in namespace %s completed", serviceAlias, namespace)
+	return nil
+}
+
+// cleanupApisixRoutes 清理 ApisixRoute 资源
+func cleanupApisixRoutes(namespace, serviceAlias string) error {
+	ctx := context.Background()
+
+	// 直接删除与该组件相关的所有 ApisixRoute
+	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(namespace).DeleteCollection(
+		ctx,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: "component_sort=" + serviceAlias,
+		},
+	)
+	if err != nil {
+		logrus.Errorf("delete apisix routes for component %s error: %v", serviceAlias, err)
+		return err
+	}
+
+	logrus.Infof("deleted apisix routes for component %s in namespace %s", serviceAlias, namespace)
+	return nil
+}
+
+// cleanupServices 清理 Service 资源
+func cleanupServices(namespace, serviceAlias string) error {
+	ctx := context.Background()
+
+	// 先列出与该组件相关的所有 Service
+	serviceList, err := k8s.Default().Clientset.CoreV1().Services(namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: "service_alias=" + serviceAlias,
+		},
+	)
+	if err != nil {
+		logrus.Errorf("list services for component %s error: %v", serviceAlias, err)
+		return err
+	}
+
+	// 逐个删除 Service
+	for _, svc := range serviceList.Items {
+		if err := k8s.Default().Clientset.CoreV1().Services(namespace).Delete(
+			ctx,
+			svc.Name,
+			metav1.DeleteOptions{},
+		); err != nil {
+			logrus.Warningf("delete service(%s): %v", svc.GetName(), err)
+		} else {
+			logrus.Infof("deleted service: %s", svc.GetName())
+		}
+	}
+
+	logrus.Infof("cleanup services for component %s in namespace %s completed", serviceAlias, namespace)
+	return nil
 }
 
 // InitApplication -
