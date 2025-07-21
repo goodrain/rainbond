@@ -1013,7 +1013,7 @@ func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Re
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-
+	logrus.Infof("--------------------show delete alias %v", service.ServiceAlias)
 	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(tenant.Namespace).DeleteCollection(r.Context(), v1.DeleteOptions{}, v1.ListOptions{
 		LabelSelector: "component_sort=" + service.ServiceAlias,
 	})
