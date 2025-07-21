@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 	"net/http"
 	"strconv"
@@ -11,7 +13,9 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 )
@@ -172,6 +176,12 @@ func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request
 		logrus.Debugf("delete app etcd keys : %+v", req.Keys)
 		handler.GetCleanDateBaseHandler().CleanAllServiceData(req.Keys)
 	}
+
+	// 清理与应用相关的 Kubernetes 资源
+	if err := cleanupAppKubernetesResources(app.TenantID, app.AppID); err != nil {
+		logrus.Errorf("cleanup app kubernetes resources error: %v", err)
+	}
+
 	// Delete application
 	err := handler.GetApplicationHandler().DeleteApp(r.Context(), app)
 	if err != nil {
@@ -387,4 +397,85 @@ func (a *ApplicationController) ChangeVolumes(w http.ResponseWriter, r *http.Req
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+// cleanupAppKubernetesResources 清理与应用相关的 K8s 资源
+func cleanupAppKubernetesResources(tenantID, appID string) error {
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		logrus.Errorf("get tenant by id error: %v", err)
+		return err
+	}
+
+	namespace := tenant.Namespace
+	if namespace == "" {
+		namespace = tenantID // fallback to tenantID as namespace
+	}
+
+	// 清理与应用相关的 ApisixRoute 资源
+	if err := cleanupAppApisixRoutes(namespace, appID); err != nil {
+		logrus.Errorf("cleanup app apisix routes error: %v", err)
+	}
+
+	// 清理与应用相关的 Service 资源
+	if err := cleanupAppServices(namespace, appID); err != nil {
+		logrus.Errorf("cleanup app services error: %v", err)
+	}
+
+	logrus.Infof("cleanup kubernetes resources for app %s in namespace %s completed", appID, namespace)
+	return nil
+}
+
+// cleanupAppApisixRoutes 清理应用相关的 ApisixRoute 资源
+func cleanupAppApisixRoutes(namespace, appID string) error {
+	ctx := context.Background()
+
+	// 直接删除与该应用相关的所有 ApisixRoute
+	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(namespace).DeleteCollection(
+		ctx,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: "app_id=" + appID,
+		},
+	)
+	if err != nil {
+		logrus.Errorf("delete apisix routes for app %s error: %v", appID, err)
+		return err
+	}
+
+	logrus.Infof("deleted apisix routes for app %s in namespace %s", appID, namespace)
+	return nil
+}
+
+// cleanupAppServices 清理应用相关的 Service 资源
+func cleanupAppServices(namespace, appID string) error {
+	ctx := context.Background()
+
+	// 先列出与该应用相关的所有 Service
+	serviceList, err := k8s.Default().Clientset.CoreV1().Services(namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: "app_id=" + appID,
+		},
+	)
+	if err != nil {
+		logrus.Errorf("list services for app %s error: %v", appID, err)
+		return err
+	}
+
+	// 逐个删除 Service
+	for _, svc := range serviceList.Items {
+		if err := k8s.Default().Clientset.CoreV1().Services(namespace).Delete(
+			ctx,
+			svc.Name,
+			metav1.DeleteOptions{},
+		); err != nil {
+			logrus.Warningf("delete service(%s): %v", svc.GetName(), err)
+		} else {
+			logrus.Infof("deleted service: %s", svc.GetName())
+		}
+	}
+
+	logrus.Infof("cleanup services for app %s in namespace %s completed", appID, namespace)
+	return nil
 }
