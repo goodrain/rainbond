@@ -90,16 +90,19 @@ func InitService(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 404, "cant find service alias")
 			return
 		}
+
 		tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id"))
+
+		// 如果是删除服务的请求路径，先执行清理操作
+		if r.Method == "DELETE" && r.URL.Path == "/v2/tenants/"+chi.URLParam(r, "tenant_name")+"/services/"+serviceAlias+"/" {
+			if err := cleanupKubernetesResources(tenantID.(string), serviceAlias); err != nil {
+				logrus.Errorf("cleanup kubernetes resources error: %v", err)
+			}
+		}
+
 		service, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenantID.(string), serviceAlias)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				// 如果是删除请求且服务不存在，清理相关的 K8s 资源
-				if r.Method == "DELETE" {
-					if err := cleanupKubernetesResources(tenantID.(string), serviceAlias); err != nil {
-						logrus.Errorf("cleanup kubernetes resources error: %v", err)
-					}
-				}
 				httputil.ReturnError(r, w, 404, "cant find service")
 				return
 			}
