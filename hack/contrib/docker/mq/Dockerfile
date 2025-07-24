@@ -1,4 +1,4 @@
-FROM rainbond/golang:1.23-alpine as compile
+FROM rainbond/golang:1.23-alpine AS compile
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY
@@ -13,7 +13,7 @@ WORKDIR /go/src/github.com/goodrain/rainbond
 RUN apk --no-cache add binutils-gold && \
     go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-mq ./cmd/mq;
 
-FROM ubuntu:24.04 as compress
+FROM ubuntu:24.04 AS compress
 COPY --from=compile /run/rainbond-mq /run/rainbond-mq
 
 RUN apt-get update && apt -y install upx && \

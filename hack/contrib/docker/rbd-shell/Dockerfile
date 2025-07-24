@@ -1,4 +1,4 @@
-FROM alpine:3 as binary
+FROM alpine:3 AS binary
 ARG TARGETARCH
 
 RUN apk add --no-cache curl
