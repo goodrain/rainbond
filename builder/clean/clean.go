@@ -95,6 +95,13 @@ func (t *Manager) Start(errchan chan error) error {
 				}
 				for _, v := range versions {
 					if v.DeliveredType == "image" {
+						// 跳过系统镜像（builder 和 runner）
+						if strings.Contains(strings.ToLower(v.DeliveredPath), "builder") ||
+							strings.Contains(strings.ToLower(v.DeliveredPath), "runner") {
+							logrus.Infof("Skipping system image: %s", v.DeliveredPath)
+							continue
+						}
+
 						//clean rbd-hub images
 						imageInfo := sources.ImageNameHandle(v.DeliveredPath)
 						if strings.Contains(imageInfo.Host, "goodrain.me") {
