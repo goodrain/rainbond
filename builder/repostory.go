@@ -20,15 +20,12 @@ package builder
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
-	"net"
 	"os"
 	"path"
 	"runtime"
 	"strings"
-	"time"
-
-	"github.com/goodrain/rainbond/util/constants"
 )
 
 func init() {
@@ -109,23 +106,8 @@ func GetBuilderImage(brVersion string) string {
 	if brVersion == "" {
 		brVersion = CIVERSION
 	}
-	if isAvailble, latency := testRegistryLatency("docker.io"); isAvailble {
-		logrus.Debugf("docker.io latency: %v", latency)
-		ONLINEREGISTRYDOMAIN = "rainbond"
-	}
-	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), brVersion, arch)
-}
 
-// 测试镜像源可达性及延迟
-func testRegistryLatency(registry string) (bool, time.Duration) {
-	start := time.Now()
-	conn, err := net.DialTimeout("tcp", registry+":443", 2*time.Second)
-	if err != nil {
-		logrus.Debugf("test registry %s error: %v", registry, err)
-		return false, 0
-	}
-	defer conn.Close()
-	return true, time.Since(start)
+	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), brVersion, arch)
 }
 
 // GetRunnerImage GetRunnerImage
@@ -134,10 +116,7 @@ func GetRunnerImage(brVersion string) string {
 	if brVersion == "" {
 		brVersion = CIVERSION
 	}
-	if isAvailble, latency := testRegistryLatency("docker.io"); isAvailble {
-		logrus.Debugf("docker.io latency: %v", latency)
-		ONLINEREGISTRYDOMAIN = "rainbond"
-	}
+
 	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), brVersion, arch)
 }
 
