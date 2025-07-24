@@ -147,7 +147,8 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	var img containerd.Image
 	img, err = c.client.Pull(pctx, reference, opts...)
 	if err != nil {
-		logrus.Infof("pull image failure, try http")
+		logrus.Infof("pull image failure with HTTPS, try HTTP protocol")
+		printLog(logger, "warn", fmt.Sprintf("HTTPS镜像拉取失败，尝试HTTP协议: %s", err.Error()), map[string]string{"step": "pullimage"})
 		hostOpt.DefaultScheme = "http"
 		options := docker.ResolverOptions{
 			Tracker: Tracker,
@@ -164,11 +165,118 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	}
 	stopProgress()
 	if err != nil {
-		return nil, err
+		// 增强错误处理，提供更详细的错误信息
+		enhancedErr := c.enhanceImagePullError(err, reference, logger)
+		return nil, enhancedErr
 	}
 	<-progress
 	printLog(logger, "info", fmt.Sprintf("Success Pull Image：%s", reference), map[string]string{"step": "pullimage"})
 	return getImageConfig(ctx, img)
+}
+
+// enhanceImagePullError 增强镜像拉取错误信息，提供更详细的错误描述和解决建议
+func (c *containerdImageCliImpl) enhanceImagePullError(err error, image string, logger event.Logger) error {
+	errMsg := err.Error()
+	var userFriendlyMsg string
+	var logMsg string
+	var adviceMsg string
+
+	// 检查是否是goodrain.me相关的错误
+	isGoodrainRepo := strings.Contains(image, "goodrain.me")
+
+	switch {
+	case strings.Contains(errMsg, "EOF"):
+		if isGoodrainRepo {
+			userFriendlyMsg = "连接goodrain.me镜像仓库时连接被意外中断"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection terminated unexpectedly (EOF)", image)
+			adviceMsg = "请检查: 1) 网络连接是否稳定; 2) goodrain.me服务是否可访问; 3) 是否需要配置代理或DNS; 4) 建议更换镜像仓库地址"
+		} else {
+			userFriendlyMsg = "镜像仓库连接被意外中断"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection terminated unexpectedly (EOF)", image)
+			adviceMsg = "请检查网络连接和镜像仓库服务状态"
+		}
+
+	case strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout"):
+		if isGoodrainRepo {
+			userFriendlyMsg = "连接goodrain.me镜像仓库超时"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection timeout", image)
+			adviceMsg = "请检查: 1) 网络连接速度; 2) goodrain.me的可访问性; 3) 防火墙设置; 4) 建议更换为国内镜像仓库"
+		} else {
+			userFriendlyMsg = "镜像拉取超时"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection timeout", image)
+			adviceMsg = "请检查网络连接速度和镜像仓库可访问性"
+		}
+
+	case strings.Contains(errMsg, "no such host") || strings.Contains(errMsg, "Name or service not known"):
+		if isGoodrainRepo {
+			userFriendlyMsg = "无法解析goodrain.me域名"
+			logMsg = fmt.Sprintf("Pull image %s failed: DNS resolution failed for goodrain.me", image)
+			adviceMsg = "请检查: 1) DNS配置是否正确; 2) 网络连接是否正常; 3) goodrain.me域名是否可访问; 4) 建议更换镜像仓库地址"
+		} else {
+			userFriendlyMsg = "无法解析镜像仓库域名"
+			logMsg = fmt.Sprintf("Pull image %s failed: DNS resolution failed", image)
+			adviceMsg = "请检查DNS配置和网络连接"
+		}
+
+	case strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "Connection refused"):
+		if isGoodrainRepo {
+			userFriendlyMsg = "goodrain.me镜像仓库拒绝连接"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection refused by goodrain.me", image)
+			adviceMsg = "请检查: 1) goodrain.me服务状态; 2) 网络连接; 3) 端口是否被阻止; 4) 建议更换镜像仓库地址"
+		} else {
+			userFriendlyMsg = "镜像仓库拒绝连接"
+			logMsg = fmt.Sprintf("Pull image %s failed: connection refused", image)
+			adviceMsg = "请检查镜像仓库服务状态和网络连接"
+		}
+
+	case strings.Contains(errMsg, "network is unreachable") || strings.Contains(errMsg, "Network is unreachable"):
+		userFriendlyMsg = "网络不可达，无法连接到镜像仓库"
+		logMsg = fmt.Sprintf("Pull image %s failed: network unreachable", image)
+		adviceMsg = "请检查网络连接配置和路由设置"
+
+	case strings.Contains(errMsg, "certificate verify failed") || strings.Contains(errMsg, "x509"):
+		userFriendlyMsg = "镜像仓库SSL证书验证失败"
+		logMsg = fmt.Sprintf("Pull image %s failed: SSL certificate verification failed", image)
+		adviceMsg = "请检查镜像仓库SSL证书是否有效，或尝试使用HTTP协议"
+
+	case strings.Contains(errMsg, "authentication failed") || strings.Contains(errMsg, "401") || strings.Contains(errMsg, "unauthorized"):
+		userFriendlyMsg = "镜像仓库身份验证失败"
+		logMsg = fmt.Sprintf("Pull image %s failed: authentication failed", image)
+		adviceMsg = "请检查用户名密码或访问令牌是否正确"
+
+	case strings.Contains(errMsg, "403") || strings.Contains(errMsg, "Forbidden"):
+		userFriendlyMsg = "没有访问该镜像的权限"
+		logMsg = fmt.Sprintf("Pull image %s failed: access forbidden", image)
+		adviceMsg = "请检查是否有访问该镜像仓库的权限"
+
+	case strings.Contains(errMsg, "404") || strings.Contains(errMsg, "not found"):
+		userFriendlyMsg = "镜像不存在"
+		logMsg = fmt.Sprintf("Pull image %s failed: image not found", image)
+		adviceMsg = "请检查镜像名称和标签是否正确"
+
+	case strings.Contains(errMsg, "proxyconnect") || strings.Contains(errMsg, "proxy"):
+		userFriendlyMsg = "代理连接失败"
+		logMsg = fmt.Sprintf("Pull image %s failed: proxy connection failed", image)
+		adviceMsg = "请检查代理设置是否正确"
+
+	default:
+		if isGoodrainRepo {
+			userFriendlyMsg = "从goodrain.me拉取镜像失败"
+			logMsg = fmt.Sprintf("Pull image %s failed: %s", image, errMsg)
+			adviceMsg = "建议更换镜像仓库地址，或检查goodrain.me的服务状态"
+		} else {
+			userFriendlyMsg = "镜像拉取失败"
+			logMsg = fmt.Sprintf("Pull image %s failed: %s", image, errMsg)
+			adviceMsg = "请检查镜像名称和网络连接"
+		}
+	}
+
+	// 记录详细的错误日志
+	logrus.Errorf("[ImagePull] %s", logMsg)
+	printLog(logger, "error", fmt.Sprintf("%s: %s", userFriendlyMsg, adviceMsg), map[string]string{"step": "pullimage", "status": "failure"})
+
+	// 返回用户友好的错误信息
+	return fmt.Errorf("%s。%s。原始错误: %s", userFriendlyMsg, adviceMsg, errMsg)
 }
 
 // Helper function to check if the error is protocol related
