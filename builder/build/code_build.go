@@ -155,12 +155,22 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	var cmd []string
 	sourceTarFile := fmt.Sprintf("%s/%s-%s.tar", util.GetParentDirectory(re.SourceDir), re.ServiceID, re.DeployVersion)
-	if re.ServerType == "svn" {
+
+	// 验证并处理支持的ServerType
+	switch re.ServerType {
+	case "svn":
 		cmd = append(cmd, "tar", "-cf", sourceTarFile, "./")
-	}
-	if re.ServerType == "git" {
+	case "git":
 		cmd = append(cmd, "tar", "-cf", sourceTarFile, "./")
+	default:
+		return "", fmt.Errorf("unsupported server type '%s' for source code tar operation, only 'git' and 'svn' are supported", re.ServerType)
 	}
+
+	// 防御性检查：确保cmd不为空
+	if len(cmd) == 0 {
+		return "", fmt.Errorf("no tar command generated for server type '%s'", re.ServerType)
+	}
+
 	source := exec.Command(cmd[0], cmd[1:]...)
 	source.Dir = re.SourceDir
 	logrus.Debugf("tar source code to file %s", sourceTarFile)
@@ -241,7 +251,8 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
 	start := time.Now()
 	var sourceTarFileName string
-	if re.ServerType != "oss" && re.ServerType != "pkg" {
+	// 只有 git 和 svn 类型需要创建源码 tar 文件
+	if re.ServerType == "git" || re.ServerType == "svn" {
 		var err error
 		// handle nodejs or static dir
 		if err := s.HandleNodeJsDir(re); err != nil {
