@@ -209,17 +209,29 @@ func (c *Conn) readLoop() {
 			return
 		}
 		if p.IsPing() {
-			if ok := c.timer.Reset(timeOut); !ok {
-				c.timer = time.NewTimer(timeOut)
+			if !c.timer.Stop() {
+				// 如果Stop返回false，说明定时器已经触发或已经停止
+				// 需要先排空channel再重置
+				select {
+				case <-c.timer.C:
+				default:
+				}
 			}
+			c.timer.Reset(timeOut)
 			continue
 		}
 		if ok := c.srv.callback.OnMessage(p); !ok {
 			continue
 		}
-		if ok := c.timer.Reset(timeOut); !ok {
-			c.timer = time.NewTimer(timeOut)
+		if !c.timer.Stop() {
+			// 如果Stop返回false，说明定时器已经触发或已经停止
+			// 需要先排空channel再重置
+			select {
+			case <-c.timer.C:
+			default:
+			}
 		}
+		c.timer.Reset(timeOut)
 	}
 }
 
@@ -242,9 +254,18 @@ func (c *Conn) readPing() {
 }
 
 func asyncDo(fn func(), wg *sync.WaitGroup) {
-	//wg.Add(1)
+	if wg != nil {
+		wg.Add(1)
+	}
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("asyncDo goroutine recovered from panic: %v", r)
+			}
+			if wg != nil {
+				wg.Done()
+			}
+		}()
 		fn()
-		//wg.Done()
 	}()
 }

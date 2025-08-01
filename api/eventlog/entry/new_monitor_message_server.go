@@ -20,7 +20,6 @@ package entry
 
 import (
 	"errors"
-	"fmt"
 	"github.com/goodrain/rainbond/api/eventlog/conf"
 	"github.com/goodrain/rainbond/api/eventlog/store"
 	"net"
@@ -33,18 +32,42 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// NMonitorMessageServer 新性能分析实时数据接受服务
+// BufferPool UDP缓冲区池
+type BufferPool struct {
+	pool sync.Pool
+}
+
+func NewBufferPool(size int) *BufferPool {
+	return &BufferPool{
+		pool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, size)
+			},
+		},
+	}
+}
+
+func (p *BufferPool) Get() []byte {
+	return p.pool.Get().([]byte)
+}
+
+func (p *BufferPool) Put(buf []byte) {
+	p.pool.Put(buf)
+}
+
+// NMonitorMessageServer 新监控消息服务
 type NMonitorMessageServer struct {
-	conf               conf.NewMonitorMessageServerConf
-	log                *logrus.Entry
-	cancel             func()
-	context            context.Context
-	storemanager       store.Manager
-	messageChan        chan []byte
-	listenErr          chan error
-	serverLock         sync.Mutex
-	stopReceiveMessage bool
-	listener           *net.UDPConn
+	conf         conf.NewMonitorMessageServerConf
+	log          *logrus.Entry
+	cancel       func()
+	context      context.Context
+	storemanager store.Manager
+	messageChan  chan []byte
+	listenErr    chan error
+	listener     *net.UDPConn
+
+	// 优化字段
+	bufferPool *BufferPool
 }
 
 // NewNMonitorMessageServer 创建UDP服务端
@@ -57,17 +80,18 @@ func NewNMonitorMessageServer(conf conf.NewMonitorMessageServerConf, log *logrus
 		context:      ctx,
 		storemanager: storeManager,
 		listenErr:    make(chan error),
+		bufferPool:   NewBufferPool(65535), // 使用缓冲区池
 	}
+
 	listener, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(conf.ListenerHost), Port: conf.ListenerPort})
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	log.Infof("UDP Server Listener: %s", listener.LocalAddr().String())
 	s.listener = listener
 	s.messageChan = s.storemanager.NewMonitorMessageChan()
 	if s.messageChan == nil {
-		return nil, errors.New("receive monitor message server can not get store message chan ")
+		return nil, errors.New("receive monitor message server can not get store message chan")
 	}
 	return s, nil
 }
@@ -84,20 +108,51 @@ func (s *NMonitorMessageServer) Stop() {
 }
 
 func (s *NMonitorMessageServer) handleMessage() {
-	buf := make([]byte, 65535)
 	defer s.listener.Close()
 	s.log.Infoln("start receive monitor message by udp")
+
 	for {
+		select {
+		case <-s.context.Done():
+			return
+		default:
+		}
+
+		// 从缓冲区池获取buffer
+		buf := s.bufferPool.Get()
+
+		// 设置读取超时
+		s.listener.SetReadDeadline(time.Now().Add(time.Second * 5))
+
 		n, _, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
+			s.bufferPool.Put(buf) // 归还buffer
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				continue // 超时继续
+			}
 			logrus.Errorf("read new monitor message from udp error,%s", err.Error())
 			time.Sleep(time.Second * 2)
 			continue
 		}
-		// fix issues https://github.com/golang/go/issues/35725
+
+		if n <= 0 {
+			s.bufferPool.Put(buf)
+			continue
+		}
+
+		// 创建精确大小的消息副本
 		message := make([]byte, n)
-		copy(message, buf[0:n])
-		s.messageChan <- message
+		copy(message, buf[:n])
+
+		// 归还buffer到池
+		s.bufferPool.Put(buf)
+
+		// 非阻塞发送消息
+		select {
+		case s.messageChan <- message:
+		default:
+			s.log.Warn("Monitor message channel is full, dropping message")
+		}
 	}
 }
 

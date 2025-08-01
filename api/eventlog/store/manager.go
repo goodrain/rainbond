@@ -323,20 +323,31 @@ func (s *storeManager) checkHealth() {
 }
 
 func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db2.EventLogMessage, error) {
-	if msg == nil {
-		return nil, errors.New("unable parsing nil message")
+	if msg == nil || len(msg) == 0 {
+		return nil, errors.New("unable parsing nil or empty message")
 	}
-	//message := s.pool.Get().(*db.EventLogMessage)不能使用对象池，会阻塞进程
+
+	// 检查消息大小，避免过大的消息导致内存问题
+	if len(msg) > 1024*1024 { // 1MB限制
+		return nil, errors.New("message too large")
+	}
+
 	var message db2.EventLogMessage
-	message.Content = msg
+	// 只在需要时设置Content，避免不必要的内存拷贝
 	if messageType == "json" {
 		err := ffjson.Unmarshal(msg, &message)
 		if err != nil {
+			// 设置原始内容用于垃圾回收分析
+			message.Content = make([]byte, len(msg))
+			copy(message.Content, msg)
 			return &message, err
 		}
 		if message.EventID == "" {
 			return &message, errors.New("are not present in the message event_id")
 		}
+		// 只有在解析成功时才设置Content
+		message.Content = make([]byte, len(msg))
+		copy(message.Content, msg)
 		return &message, nil
 	}
 	return nil, errors.New("unable to process configuration of message format type")
