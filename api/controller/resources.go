@@ -70,6 +70,7 @@ type V2Routes struct {
 	HelmStruct
 	Registry
 	apigateway.Struct
+	KubeBlocksController
 }
 
 // Show test
