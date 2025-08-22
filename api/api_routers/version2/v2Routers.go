@@ -414,6 +414,19 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
 	r.Delete("/langVersion", controller.GetManager().DeleteLangVersion)
 	r.Post("/over_score", controller.GetManager().SetOverScore)
+	r.Get("/kubeblocks/supported-databases", controller.GetManager().GetSupportedDatabases)
+	r.Get("/kubeblocks/storage-classes", controller.GetManager().GetStorageClasses)
+	r.Get("/kubeblocks/backup-repos", controller.GetManager().GetBackupRepos)
+	r.Post("/kubeblocks/clusters", controller.GetManager().CreateCluster)
+	r.Get("/kubeblocks/clusters/connect-infos", controller.GetManager().GetClusterConnectInfos)
+	r.Get("/kubeblocks/component/{service_id}/infos", controller.GetManager().GetKubeBlocksComponentInfo)
+	r.Get("/kubeblocks/clusters/{service_id}", controller.GetManager().GetClusterByID)
+	r.Put("/kubeblocks/clusters/{service_id}", controller.GetManager().ExpansionCluster)
+	r.Put("/kubeblocks/clusters/{service_id}/backup-schedules", controller.GetManager().UpdateClusterBackupSchedules)
+	r.Post("/kubeblocks/clusters/{service_id}/backups", controller.GetManager().CreateClusterBackup)
+	r.Get("/kubeblocks/clusters/{service_id}/backups", controller.GetManager().GetClusterBackups)
+	r.Delete("/kubeblocks/clusters", controller.GetManager().DeleteClusters)
+	r.Delete("/kubeblocks/clusters/{service_id}/backups", controller.GetManager().DeleteClusterBackup)
 	return r
 }
 
