@@ -279,8 +279,15 @@ func (m *Manager) patchTable() {
 	count := -1
 	switch m.config.DBType {
 	case "mysql":
-		if err := m.db.Exec("alter table enterprise_language_version add unique index if not exists lang_version_unique (lang, version);").Error; err != nil {
-			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+		// 兼容低版本 MySQL：先查询是否已存在索引，再创建，避免使用不兼容的 IF NOT EXISTS
+		var indexCount int
+		row := m.db.Raw("SELECT COUNT(1) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
+		if err := row.Scan(&indexCount); err != nil {
+			logrus.Errorf("query index exists error: %s", err.Error())
+		} else if indexCount == 0 {
+			if err := m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version);").Error; err != nil {
+				logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
+			}
 		}
 	case "sqlite":
 		if err := m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version);").Error; err != nil {
