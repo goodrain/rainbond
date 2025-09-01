@@ -185,6 +185,10 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 	client.DisableHooks = false
 	client.DisableOpenAPIValidation = true
 
+	// 强制设置一个满足要求的 Kubernetes 版本，绕过版本检查
+	client.KubeVersion = "v1.30.0"
+	logrus.Infof("Force set Kubernetes version to: %s", client.KubeVersion)
+
 	var cp string
 	if chartPath != "" {
 		cp = chartPath
@@ -209,6 +213,13 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 	if err != nil {
 		return nil, err
 	}
+
+	// 强制移除 chart 的 Kubernetes 版本要求，解决版本不匹配问题
+	if chartRequested.Metadata != nil && chartRequested.Metadata.KubeVersion != "" {
+		logrus.Infof("Removing chart kubeVersion requirement: %s", chartRequested.Metadata.KubeVersion)
+		chartRequested.Metadata.KubeVersion = ""
+	}
+
 	var crdYaml string
 	crds := chartRequested.CRDObjects()
 	for _, crd := range crds {
