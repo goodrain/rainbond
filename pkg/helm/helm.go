@@ -59,26 +59,6 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	configFlags.Namespace = commonutil.String(namespace)
 	kubeClient := kube.New(configFlags)
 
-	// 获取 Kubernetes 版本信息用于调试
-	// 通过 RESTClientGetter 获取 discovery client
-	discoveryClient, err := configFlags.ToDiscoveryClient()
-	if err != nil {
-		logrus.Warnf("Failed to create discovery client: %v", err)
-	} else {
-		serverVersion, err := discoveryClient.ServerVersion()
-		if err != nil {
-			logrus.Warnf("Failed to get Kubernetes server version: %v", err)
-		} else {
-			logrus.Infof("Detected Kubernetes server version: %s", serverVersion.GitVersion)
-		}
-	}
-
-	// 检查是否跳过版本检查
-	skipVersionCheck := os.Getenv("HELM_SKIP_VERSION_CHECK") == "true"
-	if skipVersionCheck {
-		logrus.Info("Skipping Kubernetes version compatibility check due to HELM_SKIP_VERSION_CHECK=true")
-	}
-
 	cfg := &action.Configuration{
 		KubeClient: kubeClient,
 		Log: func(s string, i ...interface{}) {
@@ -240,17 +220,6 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 
 	if chartRequested.Metadata.Deprecated {
 		logrus.Warningf("This chart is deprecated")
-	}
-
-	// 检查 chart 的 Kubernetes 版本要求
-	if chartRequested.Metadata.KubeVersion != "" {
-		logrus.Infof("Chart requires Kubernetes version: %s", chartRequested.Metadata.KubeVersion)
-	}
-
-	// 执行版本兼容性检查
-	if err := h.checkKubeVersionCompatibility(chartRequested); err != nil {
-		logrus.Warnf("Version compatibility check failed: %v", err)
-		// 不返回错误，继续执行
 	}
 
 	if req := chartRequested.Metadata.Dependencies; req != nil {
@@ -529,51 +498,4 @@ func formatAppVersion(c *chart.Chart) string {
 		return "MISSING"
 	}
 	return c.AppVersion()
-}
-
-// checkKubeVersionCompatibility 检查 Kubernetes 版本兼容性
-func (h *Helm) checkKubeVersionCompatibility(chartRequested *chart.Chart) error {
-	// 检查是否跳过版本检查
-	if os.Getenv("HELM_SKIP_VERSION_CHECK") == "true" {
-		logrus.Info("Skipping Kubernetes version compatibility check")
-		return nil
-	}
-
-	if chartRequested.Metadata.KubeVersion == "" {
-		return nil // 没有版本要求，跳过检查
-	}
-
-	// 获取当前 Kubernetes 版本
-	// 通过 RESTClientGetter 获取 discovery client
-	discoveryClient, err := h.cfg.RESTClientGetter.ToDiscoveryClient()
-	if err != nil {
-		logrus.Warnf("Failed to create discovery client: %v, skipping version check", err)
-		return nil
-	}
-
-	serverVersion, err := discoveryClient.ServerVersion()
-	if err != nil {
-		logrus.Warnf("Failed to get Kubernetes server version: %v, skipping version check", err)
-		return nil
-	}
-
-	currentVersion := serverVersion.GitVersion
-	requiredVersion := chartRequested.Metadata.KubeVersion
-
-	logrus.Infof("Current Kubernetes version: %s", currentVersion)
-	logrus.Infof("Chart requires Kubernetes version: %s", requiredVersion)
-
-	// 解析版本号进行比较
-	currentSemVer := strings.TrimPrefix(currentVersion, "v")
-	requiredSemVer := strings.TrimPrefix(requiredVersion, "v")
-
-	// 简单的版本比较（这里可以根据需要实现更复杂的版本比较逻辑）
-	if strings.HasPrefix(currentSemVer, "1.30") && strings.HasPrefix(requiredSemVer, "1.23") {
-		logrus.Infof("Version compatibility check passed: %s >= %s", currentVersion, requiredVersion)
-		return nil
-	}
-
-	// 如果版本检查失败，记录警告但继续执行
-	logrus.Warnf("Version compatibility check failed: current %s, required %s, but continuing...", currentVersion, requiredVersion)
-	return nil
 }
