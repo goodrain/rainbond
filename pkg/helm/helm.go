@@ -185,10 +185,6 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 	client.DisableHooks = false
 	client.DisableOpenAPIValidation = true
 
-	// 强制设置一个满足要求的 Kubernetes 版本，绕过版本检查
-	client.KubeVersion = "v1.30.0"
-	logrus.Infof("Force set Kubernetes version to: %s", client.KubeVersion)
-
 	var cp string
 	if chartPath != "" {
 		cp = chartPath
@@ -509,4 +505,17 @@ func formatAppVersion(c *chart.Chart) string {
 		return "MISSING"
 	}
 	return c.AppVersion()
+}
+
+// removeKubeVersionFromChart 递归移除 chart 及其所有子 chart 的 Kubernetes 版本要求
+func removeKubeVersionFromChart(ch *chart.Chart) {
+	if ch.Metadata != nil && ch.Metadata.KubeVersion != "" {
+		logrus.Infof("Removing kubeVersion requirement from chart %s: %s", ch.Name(), ch.Metadata.KubeVersion)
+		ch.Metadata.KubeVersion = ""
+	}
+
+	// 递归处理所有子 chart
+	for _, subChart := range ch.Dependencies() {
+		removeKubeVersionFromChart(subChart)
+	}
 }
