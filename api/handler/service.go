@@ -1961,6 +1961,10 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 		CurStatus:     services.CurStatus,
 		StatusCN:      TransStatus(services.CurStatus),
 	}
+	// kubeblocks_component 的 workload 由 KubeBlocks 管理，Rainbond 不读取其运行状态
+	if services.IsKubeBlocksComponent() {
+		return sl, nil
+	}
 	status := s.statusCli.GetStatus(serviceID)
 	if status != "" {
 		sl.CurStatus = status
@@ -2120,6 +2124,10 @@ type K8sPodInfo struct {
 
 // GetPods get pods
 func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
+	// kubeblocks_component 的 workload 由 KubeBlocks 管理，Rainbond 不查询其 Pods
+	if svc, _ := db.GetManager().TenantServiceDao().GetServiceByID(serviceID); svc != nil && svc.IsKubeBlocksComponent() {
+		return &K8sPodInfos{NewPods: []*K8sPodInfo{}, OldPods: []*K8sPodInfo{}}, nil
+	}
 	pods, err := s.statusCli.GetServicePods(serviceID)
 	if err != nil && !strings.Contains(err.Error(), server.ErrAppServiceNotFound.Error()) &&
 		!strings.Contains(err.Error(), server.ErrPodNotFound.Error()) {

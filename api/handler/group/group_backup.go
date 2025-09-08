@@ -232,6 +232,9 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) erro
 			//TODO: support thirdpart service backup and restore
 			continue
 		}
+		if service.IsKubeBlocksComponent() {
+			continue
+		}
 		data := &RegionServiceSnapshot{
 			ServiceID: id,
 		}

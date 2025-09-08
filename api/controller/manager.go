@@ -52,6 +52,7 @@ type V2Manager interface {
 	api.HelmInterface
 	api.RegistryInterface
 	api.GatewayInterface
+	api.KubeBlocksInterface
 }
 
 var defaultV2Manager V2Manager
