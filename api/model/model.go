@@ -1758,6 +1758,9 @@ var ExportHelmChart = "export_helm_chart"
 // FromMarketSlugBuildKing build from market slug
 var FromMarketSlugBuildKing = "build_from_market_slug"
 
+// FromKubeBlocksBuildKind build from kubeblocks
+var FromKubeBlocksBuildKind = "kubeblocks"
+
 // HelmChart -
 type HelmChart struct {
 	AppName    string `json:"app_name"`

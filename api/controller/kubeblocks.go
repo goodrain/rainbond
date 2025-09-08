@@ -30,7 +30,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-
 // KubeBlocksController -
 type KubeBlocksController struct{}
 
@@ -107,6 +106,25 @@ func (c *KubeBlocksController) DeleteClusters(w http.ResponseWriter, r *http.Req
 func (c *KubeBlocksController) DeleteClusterBackup(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "service_id")
 	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/backups", serviceID), "DELETE")
+}
+
+// ManageCluster forwards to block-mechanica to manage cluster lifecycle
+func (c *KubeBlocksController) ManageCluster(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("ManageCluster request: %v", r.Body)
+	c.forwardRequest(w, r, "/v1/clusters/actions", "POST")
+}
+
+// GetClusterPodDetail forwards to block-mechanica to get pod details managed by Cluster
+func (c *KubeBlocksController) GetClusterPodDetail(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	podName := chi.URLParam(r, "pod_name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/pods/%s/details", serviceID, podName), "GET")
+}
+
+// GetClusterEvents forwards to block-mechanica to get cluster's events
+func (c *KubeBlocksController) GetClusterEvents(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/events", serviceID), "GET")
 }
 
 // forwardRequest helper function to forward requests to Block Mechanica
