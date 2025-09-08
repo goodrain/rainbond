@@ -135,6 +135,14 @@ func (s ServiceType) IsCronJob() bool {
 	return false
 }
 
+// IsKubeBlocks is kubeblocks
+func (s ServiceType) IsKubeBlocks() bool {
+	if s == ServiceTypeKubeBlocks {
+		return true
+	}
+	return false
+}
+
 // IsSingleton is singleton or not
 func (s ServiceType) IsSingleton() bool {
 	if s == "" {
@@ -186,6 +194,14 @@ func (t *TenantServices) IsSingleton() bool {
 	return ServiceType(t.ExtendMethod).IsSingleton()
 }
 
+// IsKubeBlocksComponent is kubeblocks component
+func (t *TenantServices) IsKubeBlocksComponent() bool {
+	if t.ExtendMethod == "" {
+		return false
+	}
+	return ServiceType(t.ExtendMethod).IsKubeBlocks()
+}
+
 // ServiceTypeUnknown unknown
 var ServiceTypeUnknown ServiceType = "unknown"
 
@@ -209,6 +225,9 @@ var ServiceTypeJob ServiceType = "job"
 
 // ServiceTypeCronJob cronjob
 var ServiceTypeCronJob ServiceType = "cronjob"
+
+// ServiceTypeKubeBlocks kubeblocks
+var ServiceTypeKubeBlocks ServiceType = "kubeblocks_component"
 
 // TenantServices app service base info
 type TenantServices struct {

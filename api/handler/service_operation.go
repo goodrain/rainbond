@@ -32,6 +32,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
 )
 
 // OperationHandler operation handler
@@ -155,6 +156,22 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		if err := o.buildFromVM(buildReq, service); err != nil {
 			return err
 		}
+	case model.FromKubeBlocksBuildKind:
+        // kubeblocks_component 构建不产出任何 workload，仅用于触发后续 K8s 资源部署
+        // 因此在成功派发任务后，直接将构建事件标记为完成
+		if err := o.buildFromKubeBlocks(buildReq, service); err != nil {
+			return err
+		}
+		version.FinalStatus = "success"
+		version.FinishTime = time.Now()
+		err = db.GetManager().VersionInfoDao().UpdateModel(&version)
+		if err != nil {
+			return err
+		}
+        // 直接写入“最后一步成功”日志，闭环本次构建事件，避免前端长期显示“进行中”
+        logger := event.GetManager().GetLogger(buildReq.GetEventID())
+		defer event.GetManager().ReleaseLogger(logger)
+        logger.Info("Build success", map[string]string{"step": "last", "status": "success"})
 	default:
 		return errors.New("unsupported build kind: " + buildReq.Kind)
 	}
@@ -265,6 +282,10 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	}
 	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", rollback.ServiceID)
+		return
+	}
+	if service.IsKubeBlocksComponent() {
+		re.ErrMsg = fmt.Sprintf("service %s is kubeblocks component", rollback.ServiceID)
 		return
 	}
 	oldDeployVersion := service.DeployVersion
@@ -430,4 +451,26 @@ func (o *OperationHandler) buildFromVM(r *model.ComponentBuildReq, service *dbmo
 	body["event_id"] = r.EventID
 	body["image"] = r.ImageInfo.ImageURL
 	return o.sendBuildTopic(service.ServiceID, "build_from_vm", body, r.Arch)
+}
+
+func (o *OperationHandler) buildFromKubeBlocks(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		util.Elapsed(fmt.Sprintf("[buildFromKubeBlocks] build component(%s)", r.GetComponentID()))()
+	}
+
+	if r.DeployVersion == "" || service.ServiceID == "" {
+		return fmt.Errorf("build from kubeblocks failure, args error")
+	}
+	
+	body := make(map[string]interface{})
+	body["service_id"] = service.ServiceID
+	body["deploy_version"] = r.DeployVersion
+	body["namespace"] = service.Namespace
+	body["event_id"] = r.GetEventID()
+	body["tenant_name"] = r.TenantName
+	body["tenant_id"] = service.TenantID
+	body["service_alias"] = service.ServiceAlias
+	body["action"] = r.Action
+	body["configs"] = r.Configs
+	return o.sendBuildTopic(service.ServiceID, "build_from_kubeblocks", body, r.Arch)
 }

@@ -379,4 +379,7 @@ type KubeBlocksInterface interface {
 	GetClusterBackups(w http.ResponseWriter, r *http.Request)
 	DeleteClusters(w http.ResponseWriter, r *http.Request)
 	DeleteClusterBackup(w http.ResponseWriter, r *http.Request)
+	ManageCluster(w http.ResponseWriter, r *http.Request)
+	GetClusterPodDetail(w http.ResponseWriter, r *http.Request)
+	GetClusterEvents(w http.ResponseWriter, r *http.Request)
 }

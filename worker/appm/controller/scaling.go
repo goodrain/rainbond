@@ -70,6 +70,9 @@ func Replicas(n int) []byte {
 }
 
 func (s *scalingController) scalingOne(service v1.AppService) error {
+	if service.ServiceType == v1.TypeKubeBlocks {
+		return nil
+	}
 	if statefulset := service.GetStatefulSet(); statefulset != nil {
 		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(
 			context.Background(),

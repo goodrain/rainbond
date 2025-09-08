@@ -248,6 +248,10 @@ func (s *startController) startOne(app v1.AppService) error {
 
 	//step 8: waiting endpoint ready
 	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
+
+	if app.ServiceType == v1.TypeKubeBlocks {
+		return nil
+	}
 	return s.WaitingReady(app)
 }
 

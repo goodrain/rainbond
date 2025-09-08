@@ -427,6 +427,9 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/clusters/{service_id}/backups", controller.GetManager().GetClusterBackups)
 	r.Delete("/kubeblocks/clusters", controller.GetManager().DeleteClusters)
 	r.Delete("/kubeblocks/clusters/{service_id}/backups", controller.GetManager().DeleteClusterBackup)
+	r.Post("/kubeblocks/clusters/actions", controller.GetManager().ManageCluster)
+	r.Get("/kubeblocks/clusters/{service_id}/pods/{pod_name}/details", controller.GetManager().GetClusterPodDetail)
+	r.Get("/kubeblocks/clusters/{service_id}/events", controller.GetManager().GetClusterEvents)
 	return r
 }
 

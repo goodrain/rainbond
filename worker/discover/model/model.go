@@ -212,6 +212,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "build_from_kubeblocks":
+		b := BuildFromKubeBlocksTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -244,6 +251,8 @@ func CreateTaskBody(taskType string) TaskBody {
 		return DeleteTenantTaskBody{}
 	case "refreshhpa":
 		return RefreshHPATaskBody{}
+	case "build_from_kubeblocks":
+		return BuildFromKubeBlocksTaskBody{}
 	default:
 		return DefaultTaskBody{}
 	}
@@ -424,6 +433,19 @@ type ApplyRegistryAuthSecretTaskBody struct {
 // DeleteK8sResourceTaskBody -
 type DeleteK8sResourceTaskBody struct {
 	ResourceYaml string `json:"resource_yaml"`
+}
+
+// BuildFromKubeBlocksTaskBody KubeBlocks组件构建操作任务主体
+type BuildFromKubeBlocksTaskBody struct {
+	TenantID      string            `json:"tenant_id"`
+	ServiceID     string            `json:"service_id"`
+	DeployVersion string            `json:"deploy_version"`
+	Namespace     string            `json:"namespace"`
+	EventID       string            `json:"event_id"`
+	TenantName    string            `json:"tenant_name"`
+	ServiceAlias  string            `json:"service_alias"`
+	Action        string            `json:"action"`
+	Configs       map[string]string `json:"configs"`
 }
 
 // BuildResource -

@@ -329,8 +329,17 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if as.GetCronJob() != nil || as.GetBetaCronJob() != nil {
 		podtmpSpec.Spec.RestartPolicy = "OnFailure"
 	}
+
+	if as.ServiceType == v1.TypeKubeBlocks {
+		return convKubeBlocksComponent(as, dbmanager)
+	}
+
 	//set to deployment or statefulset job or cronjob
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
+	return nil
+}
+
+func convKubeBlocksComponent(as *v1.AppService, dbmanager db.Manager) error {
 	return nil
 }
 

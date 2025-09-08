@@ -121,6 +121,10 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 
 // GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
+	if a.ServiceType == TypeKubeBlocks {
+		return RUNNING
+	}
+
 	if a.IsThirdComponent() {
 		endpoints := a.GetEndpoints(false)
 		if len(endpoints) == 0 {

@@ -220,11 +220,17 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
-	return s.WaitingReady(app)
+
+    return s.WaitingReady(app)
 }
 
 // WaitingReady wait app start or upgrade ready
 func (s *upgradeController) WaitingReady(app v1.AppService) error {
+	// kubeblocks_component 的 workload 由 KubeBlocks 管理，Rainbond 不等待其工作负载就绪
+	if app.ServiceType == v1.TypeKubeBlocks {
+		return nil
+	}
+
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32
 	if podt := app.GetPodTemplate(); podt != nil {

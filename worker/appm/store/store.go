@@ -764,7 +764,7 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {
-			logrus.Debugf("init cache app service %s failure:%s ", serviceID, err.Error())
+			logrus.Infof("init cache app service %s failure:%s ", serviceID, err.Error())
 			return nil, err
 		}
 		a.RegistAppService(appservice)

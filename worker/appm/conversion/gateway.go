@@ -305,9 +305,36 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 	}
 	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
+		// check if service type is kubeblocks, if is, generate kubeblocks selector
+		if a.appService.ServiceType == v1.TypeKubeBlocks {
+			spec.Selector = a.generateKubeBlocksSelector()
+		}
 	}
 	service.Spec = spec
 	return &service
+}
+
+// generateKubeBlocksSelector generate kubeblocks selector
+func (a *AppServiceBuild)generateKubeBlocksSelector() map[string]string {
+	clusterName := "cluster-name"     
+	componentName := "component-name"
+	
+	// get k8s_component_name from database
+	if a.service != nil && a.service.K8sComponentName != "" {
+		k8sComponentName := a.service.K8sComponentName
+		lastDashIndex := strings.LastIndex(k8sComponentName, "-")
+		if lastDashIndex != -1 && lastDashIndex < len(k8sComponentName)-1 {
+			clusterName = k8sComponentName[:lastDashIndex]
+			componentName = k8sComponentName[lastDashIndex+1:]
+		}
+	}
+	
+	return map[string]string{
+		"app.kubernetes.io/instance": clusterName,
+		"app.kubernetes.io/managed-by": "kubeblocks",
+		"apps.kubeblocks.io/component-name": componentName,
+		"kubeblocks.io/role": "primary",
+	}
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
