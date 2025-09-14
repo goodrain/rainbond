@@ -430,6 +430,8 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/kubeblocks/clusters/actions", controller.GetManager().ManageCluster)
 	r.Get("/kubeblocks/clusters/{service_id}/pods/{pod_name}/details", controller.GetManager().GetClusterPodDetail)
 	r.Get("/kubeblocks/clusters/{service_id}/events", controller.GetManager().GetClusterEvents)
+	r.Get("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().GetClusterParameters)
+	r.Post("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().ChangeClusterParameters)
 	return r
 }
 

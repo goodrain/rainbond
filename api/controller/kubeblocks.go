@@ -127,6 +127,16 @@ func (c *KubeBlocksController) GetClusterEvents(w http.ResponseWriter, r *http.R
 	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/events", serviceID), "GET")
 }
 
+func (c *KubeBlocksController) GetClusterParameters(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/parameters", serviceID), "GET")
+}
+
+func (c *KubeBlocksController) ChangeClusterParameters(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/parameters", serviceID), "POST")
+}
+
 // forwardRequest helper function to forward requests to Block Mechanica
 func (c *KubeBlocksController) forwardRequest(w http.ResponseWriter, r *http.Request, api, method string) {
 	// 构建URL
@@ -192,11 +202,64 @@ func (c *KubeBlocksController) forwardRequest(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if field, exists := result["list"]; exists {
-		httputil.ReturnSuccess(r, w, field)
+	if list, exists := result["list"]; exists {
+		// 尝试提取分页信息，存在分页信息则 ReturnList
+		if total, pageNum, ok := extractPaginationInfo(result); ok {
+			httputil.ReturnList(r, w, total, pageNum, list)
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, list)
 	} else if field, exists := result["bean"]; exists {
 		httputil.ReturnSuccess(r, w, field)
 	} else {
 		httputil.ReturnSuccess(r, w, result)
 	}
+}
+
+// extractPaginationInfo 从结果中提取分页信息
+func extractPaginationInfo(result map[string]interface{}) (total, pageNum int, ok bool) {
+	number, hasNumber := result["number"]
+	if !hasNumber {
+		return 0, 0, false
+	}
+
+	page, hasPage := result["page"]
+	if !hasPage {
+		return 0, 0, false
+	}
+
+	total, totalOk := safeToInt(number)
+	if !totalOk {
+		return 0, 0, false
+	}
+
+	pageNum, pageOk := safeToInt(page)
+	if !pageOk {
+		return 0, 0, false
+	}
+
+	return total, pageNum, true
+}
+
+// safeToInt 安全地将 interface{} 转换为 int，支持多种数字类型
+func safeToInt(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return int(i), true
+		}
+	}
+	logrus.Warnf("Failed to convert %T(%v) to int", value, value)
+	return 0, false
 }

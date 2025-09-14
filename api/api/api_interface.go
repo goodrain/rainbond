@@ -382,4 +382,6 @@ type KubeBlocksInterface interface {
 	ManageCluster(w http.ResponseWriter, r *http.Request)
 	GetClusterPodDetail(w http.ResponseWriter, r *http.Request)
 	GetClusterEvents(w http.ResponseWriter, r *http.Request)
+	GetClusterParameters(w http.ResponseWriter, r *http.Request)
+	ChangeClusterParameters(w http.ResponseWriter, r *http.Request)
 }
