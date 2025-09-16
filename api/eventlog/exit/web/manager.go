@@ -33,12 +33,12 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"golang.org/x/net/context"
 )
 
@@ -115,7 +115,7 @@ func (s *SocketServer) PushEventMessage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.log.Infof("Begin push event message of event (%s)", EventID)
-	SubID := uuid.NewV4().String()
+	SubID := uuid.New().String()
 	ch := s.storemanager.WebSocketMessageChan("event", EventID, SubID)
 	if ch == nil {
 		// w.Write([]byte("Real-time message does not exist."))
@@ -198,7 +198,7 @@ func (s *SocketServer) PushDockerLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Infof("Begin push docker message of service (%s)", ServiceID)
-	SubID := uuid.NewV4().String()
+	SubID := uuid.New().String()
 	ch := s.storemanager.WebSocketMessageChan("docker", ServiceID, SubID)
 	if ch == nil {
 		// w.Write([]byte("Real-time message does not exist."))
@@ -284,7 +284,7 @@ func (s *SocketServer) PushMonitorMessage(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.log.Infof("Begin push monitor message of service (%s)", ServiceID)
-	SubID := uuid.NewV4().String()
+	SubID := uuid.New().String()
 	ch := s.storemanager.WebSocketMessageChan("monitor", ServiceID, SubID)
 	if ch == nil {
 		// w.Write([]byte("Real-time message does not exist."))
@@ -367,7 +367,7 @@ func (s *SocketServer) PushNewMonitorMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	s.log.Infof("Begin push monitor message of service (%s)", ServiceID)
-	SubID := uuid.NewV4().String()
+	SubID := uuid.New().String()
 	ch := s.storemanager.WebSocketMessageChan("newmonitor", ServiceID, SubID)
 	if ch == nil {
 		// w.Write([]byte("Real-time message does not exist."))

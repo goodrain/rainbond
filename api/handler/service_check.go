@@ -27,15 +27,15 @@ import (
 	"github.com/goodrain/rainbond/db"
 	client "github.com/goodrain/rainbond/mq/client"
 	tutil "github.com/goodrain/rainbond/util"
+	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"strings"
 )
 
 // ServiceCheck check service build source
 func (s *ServiceAction) ServiceCheck(scs *apimodel.ServiceCheckStruct) (string, string, *util.APIHandleError) {
-	checkUUID := uuid.NewV4().String()
+	checkUUID := uuid.New().String()
 	scs.Body.CheckUUID = checkUUID
 	if scs.Body.EventID == "" {
 		scs.Body.EventID = tutil.NewUUID()

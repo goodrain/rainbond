@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/twinj/uuid"
+	"github.com/google/uuid"
 )
 
 //NewUUID 创建无-的32位uuid
 func NewUUID() string {
-	uid := uuid.NewV4().String()
+	uid := uuid.New().String()
 	return strings.Replace(uid, "-", "", -1)
 }
 

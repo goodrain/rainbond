@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	libcomposeyaml "github.com/docker/libcompose/yaml"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 
 	"github.com/docker/cli/cli/compose/loader"
 	"github.com/docker/cli/cli/compose/types"
@@ -59,7 +59,7 @@ func parseV3(bodys [][]byte) (ComposeObject, error) {
 
 	// In order to get V3 parsing to work, we have to go through some preliminary steps
 	// for us to hack up github.com/docker/cli in order to correctly convert to a ComposeObject
-	cacheName := uuid.NewV4().String()
+	cacheName := uuid.New().String()
 	if err := util.CheckAndCreateDir("/cache/docker-compose/" + cacheName); err != nil {
 		return ComposeObject{}, fmt.Errorf("create cache docker compose file dir error:%s", err.Error())
 	}

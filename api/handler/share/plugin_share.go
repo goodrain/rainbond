@@ -26,9 +26,9 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
+	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 )
 
 // PluginShareHandle plugin share
@@ -83,7 +83,7 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 		logrus.Error("query service deploy version error", err.Error())
 		return nil, util.CreateAPIHandleErrorFromDBError("query plugin version error", err)
 	}
-	shareID := uuid.NewV4().String()
+	shareID := uuid.New().String()
 	shareImageName, err := version.CreateShareImage(ss.Body.ImageInfo.HubURL, ss.Body.ImageInfo.Namespace)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorf(500, "create share image name error:%s", err.Error())

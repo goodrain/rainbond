@@ -10,8 +10,8 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	rainbondutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"time"
@@ -176,7 +176,7 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 	}
 	for _, cpt := range existComponents {
 		if cpt.K8sComponentName == component.ComponentsName {
-			uid := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			uid := strings.Replace(uuid.New().String(), "-", "", -1)
 			suffix := uid[:6]
 			component.ComponentsName = component.ComponentsName + "-" + suffix
 		}
@@ -425,7 +425,7 @@ func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManageme
 	tspD.Path = telescopic.Path
 	tspD.PeriodSecond = telescopic.PeriodSecond
 	tspD.Port = telescopic.Port
-	tspD.ProbeID = strings.Replace(uuid.NewV4().String(), "-", "", -1)
+	tspD.ProbeID = strings.Replace(uuid.New().String(), "-", "", -1)
 	tspD.Scheme = telescopic.DetectionMethod
 	tspD.SuccessThreshold = telescopic.SuccessThreshold
 	tspD.TimeoutSecond = telescopic.TimeoutSecond

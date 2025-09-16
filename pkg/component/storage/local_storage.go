@@ -5,8 +5,8 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/zip"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -172,7 +172,7 @@ func (l *LocalStorage) ReadDir(dirName string) ([]string, error) {
 func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger event.Logger) (err error) {
 	var written int64
 	buf := make([]byte, 1024*1024)
-	progressID := uuid.NewV4().String()[0:7]
+	progressID := uuid.New().String()[0:7]
 	for {
 		nr, er := srcFile.Read(buf)
 		if nr > 0 {

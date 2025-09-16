@@ -25,9 +25,9 @@ import (
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 )
 
 // ServiceShareHandle service share
@@ -54,7 +54,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 	if err != nil {
 		logrus.Error("query service deploy version error", err.Error())
 	}
-	shareID := uuid.NewV4().String()
+	shareID := uuid.New().String()
 	var slugPath, shareImageName string
 	var task client.TaskStruct
 	if version.DeliveredType == "slug" {
