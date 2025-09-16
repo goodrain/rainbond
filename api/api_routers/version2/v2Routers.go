@@ -432,6 +432,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/clusters/{service_id}/events", controller.GetManager().GetClusterEvents)
 	r.Get("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().GetClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().ChangeClusterParameters)
+	r.Post("/kubeblocks/clusters/{service_id}/restores", controller.GetManager().RestoreClusterFromBackup)
 	return r
 }
 

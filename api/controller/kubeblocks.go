@@ -137,6 +137,11 @@ func (c *KubeBlocksController) ChangeClusterParameters(w http.ResponseWriter, r 
 	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/parameters", serviceID), "POST")
 }
 
+func (c *KubeBlocksController) RestoreClusterFromBackup(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/restores", serviceID), "POST") // TODO
+}
+
 // forwardRequest helper function to forward requests to Block Mechanica
 func (c *KubeBlocksController) forwardRequest(w http.ResponseWriter, r *http.Request, api, method string) {
 	// 构建URL
