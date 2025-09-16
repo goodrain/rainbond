@@ -60,11 +60,11 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -701,7 +701,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 				}
 			}
 			if volumn.VolumeName == "" {
-				v.VolumeName = uuid.NewV4().String()
+				v.VolumeName = uuid.New().String()
 			}
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(&v); err != nil {
 				logrus.Errorf("add volumn %v error, %v", volumn.HostPath, err)
@@ -2096,7 +2096,7 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 
 // CreateTenandIDAndName create tenant_id and tenant_name
 func (s *ServiceAction) CreateTenandIDAndName(eid string) (string, string, error) {
-	id := uuid.NewV4().String()
+	id := uuid.New().String()
 	uid := strings.Replace(id, "-", "", -1)
 	name := strings.Split(id, "-")[0]
 	logrus.Debugf("uuid is %v, name is %v", uid, name)

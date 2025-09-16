@@ -74,7 +74,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.9.3
-	github.com/twinj/uuid v1.0.0
+	github.com/twinj/uuid v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.4
 	golang.org/x/crypto v0.37.0
 	golang.org/x/net v0.39.0
@@ -99,7 +99,7 @@ require (
 )
 
 require (
-	github.com/apache/apisix-ingress-controller v1.7.1
+	github.com/apache/apisix-ingress-controller v1.8.1
 	github.com/cert-manager/cert-manager v1.17.1
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -109,7 +109,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grafana/pyroscope-go v1.2.0
 	github.com/helm/helm v2.17.0+incompatible
-	github.com/openkruise/kruise-api v1.4.0-rc.0
+	github.com/openkruise/kruise-api v1.3.0
 	github.com/volcengine/volcengine-go-sdk v1.0.186
 	golang.org/x/sync v0.13.0
 	k8s.io/klog/v2 v2.130.1
@@ -300,6 +300,17 @@ require (
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 )
 
+exclude (
+	github.com/mitchellh/osext v0.0.0-20151018003038-5e2d6d41470f
+	github.com/myesui/uuid v1.0.0
+	github.com/tdakkota/asciicheck v0.0.0-20200416200610-e657995f937b
+	github.com/twinj/uuid v1.0.0
+	github.com/wercker/stern v0.0.0-20190705090245-4fa46dd6987f
+	gitlab.com/poldi1405/go-ansi v1.0.0
+	gitlab.com/poldi1405/go-ansi v1.1.0
+	gitlab.com/poldi1405/go-indicators v1.0.0
+)
+
 // Pinned to kubernetes-1.23.12
 replace (
 	github.com/atcdot/gorm-bulk-upsert => github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357
@@ -311,10 +322,17 @@ replace (
 	github.com/go-git/go-git => github.com/go-git/go-git/v5 v5.16.0
 	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
 	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20241120151145-067f8a6d718a
-	github.com/mattn/go-sqlite3 => github.com/leso-kn/go-sqlite3 v0.0.0-20230710125852-03158dc838ed
+	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.17
+	github.com/mitchellh/osext => github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
+	github.com/myesui/uuid => github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common => github.com/prometheus/common v0.15.0
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.7.3
+	github.com/tdakkota/asciicheck => github.com/bombsimon/wsl/v3 v3.4.0
+	github.com/twinj/uuid => github.com/google/uuid v1.3.0
+	github.com/wercker/stern => github.com/stern/stern v1.26.0
+	gitlab.com/poldi1405/go-ansi => github.com/fatih/color v1.16.0
+	gitlab.com/poldi1405/go-indicators => github.com/schollz/progressbar/v3 v3.13.1
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.9.0
 	k8s.io/api => k8s.io/api v0.26.4

@@ -39,7 +39,7 @@ import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/api/util"
 	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/twinj/uuid"
+	"github.com/google/uuid"
 	"os"
 	"strconv"
 	"strings"
@@ -433,7 +433,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 				routeName = strings.ReplaceAll(routeName, "*", "s-s")
 				weight := 100
 				apisixRouteHTTP := v2.ApisixRouteHTTP{
-					Name: uuid.NewV4().String()[0:8],
+					Name: uuid.New().String()[0:8],
 					Match: v2.ApisixRouteHTTPMatch{
 						Paths: []string{"/*"},
 						Hosts: []string{httpRule.Domain},

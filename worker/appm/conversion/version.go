@@ -31,7 +31,7 @@ import (
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/twinj/uuid"
+	"github.com/google/uuid"
 	"k8s.io/apimachinery/pkg/api/resource"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
@@ -72,7 +72,7 @@ func updateAPISixRoute(as *v1.AppService) error {
 		// 重新绑定他的后端地址
 		for _, apisixroute := range apisixRoutes.Items {
 			var backends []v2.ApisixRouteHTTPBackend
-			apisixroute.Spec.HTTP[0].Name = uuid.NewV4().String()[0:8]
+			apisixroute.Spec.HTTP[0].Name = uuid.New().String()[0:8]
 			for _, backend := range apisixroute.Spec.HTTP[0].Backends {
 				if backend.ServicePort.IntVal == int32(port.ContainerPort) {
 					backend.ServiceName = port.K8sServiceName

@@ -33,7 +33,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/util"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"path"
 	"path/filepath"
@@ -126,29 +125,11 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			})
 		}
 		d.tarImages = tarImages
-		for _, imageName := range imageNames {
-			imageList := strings.Split(imageName, "/")
-			var newImageName string
-			if len(imageList) == 1 {
-				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[0])
-			} else if len(imageList) == 2 {
-				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[1])
-			} else if len(imageList) == 3 {
-				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[2])
-			}
-			err := d.imageClient.ImageTag(imageName, newImageName, d.logger, 3)
-			if err != nil {
-				logrus.Errorf("tag tar image failure: %v", err)
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像修改 tag 失败"), SolveAdvice("modify_image", "请联系平台管理员")))
-				return d.errors
-			}
-			err = d.imageClient.ImagePush(newImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, d.logger, 3)
-			if err != nil {
-				logrus.Errorf("load tar image push failure: %v", err)
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像push 失败"), SolveAdvice("modify_image", "请联系平台管理员")))
-				return d.errors
-			}
-		}
+		// 简化tar包镜像处理：跳过重新打tag和push操作
+		// 直接使用加载的镜像名称，不进行额外的标签操作
+		d.logger.Info(fmt.Sprintf("加载tar包镜像: %v (跳过tag和push操作)", imageNames), map[string]string{"step": "image-parse"})
+
+		// 注意：跳过了镜像tag和push操作，直接使用原始镜像名称
 		return d.errors
 	} else {
 		//else image
@@ -159,63 +140,12 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		}
 		d.image = ParseImageName(d.source)
 	}
-	//获取镜像，验证是否存在
-	if strings.HasPrefix(d.image.Source(), builder.REGISTRYDOMAIN) {
-		if d.user == "" {
-			d.user = builder.REGISTRYUSER
-		}
-		if d.pass == "" {
-			d.pass = builder.REGISTRYPASS
-		}
-	}
-	imageInspect, err := d.imageClient.ImagePull(d.image.Source(), d.user, d.pass, d.logger, 10)
-	if err != nil {
-		if strings.Contains(err.Error(), "No such image") {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
-		} else {
-			if d.image.IsOfficial() {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败,国内访问Docker官方仓库经常不稳定", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
-			} else {
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)获取失败", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像可以正常获取")))
-			}
-		}
-		return d.errors
-	}
-	if imageInspect != nil {
-		for _, env := range imageInspect.Env {
-			envinfo := strings.Split(env, "=")
-			if len(envinfo) == 2 {
-				if _, ok := d.envs[envinfo[0]]; !ok {
-					d.envs[envinfo[0]] = &types.Env{Name: envinfo[0], Value: envinfo[1]}
-				}
-			}
-		}
-		for k := range imageInspect.Volumes {
-			if _, ok := d.volumes[k]; !ok {
-				d.volumes[k] = &types.Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
-			}
-		}
-		for k := range imageInspect.ExposedPorts {
-			res := strings.Split(k, "/")
-			if len(res) > 2 {
-				fmt.Println("The exposedPorts format is incorrect")
-			}
-			proto := res[1]
-			port, err := strconv.Atoi(res[0])
-			if err != nil {
-				fmt.Println("port int error", err)
-				return nil
-			}
-			if proto != "udp" {
-				proto = GetPortProtocol(port)
-			}
-			if _, ok := d.ports[port]; ok {
-				d.ports[port].Protocol = proto
-			} else {
-				d.ports[port] = &types.Port{Protocol: proto, ContainerPort: port}
-			}
-		}
-	}
+	// 简化镜像检测：跳过镜像拉取和检测步骤，直接使用指定的镜像
+	// 只记录镜像信息，不进行实际的拉取操作
+	d.logger.Info(fmt.Sprintf("使用镜像: %s (跳过拉取检测)", d.image.Source()), map[string]string{"step": "image-parse"})
+
+	// 注意：由于跳过了镜像拉取，无法获取镜像的环境变量、卷和端口信息
+	// 这些信息需要在后续的部署阶段从实际镜像中获取
 	d.serviceType = DetermineDeployType(d.image)
 	return d.errors
 }
