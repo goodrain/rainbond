@@ -10,7 +10,8 @@ ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
-RUN apk --no-cache add binutils-gold gcc musl-dev sqlite-dev && go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-chaos ./cmd/builder;
+RUN apk --no-cache add binutils-gold gcc musl-dev sqlite-dev && \
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" CGO_LDFLAGS="-static" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-chaos ./cmd/builder;
 
 FROM ubuntu:24.04 AS compress
 COPY --from=compile /run/rainbond-chaos /run/rainbond-chaos
