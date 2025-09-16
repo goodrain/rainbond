@@ -384,4 +384,5 @@ type KubeBlocksInterface interface {
 	GetClusterEvents(w http.ResponseWriter, r *http.Request)
 	GetClusterParameters(w http.ResponseWriter, r *http.Request)
 	ChangeClusterParameters(w http.ResponseWriter, r *http.Request)
+	RestoreClusterFromBackup(w http.ResponseWriter, r *http.Request)
 }
