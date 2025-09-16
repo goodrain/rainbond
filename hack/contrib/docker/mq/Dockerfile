@@ -10,7 +10,7 @@ ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
-RUN apk --no-cache add binutils-gold && \
+RUN apk --no-cache add binutils-gold gcc musl-dev sqlite-dev && \
     go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-mq ./cmd/mq;
 
 FROM ubuntu:24.04 AS compress
