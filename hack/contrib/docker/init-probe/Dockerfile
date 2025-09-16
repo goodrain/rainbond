@@ -10,7 +10,7 @@ ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
-RUN go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-init-probe ./cmd/init-probe;
+RUN apk --no-cache add gcc musl-dev sqlite-dev && go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-init-probe ./cmd/init-probe;
 
 FROM ubuntu:24.04 AS compress
 COPY --from=compile /run/rainbond-init-probe /run/rainbond-init-probe
