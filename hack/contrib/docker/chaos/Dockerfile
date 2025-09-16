@@ -11,7 +11,7 @@ ENV GOOS=linux
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
 RUN apk --no-cache add binutils-gold gcc g++ musl-dev sqlite-dev zeromq-dev libsodium-dev && \
-    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" CGO_LDFLAGS="-static -lstdc++ -lzmq -lsodium" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -extldflags '-static -lstdc++ -lzmq -lsodium' -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-chaos ./cmd/builder;
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-chaos ./cmd/builder;
 
 FROM ubuntu:24.04 AS compress
 COPY --from=compile /run/rainbond-chaos /run/rainbond-chaos
@@ -22,7 +22,7 @@ RUN apt-get update && apt -y install upx && \
 FROM rainbond/alpine:3
 ARG RELEASE_DESC
 
-RUN apk add --no-cache openssl openssh-client subversion libzmq
+RUN apk add --no-cache openssl openssh-client subversion libzmq libsodium
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/entrypoint.sh /run/entrypoint.sh
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/export-app /src/export-app
 COPY --from=compress /run/rainbond-chaos /run/rainbond-chaos
