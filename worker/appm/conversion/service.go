@@ -160,6 +160,10 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		initBaseVirtualMachine(as, tenantService)
 		return nil
 	}
+	if tenantService.IsKubeBlocksComponent() {
+		initKubeBlocksComponent(as, tenantService)
+		return nil
+	}
 	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -218,6 +222,10 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 		stateful.Spec.UpdateStrategy.Type = appsv1.OnDeleteStatefulSetStrategyType
 	}
 	as.SetStatefulSet(stateful)
+}
+
+func initKubeBlocksComponent(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeKubeBlocks
 }
 
 func initBaseVirtualMachine(as *v1.AppService, service *dbmodel.TenantServices) {

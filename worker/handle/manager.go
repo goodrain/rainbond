@@ -139,6 +139,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "delete_k8s_resource":
 		logrus.Info("start a 'delete_k8s_resource' task worker")
 		return m.DeleteK8sResource(task)
+	case "build_from_kubeblocks":
+		logrus.Info("start a 'build_from_kubeblocks' task worker")
+		return m.buildFromKubeBlocksExec(task)
 	default:
 		if task.Type != "" {
 			logrus.Warning("task can not execute because no type is identified ->", task.Type)
@@ -344,6 +347,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	return nil
 }
 
+// TODO kb
 func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	body, ok := task.Body.(model.RollingUpgradeTaskBody)
 	if !ok {
@@ -715,5 +719,51 @@ func (m *Manager) DeleteK8sResource(task *model.Task) error {
 		}
 		logrus.Debugf("delete k8s resource %v(%v) success", unstructuredObj.GetName(), unstructuredObj.GetKind())
 	}
+	return nil
+}
+
+// buildFromKubeBlocksExec KubeBlocks组件构建执行方法
+// KubeBlocks组件不需要实际的构建过程，直接启动Service
+func (m *Manager) buildFromKubeBlocksExec(task *model.Task) error {
+	body, ok := task.Body.(model.BuildFromKubeBlocksTaskBody)
+	if !ok {
+		logrus.Errorf("build_from_kubeblocks body convert to taskbody error")
+		return fmt.Errorf("build_from_kubeblocks body convert to taskbody error")
+	}
+	
+	logger := event.GetManager().GetLogger(body.EventID)
+	
+	// 检查服务是否已经启动
+	appService := m.store.GetAppService(body.ServiceID)
+	if appService != nil && !appService.IsClosed() {
+		logger.Info("KubeBlocks component is not closed, can not start", event.GetLastLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return nil
+	}
+	
+	// 初始化AppService，跳过镜像构建阶段
+	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, body.Configs)
+	if err != nil {
+		logrus.Errorf("KubeBlocks component init create failure:%s", err.Error())
+		logger.Error("KubeBlocks component init create failure", event.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("KubeBlocks component init create failure")
+	}
+	
+	newAppService.Logger = logger
+	
+	// 注册新的应用服务
+	m.store.RegistAppService(newAppService)
+	
+	// KubeBlocks组件使用启动控制器，跳过镜像构建过程直接部署K8s资源
+	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
+	if err != nil {
+		logrus.Errorf("KubeBlocks component run start controller failure:%s", err.Error())
+		logger.Error("KubeBlocks component run start controller failure", event.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("KubeBlocks component start failure")
+	}
+	
+	logrus.Infof("KubeBlocks component(%s) %s working is running.", body.ServiceID, "build_from_kubeblocks")
 	return nil
 }
