@@ -101,7 +101,9 @@ func (r *RuntimeServer) listPodEventsByPod(pod *corev1.Pod) []*pb.PodEvent {
 	if _, isMirrorPod := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirrorPod {
 		ref.UID = types.UID(pod.Annotations[corev1.MirrorPodAnnotationKey])
 	}
-	events, _ := r.k8sComponent.Clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
+	// Replace deprecated Search with a field-selector List against involvedObject.uid
+	selector := fmt.Sprintf("involvedObject.uid=%s", string(ref.UID))
+	events, _ := r.k8sComponent.Clientset.CoreV1().Events(pod.GetNamespace()).List(context.Background(), metav1.ListOptions{FieldSelector: selector})
 	podEvents := DescribeEvents(events)
 	return podEvents
 }
@@ -109,8 +111,9 @@ func (r *RuntimeServer) listPodEventsByPod(pod *corev1.Pod) []*pb.PodEvent {
 // GetPodEventsByName -
 func (r RuntimeServer) listPodEventsByName(name, namespace string) []*pb.PodEvent {
 	eventsInterface := r.k8sComponent.Clientset.CoreV1().Events(namespace)
-	selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
-	options := metav1.ListOptions{FieldSelector: selector.String()}
+	// Avoid GetFieldSelector; build selector manually
+	selector := fmt.Sprintf("involvedObject.name=%s,involvedObject.namespace=%s,involvedObject.kind=Pod", name, namespace)
+	options := metav1.ListOptions{FieldSelector: selector}
 	events, err := eventsInterface.List(context.Background(), options)
 	if err == nil && len(events.Items) > 0 {
 		podEvents := DescribeEvents(events)

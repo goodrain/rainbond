@@ -1,7 +1,9 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	networkingv1 "k8s.io/api/networking/v1"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"net"
@@ -104,7 +106,12 @@ func DefListEventsByPod(clientset kubernetes.Interface, pod *corev1.Pod) *corev1
 	if _, isMirrorPod := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirrorPod {
 		ref.UID = types.UID(pod.Annotations[corev1.MirrorPodAnnotationKey])
 	}
-	events, _ := clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
+	// Prefer fieldSelector by involvedObject.uid to avoid deprecated Search which may not work on newer clusters
+	selector := fmt.Sprintf("involvedObject.uid=%s", string(ref.UID))
+	events, _ := clientset.CoreV1().Events(pod.GetNamespace()).List(
+		context.Background(),
+		metav1.ListOptions{FieldSelector: selector},
+	)
 	return events
 }
 
