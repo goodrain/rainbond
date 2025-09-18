@@ -186,7 +186,8 @@ func NewStore(dbmanager db.Manager) Storer {
 	}
 
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewSharedInformerFactoryWithOptions(store.k8sClient.Clientset, 10*time.Second,
+	// Use 30 minutes resync period to reduce API server load
+	infFactory := informers.NewSharedInformerFactoryWithOptions(store.k8sClient.Clientset, 30*time.Minute,
 		informers.WithNamespace(corev1.NamespaceAll))
 
 	store.informers.Namespace = infFactory.Core().V1().Namespaces().Informer()
@@ -243,7 +244,8 @@ func NewStore(dbmanager db.Manager) Storer {
 
 	// rainbond custom resource
 	rainbondClient := k8s.Default().RainbondClient
-	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
+	// Use 30 minutes resync period to reduce API server load
+	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 30*time.Minute,
 		externalversions.WithNamespace(corev1.NamespaceAll))
 	store.listers.HelmApp = rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister()
 	store.informers.HelmApp = rainbondInformer.Rainbond().V1alpha1().HelmApps().Informer()
@@ -251,7 +253,8 @@ func NewStore(dbmanager db.Manager) Storer {
 	store.informers.ThirdComponent = rainbondInformer.Rainbond().V1alpha1().ThirdComponents().Informer()
 	store.listers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Lister()
 	store.informers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Informer()
-	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
+	// Use 0 to disable additional resync for ComponentDefinition
+	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), 0)
 	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
 	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
 	if store.k8sClient.K8SVersion.AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
@@ -315,23 +318,25 @@ func NewStore(dbmanager db.Manager) Storer {
 	}
 
 	store.informers.Namespace.AddEventHandler(store.nsEventHandler())
-	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Job.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
-	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
-	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
-	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
-	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	// Use 0 to disable additional resync, rely on factory resync period
+	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Job.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), 0)
+	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Service.AddEventHandlerWithResyncPeriod(store, 0)
+
+	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, 0)
+	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), 0)
+	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, 0)
 
 	return store
 }
