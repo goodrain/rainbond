@@ -313,6 +313,7 @@ type GatewayInterface interface {
 	GatewayRouteInterface
 	GatewayServiceInterface
 	GatewayCertInterface
+	GatewayLoadBalancerInterface
 }
 
 // GatewayRouteInterface api gateway route interface
@@ -353,4 +354,11 @@ type GatewayCertInterface interface {
 	CreateCert(w http.ResponseWriter, r *http.Request)
 	UpdateCert(w http.ResponseWriter, r *http.Request)
 	DeleteCert(w http.ResponseWriter, r *http.Request)
+}
+
+// GatewayLoadBalancerInterface api gateway loadbalancer interface
+type GatewayLoadBalancerInterface interface {
+	CreateLoadBalancer(w http.ResponseWriter, r *http.Request)
+	GetLoadBalancer(w http.ResponseWriter, r *http.Request)
+	DeleteLoadBalancer(w http.ResponseWriter, r *http.Request)
 }

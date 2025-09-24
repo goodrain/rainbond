@@ -385,3 +385,25 @@ type UpdCertificateReq struct {
 	Certificate     string `json:"certificate"`
 	PrivateKey      string `json:"private_key"`
 }
+
+// CreateLoadBalancerStruct 创建LoadBalancer的请求结构体
+type CreateLoadBalancerStruct struct {
+	ServiceName    string            `json:"service_name" validate:"required"` // 后端服务名称
+	ServicePort    int               `json:"service_port" validate:"required"` // 后端服务端口
+	Protocol       string            `json:"protocol" validate:"required"`     // 协议类型 TCP/UDP
+	Annotations    map[string]string `json:"annotations,omitempty"`            // 注解
+}
+
+// LoadBalancerResponse LoadBalancer响应结构体
+type LoadBalancerResponse struct {
+	Name           string            `json:"name"`
+	Namespace      string            `json:"namespace"`
+	ServiceName    string            `json:"service_name"`
+	ServicePort    int               `json:"service_port"`
+	Protocol       string            `json:"protocol"`
+	LoadBalancerIP string            `json:"load_balancer_ip,omitempty"`
+	ExternalIPs    []string          `json:"external_ips,omitempty"`
+	Annotations    map[string]string `json:"annotations,omitempty"`
+	Status         string            `json:"status"`
+	CreatedAt      string            `json:"created_at"`
+}

@@ -74,7 +74,6 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.9.3
-	github.com/twinj/uuid v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.4
 	golang.org/x/crypto v0.37.0
 	golang.org/x/net v0.39.0
