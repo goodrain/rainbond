@@ -26,6 +26,13 @@ func Routes() chi.Router {
 
 	})
 
+	// 创建 LoadBalancer 接口
+	r.Route("/loadbalancer", func(r chi.Router) {
+		r.Post("/", controller.GetManager().CreateLoadBalancer)
+		r.Get("/", controller.GetManager().GetLoadBalancer)
+		r.Delete("/{name}", controller.GetManager().DeleteLoadBalancer)
+	})
+
 	// 关于路由的接口
 	r.Route("/routes/tcp", func(r chi.Router) {
 		r.Get("/domains", controller.GetManager().GetTCPBindDomains)
