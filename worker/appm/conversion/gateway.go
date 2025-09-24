@@ -315,10 +315,15 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 }
 
 // generateKubeBlocksSelector generate kubeblocks selector
-func (a *AppServiceBuild)generateKubeBlocksSelector() map[string]string {
-	clusterName := "cluster-name"     
-	componentName := "component-name"
-	
+func (a *AppServiceBuild) generateKubeBlocksSelector() map[string]string {
+	var (
+		peer = map[string]bool{
+			"rabbitmq": true,
+		}
+		clusterName   = "cluster-name"
+		componentName = "component-name"
+	)
+
 	// get k8s_component_name from database
 	if a.service != nil && a.service.K8sComponentName != "" {
 		k8sComponentName := a.service.K8sComponentName
@@ -328,13 +333,17 @@ func (a *AppServiceBuild)generateKubeBlocksSelector() map[string]string {
 			componentName = k8sComponentName[lastDashIndex+1:]
 		}
 	}
-	
-	return map[string]string{
-		"app.kubernetes.io/instance": clusterName,
-		"app.kubernetes.io/managed-by": "kubeblocks",
+
+	selector := map[string]string{
+		"app.kubernetes.io/instance":        clusterName,
+		"app.kubernetes.io/managed-by":      "kubeblocks",
 		"apps.kubeblocks.io/component-name": componentName,
-		"kubeblocks.io/role": "primary",
 	}
+	if _, ok := peer[componentName]; !ok {
+		selector["kubeblocks.io/role"] = "primary"
+	}
+
+	return selector
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
