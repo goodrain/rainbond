@@ -374,6 +374,41 @@ func (m *Manager) initLanguageVersion() {
 var GolangInitVersion = []*model.EnterpriseLanguageVersion{
 	{
 		Lang:        "golang",
+		Version:     "go1.25.1",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.25.1.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.24.7",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.24.7.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.23.12",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.23.12.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.22.12",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.22.12.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
+		Version:     "go1.21.13",
+		FirstChoice: false,
+		System:      true,
+		FileName:    "go1.21.13.tar.gz",
+		Show:        true,
+	}, {
+		Lang:        "golang",
 		Version:     "go1.20.4",
 		FirstChoice: true,
 		System:      true,
@@ -441,6 +476,20 @@ var GolangInitVersion = []*model.EnterpriseLanguageVersion{
 // OpenJDKInitVersion -
 var OpenJDKInitVersion = []*model.EnterpriseLanguageVersion{
 	{
+		Lang:        "openJDK",
+		Version:     "25",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK25.tar.gz",
+	}, {
+		Lang:        "openJDK",
+		Version:     "21",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "OpenJDK21.tar.gz",
+	}, {
 		Lang:        "openJDK",
 		Version:     "17",
 		FirstChoice: false,
@@ -637,6 +686,41 @@ var PHPInitVersion = []*model.EnterpriseLanguageVersion{
 // NodeInitVersion -
 var NodeInitVersion = []*model.EnterpriseLanguageVersion{
 	{
+		Lang:        "node",
+		Version:     "24.8.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node24.8.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "23.11.1",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node23.11.1.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "22.19.0",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node22.19.0.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "21.7.3",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node21.7.3.tar.gz",
+	}, {
+		Lang:        "node",
+		Version:     "20.19.5",
+		FirstChoice: false,
+		Show:        true,
+		System:      true,
+		FileName:    "Node20.19.5.tar.gz",
+	}, {
 		Lang:        "node",
 		Version:     "20.0.0",
 		FirstChoice: true,
