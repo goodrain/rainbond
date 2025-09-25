@@ -186,7 +186,7 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 	k := k8s.Default().Clientset.CoreV1()
 
 	// 获取查询参数
-	appID := r.URL.Query().Get("appID")
+	appID := r.URL.Query().Get("intID")
 	serviceName := r.URL.Query().Get("service_name")
 
 	// 构建标签选择器
