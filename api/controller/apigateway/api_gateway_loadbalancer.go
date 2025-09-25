@@ -77,11 +77,7 @@ func generateAccessURLs(nodeIPs []string, ports []model.LoadBalancerPort) []stri
 	for _, nodeIP := range nodeIPs {
 		for _, port := range ports {
 			if port.NodePort > 0 {
-				protocol := "http"
-				if strings.ToUpper(port.Protocol) == "UDP" {
-					protocol = "udp"
-				}
-				url := fmt.Sprintf("%s://%s:%d", protocol, nodeIP, port.NodePort)
+				url := fmt.Sprintf("%s:%d", nodeIP, port.NodePort)
 				accessURLs = append(accessURLs, url)
 			}
 		}
