@@ -360,5 +360,6 @@ type GatewayCertInterface interface {
 type GatewayLoadBalancerInterface interface {
 	CreateLoadBalancer(w http.ResponseWriter, r *http.Request)
 	GetLoadBalancer(w http.ResponseWriter, r *http.Request)
+	UpdateLoadBalancer(w http.ResponseWriter, r *http.Request)
 	DeleteLoadBalancer(w http.ResponseWriter, r *http.Request)
 }
