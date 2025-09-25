@@ -392,6 +392,7 @@ type LoadBalancerPort struct {
 	TargetPort int    `json:"target_port" validate:"required"` // 目标端口
 	Protocol   string `json:"protocol" validate:"required"`    // 协议类型 TCP/UDP
 	Name       string `json:"name,omitempty"`                  // 端口名称
+	NodePort   int32  `json:"node_port,omitempty"`             // NodePort 端口（如果有）
 }
 
 // CreateLoadBalancerStruct 创建LoadBalancer的请求结构体
@@ -414,6 +415,7 @@ type LoadBalancerResponse struct {
 	ServiceName string             `json:"service_name"`
 	Ports       []LoadBalancerPort `json:"ports"`
 	ExternalIPs []string           `json:"external_ips,omitempty"`
+	AccessURLs  []string           `json:"access_urls,omitempty"` // 访问地址列表，格式：http://nodeip:nodeport(port)
 	Annotations map[string]string  `json:"annotations,omitempty"`
 	Status      string             `json:"status"`
 	CreatedAt   string             `json:"created_at"`

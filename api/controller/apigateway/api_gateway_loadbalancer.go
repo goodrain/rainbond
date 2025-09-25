@@ -19,6 +19,7 @@
 package apigateway
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,6 +38,56 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+// getNodeIPs 获取集群节点的IP地址列表
+func getNodeIPs(k8sComponent *k8s.Component) ([]string, error) {
+	nodeList, err := k8sComponent.Clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var nodeIPs []string
+	for _, node := range nodeList.Items {
+		// 优先使用外网IP，如果没有则使用内网IP
+		var nodeIP string
+		for _, address := range node.Status.Addresses {
+			if address.Type == corev1.NodeExternalIP && address.Address != "" {
+				nodeIP = address.Address
+				break
+			}
+		}
+		if nodeIP == "" {
+			for _, address := range node.Status.Addresses {
+				if address.Type == corev1.NodeInternalIP && address.Address != "" {
+					nodeIP = address.Address
+					break
+				}
+			}
+		}
+		if nodeIP != "" {
+			nodeIPs = append(nodeIPs, nodeIP)
+		}
+	}
+	return nodeIPs, nil
+}
+
+// generateAccessURLs 生成访问地址列表
+func generateAccessURLs(nodeIPs []string, ports []model.LoadBalancerPort) []string {
+	var accessURLs []string
+	for _, nodeIP := range nodeIPs {
+		for _, port := range ports {
+			if port.NodePort > 0 {
+				protocol := "http"
+				if strings.ToUpper(port.Protocol) == "UDP" {
+					protocol = "udp"
+				}
+				url := fmt.Sprintf("%s://%s:%d", protocol, nodeIP, port.NodePort)
+				accessURLs = append(accessURLs, url)
+			}
+		}
+	}
+	return accessURLs
+}
 
 // CreateLoadBalancer 创建LoadBalancer服务
 func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
@@ -117,12 +168,12 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		labels["service_id"] = serviceID
 	}
 	labels["service_alias"] = createLBReq.ServiceName
-	// 记录端口信息（多个端口用逗号分隔）
-	var ports []string
+	// 记录端口信息（多个端口用下划线分隔，符合K8s标签规范）
+	var portStrings []string
 	for _, port := range createLBReq.Ports {
-		ports = append(ports, fmt.Sprintf("%d", port.Port))
+		portStrings = append(portStrings, fmt.Sprintf("%d", port.Port))
 	}
-	labels["ports"] = strings.Join(ports, ",")
+	labels["ports"] = strings.Join(portStrings, "_")
 
 	// 创建注解
 	annotations := make(map[string]string)
@@ -149,13 +200,39 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 转换端口信息，包含NodePort
+	var responsePorts []model.LoadBalancerPort
+	for _, port := range createdService.Spec.Ports {
+		responsePorts = append(responsePorts, model.LoadBalancerPort{
+			Port:       int(port.Port),
+			TargetPort: port.TargetPort.IntValue(),
+			Protocol:   string(port.Protocol),
+			Name:       port.Name,
+			NodePort:   port.NodePort,
+		})
+	}
+
+	// 获取节点IP列表
+	nodeIPs, err := getNodeIPs(k8s.Default())
+	if err != nil {
+		logrus.Warnf("get node IPs error %s", err.Error())
+		// 不影响主要功能，继续执行
+	}
+
+	// 生成访问地址
+	var accessURLs []string
+	if len(nodeIPs) > 0 {
+		accessURLs = generateAccessURLs(nodeIPs, responsePorts)
+	}
+
 	// 构造响应
 	response := &model.LoadBalancerResponse{
 		Name:        createdService.Name,
 		Namespace:   createdService.Namespace,
 		ServiceName: createLBReq.ServiceName,
-		Ports:       createLBReq.Ports,
+		Ports:       responsePorts,
 		ExternalIPs: createdService.Spec.ExternalIPs,
+		AccessURLs:  accessURLs,
 		Annotations: createdService.Annotations,
 		Status:      "Creating",
 		CreatedAt:   createdService.CreationTimestamp.Format(time.RFC3339),
@@ -208,29 +285,43 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取节点IP列表（只获取一次，避免重复调用）
+	nodeIPs, err := getNodeIPs(k8s.Default())
+	if err != nil {
+		logrus.Warnf("get node IPs error %s", err.Error())
+	}
+
 	var responses []*model.LoadBalancerResponse
 	for _, service := range list.Items {
 		if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
 			continue
 		}
 
-		// 转换端口信息
-		var ports []model.LoadBalancerPort
+		// 转换端口信息，包含NodePort
+		var servicePorts []model.LoadBalancerPort
 		for _, port := range service.Spec.Ports {
-			ports = append(ports, model.LoadBalancerPort{
+			servicePorts = append(servicePorts, model.LoadBalancerPort{
 				Port:       int(port.Port),
 				TargetPort: port.TargetPort.IntValue(),
 				Protocol:   string(port.Protocol),
 				Name:       port.Name,
+				NodePort:   port.NodePort,
 			})
+		}
+
+		// 生成访问地址
+		var accessURLs []string
+		if len(nodeIPs) > 0 {
+			accessURLs = generateAccessURLs(nodeIPs, servicePorts)
 		}
 
 		response := &model.LoadBalancerResponse{
 			Name:        service.Name,
 			Namespace:   service.Namespace,
 			ServiceName: service.Labels["service_alias"],
-			Ports:       ports,
+			Ports:       servicePorts,
 			ExternalIPs: service.Spec.ExternalIPs,
+			AccessURLs:  accessURLs,
 			Annotations: service.Annotations,
 			Status:      "Creating",
 			CreatedAt:   service.CreationTimestamp.Format(time.RFC3339),
@@ -384,12 +475,12 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		}
 		service.Spec.Ports = servicePorts
 
-		// 更新标签中的端口信息
-		var ports []string
+		// 更新标签中的端口信息（多个端口用下划线分隔，符合K8s标签规范）
+		var updatePortStrings []string
 		for _, port := range updateLBReq.Ports {
-			ports = append(ports, fmt.Sprintf("%d", port.Port))
+			updatePortStrings = append(updatePortStrings, fmt.Sprintf("%d", port.Port))
 		}
-		service.Labels["ports"] = strings.Join(ports, ",")
+		service.Labels["ports"] = strings.Join(updatePortStrings, "_")
 	}
 
 	// 更新注解
@@ -410,15 +501,28 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 转换端口信息
-	var ports []model.LoadBalancerPort
+	// 转换端口信息，包含NodePort
+	var updatedPorts []model.LoadBalancerPort
 	for _, port := range updatedService.Spec.Ports {
-		ports = append(ports, model.LoadBalancerPort{
+		updatedPorts = append(updatedPorts, model.LoadBalancerPort{
 			Port:       int(port.Port),
 			TargetPort: port.TargetPort.IntValue(),
 			Protocol:   string(port.Protocol),
 			Name:       port.Name,
+			NodePort:   port.NodePort,
 		})
+	}
+
+	// 获取节点IP列表
+	nodeIPs, err := getNodeIPs(k8s.Default())
+	if err != nil {
+		logrus.Warnf("get node IPs error %s", err.Error())
+	}
+
+	// 生成访问地址
+	var accessURLs []string
+	if len(nodeIPs) > 0 {
+		accessURLs = generateAccessURLs(nodeIPs, updatedPorts)
 	}
 
 	// 构造响应
@@ -426,8 +530,9 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		Name:        updatedService.Name,
 		Namespace:   updatedService.Namespace,
 		ServiceName: updatedService.Labels["service_alias"],
-		Ports:       ports,
+		Ports:       updatedPorts,
 		ExternalIPs: updatedService.Spec.ExternalIPs,
+		AccessURLs:  accessURLs,
 		Annotations: updatedService.Annotations,
 		Status:      "Creating",
 		CreatedAt:   updatedService.CreationTimestamp.Format(time.RFC3339),
