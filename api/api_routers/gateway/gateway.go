@@ -30,7 +30,7 @@ func Routes() chi.Router {
 	r.Route("/loadbalancer", func(r chi.Router) {
 		r.Post("/", controller.GetManager().CreateLoadBalancer)
 		r.Get("/", controller.GetManager().GetLoadBalancer)
-		r.Put("/{name}", controller.GetManager().UpdateLoadBalancer)
+		r.Post("/{name}", controller.GetManager().UpdateLoadBalancer)
 		r.Delete("/{name}", controller.GetManager().DeleteLoadBalancer)
 	})
 
