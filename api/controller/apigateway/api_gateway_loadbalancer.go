@@ -50,15 +50,23 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 验证协议类型
-	protocol := strings.ToUpper(createLBReq.Protocol)
-	if protocol != "TCP" && protocol != "UDP" {
-		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("protocol must be TCP or UDP"))
+	// 验证端口配置
+	if len(createLBReq.Ports) == 0 {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("ports cannot be empty"))
 		return
 	}
 
-	// 生成服务名称
-	serviceName := fmt.Sprintf("%s-lb-%d", createLBReq.ServiceName, createLBReq.ServicePort)
+	// 验证每个端口的协议类型
+	for _, port := range createLBReq.Ports {
+		protocol := strings.ToUpper(port.Protocol)
+		if protocol != "TCP" && protocol != "UDP" {
+			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("protocol must be TCP or UDP"))
+			return
+		}
+	}
+
+	// 生成服务名称（使用第一个端口）
+	serviceName := fmt.Sprintf("%s-lb", createLBReq.ServiceName)
 
 	// 检查服务是否已存在
 	_, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName, v1.GetOptions{})
@@ -72,17 +80,25 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 创建服务端口配置
+	var servicePorts []corev1.ServicePort
+	for i, port := range createLBReq.Ports {
+		portName := port.Name
+		if portName == "" {
+			portName = fmt.Sprintf("port-%d", port.Port)
+		}
+		servicePorts = append(servicePorts, corev1.ServicePort{
+			Name:       portName,
+			Protocol:   corev1.Protocol(strings.ToUpper(port.Protocol)),
+			Port:       int32(port.Port),
+			TargetPort: intstr.FromInt(port.TargetPort),
+		})
+	}
+
 	// 创建服务规格
 	spec := corev1.ServiceSpec{
-		Type: corev1.ServiceTypeLoadBalancer,
-		Ports: []corev1.ServicePort{
-			{
-				Name:       serviceName,
-				Protocol:   corev1.Protocol(protocol),
-				Port:       int32(createLBReq.ServicePort),
-				TargetPort: intstr.FromInt(createLBReq.ServicePort),
-			},
-		},
+		Type:  corev1.ServiceTypeLoadBalancer,
+		Ports: servicePorts,
 	}
 
 	// 直接生成服务选择器
@@ -101,7 +117,12 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		labels["service_id"] = serviceID
 	}
 	labels["service_alias"] = createLBReq.ServiceName
-	labels["port"] = fmt.Sprintf("%d", createLBReq.ServicePort)
+	// 记录端口信息（多个端口用逗号分隔）
+	var ports []string
+	for _, port := range createLBReq.Ports {
+		ports = append(ports, fmt.Sprintf("%d", port.Port))
+	}
+	labels["ports"] = strings.Join(ports, ",")
 
 	// 创建注解
 	annotations := make(map[string]string)
@@ -130,16 +151,14 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 
 	// 构造响应
 	response := &model.LoadBalancerResponse{
-		Name:           createdService.Name,
-		Namespace:      createdService.Namespace,
-		ServiceName:    createLBReq.ServiceName,
-		ServicePort:    createLBReq.ServicePort,
-		Protocol:       protocol,
-		LoadBalancerIP: createdService.Spec.LoadBalancerIP,
-		ExternalIPs:    createdService.Spec.ExternalIPs,
-		Annotations:    createdService.Annotations,
-		Status:         "Creating",
-		CreatedAt:      createdService.CreationTimestamp.Format(time.RFC3339),
+		Name:        createdService.Name,
+		Namespace:   createdService.Namespace,
+		ServiceName: createLBReq.ServiceName,
+		Ports:       createLBReq.Ports,
+		ExternalIPs: createdService.Spec.ExternalIPs,
+		Annotations: createdService.Annotations,
+		Status:      "Creating",
+		CreatedAt:   createdService.CreationTimestamp.Format(time.RFC3339),
 	}
 
 	// 如果LoadBalancer已分配IP，更新状态
@@ -195,17 +214,26 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// 转换端口信息
+		var ports []model.LoadBalancerPort
+		for _, port := range service.Spec.Ports {
+			ports = append(ports, model.LoadBalancerPort{
+				Port:       int(port.Port),
+				TargetPort: port.TargetPort.IntValue(),
+				Protocol:   string(port.Protocol),
+				Name:       port.Name,
+			})
+		}
+
 		response := &model.LoadBalancerResponse{
-			Name:           service.Name,
-			Namespace:      service.Namespace,
-			ServiceName:    service.Labels["service_alias"],
-			ServicePort:    int(service.Spec.Ports[0].Port),
-			Protocol:       string(service.Spec.Ports[0].Protocol),
-			LoadBalancerIP: service.Spec.LoadBalancerIP,
-			ExternalIPs:    service.Spec.ExternalIPs,
-			Annotations:    service.Annotations,
-			Status:         "Creating",
-			CreatedAt:      service.CreationTimestamp.Format(time.RFC3339),
+			Name:        service.Name,
+			Namespace:   service.Namespace,
+			ServiceName: service.Labels["service_alias"],
+			Ports:       ports,
+			ExternalIPs: service.Spec.ExternalIPs,
+			Annotations: service.Annotations,
+			Status:      "Creating",
+			CreatedAt:   service.CreationTimestamp.Format(time.RFC3339),
 		}
 
 		// 检查LoadBalancer状态
@@ -283,4 +311,145 @@ func (g Struct) DeleteLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		"message": "LoadBalancer service deleted successfully",
 		"name":    serviceName,
 	})
+}
+
+// UpdateLoadBalancer 更新LoadBalancer服务
+func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	serviceName := chi.URLParam(r, "name")
+	if serviceName == "" {
+		serviceName = r.URL.Query().Get("name")
+	}
+
+	if serviceName == "" {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("service name is required"))
+		return
+	}
+
+	var updateLBReq model.UpdateLoadBalancerStruct
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateLBReq, nil) {
+		return
+	}
+
+	k := k8s.Default().Clientset.CoreV1()
+
+	// 获取现有服务
+	service, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName, v1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			httputil.ReturnBcodeError(r, w, bcode.NotFound)
+			return
+		}
+		logrus.Errorf("get LoadBalancer service error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ServerErr)
+		return
+	}
+
+	// 验证是否为LoadBalancer服务
+	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("service is not a LoadBalancer type"))
+		return
+	}
+
+	// 验证是否为Rainbond创建的LoadBalancer
+	if service.Labels["creator"] != "Rainbond" || service.Labels["loadbalancer"] != "true" {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("service is not a Rainbond LoadBalancer"))
+		return
+	}
+
+	// 更新端口配置
+	if len(updateLBReq.Ports) > 0 {
+		// 验证每个端口的协议类型
+		for _, port := range updateLBReq.Ports {
+			protocol := strings.ToUpper(port.Protocol)
+			if protocol != "TCP" && protocol != "UDP" {
+				httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("protocol must be TCP or UDP"))
+				return
+			}
+		}
+
+		// 更新服务端口配置
+		var servicePorts []corev1.ServicePort
+		for _, port := range updateLBReq.Ports {
+			portName := port.Name
+			if portName == "" {
+				portName = fmt.Sprintf("port-%d", port.Port)
+			}
+			servicePorts = append(servicePorts, corev1.ServicePort{
+				Name:       portName,
+				Protocol:   corev1.Protocol(strings.ToUpper(port.Protocol)),
+				Port:       int32(port.Port),
+				TargetPort: intstr.FromInt(port.TargetPort),
+			})
+		}
+		service.Spec.Ports = servicePorts
+
+		// 更新标签中的端口信息
+		var ports []string
+		for _, port := range updateLBReq.Ports {
+			ports = append(ports, fmt.Sprintf("%d", port.Port))
+		}
+		service.Labels["ports"] = strings.Join(ports, ",")
+	}
+
+	// 更新注解
+	if updateLBReq.Annotations != nil {
+		if service.Annotations == nil {
+			service.Annotations = make(map[string]string)
+		}
+		for k, v := range updateLBReq.Annotations {
+			service.Annotations[k] = v
+		}
+	}
+
+	// 更新服务
+	updatedService, err := k.Services(tenant.Namespace).Update(r.Context(), service, v1.UpdateOptions{})
+	if err != nil {
+		logrus.Errorf("update LoadBalancer service error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, fmt.Errorf("update LoadBalancer service error: %s", err.Error()))
+		return
+	}
+
+	// 转换端口信息
+	var ports []model.LoadBalancerPort
+	for _, port := range updatedService.Spec.Ports {
+		ports = append(ports, model.LoadBalancerPort{
+			Port:       int(port.Port),
+			TargetPort: port.TargetPort.IntValue(),
+			Protocol:   string(port.Protocol),
+			Name:       port.Name,
+		})
+	}
+
+	// 构造响应
+	response := &model.LoadBalancerResponse{
+		Name:        updatedService.Name,
+		Namespace:   updatedService.Namespace,
+		ServiceName: updatedService.Labels["service_alias"],
+		Ports:       ports,
+		ExternalIPs: updatedService.Spec.ExternalIPs,
+		Annotations: updatedService.Annotations,
+		Status:      "Creating",
+		CreatedAt:   updatedService.CreationTimestamp.Format(time.RFC3339),
+	}
+
+	// 检查LoadBalancer状态
+	if len(updatedService.Status.LoadBalancer.Ingress) > 0 {
+		response.Status = "Ready"
+		var externalIPs []string
+		for _, ingress := range updatedService.Status.LoadBalancer.Ingress {
+			if ingress.IP != "" {
+				externalIPs = append(externalIPs, ingress.IP)
+			}
+			if ingress.Hostname != "" {
+				externalIPs = append(externalIPs, ingress.Hostname)
+			}
+		}
+		if len(externalIPs) > 0 {
+			response.ExternalIPs = externalIPs
+		}
+	}
+
+	logrus.Infof("LoadBalancer service updated successfully: %s", serviceName)
+	httputil.ReturnSuccess(r, w, response)
 }
