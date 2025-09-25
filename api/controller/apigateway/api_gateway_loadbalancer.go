@@ -82,7 +82,7 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 
 	// 创建服务端口配置
 	var servicePorts []corev1.ServicePort
-	for i, port := range createLBReq.Ports {
+	for _, port := range createLBReq.Ports {
 		portName := port.Name
 		if portName == "" {
 			portName = fmt.Sprintf("port-%d", port.Port)
