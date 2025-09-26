@@ -72,14 +72,24 @@ func getNodeIPs(k8sComponent *k8s.Component) ([]string, error) {
 }
 
 // generateAccessURLs 生成访问地址列表
-func generateAccessURLs(nodeIPs []string, ports []model.LoadBalancerPort) []string {
+func generateAccessURLs(ips []string, ports []model.LoadBalancerPort, useServicePort bool) []string {
 	var accessURLs []string
-	for _, nodeIP := range nodeIPs {
+	for _, ip := range ips {
 		for _, port := range ports {
-			if port.NodePort > 0 {
-				url := fmt.Sprintf("%s:%d", nodeIP, port.NodePort)
-				accessURLs = append(accessURLs, url)
+			var portNum int
+			if useServicePort {
+				// 使用 LoadBalancer 的服务端口
+				portNum = port.Port
+			} else {
+				// 使用 NodePort
+				if port.NodePort > 0 {
+					portNum = int(port.NodePort)
+				} else {
+					continue
+				}
 			}
+			url := fmt.Sprintf("%s:%d", ip, portNum)
+			accessURLs = append(accessURLs, url)
 		}
 	}
 	return accessURLs
@@ -208,17 +218,33 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 获取节点IP列表
-	nodeIPs, err := getNodeIPs(k8s.Default())
-	if err != nil {
-		logrus.Warnf("get node IPs error %s", err.Error())
-		// 不影响主要功能，继续执行
+	// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
+	var accessURLs []string
+	var ingressIPs []string
+
+	// 检查是否已有 LoadBalancer Ingress IP
+	if len(createdService.Status.LoadBalancer.Ingress) > 0 {
+		for _, ingress := range createdService.Status.LoadBalancer.Ingress {
+			if ingress.IP != "" {
+				ingressIPs = append(ingressIPs, ingress.IP)
+			}
+			if ingress.Hostname != "" {
+				ingressIPs = append(ingressIPs, ingress.Hostname)
+			}
+		}
 	}
 
-	// 生成访问地址
-	var accessURLs []string
-	if len(nodeIPs) > 0 {
-		accessURLs = generateAccessURLs(nodeIPs, responsePorts)
+	if len(ingressIPs) > 0 {
+		// 使用 LoadBalancer Ingress IP 和服务端口
+		accessURLs = generateAccessURLs(ingressIPs, responsePorts, true)
+	} else {
+		// 回退到使用节点IP和NodePort
+		nodeIPs, err := getNodeIPs(k8s.Default())
+		if err != nil {
+			logrus.Warnf("get node IPs error %s", err.Error())
+		} else if len(nodeIPs) > 0 {
+			accessURLs = generateAccessURLs(nodeIPs, responsePorts, false)
+		}
 	}
 
 	// 构造响应
@@ -305,10 +331,28 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		// 生成访问地址
+		// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
 		var accessURLs []string
-		if len(nodeIPs) > 0 {
-			accessURLs = generateAccessURLs(nodeIPs, servicePorts)
+		var ingressIPs []string
+
+		// 检查是否已有 LoadBalancer Ingress IP
+		if len(service.Status.LoadBalancer.Ingress) > 0 {
+			for _, ingress := range service.Status.LoadBalancer.Ingress {
+				if ingress.IP != "" {
+					ingressIPs = append(ingressIPs, ingress.IP)
+				}
+				if ingress.Hostname != "" {
+					ingressIPs = append(ingressIPs, ingress.Hostname)
+				}
+			}
+		}
+
+		if len(ingressIPs) > 0 {
+			// 使用 LoadBalancer Ingress IP 和服务端口
+			accessURLs = generateAccessURLs(ingressIPs, servicePorts, true)
+		} else if len(nodeIPs) > 0 {
+			// 回退到使用节点IP和NodePort
+			accessURLs = generateAccessURLs(nodeIPs, servicePorts, false)
 		}
 
 		response := &model.LoadBalancerResponse{
@@ -509,16 +553,33 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 获取节点IP列表
-	nodeIPs, err := getNodeIPs(k8s.Default())
-	if err != nil {
-		logrus.Warnf("get node IPs error %s", err.Error())
+	// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
+	var accessURLs []string
+	var ingressIPs []string
+
+	// 检查是否已有 LoadBalancer Ingress IP
+	if len(updatedService.Status.LoadBalancer.Ingress) > 0 {
+		for _, ingress := range updatedService.Status.LoadBalancer.Ingress {
+			if ingress.IP != "" {
+				ingressIPs = append(ingressIPs, ingress.IP)
+			}
+			if ingress.Hostname != "" {
+				ingressIPs = append(ingressIPs, ingress.Hostname)
+			}
+		}
 	}
 
-	// 生成访问地址
-	var accessURLs []string
-	if len(nodeIPs) > 0 {
-		accessURLs = generateAccessURLs(nodeIPs, updatedPorts)
+	if len(ingressIPs) > 0 {
+		// 使用 LoadBalancer Ingress IP 和服务端口
+		accessURLs = generateAccessURLs(ingressIPs, updatedPorts, true)
+	} else {
+		// 回退到使用节点IP和NodePort
+		nodeIPs, err := getNodeIPs(k8s.Default())
+		if err != nil {
+			logrus.Warnf("get node IPs error %s", err.Error())
+		} else if len(nodeIPs) > 0 {
+			accessURLs = generateAccessURLs(nodeIPs, updatedPorts, false)
+		}
 	}
 
 	// 构造响应
