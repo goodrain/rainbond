@@ -19,7 +19,6 @@
 package apigateway
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,38 +37,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
-
-// getNodeIPs 获取集群节点的IP地址列表
-func getNodeIPs(k8sComponent *k8s.Component) ([]string, error) {
-	nodeList, err := k8sComponent.Clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	var nodeIPs []string
-	for _, node := range nodeList.Items {
-		// 优先使用外网IP，如果没有则使用内网IP
-		var nodeIP string
-		for _, address := range node.Status.Addresses {
-			if address.Type == corev1.NodeExternalIP && address.Address != "" {
-				nodeIP = address.Address
-				break
-			}
-		}
-		if nodeIP == "" {
-			for _, address := range node.Status.Addresses {
-				if address.Type == corev1.NodeInternalIP && address.Address != "" {
-					nodeIP = address.Address
-					break
-				}
-			}
-		}
-		if nodeIP != "" {
-			nodeIPs = append(nodeIPs, nodeIP)
-		}
-	}
-	return nodeIPs, nil
-}
 
 // generateAccessURLs 生成访问地址列表
 func generateAccessURLs(ips []string, ports []model.LoadBalancerPort, useServicePort bool) []string {
@@ -218,7 +185,7 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
+	// 生成访问地址 - 只有当 LoadBalancer VIP 分配完成后才生成访问地址
 	var accessURLs []string
 	var ingressIPs []string
 
@@ -237,15 +204,8 @@ func (g Struct) CreateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 	if len(ingressIPs) > 0 {
 		// 使用 LoadBalancer Ingress IP 和服务端口
 		accessURLs = generateAccessURLs(ingressIPs, responsePorts, true)
-	} else {
-		// 回退到使用节点IP和NodePort
-		nodeIPs, err := getNodeIPs(k8s.Default())
-		if err != nil {
-			logrus.Warnf("get node IPs error %s", err.Error())
-		} else if len(nodeIPs) > 0 {
-			accessURLs = generateAccessURLs(nodeIPs, responsePorts, false)
-		}
 	}
+	// 当VIP还在申请中时，不返回节点IP，accessURLs保持为空
 
 	// 构造响应
 	response := &model.LoadBalancerResponse{
@@ -307,11 +267,7 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取节点IP列表（只获取一次，避免重复调用）
-	nodeIPs, err := getNodeIPs(k8s.Default())
-	if err != nil {
-		logrus.Warnf("get node IPs error %s", err.Error())
-	}
+	// 注意：当VIP还在申请中时，不再使用节点IP作为回退方案
 
 	var responses []*model.LoadBalancerResponse
 	for _, service := range list.Items {
@@ -331,7 +287,7 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
+		// 生成访问地址 - 只有当 LoadBalancer VIP 分配完成后才生成访问地址
 		var accessURLs []string
 		var ingressIPs []string
 
@@ -350,10 +306,8 @@ func (g Struct) GetLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		if len(ingressIPs) > 0 {
 			// 使用 LoadBalancer Ingress IP 和服务端口
 			accessURLs = generateAccessURLs(ingressIPs, servicePorts, true)
-		} else if len(nodeIPs) > 0 {
-			// 回退到使用节点IP和NodePort
-			accessURLs = generateAccessURLs(nodeIPs, servicePorts, false)
 		}
+		// 当VIP还在申请中时，不返回节点IP，accessURLs保持为空
 
 		response := &model.LoadBalancerResponse{
 			Name:        service.Name,
@@ -553,7 +507,7 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 生成访问地址 - 优先使用 LoadBalancer Ingress IP
+	// 生成访问地址 - 只有当 LoadBalancer VIP 分配完成后才生成访问地址
 	var accessURLs []string
 	var ingressIPs []string
 
@@ -572,15 +526,8 @@ func (g Struct) UpdateLoadBalancer(w http.ResponseWriter, r *http.Request) {
 	if len(ingressIPs) > 0 {
 		// 使用 LoadBalancer Ingress IP 和服务端口
 		accessURLs = generateAccessURLs(ingressIPs, updatedPorts, true)
-	} else {
-		// 回退到使用节点IP和NodePort
-		nodeIPs, err := getNodeIPs(k8s.Default())
-		if err != nil {
-			logrus.Warnf("get node IPs error %s", err.Error())
-		} else if len(nodeIPs) > 0 {
-			accessURLs = generateAccessURLs(nodeIPs, updatedPorts, false)
-		}
 	}
+	// 当VIP还在申请中时，不返回节点IP，accessURLs保持为空
 
 	// 构造响应
 	response := &model.LoadBalancerResponse{
