@@ -40,8 +40,13 @@ import (
 func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	serviceAlias := r.URL.Query().Get("service_alias")
+	// Only keep the value before the comma
+	if idx := strings.Index(serviceAlias, ","); idx != -1 {
+		serviceAlias = serviceAlias[:idx]
+	}
 	list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: r.URL.Query().Get("service_alias") + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
+		LabelSelector: serviceAlias + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
 	})
 	for _, itemL := range list.Items {
 		item := itemL
@@ -83,8 +88,13 @@ func (g Struct) GetHTTPBindDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
+	serviceAlias := r.URL.Query().Get("service_alias")
+	// Only keep the value before the comma
+	if idx := strings.Index(serviceAlias, ","); idx != -1 {
+		serviceAlias = serviceAlias[:idx]
+	}
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
-		LabelSelector: r.URL.Query().Get("service_alias") + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
+		LabelSelector: serviceAlias + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
 	})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
@@ -113,7 +123,11 @@ func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 
 	k := k8s.Default().Clientset.CoreV1()
 	serviceAlias := r.URL.Query().Get("service_alias")
-	labelSelector := fmt.Sprintf("tcp=true,service_alias=%v,outer=true" + serviceAlias)
+	// Only keep the value before the comma
+	if idx := strings.Index(serviceAlias, ","); idx != -1 {
+		serviceAlias = serviceAlias[:idx]
+	}
+	labelSelector := fmt.Sprintf("tcp=true,service_alias=%v,outer=true", serviceAlias)
 
 	list, err := k.Services(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
@@ -213,6 +227,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sa := r.URL.Query().Get("service_alias")
+	// Only keep the value before the comma
+	if idx := strings.Index(sa, ","); idx != -1 {
+		sa = sa[:idx]
+	}
 	sLabel := strings.Split(sa, ",")
 	// 如果没有绑定appId，那么不要加这个lable
 	labels := make(map[string]string)
