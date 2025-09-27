@@ -21,6 +21,12 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings" //"github.com/docker/docker/client"
+
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
@@ -33,12 +39,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/util"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings" //"github.com/docker/docker/client"
 )
 
 // DockerRunOrImageParse docker run 命令解析或直接镜像名解析
@@ -125,11 +127,29 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			})
 		}
 		d.tarImages = tarImages
-		// 简化tar包镜像处理：跳过重新打tag和push操作
-		// 直接使用加载的镜像名称，不进行额外的标签操作
-		d.logger.Info(fmt.Sprintf("加载tar包镜像: %v (跳过tag和push操作)", imageNames), map[string]string{"step": "image-parse"})
-
-		// 注意：跳过了镜像tag和push操作，直接使用原始镜像名称
+		for _, imageName := range imageNames {
+			imageList := strings.Split(imageName, "/")
+			var newImageName string
+			if len(imageList) == 1 {
+				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[0])
+			} else if len(imageList) == 2 {
+				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[1])
+			} else if len(imageList) == 3 {
+				newImageName = path.Join(builder.REGISTRYDOMAIN, d.namespace, imageList[2])
+			}
+			err := d.imageClient.ImageTag(imageName, newImageName, d.logger, 3)
+			if err != nil {
+				logrus.Errorf("tag tar image failure: %v", err)
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像修改 tag 失败"), SolveAdvice("modify_image", "请联系平台管理员")))
+				return d.errors
+			}
+			err = d.imageClient.ImagePush(newImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, d.logger, 3)
+			if err != nil {
+				logrus.Errorf("load tar image push failure: %v", err)
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像push 失败"), SolveAdvice("modify_image", "请联系平台管理员")))
+				return d.errors
+			}
+		}
 		return d.errors
 	} else {
 		//else image
