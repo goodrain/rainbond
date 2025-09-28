@@ -297,6 +297,9 @@ func (m *Manager) patchTable() {
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
 		m.initLanguageVersion()
+	} else {
+		// Update existing or insert new language versions
+		m.updateLanguageVersions()
 	}
 	if m.config.DBType == "sqlite" {
 		return
@@ -367,6 +370,66 @@ func (m *Manager) initLanguageVersion() {
 	}
 	if err := gormbulkups.BulkUpsert(m.db, objects, 2000); err != nil {
 		logrus.Errorf("create K8sResource groups in batch failure: %v", err)
+	}
+}
+
+func (m *Manager) updateLanguageVersions() {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, GolangInitVersion...)
+	versions = append(versions, NodeInitVersion...)
+	versions = append(versions, WebCompilerInitVersion...)
+	versions = append(versions, OpenJDKInitVersion...)
+	versions = append(versions, MavenInitVersion...)
+	versions = append(versions, PythonInitVersion...)
+	versions = append(versions, NetRuntimeInitVersion...)
+	versions = append(versions, NetCompilerInitVersion...)
+	versions = append(versions, PHPInitVersion...)
+	versions = append(versions, WebRuntimeInitVersion...)
+
+	dbType := m.db.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, version := range versions {
+			// Check if the version exists
+			var existing model.EnterpriseLanguageVersion
+			if err := m.db.Where("lang = ? AND version = ?", version.Lang, version.Version).First(&existing).Error; err != nil {
+				if gorm.IsRecordNotFoundError(err) {
+					// Version doesn't exist, create it
+					if err := m.db.Create(version).Error; err != nil {
+						logrus.Errorf("create language version %s-%s error: %v", version.Lang, version.Version, err)
+					} else {
+						logrus.Infof("added new language version: %s-%s", version.Lang, version.Version)
+					}
+				}
+			} else {
+				// Version exists, update if it's a system version
+				if version.System {
+					existing.FirstChoice = version.FirstChoice
+					existing.FileName = version.FileName
+					existing.Show = version.Show
+					existing.System = version.System
+					if err := m.db.Save(&existing).Error; err != nil {
+						logrus.Errorf("update language version %s-%s error: %v", version.Lang, version.Version, err)
+					}
+				}
+			}
+		}
+		return
+	}
+
+	// For MySQL/CockroachDB, use bulk upsert
+	var objects []interface{}
+	for _, version := range versions {
+		// Only update system versions
+		if version.System {
+			objects = append(objects, *version)
+		}
+	}
+	if len(objects) > 0 {
+		if err := gormbulkups.BulkUpsert(m.db, objects, 2000); err != nil {
+			logrus.Errorf("update language versions in batch failure: %v", err)
+		} else {
+			logrus.Info("successfully updated language versions")
+		}
 	}
 }
 
