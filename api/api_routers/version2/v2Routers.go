@@ -419,7 +419,6 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/backup-repos", controller.GetManager().GetBackupRepos)
 	r.Post("/kubeblocks/clusters", controller.GetManager().CreateCluster)
 	r.Get("/kubeblocks/clusters/connect-infos", controller.GetManager().GetClusterConnectInfos)
-	r.Get("/kubeblocks/component/{service_id}/infos", controller.GetManager().GetKubeBlocksComponentInfo)
 	r.Get("/kubeblocks/clusters/{service_id}", controller.GetManager().GetClusterByID)
 	r.Put("/kubeblocks/clusters/{service_id}", controller.GetManager().ExpansionCluster)
 	r.Put("/kubeblocks/clusters/{service_id}/backup-schedules", controller.GetManager().UpdateClusterBackupSchedules)

@@ -73,11 +73,6 @@ func (c *KubeBlocksController) ExpansionCluster(w http.ResponseWriter, r *http.R
 	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s", serviceID), "PUT")
 }
 
-// GetKubeBlocksComponentInfo get KubeBlocks component info by service ID
-func (c *KubeBlocksController) GetKubeBlocksComponentInfo(w http.ResponseWriter, r *http.Request) {
-	serviceID := chi.URLParam(r, "service_id")
-	c.forwardRequest(w, r, fmt.Sprintf("/v1/kubeblocks-component/%s", serviceID), "GET")
-}
 
 // UpdateClusterBackupSchedules update KubeBlocks cluster backup schedules
 func (c *KubeBlocksController) UpdateClusterBackupSchedules(w http.ResponseWriter, r *http.Request) {

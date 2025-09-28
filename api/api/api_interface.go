@@ -371,7 +371,6 @@ type KubeBlocksInterface interface {
 	GetBackupRepos(w http.ResponseWriter, r *http.Request)
 	CreateCluster(w http.ResponseWriter, r *http.Request)
 	GetClusterConnectInfos(w http.ResponseWriter, r *http.Request)
-	GetKubeBlocksComponentInfo(w http.ResponseWriter, r *http.Request)
 	GetClusterByID(w http.ResponseWriter, r *http.Request)
 	ExpansionCluster(w http.ResponseWriter, r *http.Request)
 	UpdateClusterBackupSchedules(w http.ResponseWriter, r *http.Request)
