@@ -178,6 +178,12 @@ func (m *Controller) Start() error {
 		go m.podEvent.Handle()
 		m.store.RegisterVolumeTypeListener("volumeTypeEvent", m.volumeTypeEvent.GetChan())
 		defer m.store.UnRegisterVolumeTypeListener("volumeTypeEvent")
+
+		// Initialize volume types by syncing all existing StorageClasses
+		if err := m.volumeTypeEvent.Init(m.k8sComponent.Clientset); err != nil {
+			logrus.Errorf("failed to initialize volume types: %v", err)
+		}
+
 		go m.volumeTypeEvent.Handle()
 
 		// helm app controller
