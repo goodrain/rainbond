@@ -183,6 +183,9 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
+	for _, ha := range re.HostAlias {
+		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
+	}
 	job.Spec = podSpec
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
@@ -198,7 +201,6 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	defer d.deleteAuthSecret(re, secret.Name)
 	defer jobc.GetJobController().DeleteJob(job.Name)
 	return d.waitingComplete(re, reChan)
-	return nil
 }
 
 func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
