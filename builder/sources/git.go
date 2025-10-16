@@ -82,7 +82,16 @@ func GetCodeSourceDir(RepositoryURL, branch, tenantID string, ServiceID string) 
 	h.Write([]byte(RepositoryURL + branch + ServiceID))
 	bs := h.Sum(nil)
 	bsStr := fmt.Sprintf("%x", bs)
-	return path.Join(sourceDir, "build", tenantID, bsStr)
+	targetDir := path.Join(sourceDir, "build", tenantID, bsStr)
+
+	// Check if directory exists, create if not
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			logrus.Errorf("Failed to create source directory %s: %v", targetDir, err)
+		}
+	}
+
+	return targetDir
 }
 
 // CheckFileExist CheckFileExist
