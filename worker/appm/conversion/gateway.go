@@ -546,6 +546,10 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 						"service_alias": as.ServiceAlias,
 					},
 				}
+				if a.appService.ServiceType == v1.TypeKubeBlocks {
+					spec.Selector = a.generateKubeBlocksSelector()
+					logrus.Info("generate selector for kubeblocks service: ", spec.Selector)
+				}
 				outerSVC = &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: labels,
