@@ -21,6 +21,10 @@ package controller
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
@@ -35,9 +39,6 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 // PodController is an implementation of PodInterface
@@ -142,25 +143,43 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		lines = 100
 	}
 	tailLines := int64(lines)
-	container := ""
-	if strings.HasPrefix(podName, "rbd-gateway") {
-		container = "ingress-apisix"
-	}
-	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
-		Follow:     true,
-		Timestamps: true,
-		TailLines:  &tailLines,
-		Container:  container,
-	})
-	logrus.Infof("Opening log stream for pod %s", podName)
 
-	stream, err := req.Stream(r.Context())
+	// Get container name from query parameter
+	container := r.URL.Query().Get("container")
+
+	// Get pod to check how many containers it has
+	pod, err := k8s.Default().Clientset.CoreV1().Pods(namespace).Get(r.Context(), podName, metav1.GetOptions{})
 	if err != nil {
-		logrus.Errorf("Error opening log stream: %v", err)
-		http.Error(w, "Error opening log stream", http.StatusInternalServerError)
+		logrus.Errorf("Error getting pod %s: %v", podName, err)
+		http.Error(w, fmt.Sprintf("Error getting pod: %v", err), http.StatusInternalServerError)
 		return
 	}
-	defer stream.Close()
+
+	// Determine which containers to stream logs from
+	var containers []string
+	if container != "" {
+		// Use specified container
+		containers = append(containers, container)
+		logrus.Infof("Streaming logs from specified container: %s", container)
+	} else {
+		// Special handling for rbd-gateway pods
+		if strings.HasPrefix(podName, "rbd-gateway") {
+			containers = append(containers, "apisix")
+			logrus.Infof("rbd-gateway pod detected, using container: ingress-apisix")
+		} else {
+			// Default behavior: stream all containers
+			for _, c := range pod.Spec.Containers {
+				containers = append(containers, c.Name)
+			}
+			logrus.Infof("No container specified, streaming logs from all containers: %v", containers)
+		}
+	}
+
+	if len(containers) == 0 {
+		http.Error(w, "No containers found in pod", http.StatusNotFound)
+		return
+	}
+
 	// Use Flusher to send headers to the client
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -174,8 +193,91 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	scanner := bufio.NewScanner(stream)
+	// If single container, use original logic
+	if len(containers) == 1 {
+		streamContainerLogs(w, r, podName, namespace, containers[0], tailLines, flusher)
+		return
+	}
 
+	// For multiple containers, merge streams
+	logrus.Infof("Opening log streams for pod %s with %d containers", podName, len(containers))
+
+	// Create a channel to merge logs from all containers
+	logChan := make(chan string, 100)
+	doneChan := make(chan struct{})
+
+	// Start goroutine for each container
+	for _, containerName := range containers {
+		go func(cName string) {
+			req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+				Follow:     true,
+				Timestamps: true,
+				TailLines:  &tailLines,
+				Container:  cName,
+			})
+
+			stream, err := req.Stream(r.Context())
+			if err != nil {
+				logrus.Errorf("Error opening log stream for container %s: %v", cName, err)
+				return
+			}
+			defer stream.Close()
+
+			scanner := bufio.NewScanner(stream)
+			for scanner.Scan() {
+				select {
+				case <-r.Context().Done():
+					return
+				case <-doneChan:
+					return
+				default:
+					// Prefix log line with container name
+					logLine := fmt.Sprintf("[%s] %s", cName, scanner.Text())
+					logChan <- logLine
+				}
+			}
+		}(containerName)
+	}
+
+	// Stream merged logs to client
+	for {
+		select {
+		case <-r.Context().Done():
+			close(doneChan)
+			logrus.Warningf("Request context done: %v", r.Context().Err())
+			return
+		case logLine := <-logChan:
+			msg := "data: " + logLine + "\n\n"
+			_, err := fmt.Fprintf(w, msg)
+			flusher.Flush()
+			if err != nil {
+				logrus.Errorf("Error writing to response: %v", err)
+				close(doneChan)
+				return
+			}
+		}
+	}
+}
+
+// streamContainerLogs streams logs from a single container
+func streamContainerLogs(w http.ResponseWriter, r *http.Request, podName, namespace, container string, tailLines int64, flusher http.Flusher) {
+	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
+		Follow:     true,
+		Timestamps: true,
+		TailLines:  &tailLines,
+		Container:  container,
+	})
+	logrus.Infof("Opening log stream for pod %s, container %s", podName, container)
+
+	stream, err := req.Stream(r.Context())
+	if err != nil {
+		logrus.Errorf("Error opening log stream: %v", err)
+		http.Error(w, "Error opening log stream", http.StatusInternalServerError)
+		return
+	}
+	defer stream.Close()
+
+	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		select {
 		case <-r.Context().Done():
