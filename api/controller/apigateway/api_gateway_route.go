@@ -10,6 +10,7 @@ import (
 	v13 "github.com/cert-manager/cert-manager/pkg/apis/acme/v1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v12 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
+	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -462,6 +463,17 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}()
+	}
+
+	// kubeblocks_component should use specific selector
+	rbdService, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("get service by id %s error: %v", serviceID, err)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+		return
+	}
+	if rbdService.ExtendMethod == "kubeblocks_component" {
+		spec.Selector = kbutil.GenerateKubeBlocksSelector(rbdService.K8sComponentName)
 	}
 
 	// Try to get the existing service first

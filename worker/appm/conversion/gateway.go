@@ -39,6 +39,7 @@ import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/api/util"
 	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
+	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
 	"github.com/google/uuid"
 	"os"
 	"strconv"
@@ -307,43 +308,11 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
 		// check if service type is kubeblocks, if is, generate kubeblocks selector
 		if a.appService.ServiceType == v1.TypeKubeBlocks {
-			spec.Selector = a.generateKubeBlocksSelector()
+			spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
 		}
 	}
 	service.Spec = spec
 	return &service
-}
-
-// generateKubeBlocksSelector generate kubeblocks selector
-func (a *AppServiceBuild) generateKubeBlocksSelector() map[string]string {
-	var (
-		peer = map[string]bool{
-			"rabbitmq": true,
-		}
-		clusterName   = "cluster-name"
-		componentName = "component-name"
-	)
-
-	// get k8s_component_name from database
-	if a.service != nil && a.service.K8sComponentName != "" {
-		k8sComponentName := a.service.K8sComponentName
-		lastDashIndex := strings.LastIndex(k8sComponentName, "-")
-		if lastDashIndex != -1 && lastDashIndex < len(k8sComponentName)-1 {
-			clusterName = k8sComponentName[:lastDashIndex]
-			componentName = k8sComponentName[lastDashIndex+1:]
-		}
-	}
-
-	selector := map[string]string{
-		"app.kubernetes.io/instance":        clusterName,
-		"app.kubernetes.io/managed-by":      "kubeblocks",
-		"apps.kubeblocks.io/component-name": componentName,
-	}
-	if _, ok := peer[componentName]; !ok {
-		selector["kubeblocks.io/role"] = "primary"
-	}
-
-	return selector
 }
 
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
@@ -547,8 +516,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 					},
 				}
 				if a.appService.ServiceType == v1.TypeKubeBlocks {
-					spec.Selector = a.generateKubeBlocksSelector()
-					logrus.Info("generate selector for kubeblocks service: ", spec.Selector)
+					spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
 				}
 				outerSVC = &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
