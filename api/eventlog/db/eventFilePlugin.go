@@ -28,6 +28,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/util"
@@ -37,6 +38,21 @@ import (
 // EventFilePlugin EventFilePlugin
 type EventFilePlugin struct {
 	HomePath string
+	// 用于控制并发上传的 goroutine 池
+	uploadPool   chan struct{}
+	uploadWg     sync.WaitGroup
+	shutdownOnce sync.Once
+}
+
+// 最大并发上传数
+const maxConcurrentUploads = 10
+
+// NewEventFilePlugin 创建 EventFilePlugin 实例
+func NewEventFilePlugin(homePath string) *EventFilePlugin {
+	return &EventFilePlugin{
+		HomePath:   homePath,
+		uploadPool: make(chan struct{}, maxConcurrentUploads),
+	}
 }
 
 // SaveMessage save event log to file
@@ -69,7 +85,47 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 		writeFile.Write([]byte(e.Message))
 		writeFile.Write([]byte("\n"))
 	}
-	return storage.Default().StorageCli.UploadFileToFile(filename, filename, nil)
+
+	// 异步上传到存储（MinIO/S3），不阻塞日志写入
+	m.asyncUploadWithRetry(filename)
+
+	return nil
+}
+
+// asyncUploadWithRetry 异步上传文件到存储，带重试机制
+func (m *EventFilePlugin) asyncUploadWithRetry(filename string) {
+	m.uploadWg.Add(1)
+
+	go func() {
+		defer m.uploadWg.Done()
+
+		// 获取上传槽位（限制并发数）
+		m.uploadPool <- struct{}{}
+		defer func() { <-m.uploadPool }()
+
+		// 重试配置
+		maxRetries := 3
+		retryDelay := time.Second
+
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			err := storage.Default().StorageCli.UploadFileToFile(filename, filename, nil)
+			if err == nil {
+				logrus.Debugf("Successfully uploaded log file to storage: %s", filename)
+				return
+			}
+
+			if attempt < maxRetries {
+				logrus.Warnf("Failed to upload log file %s (attempt %d/%d): %v, retrying in %v...",
+					filename, attempt, maxRetries, err, retryDelay)
+				time.Sleep(retryDelay)
+				// 指数退避
+				retryDelay *= 2
+			} else {
+				logrus.Errorf("Failed to upload log file %s after %d attempts: %v",
+					filename, maxRetries, err)
+			}
+		}
+	}()
 }
 
 // MessageData message data 获取指定操作的操作日志
@@ -94,7 +150,9 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		if err != nil {
 			logrus.Errorf("check file exist error %s", err.Error())
 		}
-		err = storage.Default().StorageCli.DownloadFileToDir(path.Join("grdata", apath), path.Join(m.HomePath, "eventlog"))
+
+		// 从存储下载文件，带重试机制
+		err = m.downloadWithRetry(eventID, apath)
 		if err != nil {
 			logrus.Errorf("download file to dir failure:%v", err)
 			return message, nil
@@ -139,6 +197,36 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		}
 	}
 	return message, nil
+}
+
+// downloadWithRetry 从存储下载文件，带重试机制
+func (m *EventFilePlugin) downloadWithRetry(eventID, localPath string) error {
+	maxRetries := 3
+	retryDelay := time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := storage.Default().StorageCli.DownloadFileToDir(
+			path.Join("grdata", localPath),
+			path.Join(m.HomePath, "eventlog"),
+		)
+		if err == nil {
+			logrus.Debugf("Successfully downloaded log file from storage: %s", eventID)
+			return nil
+		}
+
+		if attempt < maxRetries {
+			logrus.Warnf("Failed to download log file %s (attempt %d/%d): %v, retrying in %v...",
+				eventID, attempt, maxRetries, err, retryDelay)
+			time.Sleep(retryDelay)
+			// 指数退避
+			retryDelay *= 2
+		} else {
+			return fmt.Errorf("failed to download log file %s after %d attempts: %w",
+				eventID, maxRetries, err)
+		}
+	}
+
+	return nil
 }
 
 // CheckLevel check log level
@@ -189,7 +277,12 @@ func GetLevelFlag(level string) []byte {
 	}
 }
 
-// Close Close
+// Close 关闭插件，等待所有上传任务完成
 func (m *EventFilePlugin) Close() error {
+	m.shutdownOnce.Do(func() {
+		logrus.Info("Waiting for all log file uploads to complete...")
+		m.uploadWg.Wait()
+		logrus.Info("All log file uploads completed")
+	})
 	return nil
 }

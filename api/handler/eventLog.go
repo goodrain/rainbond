@@ -45,9 +45,7 @@ type LogAction struct {
 func CreateLogManager() *LogAction {
 	config := configs.Default()
 	return &LogAction{
-		eventdb: &eventdb.EventFilePlugin{
-			HomePath: config.LogConfig.LogPath,
-		},
+		eventdb: eventdb.NewEventFilePlugin(config.LogConfig.LogPath),
 	}
 }
 

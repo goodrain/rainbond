@@ -36,9 +36,7 @@ func NewManager(storageType, storageHomePath string) (Manager, error) {
 			homePath: storageHomePath,
 		}, nil
 	case "eventfile":
-		return &EventFilePlugin{
-			HomePath: storageHomePath,
-		}, nil
+		return NewEventFilePlugin(storageHomePath), nil
 	default:
 		return nil, fmt.Errorf("do not support plugin")
 	}
