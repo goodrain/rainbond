@@ -1729,6 +1729,10 @@ type BuildCodeInfo struct {
 	Password   string `json:"password" validate:"password"`
 	//for .netcore source type, need cmd
 	Cmd string `json:"cmd"`
+	// Dockerfile路径，用于指定子目录中的Dockerfile
+	// in: body
+	// required: false
+	DockerfilePath string `json:"dockerfile_path"`
 }
 
 // BuildSlugInfo -

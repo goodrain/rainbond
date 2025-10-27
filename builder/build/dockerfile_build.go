@@ -46,8 +46,13 @@ type dockerfileBuild struct {
 }
 
 func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
-	filepath := path.Join(re.SourceDir, "Dockerfile")
-	re.Logger.Info("Start parse Dockerfile", map[string]string{"step": "builder-exector"})
+	// 如果指定了 dockerfile_path，使用它；否则使用默认的 Dockerfile
+	dockerfilePath := "Dockerfile"
+	if re.CodeSouceInfo.DockerfilePath != "" {
+		dockerfilePath = re.CodeSouceInfo.DockerfilePath
+	}
+	filepath := path.Join(re.SourceDir, dockerfilePath)
+	re.Logger.Info("Start parse Dockerfile", map[string]string{"step": "builder-exector", "dockerfile_path": dockerfilePath})
 	_, err := sources.ParseFile(filepath)
 	if err != nil {
 		logrus.Error("parse dockerfile error.", err.Error())
@@ -88,6 +93,11 @@ func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error {
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
+	// 获取 dockerfile 路径
+	dockerfilePath := "Dockerfile"
+	if re.CodeSouceInfo.DockerfilePath != "" {
+		dockerfilePath = re.CodeSouceInfo.DockerfilePath
+	}
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -170,6 +180,10 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
 		},
+	}
+	// 如果指定了自定义的 dockerfile 路径，添加 filename 参数
+	if dockerfilePath != "Dockerfile" {
+		container.Args = append(container.Args, fmt.Sprintf("--opt=filename=%s", dockerfilePath))
 	}
 	if len(re.BuildKitArgs) > 0 {
 		container.Args = append(container.Args, re.BuildKitArgs...)

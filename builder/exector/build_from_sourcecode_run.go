@@ -98,14 +98,15 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	csi := sources.CodeSourceInfo{
-		ServerType:    strings.Replace(gjson.GetBytes(in, "server_type").String(), " ", "", -1),
-		RepositoryURL: gjson.GetBytes(in, "repo_url").String(),
-		Branch:        gjson.GetBytes(in, "branch").String(),
-		User:          gjson.GetBytes(in, "user").String(),
-		Password:      gjson.GetBytes(in, "password").String(),
-		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
-		ServiceID:     gjson.GetBytes(in, "service_id").String(),
-		Configs:       gjson.GetBytes(in, "configs").Map(),
+		ServerType:     strings.Replace(gjson.GetBytes(in, "server_type").String(), " ", "", -1),
+		RepositoryURL:  gjson.GetBytes(in, "repo_url").String(),
+		Branch:         gjson.GetBytes(in, "branch").String(),
+		User:           gjson.GetBytes(in, "user").String(),
+		Password:       gjson.GetBytes(in, "password").String(),
+		TenantID:       gjson.GetBytes(in, "tenant_id").String(),
+		ServiceID:      gjson.GetBytes(in, "service_id").String(),
+		Configs:        gjson.GetBytes(in, "configs").Map(),
+		DockerfilePath: gjson.GetBytes(in, "dockerfile_path").String(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
 	be := make(map[string]string)
