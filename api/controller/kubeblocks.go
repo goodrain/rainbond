@@ -16,7 +16,7 @@ import (
 type KubeBlocksController struct{}
 
 // blockMechanicaBaseURL base URL for block-mechanica service
-const blockMechanicaBaseURL = "http://block-mechanica.rbd-system.svc:80"
+const blockMechanicaBaseURL = "http://kb-adapter-rbdplugin.rbd-system.svc:80"
 
 // GetSupportedDatabases get KubeBlocks supported databases list
 func (c *KubeBlocksController) GetSupportedDatabases(w http.ResponseWriter, r *http.Request) {
