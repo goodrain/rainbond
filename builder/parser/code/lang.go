@@ -20,7 +20,9 @@ package code
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/util"
@@ -312,4 +314,83 @@ func netcore(homepath string) Lang {
 // 暂时不支持
 func scala(homepath string) Lang {
 	return NO
+}
+
+// FindDockerfiles 在指定目录中查找所有 Dockerfile 文件
+// 返回相对于 rootPath 的路径列表
+func FindDockerfiles(rootPath string, maxDepth int, maxFiles int) []string {
+	var dockerfiles []string
+	var ignoreDirs = map[string]bool{
+		".git":          true,
+		"node_modules":  true,
+		"vendor":        true,
+		".svn":          true,
+		".hg":           true,
+		"__pycache__":   true,
+		".idea":         true,
+		".vscode":       true,
+		"target":        true,
+		"build":         true,
+		"dist":          true,
+		".gradle":       true,
+		".cache":        true,
+	}
+
+	var walk func(currentPath string, currentDepth int) bool
+	walk = func(currentPath string, currentDepth int) bool {
+		// 超过最大深度或已找到足够数量
+		if currentDepth > maxDepth || len(dockerfiles) >= maxFiles {
+			return len(dockerfiles) >= maxFiles
+		}
+
+		files, err := ioutil.ReadDir(currentPath)
+		if err != nil {
+			return false
+		}
+
+		// 先检查当前目录中的文件
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+
+			fileName := file.Name()
+			// 检查是否是 Dockerfile 或 Dockerfile.xxx
+			if fileName == "Dockerfile" || strings.HasPrefix(fileName, "Dockerfile.") {
+				relPath, err := filepath.Rel(rootPath, filepath.Join(currentPath, fileName))
+				if err == nil {
+					dockerfiles = append(dockerfiles, relPath)
+					if len(dockerfiles) >= maxFiles {
+						return true
+					}
+				}
+			}
+		}
+
+		// 递归遍历子目录
+		for _, file := range files {
+			if !file.IsDir() {
+				continue
+			}
+
+			dirName := file.Name()
+			// 跳过隐藏目录和忽略目录
+			if strings.HasPrefix(dirName, ".") && dirName != "." {
+				continue
+			}
+			if ignoreDirs[dirName] {
+				continue
+			}
+
+			subPath := filepath.Join(currentPath, dirName)
+			if walk(subPath, currentDepth+1) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	walk(rootPath, 0)
+	return dockerfiles
 }

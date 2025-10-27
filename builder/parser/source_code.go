@@ -47,17 +47,18 @@ import (
 
 // SourceCodeParse docker run 命令解析或直接镜像名解析
 type SourceCodeParse struct {
-	ports   map[int]*types.Port
-	volumes map[string]*types.Volume
-	envs    map[string]*types.Env
-	source  string
-	memory  int
-	image   Image
-	args    []string
-	branchs []string
-	errors  []ParseError
-	logger  event.Logger
-	Lang    code.Lang
+	ports       map[int]*types.Port
+	volumes     map[string]*types.Volume
+	envs        map[string]*types.Env
+	source      string
+	memory      int
+	image       Image
+	args        []string
+	branchs     []string
+	errors      []ParseError
+	logger      event.Logger
+	Lang        code.Lang
+	dockerfiles []string // 所有找到的 Dockerfile 文件路径
 
 	Runtime      bool `json:"runtime"`
 	Dependencies bool `json:"dependencies"`
@@ -520,6 +521,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			d.args = strings.Split(rbdfileConfig.Cmd, " ")
 		}
 	}
+
+	// 扫描所有 Dockerfile 文件
+	// 参数：最大深度 5 层，最多返回 20 个文件
+	d.dockerfiles = code.FindDockerfiles(buildPath, 5, 20)
+	if len(d.dockerfiles) > 0 {
+		logrus.Infof("Found %d Dockerfile(s) in source code", len(d.dockerfiles))
+	}
+
 	return d.errors
 }
 
@@ -632,6 +641,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Lang:        d.GetLang(),
 		ServiceType: model.ServiceTypeStatelessMultiple.String(),
 		OS:          runtime.GOOS,
+		Dockerfiles: d.dockerfiles,
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
