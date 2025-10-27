@@ -256,6 +256,8 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		go e.runTask(e.slugShare, task, false)
 	case "share-image":
 		go e.runTask(e.imageShare, task, false)
+	case "load-tar-image":
+		go e.runTask(e.loadTarImage, task, false)
 	case "garbage-collection":
 		go e.runTask(e.garbageCollection, task, false)
 	default:
