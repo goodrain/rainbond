@@ -363,3 +363,25 @@ type GatewayLoadBalancerInterface interface {
 	UpdateLoadBalancer(w http.ResponseWriter, r *http.Request)
 	DeleteLoadBalancer(w http.ResponseWriter, r *http.Request)
 }
+
+// KubeBlocksInterface KubeBlocks related interface
+type KubeBlocksInterface interface {
+	GetSupportedDatabases(w http.ResponseWriter, r *http.Request)
+	GetStorageClasses(w http.ResponseWriter, r *http.Request)
+	GetBackupRepos(w http.ResponseWriter, r *http.Request)
+	CreateCluster(w http.ResponseWriter, r *http.Request)
+	GetClusterConnectInfos(w http.ResponseWriter, r *http.Request)
+	GetClusterByID(w http.ResponseWriter, r *http.Request)
+	ExpansionCluster(w http.ResponseWriter, r *http.Request)
+	UpdateClusterBackupSchedules(w http.ResponseWriter, r *http.Request)
+	CreateClusterBackup(w http.ResponseWriter, r *http.Request)
+	GetClusterBackups(w http.ResponseWriter, r *http.Request)
+	DeleteClusters(w http.ResponseWriter, r *http.Request)
+	DeleteClusterBackup(w http.ResponseWriter, r *http.Request)
+	ManageCluster(w http.ResponseWriter, r *http.Request)
+	GetClusterPodDetail(w http.ResponseWriter, r *http.Request)
+	GetClusterEvents(w http.ResponseWriter, r *http.Request)
+	GetClusterParameters(w http.ResponseWriter, r *http.Request)
+	ChangeClusterParameters(w http.ResponseWriter, r *http.Request)
+	RestoreClusterFromBackup(w http.ResponseWriter, r *http.Request)
+}

@@ -87,6 +87,9 @@ var TypeVirtualMachine AppServiceType = "virtualmachine"
 // TypeCronJob deployment
 var TypeCronJob AppServiceType = "cronjob"
 
+// TypeKubeBlocks kubeblocks component
+var TypeKubeBlocks AppServiceType = "kubeblocks_component"
+
 // TypeReplicationController rc
 var TypeReplicationController AppServiceType = "replicationcontroller"
 

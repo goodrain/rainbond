@@ -45,6 +45,10 @@ func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
 	if as.GetVirtualMachine() != nil {
 		return nil
 	}
+
+	if as.ServiceType == typesv1.TypeKubeBlocks {
+		return nil
+	}
 	initContainers, preContainers, postContainers, err := conversionServicePlugin(as, dbmanager)
 	if err != nil {
 		logrus.Errorf("create plugin containers for component %s failure: %s", as.ServiceID, err.Error())

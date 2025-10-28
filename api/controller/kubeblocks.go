@@ -1,0 +1,246 @@
+package controller
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/go-chi/chi"
+	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
+)
+
+// KubeBlocksController -
+type KubeBlocksController struct{}
+
+// blockMechanicaBaseURL base URL for block-mechanica service
+const blockMechanicaBaseURL = "http://kb-adapter-rbdplugin.rbd-system.svc:80"
+
+// GetSupportedDatabases get KubeBlocks supported databases list
+func (c *KubeBlocksController) GetSupportedDatabases(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/addons", "GET")
+}
+
+// GetStorageClasses get KubeBlocks storage classes list
+func (c *KubeBlocksController) GetStorageClasses(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/storageclasses", "GET")
+}
+
+// GetBackupRepos get KubeBlocks backup repositories list
+func (c *KubeBlocksController) GetBackupRepos(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/backuprepos", "GET")
+}
+
+// CreateCluster create KubeBlocks database cluster
+func (c *KubeBlocksController) CreateCluster(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/clusters", "POST")
+}
+
+// GetClusterConnectInfos get KubeBlocks clusters connection infos
+func (c *KubeBlocksController) GetClusterConnectInfos(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/clusters/connect-infos", "GET")
+}
+
+// GetClusterByID get KubeBlocks cluster by service ID
+func (c *KubeBlocksController) GetClusterByID(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s", serviceID), "GET")
+}
+
+// ExpansionCluster update KubeBlocks cluster
+func (c *KubeBlocksController) ExpansionCluster(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s", serviceID), "PUT")
+}
+
+// UpdateClusterBackupSchedules update KubeBlocks cluster backup schedules
+func (c *KubeBlocksController) UpdateClusterBackupSchedules(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/backup-schedules", serviceID), "PUT")
+}
+
+// CreateClusterBackup create KubeBlocks cluster backup
+func (c *KubeBlocksController) CreateClusterBackup(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/backups", serviceID), "POST")
+}
+
+// GetClusterBackups get KubeBlocks cluster backups
+func (c *KubeBlocksController) GetClusterBackups(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/backups", serviceID), "GET")
+}
+
+// DeleteClusters delete KubeBlocks clusters
+func (c *KubeBlocksController) DeleteClusters(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/clusters", "DELETE")
+}
+
+// DeleteClusterBackup delete KubeBlocks cluster backup
+func (c *KubeBlocksController) DeleteClusterBackup(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/backups", serviceID), "DELETE")
+}
+
+// ManageCluster forwards to block-mechanica to manage cluster lifecycle
+func (c *KubeBlocksController) ManageCluster(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("ManageCluster request: %v", r.Body)
+	c.forwardRequest(w, r, "/v1/clusters/actions", "POST")
+}
+
+// GetClusterPodDetail forwards to block-mechanica to get pod details managed by Cluster
+func (c *KubeBlocksController) GetClusterPodDetail(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	podName := chi.URLParam(r, "pod_name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/pods/%s/details", serviceID, podName), "GET")
+}
+
+// GetClusterEvents forwards to block-mechanica to get cluster's events
+func (c *KubeBlocksController) GetClusterEvents(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/events", serviceID), "GET")
+}
+
+func (c *KubeBlocksController) GetClusterParameters(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/parameters", serviceID), "GET")
+}
+
+func (c *KubeBlocksController) ChangeClusterParameters(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/parameters", serviceID), "POST")
+}
+
+func (c *KubeBlocksController) RestoreClusterFromBackup(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "service_id")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/clusters/%s/restores", serviceID), "POST") // TODO
+}
+
+// forwardRequest helper function to forward requests to Block Mechanica
+func (c *KubeBlocksController) forwardRequest(w http.ResponseWriter, r *http.Request, api, method string) {
+	// 构建URL
+	targetURL := blockMechanicaBaseURL + api
+	if r.URL.RawQuery != "" {
+		targetURL += "?" + r.URL.RawQuery
+	}
+	logrus.Debugf("request block-mechanica service: %s %s", method, targetURL)
+
+	var req *http.Request
+	var err error
+
+	// 读取请求体
+	var body io.Reader
+	requestBody, readErr := io.ReadAll(r.Body)
+	if readErr != nil {
+		logrus.Errorf("read request body failed: %v", readErr)
+		httputil.ReturnError(r, w, 400, "read request body failed: "+readErr.Error())
+		return
+	}
+	if len(requestBody) > 0 {
+		body = strings.NewReader(string(requestBody))
+	}
+	req, err = http.NewRequest(method, targetURL, body)
+
+	if err != nil {
+		logrus.Errorf("create request to block-mechanica failed: %v", err)
+		httputil.ReturnError(r, w, 500, "create request to block-mechanica failed: "+err.Error())
+		return
+	}
+
+	// Set headers
+	for key, values := range r.Header {
+		for _, value := range values {
+			req.Header.Set(key, value)
+		}
+	}
+
+	if req.Header.Get("Content-Type") == "" && (method == "POST" || method == "PUT" || method == "DELETE") {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		logrus.Errorf("request block-mechanica service failed: %v", err)
+		httputil.ReturnError(r, w, 500, "request block-mechanica service failed: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		logrus.Errorf("block-mechanica service returned error status code %d: %s", resp.StatusCode, string(body))
+		httputil.ReturnError(r, w, resp.StatusCode, "block-mechanica service returned error: "+string(body))
+		return
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		logrus.Errorf("parse block-mechanica response failed: %v", err)
+		httputil.ReturnError(r, w, 500, "parse block-mechanica response failed: "+err.Error())
+		return
+	}
+
+	if list, exists := result["list"]; exists {
+		// 尝试提取分页信息，存在分页信息则 ReturnList
+		if total, pageNum, ok := extractPaginationInfo(result); ok {
+			httputil.ReturnList(r, w, total, pageNum, list)
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, list)
+	} else if field, exists := result["bean"]; exists {
+		httputil.ReturnSuccess(r, w, field)
+	} else {
+		httputil.ReturnSuccess(r, w, result)
+	}
+}
+
+// extractPaginationInfo 从结果中提取分页信息
+func extractPaginationInfo(result map[string]interface{}) (total, pageNum int, ok bool) {
+	number, hasNumber := result["number"]
+	if !hasNumber {
+		return 0, 0, false
+	}
+
+	page, hasPage := result["page"]
+	if !hasPage {
+		return 0, 0, false
+	}
+
+	total, totalOk := safeToInt(number)
+	if !totalOk {
+		return 0, 0, false
+	}
+
+	pageNum, pageOk := safeToInt(page)
+	if !pageOk {
+		return 0, 0, false
+	}
+
+	return total, pageNum, true
+}
+
+// safeToInt 安全地将 interface{} 转换为 int，支持多种数字类型
+func safeToInt(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return int(i), true
+		}
+	}
+	logrus.Warnf("Failed to convert %T(%v) to int", value, value)
+	return 0, false
+}
