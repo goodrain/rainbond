@@ -39,6 +39,7 @@ import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/api/util"
 	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
+	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
 	"github.com/google/uuid"
 	"os"
 	"strconv"
@@ -305,6 +306,10 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 	}
 	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
+		// check if service type is kubeblocks, if is, generate kubeblocks selector
+		if a.appService.ServiceType == v1.TypeKubeBlocks {
+			spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
+		}
 	}
 	service.Spec = spec
 	return &service
@@ -509,6 +514,9 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 					Selector: map[string]string{
 						"service_alias": as.ServiceAlias,
 					},
+				}
+				if a.appService.ServiceType == v1.TypeKubeBlocks {
+					spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
 				}
 				outerSVC = &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
