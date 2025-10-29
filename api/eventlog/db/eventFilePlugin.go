@@ -204,9 +204,14 @@ func (m *EventFilePlugin) downloadWithRetry(eventID, localPath string) error {
 	maxRetries := 3
 	retryDelay := time.Second
 
+	// 构造正确的 S3 路径:从 localPath 中提取相对于 HomePath 的路径
+	// localPath 格式: /xxx/grdata/eventlog/eventID.log
+	// 需要构造成: grdata/eventlog/eventID.log
+	s3Path := path.Join("grdata", "eventlog", eventID+".log")
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		err := storage.Default().StorageCli.DownloadFileToDir(
-			path.Join("grdata", localPath),
+			s3Path,
 			path.Join(m.HomePath, "eventlog"),
 		)
 		if err == nil {
