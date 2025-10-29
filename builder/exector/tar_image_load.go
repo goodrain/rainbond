@@ -26,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	pb "github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -67,6 +69,7 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	var images []string
 	var message string
 	var metadata map[string]model.ImageMetadata
+	var targetImages map[string]string
 	var err error
 	var imageNames []string
 
@@ -130,6 +133,24 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 			images = imageNames
 			message = fmt.Sprintf("成功加载%d个镜像", len(imageNames))
 			metadata = make(map[string]model.ImageMetadata)
+			targetImages = make(map[string]string)
+
+			// 获取租户信息以构建目标镜像名
+			tenant, err := db.GetManager().TenantDao().GetTenantByUUID(taskBody.TenantID)
+			if err != nil {
+				logrus.Warnf("[LoadTarImage] Failed to get tenant info: %v, will skip target image calculation", err)
+			} else {
+				// 获取镜像仓库配置
+				registryDomain := builder.REGISTRYDOMAIN
+				namespace := tenant.Name
+
+				// 为每个镜像计算目标镜像名
+				for _, sourceImage := range imageNames {
+					targetImage := fmt.Sprintf("%s/%s/%s", registryDomain, namespace, getImageNameWithoutRegistry(sourceImage))
+					targetImages[sourceImage] = targetImage
+					logrus.Infof("[LoadTarImage] Mapped image: %s -> %s", sourceImage, targetImage)
+				}
+			}
 
 			// 获取镜像元数据
 			for _, imageName := range imageNames {
@@ -153,11 +174,12 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 SaveResult:
 	// 6. 保存结果到etcd
 	result := model.TarLoadResult{
-		LoadID:   taskBody.LoadID,
-		Status:   status,
-		Message:  message,
-		Images:   images,
-		Metadata: metadata,
+		LoadID:       taskBody.LoadID,
+		Status:       status,
+		Message:      message,
+		Images:       images,
+		TargetImages: targetImages,
+		Metadata:     metadata,
 	}
 
 	resultJSON, _ := json.Marshal(result)
@@ -174,4 +196,30 @@ SaveResult:
 
 	logrus.Infof("[LoadTarImage] Task completed, load_id: %s, final_status: %s", taskBody.LoadID, status)
 	logger.Info("tar包镜像解析任务完成", map[string]string{"step": "last", "status": status})
+}
+
+// getImageNameWithoutRegistry 从完整镜像名中提取不包含registry的部分
+// 例如: docker.io/library/nginx:latest -> library/nginx:latest
+//      nginx:latest -> nginx:latest
+func getImageNameWithoutRegistry(fullImageName string) string {
+	image := parser.ParseImageName(fullImageName)
+
+	// 获取repository路径(不包含registry)
+	repo := image.GetRepostory()
+
+	// 添加tag
+	if image.Tag != "" {
+		return repo + ":" + image.Tag
+	}
+
+	// 如果没有tag,检查原始镜像名是否包含@digest
+	if strings.Contains(fullImageName, "@") {
+		parts := strings.Split(fullImageName, "@")
+		if len(parts) == 2 {
+			// 保留digest
+			return repo + "@" + parts[1]
+		}
+	}
+
+	return repo
 }
