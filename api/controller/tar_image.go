@@ -55,7 +55,14 @@ func LoadTarImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
-	res, errS := handler.GetTarImageHandle().LoadTarImage(tenantID, req)
+
+	tarHandler := handler.GetTarImageHandle()
+	if tarHandler == nil {
+		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		return
+	}
+
+	res, errS := tarHandler.LoadTarImage(tenantID, req)
 	if errS != nil {
 		errS.Handle(r, w)
 		return
@@ -81,7 +88,14 @@ func GetTarLoadResult(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	loadID := chi.URLParam(r, "load_id")
-	res, errS := handler.GetTarImageHandle().GetTarLoadResult(loadID)
+
+	tarHandler := handler.GetTarImageHandle()
+	if tarHandler == nil {
+		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		return
+	}
+
+	res, errS := tarHandler.GetTarLoadResult(loadID)
 	if errS != nil {
 		errS.Handle(r, w)
 		return
@@ -117,7 +131,14 @@ func ImportTarImages(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
-	res, errS := handler.GetTarImageHandle().ImportTarImages(tenantID, tenantName, req)
+
+	tarHandler := handler.GetTarImageHandle()
+	if tarHandler == nil {
+		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		return
+	}
+
+	res, errS := tarHandler.ImportTarImages(tenantID, tenantName, req)
 	if errS != nil {
 		errS.Handle(r, w)
 		return

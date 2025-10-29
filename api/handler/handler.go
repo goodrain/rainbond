@@ -21,6 +21,7 @@ package handler
 import (
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/sirupsen/logrus"
 )
@@ -53,6 +54,17 @@ func InitAPIHandle() error {
 	defApplicationHandler = NewApplicationHandler()
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
 	defNodesHandler = NewNodesHandler()
+
+	// 初始化 TarImageHandle
+	imageClient, err := sources.NewImageClient()
+	if err != nil {
+		logrus.Warnf("failed to create image client for tar image handler: %v", err)
+		// 不返回错误,允许API继续启动,但tar镜像功能可能不可用
+	} else {
+		CreateTarImageHandle(mq.Default().MqClient, imageClient)
+		logrus.Info("tar image handler initialized successfully")
+	}
+
 	return nil
 }
 
