@@ -56,13 +56,18 @@ func InitAPIHandle() error {
 	defNodesHandler = NewNodesHandler()
 
 	// 初始化 TarImageHandle
+	// 注意: ImageClient 在 API 服务中主要用于同步导入功能(ImportTarImages)
+	// 异步加载功能(LoadTarImage)通过 MQ 发送到 builder/worker 处理,不需要 ImageClient
 	imageClient, err := sources.NewImageClient()
 	if err != nil {
-		logrus.Warnf("failed to create image client for tar image handler: %v", err)
-		// 不返回错误,允许API继续启动,但tar镜像功能可能不可用
+		logrus.Warnf("failed to create image client for tar image handler: %v, some features may not be available", err)
+		// 即使 ImageClient 创建失败,也创建 handler(只是 ImageClient 为 nil)
+		// 这样至少异步加载功能可以工作
+		CreateTarImageHandle(mq.Default().MqClient, nil)
+		logrus.Info("tar image handler initialized (without image client, sync import features disabled)")
 	} else {
 		CreateTarImageHandle(mq.Default().MqClient, imageClient)
-		logrus.Info("tar image handler initialized successfully")
+		logrus.Info("tar image handler initialized successfully with image client")
 	}
 
 	return nil
