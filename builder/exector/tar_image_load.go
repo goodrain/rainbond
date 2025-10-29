@@ -21,11 +21,15 @@ package exector
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	pb "github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/pkg/component/storage"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 )
@@ -62,43 +66,82 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	var images []string
 	var message string
 	var metadata map[string]model.ImageMetadata
+	var err error
+	var imageNames []string
 
-	// 3. 执行镜像加载
-	logger.Info("正在从tar包加载镜像...", map[string]string{"step": "load-tar", "status": "loading"})
-	logrus.Infof("[LoadTarImage] Starting to load images from tar file: %s", taskBody.TarFilePath)
-
-	imageNames, err := e.imageClient.ImageLoad(taskBody.TarFilePath, logger)
-	if err != nil {
-		logrus.Errorf("[LoadTarImage] Failed to load images: %v", err)
+	// 3. 从MinIO下载tar文件到本地临时目录
+	tmpDir := fmt.Sprintf("/grdata/cache/tmp/tar_image_load/%s", taskBody.LoadID)
+	if err = util.CheckAndCreateDir(tmpDir); err != nil {
+		logrus.Errorf("[LoadTarImage] Failed to create temp dir: %v", err)
 		status = "failure"
-		message = fmt.Sprintf("加载镜像失败: %v", err)
-		logger.Error("tar包镜像加载失败", map[string]string{"step": "load-tar", "status": "failure"})
-	} else {
-		logrus.Infof("[LoadTarImage] Successfully loaded %d images: %v", len(imageNames), imageNames)
-		status = "success"
-		images = imageNames
-		message = fmt.Sprintf("成功加载%d个镜像", len(imageNames))
-		metadata = make(map[string]model.ImageMetadata)
+		message = fmt.Sprintf("创建临时目录失败: %v", err)
+		logger.Error("创建临时目录失败", map[string]string{"step": "download-tar", "status": "failure"})
+		goto SaveResult
+	}
 
-		// 获取镜像元数据
-		for _, imageName := range imageNames {
-			// 检查镜像是否存在并获取信息
-			if imageRef, exists, err := e.imageClient.CheckIfImageExists(imageName); exists && err == nil {
-				metadata[imageName] = model.ImageMetadata{
-					Name:       imageName,
-					RepoDigest: imageRef,
-					// Size和CreatedAt可以通过其他API获取,这里简化处理
+	// 确保在函数结束时清理临时文件
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			logrus.Warnf("[LoadTarImage] Failed to remove temp dir %s: %v", tmpDir, err)
+		} else {
+			logrus.Infof("[LoadTarImage] Cleaned up temp dir: %s", tmpDir)
+		}
+	}()
+
+	logger.Info("正在从MinIO下载tar包...", map[string]string{"step": "download-tar", "status": "downloading"})
+	logrus.Infof("[LoadTarImage] Downloading tar file from MinIO: %s to %s", taskBody.TarFilePath, tmpDir)
+
+	if err = storage.Default().StorageCli.DownloadFileToDir(taskBody.TarFilePath, tmpDir); err != nil {
+		logrus.Errorf("[LoadTarImage] Failed to download tar file from MinIO: %v", err)
+		status = "failure"
+		message = fmt.Sprintf("从MinIO下载tar包失败: %v", err)
+		logger.Error("从MinIO下载tar包失败", map[string]string{"step": "download-tar", "status": "failure"})
+		goto SaveResult
+	}
+
+	logger.Info("tar包下载完成，开始加载镜像...", map[string]string{"step": "download-tar", "status": "success"})
+	logrus.Infof("[LoadTarImage] Downloaded tar file successfully")
+
+	// 4. 执行镜像加载
+	{
+		localTarPath := filepath.Join(tmpDir, filepath.Base(taskBody.TarFilePath))
+		logger.Info("正在从tar包加载镜像...", map[string]string{"step": "load-tar", "status": "loading"})
+		logrus.Infof("[LoadTarImage] Starting to load images from local tar file: %s", localTarPath)
+
+		imageNames, err = e.imageClient.ImageLoad(localTarPath, logger)
+		if err != nil {
+			logrus.Errorf("[LoadTarImage] Failed to load images: %v", err)
+			status = "failure"
+			message = fmt.Sprintf("加载镜像失败: %v", err)
+			logger.Error("tar包镜像加载失败", map[string]string{"step": "load-tar", "status": "failure"})
+		} else {
+			logrus.Infof("[LoadTarImage] Successfully loaded %d images: %v", len(imageNames), imageNames)
+			status = "success"
+			images = imageNames
+			message = fmt.Sprintf("成功加载%d个镜像", len(imageNames))
+			metadata = make(map[string]model.ImageMetadata)
+
+			// 获取镜像元数据
+			for _, imageName := range imageNames {
+				// 检查镜像是否存在并获取信息
+				if imageRef, exists, err := e.imageClient.CheckIfImageExists(imageName); exists && err == nil {
+					metadata[imageName] = model.ImageMetadata{
+						Name:       imageName,
+						RepoDigest: imageRef,
+						// Size和CreatedAt可以通过其他API获取,这里简化处理
+					}
 				}
 			}
-		}
 
-		logger.Info(fmt.Sprintf("成功加载%d个镜像", len(imageNames)), map[string]string{"step": "load-tar", "status": "success"})
-		for _, img := range imageNames {
-			logger.Info(fmt.Sprintf("- %s", img), map[string]string{"step": "load-tar"})
+			logger.Info(fmt.Sprintf("成功加载%d个镜像", len(imageNames)), map[string]string{"step": "load-tar", "status": "success"})
+			for _, img := range imageNames {
+				logger.Info(fmt.Sprintf("- %s", img), map[string]string{"step": "load-tar"})
+			}
 		}
 	}
 
-	// 4. 保存结果到etcd
+SaveResult:
+	// 5. 保存结果到etcd
 	result := model.TarLoadResult{
 		LoadID:   taskBody.LoadID,
 		Status:   status,
