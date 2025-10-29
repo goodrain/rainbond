@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -69,7 +70,16 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	var err error
 	var imageNames []string
 
-	// 3. 从MinIO下载tar文件到本地临时目录
+	// 3. 构造完整的MinIO路径
+	// 如果 TarFilePath 只是文件名（不包含路径分隔符），则构造完整路径
+	fullTarPath := taskBody.TarFilePath
+	if !strings.Contains(taskBody.TarFilePath, "/") {
+		// 只是文件名，需要构造完整路径: /grdata/package_build/temp/events/{event_id}/{filename}
+		fullTarPath = fmt.Sprintf("/grdata/package_build/temp/events/%s/%s", taskBody.EventID, taskBody.TarFilePath)
+		logrus.Infof("[LoadTarImage] Constructed full MinIO path: %s", fullTarPath)
+	}
+
+	// 4. 从MinIO下载tar文件到本地临时目录
 	tmpDir := fmt.Sprintf("/grdata/cache/tmp/tar_image_load/%s", taskBody.LoadID)
 	if err = util.CheckAndCreateDir(tmpDir); err != nil {
 		logrus.Errorf("[LoadTarImage] Failed to create temp dir: %v", err)
@@ -89,9 +99,9 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	}()
 
 	logger.Info("正在从MinIO下载tar包...", map[string]string{"step": "download-tar", "status": "downloading"})
-	logrus.Infof("[LoadTarImage] Downloading tar file from MinIO: %s to %s", taskBody.TarFilePath, tmpDir)
+	logrus.Infof("[LoadTarImage] Downloading tar file from MinIO: %s to %s", fullTarPath, tmpDir)
 
-	if err = storage.Default().StorageCli.DownloadFileToDir(taskBody.TarFilePath, tmpDir); err != nil {
+	if err = storage.Default().StorageCli.DownloadFileToDir(fullTarPath, tmpDir); err != nil {
 		logrus.Errorf("[LoadTarImage] Failed to download tar file from MinIO: %v", err)
 		status = "failure"
 		message = fmt.Sprintf("从MinIO下载tar包失败: %v", err)
@@ -102,9 +112,9 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	logger.Info("tar包下载完成，开始加载镜像...", map[string]string{"step": "download-tar", "status": "success"})
 	logrus.Infof("[LoadTarImage] Downloaded tar file successfully")
 
-	// 4. 执行镜像加载
+	// 5. 执行镜像加载
 	{
-		localTarPath := filepath.Join(tmpDir, filepath.Base(taskBody.TarFilePath))
+		localTarPath := filepath.Join(tmpDir, filepath.Base(fullTarPath))
 		logger.Info("正在从tar包加载镜像...", map[string]string{"step": "load-tar", "status": "loading"})
 		logrus.Infof("[LoadTarImage] Starting to load images from local tar file: %s", localTarPath)
 
@@ -141,7 +151,7 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	}
 
 SaveResult:
-	// 5. 保存结果到etcd
+	// 6. 保存结果到etcd
 	result := model.TarLoadResult{
 		LoadID:   taskBody.LoadID,
 		Status:   status,
