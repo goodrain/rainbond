@@ -62,6 +62,9 @@ func CreateTarImageHandle(mqClient client.MQClient, imageClient sources.ImageCli
 func (t *TarImageHandle) LoadTarImage(tenantID string, req model.LoadTarImageReq) (*model.LoadTarImageResp, *util.APIHandleError) {
 	loadID := uuid.New().String()
 
+	logrus.Infof("[LoadTarImage] Starting, load_id: %s, tenant_id: %s, event_id: %s, tar_file_path: %s",
+		loadID, tenantID, req.EventID, req.TarFilePath)
+
 	// 构建任务发送到MQ
 	task := client.TaskStruct{
 		Topic:    "builder",
@@ -74,14 +77,17 @@ func (t *TarImageHandle) LoadTarImage(tenantID string, req model.LoadTarImageReq
 		},
 	}
 
+	logrus.Infof("[LoadTarImage] Sending task to MQ, topic: %s, task_type: %s, task_body: %+v",
+		task.Topic, task.TaskType, task.TaskBody)
+
 	// 发送任务到消息队列
 	err := t.MQClient.SendBuilderTopic(task)
 	if err != nil {
-		logrus.Errorf("send load tar image task to mq error: %v", err)
+		logrus.Errorf("[LoadTarImage] Failed to send task to MQ: %v", err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("启动解析任务失败"))
 	}
 
-	logrus.Infof("started load tar image task, load_id: %s, event_id: %s", loadID, req.EventID)
+	logrus.Infof("[LoadTarImage] Task sent successfully to MQ, load_id: %s, event_id: %s", loadID, req.EventID)
 
 	return &model.LoadTarImageResp{
 		LoadID: loadID,
@@ -93,10 +99,14 @@ func (t *TarImageHandle) LoadTarImage(tenantID string, req model.LoadTarImageReq
 func (t *TarImageHandle) GetTarLoadResult(loadID string) (*model.TarLoadResult, *util.APIHandleError) {
 	// 从etcd查询结果
 	key := fmt.Sprintf("/rainbond/tarload/%s", loadID)
+	logrus.Infof("[GetTarLoadResult] Querying etcd for load_id: %s, key: %s", loadID, key)
+
 	res, err := db.GetManager().KeyValueDao().Get(key)
 	if err != nil || res == nil {
 		if err != nil {
-			logrus.Debugf("get tar load result from etcd error: %v (task may still be processing)", err)
+			logrus.Infof("[GetTarLoadResult] Key not found in etcd (task may still be processing): load_id: %s, error: %v", loadID, err)
+		} else {
+			logrus.Infof("[GetTarLoadResult] Result is nil for load_id: %s (task may still be processing)", loadID)
 		}
 		// 如果没找到结果，可能还在处理中
 		return &model.TarLoadResult{
@@ -106,12 +116,16 @@ func (t *TarImageHandle) GetTarLoadResult(loadID string) (*model.TarLoadResult, 
 		}, nil
 	}
 
+	logrus.Infof("[GetTarLoadResult] Found result in etcd for load_id: %s, value length: %d bytes", loadID, len(res.V))
+
 	// 解析结果
 	var result model.TarLoadResult
 	if err := json.Unmarshal([]byte(res.V), &result); err != nil {
-		logrus.Errorf("decode tar load result error: %v", err)
+		logrus.Errorf("[GetTarLoadResult] Failed to decode result for load_id: %s, error: %v, raw_value: %s", loadID, err, res.V)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("解析结果格式错误"))
 	}
+
+	logrus.Infof("[GetTarLoadResult] Successfully decoded result for load_id: %s, status: %s", loadID, result.Status)
 
 	return &result, nil
 }

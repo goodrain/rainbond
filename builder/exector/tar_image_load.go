@@ -40,12 +40,17 @@ type TarImageLoadTaskBody struct {
 
 // loadTarImage 执行tar包镜像加载任务
 func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
+	logrus.Infof("[LoadTarImage] Received task from MQ, task_id: %s, task_body_length: %d", task.TaskId, len(task.TaskBody))
+
 	// 1. 解析任务体
 	var taskBody TarImageLoadTaskBody
 	if err := ffjson.Unmarshal(task.TaskBody, &taskBody); err != nil {
-		logrus.Errorf("unmarshal load tar image task error: %v", err)
+		logrus.Errorf("[LoadTarImage] Failed to unmarshal task body: %v, raw_body: %s", err, string(task.TaskBody))
 		return
 	}
+
+	logrus.Infof("[LoadTarImage] Parsed task body: load_id=%s, event_id=%s, tenant_id=%s, tar_file_path=%s",
+		taskBody.LoadID, taskBody.EventID, taskBody.TenantID, taskBody.TarFilePath)
 
 	// 2. 获取event logger
 	logger := event.GetManager().GetLogger(taskBody.EventID)
@@ -60,13 +65,16 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 
 	// 3. 执行镜像加载
 	logger.Info("正在从tar包加载镜像...", map[string]string{"step": "load-tar", "status": "loading"})
+	logrus.Infof("[LoadTarImage] Starting to load images from tar file: %s", taskBody.TarFilePath)
+
 	imageNames, err := e.imageClient.ImageLoad(taskBody.TarFilePath, logger)
 	if err != nil {
-		logrus.Errorf("load tar image error: %v", err)
+		logrus.Errorf("[LoadTarImage] Failed to load images: %v", err)
 		status = "failure"
 		message = fmt.Sprintf("加载镜像失败: %v", err)
 		logger.Error("tar包镜像加载失败", map[string]string{"step": "load-tar", "status": "failure"})
 	} else {
+		logrus.Infof("[LoadTarImage] Successfully loaded %d images: %v", len(imageNames), imageNames)
 		status = "success"
 		images = imageNames
 		message = fmt.Sprintf("成功加载%d个镜像", len(imageNames))
@@ -101,12 +109,16 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 
 	resultJSON, _ := json.Marshal(result)
 	key := fmt.Sprintf("/rainbond/tarload/%s", taskBody.LoadID)
+	logrus.Infof("[LoadTarImage] Saving result to etcd, key: %s, status: %s, images_count: %d", key, status, len(images))
+
 	if err := db.GetManager().KeyValueDao().Put(key, string(resultJSON)); err != nil {
-		logrus.Errorf("save tar load result to etcd error: %v", err)
+		logrus.Errorf("[LoadTarImage] Failed to save result to etcd: %v", err)
 		logger.Error("保存解析结果失败", map[string]string{"step": "save-result", "status": "failure"})
 	} else {
+		logrus.Infof("[LoadTarImage] Result saved successfully to etcd, key: %s", key)
 		logger.Info("解析结果已保存", map[string]string{"step": "save-result", "status": "success"})
 	}
 
+	logrus.Infof("[LoadTarImage] Task completed, load_id: %s, final_status: %s", taskBody.LoadID, status)
 	logger.Info("tar包镜像解析任务完成", map[string]string{"step": "last", "status": status})
 }
