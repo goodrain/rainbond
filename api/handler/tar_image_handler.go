@@ -44,6 +44,9 @@ var tarImageHandle *TarImageHandle
 
 // GetTarImageHandle 获取tar镜像处理handler
 func GetTarImageHandle() *TarImageHandle {
+	if tarImageHandle == nil {
+		logrus.Error("TarImageHandle is not initialized")
+	}
 	return tarImageHandle
 }
 
@@ -113,6 +116,11 @@ func (t *TarImageHandle) GetTarLoadResult(loadID string) (*model.TarLoadResult, 
 
 // ImportTarImages 确认导入镜像到镜像仓库(同步执行)
 func (t *TarImageHandle) ImportTarImages(tenantID, tenantName string, req model.ImportTarImagesReq) (*model.ImportTarImagesResp, *util.APIHandleError) {
+	// 检查 ImageClient 是否可用
+	if t.ImageClient == nil {
+		return nil, util.CreateAPIHandleError(503, fmt.Errorf("image client is not available, cannot perform synchronous import"))
+	}
+
 	// 1. 获取解析结果
 	loadResult, errH := t.GetTarLoadResult(req.LoadID)
 	if errH != nil {

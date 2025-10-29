@@ -58,7 +58,7 @@ func LoadTarImage(w http.ResponseWriter, r *http.Request) {
 
 	tarHandler := handler.GetTarImageHandle()
 	if tarHandler == nil {
-		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		httputil.ReturnError(r, w, 503, "tar image handler is not initialized")
 		return
 	}
 
@@ -91,7 +91,7 @@ func GetTarLoadResult(w http.ResponseWriter, r *http.Request) {
 
 	tarHandler := handler.GetTarImageHandle()
 	if tarHandler == nil {
-		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		httputil.ReturnError(r, w, 503, "tar image handler is not initialized")
 		return
 	}
 
@@ -134,7 +134,7 @@ func ImportTarImages(w http.ResponseWriter, r *http.Request) {
 
 	tarHandler := handler.GetTarImageHandle()
 	if tarHandler == nil {
-		httputil.ReturnError(r, w, 503, "tar image service is not available")
+		httputil.ReturnError(r, w, 503, "tar image handler is not initialized")
 		return
 	}
 
