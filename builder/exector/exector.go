@@ -222,6 +222,7 @@ func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task
 		return
 	}
 	logrus.Infof("Build task %s in progress", task.TaskId)
+	logrus.Infof("[runTask] Starting task execution: task_id=%s, task_type=%s", task.TaskId, task.TaskType)
 	e.runningTask.LoadOrStore(task.TaskId, task)
 	//Remove a task that is being executed, not necessarily a task that is currently completed
 	if !concurrencyControl {
@@ -230,12 +231,14 @@ func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task
 		defer func() { <-e.tasks }()
 	}
 	if err := f(task); err != nil {
-		logrus.Errorf("run builder task failure %s", err.Error())
+		logrus.Errorf("[runTask] Task execution failed: task_id=%s, error=%s", task.TaskId, err.Error())
 	}
 	e.runningTask.Delete(task.TaskId)
-	logrus.Infof("Build task %s is completed", task.TaskId)
+	logrus.Infof("[runTask] Task completed: task_id=%s", task.TaskId)
 }
 func (e *exectorManager) RunTask(task *pb.TaskMessage) {
+	logrus.Infof("[RunTask] Received task from MQ: task_id=%s, task_type=%s", task.TaskId, task.TaskType)
+
 	switch task.TaskType {
 	case "build_from_image":
 		go e.runTask(e.buildFromImage, task, false)
@@ -258,12 +261,14 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	case "share-image":
 		go e.runTask(e.imageShare, task, false)
 	case "load-tar-image":
+		logrus.Infof("[RunTask] Dispatching load-tar-image task to handler")
 		go e.runTask(e.loadTarImage, task, false)
 	case "garbage-collection":
 		go e.runTask(e.garbageCollection, task, false)
 	case "build_from_kubeblocks":
 		go e.runTask(e.buildFromKubeBlocks, task, false)
 	default:
+		logrus.Warnf("[RunTask] Unknown task type: %s, using default handler", task.TaskType)
 		go e.runTaskWithErr(e.exec, task, false)
 	}
 }
