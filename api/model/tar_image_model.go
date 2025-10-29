@@ -32,11 +32,12 @@ type LoadTarImageResp struct {
 
 // TarLoadResult tar包解析结果
 type TarLoadResult struct {
-	LoadID   string                   `json:"load_id"`
-	Status   string                   `json:"status"`  // loading, success, failure
-	Message  string                   `json:"message"` // 错误信息或提示
-	Images   []string                 `json:"images,omitempty"`   // 原始镜像列表
-	Metadata map[string]ImageMetadata `json:"metadata,omitempty"` // 镜像元数据
+	LoadID        string                   `json:"load_id"`
+	Status        string                   `json:"status"`         // loading, success, failure
+	Message       string                   `json:"message"`        // 错误信息或提示
+	Images        []string                 `json:"images,omitempty"`         // 原始镜像列表
+	TargetImages  map[string]string        `json:"target_images,omitempty"`  // 目标镜像映射: 原始镜像名 -> 目标镜像名
+	Metadata      map[string]ImageMetadata `json:"metadata,omitempty"`       // 镜像元数据
 }
 
 // ImageMetadata 镜像元数据
