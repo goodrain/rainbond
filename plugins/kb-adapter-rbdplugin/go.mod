@@ -1,4 +1,4 @@
-module github.com/furutachiKurea/block-mechanica
+module github.com/furutachiKurea/kb-adapter-rbdplugin
 
 go 1.24.6
 

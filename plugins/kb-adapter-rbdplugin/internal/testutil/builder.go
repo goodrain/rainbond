@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/apecloud/kubeblocks/pkg/constant"
-	"github.com/furutachiKurea/block-mechanica/internal/index"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"

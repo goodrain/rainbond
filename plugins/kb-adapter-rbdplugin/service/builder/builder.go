@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/service/adapter"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/adapter"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	corev1 "k8s.io/api/core/v1"

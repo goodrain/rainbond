@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/service/kbkit"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"

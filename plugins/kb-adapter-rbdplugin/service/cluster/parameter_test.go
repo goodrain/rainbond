@@ -3,8 +3,8 @@ package cluster
 import (
 	"testing"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/internal/testutil"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"

@@ -1,10 +1,10 @@
 package registry
 
 import (
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/service/adapter"
-	"github.com/furutachiKurea/block-mechanica/service/builder"
-	"github.com/furutachiKurea/block-mechanica/service/coordinator"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/adapter"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/builder"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/coordinator"
 )
 
 // Cluster 在这里注册 Block Mechanica 支持的数据库集群

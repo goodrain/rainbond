@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/index"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"

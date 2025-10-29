@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/index"
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/service/kbkit"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	workloadsv1 "github.com/apecloud/kubeblocks/apis/workloads/v1"

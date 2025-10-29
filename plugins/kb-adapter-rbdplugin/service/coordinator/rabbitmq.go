@@ -3,7 +3,7 @@ package coordinator
 import (
 	"fmt"
 
-	"github.com/furutachiKurea/block-mechanica/service/adapter"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/adapter"
 )
 
 var _ adapter.Coordinator = &RabbitMQ{}

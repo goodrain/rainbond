@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/furutachiKurea/block-mechanica/internal/index"
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/internal/mono"
-	"github.com/furutachiKurea/block-mechanica/service/kbkit"
-	"github.com/furutachiKurea/block-mechanica/service/registry"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/mono"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/registry"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"

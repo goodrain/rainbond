@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/furutachiKurea/block-mechanica/internal/config"
-	"github.com/furutachiKurea/block-mechanica/internal/k8s"
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/service"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/config"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/k8s"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service"
 )
 
 func main() {

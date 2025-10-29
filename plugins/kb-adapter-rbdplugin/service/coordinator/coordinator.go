@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/service/adapter"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/adapter"
 )
 
 var _ adapter.Coordinator = &Coordinator{}

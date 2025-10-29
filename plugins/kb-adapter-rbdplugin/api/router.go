@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/config"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/config"
 
-	"github.com/furutachiKurea/block-mechanica/api/handler"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/api/handler"
 
 	"github.com/labstack/echo/v4"
 )

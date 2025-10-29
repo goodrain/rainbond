@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 )
 
 var (

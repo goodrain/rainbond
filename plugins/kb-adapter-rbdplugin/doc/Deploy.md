@@ -2,7 +2,7 @@
 
 > [KubeBlocks](https://github.com/apecloud/kubeblocks) is an open-source Kubernetes operator for databases (more specifically, for stateful applications, including databases and middleware like message queues), enabling users to run and manage multiple types of databases on Kubernetes. 
 
-你可以通过 [Kubeblock Adapter for Rainbond Plugin](https://github.com/furutachiKurea/block-mechanica) 实现 KubeBlocks 在 Rainbond 中的集成。在绝大部分情况下，你都能像使用 Rainbond 组件一样管理通过 KubeBlocks 创建的数据库
+你可以通过 [Kubeblock Adapter for Rainbond Plugin](https://github.com/furutachiKurea/kb-adapter-rbdplugin) 实现 KubeBlocks 在 Rainbond 中的集成。在绝大部分情况下，你都能像使用 Rainbond 组件一样管理通过 KubeBlocks 创建的数据库
 
 ## 安装 KubeBlocks
 
@@ -142,16 +142,16 @@ EOF
 - 使用 Kubeblock Adapter for Rainbond Plugin 提供的镜像
 
 ```shell
-git clone https://github.com/furutachiKurea/block-mechanica.git && cd block-mechanica
+git clone https://github.com/furutachiKurea/kb-adapter-rbdplugin.git && cd kb-adapter-rbdplugin
 make deploy
 # or
-kubectl apply -f https://raw.githubusercontent.com/furutachiKurea/block-mechanica/refs/heads/main/deploy/k8s/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/furutachiKurea/kb-adapter-rbdplugin/refs/heads/main/deploy/k8s/deploy.yaml
 ```
 
 - 或者通过手动构建镜像以使用最新版本：
 
 ```shell
-git clone https://github.com/furutachiKurea/block-mechanica.git && cd block-mechanica
+git clone https://github.com/furutachiKurea/kb-adapter-rbdplugin.git && cd kb-adapter-rbdplugin
 make image
 # 然后 push 到你的镜像仓库
 ```
@@ -162,8 +162,8 @@ make image
 make deploy
 ```
 
-Block Mechanica 需要部署在 rbd-system namespace 中，要问为什么，因为 rbd-api 里面是硬编码的，所以不要修改 `deploy.yaml` 中除镜像地址以外的内容
+Block Mechanica 需要部署在 rbd-system namespace 中，为了简化安装, rbd-api 中硬编码了 kb-adapter-rbdplugin 使用的 namespace，所以不要修改 `deploy.yaml` 中除镜像地址以外的内容，未来待 Rainbond 的插件体系完善之后将会有所优化
 
 ## 在 Rainbond 中使用 KubeBlocks
 
-接下来只需要像使用 Rainbond 一样使用通过 KubeBlocks 创建的数据库即可。
+接下来只需要像使用 Rainbond 一样使用通过 KubeBlocks 创建的数据库即可，具体参见[使用文档](Use_KubeBlocks_in_Rainbond.md)

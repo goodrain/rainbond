@@ -3,9 +3,9 @@ package builder
 import (
 	"fmt"
 
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/service/adapter"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/adapter"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 )

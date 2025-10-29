@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 	"github.com/labstack/echo/v4"
 )
 

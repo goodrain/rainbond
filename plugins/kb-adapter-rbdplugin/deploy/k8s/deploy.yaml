@@ -16,7 +16,7 @@ spec:
       serviceAccountName: kb-adapter-rbdplugin-sa
       containers:
         - name: kb-adapter-rbdplugin
-          image: crpi-aoz6mrz2bbre0gxx.cn-hangzhou.personal.cr.aliyuncs.com/block-mechanica/block-mechanica:0.13.14
+          image: crpi-aoz6mrz2bbre0gxx.cn-hangzhou.personal.cr.aliyuncs.com/block-mechanica/kb-adapter:v0.1.0
           ports:
             - containerPort: 8080
           envFrom:

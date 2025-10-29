@@ -3,11 +3,11 @@ package handler
 import (
 	"fmt"
 
-	"github.com/furutachiKurea/block-mechanica/api/req"
-	"github.com/furutachiKurea/block-mechanica/api/res"
-	"github.com/furutachiKurea/block-mechanica/internal/log"
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/service"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/api/req"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/api/res"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service"
 
 	"github.com/labstack/echo/v4"
 )

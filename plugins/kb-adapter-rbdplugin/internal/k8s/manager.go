@@ -5,15 +5,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/api"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/config"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service"
+
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"
 	parametersv1alpha1 "github.com/apecloud/kubeblocks/apis/parameters/v1alpha1"
 	workloadsv1 "github.com/apecloud/kubeblocks/apis/workloads/v1"
-	"github.com/furutachiKurea/block-mechanica/api"
-	"github.com/furutachiKurea/block-mechanica/internal/config"
-	"github.com/furutachiKurea/block-mechanica/internal/index"
-	"github.com/furutachiKurea/block-mechanica/service"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -45,7 +46,7 @@ func NewManager() (ctrl.Manager, error) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  _scheme,
 		LeaderElection:          enableLeaderElection,
-		LeaderElectionID:        "block-mechanica-leader-election",
+		LeaderElectionID:        "kb-adapter-leader-election",
 		LeaderElectionNamespace: "rbd-system",
 		Metrics: server.Options{
 			BindAddress: ":9090",

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/config"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/config"
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"

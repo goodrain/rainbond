@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/internal/testutil"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/testutil"
 
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -186,10 +186,6 @@ func TestGetClusterEvents(t *testing.T) {
 				assert.Equal(t, "running", result.Items[1].Status)
 				assert.Equal(t, "success", result.Items[2].Status)
 
-				// 验证用户名统一设置
-				for _, item := range result.Items {
-					assert.Equal(t, "BlockMechanica", item.UserName)
-				}
 			},
 		},
 		{
@@ -714,7 +710,7 @@ func TestGetClusterEvents(t *testing.T) {
 
 				// 验证所有事件的公共字段
 				for _, item := range result.Items {
-					assert.Equal(t, "BlockMechanica", item.UserName)
+					assert.Equal(t, "system", item.UserName)
 					assert.NotEmpty(t, item.CreateTime)
 
 					// 验证CreateTime格式
@@ -918,7 +914,7 @@ func TestConvertOpsRequestToEventItem(t *testing.T) {
 
 			assert.Equal(t, "test-ops", result.OpsName)
 			assert.Equal(t, "vertical-service", result.OpsType) // VerticalScalingType -> vertical-service
-			assert.Equal(t, "BlockMechanica", result.UserName)
+			assert.Equal(t, "system", result.UserName)
 			assert.Equal(t, tt.expectedStatus, result.Status)
 			assert.Equal(t, tt.expectedFinalStatus, result.FinalStatus)
 			assert.Equal(t, tt.expectedMessage, result.Message)

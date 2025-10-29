@@ -1,7 +1,7 @@
-# [Kubeblock Adapter for Rainbond Plugin](https://github.com/furutachiKurea/block-mechanica)(原 Block Mechanica)
+# [Kubeblock Adapter for Rainbond Plugin](https://github.com/furutachiKurea/kb-adapter-rbdplugin)(原 Block Mechanica)
 
 > 本项目原名为 "Block Mechanica"，现已更名为 "Kubeblock Adapter for Rainbond Plugin"，
-> 后续项目中出现的两个名称等价，go module 和 repo 名称维持不变，更名仅用于提升可读性
+> 后续项目中两个名称也许会共存，应认为其等价
 
 Kubeblock Adapter for Rainbond Plugin <del>Block Mechanica</del> 是一个轻量化的 Kubernetes 服务，通过使用 Echo 编写的 API 服务实现 KubeBlocks 与 Rainbond 的集成
 
@@ -85,7 +85,7 @@ Kubeblock Adapter for Rainbond Plugin <del>Block Mechanica</del> 是一个轻量
 
 ## Contributing
 
-[开发仓库](https://github.com/furutachiKurea/block-mechanica)
+[开发仓库](https://github.com/furutachiKurea/kb-adapter-rbdplugin)
 
 欢迎提交 PR 和 Issue，感谢您的贡献！
 

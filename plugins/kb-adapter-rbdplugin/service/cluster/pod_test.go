@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/furutachiKurea/block-mechanica/internal/model"
-	"github.com/furutachiKurea/block-mechanica/internal/testutil"
-	"github.com/furutachiKurea/block-mechanica/service/kbkit"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/testutil"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
 
 	workloadsv1 "github.com/apecloud/kubeblocks/apis/workloads/v1"
 	"github.com/stretchr/testify/assert"

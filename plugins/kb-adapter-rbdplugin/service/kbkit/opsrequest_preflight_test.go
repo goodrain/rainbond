@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/furutachiKurea/block-mechanica/internal/testutil"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/testutil"
 
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"
 	"github.com/stretchr/testify/assert"

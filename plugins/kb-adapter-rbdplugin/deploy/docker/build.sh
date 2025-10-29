@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置变量
-IMAGE_NAME="block-mechanica"
+IMAGE_NAME="kb-adapter"
 TAG=${1:-latest}
 DOCKERFILE_PATH="deploy/docker/Dockerfile"
 

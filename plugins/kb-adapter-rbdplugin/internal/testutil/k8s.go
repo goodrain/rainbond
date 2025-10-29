@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/furutachiKurea/block-mechanica/internal/index"
+	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"
