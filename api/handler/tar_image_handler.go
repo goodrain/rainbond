@@ -94,8 +94,10 @@ func (t *TarImageHandle) GetTarLoadResult(loadID string) (*model.TarLoadResult, 
 	// 从etcd查询结果
 	key := fmt.Sprintf("/rainbond/tarload/%s", loadID)
 	res, err := db.GetManager().KeyValueDao().Get(key)
-	if err != nil {
-		logrus.Errorf("get tar load result from etcd error: %v", err)
+	if err != nil || res == nil {
+		if err != nil {
+			logrus.Debugf("get tar load result from etcd error: %v (task may still be processing)", err)
+		}
 		// 如果没找到结果，可能还在处理中
 		return &model.TarLoadResult{
 			LoadID:  loadID,
