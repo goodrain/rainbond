@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kb-adapter-rbdplugin
+  namespace: rbd-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kb-adapter-rbdplugin
+  template:
+    metadata:
+      labels:
+        app: kb-adapter-rbdplugin
+    spec:
+      serviceAccountName: kb-adapter-rbdplugin-sa
+      containers:
+        - name: kb-adapter-rbdplugin
+          image: crpi-aoz6mrz2bbre0gxx.cn-hangzhou.personal.cr.aliyuncs.com/block-mechanica/kb-adapter:v0.1.0
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: kb-adapter-rbdplugin-config
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kb-adapter-rbdplugin-config
+  namespace: rbd-system
+data:
+  HOST: "0.0.0.0"
+  PORT: "8080"
+  SERVICE_NAME: "kb-adapter-rbdplugin"
+  READINESS_PATH: "/readyz"
+  LIVENESS_PATH: "/livez"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kb-adapter-rbdplugin-sa
+  namespace: rbd-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kb-adapter-rbdplugin-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps.kubeblocks.io"]
+    resources: ["clusters"]
+    verbs: ["get", "list", "create", "delete", "patch", "watch"]
+  - apiGroups: ["apps.kubeblocks.io"]
+    resources: ["componentdefinitions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps.kubeblocks.io"]
+    resources: ["componentversions"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["operations.kubeblocks.io"]
+    resources: ["opsrequests"]
+    verbs: ["get", "list", "create", "delete", "patch", "watch"]
+  - apiGroups: ["dataprotection.kubeblocks.io"]
+    resources: ["backups"]
+    verbs: ["list", "delete", "watch"]
+  - apiGroups: ["dataprotection.kubeblocks.io"]
+    resources: ["backuprepos"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["workloads.kubeblocks.io"]
+    resources: ["instancesets"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["parameters.kubeblocks.io"]
+    resources: ["paramconfigrenderers"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["parameters.kubeblocks.io"]
+    resources: ["parametersdefinitions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kb-adapter-rbdplugin-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kb-adapter-rbdplugin-role
+subjects:
+  - kind: ServiceAccount
+    name: kb-adapter-rbdplugin-sa
+    namespace: rbd-system
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kb-adapter-rbdplugin
+  namespace: rbd-system
+spec:
+  selector:
+    app: kb-adapter-rbdplugin
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
