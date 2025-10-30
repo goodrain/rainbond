@@ -52,7 +52,7 @@ type ImageMetadata struct {
 type ImportTarImagesReq struct {
 	LoadID    string   `json:"load_id" validate:"required"`
 	Images    []string `json:"images" validate:"required,min=1"` // 用户选择的镜像列表
-	Namespace string   `json:"namespace"`                        // 命名空间
+	Namespace string   `json:"namespace,omitempty"`              // 命名空间（已废弃，系统会自动从租户信息中获取）
 }
 
 // ImportTarImagesResp 导入镜像响应

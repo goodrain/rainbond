@@ -147,11 +147,13 @@ func (t *TarImageHandle) ImportTarImages(tenantID, tenantName string, req model.
 		return nil, util.CreateAPIHandleError(400, fmt.Errorf("tar包解析未完成或失败"))
 	}
 
-	// 2. 确定命名空间
-	namespace := req.Namespace
-	if namespace == "" {
-		namespace = tenantName
+	// 2. 查询租户信息获取命名空间
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		logrus.Errorf("Failed to get tenant info: %v", err)
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf("获取租户信息失败"))
 	}
+	namespace := tenant.Namespace
 
 	// 3. 构建目标镜像名并执行导入
 	var importedImages []model.ImportedImage
@@ -220,8 +222,9 @@ func (t *TarImageHandle) ImportTarImages(tenantID, tenantName string, req model.
 	}, nil
 }
 
-// getImageNameWithoutRegistry 从完整镜像名中提取不包含registry的部分
-// 例如: docker.io/library/nginx:latest -> library/nginx:latest
+// getImageNameWithoutRegistry 从完整镜像名中提取镜像名和tag（不包含registry和路径）
+// 例如: docker.io/library/nginx:latest -> nginx:latest
+//      docker.io/bitnami/redis:7.0 -> redis:7.0
 //      nginx:latest -> nginx:latest
 func getImageNameWithoutRegistry(fullImageName string) string {
 	image := parser.ParseImageName(fullImageName)
@@ -229,9 +232,17 @@ func getImageNameWithoutRegistry(fullImageName string) string {
 	// 获取repository路径(不包含registry)
 	repo := image.GetRepostory()
 
+	// 从路径中提取最后的镜像名（去掉 library、bitnami 等中间路径）
+	// 例如: library/nginx -> nginx, bitnami/redis -> redis
+	imageName := repo
+	if strings.Contains(repo, "/") {
+		parts := strings.Split(repo, "/")
+		imageName = parts[len(parts)-1]
+	}
+
 	// 添加tag
 	if image.Tag != "" {
-		return repo + ":" + image.Tag
+		return imageName + ":" + image.Tag
 	}
 
 	// 如果没有tag,检查原始镜像名是否包含@digest
@@ -239,9 +250,9 @@ func getImageNameWithoutRegistry(fullImageName string) string {
 		parts := strings.Split(fullImageName, "@")
 		if len(parts) == 2 {
 			// 保留digest
-			return repo + "@" + parts[1]
+			return imageName + "@" + parts[1]
 		}
 	}
 
-	return repo
+	return imageName
 }

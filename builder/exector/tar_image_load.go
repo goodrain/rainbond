@@ -142,7 +142,7 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 			} else {
 				// 获取镜像仓库配置
 				registryDomain := builder.REGISTRYDOMAIN
-				namespace := tenant.Name
+				namespace := tenant.Namespace
 
 				// 为每个镜像计算目标镜像名
 				for _, sourceImage := range imageNames {
@@ -198,18 +198,28 @@ SaveResult:
 	logger.Info("tar包镜像解析任务完成", map[string]string{"step": "last", "status": status})
 }
 
-// getImageNameWithoutRegistry 从完整镜像名中提取不包含registry的部分
-// 例如: docker.io/library/nginx:latest -> library/nginx:latest
-//      nginx:latest -> nginx:latest
+// getImageNameWithoutRegistry 从完整镜像名中提取镜像名和tag（不包含registry和路径）
+// 例如: docker.io/library/nginx:latest -> nginx:latest
+//
+//	docker.io/bitnami/redis:7.0 -> redis:7.0
+//	nginx:latest -> nginx:latest
 func getImageNameWithoutRegistry(fullImageName string) string {
 	image := parser.ParseImageName(fullImageName)
 
 	// 获取repository路径(不包含registry)
 	repo := image.GetRepostory()
 
+	// 从路径中提取最后的镜像名（去掉 library、bitnami 等中间路径）
+	// 例如: library/nginx -> nginx, bitnami/redis -> redis
+	imageName := repo
+	if strings.Contains(repo, "/") {
+		parts := strings.Split(repo, "/")
+		imageName = parts[len(parts)-1]
+	}
+
 	// 添加tag
 	if image.Tag != "" {
-		return repo + ":" + image.Tag
+		return imageName + ":" + image.Tag
 	}
 
 	// 如果没有tag,检查原始镜像名是否包含@digest
@@ -217,9 +227,9 @@ func getImageNameWithoutRegistry(fullImageName string) string {
 		parts := strings.Split(fullImageName, "@")
 		if len(parts) == 2 {
 			// 保留digest
-			return repo + "@" + parts[1]
+			return imageName + "@" + parts[1]
 		}
 	}
 
-	return repo
+	return imageName
 }
