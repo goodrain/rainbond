@@ -47,29 +47,3 @@ type ImageMetadata struct {
 	CreatedAt  string `json:"created_at"`  // 创建时间
 	RepoDigest string `json:"repo_digest"` // 镜像digest
 }
-
-// ImportTarImagesReq 导入镜像请求
-type ImportTarImagesReq struct {
-	LoadID    string   `json:"load_id" validate:"required"`
-	Images    []string `json:"images" validate:"required,min=1"` // 用户选择的镜像列表
-	Namespace string   `json:"namespace,omitempty"`              // 命名空间（已废弃，系统会自动从租户信息中获取）
-}
-
-// ImportTarImagesResp 导入镜像响应
-type ImportTarImagesResp struct {
-	ImportedImages []ImportedImage `json:"imported_images"` // 成功导入的镜像
-	FailedImages   []FailedImage   `json:"failed_images"`   // 失败的镜像
-	Message        string          `json:"message"`
-}
-
-// ImportedImage 成功导入的镜像
-type ImportedImage struct {
-	SourceImage string `json:"source_image"` // 原始镜像名
-	TargetImage string `json:"target_image"` // 目标镜像名(带registry前缀)
-}
-
-// FailedImage 失败的镜像
-type FailedImage struct {
-	SourceImage string `json:"source_image"` // 原始镜像名
-	Error       string `json:"error"`        // 错误信息
-}

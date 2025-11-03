@@ -129,44 +129,88 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 			logger.Error("tar包镜像加载失败", map[string]string{"step": "load-tar", "status": "failure"})
 		} else {
 			logrus.Infof("[LoadTarImage] Successfully loaded %d images: %v", len(imageNames), imageNames)
-			status = "success"
 			images = imageNames
-			message = fmt.Sprintf("成功加载%d个镜像", len(imageNames))
 			metadata = make(map[string]model.ImageMetadata)
 			targetImages = make(map[string]string)
 
 			// 获取租户信息以构建目标镜像名
 			tenant, err := db.GetManager().TenantDao().GetTenantByUUID(taskBody.TenantID)
 			if err != nil {
-				logrus.Warnf("[LoadTarImage] Failed to get tenant info: %v, will skip target image calculation", err)
-			} else {
-				// 获取镜像仓库配置
-				registryDomain := builder.REGISTRYDOMAIN
-				namespace := tenant.Namespace
-
-				// 为每个镜像计算目标镜像名
-				for _, sourceImage := range imageNames {
-					targetImage := fmt.Sprintf("%s/%s/%s", registryDomain, namespace, getImageNameWithoutRegistry(sourceImage))
-					targetImages[sourceImage] = targetImage
-					logrus.Infof("[LoadTarImage] Mapped image: %s -> %s", sourceImage, targetImage)
-				}
+				logrus.Errorf("[LoadTarImage] Failed to get tenant info: %v", err)
+				status = "failure"
+				message = fmt.Sprintf("获取租户信息失败: %v", err)
+				logger.Error("获取租户信息失败", map[string]string{"step": "get-tenant", "status": "failure"})
+				goto SaveResult
 			}
 
-			// 获取镜像元数据
-			for _, imageName := range imageNames {
-				// 检查镜像是否存在并获取信息
-				if imageRef, exists, err := e.imageClient.CheckIfImageExists(imageName); exists && err == nil {
-					metadata[imageName] = model.ImageMetadata{
-						Name:       imageName,
+			// 获取镜像仓库配置
+			registryDomain := builder.REGISTRYDOMAIN
+			registryUser := builder.REGISTRYUSER
+			registryPass := builder.REGISTRYPASS
+			namespace := tenant.Namespace
+
+			logger.Info(fmt.Sprintf("成功加载%d个镜像，开始推送到镜像仓库...", len(imageNames)), map[string]string{"step": "load-tar", "status": "success"})
+			for _, img := range imageNames {
+				logger.Info(fmt.Sprintf("- %s", img), map[string]string{"step": "load-tar"})
+			}
+
+			// 推送镜像到仓库
+			var pushErrors []string
+			for _, sourceImage := range imageNames {
+				targetImage := fmt.Sprintf("%s/%s/%s", registryDomain, namespace, getImageNameWithoutRegistry(sourceImage))
+				targetImages[sourceImage] = targetImage
+				logrus.Infof("[LoadTarImage] Processing image: %s -> %s", sourceImage, targetImage)
+
+				// Tag镜像
+				logger.Info(fmt.Sprintf("正在tag镜像: %s -> %s", sourceImage, targetImage), map[string]string{"step": "tag-image", "status": "tagging"})
+				if err := e.imageClient.ImageTag(sourceImage, targetImage, nil, 3); err != nil {
+					logrus.Errorf("[LoadTarImage] Failed to tag image %s to %s: %v", sourceImage, targetImage, err)
+					errMsg := fmt.Sprintf("Tag镜像失败 %s: %v", sourceImage, err)
+					pushErrors = append(pushErrors, errMsg)
+					logger.Error(errMsg, map[string]string{"step": "tag-image", "status": "failure"})
+					continue
+				}
+				logger.Info(fmt.Sprintf("Tag镜像成功: %s", targetImage), map[string]string{"step": "tag-image", "status": "success"})
+
+				// Push镜像到仓库
+				logger.Info(fmt.Sprintf("正在推送镜像: %s", targetImage), map[string]string{"step": "push-image", "status": "pushing"})
+				if err := e.imageClient.ImagePush(targetImage, registryUser, registryPass, logger, 30); err != nil {
+					logrus.Errorf("[LoadTarImage] Failed to push image %s: %v", targetImage, err)
+					errMsg := fmt.Sprintf("Push镜像失败 %s: %v", targetImage, err)
+					pushErrors = append(pushErrors, errMsg)
+					logger.Error(errMsg, map[string]string{"step": "push-image", "status": "failure"})
+					continue
+				}
+				logger.Info(fmt.Sprintf("推送镜像成功: %s", targetImage), map[string]string{"step": "push-image", "status": "success"})
+				logrus.Infof("[LoadTarImage] Successfully pushed image: %s", targetImage)
+
+				// 获取镜像元数据
+				if imageRef, exists, err := e.imageClient.CheckIfImageExists(targetImage); exists && err == nil {
+					metadata[sourceImage] = model.ImageMetadata{
+						Name:       sourceImage,
 						RepoDigest: imageRef,
-						// Size和CreatedAt可以通过其他API获取,这里简化处理
 					}
 				}
 			}
 
-			logger.Info(fmt.Sprintf("成功加载%d个镜像", len(imageNames)), map[string]string{"step": "load-tar", "status": "success"})
-			for _, img := range imageNames {
-				logger.Info(fmt.Sprintf("- %s", img), map[string]string{"step": "load-tar"})
+			// 判断最终状态
+			if len(pushErrors) > 0 {
+				if len(pushErrors) == len(imageNames) {
+					// 全部失败
+					status = "failure"
+					message = fmt.Sprintf("推送镜像全部失败: %s", strings.Join(pushErrors, "; "))
+					logger.Error("推送镜像全部失败", map[string]string{"step": "push-image", "status": "failure"})
+				} else {
+					// 部分失败
+					status = "partial_success"
+					message = fmt.Sprintf("成功推送%d个镜像，失败%d个: %s", len(imageNames)-len(pushErrors), len(pushErrors), strings.Join(pushErrors, "; "))
+					logger.Info(message, map[string]string{"step": "push-image", "status": "partial_success"})
+				}
+			} else {
+				// 全部成功
+				status = "success"
+				message = fmt.Sprintf("成功加载并推送%d个镜像", len(imageNames))
+				logger.Info(fmt.Sprintf("成功推送%d个镜像到仓库", len(imageNames)), map[string]string{"step": "push-image", "status": "success"})
 			}
 		}
 	}
