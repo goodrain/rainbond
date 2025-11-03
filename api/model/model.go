@@ -440,6 +440,8 @@ type TenantServiceVolumeStruct struct {
 	AllowExpansion bool `json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `json:"volume_provider_name"`
+	// Mode 配置文件权限模式
+	Mode *int32 `json:"mode"`
 	// NFSServer NFS存储服务地址
 	NFSServer string `json:"nfs_server"`
 	// NFSPath NFS存储服务路径

@@ -673,6 +673,8 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 				AllowExpansion: volumn.AllowExpansion,
 				// VolumeProviderName 使用的存储驱动别名
 				VolumeProviderName: volumn.VolumeProviderName,
+				// Mode 配置文件权限模式
+				Mode: volumn.Mode,
 			}
 			v.ServiceID = ts.ServiceID
 			if volumn.VolumeType == "" {
