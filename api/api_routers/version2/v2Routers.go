@@ -477,7 +477,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//tar包镜像解析和导入
 	r.Post("/image/load", controller.LoadTarImage)
 	r.Get("/image/load/{load_id}", controller.GetTarLoadResult)
-	r.Post("/image/import", controller.ImportTarImages)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/services", controller.GetManager().ServicesInfo)

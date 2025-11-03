@@ -21,13 +21,9 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/parser"
-	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/google/uuid"
@@ -36,8 +32,7 @@ import (
 
 // TarImageHandle tar包镜像处理
 type TarImageHandle struct {
-	MQClient    client.MQClient
-	ImageClient sources.ImageClient
+	MQClient client.MQClient
 }
 
 var tarImageHandle *TarImageHandle
@@ -51,10 +46,9 @@ func GetTarImageHandle() *TarImageHandle {
 }
 
 // CreateTarImageHandle 创建tar镜像处理handler
-func CreateTarImageHandle(mqClient client.MQClient, imageClient sources.ImageClient) {
+func CreateTarImageHandle(mqClient client.MQClient) {
 	tarImageHandle = &TarImageHandle{
-		MQClient:    mqClient,
-		ImageClient: imageClient,
+		MQClient: mqClient,
 	}
 }
 
@@ -128,131 +122,4 @@ func (t *TarImageHandle) GetTarLoadResult(loadID string) (*model.TarLoadResult, 
 	logrus.Infof("[GetTarLoadResult] Successfully decoded result for load_id: %s, status: %s", loadID, result.Status)
 
 	return &result, nil
-}
-
-// ImportTarImages 确认导入镜像到镜像仓库(同步执行)
-func (t *TarImageHandle) ImportTarImages(tenantID, tenantName string, req model.ImportTarImagesReq) (*model.ImportTarImagesResp, *util.APIHandleError) {
-	// 检查 ImageClient 是否可用
-	if t.ImageClient == nil {
-		return nil, util.CreateAPIHandleError(503, fmt.Errorf("image client is not available, cannot perform synchronous import"))
-	}
-
-	// 1. 获取解析结果
-	loadResult, errH := t.GetTarLoadResult(req.LoadID)
-	if errH != nil {
-		return nil, errH
-	}
-
-	if loadResult.Status != "success" {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("tar包解析未完成或失败"))
-	}
-
-	// 2. 查询租户信息获取命名空间
-	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
-	if err != nil {
-		logrus.Errorf("Failed to get tenant info: %v", err)
-		return nil, util.CreateAPIHandleError(500, fmt.Errorf("获取租户信息失败"))
-	}
-	namespace := tenant.Namespace
-
-	// 3. 构建目标镜像名并执行导入
-	var importedImages []model.ImportedImage
-	var failedImages []model.FailedImage
-
-	registryDomain := builder.REGISTRYDOMAIN
-	registryUser := builder.REGISTRYUSER
-	registryPass := builder.REGISTRYPASS
-
-	for _, sourceImage := range req.Images {
-		// 验证镜像是否在解析结果中
-		found := false
-		for _, img := range loadResult.Images {
-			if img == sourceImage {
-				found = true
-				break
-			}
-		}
-		if !found {
-			failedImages = append(failedImages, model.FailedImage{
-				SourceImage: sourceImage,
-				Error:       "镜像不在解析结果中",
-			})
-			continue
-		}
-
-		// 构建目标镜像名
-		targetImage := fmt.Sprintf("%s/%s/%s", registryDomain, namespace, getImageNameWithoutRegistry(sourceImage))
-
-		// Tag镜像
-		err := t.ImageClient.ImageTag(sourceImage, targetImage, nil, 3)
-		if err != nil {
-			logrus.Errorf("tag image %s to %s error: %v", sourceImage, targetImage, err)
-			failedImages = append(failedImages, model.FailedImage{
-				SourceImage: sourceImage,
-				Error:       fmt.Sprintf("Tag镜像失败: %v", err),
-			})
-			continue
-		}
-
-		// Push镜像到仓库
-		err = t.ImageClient.ImagePush(targetImage, registryUser, registryPass, nil, 30)
-		if err != nil {
-			logrus.Errorf("push image %s error: %v", targetImage, err)
-			failedImages = append(failedImages, model.FailedImage{
-				SourceImage: sourceImage,
-				Error:       fmt.Sprintf("Push镜像失败: %v", err),
-			})
-			continue
-		}
-
-		importedImages = append(importedImages, model.ImportedImage{
-			SourceImage: sourceImage,
-			TargetImage: targetImage,
-		})
-
-		logrus.Infof("successfully imported tar image: %s -> %s", sourceImage, targetImage)
-	}
-
-	message := fmt.Sprintf("导入完成: 成功%d个, 失败%d个", len(importedImages), len(failedImages))
-
-	return &model.ImportTarImagesResp{
-		ImportedImages: importedImages,
-		FailedImages:   failedImages,
-		Message:        message,
-	}, nil
-}
-
-// getImageNameWithoutRegistry 从完整镜像名中提取镜像名和tag（不包含registry和路径）
-// 例如: docker.io/library/nginx:latest -> nginx:latest
-//      docker.io/bitnami/redis:7.0 -> redis:7.0
-//      nginx:latest -> nginx:latest
-func getImageNameWithoutRegistry(fullImageName string) string {
-	image := parser.ParseImageName(fullImageName)
-
-	// 获取repository路径(不包含registry)
-	repo := image.GetRepostory()
-
-	// 从路径中提取最后的镜像名（去掉 library、bitnami 等中间路径）
-	// 例如: library/nginx -> nginx, bitnami/redis -> redis
-	imageName := repo
-	if strings.Contains(repo, "/") {
-		parts := strings.Split(repo, "/")
-		imageName = parts[len(parts)-1]
-	}
-
-	// 添加tag
-	if image.Tag != "" {
-		return imageName + ":" + image.Tag
-	}
-
-	// 如果没有tag,检查原始镜像名是否包含@digest
-	if strings.Contains(fullImageName, "@") {
-		parts := strings.Split(fullImageName, "@")
-		if len(parts) == 2 {
-			// 保留digest
-			return imageName + "@" + parts[1]
-		}
-	}
-
-	return imageName
 }
