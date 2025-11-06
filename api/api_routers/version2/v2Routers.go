@@ -80,6 +80,9 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/pods/logs", controller.GetManager().PodLogs)
 	r.Mount("/platform", v2.platformPluginsRouter())
 
+	// GPU models route
+	r.Get("/gpu-models", controller.NewGPUController().GetAvailableGPUModels)
+
 	return r
 }
 
@@ -432,6 +435,13 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().GetClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().ChangeClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/restores", controller.GetManager().RestoreClusterFromBackup)
+
+	// GPU routes
+	gpuController := controller.NewGPUController()
+	r.Get("/gpu-overview", gpuController.GetClusterGPUOverview)
+	r.Get("/nodes/{node_name}/gpu", gpuController.GetNodeGPUDetail)
+	r.Get("/hami-status", gpuController.DetectHAMi)
+
 	return r
 }
 
@@ -514,7 +524,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/groupapp/backups/{backup_id}/restore", controller.Restore)
 	r.Get("/groupapp/backups/{backup_id}/restore/{restore_id}", controller.RestoreResult)
 	r.Post("/deployversions", controller.GetManager().GetManyDeployVersion)
-	//团队资源限制
+	//团队资源限制（包含GPU配额）
 	r.Post("/limit_resource", controller.GetManager().LimitTenantResource)
 	r.Get("/limit_resource", controller.GetManager().TenantResourcesStatus)
 
@@ -653,6 +663,13 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "create-component-k8s-attributes", dbmodel.SYNEVENTTYPE, false))
 	r.Put("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "update-component-k8s-attributes", dbmodel.SYNEVENTTYPE, false))
 	r.Delete("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "delete-component-k8s-attributes", dbmodel.SYNEVENTTYPE, false))
+
+	// GPU配置管理
+	serviceGPUController := controller.NewServiceGPUController()
+	r.Get("/gpu-config", serviceGPUController.GetServiceGPUConfig)
+	r.Put("/gpu-config", middleware.WrapEL(serviceGPUController.SetServiceGPUConfig, dbmodel.TargetTypeService, "set-service-gpu-config", dbmodel.SYNEVENTTYPE, false))
+	r.Delete("/gpu-config", middleware.WrapEL(serviceGPUController.DeleteServiceGPUConfig, dbmodel.TargetTypeService, "delete-service-gpu-config", dbmodel.SYNEVENTTYPE, false))
+
 	//插件
 	r.Mount("/plugin", v2.serviceRelatePluginRouter())
 

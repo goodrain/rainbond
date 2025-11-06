@@ -147,6 +147,12 @@ type Manager interface {
 
 	ComponentK8sAttributeDao() dao.ComponentK8sAttributeDao
 	ComponentK8sAttributeDaoTransactions(db *gorm.DB) dao.ComponentK8sAttributeDao
+
+	// GPU
+	TenantGPUQuotaDao() dao.TenantGPUQuotaDao
+	TenantGPUQuotaDaoTransactions(db *gorm.DB) dao.TenantGPUQuotaDao
+	TenantServiceGPUDao() dao.TenantServiceGPUDao
+	TenantServiceGPUDaoTransactions(db *gorm.DB) dao.TenantServiceGPUDao
 }
 
 var defaultManager Manager
