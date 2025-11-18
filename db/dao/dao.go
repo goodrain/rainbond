@@ -683,22 +683,3 @@ type OverScoreDao interface {
 	UpdateOverScoreRat(OverScoreRate string) error
 	GetOverScoreRate() (*model.EnterpriseOverScore, error)
 }
-
-// TenantGPUQuotaDao tenant GPU quota dao
-type TenantGPUQuotaDao interface {
-	GetByTenantID(tenantID string) (*model.TenantGPUQuota, error)
-	Create(quota *model.TenantGPUQuota) error
-	Update(quota *model.TenantGPUQuota) error
-	Delete(tenantID string) error
-	ListAll() ([]*model.TenantGPUQuota, error)
-}
-
-// TenantServiceGPUDao tenant service GPU dao
-type TenantServiceGPUDao interface {
-	GetByServiceID(serviceID string) (*model.TenantServiceGPU, error)
-	GetByTenantID(tenantID string) ([]*model.TenantServiceGPU, error)
-	Create(config *model.TenantServiceGPU) error
-	Update(config *model.TenantServiceGPU) error
-	Delete(serviceID string) error
-	GetEnabledGPUServices(tenantID string) ([]*model.TenantServiceGPU, error)
-}

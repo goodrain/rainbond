@@ -809,11 +809,9 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 }
 
 type TenantResourceQuota struct {
-	LimitMemory    int   `json:"limit_memory"`
-	LimitCPU       int   `json:"limit_cpu"`
-	LimitStorage   int   `json:"limit_storage"`
-	LimitGPU       int   `json:"limit_gpu"`        // GPU卡数限制，0表示不限制
-	LimitGPUMemory int64 `json:"limit_gpu_memory"` // GPU显存限制(MB)，0表示不限制
+	LimitMemory  int `json:"limit_memory"`
+	LimitCPU     int `json:"limit_cpu"`
+	LimitStorage int `json:"limit_storage"`
 }
 
 // LimitTenantResource -
@@ -846,39 +844,19 @@ func (t *TenantStruct) LimitTenantResource(w http.ResponseWriter, r *http.Reques
 	}
 	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
-		return
 	}
-
-	// 处理GPU配额
-	if trq.LimitGPU >= 0 || trq.LimitGPUMemory >= 0 {
-		gpuHandler := handler.NewTenantGPUHandler()
-		gpuReq := &api_model.TenantGPUQuotaReq{
-			GPULimit:       trq.LimitGPU,
-			GPUMemoryLimit: trq.LimitGPUMemory,
-		}
-		if err := gpuHandler.SetTenantGPUQuota(r.Context(), tenant.UUID, gpuReq); err != nil {
-			logrus.Errorf("Failed to set GPU quota: %v", err)
-			// 不阻止主流程，只记录错误
-		}
-	}
-
 	httputil.ReturnSuccess(r, w, "success!")
 }
 
 // SourcesInfo -
 type SourcesInfo struct {
-	TenantID        string  `json:"tenant_id"`
-	AvailableMemory int     `json:"available_memory"`
-	Status          bool    `json:"status"`
-	MemTotal        int     `json:"mem_total"`
-	MemUsed         int     `json:"mem_used"`
-	CPUTotal        int     `json:"cpu_total"`
-	CPUUsed         int     `json:"cpu_used"`
-	GPUTotal        int     `json:"gpu_total"`           // GPU卡数配额
-	GPUUsed         int     `json:"gpu_used"`            // 已使用GPU卡数
-	GPUMemoryTotal  int64   `json:"gpu_memory_total"`    // GPU显存配额(MB)
-	GPUMemoryUsed   int64   `json:"gpu_memory_used"`     // 已使用GPU显存(MB)
-	GPUUsageRate    float64 `json:"gpu_usage_rate"`      // GPU使用率
+	TenantID        string `json:"tenant_id"`
+	AvailableMemory int    `json:"available_memory"`
+	Status          bool   `json:"status"`
+	MemTotal        int    `json:"mem_total"`
+	MemUsed         int    `json:"mem_used"`
+	CPUTotal        int    `json:"cpu_total"`
+	CPUUsed         int    `json:"cpu_used"`
 }
 
 // TenantResourcesStatus tenant resources status
@@ -902,20 +880,6 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 
 	statsInfo, _ := handler.GetTenantManager().StatsMemCPU(services)
 
-	// 获取GPU使用情况
-	gpuHandler := handler.NewTenantGPUHandler()
-	gpuUsage, err := gpuHandler.GetTenantGPUUsage(r.Context(), tenant.UUID)
-	var gpuTotal, gpuUsed int
-	var gpuMemoryTotal, gpuMemoryUsed int64
-	var gpuUsageRate float64
-	if err == nil && gpuUsage != nil {
-		gpuTotal = gpuUsage.GPULimit
-		gpuUsed = gpuUsage.UsedGPU
-		gpuMemoryTotal = gpuUsage.GPUMemoryLimit
-		gpuMemoryUsed = gpuUsage.UsedGPUMemory
-		gpuUsageRate = gpuUsage.UsageRate
-	}
-
 	if tenant.LimitMemory == 0 {
 		sourcesInfo := SourcesInfo{
 			TenantID:        tenantID,
@@ -925,11 +889,6 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			MemUsed:         statsInfo.MEM,
 			CPUTotal:        0,
 			CPUUsed:         statsInfo.CPU,
-			GPUTotal:        gpuTotal,
-			GPUUsed:         gpuUsed,
-			GPUMemoryTotal:  gpuMemoryTotal,
-			GPUMemoryUsed:   gpuMemoryUsed,
-			GPUUsageRate:    gpuUsageRate,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 		return
@@ -943,11 +902,6 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			MemUsed:         statsInfo.MEM,
 			CPUTotal:        tenant.LimitMemory / 4,
 			CPUUsed:         statsInfo.CPU,
-			GPUTotal:        gpuTotal,
-			GPUUsed:         gpuUsed,
-			GPUMemoryTotal:  gpuMemoryTotal,
-			GPUMemoryUsed:   gpuMemoryUsed,
-			GPUUsageRate:    gpuUsageRate,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	} else {
@@ -959,11 +913,6 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			MemUsed:         statsInfo.MEM,
 			CPUTotal:        tenant.LimitMemory / 4,
 			CPUUsed:         statsInfo.CPU,
-			GPUTotal:        gpuTotal,
-			GPUUsed:         gpuUsed,
-			GPUMemoryTotal:  gpuMemoryTotal,
-			GPUMemoryUsed:   gpuMemoryUsed,
-			GPUUsageRate:    gpuUsageRate,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
