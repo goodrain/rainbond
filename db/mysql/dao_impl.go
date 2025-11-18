@@ -709,31 +709,3 @@ func (m *Manager) OverScoreDaoTransactions(db *gorm.DB) dao.OverScoreDao {
 		DB: db,
 	}
 }
-
-// TenantGPUQuotaDao 团队GPU配额
-func (m *Manager) TenantGPUQuotaDao() dao.TenantGPUQuotaDao {
-	return &mysqldao.TenantGPUQuotaDaoImpl{
-		DB: m.db,
-	}
-}
-
-// TenantGPUQuotaDaoTransactions 团队GPU配额 事务
-func (m *Manager) TenantGPUQuotaDaoTransactions(db *gorm.DB) dao.TenantGPUQuotaDao {
-	return &mysqldao.TenantGPUQuotaDaoImpl{
-		DB: db,
-	}
-}
-
-// TenantServiceGPUDao 组件GPU配置
-func (m *Manager) TenantServiceGPUDao() dao.TenantServiceGPUDao {
-	return &mysqldao.TenantServiceGPUDaoImpl{
-		DB: m.db,
-	}
-}
-
-// TenantServiceGPUDaoTransactions 组件GPU配置 事务
-func (m *Manager) TenantServiceGPUDaoTransactions(db *gorm.DB) dao.TenantServiceGPUDao {
-	return &mysqldao.TenantServiceGPUDaoImpl{
-		DB: db,
-	}
-}
