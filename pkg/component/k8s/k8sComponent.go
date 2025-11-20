@@ -90,6 +90,10 @@ func (k *Component) Start(ctx context.Context) error {
 		logrus.Errorf("create k8s config failure: %v", err)
 		return err
 	}
+	// Apply QPS and Burst configuration
+	config.QPS = float32(configs.Default().K8SConfig.KubeAPIQPS)
+	config.Burst = configs.Default().K8SConfig.KubeAPIBurst
+	logrus.Infof("k8s client config: QPS=%v, Burst=%v", config.QPS, config.Burst)
 	k.Clientset, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		logrus.Errorf("create k8s client failure: %v", err)

@@ -472,14 +472,29 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// kubeblocks_component should use specific selector
-	rbdService, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		logrus.Errorf("get service by id %s error: %v", serviceID, err)
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-		return
+	// Try to get service by service_id first, if not provided, try by service_alias and tenant_id
+	var rbdService *dbmodel.TenantServices
+	var err error
+
+	if serviceID != "" {
+		rbdService, err = db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+		if err != nil {
+			logrus.Errorf("get service by id %s error: %v", serviceID, err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+	} else {
+		// If service_id is not provided, try to find by service_alias and tenant_id
+		rbdService, err = db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenant.UUID, serviceName)
+		if err != nil {
+			logrus.Warnf("get service by tenant_id %s and service_alias %s error: %v, will use default selector", tenant.UUID, serviceName, err)
+		}
 	}
-	if rbdService.ExtendMethod == "kubeblocks_component" {
+
+	// If we got the service and it's a kubeblocks component, use special selector
+	if rbdService != nil && rbdService.ExtendMethod == "kubeblocks_component" {
 		spec.Selector = kbutil.GenerateKubeBlocksSelector(rbdService.K8sComponentName)
+		logrus.Infof("Using KubeBlocks selector for service %s (k8s_component_name: %s)", serviceName, rbdService.K8sComponentName)
 	}
 
 	// Try to get the existing service first
@@ -517,6 +532,11 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 					// 如果端口已被占用，增加端口号并重新尝试
 					logrus.Infof("NodePort %d is already allocated, trying next port...", nodePort)
 					nodePort++
+					// Update the NodePort in the service spec before retrying
+					service.Spec.Ports[0].NodePort = nodePort
+					// Update the service name to include new port
+					service.ObjectMeta.Name = fmt.Sprintf("%v-%v", serviceName, nodePort)
+					service.Spec.Ports[0].Name = service.ObjectMeta.Name
 					continue // 重新尝试创建服务
 				} else {
 					// 其他错误，返回失败
