@@ -37,6 +37,7 @@ type execContext struct {
 	config      *restclient.Config
 	sizeUpdate  chan remotecommand.TerminalSize
 	closed      bool
+	ready       chan error
 }
 
 // NewExecContext new exec Context
@@ -52,6 +53,7 @@ func NewExecContext(kubeRequest *restclient.Request, config *restclient.Config) 
 		kubeRequest: kubeRequest,
 		config:      config,
 		sizeUpdate:  make(chan remotecommand.TerminalSize, 2),
+		ready:       make(chan error, 1),
 	}
 	if err := ec.Run(); err != nil {
 		return nil, err
@@ -76,20 +78,30 @@ func (e *execContext) Run() error {
 		t := out.SetTTY()
 		t.Safe(func() error {
 			defer e.Close()
-			if err := exec.Stream(remotecommand.StreamOptions{
+			streamErr := exec.Stream(remotecommand.StreamOptions{
 				Stdin:             out.Stdin,
 				Stdout:            out.Stdout,
 				Stderr:            nil,
 				Tty:               true,
 				TerminalSizeQueue: e,
-			}); err != nil {
-				logrus.Errorf("executor stream failure %s", err.Error())
-				return err
+			})
+			// Signal ready on first attempt
+			select {
+			case e.ready <- streamErr:
+			default:
+			}
+			if streamErr != nil {
+				logrus.Errorf("executor stream failure %s", streamErr.Error())
+				return streamErr
 			}
 			return nil
 		})
 
 	}()
+	// Wait for the stream to start or fail
+	if err := <-e.ready; err != nil {
+		return fmt.Errorf("stream initialization failed: %s", err.Error())
+	}
 	return nil
 }
 
