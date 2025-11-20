@@ -21,7 +21,9 @@ package app
 import (
 	"fmt"
 	"os"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/barnettZQG/gotty/server"
@@ -37,7 +39,8 @@ type execContext struct {
 	config      *restclient.Config
 	sizeUpdate  chan remotecommand.TerminalSize
 	closed      bool
-	ready       chan error
+	mu          sync.Mutex
+	streamReady chan error // 传递 Stream 启动状态(nil表示成功)
 }
 
 // NewExecContext new exec Context
@@ -53,12 +56,31 @@ func NewExecContext(kubeRequest *restclient.Request, config *restclient.Config) 
 		kubeRequest: kubeRequest,
 		config:      config,
 		sizeUpdate:  make(chan remotecommand.TerminalSize, 2),
-		ready:       make(chan error, 1),
+		streamReady: make(chan error, 1),
 	}
 	if err := ec.Run(); err != nil {
+		tty.Close()
+		pty.Close()
 		return nil, err
 	}
-	return ec, nil
+
+	// 等待 Stream 准备就绪或超时
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+
+	select {
+	case err := <-ec.streamReady:
+		if err != nil {
+			tty.Close()
+			pty.Close()
+			return nil, fmt.Errorf("stream failed to start: %w", err)
+		}
+		return ec, nil
+	case <-timeout.C:
+		// 超时仍未准备好，记录警告但继续
+		logrus.Warnf("stream did not signal ready within timeout, proceeding anyway")
+		return ec, nil
+	}
 }
 
 func (e *execContext) WaitingStop() bool {
@@ -73,35 +95,47 @@ func (e *execContext) Run() error {
 	if err != nil {
 		return fmt.Errorf("create executor failure %s", err.Error())
 	}
+
 	go func() {
 		out := CreateOut(e.tty)
 		t := out.SetTTY()
+
+		// 使用一个信号来标记 Stream 是否已启动
+		streamStarted := make(chan struct{})
+
+		go func() {
+			// 给一个小延迟确保 Stream 开始执行
+			time.Sleep(50 * time.Millisecond)
+			select {
+			case e.streamReady <- nil: // 通知已准备好
+			default:
+			}
+			close(streamStarted)
+		}()
+
 		t.Safe(func() error {
 			defer e.Close()
-			streamErr := exec.Stream(remotecommand.StreamOptions{
+
+			if err := exec.Stream(remotecommand.StreamOptions{
 				Stdin:             out.Stdin,
 				Stdout:            out.Stdout,
 				Stderr:            nil,
 				Tty:               true,
 				TerminalSizeQueue: e,
-			})
-			// Signal ready on first attempt
-			select {
-			case e.ready <- streamErr:
-			default:
-			}
-			if streamErr != nil {
-				logrus.Errorf("executor stream failure %s", streamErr.Error())
-				return streamErr
+			}); err != nil {
+				logrus.Errorf("executor stream failure %s", err.Error())
+				// 如果 Stream 快速失败,尝试发送错误
+				select {
+				case e.streamReady <- err:
+				case <-streamStarted:
+					// 已经发送了准备信号,记录错误即可
+				}
+				return err
 			}
 			return nil
 		})
-
 	}()
-	// Wait for the stream to start or fail
-	if err := <-e.ready; err != nil {
-		return fmt.Errorf("stream initialization failed: %s", err.Error())
-	}
+
 	return nil
 }
 
@@ -114,7 +148,27 @@ func (e *execContext) Write(p []byte) (n int, err error) {
 }
 
 func (e *execContext) Close() error {
-	return e.tty.Close()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.closed {
+		return nil
+	}
+	e.closed = true
+
+	// 关闭所有资源
+	var ttyErr, ptyErr error
+	if e.tty != nil {
+		ttyErr = e.tty.Close()
+	}
+	if e.pty != nil {
+		ptyErr = e.pty.Close()
+	}
+
+	if ttyErr != nil {
+		return ttyErr
+	}
+	return ptyErr
 }
 
 func (e *execContext) WindowTitleVariables() map[string]interface{} {

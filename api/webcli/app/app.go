@@ -149,26 +149,22 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 	if init.Namespace == "" {
 		init.Namespace = init.TenantID
 	}
-	logrus.Infof("attempting to connect to pod: %s/%s, container: %s", init.Namespace, init.PodName, init.ContainerName)
 	containerName, ip, args, err := app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
 	if err != nil {
-		logrus.Errorf("get container args failed for pod %s/%s: %s", init.Namespace, init.PodName, err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Container not ready: %s", err.Error())))
+		logrus.Errorf("get default container failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	logrus.Infof("container ready: %s, ip: %s, args: %v", containerName, ip, args)
 	request := app.NewRequest(init.PodName, init.Namespace, containerName, args)
-	logrus.Infof("creating exec context for pod %s/%s, container: %s", init.Namespace, init.PodName, containerName)
 	var slave server.Slave
 	slave, err = NewExecContext(request, app.config)
 	if err != nil {
-		logrus.Errorf("open exec context failure for pod %s/%s: %s", init.Namespace, init.PodName, err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Failed to open terminal: %s", err.Error())))
+		logrus.Errorf("open exec context failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	logrus.Infof("exec context created successfully for pod %s/%s", init.Namespace, init.PodName)
 	defer slave.Close()
 	opts := []webtty.Option{
 		webtty.WithWindowTitle([]byte(ip)),
@@ -176,29 +172,26 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 		webtty.WithPermitWrite(),
 	}
 	// create web tty and run
-	logrus.Infof("creating web tty for pod %s/%s", init.Namespace, init.PodName)
 	tty, err := webtty.New(&WsWrapper{conn}, slave, opts...)
 	if err != nil {
-		logrus.Errorf("open web tty context failure for pod %s/%s: %s", init.Namespace, init.PodName, err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Failed to create tty: %s", err.Error())))
+		logrus.Errorf("open web tty context failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	logrus.Infof("web tty created, starting session for pod %s/%s", init.Namespace, init.PodName)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	err = tty.Run(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "master closed") {
-			logrus.Infof("client closed connection for pod %s/%s", init.Namespace, init.PodName)
+			logrus.Infof("client close connection")
 			return
 		}
-		logrus.Errorf("run web tty failure for pod %s/%s: %s", init.Namespace, init.PodName, err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Terminal session failed: %s", err.Error())))
+		logrus.Errorf("run web tty failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("run tty failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	logrus.Infof("web tty session completed successfully for pod %s/%s", init.Namespace, init.PodName)
 }
 func (app *App) CreateKubeClient() error {
 	config, err := k8sutil.NewRestConfig("")
@@ -237,71 +230,24 @@ func SetConfigDefaults(config *rest.Config) error {
 // GetContainerArgs get default container name
 func (app *App) GetContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
 	var args = []string{"/bin/sh"}
-	logrus.Infof("fetching pod info: %s/%s", namespace, podname)
 	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
 	if err != nil {
-		logrus.Errorf("failed to get pod %s/%s: %s", namespace, podname, err.Error())
 		return "", "", args, err
 	}
-
-	logrus.Infof("pod %s/%s found, phase: %s", namespace, podname, pod.Status.Phase)
 
 	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
 		return "", "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 	}
-
-	// Check if pod is running
-	if pod.Status.Phase != api.PodRunning {
-		logrus.Warnf("pod %s/%s is not running, current phase: %s", namespace, podname, pod.Status.Phase)
-		return "", "", args, fmt.Errorf("pod is not running yet; current phase is %s", pod.Status.Phase)
-	}
-
 	for i, container := range pod.Spec.Containers {
 		if container.Name == containerName || (containerName == "" && i == 0) {
-			logrus.Infof("checking container: %s in pod %s/%s", container.Name, namespace, podname)
-			// Check if container is ready
-			for _, containerStatus := range pod.Status.ContainerStatuses {
-				if containerStatus.Name == container.Name {
-					logrus.Infof("container %s status - ready: %v, state: %+v",
-						container.Name, containerStatus.Ready, containerStatus.State)
-					if !containerStatus.Ready {
-						// Check if container is still creating (pulling image, etc.)
-						if containerStatus.State.Waiting != nil {
-							logrus.Warnf("container %s is waiting: %s - %s",
-								container.Name,
-								containerStatus.State.Waiting.Reason,
-								containerStatus.State.Waiting.Message)
-							return "", "", args, fmt.Errorf("container is not ready: %s - %s",
-								containerStatus.State.Waiting.Reason,
-								containerStatus.State.Waiting.Message)
-						}
-						if containerStatus.State.Terminated != nil {
-							logrus.Warnf("container %s is terminated: %s (exit code: %d)",
-								container.Name,
-								containerStatus.State.Terminated.Reason,
-								containerStatus.State.Terminated.ExitCode)
-							return "", "", args, fmt.Errorf("container is terminated: %s (exit code: %d)",
-								containerStatus.State.Terminated.Reason,
-								containerStatus.State.Terminated.ExitCode)
-						}
-						logrus.Warnf("container %s is not ready", container.Name)
-						return "", "", args, fmt.Errorf("container is not ready")
-					}
-					logrus.Infof("container %s is ready", container.Name)
-					break
-				}
-			}
-
 			for _, env := range container.Env {
 				if env.Name == "ES_DEFAULT_EXEC_ARGS" {
 					args = strings.Split(env.Value, " ")
-					logrus.Infof("found custom exec args: %v", args)
 				}
 			}
 			return container.Name, pod.Status.PodIP, args, nil
 		}
 	}
-	logrus.Errorf("container not found in pod %s/%s", namespace, podname)
 	return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
 }
 
