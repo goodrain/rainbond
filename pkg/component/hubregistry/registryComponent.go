@@ -20,6 +20,9 @@ package hubregistry
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/sources/registry"
@@ -31,7 +34,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 var defaultRegistryComponent *RegistryComponent
@@ -65,7 +67,13 @@ func (r *RegistryComponent) Start(ctx context.Context) error {
 	}
 
 	registryConfig := cluster.Spec.ImageHub
-	if registryConfig.Domain == "goodrain.me" {
+	// 提取域名部分(去除端口),支持 "goodrain.me" 和 "goodrain.me:9443" 格式
+	domain := registryConfig.Domain
+	if strings.Contains(registryConfig.Domain, ":") {
+		domain = strings.Split(registryConfig.Domain, ":")[0]
+	}
+	// 如果是默认域名 goodrain.me,替换为实际的 RbdHub 配置
+	if domain == "goodrain.me" {
 		registryConfig.Domain = r.ServerConfig.RbdHub
 	}
 	gogo.Go(func(ctx context.Context) error {

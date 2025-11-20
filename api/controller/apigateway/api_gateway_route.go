@@ -124,11 +124,17 @@ func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 
 	k := k8s.Default().Clientset.CoreV1()
 	serviceAlias := r.URL.Query().Get("service_alias")
+	port := r.URL.Query().Get("port")
 	// Only keep the value before the comma
 	if idx := strings.Index(serviceAlias, ","); idx != -1 {
 		serviceAlias = serviceAlias[:idx]
 	}
 	labelSelector := fmt.Sprintf("tcp=true,service_alias=%v,outer=true", serviceAlias)
+
+	// If port is specified, filter by port label to get only the specific port's NodePort
+	if port != "" {
+		labelSelector = fmt.Sprintf("tcp=true,service_alias=%v,outer=true,port=%v", serviceAlias, port)
+	}
 
 	list, err := k.Services(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
@@ -567,16 +573,33 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
 	k := k8s.Default().Clientset.CoreV1()
-	err := k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+
+	// Get the Service first to verify it exists and log its labels for debugging
+	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
+			logrus.Infof("Service %s not found, treating as already deleted", name)
 			httputil.ReturnSuccess(r, w, name)
-		} else {
-			logrus.Errorf("delete route error %s", err.Error())
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+			return
 		}
+		logrus.Errorf("failed to get service %s: %v", name, err)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
 		return
 	}
+
+	// Log the Service details for debugging
+	logrus.Infof("Deleting TCP route Service: %s, labels: %v, port: %v",
+		name, service.Labels, service.Spec.Ports[0].Port)
+
+	// Delete the Service
+	err = k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+	if err != nil {
+		logrus.Errorf("delete route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+		return
+	}
+
+	logrus.Infof("Successfully deleted TCP route Service: %s", name)
 	httputil.ReturnSuccess(r, w, name)
 }
 

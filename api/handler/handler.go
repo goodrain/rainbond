@@ -53,6 +53,12 @@ func InitAPIHandle() error {
 	defApplicationHandler = NewApplicationHandler()
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
 	defNodesHandler = NewNodesHandler()
+
+	// 初始化 TarImageHandle
+	// 镜像的加载和推送在 builder 服务中异步完成
+	CreateTarImageHandle(mq.Default().MqClient)
+	logrus.Info("tar image handler initialized successfully")
+
 	return nil
 }
 

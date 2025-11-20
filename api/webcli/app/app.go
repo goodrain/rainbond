@@ -24,18 +24,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/barnettZQG/gotty/server"
 	"github.com/barnettZQG/gotty/webtty"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -149,10 +150,40 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 	if init.Namespace == "" {
 		init.Namespace = init.TenantID
 	}
-	containerName, ip, args, err := app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
-	if err != nil {
+
+	// 等待容器就绪，最多重试 30 次（30秒）
+	var containerName, ip string
+	var args []string
+	maxRetries := 30
+	retryInterval := time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		containerName, ip, args, err = app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
+		if err == nil {
+			break
+		}
+
+		// 如果是容器未就绪的错误，继续等待
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not running yet") ||
+			strings.Contains(errMsg, "not ready yet") ||
+			strings.Contains(errMsg, "status not found") {
+			logrus.Infof("waiting for container to be ready (attempt %d/%d): %s", i+1, maxRetries, errMsg)
+			time.Sleep(retryInterval)
+			continue
+		}
+
+		// 其他错误直接返回
 		logrus.Errorf("get default container failure %s", err.Error())
 		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
+		ExecuteCommandFailed++
+		return
+	}
+
+	// 超过重试次数仍未就绪
+	if err != nil {
+		logrus.Errorf("container not ready after %d retries: %s", maxRetries, err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("Container is not ready, please try again later!"))
 		ExecuteCommandFailed++
 		return
 	}
@@ -238,17 +269,47 @@ func (app *App) GetContainerArgs(namespace, podname, containerName string) (stri
 	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
 		return "", "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 	}
+
+	// 检查 Pod 是否就绪
+	if pod.Status.Phase != api.PodRunning {
+		return "", "", args, fmt.Errorf("pod is not running yet; current phase is %s", pod.Status.Phase)
+	}
+
+	// 查找目标容器
+	var targetContainerName string
 	for i, container := range pod.Spec.Containers {
 		if container.Name == containerName || (containerName == "" && i == 0) {
+			targetContainerName = container.Name
 			for _, env := range container.Env {
 				if env.Name == "ES_DEFAULT_EXEC_ARGS" {
 					args = strings.Split(env.Value, " ")
 				}
 			}
-			return container.Name, pod.Status.PodIP, args, nil
+			break
 		}
 	}
-	return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
+
+	if targetContainerName == "" {
+		return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
+	}
+
+	// 检查容器是否就绪
+	containerReady := false
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.Name == targetContainerName {
+			if !status.Ready || status.State.Running == nil {
+				return "", "", args, fmt.Errorf("container %s is not ready yet", targetContainerName)
+			}
+			containerReady = true
+			break
+		}
+	}
+
+	if !containerReady {
+		return "", "", args, fmt.Errorf("container %s status not found", targetContainerName)
+	}
+
+	return targetContainerName, pod.Status.PodIP, args, nil
 }
 
 // NewRequest new exec request
