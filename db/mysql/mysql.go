@@ -121,23 +121,11 @@ func CreateManager(config config.Config) (*Manager, error) {
 				}
 			}
 		}
-		db, err = gorm.Open("sqlite3", "/db/region.sqlite3?cache=shared&_busy_timeout=30000")
+		db, err = gorm.Open("sqlite3", "/db/region.sqlite3")
 		if err != nil {
 			return nil, err
 		}
-		// 获取底层的 sql.DB 对象并设置连接池参数
-		sqlDB := db.DB()
-		// SQLite 应该使用单个写连接来避免锁定问题
-		sqlDB.SetMaxOpenConns(1)
-		sqlDB.SetMaxIdleConns(1)
-		sqlDB.SetConnMaxLifetime(0)
-
-		// 设置 WAL 模式以提高并发性能
 		db.Exec("PRAGMA journal_mode = WAL")
-		// 设置同步模式为 NORMAL 以提高性能
-		db.Exec("PRAGMA synchronous = NORMAL")
-		// 设置 busy_timeout
-		db.Exec("PRAGMA busy_timeout = 30000")
 	}
 	if config.ShowSQL {
 		db = db.Debug()
