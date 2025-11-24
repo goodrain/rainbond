@@ -414,8 +414,12 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 
 			if serviceID == targetServiceID {
-				logrus.Errorf("[DEBUG-TARGET] Deployment OnAdd: name=%s, namespace=%s, version=%s, ReadyReplicas=%d, DesiredReplicas=%d",
-					deployment.Name, deployment.Namespace, version, deployment.Status.ReadyReplicas, replicas)
+				logrus.Errorf("[目标组件调试] ========== Deployment OnAdd 事件触发 ==========")
+				logrus.Errorf("[目标组件调试]   Deployment名称: %s", deployment.Name)
+				logrus.Errorf("[目标组件调试]   命名空间: %s", deployment.Namespace)
+				logrus.Errorf("[目标组件调试]   version标签: %s", version)
+				logrus.Errorf("[目标组件调试]   ReadyReplicas: %d", deployment.Status.ReadyReplicas)
+				logrus.Errorf("[目标组件调试]   期望副本数: %d", replicas)
 			}
 
 			logrus.Infof("[Deployment新增] 检测到 %s 的 Deployment: %s, service_id=%s, version=%s, ReadyReplicas=%d, DesiredReplicas=%d",
@@ -430,8 +434,10 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				appservice.SetDeployment(deployment)
 
 				if serviceID == targetServiceID {
-					logrus.Errorf("[DEBUG-TARGET] Deployment OnAdd: SetDeployment成功, AppService.DeployVersion=%s, AppService.Replicas=%d, CurrentPodCount=%d",
-						appservice.DeployVersion, appservice.Replicas, len(appservice.GetPods(false)))
+					logrus.Errorf("[目标组件调试] SetDeployment 执行成功")
+					logrus.Errorf("[目标组件调试]   AppService.DeployVersion: %s", appservice.DeployVersion)
+					logrus.Errorf("[目标组件调试]   AppService.Replicas: %d", appservice.Replicas)
+					logrus.Errorf("[目标组件调试]   当前Pod数量: %d", len(appservice.GetPods(false)))
 				}
 
 				logrus.Infof("[Deployment新增] %s Deployment %s: 成功设置到 AppService (serviceID=%s, AppService.Replicas=%d, CurrentPodCount=%d)",
@@ -1320,7 +1326,8 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 		app := a.GetAppService(serviceID)
 		if app == nil {
 			if serviceID == targetServiceID {
-				logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s NOT FOUND in memory! Will check database and K8s", serviceID)
+				logrus.Errorf("[目标组件调试] ========== GetAppServiceStatuses 被调用 ==========")
+				logrus.Errorf("[目标组件调试] AppService 在内存中不存在！将检查数据库和K8s")
 			}
 			queryComponentIDs = append(queryComponentIDs, serviceID)
 			continue
@@ -1332,16 +1339,19 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 			statefulset := app.GetStatefulSet()
 			pods := app.GetPods(false)
 
-			logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s FOUND in memory", serviceID)
-			logrus.Errorf("[DEBUG-TARGET]   - ServiceAlias=%s, TenantID=%s", app.ServiceAlias, app.TenantID)
-			logrus.Errorf("[DEBUG-TARGET]   - DeployVersion=%s, Replicas=%d", app.DeployVersion, app.Replicas)
-			logrus.Errorf("[DEBUG-TARGET]   - Deployment exists: %v", deployment != nil)
+			logrus.Errorf("[目标组件调试] ========== GetAppServiceStatuses 被调用 ==========")
+			logrus.Errorf("[目标组件调试] AppService 在内存中找到")
+			logrus.Errorf("[目标组件调试]   ServiceAlias: %s", app.ServiceAlias)
+			logrus.Errorf("[目标组件调试]   TenantID: %s", app.TenantID)
+			logrus.Errorf("[目标组件调试]   DeployVersion: %s", app.DeployVersion)
+			logrus.Errorf("[目标组件调试]   期望副本数: %d", app.Replicas)
+			logrus.Errorf("[目标组件调试]   Deployment存在: %v", deployment != nil)
 			if deployment != nil {
-				logrus.Errorf("[DEBUG-TARGET]   - Deployment.ReadyReplicas=%d, Deployment.Replicas=%d",
-					deployment.Status.ReadyReplicas, *deployment.Spec.Replicas)
+				logrus.Errorf("[目标组件调试]     Deployment.ReadyReplicas: %d", deployment.Status.ReadyReplicas)
+				logrus.Errorf("[目标组件调试]     Deployment.Replicas: %d", *deployment.Spec.Replicas)
 			}
-			logrus.Errorf("[DEBUG-TARGET]   - StatefulSet exists: %v", statefulset != nil)
-			logrus.Errorf("[DEBUG-TARGET]   - Total Pods: %d", len(pods))
+			logrus.Errorf("[目标组件调试]   StatefulSet存在: %v", statefulset != nil)
+			logrus.Errorf("[目标组件调试]   Pod总数: %d", len(pods))
 			for i, pod := range pods {
 				podReady := false
 				if pod.Status.Phase == corev1.PodRunning {
@@ -1352,15 +1362,17 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 						}
 					}
 				}
-				logrus.Errorf("[DEBUG-TARGET]   - Pod[%d]: name=%s, version=%s, phase=%s, ready=%v",
-					i, pod.Name, pod.Labels["version"], pod.Status.Phase, podReady)
+				logrus.Errorf("[目标组件调试]     Pod[%d] 名称: %s", i, pod.Name)
+				logrus.Errorf("[目标组件调试]     Pod[%d] version: %s", i, pod.Labels["version"])
+				logrus.Errorf("[目标组件调试]     Pod[%d] 状态: %s", i, pod.Status.Phase)
+				logrus.Errorf("[目标组件调试]     Pod[%d] Ready: %v", i, podReady)
 			}
 		}
 
 		status := app.GetServiceStatus()
 
 		if serviceID == targetServiceID {
-			logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s final status=%s", serviceID, status)
+			logrus.Errorf("[目标组件调试] 最终返回状态: %s", status)
 		}
 
 		if status == v1.UNKNOW {
@@ -1767,8 +1779,12 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 						}
 					}
 				}
-				logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: name=%s, namespace=%s, version=%s, phase=%s, ready=%v",
-					pod.Name, pod.Namespace, version, pod.Status.Phase, podReady)
+				logrus.Errorf("[目标组件调试] ========== Pod OnAdd 事件触发 ==========")
+				logrus.Errorf("[目标组件调试]   Pod名称: %s", pod.Name)
+				logrus.Errorf("[目标组件调试]   命名空间: %s", pod.Namespace)
+				logrus.Errorf("[目标组件调试]   version标签: %s", version)
+				logrus.Errorf("[目标组件调试]   Pod状态: %s", pod.Status.Phase)
+				logrus.Errorf("[目标组件调试]   Pod是否Ready: %v", podReady)
 			}
 
 			// 检查必需标签是否存在
@@ -1785,10 +1801,10 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 
 				if serviceID == targetServiceID {
 					if appservice != nil {
-						logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: 找到AppService, DeployVersion=%s, 准备添加Pod",
-							appservice.DeployVersion)
+						logrus.Errorf("[目标组件调试] 找到AppService，准备添加Pod")
+						logrus.Errorf("[目标组件调试]   AppService.DeployVersion: %s", appservice.DeployVersion)
 					} else {
-						logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: AppService为nil, err=%v", err)
+						logrus.Errorf("[目标组件调试] AppService为nil, 错误: %v", err)
 					}
 				}
 

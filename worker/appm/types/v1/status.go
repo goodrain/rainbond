@@ -126,14 +126,16 @@ func (a *AppService) GetServiceStatus() string {
 
 	if targetServiceID == a.ServiceID {
 		matchingPods := a.getMatchingVersionPods()
-		logrus.Errorf("[DEBUG-TARGET] GetServiceStatus START: ServiceID=%s", a.ServiceID)
-		logrus.Errorf("[DEBUG-TARGET]   - DeployVersion=%s, Replicas=%d", a.DeployVersion, a.Replicas)
-		logrus.Errorf("[DEBUG-TARGET]   - TotalPods=%d, MatchingPods=%d", len(a.pods), len(matchingPods))
-		logrus.Errorf("[DEBUG-TARGET]   - Deployment exists=%v", a.deployment != nil)
+		logrus.Errorf("[目标组件调试] ========== GetServiceStatus 被调用 ==========")
+		logrus.Errorf("[目标组件调试]   DeployVersion: %s", a.DeployVersion)
+		logrus.Errorf("[目标组件调试]   期望副本数: %d", a.Replicas)
+		logrus.Errorf("[目标组件调试]   Pod总数: %d", len(a.pods))
+		logrus.Errorf("[目标组件调试]   匹配version的Pod数: %d", len(matchingPods))
+		logrus.Errorf("[目标组件调试]   Deployment存在: %v", a.deployment != nil)
 		if a.deployment != nil {
-			logrus.Errorf("[DEBUG-TARGET]   - Deployment.ReadyReplicas=%d", a.deployment.Status.ReadyReplicas)
+			logrus.Errorf("[目标组件调试]   Deployment.ReadyReplicas: %d", a.deployment.Status.ReadyReplicas)
 		}
-		logrus.Errorf("[DEBUG-TARGET]   - StatefulSet exists=%v", a.statefulset != nil)
+		logrus.Errorf("[目标组件调试]   StatefulSet存在: %v", a.statefulset != nil)
 	}
 
 	if a.ServiceType == TypeKubeBlocks {
@@ -352,9 +354,9 @@ func (a *AppService) GetServiceStatus() string {
 
 	finalStatus := UNKNOW
 	// 目标service_id用于调试
-	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+	targetServiceID = "f2aa2032719d4b82bc3d0cf6d44d4488"
 	if targetServiceID == a.ServiceID {
-		logrus.Errorf("[DEBUG-TARGET] GetServiceStatus END: returning status=%s", finalStatus)
+		logrus.Errorf("[目标组件调试] GetServiceStatus 最终返回: %s", finalStatus)
 	}
 	return finalStatus
 }
