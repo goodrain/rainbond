@@ -354,7 +354,7 @@ func (a *AppService) GetServiceStatus() string {
 
 	finalStatus := UNKNOW
 	// 目标service_id用于调试
-	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+	targetServiceID = "f2aa2032719d4b82bc3d0cf6d44d4488"
 	if targetServiceID == a.ServiceID {
 		logrus.Errorf("[目标组件调试] GetServiceStatus 最终返回: %s", finalStatus)
 	}
