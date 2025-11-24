@@ -128,6 +128,7 @@ func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
 // InitCacheAppService init cache app service.
 // if store manager receive a kube model belong with service and not find in store,will create
 func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppService, error) {
+	logrus.Infof("[InitCacheAppService] Initializing AppService for serviceID=%s, creatorID=%s", serviceID, creatorID)
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
 			ServiceID:      serviceID,
@@ -139,18 +140,27 @@ func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppSe
 	}
 
 	// setup governance mode
+	logrus.Debugf("[InitCacheAppService] Querying application info for service: %s", serviceID)
 	app, err := dbm.ApplicationDao().GetByServiceID(serviceID)
 	if err != nil && err != bcode.ErrApplicationNotFound {
-		return nil, fmt.Errorf("get app based on service id(%s)", serviceID)
+		logrus.Errorf("[InitCacheAppService] Failed to get app for service %s: %v", serviceID, err)
+		return nil, fmt.Errorf("get app based on service id(%s): %v", serviceID, err)
 	}
 	if app != nil {
+		logrus.Infof("[InitCacheAppService] Found application for service %s: appID=%s, governanceMode=%s",
+			serviceID, app.AppID, app.GovernanceMode)
 		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
 		appService.AppServiceBase.K8sApp = app.K8sApp
+	} else {
+		logrus.Debugf("[InitCacheAppService] No application found for service %s (this is OK)", serviceID)
 	}
 
+	logrus.Debugf("[InitCacheAppService] Loading tenant service base info for service: %s", serviceID)
 	if err := TenantServiceBase(appService, dbm); err != nil {
+		logrus.Errorf("[InitCacheAppService] TenantServiceBase failed for service %s: %v", serviceID, err)
 		return nil, err
 	}
 
+	logrus.Infof("[InitCacheAppService] Successfully initialized AppService for service: %s", serviceID)
 	return appService, nil
 }
