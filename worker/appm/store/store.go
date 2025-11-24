@@ -404,16 +404,13 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		migrator := deployment.Labels["migrator"]
 		appID := deployment.Labels["app_id"]
 
-		// 目标service_id用于调试
-		targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
-
 		if serviceID != "" && version != "" && createrID != "" {
 			replicas := int32(0)
 			if deployment.Spec.Replicas != nil {
 				replicas = *deployment.Spec.Replicas
 			}
 
-			if serviceID == targetServiceID {
+			if IsTargetService(serviceID) {
 				logrus.Errorf("[目标组件调试] ========== Deployment OnAdd 事件触发 ==========")
 				logrus.Errorf("[目标组件调试]   Deployment名称: %s", deployment.Name)
 				logrus.Errorf("[目标组件调试]   命名空间: %s", deployment.Namespace)
@@ -433,7 +430,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
 
-				if serviceID == targetServiceID {
+				if IsTargetService(serviceID) {
 					logrus.Errorf("[目标组件调试] SetDeployment 执行成功")
 					logrus.Errorf("[目标组件调试]   AppService.DeployVersion: %s", appservice.DeployVersion)
 					logrus.Errorf("[目标组件调试]   AppService.Replicas: %d", appservice.Replicas)
@@ -831,6 +828,20 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 	if deployment, ok := newObj.(*appsv1.Deployment); ok {
 		oldDeployment := oldObj.(*appsv1.Deployment)
 		serviceID := deployment.Labels["service_id"]
+
+		if IsTargetService(serviceID) {
+			logrus.Errorf("[目标组件调试] ========== Deployment OnUpdate 事件触发 ==========")
+			logrus.Errorf("[目标组件调试]   Deployment名称: %s", deployment.Name)
+			logrus.Errorf("[目标组件调试]   旧ReadyReplicas: %d", oldDeployment.Status.ReadyReplicas)
+			logrus.Errorf("[目标组件调试]   新ReadyReplicas: %d", deployment.Status.ReadyReplicas)
+			logrus.Errorf("[目标组件调试]   旧AvailableReplicas: %d", oldDeployment.Status.AvailableReplicas)
+			logrus.Errorf("[目标组件调试]   新AvailableReplicas: %d", deployment.Status.AvailableReplicas)
+			logrus.Errorf("[目标组件调试]   旧Replicas: %d", oldDeployment.Status.Replicas)
+			logrus.Errorf("[目标组件调试]   新Replicas: %d", deployment.Status.Replicas)
+			logrus.Errorf("[目标组件调试]   期望副本数: %d", func() int32 { if deployment.Spec.Replicas != nil { return *deployment.Spec.Replicas }; return 0 }())
+			logrus.Errorf("[目标组件调试] ==============================================")
+		}
+
 		if serviceID != "" && oldDeployment.Status.ReadyReplicas != deployment.Status.ReadyReplicas {
 			logrus.Infof("[Deployment更新] %s Deployment %s: ReadyReplicas变化 %d -> %d, DesiredReplicas=%d",
 				deployment.Namespace, deployment.Name,
@@ -1319,13 +1330,10 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 	statusMap := make(map[string]string, len(serviceIDs))
 	var queryComponentIDs []string
 
-	// 目标service_id用于调试
-	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
-
 	for _, serviceID := range serviceIDs {
 		app := a.GetAppService(serviceID)
 		if app == nil {
-			if serviceID == targetServiceID {
+			if IsTargetService(serviceID) {
 				logrus.Errorf("[目标组件调试] ========== GetAppServiceStatuses 被调用 ==========")
 				logrus.Errorf("[目标组件调试] AppService 在内存中不存在！将检查数据库和K8s")
 			}
@@ -1334,7 +1342,7 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 		}
 
 		// 详细日志
-		if serviceID == targetServiceID {
+		if IsTargetService(serviceID) {
 			deployment := app.GetDeployment()
 			statefulset := app.GetStatefulSet()
 			pods := app.GetPods(false)
@@ -1761,15 +1769,13 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
 
 			// 目标service_id用于调试
-			targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
-
 			// rbd-prd 命名空间的详细日志
 			if pod.Namespace == "rbd-prd" {
 				logrus.Infof("[Pod新增] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s",
 					pod.Name, tenantID, serviceID, version, createrID)
 			}
 
-			if serviceID == targetServiceID {
+			if IsTargetService(serviceID) {
 				podReady := false
 				if pod.Status.Phase == corev1.PodRunning {
 					for _, cond := range pod.Status.Conditions {
