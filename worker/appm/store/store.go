@@ -350,42 +350,17 @@ func (a *appRuntimeStore) Lister() *Lister {
 }
 
 func (a *appRuntimeStore) Start() error {
-	logrus.Infof("[Store] Starting appRuntimeStore and informers")
-	if IsDebugMode() {
-		logrus.Infof("[Store] Debug mode enabled for service IDs: %v", GetDebugServiceIDs())
-	}
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
-	logrus.Infof("[Store] Waiting for informers to sync...")
 	for !a.Ready() {
 	}
-	logrus.Infof("[Store] All informers synced successfully. Current apps in cache: %d", a.appCount)
-
-	// Log summary of loaded services
-	serviceIDs := make([]string, 0)
-	debugServiceIDs := make([]string, 0)
-	a.appServices.Range(func(key, value interface{}) bool {
-		if appService, ok := value.(*v1.AppService); ok {
-			serviceIDs = append(serviceIDs, appService.ServiceID)
-			if ShouldDebugService(appService.ServiceID) {
-				debugServiceIDs = append(debugServiceIDs, appService.ServiceID)
-			}
-		}
-		return true
-	})
-	logrus.Infof("[Store] Loaded %d services to cache", len(serviceIDs))
-	if IsDebugMode() {
-		logrus.Infof("[Store] Debug services in cache: %v", debugServiceIDs)
-	}
-
 	// init core componentdefinition
 	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.k8sClient.RainbondClient)
 	go func() {
 		a.initCustomResourceInformer(stopch)
 	}()
-	logrus.Infof("[Store] appRuntimeStore started successfully")
 	return nil
 }
 
@@ -411,24 +386,6 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 }
 
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
-	// Log all objects detected by Informer for debugging
-	switch obj.(type) {
-	case *appsv1.Deployment:
-		dep := obj.(*appsv1.Deployment)
-		serviceID := dep.Labels["service_id"]
-		if ShouldDebugService(serviceID) {
-			logrus.Infof("[OnAdd] Informer detected Deployment: name=%s, namespace=%s, serviceID=%s",
-				dep.Name, dep.Namespace, serviceID)
-		}
-	case *appsv1.StatefulSet:
-		sts := obj.(*appsv1.StatefulSet)
-		serviceID := sts.Labels["service_id"]
-		if ShouldDebugService(serviceID) {
-			logrus.Infof("[OnAdd] Informer detected StatefulSet: name=%s, namespace=%s, serviceID=%s",
-				sts.Name, sts.Namespace, serviceID)
-		}
-	}
-
 	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
 		serviceID := thirdComponent.Labels["service_id"]
 		createrID := thirdComponent.Labels["creater_id"]
@@ -446,61 +403,24 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := deployment.Labels["creater_id"]
 		migrator := deployment.Labels["migrator"]
 		appID := deployment.Labels["app_id"]
-
-		// Only log if in debug mode for this service
-		shouldDebug := ShouldDebugService(serviceID)
-
-		if shouldDebug {
-			logrus.Infof("[OnAdd-Deployment] Detected deployment: name=%s, namespace=%s, serviceID=%s, version=%s, createrID=%s",
-				deployment.Name, deployment.Namespace, serviceID, version, createrID)
-		}
-
 		if serviceID != "" && version != "" && createrID != "" {
-			if shouldDebug {
-				logrus.Infof("[OnAdd-Deployment] Processing deployment for service: %s", serviceID)
-			}
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err != nil {
-				if shouldDebug {
-					logrus.Errorf("[OnAdd-Deployment] Error getting AppService for %s: %v", serviceID, err)
-				}
-				if err == conversion.ErrServiceNotFound {
-					if shouldDebug {
-						logrus.Warnf("[OnAdd-Deployment] Service %s not found in DB, deleting deployment: %s", serviceID, deployment.Name)
-					}
-					a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
-				} else {
-					if shouldDebug {
-						logrus.Errorf("[OnAdd-Deployment] Non-ErrServiceNotFound error for service %s, deployment will remain unmanaged", serviceID)
-					}
-				}
+			if err == conversion.ErrServiceNotFound {
+				a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
-				if shouldDebug {
-					logrus.Infof("[OnAdd-Deployment] Setting deployment for AppService: %s", serviceID)
-				}
 				appservice.SetDeployment(deployment)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
 					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
-						if shouldDebug {
-							logrus.Infof("[OnAdd-Deployment] Found %d pods for service %s, adding to AppService", len(pods.Items), serviceID)
-						}
 						for _, pod := range pods.Items {
 							pod := pod
 							appservice.SetPods(&pod)
 						}
 					}
 				}
-				if shouldDebug {
-					logrus.Infof("[OnAdd-Deployment] Successfully processed deployment for service: %s", serviceID)
-				}
 				return
-			} else {
-				if shouldDebug {
-					logrus.Warnf("[OnAdd-Deployment] AppService is nil for service %s after getAppService, deployment unmanaged", serviceID)
-				}
 			}
 
 		} else if deployment.OwnerReferences != nil && appID != "" {
@@ -508,11 +428,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			if operatorManaged != nil {
 				operatorManaged.SetDeployment(deployment)
 				return
-			}
-		} else {
-			if shouldDebug {
-				logrus.Warnf("[OnAdd-Deployment] Deployment %s missing required labels: serviceID=%s, version=%s, createrID=%s",
-					deployment.Name, serviceID, version, createrID)
 			}
 		}
 	}
@@ -610,41 +525,26 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := statefulset.Labels["creater_id"]
 		migrator := statefulset.Labels["migrator"]
 		appID := statefulset.Labels["app_id"]
-		logrus.Infof("[OnAdd-StatefulSet] Detected statefulset: name=%s, namespace=%s, serviceID=%s, version=%s, createrID=%s",
-			statefulset.Name, statefulset.Namespace, serviceID, version, createrID)
 		if serviceID != "" && version != "" && createrID != "" {
-			logrus.Infof("[OnAdd-StatefulSet] Processing statefulset for service: %s", serviceID)
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err != nil {
-				logrus.Errorf("[OnAdd-StatefulSet] Error getting AppService for %s: %v", serviceID, err)
-				if err == conversion.ErrServiceNotFound {
-					logrus.Warnf("[OnAdd-StatefulSet] Service %s not found in DB, deleting statefulset: %s", serviceID, statefulset.Name)
-					a.k8sClient.Clientset.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
-				} else {
-					logrus.Errorf("[OnAdd-StatefulSet] Non-ErrServiceNotFound error for service %s, statefulset will remain unmanaged", serviceID)
-				}
+			if err == conversion.ErrServiceNotFound {
+				a.k8sClient.Clientset.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
-				logrus.Infof("[OnAdd-StatefulSet] Setting statefulset for AppService: %s", serviceID)
 				appservice.SetStatefulSet(statefulset)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
 					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(statefulset.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
-						logrus.Infof("[OnAdd-StatefulSet] Found %d pods for service %s, adding to AppService", len(pods.Items), serviceID)
 						for _, pod := range pods.Items {
 							pod := pod
 							appservice.SetPods(&pod)
 						}
 					}
 				}
-				logrus.Infof("[OnAdd-StatefulSet] Successfully processed statefulset for service: %s", serviceID)
 				return
-			} else {
-				logrus.Warnf("[OnAdd-StatefulSet] AppService is nil for service %s after getAppService, statefulset unmanaged", serviceID)
 			}
 		} else if statefulset.OwnerReferences != nil && appID != "" {
-			logrus.Debugf("[OnAdd-StatefulSet] StatefulSet has OwnerReferences, processing as operator managed: appID=%s", appID)
 			operatorManaged := a.getOperatorManaged(appID)
 			if operatorManaged != nil {
 				operatorManaged.SetStatefulSet(statefulset)
@@ -858,41 +758,28 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 
 // getAppService if  creator is true, will create new app service where not found in store
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
-	shouldDebug := ShouldDebugService(serviceID)
-	if shouldDebug {
-		logrus.Infof("[getAppService] Looking for service: %s (version=%s, createrID=%s, creator=%v)",
-			serviceID, version, createrID, creator)
-	}
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID)
-	if appservice == nil {
-		if shouldDebug {
-			logrus.Infof("[getAppService] AppService not found in cache for service: %s, creator=%v", serviceID, creator)
+
+	// 调试日志：检查是否从内存中获取到了 AppService
+	if appservice != nil {
+		// 已经存在于内存中
+		return appservice, nil
+	}
+
+	// 内存中不存在，尝试从数据库初始化
+	if appservice == nil && creator {
+		logrus.Infof("[getAppService] 内存中未找到 AppService (serviceID=%s)，尝试从数据库初始化", serviceID)
+		var err error
+		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
+		if err != nil {
+			logrus.Warnf("[getAppService] 从数据库初始化 AppService 失败 (serviceID=%s, createrID=%s): %s",
+				serviceID, createrID, err.Error())
+			return nil, err
 		}
-		if creator {
-			if shouldDebug {
-				logrus.Infof("[getAppService] Creating new AppService for service: %s", serviceID)
-			}
-			var err error
-			appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
-			if err != nil {
-				if shouldDebug {
-					logrus.Errorf("[getAppService] Failed to init cache app service %s: %v", serviceID, err)
-				}
-				return nil, err
-			}
-			if shouldDebug {
-				logrus.Infof("[getAppService] Successfully created AppService for service: %s, registering to cache", serviceID)
-			}
-			a.RegistAppService(appservice)
-			if shouldDebug {
-				logrus.Infof("[getAppService] AppService registered to cache for service: %s", serviceID)
-			}
-		}
-	} else {
-		if shouldDebug {
-			logrus.Infof("[getAppService] AppService found in cache for service: %s", serviceID)
-		}
+		logrus.Infof("[getAppService] 成功从数据库初始化 AppService (serviceID=%s, TenantID=%s, ServiceAlias=%s)",
+			serviceID, appservice.TenantID, appservice.ServiceAlias)
+		a.RegistAppService(appservice)
 	}
 	return appservice, nil
 }
@@ -1176,12 +1063,9 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 
 // RegistAppService regist a app model to store.
 func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
-	cacheKey := v1.GetCacheKeyOnlyServiceID(app.ServiceID)
-	logrus.Infof("[RegistAppService] Registering AppService to cache: serviceID=%s, alias=%s, cacheKey=%s",
-		app.ServiceID, app.ServiceAlias, cacheKey)
-	a.appServices.Store(cacheKey, app)
+	a.appServices.Store(v1.GetCacheKeyOnlyServiceID(app.ServiceID), app)
 	a.appCount++
-	logrus.Infof("[RegistAppService] AppService registered successfully. Total apps in cache: %d", a.appCount)
+	logrus.Debugf("current have %d app after add \n", a.appCount)
 }
 
 func (a *appRuntimeStore) RegistOperatorManaged(app *v1.OperatorManaged) {
@@ -1208,11 +1092,9 @@ func (a *appRuntimeStore) DeleteAppServiceByKey(key v1.CacheKey) {
 
 func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	key := v1.GetCacheKeyOnlyServiceID(serviceID)
-	logrus.Debugf("[GetAppService] Looking up cache for serviceID=%s, cacheKey=%s", serviceID, key)
 	app, ok := a.appServices.Load(key)
 	if ok {
 		appService := app.(*v1.AppService)
-		logrus.Debugf("[GetAppService] Cache hit for serviceID=%s, alias=%s", serviceID, appService.ServiceAlias)
 		return appService
 	}
 	return nil
@@ -1358,64 +1240,25 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 }
 
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
-	shouldDebug := ShouldDebugService(serviceID)
-	if shouldDebug {
-		logrus.Infof("[GetAppServiceStatus] Query status for service: %s", serviceID)
-	}
 	app := a.GetAppService(serviceID)
 	if app == nil {
-		if shouldDebug {
-			logrus.Warnf("[GetAppServiceStatus] AppService not found in cache for service: %s, checking database", serviceID)
-		}
-		component, err := a.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
-		if err != nil && shouldDebug {
-			logrus.Errorf("[GetAppServiceStatus] Failed to query database for service %s: %v", serviceID, err)
-		}
+		component, _ := a.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
 		if component == nil {
-			if shouldDebug {
-				logrus.Warnf("[GetAppServiceStatus] Service %s not found in database, returning UNKNOW", serviceID)
-			}
 			return v1.UNKNOW
 		}
-		if shouldDebug {
-			logrus.Infof("[GetAppServiceStatus] Service %s found in DB: kind=%s, alias=%s, tenant=%s",
-				serviceID, component.Kind, component.ServiceAlias, component.TenantID)
-		}
 		if component.Kind == model.ServiceKindThirdParty.String() {
-			if shouldDebug {
-				logrus.Infof("[GetAppServiceStatus] Service %s is third-party component, returning CLOSED", serviceID)
-			}
 			return v1.CLOSED
 		}
 		versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 		if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
-			if shouldDebug {
-				logrus.Warnf("[GetAppServiceStatus] No version found for service %s, returning UNDEPLOY", serviceID)
-			}
 			return v1.UNDEPLOY
-		}
-		if shouldDebug {
-			logrus.Warnf("[GetAppServiceStatus] Service %s exists in DB with %d versions but not in cache, returning CLOSED",
-				serviceID, len(versions))
 		}
 		return v1.CLOSED
 	}
-	if shouldDebug {
-		logrus.Infof("[GetAppServiceStatus] AppService found in cache for service: %s", serviceID)
-	}
 	status := app.GetServiceStatus()
-	if shouldDebug {
-		logrus.Infof("[GetAppServiceStatus] Service %s status from AppService: %s", serviceID, status)
-	}
 	if status == v1.UNKNOW {
-		if shouldDebug {
-			logrus.Infof("[GetAppServiceStatus] Status is UNKNOW, updating AppService for service: %s", serviceID)
-		}
 		app := a.UpdateGetAppService(serviceID)
 		if app == nil {
-			if shouldDebug {
-				logrus.Warnf("[GetAppServiceStatus] UpdateGetAppService returned nil for service: %s", serviceID)
-			}
 			versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 			if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
 				return v1.UNDEPLOY
@@ -1821,17 +1664,50 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		AddFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
-			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// rbd-prd 命名空间的详细日志
+			if pod.Namespace == "rbd-prd" {
+				logrus.Infof("[Pod新增] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s",
+					pod.Name, tenantID, serviceID, version, createrID)
+			}
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				if pod.Namespace == "rbd-prd" {
+					logrus.Warnf("[Pod新增] rbd-prd Pod %s 缺少必需标签，将被忽略 - service_id=%q, version=%q, creater_id=%q, 所有标签: %v",
+						pod.Name, serviceID, version, createrID, pod.GetLabels())
+				}
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
+				if pod.Namespace == "rbd-prd" {
+					if err != nil {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: 获取 AppService 失败 - %v (serviceID=%s, version=%s, createrID=%s)",
+							pod.Name, err, serviceID, version, createrID)
+					} else if appservice == nil {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: AppService 为空，无法添加 (serviceID=%s, version=%s, createrID=%s)",
+							pod.Name, serviceID, version, createrID)
+					} else {
+						logrus.Infof("[Pod新增] rbd-prd Pod %s: 成功添加到 AppService (serviceID=%s, 当前Pod数量=%d)",
+							pod.Name, serviceID, len(appservice.GetPods(false))+1)
+					}
+				}
+
 				if err == conversion.ErrServiceNotFound {
+					if pod.Namespace == "rbd-prd" {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: 数据库中未找到服务，将删除该 Pod (serviceID=%s)", pod.Name, serviceID)
+					}
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}
@@ -1857,17 +1733,47 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		UpdateFunc: func(old, cur interface{}) {
 			pod := cur.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
-			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// rbd-prd 命名空间的详细日志
+			if pod.Namespace == "rbd-prd" {
+				logrus.Infof("[Pod更新] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s, Phase=%s",
+					pod.Name, tenantID, serviceID, version, createrID, pod.Status.Phase)
+			}
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				if pod.Namespace == "rbd-prd" {
+					logrus.Warnf("[Pod更新] rbd-prd Pod %s 缺少必需标签，将被忽略 - service_id=%q, version=%q, creater_id=%q",
+						pod.Name, serviceID, version, createrID)
+				}
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
+				if pod.Namespace == "rbd-prd" {
+					if err != nil {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: 获取 AppService 失败 - %v", pod.Name, err)
+					} else if appservice == nil {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: AppService 为空，无法更新", pod.Name)
+					} else {
+						logrus.Infof("[Pod更新] rbd-prd Pod %s: 成功更新到 AppService (serviceID=%s)", pod.Name, serviceID)
+					}
+				}
+
 				if err == conversion.ErrServiceNotFound {
+					if pod.Namespace == "rbd-prd" {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: 数据库中未找到服务，将删除该 Pod", pod.Name)
+					}
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}
