@@ -350,17 +350,42 @@ func (a *appRuntimeStore) Lister() *Lister {
 }
 
 func (a *appRuntimeStore) Start() error {
+	logrus.Infof("[Store] Starting appRuntimeStore and informers")
+	if IsDebugMode() {
+		logrus.Infof("[Store] Debug mode enabled for service IDs: %v", GetDebugServiceIDs())
+	}
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
+	logrus.Infof("[Store] Waiting for informers to sync...")
 	for !a.Ready() {
 	}
+	logrus.Infof("[Store] All informers synced successfully. Current apps in cache: %d", a.appCount)
+
+	// Log summary of loaded services
+	serviceIDs := make([]string, 0)
+	debugServiceIDs := make([]string, 0)
+	a.appServices.Range(func(key, value interface{}) bool {
+		if appService, ok := value.(*v1.AppService); ok {
+			serviceIDs = append(serviceIDs, appService.ServiceID)
+			if ShouldDebugService(appService.ServiceID) {
+				debugServiceIDs = append(debugServiceIDs, appService.ServiceID)
+			}
+		}
+		return true
+	})
+	logrus.Infof("[Store] Loaded %d services to cache", len(serviceIDs))
+	if IsDebugMode() {
+		logrus.Infof("[Store] Debug services in cache: %v", debugServiceIDs)
+	}
+
 	// init core componentdefinition
 	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.k8sClient.RainbondClient)
 	go func() {
 		a.initCustomResourceInformer(stopch)
 	}()
+	logrus.Infof("[Store] appRuntimeStore started successfully")
 	return nil
 }
 
@@ -386,6 +411,24 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 }
 
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
+	// Log all objects detected by Informer for debugging
+	switch obj.(type) {
+	case *appsv1.Deployment:
+		dep := obj.(*appsv1.Deployment)
+		serviceID := dep.Labels["service_id"]
+		if ShouldDebugService(serviceID) {
+			logrus.Infof("[OnAdd] Informer detected Deployment: name=%s, namespace=%s, serviceID=%s",
+				dep.Name, dep.Namespace, serviceID)
+		}
+	case *appsv1.StatefulSet:
+		sts := obj.(*appsv1.StatefulSet)
+		serviceID := sts.Labels["service_id"]
+		if ShouldDebugService(serviceID) {
+			logrus.Infof("[OnAdd] Informer detected StatefulSet: name=%s, namespace=%s, serviceID=%s",
+				sts.Name, sts.Namespace, serviceID)
+		}
+	}
+
 	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
 		serviceID := thirdComponent.Labels["service_id"]
 		createrID := thirdComponent.Labels["creater_id"]
@@ -403,50 +446,74 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := deployment.Labels["creater_id"]
 		migrator := deployment.Labels["migrator"]
 		appID := deployment.Labels["app_id"]
-		logrus.Infof("[OnAdd-Deployment] Detected deployment: name=%s, namespace=%s, serviceID=%s, version=%s, createrID=%s",
-			deployment.Name, deployment.Namespace, serviceID, version, createrID)
+
+		// Only log if in debug mode for this service
+		shouldDebug := ShouldDebugService(serviceID)
+
+		if shouldDebug {
+			logrus.Infof("[OnAdd-Deployment] Detected deployment: name=%s, namespace=%s, serviceID=%s, version=%s, createrID=%s",
+				deployment.Name, deployment.Namespace, serviceID, version, createrID)
+		}
+
 		if serviceID != "" && version != "" && createrID != "" {
-			logrus.Infof("[OnAdd-Deployment] Processing deployment for service: %s", serviceID)
+			if shouldDebug {
+				logrus.Infof("[OnAdd-Deployment] Processing deployment for service: %s", serviceID)
+			}
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err != nil {
-				logrus.Errorf("[OnAdd-Deployment] Error getting AppService for %s: %v", serviceID, err)
+				if shouldDebug {
+					logrus.Errorf("[OnAdd-Deployment] Error getting AppService for %s: %v", serviceID, err)
+				}
 				if err == conversion.ErrServiceNotFound {
-					logrus.Warnf("[OnAdd-Deployment] Service %s not found in DB, deleting deployment: %s", serviceID, deployment.Name)
+					if shouldDebug {
+						logrus.Warnf("[OnAdd-Deployment] Service %s not found in DB, deleting deployment: %s", serviceID, deployment.Name)
+					}
 					a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 				} else {
-					logrus.Errorf("[OnAdd-Deployment] Non-ErrServiceNotFound error for service %s, deployment will remain unmanaged", serviceID)
+					if shouldDebug {
+						logrus.Errorf("[OnAdd-Deployment] Non-ErrServiceNotFound error for service %s, deployment will remain unmanaged", serviceID)
+					}
 				}
 			}
 			if appservice != nil {
-				logrus.Infof("[OnAdd-Deployment] Setting deployment for AppService: %s", serviceID)
+				if shouldDebug {
+					logrus.Infof("[OnAdd-Deployment] Setting deployment for AppService: %s", serviceID)
+				}
 				appservice.SetDeployment(deployment)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
 					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
 					if pods != nil {
-						logrus.Infof("[OnAdd-Deployment] Found %d pods for service %s, adding to AppService", len(pods.Items), serviceID)
+						if shouldDebug {
+							logrus.Infof("[OnAdd-Deployment] Found %d pods for service %s, adding to AppService", len(pods.Items), serviceID)
+						}
 						for _, pod := range pods.Items {
 							pod := pod
 							appservice.SetPods(&pod)
 						}
 					}
 				}
-				logrus.Infof("[OnAdd-Deployment] Successfully processed deployment for service: %s", serviceID)
+				if shouldDebug {
+					logrus.Infof("[OnAdd-Deployment] Successfully processed deployment for service: %s", serviceID)
+				}
 				return
 			} else {
-				logrus.Warnf("[OnAdd-Deployment] AppService is nil for service %s after getAppService, deployment unmanaged", serviceID)
+				if shouldDebug {
+					logrus.Warnf("[OnAdd-Deployment] AppService is nil for service %s after getAppService, deployment unmanaged", serviceID)
+				}
 			}
 
 		} else if deployment.OwnerReferences != nil && appID != "" {
-			logrus.Debugf("[OnAdd-Deployment] Deployment has OwnerReferences, processing as operator managed: appID=%s", appID)
 			operatorManaged := a.getOperatorManaged(appID)
 			if operatorManaged != nil {
 				operatorManaged.SetDeployment(deployment)
 				return
 			}
 		} else {
-			logrus.Warnf("[OnAdd-Deployment] Deployment %s missing required labels: serviceID=%s, version=%s, createrID=%s",
-				deployment.Name, serviceID, version, createrID)
+			if shouldDebug {
+				logrus.Warnf("[OnAdd-Deployment] Deployment %s missing required labels: serviceID=%s, version=%s, createrID=%s",
+					deployment.Name, serviceID, version, createrID)
+			}
 		}
 	}
 	if job, ok := obj.(*batchv1.Job); ok {
@@ -791,28 +858,41 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 
 // getAppService if  creator is true, will create new app service where not found in store
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
-	logrus.Debugf("[getAppService] Looking for service: %s (version=%s, createrID=%s, creator=%v)",
-		serviceID, version, createrID, creator)
+	shouldDebug := ShouldDebugService(serviceID)
+	if shouldDebug {
+		logrus.Infof("[getAppService] Looking for service: %s (version=%s, createrID=%s, creator=%v)",
+			serviceID, version, createrID, creator)
+	}
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID)
 	if appservice == nil {
-		logrus.Infof("[getAppService] AppService not found in cache for service: %s, creator=%v", serviceID, creator)
+		if shouldDebug {
+			logrus.Infof("[getAppService] AppService not found in cache for service: %s, creator=%v", serviceID, creator)
+		}
 		if creator {
-			logrus.Infof("[getAppService] Creating new AppService for service: %s", serviceID)
+			if shouldDebug {
+				logrus.Infof("[getAppService] Creating new AppService for service: %s", serviceID)
+			}
 			var err error
 			appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 			if err != nil {
-				logrus.Errorf("[getAppService] Failed to init cache app service %s: %v", serviceID, err)
+				if shouldDebug {
+					logrus.Errorf("[getAppService] Failed to init cache app service %s: %v", serviceID, err)
+				}
 				return nil, err
 			}
-			logrus.Infof("[getAppService] Successfully created AppService for service: %s, registering to cache", serviceID)
+			if shouldDebug {
+				logrus.Infof("[getAppService] Successfully created AppService for service: %s, registering to cache", serviceID)
+			}
 			a.RegistAppService(appservice)
-			logrus.Infof("[getAppService] AppService registered to cache for service: %s", serviceID)
-		} else {
-			logrus.Debugf("[getAppService] creator=false, not creating AppService for service: %s", serviceID)
+			if shouldDebug {
+				logrus.Infof("[getAppService] AppService registered to cache for service: %s", serviceID)
+			}
 		}
 	} else {
-		logrus.Debugf("[getAppService] AppService found in cache for service: %s", serviceID)
+		if shouldDebug {
+			logrus.Infof("[getAppService] AppService found in cache for service: %s", serviceID)
+		}
 	}
 	return appservice, nil
 }
@@ -1278,41 +1358,64 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 }
 
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
-	logrus.Debugf("[GetAppServiceStatus] Query status for service: %s", serviceID)
+	shouldDebug := ShouldDebugService(serviceID)
+	if shouldDebug {
+		logrus.Infof("[GetAppServiceStatus] Query status for service: %s", serviceID)
+	}
 	app := a.GetAppService(serviceID)
 	if app == nil {
-		logrus.Warnf("[GetAppServiceStatus] AppService not found in cache for service: %s, checking database", serviceID)
+		if shouldDebug {
+			logrus.Warnf("[GetAppServiceStatus] AppService not found in cache for service: %s, checking database", serviceID)
+		}
 		component, err := a.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
-		if err != nil {
+		if err != nil && shouldDebug {
 			logrus.Errorf("[GetAppServiceStatus] Failed to query database for service %s: %v", serviceID, err)
 		}
 		if component == nil {
-			logrus.Warnf("[GetAppServiceStatus] Service %s not found in database, returning UNKNOW", serviceID)
+			if shouldDebug {
+				logrus.Warnf("[GetAppServiceStatus] Service %s not found in database, returning UNKNOW", serviceID)
+			}
 			return v1.UNKNOW
 		}
-		logrus.Infof("[GetAppServiceStatus] Service %s found in DB: kind=%s, alias=%s, tenant=%s",
-			serviceID, component.Kind, component.ServiceAlias, component.TenantID)
+		if shouldDebug {
+			logrus.Infof("[GetAppServiceStatus] Service %s found in DB: kind=%s, alias=%s, tenant=%s",
+				serviceID, component.Kind, component.ServiceAlias, component.TenantID)
+		}
 		if component.Kind == model.ServiceKindThirdParty.String() {
-			logrus.Infof("[GetAppServiceStatus] Service %s is third-party component, returning CLOSED", serviceID)
+			if shouldDebug {
+				logrus.Infof("[GetAppServiceStatus] Service %s is third-party component, returning CLOSED", serviceID)
+			}
 			return v1.CLOSED
 		}
 		versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 		if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
-			logrus.Warnf("[GetAppServiceStatus] No version found for service %s, returning UNDEPLOY", serviceID)
+			if shouldDebug {
+				logrus.Warnf("[GetAppServiceStatus] No version found for service %s, returning UNDEPLOY", serviceID)
+			}
 			return v1.UNDEPLOY
 		}
-		logrus.Warnf("[GetAppServiceStatus] Service %s exists in DB with %d versions but not in cache, returning CLOSED",
-			serviceID, len(versions))
+		if shouldDebug {
+			logrus.Warnf("[GetAppServiceStatus] Service %s exists in DB with %d versions but not in cache, returning CLOSED",
+				serviceID, len(versions))
+		}
 		return v1.CLOSED
 	}
-	logrus.Debugf("[GetAppServiceStatus] AppService found in cache for service: %s", serviceID)
+	if shouldDebug {
+		logrus.Infof("[GetAppServiceStatus] AppService found in cache for service: %s", serviceID)
+	}
 	status := app.GetServiceStatus()
-	logrus.Debugf("[GetAppServiceStatus] Service %s status from AppService: %s", serviceID, status)
+	if shouldDebug {
+		logrus.Infof("[GetAppServiceStatus] Service %s status from AppService: %s", serviceID, status)
+	}
 	if status == v1.UNKNOW {
-		logrus.Infof("[GetAppServiceStatus] Status is UNKNOW, updating AppService for service: %s", serviceID)
+		if shouldDebug {
+			logrus.Infof("[GetAppServiceStatus] Status is UNKNOW, updating AppService for service: %s", serviceID)
+		}
 		app := a.UpdateGetAppService(serviceID)
 		if app == nil {
-			logrus.Warnf("[GetAppServiceStatus] UpdateGetAppService returned nil for service: %s", serviceID)
+			if shouldDebug {
+				logrus.Warnf("[GetAppServiceStatus] UpdateGetAppService returned nil for service: %s", serviceID)
+			}
 			versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 			if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
 				return v1.UNDEPLOY
