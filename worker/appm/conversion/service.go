@@ -99,38 +99,26 @@ func int32Ptr(i int) *int32 {
 
 // TenantServiceBase conv tenant service base info
 func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
-	shouldDebug := shouldDebugServiceID(as.ServiceID)
-	if shouldDebug {
-		logrus.Infof("[TenantServiceBase] Querying tenant_service table for serviceID: %s", as.ServiceID)
-	}
+	logrus.Debugf("[TenantServiceBase] Querying tenant_service table for serviceID: %s", as.ServiceID)
 	tenantService, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			if shouldDebug {
-				logrus.Warnf("[TenantServiceBase] Service %s not found in database (ErrRecordNotFound)", as.ServiceID)
-			}
+			logrus.Warnf("[TenantServiceBase] Service %s not found in database (ErrRecordNotFound)", as.ServiceID)
 			return ErrServiceNotFound
 		}
-		if shouldDebug {
-			logrus.Errorf("[TenantServiceBase] Database error querying service %s: %v", as.ServiceID, err)
-		}
+		logrus.Errorf("[TenantServiceBase] Database error querying service %s: %v", as.ServiceID, err)
 		return fmt.Errorf("error getting service base info by serviceID(%s) %s", as.ServiceID, err.Error())
 	}
-	if shouldDebug {
-		logrus.Infof("[TenantServiceBase] Found service in DB: serviceID=%s, alias=%s, kind=%s, tenantID=%s, deployVersion=%s",
-			as.ServiceID, tenantService.ServiceAlias, tenantService.Kind, tenantService.TenantID, tenantService.DeployVersion)
-	}
+	logrus.Infof("[TenantServiceBase] Found service in DB: serviceID=%s, alias=%s, kind=%s, tenantID=%s, deployVersion=%s",
+		as.ServiceID, tenantService.ServiceAlias, tenantService.Kind, tenantService.TenantID, tenantService.DeployVersion)
 	as.ServiceKind = dbmodel.ServiceKind(tenantService.Kind)
-	if shouldDebug {
-		logrus.Infof("[TenantServiceBase] Querying tenant info for tenantID: %s", tenantService.TenantID)
-	}
+	logrus.Debugf("[TenantServiceBase] Querying tenant info for tenantID: %s", tenantService.TenantID)
 	tenant, err := dbmanager.TenantDao().GetTenantByUUID(tenantService.TenantID)
 	if err != nil {
-		if shouldDebug {
-			logrus.Errorf("[TenantServiceBase] Failed to get tenant %s: %v", tenantService.TenantID, err)
-		}
+		logrus.Errorf("[TenantServiceBase] Failed to get tenant %s: %v", tenantService.TenantID, err)
 		return fmt.Errorf("get tenant info failure %s", err.Error())
 	}
+	logrus.Debugf("[TenantServiceBase] Found tenant: %s", tenant.Name)
 	as.TenantID = tenantService.TenantID
 	if as.DeployVersion == "" {
 		as.DeployVersion = tenantService.DeployVersion
@@ -147,24 +135,18 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	as.TenantName = tenant.Name
 	if err := initTenant(as, tenant); err != nil {
-		if shouldDebug {
-			logrus.Errorf("[TenantServiceBase] Failed to init tenant for service %s: %v", as.ServiceID, err)
-		}
+		logrus.Errorf("[TenantServiceBase] Failed to init tenant for service %s: %v", as.ServiceID, err)
 		return fmt.Errorf("conversion tenant info failure %s", err.Error())
 	}
 	if tenantService.Kind == dbmodel.ServiceKindThirdParty.String() {
-		if shouldDebug {
-			logrus.Infof("[TenantServiceBase] Service %s is third-party, loading discovery config", as.ServiceID)
-		}
+		logrus.Debugf("[TenantServiceBase] Service %s is third-party, loading discovery config", as.ServiceID)
 		disCfg, _ := dbmanager.ThirdPartySvcDiscoveryCfgDao().GetByServiceID(as.ServiceID)
 		as.SetDiscoveryCfg(disCfg)
 		return nil
 	}
 
 	if tenantService.Kind == dbmodel.ServiceKindCustom.String() {
-		if shouldDebug {
-			logrus.Infof("[TenantServiceBase] Service %s is custom component", as.ServiceID)
-		}
+		logrus.Debugf("[TenantServiceBase] Service %s is custom component", as.ServiceID)
 		return nil
 	}
 	label, _ := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")

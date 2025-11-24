@@ -121,16 +121,11 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 
 // GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
-	logrus.Debugf("[GetServiceStatus] Calculating status for service: %s (alias=%s, replicas=%d)",
-		a.ServiceID, a.ServiceAlias, a.Replicas)
-
 	if a.ServiceType == TypeKubeBlocks {
-		logrus.Debugf("[GetServiceStatus] Service %s is KubeBlocks type, returning RUNNING", a.ServiceID)
 		return RUNNING
 	}
 
 	if a.IsThirdComponent() {
-		logrus.Debugf("[GetServiceStatus] Service %s is third-party component", a.ServiceID)
 		endpoints := a.GetEndpoints(false)
 		if len(endpoints) == 0 {
 			return CLOSED
@@ -170,26 +165,11 @@ func (a *AppService) GetServiceStatus() string {
 		return CLOSED
 	}
 	if a == nil {
-		logrus.Warnf("[GetServiceStatus] AppService is nil, returning CLOSED")
 		return CLOSED
 	}
 	if a.IsClosed() {
-		logrus.Infof("[GetServiceStatus] Service %s is closed (IsClosed=true), returning CLOSED", a.ServiceID)
 		return CLOSED
 	}
-
-	// Log current state for debugging
-	logrus.Debugf("[GetServiceStatus] Service %s state: deployment=%v, statefulset=%v, pods=%d, replicas=%d",
-		a.ServiceID, a.deployment != nil, a.statefulset != nil, len(a.pods), a.Replicas)
-	if a.deployment != nil {
-		logrus.Debugf("[GetServiceStatus] Deployment status: ReadyReplicas=%d, Replicas=%d",
-			a.deployment.Status.ReadyReplicas, a.deployment.Status.Replicas)
-	}
-	if a.statefulset != nil {
-		logrus.Debugf("[GetServiceStatus] StatefulSet status: ReadyReplicas=%d, Replicas=%d",
-			a.statefulset.Status.ReadyReplicas, a.statefulset.Status.Replicas)
-	}
-
 	if a.virtualmachine != nil {
 		if a.virtualmachine.Status.PrintableStatus == v1.VirtualMachineStatusPaused {
 			return PAUSED
@@ -259,87 +239,60 @@ func (a *AppService) GetServiceStatus() string {
 	}
 
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
-		logrus.Infof("[GetServiceStatus] Service %s: no deployment/statefulset but has %d pods, returning STOPPING",
-			a.ServiceID, len(a.pods))
 		return STOPPING
 	}
 	if (a.statefulset != nil || a.deployment != nil) && len(a.pods) < a.Replicas {
-		logrus.Infof("[GetServiceStatus] Service %s: has workload but pods(%d) < replicas(%d), returning STARTING",
-			a.ServiceID, len(a.pods), a.Replicas)
 		return STARTING
 	}
 	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
 		if a.UpgradeComlete() {
-			logrus.Debugf("[GetServiceStatus] Service %s: StatefulSet ready and upgrade complete, returning RUNNING", a.ServiceID)
 			return RUNNING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: StatefulSet ready but upgrade incomplete, returning UPGRADE", a.ServiceID)
 		return UPGRADE
 	}
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
 		if a.UpgradeComlete() {
-			logrus.Debugf("[GetServiceStatus] Service %s: Deployment ready and upgrade complete, returning RUNNING", a.ServiceID)
 			return RUNNING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: Deployment ready but upgrade incomplete, returning UPGRADE", a.ServiceID)
 		return UPGRADE
 	}
 
 	if a.deployment != nil && (a.deployment.Status.ReadyReplicas < int32(a.Replicas) && a.deployment.Status.ReadyReplicas != 0) {
-		logrus.Infof("[GetServiceStatus] Service %s: Deployment ReadyReplicas(%d) < Replicas(%d) but not 0",
-			a.ServiceID, a.deployment.Status.ReadyReplicas, a.Replicas)
 		if isHaveTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has terminated containers, returning SOMEABNORMAL", a.ServiceID)
 			return SOMEABNORMAL
 		}
 		if isHaveNormalTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has normal terminated containers, returning STOPPING", a.ServiceID)
 			return STOPPING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: returning STARTING", a.ServiceID)
 		return STARTING
 	}
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas == 0 {
-		logrus.Warnf("[GetServiceStatus] Service %s: Deployment has 0 ReadyReplicas", a.ServiceID)
 		if isHaveTerminatedContainer(a.pods) {
-			logrus.Errorf("[GetServiceStatus] Service %s: has terminated containers, returning ABNORMAL", a.ServiceID)
 			return ABNORMAL
 		}
 		if isHaveNormalTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has normal terminated containers, returning STOPPING", a.ServiceID)
 			return STOPPING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: returning STARTING", a.ServiceID)
 		return STARTING
 	}
 	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.statefulset.Status.ReadyReplicas != 0) {
-		logrus.Infof("[GetServiceStatus] Service %s: StatefulSet ReadyReplicas(%d) < Replicas(%d) but not 0",
-			a.ServiceID, a.statefulset.Status.ReadyReplicas, a.Replicas)
 		if isHaveTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has terminated containers, returning SOMEABNORMAL", a.ServiceID)
 			return SOMEABNORMAL
 		}
 		if isHaveNormalTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has normal terminated containers, returning STOPPING", a.ServiceID)
 			return STOPPING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: returning STARTING", a.ServiceID)
 		return STARTING
 	}
 	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas == 0 {
-		logrus.Warnf("[GetServiceStatus] Service %s: StatefulSet has 0 ReadyReplicas", a.ServiceID)
 		if isHaveTerminatedContainer(a.pods) {
-			logrus.Errorf("[GetServiceStatus] Service %s: has terminated containers, returning ABNORMAL", a.ServiceID)
 			return ABNORMAL
 		}
 		if isHaveNormalTerminatedContainer(a.pods) {
-			logrus.Infof("[GetServiceStatus] Service %s: has normal terminated containers, returning STOPPING", a.ServiceID)
 			return STOPPING
 		}
-		logrus.Infof("[GetServiceStatus] Service %s: returning STARTING", a.ServiceID)
 		return STARTING
 	}
-	logrus.Warnf("[GetServiceStatus] Service %s: no condition matched, returning UNKNOW", a.ServiceID)
 	return UNKNOW
 }
 
