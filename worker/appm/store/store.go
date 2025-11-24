@@ -1379,7 +1379,7 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 
 		status := app.GetServiceStatus()
 
-		if serviceID == targetServiceID {
+		if IsTargetService(serviceID) {
 			logrus.Errorf("[目标组件调试] 最终返回状态: %s", status)
 		}
 
@@ -1805,7 +1805,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
 
-				if serviceID == targetServiceID {
+				if IsTargetService(serviceID) {
 					if appservice != nil {
 						logrus.Errorf("[目标组件调试] 找到AppService，准备添加Pod")
 						logrus.Errorf("[目标组件调试]   AppService.DeployVersion: %s", appservice.DeployVersion)
