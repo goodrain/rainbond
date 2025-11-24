@@ -760,13 +760,25 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID)
+
+	// 调试日志：检查是否从内存中获取到了 AppService
+	if appservice != nil {
+		// 已经存在于内存中
+		return appservice, nil
+	}
+
+	// 内存中不存在，尝试从数据库初始化
 	if appservice == nil && creator {
+		logrus.Infof("[getAppService] 内存中未找到 AppService (serviceID=%s)，尝试从数据库初始化", serviceID)
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {
-			logrus.Infof("init cache app service %s failure:%s ", serviceID, err.Error())
+			logrus.Warnf("[getAppService] 从数据库初始化 AppService 失败 (serviceID=%s, createrID=%s): %s",
+				serviceID, createrID, err.Error())
 			return nil, err
 		}
+		logrus.Infof("[getAppService] 成功从数据库初始化 AppService (serviceID=%s, TenantID=%s, ServiceAlias=%s)",
+			serviceID, appservice.TenantID, appservice.ServiceAlias)
 		a.RegistAppService(appservice)
 	}
 	return appservice, nil
@@ -1652,17 +1664,50 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		AddFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
-			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// rbd-prd 命名空间的详细日志
+			if pod.Namespace == "rbd-prd" {
+				logrus.Infof("[Pod新增] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s",
+					pod.Name, tenantID, serviceID, version, createrID)
+			}
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				if pod.Namespace == "rbd-prd" {
+					logrus.Warnf("[Pod新增] rbd-prd Pod %s 缺少必需标签，将被忽略 - service_id=%q, version=%q, creater_id=%q, 所有标签: %v",
+						pod.Name, serviceID, version, createrID, pod.GetLabels())
+				}
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
+				if pod.Namespace == "rbd-prd" {
+					if err != nil {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: 获取 AppService 失败 - %v (serviceID=%s, version=%s, createrID=%s)",
+							pod.Name, err, serviceID, version, createrID)
+					} else if appservice == nil {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: AppService 为空，无法添加 (serviceID=%s, version=%s, createrID=%s)",
+							pod.Name, serviceID, version, createrID)
+					} else {
+						logrus.Infof("[Pod新增] rbd-prd Pod %s: 成功添加到 AppService (serviceID=%s, 当前Pod数量=%d)",
+							pod.Name, serviceID, len(appservice.GetPods(false))+1)
+					}
+				}
+
 				if err == conversion.ErrServiceNotFound {
+					if pod.Namespace == "rbd-prd" {
+						logrus.Warnf("[Pod新增] rbd-prd Pod %s: 数据库中未找到服务，将删除该 Pod (serviceID=%s)", pod.Name, serviceID)
+					}
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}
@@ -1688,17 +1733,47 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		UpdateFunc: func(old, cur interface{}) {
 			pod := cur.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
-			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// rbd-prd 命名空间的详细日志
+			if pod.Namespace == "rbd-prd" {
+				logrus.Infof("[Pod更新] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s, Phase=%s",
+					pod.Name, tenantID, serviceID, version, createrID, pod.Status.Phase)
+			}
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				if pod.Namespace == "rbd-prd" {
+					logrus.Warnf("[Pod更新] rbd-prd Pod %s 缺少必需标签，将被忽略 - service_id=%q, version=%q, creater_id=%q",
+						pod.Name, serviceID, version, createrID)
+				}
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
+				if pod.Namespace == "rbd-prd" {
+					if err != nil {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: 获取 AppService 失败 - %v", pod.Name, err)
+					} else if appservice == nil {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: AppService 为空，无法更新", pod.Name)
+					} else {
+						logrus.Infof("[Pod更新] rbd-prd Pod %s: 成功更新到 AppService (serviceID=%s)", pod.Name, serviceID)
+					}
+				}
+
 				if err == conversion.ErrServiceNotFound {
+					if pod.Namespace == "rbd-prd" {
+						logrus.Warnf("[Pod更新] rbd-prd Pod %s: 数据库中未找到服务，将删除该 Pod", pod.Name)
+					}
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}
