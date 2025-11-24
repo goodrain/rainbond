@@ -267,6 +267,26 @@ func (a *AppService) GetServiceStatus() string {
 		return STARTING
 	}
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas == 0 {
+		// Fallback: Check actual pod readiness before declaring STARTING/ABNORMAL
+		// This handles timing issues where pods are ready but deployment status hasn't synced yet
+		if len(a.pods) >= a.Replicas {
+			readyPodCount := 0
+			for _, pod := range a.pods {
+				if isPodReady(pod) {
+					readyPodCount++
+				}
+			}
+			if readyPodCount >= a.Replicas {
+				// All pods are ready, check upgrade status
+				if a.UpgradeComlete() {
+					logrus.Debugf("[GetServiceStatus] ServiceID=%s RUNNING - deployment ReadyReplicas=0 but all pods are ready (fallback check)", a.ServiceID)
+					return RUNNING
+				}
+				logrus.Debugf("[GetServiceStatus] ServiceID=%s UPGRADE - deployment ReadyReplicas=0 but all pods are ready, upgrade incomplete (fallback check)", a.ServiceID)
+				return UPGRADE
+			}
+		}
+
 		if isHaveTerminatedContainer(a.pods) {
 			return ABNORMAL
 		}
@@ -285,6 +305,24 @@ func (a *AppService) GetServiceStatus() string {
 		return STARTING
 	}
 	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas == 0 {
+		// Fallback: Check actual pod readiness before declaring STARTING/ABNORMAL
+		if len(a.pods) >= a.Replicas {
+			readyPodCount := 0
+			for _, pod := range a.pods {
+				if isPodReady(pod) {
+					readyPodCount++
+				}
+			}
+			if readyPodCount >= a.Replicas {
+				if a.UpgradeComlete() {
+					logrus.Debugf("[GetServiceStatus] ServiceID=%s RUNNING - statefulset ReadyReplicas=0 but all pods are ready (fallback check)", a.ServiceID)
+					return RUNNING
+				}
+				logrus.Debugf("[GetServiceStatus] ServiceID=%s UPGRADE - statefulset ReadyReplicas=0 but all pods are ready, upgrade incomplete (fallback check)", a.ServiceID)
+				return UPGRADE
+			}
+		}
+
 		if isHaveTerminatedContainer(a.pods) {
 			return ABNORMAL
 		}
@@ -328,10 +366,39 @@ func (a *AppService) Ready() bool {
 		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
 			return true
 		}
+		// Fallback: Check actual pod status if statefulset.Status.ReadyReplicas is not updated yet
+		if a.statefulset.Status.ReadyReplicas == 0 && len(a.pods) >= a.Replicas {
+			readyPodCount := 0
+			for _, pod := range a.pods {
+				if isPodReady(pod) {
+					readyPodCount++
+				}
+			}
+			if readyPodCount >= a.Replicas {
+				logrus.Debugf("[Ready] ServiceID=%s statefulset ReadyReplicas=0 but found %d ready pods (fallback check)",
+					a.ServiceID, readyPodCount)
+				return true
+			}
+		}
 	}
 	if a.deployment != nil {
 		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
 			return true
+		}
+		// Fallback: Check actual pod status if deployment.Status.ReadyReplicas is not updated yet
+		// This handles the timing issue where pods are ready but deployment status is not synced
+		if a.deployment.Status.ReadyReplicas == 0 && len(a.pods) >= a.Replicas {
+			readyPodCount := 0
+			for _, pod := range a.pods {
+				if isPodReady(pod) {
+					readyPodCount++
+				}
+			}
+			if readyPodCount >= a.Replicas {
+				logrus.Debugf("[Ready] ServiceID=%s deployment ReadyReplicas=0 but found %d ready pods (fallback check)",
+					a.ServiceID, readyPodCount)
+				return true
+			}
 		}
 	}
 	if a.virtualmachine != nil {
@@ -347,6 +414,19 @@ func (a *AppService) Ready() bool {
 	}
 	if a.betaCronJob != nil {
 		return true
+	}
+	return false
+}
+
+// isPodReady checks if a pod is in Ready condition
+func isPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
 	}
 	return false
 }
