@@ -268,6 +268,16 @@ func (a AppService) GetDeployment() *v1.Deployment {
 
 // SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
+	if IsTargetService(a.ServiceID) {
+		logrus.Errorf("[目标组件调试] ========== SetDeployment 被调用 ==========")
+		logrus.Errorf("[目标组件调试]   ServiceID: %s", a.ServiceID)
+		logrus.Errorf("[目标组件调试]   Deployment名称: %s", d.Name)
+		logrus.Errorf("[目标组件调试]   Deployment.Status.ReadyReplicas: %d", d.Status.ReadyReplicas)
+		logrus.Errorf("[目标组件调试]   Deployment.Status.AvailableReplicas: %d", d.Status.AvailableReplicas)
+		logrus.Errorf("[目标组件调试]   Deployment.Status.Replicas: %d", d.Status.Replicas)
+		logrus.Errorf("[目标组件调试]   Deployment.Spec.Replicas: %d", *d.Spec.Replicas)
+	}
+
 	a.deployment = d
 	a.workload = d
 	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
@@ -275,6 +285,12 @@ func (a *AppService) SetDeployment(d *v1.Deployment) {
 	}
 	a.Replicas = int(*d.Spec.Replicas)
 	a.calculateComponentMemoryRequest()
+
+	if IsTargetService(a.ServiceID) {
+		logrus.Errorf("[目标组件调试]   设置后AppService.DeployVersion: %s", a.DeployVersion)
+		logrus.Errorf("[目标组件调试]   设置后AppService.Replicas: %d", a.Replicas)
+		logrus.Errorf("[目标组件调试] ==============================================")
+	}
 }
 
 // DeleteDeployment delete kubernetes deployment model

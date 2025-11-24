@@ -272,6 +272,16 @@ func (a *AppService) GetServiceStatus() string {
 		}
 		return UPGRADE
 	}
+	if a.deployment != nil {
+		if IsTargetService(a.ServiceID) {
+			logrus.Errorf("[目标组件调试] GetServiceStatus检查Deployment状态")
+			logrus.Errorf("[目标组件调试]   a.deployment.Status.ReadyReplicas: %d", a.deployment.Status.ReadyReplicas)
+			logrus.Errorf("[目标组件调试]   a.deployment.Status.AvailableReplicas: %d", a.deployment.Status.AvailableReplicas)
+			logrus.Errorf("[目标组件调试]   a.deployment.Status.Replicas: %d", a.deployment.Status.Replicas)
+			logrus.Errorf("[目标组件调试]   a.Replicas (期望): %d", a.Replicas)
+		}
+	}
+
 	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
 		if a.UpgradeComlete() {
 			return RUNNING

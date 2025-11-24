@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package store
+package v1
 
 import (
 	"os"
@@ -25,45 +25,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var debugServiceIDs map[string]bool
 var debugTargetServiceID string
 
 func init() {
-	debugServiceIDs = make(map[string]bool)
-	if envIDs := os.Getenv("DEBUG_SERVICE_IDS"); envIDs != "" {
-		ids := strings.Split(envIDs, ",")
-		for _, id := range ids {
-			id = strings.TrimSpace(id)
-			if id != "" {
-				debugServiceIDs[id] = true
-			}
-		}
-		logrus.Infof("[DebugHelper] Debug mode enabled for service IDs: %v", getDebugServiceIDList())
-	}
-
 	// DEBUG_TARGET_SERVICE_ID 用于目标组件的详细调试日志
 	if targetID := os.Getenv("DEBUG_TARGET_SERVICE_ID"); targetID != "" {
 		debugTargetServiceID = strings.TrimSpace(targetID)
-		logrus.Infof("[DebugHelper] Target service debug mode enabled for: %s", debugTargetServiceID)
+		logrus.Infof("[DebugHelper-v1] Target service debug mode enabled for: %s", debugTargetServiceID)
 	}
-}
-
-func getDebugServiceIDList() []string {
-	ids := make([]string, 0, len(debugServiceIDs))
-	for id := range debugServiceIDs {
-		ids = append(ids, id)
-	}
-	return ids
-}
-
-// ShouldDebugService returns true if this service should output debug logs
-// If DEBUG_SERVICE_IDS is not set, returns true for all services (default behavior)
-// If DEBUG_SERVICE_IDS is set, only returns true for services in the list
-func ShouldDebugService(serviceID string) bool {
-	if len(debugServiceIDs) == 0 {
-		return true
-	}
-	return debugServiceIDs[serviceID]
 }
 
 // IsTargetService returns true if this is the target service for detailed debugging
