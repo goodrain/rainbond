@@ -403,20 +403,37 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		createrID := deployment.Labels["creater_id"]
 		migrator := deployment.Labels["migrator"]
 		appID := deployment.Labels["app_id"]
+
+		// 目标service_id用于调试
+		targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+
 		if serviceID != "" && version != "" && createrID != "" {
 			replicas := int32(0)
 			if deployment.Spec.Replicas != nil {
 				replicas = *deployment.Spec.Replicas
 			}
+
+			if serviceID == targetServiceID {
+				logrus.Errorf("[DEBUG-TARGET] Deployment OnAdd: name=%s, namespace=%s, version=%s, ReadyReplicas=%d, DesiredReplicas=%d",
+					deployment.Name, deployment.Namespace, version, deployment.Status.ReadyReplicas, replicas)
+			}
+
 			logrus.Infof("[Deployment新增] 检测到 %s 的 Deployment: %s, service_id=%s, version=%s, ReadyReplicas=%d, DesiredReplicas=%d",
 				deployment.Namespace, deployment.Name, serviceID, version,
 				deployment.Status.ReadyReplicas, replicas)
+
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
 				a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
+
+				if serviceID == targetServiceID {
+					logrus.Errorf("[DEBUG-TARGET] Deployment OnAdd: SetDeployment成功, AppService.DeployVersion=%s, AppService.Replicas=%d, CurrentPodCount=%d",
+						appservice.DeployVersion, appservice.Replicas, len(appservice.GetPods(false)))
+				}
+
 				logrus.Infof("[Deployment新增] %s Deployment %s: 成功设置到 AppService (serviceID=%s, AppService.Replicas=%d, CurrentPodCount=%d)",
 					deployment.Namespace, deployment.Name, serviceID, appservice.Replicas, len(appservice.GetPods(false)))
 				if migrator == "rainbond" {
@@ -1295,13 +1312,57 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	var queryComponentIDs []string
+
+	// 目标service_id用于调试
+	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+
 	for _, serviceID := range serviceIDs {
 		app := a.GetAppService(serviceID)
 		if app == nil {
+			if serviceID == targetServiceID {
+				logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s NOT FOUND in memory! Will check database and K8s", serviceID)
+			}
 			queryComponentIDs = append(queryComponentIDs, serviceID)
 			continue
 		}
+
+		// 详细日志
+		if serviceID == targetServiceID {
+			deployment := app.GetDeployment()
+			statefulset := app.GetStatefulSet()
+			pods := app.GetPods(false)
+
+			logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s FOUND in memory", serviceID)
+			logrus.Errorf("[DEBUG-TARGET]   - ServiceAlias=%s, TenantID=%s", app.ServiceAlias, app.TenantID)
+			logrus.Errorf("[DEBUG-TARGET]   - DeployVersion=%s, Replicas=%d", app.DeployVersion, app.Replicas)
+			logrus.Errorf("[DEBUG-TARGET]   - Deployment exists: %v", deployment != nil)
+			if deployment != nil {
+				logrus.Errorf("[DEBUG-TARGET]   - Deployment.ReadyReplicas=%d, Deployment.Replicas=%d",
+					deployment.Status.ReadyReplicas, *deployment.Spec.Replicas)
+			}
+			logrus.Errorf("[DEBUG-TARGET]   - StatefulSet exists: %v", statefulset != nil)
+			logrus.Errorf("[DEBUG-TARGET]   - Total Pods: %d", len(pods))
+			for i, pod := range pods {
+				podReady := false
+				if pod.Status.Phase == corev1.PodRunning {
+					for _, cond := range pod.Status.Conditions {
+						if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+							podReady = true
+							break
+						}
+					}
+				}
+				logrus.Errorf("[DEBUG-TARGET]   - Pod[%d]: name=%s, version=%s, phase=%s, ready=%v",
+					i, pod.Name, pod.Labels["version"], pod.Status.Phase, podReady)
+			}
+		}
+
 		status := app.GetServiceStatus()
+
+		if serviceID == targetServiceID {
+			logrus.Errorf("[DEBUG-TARGET] GetAppServiceStatuses: serviceID=%s final status=%s", serviceID, status)
+		}
+
 		if status == v1.UNKNOW {
 			app := a.UpdateGetAppService(serviceID)
 			if app == nil {
@@ -1687,10 +1748,27 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			a.resourceCache.SetPodResource(pod)
 			tenantID, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
 
+			// 目标service_id用于调试
+			targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+
 			// rbd-prd 命名空间的详细日志
 			if pod.Namespace == "rbd-prd" {
 				logrus.Infof("[Pod新增] 检测到 rbd-prd 的 Pod: %s, tenant_id=%s, service_id=%s, version=%s, creater_id=%s",
 					pod.Name, tenantID, serviceID, version, createrID)
+			}
+
+			if serviceID == targetServiceID {
+				podReady := false
+				if pod.Status.Phase == corev1.PodRunning {
+					for _, cond := range pod.Status.Conditions {
+						if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+							podReady = true
+							break
+						}
+					}
+				}
+				logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: name=%s, namespace=%s, version=%s, phase=%s, ready=%v",
+					pod.Name, pod.Namespace, version, pod.Status.Phase, podReady)
 			}
 
 			// 检查必需标签是否存在
@@ -1704,6 +1782,15 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
+				if serviceID == targetServiceID {
+					if appservice != nil {
+						logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: 找到AppService, DeployVersion=%s, 准备添加Pod",
+							appservice.DeployVersion)
+					} else {
+						logrus.Errorf("[DEBUG-TARGET] Pod OnAdd: AppService为nil, err=%v", err)
+					}
+				}
 
 				if pod.Namespace == "rbd-prd" {
 					if err != nil {

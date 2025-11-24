@@ -121,6 +121,21 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 
 // GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
+	// 目标service_id用于调试
+	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+
+	if targetServiceID == a.ServiceID {
+		matchingPods := a.getMatchingVersionPods()
+		logrus.Errorf("[DEBUG-TARGET] GetServiceStatus START: ServiceID=%s", a.ServiceID)
+		logrus.Errorf("[DEBUG-TARGET]   - DeployVersion=%s, Replicas=%d", a.DeployVersion, a.Replicas)
+		logrus.Errorf("[DEBUG-TARGET]   - TotalPods=%d, MatchingPods=%d", len(a.pods), len(matchingPods))
+		logrus.Errorf("[DEBUG-TARGET]   - Deployment exists=%v", a.deployment != nil)
+		if a.deployment != nil {
+			logrus.Errorf("[DEBUG-TARGET]   - Deployment.ReadyReplicas=%d", a.deployment.Status.ReadyReplicas)
+		}
+		logrus.Errorf("[DEBUG-TARGET]   - StatefulSet exists=%v", a.statefulset != nil)
+	}
+
 	if a.ServiceType == TypeKubeBlocks {
 		return RUNNING
 	}
@@ -334,7 +349,14 @@ func (a *AppService) GetServiceStatus() string {
 		}
 		return STARTING
 	}
-	return UNKNOW
+
+	finalStatus := UNKNOW
+	// 目标service_id用于调试
+	targetServiceID := "f2aa2032719d4b82bc3d0cf6d44d4488"
+	if targetServiceID == a.ServiceID {
+		logrus.Errorf("[DEBUG-TARGET] GetServiceStatus END: returning status=%s", finalStatus)
+	}
+	return finalStatus
 }
 
 func isHaveTerminatedContainer(pods []*corev1.Pod) bool {
