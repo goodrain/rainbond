@@ -319,6 +319,7 @@ func NewStore(dbmanager db.Manager) Storer {
 
 	store.informers.Namespace.AddEventHandler(store.nsEventHandler())
 	// Use 0 to disable additional resync, rely on factory resync period
+	logrus.Infof("[Informer初始化] 正在注册 Deployment Informer 事件处理器")
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.Job.AddEventHandlerWithResyncPeriod(store, 0)
@@ -354,8 +355,16 @@ func (a *appRuntimeStore) Start() error {
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
+	logrus.Infof("[Store启动] 等待所有 Informers 完成初始同步...")
+	waitCount := 0
 	for !a.Ready() {
+		waitCount++
+		if waitCount%100 == 0 {
+			logrus.Infof("[Store启动] 仍在等待 Informers 同步... (已等待 %d 次)", waitCount)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
+	logrus.Infof("[Store启动] 所有 Informers 同步完成！Store 已就绪。")
 	// init core componentdefinition
 	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.k8sClient.RainbondClient)
 	go func() {
@@ -398,11 +407,25 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		}
 	}
 	if deployment, ok := obj.(*appsv1.Deployment); ok {
+		// 统计所有 Deployment OnAdd 事件
+		logrus.Debugf("[Deployment OnAdd] 接收到 Deployment: %s/%s", deployment.Namespace, deployment.Name)
+
 		serviceID := deployment.Labels["service_id"]
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
 		migrator := deployment.Labels["migrator"]
 		appID := deployment.Labels["app_id"]
+
+		// 最早期日志：任何 Deployment 都记录
+		if IsTargetService(serviceID) {
+			logrus.Errorf("[目标组件调试] !!!!! Deployment OnAdd 最早期检测 !!!!!")
+			logrus.Errorf("[目标组件调试]   Deployment: %s/%s", deployment.Namespace, deployment.Name)
+			logrus.Errorf("[目标组件调试]   service_id标签: %s", serviceID)
+			logrus.Errorf("[目标组件调试]   version标签: %s", version)
+			logrus.Errorf("[目标组件调试]   creater_id标签: %s", createrID)
+			logrus.Errorf("[目标组件调试]   标签检查: serviceID!=\"\"=%v, version!=\"\"=%v, createrID!=\"\"=%v",
+				serviceID != "", version != "", createrID != "")
+		}
 
 		if serviceID != "" && version != "" && createrID != "" {
 			replicas := int32(0)
@@ -425,7 +448,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
+				if IsTargetService(serviceID) {
+					logrus.Errorf("[目标组件调试] getAppService 返回 ErrServiceNotFound，将删除 Deployment")
+				}
 				a.k8sClient.Clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
+			}
+			if appservice == nil {
+				if IsTargetService(serviceID) {
+					logrus.Errorf("[目标组件调试] appservice 为 nil，Deployment 不会被处理！")
+					logrus.Errorf("[目标组件调试]   错误信息: %v", err)
+				}
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
@@ -453,10 +485,20 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 
 		} else if deployment.OwnerReferences != nil && appID != "" {
+			if IsTargetService(serviceID) {
+				logrus.Errorf("[目标组件调试] Deployment 走 OperatorManaged 分支")
+				logrus.Errorf("[目标组件调试]   appID: %s", appID)
+			}
 			operatorManaged := a.getOperatorManaged(appID)
 			if operatorManaged != nil {
 				operatorManaged.SetDeployment(deployment)
 				return
+			}
+		} else {
+			if IsTargetService(serviceID) {
+				logrus.Errorf("[目标组件调试] Deployment 不满足任何处理条件，被忽略！")
+				logrus.Errorf("[目标组件调试]   有OwnerReferences: %v", deployment.OwnerReferences != nil)
+				logrus.Errorf("[目标组件调试]   appID: %s", appID)
 			}
 		}
 	}
