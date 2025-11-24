@@ -19,6 +19,7 @@
 package store
 
 import (
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -57,12 +58,15 @@ func (i *Informer) StartCRS(stop chan struct{}) {
 
 //Start statrt
 func (i *Informer) Start(stop chan struct{}) {
+	logrus.Infof("[Informer启动] 开始启动所有 Informers...")
 	go i.Namespace.Run(stop)
 	go i.Ingress.Run(stop)
 	go i.Service.Run(stop)
 	go i.Secret.Run(stop)
 	go i.StatefulSet.Run(stop)
+	logrus.Infof("[Informer启动] Deployment Informer 正在启动...")
 	go i.Deployment.Run(stop)
+	logrus.Infof("[Informer启动] Pod Informer 正在启动...")
 	go i.Pod.Run(stop)
 	go i.ConfigMap.Run(stop)
 	go i.ReplicaSet.Run(stop)
@@ -78,14 +82,26 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.ThirdComponent.Run(stop)
 	go i.Job.Run(stop)
 	go i.CronJob.Run(stop)
+	logrus.Infof("[Informer启动] 所有 Informers 已启动，等待同步完成...")
 }
 
 //Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
+	deploymentSynced := i.Deployment.HasSynced()
+	podSynced := i.Pod.HasSynced()
+
+	if !deploymentSynced {
+		logrus.Debugf("[Informer同步] Deployment Informer 尚未完成初始同步")
+	}
+	if !podSynced {
+		logrus.Debugf("[Informer同步] Pod Informer 尚未完成初始同步")
+	}
+
 	if i.Namespace.HasSynced() && i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
-		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() && i.CronJob.HasSynced() &&
+		i.StatefulSet.HasSynced() && deploymentSynced && podSynced && i.CronJob.HasSynced() &&
 		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() &&
 		i.HorizontalPodAutoscaler.HasSynced() && i.StorageClass.HasSynced() && i.Claims.HasSynced() && i.CRD.HasSynced() {
+		logrus.Infof("[Informer同步] 所有 Informers 已完成初始同步，Store 就绪！")
 		return true
 	}
 	return false
