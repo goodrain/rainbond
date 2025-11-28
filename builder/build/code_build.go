@@ -292,6 +292,10 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		{Name: "CODE_COMMIT_MESSAGE", Value: re.Commit.Message},
 		{Name: "LANGUAGE", Value: re.Lang.String()},
 	}
+	// Add LANG_GOODRAIN_ME from environment variable if set
+	if langGoodRainMe := os.Getenv("LANG_GOODRAIN_ME"); langGoodRainMe != "" {
+		envs = append(envs, corev1.EnvVar{Name: "LANG_GOODRAIN_ME", Value: langGoodRainMe})
+	}
 	if re.ServerType == "oss" {
 		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_URL", Value: re.RepositoryURL})
 		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_USER", Value: re.CodeSouceInfo.User})
