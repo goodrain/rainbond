@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
@@ -79,7 +80,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	_, err := i.ImageClient.ImagePull(i.Image, user, pass, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
-		failCause := fmt.Sprintf("获取指定镜像: %s失败", i.Image)
+		failCause := fmt.Sprintf("%s: %s", util.Translation("Pull image failed, please check if the image is accessible"), i.Image)
 		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 		i.FailCause = failCause
 		return err
@@ -87,7 +88,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	localImageURL := build.CreateImageName(i.ServiceID, i.DeployVersion)
 	if err := i.ImageClient.ImageTag(i.Image, localImageURL, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
-		failCause := fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL)
+		failCause := fmt.Sprintf("%s: %s -> %s", util.Translation("Tag image failed"), i.Image, localImageURL)
 		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 		i.FailCause = failCause
 		return err
@@ -95,7 +96,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	err = i.ImageClient.ImagePush(localImageURL, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
-		failCause := "推送镜像至镜像仓库失败"
+		failCause := util.Translation("Push image to registry failed")
 		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 		i.FailCause = failCause
 		return err
@@ -112,7 +113,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	}
 	if err := i.StorageVersionInfo(localImageURL); err != nil {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
-		failCause := "更新应用版本信息失败"
+		failCause := util.Translation("Update version info failed")
 		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 		i.FailCause = failCause
 		return err

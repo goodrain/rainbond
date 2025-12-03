@@ -52,6 +52,50 @@ var translationMetadata = map[string]string{
 	"git project warehouse address format error":     "Git项目仓库地址格式错误",
 	"prepare build code error":                       "准备源码构建失败",
 	"Checkout svn code failed, please make sure the code can be downloaded properly": "检查svn代码失败，请确保代码可以被正常下载",
+	"Pull image failed, please check if the image is accessible":                    "拉取镜像失败，请排查镜像是否可以访问",
+	"Pull source code failed, please check if the repository is accessible":         "拉取源码失败，请排查仓库是否可以访问",
+	"Build timeout, exceeded maximum build time of 60 minutes, please check build logs": "编译超时，超过最大编译时间60分钟，请查看构建日志",
+	"Build failed, please check build logs":                                         "编译失败，请查看构建日志",
+	"Pull runner image failed, please check if the image is accessible":             "拉取运行时镜像失败，请排查镜像是否可以访问",
+	"Build image failed, please check build logs":                                   "构建镜像失败，请查看构建日志",
+
+	// Image build related errors
+	"Tag image failed":                                                               "修改镜像标签失败",
+	"Push image to registry failed":                                                  "推送镜像至镜像仓库失败",
+	"Update version info failed":                                                     "更新应用版本信息失败",
+	"Update application service version information failed":                          "更新应用服务版本信息失败",
+
+	// Git related errors
+	"Pull code error, authentication required":                                       "拉取代码发生错误，代码源需要授权访问",
+	"Pull code error, authorization failed":                                          "拉取代码发生错误，代码源鉴权失败",
+	"Pull code error, repository not found":                                          "拉取代码发生错误，仓库不存在",
+	"Pull code error, empty remote repository":                                       "拉取代码发生错误，远程仓库为空",
+	"Code branch does not exist":                                                     "代码分支不存在",
+	"Remote repository requires SSH key configuration":                               "远程代码库需要配置SSH Key",
+	"Pull code timeout":                                                              "拉取代码超时",
+	"Create SSH public keys error":                                                   "创建SSH公钥错误",
+	"Pull code error, failed to delete code directory":                               "拉取代码发生错误，删除代码目录失败",
+	"Clear code directory failed":                                                    "清空代码目录失败",
+
+	// Dockerfile build errors
+	"Parse dockerfile error":                                                         "解析Dockerfile失败",
+	"Compiling the source code failure":                                              "编译源代码失败",
+	"Create build job failed":                                                        "创建构建任务失败",
+	"Get tenant info failed":                                                         "获取租户信息失败",
+	"Create image pull secret failed":                                                "创建镜像拉取凭证失败",
+
+	// Code build errors
+	"Check that the build result failure":                                            "检查构建结果失败",
+	"Source build failure and result slug size is 0":                                 "源码构建失败，构建结果大小为0",
+	"Build runner image failure":                                                     "构建运行时镜像失败",
+	"Handle nodejs code error":                                                       "处理NodeJS代码错误",
+	"Pull builder image failed":                                                      "拉取构建器镜像失败",
+
+	// Market slug build errors
+	"Create FTP client failed":                                                       "创建FTP客户端失败",
+	"Download slug package from remote FTP failed":                                   "从远程FTP下载源码包失败",
+	"Get slug package from local storage failed":                                     "从本地存储获取源码包失败",
+	"Change slug package permission failed":                                          "修改源码包权限失败",
 
 }
 

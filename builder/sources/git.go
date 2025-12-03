@@ -162,7 +162,7 @@ Loop:
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
-			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
+			errMsg := util.Translation("Create SSH public keys error")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
@@ -203,41 +203,41 @@ Loop:
 	}
 	if err != nil {
 		if reerr := os.RemoveAll(sourceDir); reerr != nil {
-			errMsg := fmt.Sprintf("拉取代码发生错误删除代码目录失败。")
+			errMsg := util.Translation("Pull code error, failed to delete code directory")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
 		if err == transport.ErrAuthenticationRequired {
-			errMsg := fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。")
+			errMsg := util.Translation("Pull code error, authentication required")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
 		if err == transport.ErrAuthorizationFailed {
-			errMsg := fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。")
+			errMsg := util.Translation("Pull code error, authorization failed")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
 		if err == transport.ErrRepositoryNotFound {
-			errMsg := fmt.Sprintf("拉取代码发生错误，仓库不存在。")
+			errMsg := util.Translation("Pull code error, repository not found")
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
-			errMsg := fmt.Sprintf("拉取代码发生错误，远程仓库为空。")
+			errMsg := util.Translation("Pull code error, empty remote repository")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
 		if err == plumbing.ErrReferenceNotFound || strings.Contains(err.Error(), "couldn't find remote ref") {
-			errMsg := fmt.Sprintf("代码分支(%s)不存在。", csi.Branch)
+			errMsg := fmt.Sprintf("%s: %s", util.Translation("Code branch does not exist"), csi.Branch)
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
@@ -250,7 +250,7 @@ Loop:
 				flag = false
 				goto Loop
 			}
-			errMsg := fmt.Sprintf("远程代码库需要配置SSH Key。")
+			errMsg := util.Translation("Remote repository requires SSH key configuration")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
@@ -312,7 +312,7 @@ Loop:
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
-			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
+			errMsg := util.Translation("Create SSH public keys error")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
@@ -379,7 +379,7 @@ Loop:
 			return rs, errMsg, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
-			errMsg := fmt.Sprintf("代码分支(%s)不存在。", csi.Branch)
+			errMsg := fmt.Sprintf("%s: %s", util.Translation("Code branch does not exist"), csi.Branch)
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
@@ -391,14 +391,14 @@ Loop:
 				flag = false
 				goto Loop
 			}
-			errMsg := fmt.Sprintf("远程代码库需要配置SSH Key。")
+			errMsg := util.Translation("Remote repository requires SSH key configuration")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			errMsg := fmt.Sprintf("更新代码超时")
+			errMsg := util.Translation("Pull code timeout")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
@@ -424,7 +424,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 	if reerr := os.RemoveAll(sourceDir); reerr != nil {
 		logrus.Error("empty the source code dir error,", reerr.Error())
 		if logger != nil {
-			logger.Error(fmt.Sprintf("清空代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
+			logger.Error(util.Translation("Clear code directory failed"), map[string]string{"step": "clone-code", "status": "failure"})
 		}
 	}
 	return GitClone(csi, sourceDir, logger, timeout)

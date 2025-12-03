@@ -276,12 +276,14 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		rs, errMsg, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 		if err != nil {
 			logrus.Errorf("pull git code error: %s", err.Error())
-			failCause := util.Translation("pull git code error")
-			i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+			// 使用详细的错误消息，如果没有提供则使用默认消息
 			if errMsg != "" {
 				i.FailCause = errMsg
+				i.Logger.Error(errMsg, map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
+				failCause := fmt.Sprintf("%s: %s", util.Translation("Pull source code failed, please check if the repository is accessible"), i.CodeSouceInfo.RepositoryURL)
 				i.FailCause = failCause
+				i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 			}
 			return err
 		}
@@ -331,11 +333,14 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	res, err := i.codeBuild()
 	if err != nil {
 		if err.Error() == context.DeadlineExceeded.Error() {
-			i.Logger.Error("Build app version from source code timeout, the maximum time is 60 minutes", map[string]string{"step": "builder-exector", "status": "failure"})
+			failCause := util.Translation("Build timeout, exceeded maximum build time of 60 minutes, please check build logs")
+			i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+			i.FailCause = failCause
 		} else {
-			i.Logger.Error("Build app version from source code failure,"+err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
+			failCause := util.Translation("Build failed, please check build logs")
+			i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+			i.FailCause = failCause
 		}
-		i.FailCause = util.Translation("Check for log location code errors")
 		return err
 	}
 	if err := i.UpdateBuildVersionInfo(res); err != nil {
@@ -486,7 +491,7 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
-		i.Logger.Error("Update application service version information failed", map[string]string{"step": "build-code", "status": "failure"})
+		i.Logger.Error(util.Translation("Update application service version information failed"), map[string]string{"step": "build-code", "status": "failure"})
 		return err
 	}
 	return nil
