@@ -51,55 +51,95 @@ var translationMetadata = map[string]string{
 	"pull git code error":                            "拉取代码失败",
 	"git project warehouse address format error":     "Git项目仓库地址格式错误",
 	"prepare build code error":                       "准备源码构建失败",
-	"Checkout svn code failed, please make sure the code can be downloaded properly": "检查svn代码失败，请确保代码可以被正常下载",
-	"Pull image failed, please check if the image is accessible":                    "拉取镜像失败，请排查镜像是否可以访问",
-	"Pull source code failed, please check if the repository is accessible":         "拉取源码失败，请排查仓库是否可以访问",
+	"Checkout svn code failed, please make sure the code can be downloaded properly":    "检查svn代码失败，请确保代码可以被正常下载",
+	"Pull image failed, please check if the image is accessible":                        "拉取镜像失败，请排查镜像是否可以访问",
+	"Pull source code failed, please check if the repository is accessible":             "拉取源码失败，请排查仓库是否可以访问",
 	"Build timeout, exceeded maximum build time of 60 minutes, please check build logs": "编译超时，超过最大编译时间60分钟，请查看构建日志",
-	"Build failed, please check build logs":                                         "编译失败，请查看构建日志",
-	"Pull runner image failed, please check if the image is accessible":             "拉取运行时镜像失败，请排查镜像是否可以访问",
-	"Build image failed, please check build logs":                                   "构建镜像失败，请查看构建日志",
+	"Build failed, please check build logs":                                             "编译失败，请查看构建日志",
+	"Pull runner image failed, please check if the image is accessible":                 "拉取运行时镜像失败，请排查镜像是否可以访问",
+	"Build image failed, please check build logs":                                       "构建镜像失败，请查看构建日志",
 
 	// Image build related errors
-	"Tag image failed":                                                               "修改镜像标签失败",
-	"Push image to registry failed":                                                  "推送镜像至镜像仓库失败",
-	"Update version info failed":                                                     "更新应用版本信息失败",
-	"Update application service version information failed":                          "更新应用服务版本信息失败",
+	"Tag image failed":                                      "修改镜像标签失败",
+	"Push image to registry failed":                         "推送镜像至镜像仓库失败",
+	"Update version info failed":                            "更新应用版本信息失败",
+	"Update application service version information failed": "更新应用服务版本信息失败",
 
 	// Git related errors
-	"Pull code error, authentication required":                                       "拉取代码发生错误，代码源需要授权访问",
-	"Pull code error, authorization failed":                                          "拉取代码发生错误，代码源鉴权失败",
-	"Pull code error, repository not found":                                          "拉取代码发生错误，仓库不存在",
-	"Pull code error, empty remote repository":                                       "拉取代码发生错误，远程仓库为空",
-	"Code branch does not exist":                                                     "代码分支不存在",
-	"Remote repository requires SSH key configuration":                               "远程代码库需要配置SSH Key",
-	"Pull code timeout":                                                              "拉取代码超时",
-	"Create SSH public keys error":                                                   "创建SSH公钥错误",
-	"Pull code error, failed to delete code directory":                               "拉取代码发生错误，删除代码目录失败",
-	"Clear code directory failed":                                                    "清空代码目录失败",
+	"Pull code error, authentication required":         "拉取代码发生错误，代码源需要授权访问",
+	"Pull code error, authorization failed":            "拉取代码发生错误，代码源鉴权失败",
+	"Pull code error, repository not found":            "拉取代码发生错误，仓库不存在",
+	"Pull code error, empty remote repository":         "拉取代码发生错误，远程仓库为空",
+	"Code branch does not exist":                       "代码分支不存在",
+	"Remote repository requires SSH key configuration": "远程代码库需要配置SSH Key",
+	"Pull code timeout":                                "拉取代码超时",
+	"Create SSH public keys error":                     "创建SSH公钥错误",
+	"Pull code error, failed to delete code directory": "拉取代码发生错误，删除代码目录失败",
+	"Clear code directory failed":                      "清空代码目录失败",
 
 	// Dockerfile build errors
-	"Parse dockerfile error":                                                         "解析Dockerfile失败",
-	"Compiling the source code failure":                                              "编译源代码失败",
-	"Create build job failed":                                                        "创建构建任务失败",
-	"Get tenant info failed":                                                         "获取租户信息失败",
-	"Create image pull secret failed":                                                "创建镜像拉取凭证失败",
+	"Parse dockerfile error":            "解析Dockerfile失败",
+	"Compiling the source code failure": "编译源代码失败",
+	"Create build job failed":           "创建构建任务失败",
+	"Get tenant info failed":            "获取租户信息失败",
+	"Create image pull secret failed":   "创建镜像拉取凭证失败",
 
 	// Code build errors
-	"Check that the build result failure":                                            "检查构建结果失败",
-	"Source build failure and result slug size is 0":                                 "源码构建失败，构建结果大小为0",
-	"Build runner image failure":                                                     "构建运行时镜像失败",
-	"Handle nodejs code error":                                                       "处理NodeJS代码错误",
-	"Pull builder image failed":                                                      "拉取构建器镜像失败",
+	"Check that the build result failure":            "检查构建结果失败",
+	"Source build failure and result slug size is 0": "源码构建失败，构建结果大小为0",
+	"Build runner image failure":                     "构建运行时镜像失败",
+	"Handle nodejs code error":                       "处理NodeJS代码错误",
+	"Pull builder image failed":                      "拉取构建器镜像失败",
 
 	// Market slug build errors
-	"Create FTP client failed":                                                       "创建FTP客户端失败",
-	"Download slug package from remote FTP failed":                                   "从远程FTP下载源码包失败",
-	"Get slug package from local storage failed":                                     "从本地存储获取源码包失败",
-	"Change slug package permission failed":                                          "修改源码包权限失败",
+	"Create FTP client failed":                     "创建FTP客户端失败",
+	"Download slug package from remote FTP failed": "从远程FTP下载源码包失败",
+	"Get slug package from local storage failed":   "从本地存储获取源码包失败",
+	"Change slug package permission failed":        "修改源码包权限失败",
 
+	// Deployment related errors - resource issues
+	"Deployment failed: namespace resource quota exceeded": "部署失败：命名空间资源配额已超限，请联系管理员增加CPU/内存配额",
+	"Deployment failed: insufficient CPU resources":        "部署失败：节点CPU资源不足，请降低CPU请求值或联系管理员增加节点",
+	"Deployment failed: insufficient memory resources":     "部署失败：节点内存资源不足，请降低内存请求值或联系管理员增加节点",
+	"Deployment failed: insufficient storage resources":    "部署失败：存储资源不足，请联系管理员检查存储配置",
+	"Deployment failed: no nodes available for scheduling": "部署失败：没有可用节点进行调度，请联系管理员检查集群节点状态",
+
+	// Deployment related errors - storage issues
+	"Deployment failed: persistent volume claim is pending": "部署失败：存储卷申请处于等待状态，请检查存储卷配置或联系管理员",
+
+	// Deployment related errors - image issues
+	"Deployment failed: invalid image name":               "部署失败：镜像名称格式无效，请检查镜像地址格式",
+	"Deployment failed: image pull failed":                "部署失败：拉取镜像失败，请检查镜像是否存在或镜像仓库是否可访问",
+	"Deployment failed: image pull authentication failed": "部署失败：拉取镜像认证失败，请检查镜像仓库的用户名和密码",
+	"Deployment failed: image not found":                  "部署失败：镜像不存在，请检查镜像名称和标签是否正确",
+
+	// Deployment related errors - container issues
+	"Deployment failed: container configuration error":            "部署失败：容器配置错误，请检查环境变量、存储卷挂载等配置",
+	"Deployment failed: container creation failed":                "部署失败：容器创建失败，请查看实例日志定位问题",
+	"Deployment failed: container startup failed":                 "部署失败：容器启动失败，请查看实例日志定位启动脚本或命令问题",
+	"Deployment failed: container is being terminated repeatedly": "部署失败：容器反复崩溃重启，请查看实例日志定位应用代码问题",
+	"Deployment failed: container out of memory killed":           "部署失败：容器因内存超限被终止，请增加内存限制或优化应用内存使用",
+
+	// Deployment related errors - health check issues
+	"Deployment failed: readiness probe failed": "部署失败：就绪检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
+	"Deployment failed: liveness probe failed":  "部署失败：存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
+	"Deployment failed: startup probe failed":   "部署失败：启动检查失败，应用启动超时，请查看实例日志或增加启动超时时间",
+
+	// Deployment related errors - permission and security
+	"Deployment failed: insufficient permissions":  "部署失败：权限不足，请联系管理员检查服务账号权限",
+	"Deployment failed: security policy violation": "部署失败：违反安全策略，请联系管理员检查Pod安全策略配置",
+
+	// Deployment related errors - general
+	"Create workload failed":              "创建工作负载失败",
+	"Deployment timeout: Pod not created": "部署超时：实例未创建，请检查资源配额、节点状态和存储配置",
+	"Service deploy timeout":              "服务部署超时",
+
+	// Pod status descriptions (user-friendly)
+	"Pod is initializing":   "实例正在初始化中",
+	"Pod scheduling failed": "实例调度失败",
 }
 
-//Translation Translation English to Chinese
+// Translation Translation English to Chinese
 func Translation(english string) string {
 	if chinese, ok := translationMetadata[english]; ok {
 		if os.Getenv("RAINBOND_LANG") == "en" {

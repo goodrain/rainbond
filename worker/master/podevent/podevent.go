@@ -100,11 +100,11 @@ func (p *PodEvent) Handle() {
 	for {
 		select {
 		case pod := <-p.podEventCh:
-			// do not record events that occur 10 minutes after startup
-			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Minute {
+			// Extend monitoring window: record events from 5 seconds to 30 minutes after startup
+			// This catches immediate failures faster and monitors long-running issues longer
+			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
+			if podAge > 5*time.Second && podAge < 30*time.Minute {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
-			}
-			if time.Now().Sub(pod.CreationTimestamp.Time) > 30*time.Second {
 				AbnormalEvent(p.clientset, pod)
 			}
 		case <-p.stopCh:
@@ -210,20 +210,28 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodScheduled && condition.Status == "False" {
 				var msg string
+				// Use more detailed and user-friendly messages with internationalization support
 				if strings.Contains(condition.Message, "affinity/selector") {
 					msg = "不满足节点亲和性"
-				}
-				if strings.Contains(condition.Message, "cpu") {
-					msg = "节点CPU不足"
-				}
-				if strings.Contains(condition.Message, "memory") {
-					msg = "节点内存不足"
-				}
-				if strings.Contains(condition.Message, "PersistentVolumeClaims") {
-					msg = "当前没有绑定 PVC"
-				}
-				if strings.Contains(condition.Message, "tolerate") {
+				} else if strings.Contains(condition.Message, "Insufficient cpu") {
+					msg = util.Translation("Deployment failed: insufficient CPU resources")
+				} else if strings.Contains(condition.Message, "Insufficient memory") {
+					msg = util.Translation("Deployment failed: insufficient memory resources")
+				} else if strings.Contains(condition.Message, "cpu") {
+					msg = util.Translation("Deployment failed: insufficient CPU resources")
+				} else if strings.Contains(condition.Message, "memory") {
+					msg = util.Translation("Deployment failed: insufficient memory resources")
+				} else if strings.Contains(condition.Message, "PersistentVolumeClaim") || strings.Contains(condition.Message, "persistentvolumeclaim") {
+					msg = util.Translation("Deployment failed: persistent volume claim is pending")
+				} else if strings.Contains(condition.Message, "tolerate") || strings.Contains(condition.Message, "taint") {
 					msg = "节点存在污点"
+				} else if strings.Contains(condition.Message, "node(s)") && strings.Contains(condition.Message, "0") {
+					msg = util.Translation("Deployment failed: no nodes available for scheduling")
+				} else if strings.Contains(condition.Message, "Insufficient") {
+					msg = util.Translation("Deployment failed: insufficient storage resources")
+				} else {
+					// For other scheduling failures, provide the original message
+					msg = fmt.Sprintf("%s: %s", util.Translation("Pod scheduling failed"), condition.Message)
 				}
 				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "Unschedulable")
 				if err != nil && err != gorm.ErrRecordNotFound {

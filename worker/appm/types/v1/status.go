@@ -340,12 +340,20 @@ func (a *AppService) Ready() bool {
 		}
 	}
 	if a.job != nil {
-		return true
+		// Check if Job has actually succeeded
+		if a.job.Status.Succeeded > 0 {
+			return true
+		}
+		// Job is still running or pending
+		return false
 	}
 	if a.cronjob != nil {
+		// CronJob is ready if it's created successfully
+		// We don't check job execution status for CronJob
 		return true
 	}
 	if a.betaCronJob != nil {
+		// BetaCronJob is ready if it's created successfully
 		return true
 	}
 	return false
