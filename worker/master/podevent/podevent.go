@@ -152,11 +152,13 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			eventID = evt.EventID
 		}
 
-		msg := fmt.Sprintf("image: %s; container: %s; state: %s; mesage: %s", optType.image, optType.containerID, optType.eventType.String(), optType.message)
+		// Translate the error message to user-friendly format
+		userMsg := translateRuntimeError(optType.eventType.String(), optType.message)
+		detailMsg := fmt.Sprintf("image: %s; container: %s; state: %s; message: %s", optType.image, optType.containerID, optType.eventType.String(), userMsg)
 		logger := event.GetManager().GetLogger(eventID)
 		defer event.GetManager().ReleaseLogger(logger)
-		logrus.Debugf("Service id: %s; %s.", serviceID, msg)
-		logger.Error(msg, event.GetLoggerOption("failure"))
+		logrus.Debugf("Service id: %s; %s.", serviceID, detailMsg)
+		logger.Error(userMsg, event.GetLoggerOption("failure"))
 	} else if podstatus.Type == pb.PodStatus_RUNNING {
 		if evt == nil {
 			return
@@ -365,7 +367,9 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				logrus.Warningf("Delete component scheduling pod event: %v", err)
 			}
 		}
+		// Check for runtime container issues
 		for _, containerStatus := range pod.Status.ContainerStatuses {
+			// CrashLoopBackOff - container keeps crashing
 			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == EventTypeCrashLoopBackOff.String() {
 				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CrashLoopBackOff")
 				if err != nil && err != gorm.ErrRecordNotFound {
@@ -375,13 +379,146 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				if unSchedulableEvent != nil {
 					return
 				}
-				_, err = createSystemEvent(tenantID, serviceID, pod.Name, containerStatus.State.Waiting.Reason, model.EventStatusFailure.String(), "服务运行异常，请检查容器日志")
+				msg := util.Translation("Deployment failed: container is being terminated repeatedly")
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, containerStatus.State.Waiting.Reason, model.EventStatusFailure.String(), msg)
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
 					return
 				}
 			}
+
+			// ImagePullBackOff - cannot pull image during runtime
+			if containerStatus.State.Waiting != nil && (containerStatus.State.Waiting.Reason == "ImagePullBackOff" || containerStatus.State.Waiting.Reason == "ErrImagePull") {
+				imagePullEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ImagePullBackOff")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching image pull event: %v", err)
+					return
+				}
+				if imagePullEvent != nil {
+					return
+				}
+				msg := util.Translation("Deployment failed: image pull failed")
+				if strings.Contains(containerStatus.State.Waiting.Message, "not found") {
+					msg = util.Translation("Deployment failed: image not found")
+				} else if strings.Contains(containerStatus.State.Waiting.Message, "unauthorized") {
+					msg = util.Translation("Deployment failed: image pull authentication failed")
+				}
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "ImagePullBackOff", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: ImagePullBackOff; error creating event: %v", pod.GetName(), err)
+					return
+				}
+			}
+
+			// CreateContainerConfigError - container config issue
+			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == "CreateContainerConfigError" {
+				configErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CreateContainerConfigError")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching container config error event: %v", err)
+					return
+				}
+				if configErrorEvent != nil {
+					return
+				}
+				msg := util.Translation("Deployment failed: container configuration error")
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "CreateContainerConfigError", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: CreateContainerConfigError; error creating event: %v", pod.GetName(), err)
+					return
+				}
+			}
+
+			// OOMKilled - out of memory during runtime
+			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.Reason == "OOMKilled" {
+				oomEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "OOMKilled")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching OOM event: %v", err)
+					return
+				}
+				if oomEvent != nil {
+					return
+				}
+				msg := util.Translation("Deployment failed: container out of memory killed")
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "OOMKilled", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: OOMKilled; error creating event: %v", pod.GetName(), err)
+					return
+				}
+			}
+
+			// Container terminated with error
+			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.ExitCode != 0 && containerStatus.State.Terminated.Reason != "OOMKilled" {
+				exitErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ContainerExitError")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching container exit error event: %v", err)
+					return
+				}
+				if exitErrorEvent != nil {
+					return
+				}
+				msg := fmt.Sprintf("%s (exit code: %d)", util.Translation("Deployment failed: container startup failed"), containerStatus.State.Terminated.ExitCode)
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "ContainerExitError", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: ContainerExitError; error creating event: %v", pod.GetName(), err)
+					return
+				}
+			}
 		}
+
+		// Check for Pod-level issues
+		// Pod Evicted - node ran out of resources
+		if pod.Status.Reason == "Evicted" {
+			evictedEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "Evicted")
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warningf("error fetching evicted event: %v", err)
+				return
+			}
+			if evictedEvent != nil {
+				return
+			}
+			var msg string
+			if strings.Contains(pod.Status.Message, "memory") {
+				msg = util.Translation("Deployment failed: container out of memory killed")
+			} else if strings.Contains(pod.Status.Message, "disk") {
+				msg = util.Translation("Deployment failed: insufficient storage resources")
+			} else {
+				msg = fmt.Sprintf("%s: %s", util.Translation("Pod scheduling failed"), pod.Status.Message)
+			}
+			_, err = createSystemEvent(tenantID, serviceID, pod.Name, "Evicted", model.EventStatusFailure.String(), msg)
+			if err != nil {
+				logrus.Warningf("pod: %s; type: Evicted; error creating event: %v", pod.GetName(), err)
+				return
+			}
+		}
+	}
+}
+
+// translateRuntimeError translates runtime event types to user-friendly messages
+func translateRuntimeError(eventType, message string) string {
+	switch eventType {
+	case "OOMKilled":
+		return util.Translation("Deployment failed: container out of memory killed")
+	case "CrashLoopBackOff":
+		return util.Translation("Deployment failed: container is being terminated repeatedly")
+	case "AbnormalExited":
+		return util.Translation("Deployment failed: container startup failed")
+	case "LivenessProbeFailed":
+		return util.Translation("Deployment failed: liveness probe failed")
+	case "ReadinessProbeFailed":
+		return util.Translation("Deployment failed: readiness probe failed")
+	case "ImagePullBackOff":
+		return util.Translation("Deployment failed: image pull failed")
+	case "CreateContainerConfigError":
+		return util.Translation("Deployment failed: container configuration error")
+	case "Evicted":
+		return util.Translation("Deployment failed: insufficient storage resources")
+	case "ContainerExitError":
+		return util.Translation("Deployment failed: container startup failed")
+	default:
+		if message != "" {
+			return message
+		}
+		return eventType
 	}
 }
 
