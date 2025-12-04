@@ -402,6 +402,13 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
+// UploadSessionDao upload session dao
+func (m *Manager) UploadSessionDao() dao.UploadSessionDao {
+	return &dao.UploadSessionDaoImpl{
+		DB: m.db,
+	}
+}
+
 // KeyValueDao app export and import info
 func (m *Manager) KeyValueDao() dao.KeyValueDao {
 	return &mysqldao.KeyValueImpl{
