@@ -29,6 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 )
@@ -75,7 +76,7 @@ func NewSlugShareItem(in []byte) (*SlugShareItem, error) {
 func (i *SlugShareItem) ShareService() error {
 	logrus.Debugf("share app local slug path: %s ,target path: %s", i.LocalSlugPath, i.SlugPath)
 	if _, err := os.Stat(i.LocalSlugPath); err != nil {
-		i.Logger.Error(fmt.Sprintf("数据中心应用代码包不存在，请先构建应用"), map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Slug package not exist, please build first"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	if i.ShareInfo.SlugInfo.FTPHost != "" && i.ShareInfo.SlugInfo.FTPPort != "" {
@@ -113,12 +114,12 @@ func (i *SlugShareItem) ShareToFTP() error {
 	i.Logger.Info("开始上传应用介质到FTP服务器", map[string]string{"step": "slug-share"})
 	sFTPClient, err := sources.NewSFTPClient(i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
 	if err != nil {
-		i.Logger.Error("创建FTP客户端失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Create FTP client failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	defer sFTPClient.Close()
 	if err := sFTPClient.PushFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
-		i.Logger.Error("上传源码包文件失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Upload slug package failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	i.Logger.Info("分享云市远程服务器完成", map[string]string{"step": "slug-share", "status": "success"})
@@ -131,20 +132,20 @@ func (i *SlugShareItem) ShareToLocal() error {
 	i.Logger.Info("开始分享应用到本地目录", map[string]string{"step": "slug-share"})
 	md5, err := createMD5(file)
 	if err != nil {
-		i.Logger.Error("生成md5失败", map[string]string{"step": "slug-share", "status": "success"})
+		i.Logger.Error(util.Translation("Generate MD5 failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	if err := storage.Default().StorageCli.UploadFileToFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		logrus.Errorf("copy file to share path error: %s", err.Error())
-		i.Logger.Error("复制文件失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Copy file failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	if err := storage.Default().StorageCli.UploadFileToFile(md5, i.SlugPath+".md5", i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		os.Remove(i.SlugPath + ".md5")
 		logrus.Errorf("copy file to share path error: %s", err.Error())
-		i.Logger.Error("复制md5文件失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Copy MD5 file failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	i.Logger.Info("分享数据中心本地完成", map[string]string{"step": "slug-share", "status": "success"})
@@ -160,7 +161,7 @@ func (i *SlugShareItem) UpdateShareStatus(status string) error {
 	err := db.GetManager().KeyValueDao().Put(fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
 	if err != nil {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
-		i.Logger.Error("存储分享结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error(util.Translation("Save share result failed"), map[string]string{"step": "callback", "status": "failure"})
 	}
 	if status == "success" {
 		i.Logger.Info("创建分享结果成功,分享成功", map[string]string{"step": "last", "status": "success"})

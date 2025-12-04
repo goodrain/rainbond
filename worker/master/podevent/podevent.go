@@ -6,6 +6,7 @@ import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	utils "github.com/goodrain/rainbond/util"
+	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
@@ -214,7 +215,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				var msg string
 				// Use more detailed and user-friendly messages with internationalization support
 				if strings.Contains(condition.Message, "affinity/selector") {
-					msg = "不满足节点亲和性"
+					msg = util.Translation("Deployment failed: node affinity not satisfied")
 				} else if strings.Contains(condition.Message, "Insufficient cpu") {
 					msg = util.Translation("Deployment failed: insufficient CPU resources")
 				} else if strings.Contains(condition.Message, "Insufficient memory") {
@@ -226,7 +227,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				} else if strings.Contains(condition.Message, "PersistentVolumeClaim") || strings.Contains(condition.Message, "persistentvolumeclaim") {
 					msg = util.Translation("Deployment failed: persistent volume claim is pending")
 				} else if strings.Contains(condition.Message, "tolerate") || strings.Contains(condition.Message, "taint") {
-					msg = "节点存在污点"
+					msg = util.Translation("Deployment failed: node has taints")
 				} else if strings.Contains(condition.Message, "node(s)") && strings.Contains(condition.Message, "0") {
 					msg = util.Translation("Deployment failed: no nodes available for scheduling")
 				} else if strings.Contains(condition.Message, "Insufficient") {
@@ -380,11 +381,13 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					return
 				}
 				msg := util.Translation("Deployment failed: container is being terminated repeatedly")
-				_, err = createSystemEvent(tenantID, serviceID, pod.Name, containerStatus.State.Waiting.Reason, model.EventStatusFailure.String(), msg)
+				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, containerStatus.State.Waiting.Reason, model.EventStatusFailure.String(), msg)
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
 					return
 				}
+				// 记录 Pod 容器最后 300 行日志（CrashLoopBackOff 需要获取上一个实例的日志）
+				go recordPodLogsToEventWithPrevious(clientset, pod, eventID, containerStatus.Name)
 			}
 
 			// ImagePullBackOff - cannot pull image during runtime
@@ -439,11 +442,13 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					return
 				}
 				msg := util.Translation("Deployment failed: container out of memory killed")
-				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "OOMKilled", model.EventStatusFailure.String(), msg)
+				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, "OOMKilled", model.EventStatusFailure.String(), msg)
 				if err != nil {
 					logrus.Warningf("pod: %s; type: OOMKilled; error creating event: %v", pod.GetName(), err)
 					return
 				}
+				// 记录 Pod 容器最后 300 行日志
+				go recordPodLogsToEvent(clientset, pod, eventID, containerStatus.Name)
 			}
 
 			// Container terminated with error
@@ -457,11 +462,13 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					return
 				}
 				msg := fmt.Sprintf("%s (exit code: %d)", util.Translation("Deployment failed: container startup failed"), containerStatus.State.Terminated.ExitCode)
-				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "ContainerExitError", model.EventStatusFailure.String(), msg)
+				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, "ContainerExitError", model.EventStatusFailure.String(), msg)
 				if err != nil {
 					logrus.Warningf("pod: %s; type: ContainerExitError; error creating event: %v", pod.GetName(), err)
 					return
 				}
+				// 记录 Pod 容器最后 300 行日志
+				go recordPodLogsToEvent(clientset, pod, eventID, containerStatus.Name)
 			}
 		}
 
@@ -602,4 +609,155 @@ func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg strin
 		return
 	}
 	return
+}
+
+// getPodContainerLogs 获取 Pod 容器的最后 N 行日志
+func getPodContainerLogs(clientset kubernetes.Interface, pod *corev1.Pod, containerName string, tailLines int64) (string, error) {
+	if containerName == "" {
+		// 如果没有指定容器名，使用第一个容器
+		if len(pod.Spec.Containers) > 0 {
+			containerName = pod.Spec.Containers[0].Name
+		} else {
+			return "", fmt.Errorf("no containers found in pod")
+		}
+	}
+
+	// 设置日志选项
+	logOptions := &corev1.PodLogOptions{
+		Container: containerName,
+		TailLines: &tailLines,
+	}
+
+	// 获取日志
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to get pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	// 读取日志内容
+	body, err := io.ReadAll(podLogs)
+	if err != nil {
+		return "", fmt.Errorf("failed to read pod logs: %w", err)
+	}
+
+	return string(body), nil
+}
+
+// getPodContainerLogsWithPrevious 获取 Pod 容器的最后 N 行日志（包括上一个实例）
+func getPodContainerLogsWithPrevious(clientset kubernetes.Interface, pod *corev1.Pod, containerName string, tailLines int64) (string, error) {
+	if containerName == "" {
+		// 如果没有指定容器名，使用第一个容器
+		if len(pod.Spec.Containers) > 0 {
+			containerName = pod.Spec.Containers[0].Name
+		} else {
+			return "", fmt.Errorf("no containers found in pod")
+		}
+	}
+
+	// 设置日志选项 - 获取上一个容器实例的日志
+	logOptions := &corev1.PodLogOptions{
+		Container: containerName,
+		TailLines: &tailLines,
+		Previous:  true, // ← 获取上一个容器实例的日志
+	}
+
+	// 获取日志
+	req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, logOptions)
+	podLogs, err := req.Stream(context.Background())
+	if err != nil {
+		// 如果获取上一个实例失败，尝试获取当前实例
+		logrus.Debugf("failed to get previous container logs, trying current: %v", err)
+		return getPodContainerLogs(clientset, pod, containerName, tailLines)
+	}
+	defer podLogs.Close()
+
+	// 读取日志内容
+	body, err := io.ReadAll(podLogs)
+	if err != nil {
+		return "", fmt.Errorf("failed to read pod logs: %w", err)
+	}
+
+	return string(body), nil
+}
+
+// recordPodLogsToEvent 记录 Pod 容器日志到 event 日志中
+func recordPodLogsToEvent(clientset kubernetes.Interface, pod *corev1.Pod, eventID string, containerName string) {
+	// 获取最后 300 行日志
+	logs, err := getPodContainerLogs(clientset, pod, containerName, 300)
+	if err != nil {
+		logrus.Warnf("failed to get pod logs for %s/%s: %v", pod.Namespace, pod.Name, err)
+		return
+	}
+
+	if logs == "" {
+		logrus.Debugf("no logs available for pod %s/%s container %s", pod.Namespace, pod.Name, containerName)
+		return
+	}
+
+	// 获取 logger 并记录日志
+	logger := event.GetManager().GetLogger(eventID)
+	defer event.GetManager().ReleaseLogger(logger)
+
+	// 记录日志头部信息
+	logger.Info(fmt.Sprintf("==================== Pod Container Logs (Last 300 lines) ===================="),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info(fmt.Sprintf("Pod: %s/%s", pod.Namespace, pod.Name),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info(fmt.Sprintf("Container: %s", containerName),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info("================================================================================",
+		map[string]string{"step": "pod-logs", "status": "info"})
+
+	// 逐行记录日志
+	lines := strings.Split(logs, "\n")
+	for _, line := range lines {
+		if line != "" {
+			logger.Info(line, map[string]string{"step": "pod-logs", "status": "info"})
+		}
+	}
+
+	logger.Info("==================== End of Pod Container Logs ====================",
+		map[string]string{"step": "pod-logs", "status": "info"})
+}
+
+// recordPodLogsToEventWithPrevious 记录 Pod 容器日志到 event 日志中（包括上一个实例的日志）
+func recordPodLogsToEventWithPrevious(clientset kubernetes.Interface, pod *corev1.Pod, eventID string, containerName string) {
+	// 获取最后 300 行日志（尝试获取上一个实例）
+	logs, err := getPodContainerLogsWithPrevious(clientset, pod, containerName, 300)
+	if err != nil {
+		logrus.Warnf("failed to get pod logs for %s/%s: %v", pod.Namespace, pod.Name, err)
+		return
+	}
+
+	if logs == "" {
+		logrus.Debugf("no logs available for pod %s/%s container %s", pod.Namespace, pod.Name, containerName)
+		return
+	}
+
+	// 获取 logger 并记录日志
+	logger := event.GetManager().GetLogger(eventID)
+	defer event.GetManager().ReleaseLogger(logger)
+
+	// 记录日志头部信息
+	logger.Info(fmt.Sprintf("==================== Pod Container Logs (Last 300 lines from previous instance) ===================="),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info(fmt.Sprintf("Pod: %s/%s", pod.Namespace, pod.Name),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info(fmt.Sprintf("Container: %s (crashed instance)", containerName),
+		map[string]string{"step": "pod-logs", "status": "info"})
+	logger.Info("================================================================================",
+		map[string]string{"step": "pod-logs", "status": "info"})
+
+	// 逐行记录日志
+	lines := strings.Split(logs, "\n")
+	for _, line := range lines {
+		if line != "" {
+			logger.Info(line, map[string]string{"step": "pod-logs", "status": "info"})
+		}
+	}
+
+	logger.Info("==================== End of Pod Container Logs ====================",
+		map[string]string{"step": "pod-logs", "status": "info"})
 }

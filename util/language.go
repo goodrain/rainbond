@@ -137,6 +137,72 @@ var translationMetadata = map[string]string{
 	// Pod status descriptions (user-friendly)
 	"Pod is initializing":   "实例正在初始化中",
 	"Pod scheduling failed": "实例调度失败",
+
+	// ========== Build stage - Plugin related ==========
+	"Pull plugin image failed":                "拉取插件镜像失败",
+	"Tag plugin image failed":                 "修改插件镜像标签失败",
+	"Push plugin image to registry failed":    "推送插件镜像至镜像仓库失败",
+	"Pull plugin code failed":                 "拉取插件代码失败",
+	"Dockerfile not found in plugin code":     "插件代码中未检测到Dockerfile，暂不支持构建",
+
+	// Build stage - Application sharing
+	"Slug package not exist, please build first": "数据中心应用代码包不存在，请先构建应用",
+	"Upload slug package failed":                  "上传源码包文件失败",
+	"Image registry authentication failed":        "镜像仓库授权失败",
+	"Get image manifest failed":                   "获取镜像清单失败",
+	"Export image failed":                         "导出镜像失败",
+	"Save share result failed":                    "存储分享结果失败",
+
+	// Build stage - Builder executor errors
+	"Back end service drift. Please check the rbd-chaos log": "后端服务异常，请检查rbd-chaos日志",
+	"Create build job timeout":                                "创建构建任务超时",
+
+	// ========== Deployment stage - Handle layer ==========
+	"component init create failure":            "组件初始化失败，请检查集群状态或查看日志",
+	"component run start controller failure":   "组件启动控制器运行失败",
+	"component run stop controller failure":    "组件停止控制器运行失败",
+	"component run restart controller failure": "组件重启控制器运行失败",
+	"Get app base info failure":                "获取应用基础信息失败，请检查数据库连接",
+	"apply rule controller failure":            "应用规则失败，请检查规则配置",
+	"apply plugin config failure":              "应用插件配置失败，请检查插件配置",
+	"refresh hpa failure":                      "刷新自动扩容策略失败，请检查配置",
+	"delete tenant error":                      "删除租户失败，请检查租户状态或查看日志",
+
+	// Deployment stage - Controller layer
+	"restart service error":   "重启服务失败，请检查服务状态或查看日志",
+	"restart service timeout": "重启服务超时，建议观察服务实例运行状态",
+
+	// ========== Runtime stage - Pod scheduling ==========
+	"Deployment failed: node affinity not satisfied": "部署失败：不满足节点亲和性要求，请检查节点标签配置",
+	"Deployment failed: node has taints":             "部署失败：节点存在污点，Pod无法调度到该节点",
+	"Deployment failed: hostport conflict":           "部署失败：主机端口冲突，该端口已被其他Pod占用",
+	"Deployment failed: pod topology spread constraint": "部署失败：Pod拓扑分布约束未满足",
+
+	// Runtime stage - Storage related
+	"Deployment failed: volume mount timeout":     "部署失败：存储卷挂载超时，请检查存储卷状态",
+	"Deployment failed: volume attachment failed": "部署失败：存储卷附加失败，请检查存储配置",
+
+	// Runtime stage - Network related
+	"Deployment failed: CNI plugin error":            "部署失败：容器网络接口插件错误，请联系管理员",
+	"Deployment failed: pod sandbox creation failed": "部署失败：Pod沙箱创建失败，请查看节点日志",
+
+	// ========== Shutdown stage - Resource deletion ==========
+	"Delete service failure":        "删除Service失败，请检查集群状态",
+	"Delete secret failure":         "删除Secret失败，请检查集群状态",
+	"Delete configmap failure":      "删除ConfigMap失败，请检查集群状态",
+	"Delete ingress failure":        "删除Ingress失败，请检查集群状态",
+	"Delete workload failure":       "删除工作负载失败，请检查集群状态",
+	"Delete HPA failure":            "删除自动扩容策略失败，请检查集群状态",
+	"Delete servicemonitor failure": "删除服务监控失败，请检查集群状态",
+
+	// Shutdown stage - Pod termination
+	"Pod termination timeout": "Pod终止超时，可能存在僵死进程",
+	"Force delete pod failed": "强制删除Pod失败，请手动清理",
+
+	// Additional translations for file operations
+	"Generate MD5 failed": "生成MD5失败",
+	"Copy file failed":    "复制文件失败",
+	"Copy MD5 file failed": "复制MD5文件失败",
 }
 
 // Translation Translation English to Chinese
