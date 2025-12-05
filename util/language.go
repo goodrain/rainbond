@@ -98,36 +98,37 @@ var translationMetadata = map[string]string{
 	"Change slug package permission failed":        "修改源码包权限失败",
 
 	// Deployment related errors - resource issues
-	"Deployment failed: namespace resource quota exceeded": "部署失败：命名空间资源配额已超限，请联系管理员增加CPU/内存配额",
-	"Deployment failed: insufficient CPU resources":        "部署失败：节点CPU资源不足，请降低CPU请求值或联系管理员增加节点",
-	"Deployment failed: insufficient memory resources":     "部署失败：节点内存资源不足，请降低内存请求值或联系管理员增加节点",
-	"Deployment failed: insufficient storage resources":    "部署失败：存储资源不足，请联系管理员检查存储配置",
-	"Deployment failed: no nodes available for scheduling": "部署失败：没有可用节点进行调度，请联系管理员检查集群节点状态",
+	"Deployment failed: namespace resource quota exceeded": "命名空间资源配额已超限，请联系管理员增加CPU/内存配额",
+	"Deployment failed: insufficient CPU resources":        "节点CPU资源不足，请降低CPU请求值或联系管理员增加节点",
+	"Deployment failed: insufficient memory resources":     "节点内存资源不足，请降低内存请求值或联系管理员增加节点",
+	"Deployment failed: insufficient storage resources":    "存储资源不足，请联系管理员检查存储配置",
+	"Deployment failed: no nodes available for scheduling": "没有可用节点进行调度，请联系管理员检查集群节点状态",
 
 	// Deployment related errors - storage issues
-	"Deployment failed: persistent volume claim is pending": "部署失败：存储卷申请处于等待状态，请检查存储卷配置或联系管理员",
+	"Deployment failed: persistent volume claim is pending": "存储卷申请处于等待状态，请检查存储卷配置或联系管理员",
 
 	// Deployment related errors - image issues
-	"Deployment failed: invalid image name":               "部署失败：镜像名称格式无效，请检查镜像地址格式",
-	"Deployment failed: image pull failed":                "部署失败：拉取镜像失败，请检查镜像是否存在或镜像仓库是否可访问",
-	"Deployment failed: image pull authentication failed": "部署失败：拉取镜像认证失败，请检查镜像仓库的用户名和密码",
-	"Deployment failed: image not found":                  "部署失败：镜像不存在，请检查镜像名称和标签是否正确",
+	"Deployment failed: invalid image name":               "镜像名称格式无效，请检查镜像地址格式",
+	"Deployment failed: image pull failed":                "拉取镜像失败，请检查镜像是否存在或镜像仓库是否可访问",
+	"Deployment failed: image pull authentication failed": "拉取镜像认证失败，请检查镜像仓库的用户名和密码",
+	"Deployment failed: image not found":                  "镜像不存在，请检查镜像名称和标签是否正确",
 
 	// Deployment related errors - container issues
-	"Deployment failed: container configuration error":            "部署失败：容器配置错误，请检查环境变量、存储卷挂载等配置",
-	"Deployment failed: container creation failed":                "部署失败：容器创建失败，请查看实例日志定位问题",
-	"Deployment failed: container startup failed":                 "部署失败：容器启动失败，请查看实例日志定位启动脚本或命令问题",
-	"Deployment failed: container is being terminated repeatedly": "部署失败：容器反复崩溃重启，请查看实例日志定位应用代码问题",
-	"Deployment failed: container out of memory killed":           "部署失败：容器因内存超限被终止，请增加内存限制或优化应用内存使用",
+	"Deployment failed: container configuration error":            "容器配置错误，请检查环境变量、存储卷挂载等配置",
+	"Deployment failed: container creation failed":                "容器创建失败，请查看实例日志定位问题",
+	"Deployment failed: container startup failed":                 "容器启动失败，请查看实例日志定位启动脚本或命令问题",
+	"Deployment failed: container crashed during runtime":         "容器运行时异常退出，请查看右侧日志定位应用代码问题",
+	"Deployment failed: container is being terminated repeatedly": "容器反复崩溃重启，请查看右侧日志定位应用代码问题",
+	"Deployment failed: container out of memory killed":           "容器因内存超限被终止，请增加内存限制或优化应用内存使用",
 
 	// Deployment related errors - health check issues
-	"Deployment failed: readiness probe failed": "部署失败：就绪检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
-	"Deployment failed: liveness probe failed":  "部署失败：存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
-	"Deployment failed: startup probe failed":   "部署失败：启动检查失败，应用启动超时，请查看实例日志或增加启动超时时间",
+	"Deployment failed: readiness probe failed": "就绪检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
+	"Deployment failed: liveness probe failed":  "存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
+	"Deployment failed: startup probe failed":   "启动检查失败，应用启动超时，请查看实例日志或增加启动超时时间",
 
 	// Deployment related errors - permission and security
-	"Deployment failed: insufficient permissions":  "部署失败：权限不足，请联系管理员检查服务账号权限",
-	"Deployment failed: security policy violation": "部署失败：违反安全策略，请联系管理员检查Pod安全策略配置",
+	"Deployment failed: insufficient permissions":  "权限不足，请联系管理员检查服务账号权限",
+	"Deployment failed: security policy violation": "违反安全策略，请联系管理员检查Pod安全策略配置",
 
 	// Deployment related errors - general
 	"Create workload failed":              "创建工作负载失败",
@@ -139,23 +140,23 @@ var translationMetadata = map[string]string{
 	"Pod scheduling failed": "实例调度失败",
 
 	// ========== Build stage - Plugin related ==========
-	"Pull plugin image failed":                "拉取插件镜像失败",
-	"Tag plugin image failed":                 "修改插件镜像标签失败",
-	"Push plugin image to registry failed":    "推送插件镜像至镜像仓库失败",
-	"Pull plugin code failed":                 "拉取插件代码失败",
-	"Dockerfile not found in plugin code":     "插件代码中未检测到Dockerfile，暂不支持构建",
+	"Pull plugin image failed":             "拉取插件镜像失败",
+	"Tag plugin image failed":              "修改插件镜像标签失败",
+	"Push plugin image to registry failed": "推送插件镜像至镜像仓库失败",
+	"Pull plugin code failed":              "拉取插件代码失败",
+	"Dockerfile not found in plugin code":  "插件代码中未检测到Dockerfile，暂不支持构建",
 
 	// Build stage - Application sharing
 	"Slug package not exist, please build first": "数据中心应用代码包不存在，请先构建应用",
-	"Upload slug package failed":                  "上传源码包文件失败",
-	"Image registry authentication failed":        "镜像仓库授权失败",
-	"Get image manifest failed":                   "获取镜像清单失败",
-	"Export image failed":                         "导出镜像失败",
-	"Save share result failed":                    "存储分享结果失败",
+	"Upload slug package failed":                 "上传源码包文件失败",
+	"Image registry authentication failed":       "镜像仓库授权失败",
+	"Get image manifest failed":                  "获取镜像清单失败",
+	"Export image failed":                        "导出镜像失败",
+	"Save share result failed":                   "存储分享结果失败",
 
 	// Build stage - Builder executor errors
 	"Back end service drift. Please check the rbd-chaos log": "后端服务异常，请检查rbd-chaos日志",
-	"Create build job timeout":                                "创建构建任务超时",
+	"Create build job timeout":                               "创建构建任务超时",
 
 	// ========== Deployment stage - Handle layer ==========
 	"component init create failure":            "组件初始化失败，请检查集群状态或查看日志",
@@ -173,18 +174,18 @@ var translationMetadata = map[string]string{
 	"restart service timeout": "重启服务超时，建议观察服务实例运行状态",
 
 	// ========== Runtime stage - Pod scheduling ==========
-	"Deployment failed: node affinity not satisfied": "部署失败：不满足节点亲和性要求，请检查节点标签配置",
-	"Deployment failed: node has taints":             "部署失败：节点存在污点，Pod无法调度到该节点",
-	"Deployment failed: hostport conflict":           "部署失败：主机端口冲突，该端口已被其他Pod占用",
-	"Deployment failed: pod topology spread constraint": "部署失败：Pod拓扑分布约束未满足",
+	"Deployment failed: node affinity not satisfied":    "不满足节点亲和性要求，请检查节点标签配置",
+	"Deployment failed: node has taints":                "节点存在污点，Pod无法调度到该节点",
+	"Deployment failed: hostport conflict":              "主机端口冲突，该端口已被其他Pod占用",
+	"Deployment failed: pod topology spread constraint": "Pod拓扑分布约束未满足",
 
 	// Runtime stage - Storage related
-	"Deployment failed: volume mount timeout":     "部署失败：存储卷挂载超时，请检查存储卷状态",
-	"Deployment failed: volume attachment failed": "部署失败：存储卷附加失败，请检查存储配置",
+	"Deployment failed: volume mount timeout":     "存储卷挂载超时，请检查存储卷状态",
+	"Deployment failed: volume attachment failed": "存储卷附加失败，请检查存储配置",
 
 	// Runtime stage - Network related
-	"Deployment failed: CNI plugin error":            "部署失败：容器网络接口插件错误，请联系管理员",
-	"Deployment failed: pod sandbox creation failed": "部署失败：Pod沙箱创建失败，请查看节点日志",
+	"Deployment failed: CNI plugin error":            "容器网络接口插件错误，请联系管理员",
+	"Deployment failed: pod sandbox creation failed": "Pod沙箱创建失败，请查看节点日志",
 
 	// ========== Shutdown stage - Resource deletion ==========
 	"Delete service failure":        "删除Service失败，请检查集群状态",
@@ -200,8 +201,8 @@ var translationMetadata = map[string]string{
 	"Force delete pod failed": "强制删除Pod失败，请手动清理",
 
 	// Additional translations for file operations
-	"Generate MD5 failed": "生成MD5失败",
-	"Copy file failed":    "复制文件失败",
+	"Generate MD5 failed":  "生成MD5失败",
+	"Copy file failed":     "复制文件失败",
 	"Copy MD5 file failed": "复制MD5文件失败",
 }
 

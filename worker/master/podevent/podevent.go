@@ -185,15 +185,19 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		loggerOpt := event.GetLoggerOption("failure")
 
 		if !rtime.IsZero() && time.Now().Sub(rtime.Time) > 2*time.Minute {
-			evt.FinalStatus = model.EventFinalStatusEmptyComplete.String()
-			if err := db.GetManager().ServiceEventDao().UpdateModel(evt); err != nil {
-				logrus.Warningf("event id: %s; failed to update service event: %v", evt.EventID, err)
-			} else {
-				loggerOpt = event.GetCallbackLoggerOption()
-				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String(), "")
-				if err != nil {
-					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
-					return
+			// Don't auto-complete ContainerExitError events - preserve crash history
+			// Users need to see that container crashed before, even if it recovered
+			if evt.OptType != "ContainerExitError" {
+				evt.FinalStatus = model.EventFinalStatusEmptyComplete.String()
+				if err := db.GetManager().ServiceEventDao().UpdateModel(evt); err != nil {
+					logrus.Warningf("event id: %s; failed to update service event: %v", evt.EventID, err)
+				} else {
+					loggerOpt = event.GetCallbackLoggerOption()
+					_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String(), "")
+					if err != nil {
+						logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
+						return
+					}
 				}
 			}
 		}
@@ -370,6 +374,86 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 		}
 		// Check for runtime container issues
 		for _, containerStatus := range pod.Status.ContainerStatuses {
+			// Check both current and last terminated state for container exit errors
+			// This ensures we catch exits even if container has already restarted
+			var terminated *corev1.ContainerStateTerminated
+			if containerStatus.State.Terminated != nil {
+				terminated = containerStatus.State.Terminated
+			} else if containerStatus.LastTerminationState.Terminated != nil {
+				terminated = containerStatus.LastTerminationState.Terminated
+			}
+
+			// Container terminated with error (check before other states)
+			if terminated != nil && terminated.ExitCode != 0 && terminated.Reason != "OOMKilled" {
+				exitErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ContainerExitError")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching container exit error event: %v", err)
+					return
+				}
+				// Time-based deduplication: only skip if event was created within last 30 seconds
+				// This allows recording repeated crashes while avoiding duplicate detection of same crash
+				if exitErrorEvent != nil {
+					eventTime, err := time.Parse(time.RFC3339, exitErrorEvent.CreatedAt)
+					if err != nil {
+						logrus.Warningf("failed to parse event time: %v", err)
+						// If we can't parse the time, assume it's an old event and create a new one
+					} else {
+						timeSinceLastEvent := time.Now().Sub(eventTime)
+						if timeSinceLastEvent < 30*time.Second {
+							// Recent event exists, likely duplicate detection of same crash
+							return
+						}
+					}
+					// Old event exists, but this is a new crash - continue to create new event
+				}
+
+				// Determine if this is a startup failure or runtime crash
+				// - Startup failure: container never successfully ran (RestartCount == 0 and ran < 10s)
+				// - Runtime crash: container was running successfully, then exited
+				var msg string
+				wasRunning := false
+
+				// Check if container ever ran successfully
+				if containerStatus.RestartCount > 0 {
+					// If restarted before, it means it was running successfully
+					wasRunning = true
+				} else if !terminated.StartedAt.IsZero() && !terminated.FinishedAt.IsZero() {
+					// Check how long the container ran
+					runDuration := terminated.FinishedAt.Sub(terminated.StartedAt.Time)
+					if runDuration.Seconds() >= 10 {
+						// Ran for at least 10 seconds, consider it was running
+						wasRunning = true
+					}
+				}
+
+				if wasRunning {
+					msg = fmt.Sprintf("%s (exit code: %d)", util.Translation("Deployment failed: container crashed during runtime"), terminated.ExitCode)
+				} else {
+					msg = fmt.Sprintf("%s (exit code: %d)", util.Translation("Deployment failed: container startup failed"), terminated.ExitCode)
+				}
+
+				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, "ContainerExitError", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: ContainerExitError; error creating event: %v", pod.GetName(), err)
+					return
+				}
+				// Delete old AbnormalExited event to avoid duplicates
+				// (AbnormalExited is created by recordUpdateEvent, but ContainerExitError has more details)
+				if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "AbnormalExited"); err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Debugf("failed to delete AbnormalExited event: %v", err)
+				}
+
+				// Record container logs (300 lines)
+				// If container has restarted, get previous container logs
+				if containerStatus.State.Running != nil && containerStatus.RestartCount > 0 {
+					// Container has restarted, get previous logs
+					go recordPodLogsToEventWithPrevious(clientset, pod, eventID, containerStatus.Name)
+				} else {
+					// Container still in terminated state, get current logs
+					go recordPodLogsToEvent(clientset, pod, eventID, containerStatus.Name)
+				}
+			}
+
 			// CrashLoopBackOff - container keeps crashing
 			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == EventTypeCrashLoopBackOff.String() {
 				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CrashLoopBackOff")
@@ -451,25 +535,8 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				go recordPodLogsToEvent(clientset, pod, eventID, containerStatus.Name)
 			}
 
-			// Container terminated with error
-			if containerStatus.State.Terminated != nil && containerStatus.State.Terminated.ExitCode != 0 && containerStatus.State.Terminated.Reason != "OOMKilled" {
-				exitErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ContainerExitError")
-				if err != nil && err != gorm.ErrRecordNotFound {
-					logrus.Warningf("error fetching container exit error event: %v", err)
-					return
-				}
-				if exitErrorEvent != nil {
-					return
-				}
-				msg := fmt.Sprintf("%s (exit code: %d)", util.Translation("Deployment failed: container startup failed"), containerStatus.State.Terminated.ExitCode)
-				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, "ContainerExitError", model.EventStatusFailure.String(), msg)
-				if err != nil {
-					logrus.Warningf("pod: %s; type: ContainerExitError; error creating event: %v", pod.GetName(), err)
-					return
-				}
-				// 记录 Pod 容器最后 300 行日志
-				go recordPodLogsToEvent(clientset, pod, eventID, containerStatus.Name)
-			}
+			// Note: Container exit error is already handled above (line 386-442)
+			// by checking both State.Terminated and LastTerminationState.Terminated
 		}
 
 		// Check for Pod-level issues
