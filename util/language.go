@@ -99,8 +99,8 @@ var translationMetadata = map[string]string{
 
 	// Deployment related errors - resource issues
 	"Deployment failed: namespace resource quota exceeded": "命名空间资源配额已超限，请联系管理员增加CPU/内存配额",
-	"Deployment failed: insufficient CPU resources":        "节点CPU资源不足，请降低CPU请求值或联系管理员增加节点",
-	"Deployment failed: insufficient memory resources":     "节点内存资源不足，请降低内存请求值或联系管理员增加节点",
+	"Deployment failed: insufficient CPU resources":        "集群CPU资源不足，请降低CPU请求值或联系管理员增加节点",
+	"Deployment failed: insufficient memory resources":     "集群内存资源不足，请降低内存请求值或联系管理员增加节点",
 	"Deployment failed: insufficient storage resources":    "存储资源不足，请联系管理员检查存储配置",
 	"Deployment failed: no nodes available for scheduling": "没有可用节点进行调度，请联系管理员检查集群节点状态",
 
