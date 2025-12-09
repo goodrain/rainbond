@@ -126,6 +126,19 @@ var translationMetadata = map[string]string{
 	"Deployment failed: liveness probe failed":  "存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
 	"Deployment failed: startup probe failed":   "启动检查失败，应用启动超时，请查看实例日志或增加启动超时时间",
 
+	// Runtime health check monitoring - Readiness probe
+	"Container is running but failing readiness checks": "容器运行正常但未通过就绪检查",
+	"minutes. Traffic has been removed. Please check health check configuration or application status.": "分钟，流量已被移除。请检查健康检查配置或应用状态。",
+
+	// Runtime health check monitoring - Liveness probe
+	"Container restarted due to liveness probe failure": "容器因存活检查失败已重启",
+	"times. Last failure: container was forcefully terminated by Kubernetes (Exit Code 137).": "次。最近一次失败：容器被 Kubernetes 强制终止 (Exit Code 137)。",
+
+	// Runtime health check monitoring - Startup probe
+	"Container startup health check failed":                    "容器启动阶段健康检查失败",
+	"times, entered backoff restart (next retry in about":      "次，已进入退避重启（下次重试：约",
+	"seconds). Please check startup time configuration or initialization logic.": "秒后）。请检查启动时间配置或初始化逻辑。",
+
 	// Deployment related errors - permission and security
 	"Deployment failed: insufficient permissions":  "权限不足，请联系管理员检查服务账号权限",
 	"Deployment failed: security policy violation": "违反安全策略，请联系管理员检查Pod安全策略配置",

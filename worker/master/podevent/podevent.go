@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/db"
@@ -52,6 +53,15 @@ var EventTypeReadinessProbeFailed EventType = "ReadinessProbeFailed"
 // EventTypeAbnormalRecovery -
 var EventTypeAbnormalRecovery EventType = "AbnormalRecovery"
 
+// EventTypeReadinessUnhealthy - Readiness probe unhealthy for extended period
+var EventTypeReadinessUnhealthy EventType = "ReadinessUnhealthy"
+
+// EventTypeLivenessRestart - Container restarted due to liveness probe failure
+var EventTypeLivenessRestart EventType = "LivenessRestart"
+
+// EventTypeStartupProbeFailure - Startup probe failure in CrashLoopBackOff
+var EventTypeStartupProbeFailure EventType = "StartupProbeFailure"
+
 // SortableEventType implements sort.Interface for []EventType
 type SortableEventType []EventType
 
@@ -80,34 +90,151 @@ type optType struct {
 	message     string
 }
 
+// ContainerHealthState tracks the health state of a container over time
+type ContainerHealthState struct {
+	LastRestartCount        int32
+	LastReadyState          bool
+	ReadinessUnhealthySince time.Time
+	LastLivenessFailTime    time.Time
+	HasEverBeenReady        bool
+	LastCheckTime           time.Time
+}
+
+// HealthStateCache manages container health states
+type HealthStateCache struct {
+	sync.RWMutex
+	// key: pod_namespace/pod_name/container_name
+	states map[string]*ContainerHealthState
+}
+
+// NewHealthStateCache creates a new health state cache
+func NewHealthStateCache() *HealthStateCache {
+	return &HealthStateCache{
+		states: make(map[string]*ContainerHealthState),
+	}
+}
+
+// Get retrieves the health state for a container
+func (c *HealthStateCache) Get(key string) *ContainerHealthState {
+	c.RLock()
+	defer c.RUnlock()
+	return c.states[key]
+}
+
+// Update updates the health state for a container
+func (c *HealthStateCache) Update(key string, cs corev1.ContainerStatus) {
+	c.Lock()
+	defer c.Unlock()
+
+	state, exists := c.states[key]
+	if !exists {
+		state = &ContainerHealthState{
+			LastRestartCount: cs.RestartCount,
+			LastReadyState:   cs.Ready,
+			HasEverBeenReady: cs.Ready,
+			LastCheckTime:    time.Now(),
+		}
+		c.states[key] = state
+		return
+	}
+
+	// Update state
+	state.LastRestartCount = cs.RestartCount
+	state.LastReadyState = cs.Ready
+	state.LastCheckTime = time.Now()
+
+	// Track if container has ever been ready
+	if cs.Ready {
+		state.HasEverBeenReady = true
+		// Reset readiness unhealthy timer when becoming ready
+		state.ReadinessUnhealthySince = time.Time{}
+	}
+}
+
+// Delete removes a container's health state
+func (c *HealthStateCache) Delete(key string) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.states, key)
+}
+
+// CleanupOldStates removes states that haven't been updated in a while
+func (c *HealthStateCache) CleanupOldStates(maxAge time.Duration) {
+	c.Lock()
+	defer c.Unlock()
+
+	now := time.Now()
+	for key, state := range c.states {
+		if now.Sub(state.LastCheckTime) > maxAge {
+			delete(c.states, key)
+		}
+	}
+}
+
 // PodEvent -
 type PodEvent struct {
-	clientset  kubernetes.Interface
-	stopCh     chan struct{}
-	podEventCh chan *corev1.Pod
+	clientset        kubernetes.Interface
+	stopCh           chan struct{}
+	podEventCh       chan *corev1.Pod
+	healthStateCache *HealthStateCache
+	recentPods       sync.Map // map[string]*corev1.Pod, key: namespace/name
 }
 
 // New create a new PodEvent
 func New(stopCh chan struct{}) *PodEvent {
-	return &PodEvent{
-		clientset:  k8s.Default().Clientset,
-		stopCh:     stopCh,
-		podEventCh: make(chan *corev1.Pod, 100),
+	pe := &PodEvent{
+		clientset:        k8s.Default().Clientset,
+		stopCh:           stopCh,
+		podEventCh:       make(chan *corev1.Pod, 100),
+		healthStateCache: NewHealthStateCache(),
 	}
+
+	// Start periodic cleanup of old health states
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Clean up states older than 1 hour
+				pe.healthStateCache.CleanupOldStates(1 * time.Hour)
+			case <-stopCh:
+				return
+			}
+		}
+	}()
+
+	return pe
 }
 
 // Handle -
 func (p *PodEvent) Handle() {
+	// Add periodic check for probe issues (every 30 seconds)
+	// This ensures we detect issues even when pod state doesn't change
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case pod := <-p.podEventCh:
 			// Extend monitoring window: record events from 5 seconds to 30 minutes after startup
 			// This catches immediate failures faster and monitors long-running issues longer
 			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
+			logrus.Infof("Received pod event: %s/%s, age: %.1fs, phase: %s",
+				pod.Namespace, pod.Name, podAge.Seconds(), pod.Status.Phase)
+
 			if podAge > 5*time.Second && podAge < 30*time.Minute {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 				AbnormalEvent(p.clientset, pod)
+				// Detect probe health issues (Readiness/Liveness/Startup)
+				p.detectProbeIssues(pod)
+			} else {
+				logrus.Infof("Pod %s/%s outside monitoring window (age: %.1fs)",
+					pod.Namespace, pod.Name, podAge.Seconds())
 			}
+		case <-ticker.C:
+			// Periodic check: re-check all pods in cache for probe issues
+			p.periodicProbeCheck()
 		case <-p.stopCh:
 			return
 		}
@@ -827,4 +954,446 @@ func recordPodLogsToEventWithPrevious(clientset kubernetes.Interface, pod *corev
 
 	logger.Info("==================== End of Pod Container Logs ====================",
 		map[string]string{"step": "pod-logs", "status": "info"})
+}
+
+// getContainerSpec retrieves the container spec from pod by container name
+func getContainerSpec(pod *corev1.Pod, containerName string) *corev1.Container {
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name == containerName {
+			return &pod.Spec.Containers[i]
+		}
+	}
+	return nil
+}
+
+// hasProbeFailureEvent checks if there's a probe failure event in recent pod events
+func hasProbeFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod, containerName, probeType string) bool {
+	events := k8sutil.DefListEventsByPod(clientset, pod)
+	if events == nil {
+		return false
+	}
+
+	searchStr := fmt.Sprintf("%s probe failed", probeType)
+	for _, evt := range events.Items {
+		// Check if event is recent (within last 2 minutes)
+		if time.Since(evt.LastTimestamp.Time) > 2*time.Minute {
+			continue
+		}
+		if strings.Contains(evt.Message, searchStr) {
+			// Optionally check if event mentions this specific container
+			// (K8s events may not always include container name)
+			return true
+		}
+	}
+	return false
+}
+
+// hasLivenessFailureEvent checks specifically for liveness probe failures
+func hasLivenessFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod, containerName string) bool {
+	return hasProbeFailureEvent(clientset, pod, containerName, "Liveness")
+}
+
+// hasReadinessFailureEvent checks specifically for readiness probe failures
+func hasReadinessFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod, containerName string) bool {
+	return hasProbeFailureEvent(clientset, pod, containerName, "Readiness")
+}
+
+// hasStartupProbeFailureEvent checks specifically for startup probe failures
+func hasStartupProbeFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod, containerName string) bool {
+	return hasProbeFailureEvent(clientset, pod, containerName, "Startup")
+}
+
+// Constants for probe health check thresholds
+const (
+	ReadinessUnhealthyThreshold = 2 * time.Minute // Alert if readiness unhealthy for > 2 minutes
+	LivenessRestartThreshold    = 3               // Alert if liveness caused > 3 restarts
+	StartupProbeFailureMin      = 5               // Alert if startup probe failed > 5 times
+)
+
+// checkReadinessHealth detects containers running but not ready for extended periods
+func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStatus, container *corev1.Container, lastState *ContainerHealthState, tenantID, serviceID string) {
+	// Only check if container has ReadinessProbe configured
+	if container.ReadinessProbe == nil {
+		return
+	}
+
+	// Container is running but not ready
+	if cs.State.Running != nil && !cs.Ready {
+		containerKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, cs.Name)
+
+		// Get or initialize unhealthy start time
+		var unhealthyStartTime time.Time
+		if lastState != nil && !lastState.ReadinessUnhealthySince.IsZero() {
+			// Already tracking this container as unhealthy
+			unhealthyStartTime = lastState.ReadinessUnhealthySince
+		} else {
+			// First time seeing this container as not ready, initialize the time
+			p.healthStateCache.Lock()
+			state, exists := p.healthStateCache.states[containerKey]
+			if !exists {
+				state = &ContainerHealthState{
+					ReadinessUnhealthySince: time.Now(),
+					LastCheckTime:           time.Now(),
+				}
+				p.healthStateCache.states[containerKey] = state
+				unhealthyStartTime = time.Now()
+			} else if state.ReadinessUnhealthySince.IsZero() {
+				state.ReadinessUnhealthySince = time.Now()
+				unhealthyStartTime = time.Now()
+			} else {
+				unhealthyStartTime = state.ReadinessUnhealthySince
+			}
+			p.healthStateCache.Unlock()
+		}
+
+		// Check how long it's been unhealthy
+		unhealthyDuration := time.Since(unhealthyStartTime)
+		logrus.Infof("Pod %s/%s container %s readiness check: unhealthy for %.1f minutes (threshold: %.1f minutes)",
+			pod.Namespace, pod.Name, cs.Name, unhealthyDuration.Minutes(), ReadinessUnhealthyThreshold.Minutes())
+		if unhealthyDuration > ReadinessUnhealthyThreshold {
+			logrus.Infof("Pod %s/%s container %s exceeded threshold, checking for existing event...", pod.Namespace, pod.Name, cs.Name)
+
+			// Check if we already created an event for this
+			existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String())
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warnf("error fetching readiness unhealthy event: %v", err)
+				return
+			}
+			if existingEvent != nil {
+				// Check if the existing event is for the same pod
+				if existingEvent.TargetID == pod.Name {
+					// Event already exists for this pod, don't create duplicate
+					logrus.Infof("Pod %s/%s container %s: ReadinessUnhealthy event already exists for this pod (eventID: %s), skipping",
+						pod.Namespace, pod.Name, cs.Name, existingEvent.EventID)
+					return
+				} else {
+					// Event exists but for a different pod (old pod), delete it and create new one
+					logrus.Infof("Found old ReadinessUnhealthy event for pod %s (current pod: %s), deleting old event",
+						existingEvent.TargetID, pod.Name)
+					if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String()); err != nil && err != gorm.ErrRecordNotFound {
+						logrus.Warnf("Failed to delete old event: %v", err)
+					}
+				}
+			}
+
+			logrus.Infof("Creating ReadinessUnhealthy event for pod %s/%s container %s...", pod.Namespace, pod.Name, cs.Name)
+
+			// Create event message
+			msg := fmt.Sprintf("容器 [%s] 运行正常但未通过就绪检查已持续 %.0f 分钟，流量已被移除。请检查健康检查配置或应用状态。",
+				cs.Name, unhealthyDuration.Minutes())
+
+			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeReadinessUnhealthy.String(), model.EventStatusFailure.String(), msg)
+			if err != nil {
+				logrus.Warnf("pod: %s; type: ReadinessUnhealthy; error creating event: %v", pod.GetName(), err)
+				return
+			}
+
+			logrus.Infof("✓ Created ReadinessUnhealthy event for pod %s/%s container %s (eventID: %s)",
+				pod.Namespace, pod.Name, cs.Name, eventID)
+
+			// Log probe details
+			logger := event.GetManager().GetLogger(eventID)
+			defer event.GetManager().ReleaseLogger(logger)
+			logger.Info(fmt.Sprintf("Readiness Probe Configuration: %+v", container.ReadinessProbe),
+				map[string]string{"step": "probe-check", "status": "info"})
+
+			// Check K8s events for additional context
+			if hasReadinessFailureEvent(p.clientset, pod, cs.Name) {
+				logger.Info("Kubernetes events confirmed readiness probe failures",
+					map[string]string{"step": "probe-check", "status": "info"})
+			}
+		}
+	}
+}
+
+// checkLivenessRestart detects container restarts caused by liveness probe failures
+func (p *PodEvent) checkLivenessRestart(pod *corev1.Pod, cs corev1.ContainerStatus, container *corev1.Container, lastState *ContainerHealthState, tenantID, serviceID string) {
+	// Only check if container has LivenessProbe configured
+	if container.LivenessProbe == nil {
+		return
+	}
+
+	// Check if RestartCount increased
+	if lastState != nil && cs.RestartCount > lastState.LastRestartCount {
+		// Container restarted, check if it was due to liveness probe
+		if cs.LastTerminationState.Terminated != nil {
+			terminated := cs.LastTerminationState.Terminated
+			// K8s kills containers with SIGKILL (exit code 137) when liveness probe fails
+			if terminated.Reason == "Error" && terminated.ExitCode == 137 {
+				// Verify with K8s events
+				if hasLivenessFailureEvent(p.clientset, pod, cs.Name) {
+					// Check restart count threshold
+					if cs.RestartCount >= LivenessRestartThreshold {
+						// Check if we already created an event recently
+						existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeLivenessRestart.String())
+						if err != nil && err != gorm.ErrRecordNotFound {
+							logrus.Warnf("error fetching liveness restart event: %v", err)
+							return
+						}
+
+						// Check if event is for the same pod and recent
+						if existingEvent != nil {
+							if existingEvent.TargetID != pod.Name {
+								// Old pod's event, delete it
+								logrus.Infof("Found old LivenessRestart event for pod %s (current: %s), deleting",
+									existingEvent.TargetID, pod.Name)
+								db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeLivenessRestart.String())
+							} else {
+								// Same pod, check time-based deduplication
+								eventTime, err := time.Parse(time.RFC3339, existingEvent.CreatedAt)
+								if err == nil && time.Since(eventTime) < 30*time.Second {
+									return
+								}
+							}
+						}
+
+						msg := fmt.Sprintf("容器 [%s] 因存活检查失败已重启 %d 次。最近一次失败：容器被 Kubernetes 强制终止 (Exit Code 137)。",
+							cs.Name, cs.RestartCount)
+
+						eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeLivenessRestart.String(), model.EventStatusFailure.String(), msg)
+						if err != nil {
+							logrus.Warnf("pod: %s; type: LivenessRestart; error creating event: %v", pod.GetName(), err)
+							return
+						}
+
+						// Log probe details and recent logs
+						logger := event.GetManager().GetLogger(eventID)
+						defer event.GetManager().ReleaseLogger(logger)
+						logger.Info(fmt.Sprintf("Liveness Probe Configuration: %+v", container.LivenessProbe),
+							map[string]string{"step": "probe-check", "status": "info"})
+
+						// Get logs from previous instance (before restart)
+						go recordPodLogsToEventWithPrevious(p.clientset, pod, eventID, cs.Name)
+					}
+				}
+			}
+		}
+	}
+}
+
+// checkStartupProbeFailure detects startup probe failures in CrashLoopBackOff
+func (p *PodEvent) checkStartupProbeFailure(pod *corev1.Pod, cs corev1.ContainerStatus, container *corev1.Container, lastState *ContainerHealthState, tenantID, serviceID string) {
+	// Only check if container has StartupProbe configured
+	if container.StartupProbe == nil {
+		return
+	}
+
+	// Container in CrashLoopBackOff or ImagePullBackOff with waiting state
+	if cs.State.Waiting != nil && (cs.State.Waiting.Reason == "CrashLoopBackOff" ||
+		cs.State.Waiting.Reason == "RunContainerError" || cs.State.Waiting.Reason == "CreateContainerError") {
+		// Check if container has never been ready (startup phase failure)
+		hasBeenReady := false
+		if lastState != nil {
+			hasBeenReady = lastState.HasEverBeenReady
+		}
+
+		if !hasBeenReady && cs.RestartCount >= StartupProbeFailureMin {
+			// Check if we already created an event
+			existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeStartupProbeFailure.String())
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warnf("error fetching startup probe failure event: %v", err)
+				return
+			}
+			if existingEvent != nil {
+				// Check if event is for the same pod
+				if existingEvent.TargetID != pod.Name {
+					// Old pod's event, delete it
+					logrus.Infof("Found old StartupProbeFailure event for pod %s (current: %s), deleting",
+						existingEvent.TargetID, pod.Name)
+					db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeStartupProbeFailure.String())
+				} else {
+					// Event already exists for this pod
+					return
+				}
+			}
+
+			// Check K8s events to confirm (optional, not required)
+			hasK8sEvent := hasStartupProbeFailureEvent(p.clientset, pod, cs.Name)
+
+			// Calculate backoff time (kubernetes uses exponential backoff)
+			backoffSeconds := calculateBackoffDelay(cs.RestartCount)
+
+			msg := fmt.Sprintf("容器 [%s] 启动阶段健康检查失败 %d 次，已进入退避重启（下次重试：约 %d 秒后）。请检查启动时间配置或初始化逻辑。",
+				cs.Name, cs.RestartCount, backoffSeconds)
+
+			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeStartupProbeFailure.String(), model.EventStatusFailure.String(), msg)
+			if err != nil {
+				logrus.Warnf("pod: %s; type: StartupProbeFailure; error creating event: %v", pod.GetName(), err)
+				return
+			}
+
+			// Log probe details
+			logger := event.GetManager().GetLogger(eventID)
+			defer event.GetManager().ReleaseLogger(logger)
+			logger.Info(fmt.Sprintf("Startup Probe Configuration: %+v", container.StartupProbe),
+				map[string]string{"step": "probe-check", "status": "info"})
+			logger.Info(fmt.Sprintf("Container has restarted %d times and never became ready", cs.RestartCount),
+				map[string]string{"step": "probe-check", "status": "info"})
+
+			if hasK8sEvent {
+				logger.Info("Kubernetes events confirmed startup probe failures",
+					map[string]string{"step": "probe-check", "status": "info"})
+			}
+
+			// Get logs from previous instance
+			go recordPodLogsToEventWithPrevious(p.clientset, pod, eventID, cs.Name)
+		}
+	}
+}
+
+// calculateBackoffDelay calculates the exponential backoff delay for CrashLoopBackOff
+// Kubernetes uses: min(2^(restartCount-1) * 10s, 5 minutes)
+func calculateBackoffDelay(restartCount int32) int {
+	if restartCount <= 0 {
+		return 10
+	}
+	// Calculate 2^(restartCount-1) * 10
+	delay := 10
+	for i := int32(1); i < restartCount; i++ {
+		delay *= 2
+		if delay > 300 { // Cap at 5 minutes
+			return 300
+		}
+	}
+	return delay
+}
+
+// detectProbeIssues performs comprehensive probe health detection
+func (p *PodEvent) detectProbeIssues(pod *corev1.Pod) {
+	// Non-platform created components do not log events
+	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
+	if tenantID == "" || serviceID == "" {
+		logrus.Infof("Pod %s/%s skipped: tenantID or serviceID is empty (labels: %v)",
+			pod.Namespace, pod.Name, pod.GetLabels())
+		return
+	}
+
+	// Check pods in Running phase and also check containers in CrashLoopBackOff (for Startup Probe)
+	// Don't skip pending pods as they might have probe issues
+	if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+		logrus.Infof("Pod %s/%s skipped: phase is %s (not Running or Pending)",
+			pod.Namespace, pod.Name, pod.Status.Phase)
+		return
+	}
+
+	// Store pod in recent pods map for periodic checking
+	podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+	p.recentPods.Store(podKey, pod)
+	logrus.Infof("Pod %s/%s stored in recent pods cache for periodic checking", pod.Namespace, pod.Name)
+
+	for _, cs := range pod.Status.ContainerStatuses {
+		containerKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, cs.Name)
+		lastState := p.healthStateCache.Get(containerKey)
+
+		container := getContainerSpec(pod, cs.Name)
+		if container == nil {
+			continue
+		}
+
+		// Log container state for monitoring
+		logrus.Infof("Checking probe health for pod %s/%s container %s: Ready=%v, RestartCount=%d",
+			pod.Namespace, pod.Name, cs.Name, cs.Ready, cs.RestartCount)
+
+		// Check readiness health
+		if container.ReadinessProbe != nil {
+			p.checkReadinessHealth(pod, cs, container, lastState, tenantID, serviceID)
+		}
+
+		// Check liveness restart
+		if container.LivenessProbe != nil {
+			p.checkLivenessRestart(pod, cs, container, lastState, tenantID, serviceID)
+		}
+
+		// Check startup probe failure
+		if container.StartupProbe != nil {
+			p.checkStartupProbeFailure(pod, cs, container, lastState, tenantID, serviceID)
+		}
+
+		// Update cache after checking
+		p.healthStateCache.Update(containerKey, cs)
+	}
+}
+
+// periodicProbeCheck periodically re-checks all recent pods for probe issues
+// This ensures we catch issues even when pod state doesn't change
+func (p *PodEvent) periodicProbeCheck() {
+	logrus.Info("Running periodic probe health check...")
+
+	// First, check pods in cache
+	cacheCount := 0
+	p.recentPods.Range(func(key, value interface{}) bool {
+		// Re-fetch pod from Kubernetes to get latest state
+		podKey := key.(string)
+		parts := strings.Split(podKey, "/")
+		if len(parts) != 2 {
+			return true
+		}
+		namespace, name := parts[0], parts[1]
+
+		// Get latest pod state
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		latestPod, err := p.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			// Pod might have been deleted
+			logrus.Infof("Failed to get pod %s: %v, removing from cache", podKey, err)
+			p.recentPods.Delete(key)
+			return true
+		}
+
+		// Check if pod is too old (> 30 minutes), remove from periodic check
+		podAge := time.Since(latestPod.CreationTimestamp.Time)
+		if podAge > 30*time.Minute {
+			p.recentPods.Delete(key)
+			return true
+		}
+
+		// Run probe detection
+		p.detectProbeIssues(latestPod)
+		cacheCount++
+		return true
+	})
+
+	// Also actively scan for pods with health probes that might not be in cache
+	// This handles cases where pod events weren't received
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// List all pods across all namespaces (you might want to filter by namespace)
+	pods, err := p.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		logrus.Warnf("Failed to list pods for periodic check: %v", err)
+		logrus.Infof("Periodic probe check completed, checked %d pods from cache", cacheCount)
+		return
+	}
+
+	activeCount := 0
+	for _, pod := range pods.Items {
+		// Check if pod is in monitoring window
+		podAge := time.Since(pod.CreationTimestamp.Time)
+		if podAge <= 5*time.Second || podAge >= 30*time.Minute {
+			continue
+		}
+
+		// Check if pod is Running or Pending
+		if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+			continue
+		}
+
+		// Check if any container has health probes
+		hasProbes := false
+		for _, container := range pod.Spec.Containers {
+			if container.ReadinessProbe != nil || container.LivenessProbe != nil || container.StartupProbe != nil {
+				hasProbes = true
+				break
+			}
+		}
+
+		if hasProbes {
+			p.detectProbeIssues(&pod)
+			activeCount++
+		}
+	}
+
+	logrus.Infof("Periodic probe check completed, checked %d pods from cache, %d active pods with probes", cacheCount, activeCount)
 }
