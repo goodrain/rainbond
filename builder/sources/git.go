@@ -208,61 +208,176 @@ Loop:
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
-		if err == transport.ErrAuthenticationRequired {
-			errMsg := util.Translation("Pull code error, authentication required")
+
+		// Get error string for pattern matching
+		errLower := strings.ToLower(err.Error())
+
+		// Log detailed error information for debugging
+		logrus.Errorf("[Git Clone Error] URL: %s, Error Type: %T, Error String: %s, HasUser: %v, HasPassword: %v",
+			csi.RepositoryURL, err, err.Error(), csi.User != "", csi.Password != "")
+
+		// 1. Network errors - check first as they are most common infrastructure issues
+		if strings.Contains(errLower, "dial tcp") ||
+		   strings.Contains(errLower, "connection refused") ||
+		   strings.Contains(errLower, "no route to host") ||
+		   strings.Contains(errLower, "network is unreachable") ||
+		   strings.Contains(errLower, "i/o timeout") ||
+		   strings.Contains(errLower, "connection timed out") {
+			errMsg := fmt.Sprintf("网络连接失败：%s", err.Error())
+			if logger != nil {
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+			}
+			logrus.Errorf("Git clone network error: %v", err)
+			return rs, errMsg, err
+		}
+
+		// 2. Timeout errors
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			errMsg := "获取代码超时，请检查网络连接或增加超时时间"
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
-		if err == transport.ErrAuthorizationFailed {
-			errMsg := util.Translation("Pull code error, authorization failed")
-			if logger != nil {
-				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
-			}
-			return rs, errMsg, err
-		}
+
+		// 3. Repository not found (404) - check type first before string patterns
+		// This should be checked before authentication errors because Gitee may return 404
+		// with "authentication required" message for both non-existent and private repos
 		if err == transport.ErrRepositoryNotFound {
-			errMsg := util.Translation("Pull code error, repository not found")
-			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "clone-code", "status": "failure"})
+			// Check if credentials were provided
+			hasCredentials := (csi.User != "" && csi.Password != "") || csi.Password != ""
+
+			// Detailed logging for debugging
+			logrus.Errorf("[404 Detection] URL: %s, HasCredentials: %v, ErrorContains404: %v, ErrorContainsAuth: %v, ErrorContainsUnauth: %v, FullError: %s",
+				csi.RepositoryURL, hasCredentials,
+				strings.Contains(errLower, "404"),
+				strings.Contains(errLower, "authentication"),
+				strings.Contains(errLower, "unauthorized"),
+				err.Error())
+
+			if hasCredentials {
+				// Credentials provided but still got 404 - repository likely doesn't exist
+				logrus.Infof("[404 Detection] Decision: Repository doesn't exist (has credentials)")
+				errMsg := fmt.Sprintf("仓库不存在，请检查仓库地址是否正确：%s", csi.RepositoryURL)
+				if logger != nil {
+					logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+				}
+				return rs, errMsg, err
+			} else {
+				// No credentials provided - could be private repo or truly doesn't exist
+				// Check if error message contains 404 vs authentication keywords
+				if strings.Contains(errLower, "404") && !strings.Contains(errLower, "authentication") && !strings.Contains(errLower, "unauthorized") {
+					// Pure 404 error, likely repository doesn't exist
+					logrus.Infof("[404 Detection] Decision: Repository doesn't exist (pure 404)")
+					errMsg := fmt.Sprintf("仓库不存在，请检查仓库地址是否正确：%s", csi.RepositoryURL)
+					if logger != nil {
+						logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+					}
+					return rs, errMsg, err
+				} else {
+					// 404 with authentication keywords, could be private repo
+					logrus.Infof("[404 Detection] Decision: Private repo or doesn't exist (404 with auth keywords)")
+					errMsg := "仓库不存在或为私有仓库。如果是私有仓库，请配置访问凭证（用户名和密码或 Access Token）"
+					if logger != nil {
+						logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+					}
+					return rs, errMsg, err
+				}
 			}
-			return rs, errMsg, err
 		}
-		if err == transport.ErrEmptyRemoteRepository {
-			errMsg := util.Translation("Pull code error, empty remote repository")
+
+		// 4. Authentication required (401) - clear authentication needed
+		if err == transport.ErrAuthenticationRequired ||
+		   strings.Contains(errLower, "authentication required") ||
+		   strings.Contains(errLower, "unauthorized") ||
+		   strings.Contains(errLower, "401 unauthorized") ||
+		   strings.Contains(errLower, "401") {
+			logrus.Errorf("[Auth Detection] URL: %s, IsAuthRequiredType: %v, ContainsAuthReq: %v, ContainsUnauth: %v, Contains401: %v, FullError: %s",
+				csi.RepositoryURL,
+				err == transport.ErrAuthenticationRequired,
+				strings.Contains(errLower, "authentication required"),
+				strings.Contains(errLower, "unauthorized"),
+				strings.Contains(errLower, "401"),
+				err.Error())
+			errMsg := "访问仓库失败。可能的原因：① 仓库地址错误或不存在；② 仓库为私有，需要配置访问凭证；③ 分支名称错误。请检查仓库地址和分支名称，或配置用户名和密码/Access Token"
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
+
+		// 5. Authorization failed (403) - credentials provided but insufficient permissions
+		if err == transport.ErrAuthorizationFailed ||
+		   strings.Contains(errLower, "403 forbidden") ||
+		   strings.Contains(errLower, "403") {
+			errMsg := "访问权限不足，请检查提供的凭证是否有访问该仓库的权限"
+			if logger != nil {
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+			}
+			return rs, errMsg, err
+		}
+
+		// 6. Invalid credentials
+		if strings.Contains(errLower, "invalid username or password") ||
+		   strings.Contains(errLower, "authentication failed") ||
+		   strings.Contains(errLower, "incorrect username or password") {
+			errMsg := "用户名或密码错误，请检查访问凭证"
+			if logger != nil {
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+			}
+			return rs, errMsg, err
+		}
+
+		// 7. Empty repository
+		if err == transport.ErrEmptyRemoteRepository {
+			errMsg := "仓库为空，请确保仓库中至少有一个提交"
+			if logger != nil {
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+			}
+			return rs, errMsg, err
+		}
+
+		// 8. Branch/reference not found
 		if err == plumbing.ErrReferenceNotFound || strings.Contains(err.Error(), "couldn't find remote ref") {
-			errMsg := fmt.Sprintf("%s: %s", util.Translation("Code branch does not exist"), csi.Branch)
+			errMsg := fmt.Sprintf("分支不存在：%s，请检查分支名称是否正确", csi.Branch)
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
-		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
 
+		// 9. SSH authentication errors
+		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
 			if flag {
 				GetPrivateFileParam = "builder_rsa"
 				flag = false
 				goto Loop
 			}
-			errMsg := util.Translation("Remote repository requires SSH key configuration")
+			errMsg := "SSH 密钥认证失败，请检查 SSH 密钥配置"
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 			return rs, errMsg, err
 		}
-		if strings.Contains(err.Error(), "context deadline exceeded") {
-			errMsg := fmt.Sprintf("获取代码超时")
+
+		// 10. DNS resolution errors
+		if strings.Contains(errLower, "no such host") ||
+		   strings.Contains(errLower, "lookup") && strings.Contains(errLower, "no such host") {
+			errMsg := fmt.Sprintf("DNS 解析失败，无法解析域名：%s", err.Error())
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
+			logrus.Errorf("Git clone DNS resolution error: %v", err)
 			return rs, errMsg, err
 		}
+
+		// 11. Unhandled errors - log and return detailed message
+		logrus.Errorf("Git clone failed with unhandled error type: %v (error string: %s)", err, err.Error())
+		errMsg := fmt.Sprintf("拉取代码失败：%s", err.Error())
+		if logger != nil {
+			logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+		}
+		return rs, errMsg, err
 	}
 	return rs, "", err
 }
@@ -351,7 +466,7 @@ Loop:
 	err = tree.PullContext(ctx, opts)
 	if err != nil {
 		if err == transport.ErrAuthenticationRequired {
-			errMsg := fmt.Sprintf("更新代码发生错误，代码源需要授权访问。")
+			errMsg := fmt.Sprintf("更新代码失败。可能的原因：① 仓库地址错误或不存在；② 仓库为私有，需要配置访问凭证；③ 分支名称错误。请检查仓库地址和分支名称，或配置访问凭证")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}

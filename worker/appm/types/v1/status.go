@@ -81,6 +81,8 @@ var (
 	CLOSED = "closed"
 	//STARTING if stateful or deployment exist and ready pod number is less than service Replicas
 	STARTING = "starting"
+	//WAITING if workload created but pods are not ready yet
+	WAITING = "waiting"
 	//STOPPING if stateful and deployment is nil and pod number is not 0
 	STOPPING = "stopping"
 	//ABNORMAL if stateful or deployment exist and ready pod number is less than service Replicas and all pod status is Error
@@ -241,58 +243,64 @@ func (a *AppService) GetServiceStatus() string {
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING
 	}
-	if (a.statefulset != nil || a.deployment != nil) && len(a.pods) < a.Replicas {
-		return STARTING
-	}
-	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
-		if a.UpgradeComlete() {
+
+	// Deployment exists - determine status based on pod readiness and version
+	if a.deployment != nil {
+		// All pods ready and version matches
+		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) && a.UpgradeComlete() {
 			return RUNNING
 		}
-		return UPGRADE
-	}
-	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
-		if a.UpgradeComlete() {
-			return RUNNING
+
+		// Check if this is an upgrade scenario (old and new version pods coexist)
+		if len(a.pods) > 0 {
+			hasOldVersion := false
+			hasNewVersion := false
+			for _, pod := range a.pods {
+				if pod.Labels["version"] == a.DeployVersion {
+					hasNewVersion = true
+				} else {
+					hasOldVersion = true
+				}
+			}
+			// Old and new versions coexist - this is upgrade
+			if hasOldVersion && hasNewVersion {
+				return UPGRADE
+			}
 		}
-		return UPGRADE
+
+		// Deployment exists, but pods not ready yet - waiting for pods to be ready
+		// This covers: initial start, restart, or scaling up
+		return WAITING
 	}
 
-	if a.deployment != nil && (a.deployment.Status.ReadyReplicas < int32(a.Replicas) && a.deployment.Status.ReadyReplicas != 0) {
-		if isHaveTerminatedContainer(a.pods) {
-			return SOMEABNORMAL
+	// StatefulSet exists - same logic
+	if a.statefulset != nil {
+		// All pods ready and version matches
+		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) && a.UpgradeComlete() {
+			return RUNNING
 		}
-		if isHaveNormalTerminatedContainer(a.pods) {
-			return STOPPING
+
+		// Check if this is an upgrade scenario
+		if len(a.pods) > 0 {
+			hasOldVersion := false
+			hasNewVersion := false
+			for _, pod := range a.pods {
+				if pod.Labels["version"] == a.DeployVersion {
+					hasNewVersion = true
+				} else {
+					hasOldVersion = true
+				}
+			}
+			// Old and new versions coexist - this is upgrade
+			if hasOldVersion && hasNewVersion {
+				return UPGRADE
+			}
 		}
-		return STARTING
+
+		// StatefulSet exists, but pods not ready yet
+		return WAITING
 	}
-	if a.deployment != nil && a.deployment.Status.ReadyReplicas == 0 {
-		if isHaveTerminatedContainer(a.pods) {
-			return ABNORMAL
-		}
-		if isHaveNormalTerminatedContainer(a.pods) {
-			return STOPPING
-		}
-		return STARTING
-	}
-	if a.statefulset != nil && (a.statefulset.Status.ReadyReplicas < int32(a.Replicas) && a.statefulset.Status.ReadyReplicas != 0) {
-		if isHaveTerminatedContainer(a.pods) {
-			return SOMEABNORMAL
-		}
-		if isHaveNormalTerminatedContainer(a.pods) {
-			return STOPPING
-		}
-		return STARTING
-	}
-	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas == 0 {
-		if isHaveTerminatedContainer(a.pods) {
-			return ABNORMAL
-		}
-		if isHaveNormalTerminatedContainer(a.pods) {
-			return STOPPING
-		}
-		return STARTING
-	}
+
 	return UNKNOW
 }
 

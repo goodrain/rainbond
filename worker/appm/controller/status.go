@@ -228,6 +228,23 @@ func checkWorkloadFailureReason(client kubernetes.Interface, a *v1.AppService, l
 		}
 	}
 
+	// Check Pod events (critical for FailedScheduling issues like insufficient CPU/memory)
+	pods := a.GetPods(false)
+	for _, pod := range pods {
+		if err := checkPodEvents(ctx, client, namespace, pod.Name, logger); err != nil {
+			return err
+		}
+
+		// Also check Pod conditions for scheduling failures
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Reason == "Unschedulable" {
+				errMsg := translateK8sEvent("FailedScheduling", cond.Message)
+				logger.Error(errMsg, map[string]string{"step": "appruntime", "status": "failure"})
+				return fmt.Errorf(errMsg)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -294,6 +311,27 @@ func checkStatefulSetEvents(ctx context.Context, client kubernetes.Interface, na
 	return nil
 }
 
+// checkPodEvents checks Pod events for failure reasons (especially FailedScheduling)
+func checkPodEvents(ctx context.Context, client kubernetes.Interface, namespace, name string, logger event.Logger) error {
+	events, err := client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", name),
+	})
+	if err != nil {
+		return nil
+	}
+
+	for _, event := range events.Items {
+		if event.Type == "Warning" && time.Since(event.LastTimestamp.Time) < time.Minute*5 {
+			errMsg := translateK8sEvent(event.Reason, event.Message)
+			logger.Error(fmt.Sprintf("Pod event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
+			if isFailureEvent(event.Reason) {
+				return fmt.Errorf(errMsg)
+			}
+		}
+	}
+	return nil
+}
+
 // translateK8sEvent translates Kubernetes event reasons to user-friendly messages
 func translateK8sEvent(reason, message string) string {
 	switch reason {
@@ -312,6 +350,24 @@ func translateK8sEvent(reason, message string) string {
 		}
 		return fmt.Sprintf("%s: %s", util.Translation("Deployment failed: container creation failed"), message)
 	case "FailedScheduling":
+		if strings.Contains(message, "Insufficient cpu") {
+			return util.Translation("Deployment failed: insufficient CPU resources")
+		}
+		if strings.Contains(message, "Insufficient memory") {
+			return util.Translation("Deployment failed: insufficient memory resources")
+		}
+		if strings.Contains(message, "Insufficient") {
+			return util.Translation("Deployment failed: insufficient storage resources")
+		}
+		if strings.Contains(message, "node(s) had taint") || strings.Contains(message, "node(s) had taints") {
+			return util.Translation("Deployment failed: node has taints")
+		}
+		if strings.Contains(message, "didn't match node affinity") || strings.Contains(message, "MatchNodeSelector") {
+			return util.Translation("Deployment failed: node affinity not satisfied")
+		}
+		if strings.Contains(message, "hostport") || strings.Contains(message, "HostPort") {
+			return util.Translation("Deployment failed: hostport conflict")
+		}
 		return util.Translation("Deployment failed: no nodes available for scheduling")
 	case "FailedMount":
 		return util.Translation("Deployment failed: persistent volume claim is pending")

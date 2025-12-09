@@ -49,12 +49,8 @@ func (s *scalingController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin horizontal scaling app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.scalingOne(service); err != nil {
-				if err != ErrWaitTimeOut {
-					service.Logger.Error(util.Translation("horizontal scaling service error"), event.GetCallbackLoggerOption())
-					logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
-				} else {
-					service.Logger.Error(util.Translation("horizontal scaling service timeout"), event.GetTimeoutLoggerOption())
-				}
+				service.Logger.Error(util.Translation("horizontal scaling service error"), event.GetCallbackLoggerOption())
+				logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
 				service.Logger.Info(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 			}
@@ -99,7 +95,8 @@ func (s *scalingController) scalingOne(service v1.AppService) error {
 			return err
 		}
 	}
-	return s.WaitingReady(service)
+	// No longer wait for scaling ready - let probe health detection handle it
+	return nil
 }
 
 //WaitingReady wait app start or upgrade ready
