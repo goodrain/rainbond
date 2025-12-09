@@ -3073,6 +3073,8 @@ func TransStatus(eStatus string) string {
 	switch eStatus {
 	case "starting":
 		return "启动中"
+	case "waiting":
+		return "等待运行"
 	case "abnormal":
 		return "运行异常"
 	case "upgrade":

@@ -270,8 +270,11 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			return
 		}
 
+		// Translate the error message to user-friendly format first
+		userMsg := translateRuntimeError(optType.eventType.String(), optType.message)
+
 		if evt == nil { // create event
-			eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.eventType.String(), model.EventStatusFailure.String(), optType.message)
+			eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.eventType.String(), model.EventStatusFailure.String(), userMsg)
 			if err != nil {
 				logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), optType.eventType.String(), err)
 				return
@@ -280,8 +283,6 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			eventID = evt.EventID
 		}
 
-		// Translate the error message to user-friendly format
-		userMsg := translateRuntimeError(optType.eventType.String(), optType.message)
 		detailMsg := fmt.Sprintf("image: %s; container: %s; state: %s; message: %s", optType.image, optType.containerID, optType.eventType.String(), userMsg)
 		logger := event.GetManager().GetLogger(eventID)
 		defer event.GetManager().ReleaseLogger(logger)
@@ -1005,7 +1006,7 @@ func hasStartupProbeFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod
 
 // Constants for probe health check thresholds
 const (
-	ReadinessUnhealthyThreshold = 2 * time.Minute // Alert if readiness unhealthy for > 2 minutes
+	ReadinessUnhealthyThreshold = 1 * time.Minute // Alert if readiness unhealthy for > 1 minute
 	LivenessRestartThreshold    = 3               // Alert if liveness caused > 3 restarts
 	StartupProbeFailureMin      = 5               // Alert if startup probe failed > 5 times
 )
@@ -1048,11 +1049,7 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 
 		// Check how long it's been unhealthy
 		unhealthyDuration := time.Since(unhealthyStartTime)
-		logrus.Infof("Pod %s/%s container %s readiness check: unhealthy for %.1f minutes (threshold: %.1f minutes)",
-			pod.Namespace, pod.Name, cs.Name, unhealthyDuration.Minutes(), ReadinessUnhealthyThreshold.Minutes())
 		if unhealthyDuration > ReadinessUnhealthyThreshold {
-			logrus.Infof("Pod %s/%s container %s exceeded threshold, checking for existing event...", pod.Namespace, pod.Name, cs.Name)
-
 			// Check if we already created an event for this
 			existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String())
 			if err != nil && err != gorm.ErrRecordNotFound {
@@ -1063,8 +1060,6 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 				// Check if the existing event is for the same pod
 				if existingEvent.TargetID == pod.Name {
 					// Event already exists for this pod, don't create duplicate
-					logrus.Infof("Pod %s/%s container %s: ReadinessUnhealthy event already exists for this pod (eventID: %s), skipping",
-						pod.Namespace, pod.Name, cs.Name, existingEvent.EventID)
 					return
 				} else {
 					// Event exists but for a different pod (old pod), delete it and create new one
@@ -1263,23 +1258,18 @@ func (p *PodEvent) detectProbeIssues(pod *corev1.Pod) {
 	// Non-platform created components do not log events
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
 	if tenantID == "" || serviceID == "" {
-		logrus.Infof("Pod %s/%s skipped: tenantID or serviceID is empty (labels: %v)",
-			pod.Namespace, pod.Name, pod.GetLabels())
 		return
 	}
 
 	// Check pods in Running phase and also check containers in CrashLoopBackOff (for Startup Probe)
 	// Don't skip pending pods as they might have probe issues
 	if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
-		logrus.Infof("Pod %s/%s skipped: phase is %s (not Running or Pending)",
-			pod.Namespace, pod.Name, pod.Status.Phase)
 		return
 	}
 
 	// Store pod in recent pods map for periodic checking
 	podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 	p.recentPods.Store(podKey, pod)
-	logrus.Infof("Pod %s/%s stored in recent pods cache for periodic checking", pod.Namespace, pod.Name)
 
 	for _, cs := range pod.Status.ContainerStatuses {
 		containerKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, cs.Name)
@@ -1289,10 +1279,6 @@ func (p *PodEvent) detectProbeIssues(pod *corev1.Pod) {
 		if container == nil {
 			continue
 		}
-
-		// Log container state for monitoring
-		logrus.Infof("Checking probe health for pod %s/%s container %s: Ready=%v, RestartCount=%d",
-			pod.Namespace, pod.Name, cs.Name, cs.Ready, cs.RestartCount)
 
 		// Check readiness health
 		if container.ReadinessProbe != nil {
@@ -1317,10 +1303,10 @@ func (p *PodEvent) detectProbeIssues(pod *corev1.Pod) {
 // periodicProbeCheck periodically re-checks all recent pods for probe issues
 // This ensures we catch issues even when pod state doesn't change
 func (p *PodEvent) periodicProbeCheck() {
-	logrus.Info("Running periodic probe health check...")
+	// Track checked pods to avoid duplicates
+	checkedPods := make(map[string]bool)
 
 	// First, check pods in cache
-	cacheCount := 0
 	p.recentPods.Range(func(key, value interface{}) bool {
 		// Re-fetch pod from Kubernetes to get latest state
 		podKey := key.(string)
@@ -1335,8 +1321,7 @@ func (p *PodEvent) periodicProbeCheck() {
 		defer cancel()
 		latestPod, err := p.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			// Pod might have been deleted
-			logrus.Infof("Failed to get pod %s: %v, removing from cache", podKey, err)
+			// Pod might have been deleted, remove from cache
 			p.recentPods.Delete(key)
 			return true
 		}
@@ -1350,7 +1335,7 @@ func (p *PodEvent) periodicProbeCheck() {
 
 		// Run probe detection
 		p.detectProbeIssues(latestPod)
-		cacheCount++
+		checkedPods[podKey] = true
 		return true
 	})
 
@@ -1359,16 +1344,20 @@ func (p *PodEvent) periodicProbeCheck() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// List all pods across all namespaces (you might want to filter by namespace)
+	// List all pods across all namespaces
 	pods, err := p.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logrus.Warnf("Failed to list pods for periodic check: %v", err)
-		logrus.Infof("Periodic probe check completed, checked %d pods from cache", cacheCount)
 		return
 	}
 
-	activeCount := 0
 	for _, pod := range pods.Items {
+		// Skip if already checked from cache
+		podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+		if checkedPods[podKey] {
+			continue
+		}
+
 		// Check if pod is in monitoring window
 		podAge := time.Since(pod.CreationTimestamp.Time)
 		if podAge <= 5*time.Second || podAge >= 30*time.Minute {
@@ -1391,9 +1380,6 @@ func (p *PodEvent) periodicProbeCheck() {
 
 		if hasProbes {
 			p.detectProbeIssues(&pod)
-			activeCount++
 		}
 	}
-
-	logrus.Infof("Periodic probe check completed, checked %d pods from cache, %d active pods with probes", cacheCount, activeCount)
 }

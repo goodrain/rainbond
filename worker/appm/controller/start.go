@@ -61,14 +61,9 @@ func (s *startController) Begin() {
 				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
-					if err != ErrWaitTimeOut {
-						service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
-						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
-						s.errorCallback(service)
-					} else {
-						logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
-						service.Logger.Error(util.Translation("start service timeout"), event.GetTimeoutLoggerOption())
-					}
+					service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
+					logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
+					s.errorCallback(service)
 				} else {
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), event.GetLastLoggerOption())
@@ -253,13 +248,10 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 
-	//step 8: waiting endpoint ready
-	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
-
-	if app.ServiceType == v1.TypeKubeBlocks {
-		return nil
-	}
-	return s.WaitingReady(app)
+	// Workload created successfully
+	// No longer wait for pod ready - let probe health detection handle it
+	// If there are issues, ReadinessUnhealthy/LivenessRestart/StartupProbeFailure events will be created
+	return nil
 }
 
 // WaitingReady wait app start or upgrade ready
