@@ -229,3 +229,98 @@ func (l *LocalStorage) DownloadDirToDir(srcDir, dstDir string) error {
 func (l *LocalStorage) DownloadFileToDir(srcFile, dstDir string) error {
 	return nil
 }
+
+// GetChunkDir 获取分片存储目录
+func (l *LocalStorage) GetChunkDir(sessionID string) string {
+	return fmt.Sprintf("/grdata/package_build/temp/chunks/%s", sessionID)
+}
+
+// SaveChunk 保存分片文件
+func (l *LocalStorage) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (string, error) {
+	chunkDir := l.GetChunkDir(sessionID)
+	if err := os.MkdirAll(chunkDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create chunk directory: %v", err)
+	}
+
+	chunkPath := filepath.Join(chunkDir, fmt.Sprintf("chunk_%d", chunkIndex))
+	file, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		logrus.Errorf("Failed to create chunk file: %s", err.Error())
+		return "", err
+	}
+	defer file.Close()
+
+	written, err := io.Copy(file, reader)
+	if err != nil {
+		logrus.Errorf("Failed to write chunk file: %s", err.Error())
+		return "", err
+	}
+
+	logrus.Debugf("Saved chunk %d, size: %d bytes, path: %s", chunkIndex, written, chunkPath)
+	return chunkPath, nil
+}
+
+// ChunkExists 检查分片是否存在
+func (l *LocalStorage) ChunkExists(sessionID string, chunkIndex int) bool {
+	chunkPath := filepath.Join(l.GetChunkDir(sessionID), fmt.Sprintf("chunk_%d", chunkIndex))
+	_, err := os.Stat(chunkPath)
+	return err == nil
+}
+
+// MergeChunks 合并所有分片到目标文件
+func (l *LocalStorage) MergeChunks(sessionID string, outputPath string, totalChunks int) error {
+	chunkDir := l.GetChunkDir(sessionID)
+
+	// 验证所有分片是否存在
+	for i := 0; i < totalChunks; i++ {
+		if !l.ChunkExists(sessionID, i) {
+			return fmt.Errorf("chunk %d is missing", i)
+		}
+	}
+
+	// 确保输出目录存在
+	outputDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// 创建输出文件
+	outputFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %v", err)
+	}
+	defer outputFile.Close()
+
+	// 按顺序合并所有分片
+	var totalWritten int64
+	for i := 0; i < totalChunks; i++ {
+		chunkPath := filepath.Join(chunkDir, fmt.Sprintf("chunk_%d", i))
+		chunkFile, err := os.Open(chunkPath)
+		if err != nil {
+			return fmt.Errorf("failed to open chunk %d: %v", i, err)
+		}
+
+		written, err := io.Copy(outputFile, chunkFile)
+		chunkFile.Close()
+		if err != nil {
+			return fmt.Errorf("failed to merge chunk %d: %v", i, err)
+		}
+
+		totalWritten += written
+		logrus.Debugf("Merged chunk %d, size: %d bytes", i, written)
+	}
+
+	logrus.Infof("Successfully merged %d chunks to %s, total size: %d bytes", totalChunks, outputPath, totalWritten)
+	return nil
+}
+
+// CleanupChunks 清理分片文件
+func (l *LocalStorage) CleanupChunks(sessionID string) error {
+	chunkDir := l.GetChunkDir(sessionID)
+	if err := os.RemoveAll(chunkDir); err != nil {
+		logrus.Errorf("Failed to cleanup chunks: %v", err)
+		return err
+	}
+	logrus.Debugf("Cleaned up chunks for session: %s", sessionID)
+	return nil
+}
