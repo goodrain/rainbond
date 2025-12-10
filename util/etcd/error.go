@@ -29,12 +29,12 @@ import (
 func HandleEtcdError(err error) {
 	switch err {
 	case context.Canceled:
-		logrus.Fatalf("ctx is canceled by another routine: %v", err)
+		logrus.Errorf("ctx is canceled by another routine: %v", err)
 	case context.DeadlineExceeded:
-		logrus.Fatalf("ctx is attached with a deadline is exceeded: %v", err)
+		logrus.Errorf("ctx is attached with a deadline is exceeded: %v", err)
 	case rpctypes.ErrEmptyKey:
-		logrus.Fatalf("client-side error: %v", err)
+		logrus.Errorf("client-side error: %v", err)
 	default:
-		logrus.Fatalf("bad cluster endpoints, which are not etcd servers: %v", err)
+		logrus.Errorf("bad cluster endpoints, which are not etcd servers: %v", err)
 	}
 }
