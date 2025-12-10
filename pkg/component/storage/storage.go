@@ -73,6 +73,13 @@ type InterfaceStorage interface {
 	UploadFileToFile(src string, dst string, logger event.Logger) error
 	DownloadDirToDir(srcDir, dstDir string) error
 	DownloadFileToDir(srcFile, dstDir string) error
+
+	// 分片上传相关方法
+	SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (string, error)
+	MergeChunks(sessionID string, outputPath string, totalChunks int) error
+	ChunkExists(sessionID string, chunkIndex int) bool
+	CleanupChunks(sessionID string) error
+	GetChunkDir(sessionID string) string
 }
 
 type SrcFile interface {

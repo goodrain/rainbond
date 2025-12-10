@@ -206,6 +206,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.NotificationEvent{})
 	m.models = append(m.models, &model.AppStatus{})
 	m.models = append(m.models, &model.AppBackup{})
+	m.models = append(m.models, &model.UploadSession{})
 	m.models = append(m.models, &model.ServiceSourceConfig{})
 	m.models = append(m.models, &model.Application{})
 	m.models = append(m.models, &model.ApplicationConfigGroup{})
