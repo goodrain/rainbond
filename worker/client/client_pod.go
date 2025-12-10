@@ -32,7 +32,7 @@ import (
 
 //GetServicePods get service pods list
 func (a *AppRuntimeSyncClient) GetServicePods(serviceID string) (*pb.ServiceAppPodList, error) {
-	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(a.ctx, time.Second*30)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: serviceID})
 }
@@ -43,7 +43,7 @@ func (a *AppRuntimeSyncClient) GetMultiServicePods(serviceIDs []string) (*pb.Mul
 		defer util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] [GetMultiServicePods] component nums: %d", len(serviceIDs)))()
 	}
 
-	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(a.ctx, time.Second*30)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetMultiAppPods(ctx, &pb.ServicesRequest{ServiceIds: strings.Join(serviceIDs, ",")})
 }
@@ -64,7 +64,7 @@ func (a *AppRuntimeSyncClient) GetComponentPodNums(ctx context.Context, componen
 
 // GetPodDetail -
 func (a *AppRuntimeSyncClient) GetPodDetail(sid, name string) (*pb.PodDetail, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(a.ctx, time.Second*30)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetPodDetail(ctx, &pb.GetPodDetailReq{
 		Sid:     sid,

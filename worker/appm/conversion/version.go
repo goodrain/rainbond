@@ -421,6 +421,14 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		}
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(pril)}
 	}
+	cmdAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameCmd)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("get by cmd attribute error: %v", err)
+	}
+	if cmdAttribute != nil && cmdAttribute.AttributeValue != "" {
+		c.Command = []string{"/bin/sh", "-c"}
+		c.Args = []string{cmdAttribute.AttributeValue}
+	}
 	lifeCycle, err := createLifecycle(as, dbmanager)
 	if err != nil {
 		return nil, err
