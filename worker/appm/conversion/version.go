@@ -426,8 +426,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by cmd attribute error: %v", err)
 	}
 	if cmdAttribute != nil && cmdAttribute.AttributeValue != "" {
-		c.Command = []string{"/bin/sh", "-c"}
-		c.Args = []string{cmdAttribute.AttributeValue}
+		c.Command = strings.Split(cmdAttribute.AttributeValue, " ")
 	}
 	lifeCycle, err := createLifecycle(as, dbmanager)
 	if err != nil {
