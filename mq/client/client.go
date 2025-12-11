@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // BuilderTopic builder for linux
@@ -56,8 +57,20 @@ type mqClient struct {
 // NewMqClient new a mq client
 func NewMqClient(mqAddr string) (MQClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	conn, err := grpc.DialContext(ctx, mqAddr, grpc.WithInsecure())
+
+	// 配置 keepalive 参数，防止长时间空闲后连接被中间网络设备断开
+	kaParams := keepalive.ClientParameters{
+		Time:                10 * time.Second, // 每10秒发送一次 keepalive ping
+		Timeout:             3 * time.Second,  // 等待 keepalive ping 响应的超时时间
+		PermitWithoutStream: true,             // 即使没有活跃的 stream 也发送 keepalive
+	}
+
+	conn, err := grpc.DialContext(ctx, mqAddr,
+		grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(kaParams),
+	)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	cli := pb.NewTaskQueueClient(conn)
