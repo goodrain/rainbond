@@ -135,34 +135,34 @@ func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader 
 		return fmt.Errorf("failed to save chunk: %v", err)
 	}
 
-	// 更新已上传分片列表
-	if err := m.updateUploadedChunks(session, chunkIndex); err != nil {
-		return err
-	}
-
+	// 不更新数据库（避免大量并发写入和锁竞争，CompleteUpload 时 MergeChunks 会检查所有分片）
 	logrus.Infof("Saved chunk %d/%d for session %s", chunkIndex+1, session.TotalChunks, sessionID)
 	return nil
 }
 
-// CompleteUpload 完成上传，合并所有分片
+// CompleteUpload 完成上传，同步合并所有分片
 func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 	session, err := m.getSession(sessionID)
 	if err != nil {
 		return "", err
 	}
 
-	// 验证所有分片是否已上传
-	uploadedChunks := m.parseUploadedChunks(session.UploadedChunks)
-	if len(uploadedChunks) != session.TotalChunks {
-		missingChunks := m.getMissingChunks(uploadedChunks, session.TotalChunks)
-		return "", fmt.Errorf("not all chunks uploaded, missing: %v", missingChunks)
+	// 更新会话状态为 merging
+	session.Status = "merging"
+	session.UpdatedAt = time.Now()
+	if err := db.GetManager().UploadSessionDao().UpdateModel(session); err != nil {
+		logrus.Errorf("Failed to update session status: %v", err)
 	}
 
-	// 合并分片
+	// 同步合并分片
 	logrus.Infof("Merging %d chunks for session %s", session.TotalChunks, sessionID)
+
+	// 合并分片
 	err = storage.Default().StorageCli.MergeChunks(sessionID, session.StoragePath, session.TotalChunks)
 	if err != nil {
+		logrus.Errorf("Failed to merge chunks for session %s: %v", sessionID, err)
 		session.Status = "failed"
+		session.UpdatedAt = time.Now()
 		db.GetManager().UploadSessionDao().UpdateModel(session)
 		return "", fmt.Errorf("failed to merge chunks: %v", err)
 	}
@@ -172,7 +172,7 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
 	}
 
-	// 更新会话状态
+	// 更新会话状态为 completed
 	session.Status = "completed"
 	session.UpdatedAt = time.Now()
 	if err := db.GetManager().UploadSessionDao().UpdateModel(session); err != nil {
@@ -184,6 +184,7 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 	return session.StoragePath, nil
 }
 
+
 // GetUploadStatus 获取上传状态
 func (m *ChunkUploadManager) GetUploadStatus(sessionID string) (*UploadStatusResponse, error) {
 	session, err := m.getSession(sessionID)
@@ -191,9 +192,23 @@ func (m *ChunkUploadManager) GetUploadStatus(sessionID string) (*UploadStatusRes
 		return nil, err
 	}
 
-	uploadedChunks := m.parseUploadedChunks(session.UploadedChunks)
-	missingChunks := m.getMissingChunks(uploadedChunks, session.TotalChunks)
-	progress := float64(len(uploadedChunks)) / float64(session.TotalChunks) * 100
+	// 采样检查：每隔 N 个分片检查一次，估算进度（避免检查所有分片导致性能问题）
+	sampleInterval := session.TotalChunks / 100 // 检查 ~100 个分片
+	if sampleInterval < 1 {
+		sampleInterval = 1
+	}
+
+	uploadedCount := 0
+	sampledCount := 0
+	for i := 0; i < session.TotalChunks; i += sampleInterval {
+		if storage.Default().StorageCli.ChunkExists(sessionID, i) {
+			uploadedCount++
+		}
+		sampledCount++
+	}
+
+	// 估算总进度
+	estimatedProgress := float64(uploadedCount) / float64(sampledCount) * 100
 
 	return &UploadStatusResponse{
 		SessionID:      session.ID,
@@ -201,9 +216,9 @@ func (m *ChunkUploadManager) GetUploadStatus(sessionID string) (*UploadStatusRes
 		FileSize:       session.FileSize,
 		ChunkSize:      session.ChunkSize,
 		TotalChunks:    session.TotalChunks,
-		UploadedChunks: uploadedChunks,
-		MissingChunks:  missingChunks,
-		Progress:       progress,
+		UploadedChunks: nil, // 不返回详细列表（避免性能问题）
+		MissingChunks:  nil, // 不返回详细列表（避免性能问题）
+		Progress:       estimatedProgress,
 		Status:         session.Status,
 		CreatedAt:      session.CreatedAt,
 		UpdatedAt:      session.UpdatedAt,
