@@ -63,6 +63,8 @@ const (
 	K8sAttributeNameLiveNessProbe = "livenessProbe"
 	// K8sAttributeNameHostAliases -
 	K8sAttributeNameHostAliases = "hostAliases"
+	// K8sAttributeNameCmd -
+	K8sAttributeNameCmd = "cmd"
 )
 
 // ComponentK8sAttributes -

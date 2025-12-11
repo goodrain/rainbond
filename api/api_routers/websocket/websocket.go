@@ -59,8 +59,22 @@ func AppRoutes() chi.Router {
 // PackageBuildRoutes 本地文件上传路由
 func PackageBuildRoutes() chi.Router {
 	r := chi.NewRouter()
+	// 原有接口（保持向后兼容）
 	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
 	r.Options("/component/events/{eventID}", controller.GetManager().UploadPackage)
+
+	// 新增分片上传接口（断点续传）
+	chunkController := &controller.ChunkUploadController{}
+	r.Post("/component/events/{eventID}/upload/init", chunkController.InitUpload)
+	r.Options("/component/events/{eventID}/upload/init", chunkController.HandleOptions)
+	r.Post("/component/events/{eventID}/upload/chunk", chunkController.UploadChunk)
+	r.Options("/component/events/{eventID}/upload/chunk", chunkController.HandleOptions)
+	r.Post("/component/events/{eventID}/upload/complete", chunkController.CompleteUpload)
+	r.Options("/component/events/{eventID}/upload/complete", chunkController.HandleOptions)
+	r.Get("/component/events/{eventID}/upload/status/{sessionID}", chunkController.GetUploadStatus)
+	r.Options("/component/events/{eventID}/upload/status/{sessionID}", chunkController.HandleOptions)
+	r.Delete("/component/events/{eventID}/upload/{sessionID}", chunkController.CancelUpload)
+	r.Options("/component/events/{eventID}/upload/{sessionID}", chunkController.HandleOptions)
 	return r
 }
 

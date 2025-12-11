@@ -35,7 +35,6 @@ import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/db"
 
-	"github.com/goodrain/rainbond/builder/cloudos"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -127,6 +126,13 @@ type RegionServiceSnapshot struct {
 
 // Run Run
 func (b *BackupAPPNew) Run(timeout time.Duration) error {
+	// Download metadata from S3 (required for both full-online and full-offline modes in distributed environment)
+	if err := b.downloadMetadataFromS3(); err != nil {
+		b.Logger.Error(fmt.Sprintf("Failed to download metadata from S3: %v", err), map[string]string{"step": "backup_builder", "status": "failure"})
+		return fmt.Errorf("download metadata from S3 error: %v", err)
+	}
+	b.Logger.Info("Downloaded metadata from S3 successfully", map[string]string{"step": "backup_builder", "status": "starting"})
+
 	//read region group app metadata
 	metadata, err := ioutil.ReadFile(fmt.Sprintf("%s/region_apps_metadata.json", b.SourceDir))
 	if err != nil {
@@ -188,35 +194,31 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 }
 
 func (b *BackupAPPNew) uploadPkg() error {
-	if b.Mode != "full-online" {
-		return nil
+	// Upload to S3 for both modes (S3 acts as shared storage in distributed environment)
+	storageCli := storage.Default().StorageCli
+	bucketName := b.S3Config.BucketName
+	if bucketName == "" {
+		bucketName = "grdata"
 	}
 
-	defer func() {
-		if err := os.Remove(b.SourceDir); err != nil {
-			logrus.Warningf("error removing temporary file: %v", err)
-		}
-	}()
-
-	s3Provider, err := cloudos.Str2S3Provider(b.S3Config.Provider)
-	if err != nil {
-		return err
-	}
-	cfg := &cloudos.Config{
-		ProviderType: s3Provider,
-		Endpoint:     b.S3Config.Endpoint,
-		AccessKey:    b.S3Config.AccessKey,
-		SecretKey:    b.S3Config.SecretKey,
-		BucketName:   b.S3Config.BucketName,
-	}
-	cloudoser, err := cloudos.New(cfg)
-	if err != nil {
-		return fmt.Errorf("error creating cloudoser: %v", err)
-	}
 	_, filename := filepath.Split(b.SourceDir)
-	if err := cloudoser.PutObject(filename, b.SourceDir); err != nil {
-		return fmt.Errorf("object key: %s; filepath: %s; error putting object: %v", filename, b.SourceDir, err)
+	s3Key := fmt.Sprintf("/%s/backup/%s/%s", bucketName, b.GroupID, filename)
+
+	logrus.Infof("Uploading backup package to S3: %s -> %s", b.SourceDir, s3Key)
+	if err := storageCli.UploadFileToFile(b.SourceDir, s3Key, b.Logger); err != nil {
+		return fmt.Errorf("error uploading backup package to S3: %v", err)
 	}
+	logrus.Infof("Successfully uploaded backup package to S3: %s", s3Key)
+
+	// For full-offline mode, keep local copy; for full-online mode, remove it
+	if b.Mode == "full-online" {
+		defer func() {
+			if err := os.Remove(b.SourceDir); err != nil {
+				logrus.Warningf("error removing temporary file: %v", err)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -435,4 +437,36 @@ func GetVolumeDir() (string, string) {
 		sharePath = "/grdata"
 	}
 	return localPath, sharePath
+}
+
+// downloadMetadataFromS3 downloads metadata files from S3 using global storage client
+func (b *BackupAPPNew) downloadMetadataFromS3() error {
+	// Use global storage client (initialized at startup)
+	storageCli := storage.Default().StorageCli
+	bucketName := b.S3Config.BucketName
+	if bucketName == "" {
+		bucketName = "grdata" // Default bucket name
+		logrus.Infof("Using default bucket name: %s", bucketName)
+	}
+
+	// Create local directory if not exists
+	if err := os.MkdirAll(b.SourceDir, 0755); err != nil {
+		return fmt.Errorf("error creating local directory: %v", err)
+	}
+
+	// Download region_apps_metadata.json
+	regionMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/region_apps_metadata.json", bucketName, b.GroupID, b.Version)
+	if err := storageCli.DownloadFileToDir(regionMetadataKey, b.SourceDir); err != nil {
+		return fmt.Errorf("error downloading region metadata from S3 (key=%s): %v", regionMetadataKey, err)
+	}
+	logrus.Infof("Downloaded region metadata from S3: %s -> %s", regionMetadataKey, b.SourceDir)
+
+	// Download console_apps_metadata.json
+	consoleMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/console_apps_metadata.json", bucketName, b.GroupID, b.Version)
+	if err := storageCli.DownloadFileToDir(consoleMetadataKey, b.SourceDir); err != nil {
+		return fmt.Errorf("error downloading console metadata from S3 (key=%s): %v", consoleMetadataKey, err)
+	}
+	logrus.Infof("Downloaded console metadata from S3: %s -> %s", consoleMetadataKey, b.SourceDir)
+
+	return nil
 }

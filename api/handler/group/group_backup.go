@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -122,6 +124,16 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("write metadata file error,%s", err))
 	}
 	logger.Info(core_util.Translation("write console level metadata success"), map[string]string{"step": "back-api"})
+
+	// Upload metadata files to S3 (required for both full-online and full-offline modes in distributed environment)
+	if err := h.uploadMetadataToS3(b.Body.S3Config, sourceDir, b.Body.GroupID, b.Body.Version, logger); err != nil {
+		if err := os.RemoveAll(sourceDir); err != nil {
+			logrus.Warningf("error removing %s: %v", sourceDir, err)
+		}
+		return nil, util.CreateAPIHandleError(500, fmt.Errorf("upload metadata to S3 error: %s", err))
+	}
+	logger.Info("Upload metadata files to S3 success", map[string]string{"step": "back-api"})
+
 	//save backup history
 	if err := db.GetManager().AppBackupDao().AddModel(&appBackup); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("create backup history", err)
@@ -465,12 +477,28 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if rr.Status == "success" {
-		//write console level metadata.
-		body, err := ioutil.ReadFile(fmt.Sprintf("%s/console_apps_metadata.json", rr.CacheDir))
-		if err != nil {
-			return nil, util.CreateAPIHandleError(500, fmt.Errorf("read metadata file error,%s", err))
+		// Download console_apps_metadata.json from S3 (uploaded by rbd-chaos during restore)
+		// In distributed architecture, rbd-api cannot access rbd-chaos's cache dir, so use S3 as intermediary
+		storageCli := storage.Default().StorageCli
+		bucketName := "grdata"
+		consoleMetadataKey := fmt.Sprintf("/%s/restore/%s/console_apps_metadata.json", bucketName, restoreID)
+
+		// Create temp directory to download metadata
+		tempDir := fmt.Sprintf("/tmp/restore_%s", restoreID)
+		if err := os.MkdirAll(tempDir, 0755); err == nil {
+			defer os.RemoveAll(tempDir)
+			if err := storageCli.DownloadFileToDir(consoleMetadataKey, tempDir); err == nil {
+				body, err := ioutil.ReadFile(filepath.Join(tempDir, "console_apps_metadata.json"))
+				if err == nil {
+					rr.Metadata = string(body)
+					logrus.Infof("Downloaded console metadata from S3 for restore result: %s", consoleMetadataKey)
+				} else {
+					logrus.Warningf("Failed to read downloaded console metadata: %v", err)
+				}
+			} else {
+				logrus.Warningf("Failed to download console metadata from S3: %v", err)
+			}
 		}
-		rr.Metadata = string(body)
 	}
 	return &rr, nil
 }
@@ -506,4 +534,39 @@ func (h *BackupHandle) BackupCopy(b BackupCopy) (*dbmodel.AppBackup, *util.APIHa
 		return nil, util.CreateAPIHandleErrorFromDBError("copy backup", err)
 	}
 	return &ab, nil
+}
+
+// uploadMetadataToS3 uploads metadata files to S3 using global storage client
+func (h *BackupHandle) uploadMetadataToS3(s3Config struct {
+	Provider   string `json:"provider"`
+	Endpoint   string `json:"endpoint"`
+	AccessKey  string `json:"access_key"`
+	SecretKey  string `json:"secret_key"`
+	BucketName string `json:"bucket_name"`
+}, sourceDir, groupID, version string, logger event.Logger) error {
+	// Use global storage client (initialized at startup)
+	storageCli := storage.Default().StorageCli
+	bucketName := s3Config.BucketName
+	if bucketName == "" {
+		bucketName = "grdata" // Default bucket name
+		logrus.Infof("Using default bucket name: %s", bucketName)
+	}
+
+	// Upload region_apps_metadata.json
+	regionMetadataPath := filepath.Join(sourceDir, "region_apps_metadata.json")
+	regionMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/region_apps_metadata.json", bucketName, groupID, version)
+	if err := storageCli.UploadFileToFile(regionMetadataPath, regionMetadataKey, logger); err != nil {
+		return fmt.Errorf("error uploading region metadata: %v", err)
+	}
+	logrus.Infof("Uploaded region metadata to S3: %s", regionMetadataKey)
+
+	// Upload console_apps_metadata.json
+	consoleMetadataPath := filepath.Join(sourceDir, "console_apps_metadata.json")
+	consoleMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/console_apps_metadata.json", bucketName, groupID, version)
+	if err := storageCli.UploadFileToFile(consoleMetadataPath, consoleMetadataKey, logger); err != nil {
+		return fmt.Errorf("error uploading console metadata: %v", err)
+	}
+	logrus.Infof("Uploaded console metadata to S3: %s", consoleMetadataKey)
+
+	return nil
 }

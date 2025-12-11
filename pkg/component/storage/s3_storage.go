@@ -592,3 +592,207 @@ func (s3s *S3Storage) DownloadFileToDir(srcFile, dstDir string) error {
 	}
 	return nil
 }
+
+// GetChunkDir 获取分片存储目录（S3使用key前缀）
+func (s3s *S3Storage) GetChunkDir(sessionID string) string {
+	return fmt.Sprintf("package_build/temp/chunks/%s", sessionID)
+}
+
+// SaveChunk 保存分片到S3
+func (s3s *S3Storage) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (string, error) {
+	// S3 使用统一的bucket（从配置或默认）
+	bucketName := "grdata"
+	if err := s3s.ensureBucketExists(bucketName); err != nil {
+		return "", err
+	}
+
+	key := fmt.Sprintf("%s/chunk_%d", s3s.GetChunkDir(sessionID), chunkIndex)
+
+	// 读取分片内容到内存
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		logrus.Errorf("Failed to read chunk data: %v", err)
+		return "", err
+	}
+
+	// 上传到S3
+	_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(content),
+	})
+	if err != nil {
+		logrus.Errorf("Failed to upload chunk to S3: %v", err)
+		return "", err
+	}
+
+	logrus.Debugf("Saved chunk %d to S3, size: %d bytes, key: %s", chunkIndex, len(content), key)
+	return key, nil
+}
+
+// ChunkExists 检查S3中分片是否存在
+func (s3s *S3Storage) ChunkExists(sessionID string, chunkIndex int) bool {
+	bucketName := "grdata"
+	key := fmt.Sprintf("%s/chunk_%d", s3s.GetChunkDir(sessionID), chunkIndex)
+
+	_, err := s3s.s3Client.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	return err == nil
+}
+
+// MergeChunks 从S3下载所有分片并合并到本地文件
+func (s3s *S3Storage) MergeChunks(sessionID string, outputPath string, totalChunks int) error {
+	bucketName := "grdata"
+	chunkKeyPrefix := s3s.GetChunkDir(sessionID)
+
+	// 验证所有分片是否存在
+	for i := 0; i < totalChunks; i++ {
+		if !s3s.ChunkExists(sessionID, i) {
+			return fmt.Errorf("chunk %d is missing in S3", i)
+		}
+	}
+
+	// 如果输出路径是S3路径，使用S3的CopyObject合并
+	if strings.HasPrefix(outputPath, "/grdata/") || strings.HasPrefix(outputPath, "grdata/") {
+		return s3s.mergeChunksToS3(bucketName, chunkKeyPrefix, outputPath, totalChunks)
+	}
+
+	// 如果是本地路径，下载并合并到本地
+	return s3s.mergeChunksToLocal(bucketName, chunkKeyPrefix, outputPath, totalChunks)
+}
+
+// mergeChunksToLocal 下载S3分片并合并到本地文件
+func (s3s *S3Storage) mergeChunksToLocal(bucketName, chunkKeyPrefix, outputPath string, totalChunks int) error {
+	// 确保输出目录存在
+	outputDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// 创建输出文件
+	outputFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %v", err)
+	}
+	defer outputFile.Close()
+
+	// 按顺序下载并合并所有分片
+	var totalWritten int64
+	for i := 0; i < totalChunks; i++ {
+		key := fmt.Sprintf("%s/chunk_%d", chunkKeyPrefix, i)
+
+		// 从S3下载分片
+		result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to download chunk %d from S3: %v", i, err)
+		}
+
+		written, err := io.Copy(outputFile, result.Body)
+		result.Body.Close()
+		if err != nil {
+			return fmt.Errorf("failed to merge chunk %d: %v", i, err)
+		}
+
+		totalWritten += written
+		logrus.Debugf("Merged chunk %d from S3, size: %d bytes", i, written)
+	}
+
+	logrus.Infof("Successfully merged %d chunks from S3 to %s, total size: %d bytes", totalChunks, outputPath, totalWritten)
+	return nil
+}
+
+// mergeChunksToS3 在S3内部合并分片（使用复制）
+func (s3s *S3Storage) mergeChunksToS3(bucketName, chunkKeyPrefix, outputPath string, totalChunks int) error {
+	// S3不支持直接合并对象，需要先下载到本地临时文件，再上传
+	tempFile, err := os.CreateTemp("", "s3-merge-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	// 下载所有分片到临时文件
+	for i := 0; i < totalChunks; i++ {
+		key := fmt.Sprintf("%s/chunk_%d", chunkKeyPrefix, i)
+		result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to download chunk %d: %v", i, err)
+		}
+
+		_, err = io.Copy(tempFile, result.Body)
+		result.Body.Close()
+		if err != nil {
+			return fmt.Errorf("failed to write chunk %d to temp file: %v", i, err)
+		}
+	}
+
+	// 重置文件指针到开始位置
+	tempFile.Seek(0, 0)
+
+	// 解析输出路径并上传到S3
+	_, outputKey, err := s3s.ParseDirPath(outputPath, true)
+	if err != nil {
+		return err
+	}
+
+	_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(outputKey),
+		Body:   tempFile,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload merged file to S3: %v", err)
+	}
+
+	logrus.Infof("Successfully merged %d chunks to S3: %s", totalChunks, outputKey)
+	return nil
+}
+
+// CleanupChunks 清理S3中的分片文件
+func (s3s *S3Storage) CleanupChunks(sessionID string) error {
+	bucketName := "grdata"
+	prefix := s3s.GetChunkDir(sessionID)
+
+	// 列出所有分片
+	result, err := s3s.s3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(prefix),
+	})
+	if err != nil {
+		logrus.Errorf("Failed to list chunks in S3: %v", err)
+		return err
+	}
+
+	// 批量删除
+	if len(result.Contents) == 0 {
+		return nil
+	}
+
+	objects := make([]*s3.ObjectIdentifier, 0, len(result.Contents))
+	for _, obj := range result.Contents {
+		objects = append(objects, &s3.ObjectIdentifier{Key: obj.Key})
+	}
+
+	_, err = s3s.s3Client.DeleteObjects(&s3.DeleteObjectsInput{
+		Bucket: aws.String(bucketName),
+		Delete: &s3.Delete{
+			Objects: objects,
+			Quiet:   aws.Bool(true),
+		},
+	})
+	if err != nil {
+		logrus.Errorf("Failed to delete chunks from S3: %v", err)
+		return err
+	}
+
+	logrus.Debugf("Cleaned up chunks for session: %s from S3", sessionID)
+	return nil
+}
