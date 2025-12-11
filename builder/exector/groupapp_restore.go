@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/cloudos"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -118,13 +117,17 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	defer b.deleteCache(cacheDir)
 
 	b.cacheDir = cacheDir
-	switch backup.BackupMode {
-	case "full-online":
-		if err := b.downloadFromS3(backup.SourceDir); err != nil {
-			return fmt.Errorf("error downloading file from s3: %v", err)
-		}
-	default:
-		b.downloadFromLocal(backup)
+	// In distributed environment, always download from S3 (S3 acts as shared storage)
+	if err := b.downloadBackupPackage(backup); err != nil {
+		return fmt.Errorf("error downloading backup package: %v", err)
+	}
+
+	// Download metadata files from S3 (always download fresh metadata from S3, not relying on zip contents)
+	if err := b.downloadMetadataFromS3(backup); err != nil {
+		logrus.Warningf("Failed to download metadata from S3, will try to use metadata from zip package: %v", err)
+		// Continue execution - will try to use metadata from zip package
+	} else {
+		logrus.Info("Successfully downloaded metadata from S3")
 	}
 
 	//read metadata file
@@ -170,6 +173,12 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	//restore all app all build version and data
 	if err := b.restoreVersionAndData(backup, &appSnapshot); err != nil {
 		return err
+	}
+
+	// Upload console_apps_metadata.json to S3 for rbd-api to download
+	if err := b.uploadConsoleMetadataToS3(backup); err != nil {
+		logrus.Warningf("Failed to upload console metadata to S3: %v", err)
+		// Continue - not critical for restore success
 	}
 
 	//save result
@@ -707,62 +716,112 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 	return nil
 }
 
-func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
-	sourceDir := backup.SourceDir
-	err := storage.Default().StorageCli.Unzip(sourceDir, b.cacheDir, false)
-	if err != nil {
-		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
-		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
-		return err
-	}
-	dirs, err := util.GetDirNameList(b.cacheDir, 1)
-	if err != nil || len(dirs) < 1 {
-		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
-		return fmt.Errorf("find metadata cache dir error after unzip file")
-	}
-	b.cacheDir = filepath.Join(b.cacheDir, dirs[0])
-	return nil
-}
-
-func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
-	s3Provider, err := cloudos.Str2S3Provider(b.S3Config.Provider)
-	if err != nil {
-		return err
-	}
-	cfg := &cloudos.Config{
-		ProviderType: s3Provider,
-		Endpoint:     b.S3Config.Endpoint,
-		AccessKey:    b.S3Config.AccessKey,
-		SecretKey:    b.S3Config.SecretKey,
-		BucketName:   b.S3Config.BucketName,
-	}
-	cloudoser, err := cloudos.New(cfg)
-	if err != nil {
-		return fmt.Errorf("error creating cloudoser: %v", err)
+// downloadBackupPackage downloads and extracts backup package from S3
+func (b *BackupAPPRestore) downloadBackupPackage(backup *dbmodel.AppBackup) error {
+	storageCli := storage.Default().StorageCli
+	bucketName := b.S3Config.BucketName
+	if bucketName == "" {
+		bucketName = "grdata"
 	}
 
-	_, objectKey := filepath.Split(sourceDir)
-	disDir := path.Join(b.cacheDir, objectKey)
-	logrus.Debugf("object key: %s; file path: %s; start downloading backup file.", objectKey, disDir)
-	if err := cloudoser.GetObject(objectKey, disDir); err != nil {
-		return fmt.Errorf("object key: %s; file path: %s; error downloading file for object storage: %v", objectKey, disDir, err)
-	}
-	logrus.Debugf("successfully downloading backup file: %s", disDir)
+	// Extract filename from SourceDir
+	_, filename := filepath.Split(backup.SourceDir)
+	// S3 path: /{bucket}/backup/{groupID}/{version}_{timestamp}.zip
+	s3Key := fmt.Sprintf("/%s/backup/%s/%s", bucketName, backup.GroupID, filename)
 
-	err = util.Unzip(disDir, b.cacheDir)
-	if err != nil {
-		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
+	// Download from S3 to cache dir
+	zipPath := path.Join(b.cacheDir, filename)
+	logrus.Infof("Downloading backup package from S3: %s -> %s", s3Key, zipPath)
+	if err := storageCli.DownloadFileToDir(s3Key, b.cacheDir); err != nil {
+		b.Logger.Error("下载备份包失败", map[string]string{"step": "restore_builder", "status": "failure"})
+		return fmt.Errorf("error downloading backup package from S3: %v", err)
+	}
+	logrus.Infof("Successfully downloaded backup package: %s", zipPath)
+
+	// Unzip the package
+	if err := util.Unzip(zipPath, b.cacheDir); err != nil {
+		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("error unzipping backup file: %v", err)
 		return err
 	}
 
-	dirs, err := util.GetDirNameList(b.cacheDir, 1)
-	if err != nil || len(dirs) < 1 {
-		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
-		return fmt.Errorf("find metadata cache dir error after unzip file")
+	// Find the directory containing backup data (look for region_apps_metadata.json as marker)
+	// Note: console_apps_metadata.json will be downloaded from S3, so we only check for region metadata
+	metadataFound := false
+	regionMetadataPath := filepath.Join(b.cacheDir, "region_apps_metadata.json")
+
+	// Check if region_apps_metadata.json is directly in cacheDir
+	if _, err := os.Stat(regionMetadataPath); err == nil {
+		metadataFound = true
+		logrus.Infof("Found region metadata directly in cache dir: %s", b.cacheDir)
 	}
 
-	b.cacheDir = filepath.Join(b.cacheDir, dirs[0])
+	if !metadataFound {
+		// Look for region_apps_metadata.json in subdirectories
+		dirs, err := util.GetDirNameList(b.cacheDir, 1)
+		if err != nil || len(dirs) < 1 {
+			b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "restore_builder", "status": "failure"})
+			return fmt.Errorf("find metadata cache dir error after unzip file")
+		}
+
+		// Check each subdirectory for region_apps_metadata.json
+		for _, dir := range dirs {
+			regionTestPath := filepath.Join(b.cacheDir, dir, "region_apps_metadata.json")
+			if _, err := os.Stat(regionTestPath); err == nil {
+				b.cacheDir = filepath.Join(b.cacheDir, dir)
+				metadataFound = true
+				logrus.Infof("Found region metadata in subdirectory: %s", b.cacheDir)
+				break
+			}
+		}
+	}
+
+	if !metadataFound {
+		return fmt.Errorf("region_apps_metadata.json not found in backup package")
+	}
+
+	logrus.Infof("Backup package extracted to: %s", b.cacheDir)
+	return nil
+}
+
+// uploadConsoleMetadataToS3 uploads console_apps_metadata.json to S3 for rbd-api to access
+func (b *BackupAPPRestore) uploadConsoleMetadataToS3(backup *dbmodel.AppBackup) error {
+	storageCli := storage.Default().StorageCli
+	bucketName := "grdata"
+
+	consoleMetadataPath := filepath.Join(b.cacheDir, "console_apps_metadata.json")
+	// Use restoreID as path to make each restore operation unique
+	consoleMetadataKey := fmt.Sprintf("/%s/restore/%s/console_apps_metadata.json", bucketName, b.RestoreID)
+
+	if err := storageCli.UploadFileToFile(consoleMetadataPath, consoleMetadataKey, nil); err != nil {
+		return fmt.Errorf("error uploading console metadata to S3 (key=%s): %v", consoleMetadataKey, err)
+	}
+	logrus.Infof("Uploaded console metadata to S3 for restore: %s -> %s", consoleMetadataPath, consoleMetadataKey)
+
+	return nil
+}
+
+// downloadMetadataFromS3 downloads metadata files from S3 to cacheDir (for restore)
+func (b *BackupAPPRestore) downloadMetadataFromS3(backup *dbmodel.AppBackup) error {
+	storageCli := storage.Default().StorageCli
+	// Use default bucket name (same as backup)
+	bucketName := "grdata"
+	logrus.Infof("Using bucket name for restore metadata download: %s", bucketName)
+
+	// Download region_apps_metadata.json
+	regionMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/region_apps_metadata.json", bucketName, backup.GroupID, backup.Version)
+	if err := storageCli.DownloadFileToDir(regionMetadataKey, b.cacheDir); err != nil {
+		return fmt.Errorf("error downloading region metadata from S3 (key=%s): %v", regionMetadataKey, err)
+	}
+	logrus.Infof("Downloaded region metadata from S3 for restore: %s -> %s", regionMetadataKey, b.cacheDir)
+
+	// Download console_apps_metadata.json
+	consoleMetadataKey := fmt.Sprintf("/%s/backup/%s/%s/console_apps_metadata.json", bucketName, backup.GroupID, backup.Version)
+	if err := storageCli.DownloadFileToDir(consoleMetadataKey, b.cacheDir); err != nil {
+		return fmt.Errorf("error downloading console metadata from S3 (key=%s): %v", consoleMetadataKey, err)
+	}
+	logrus.Infof("Downloaded console metadata from S3 for restore: %s -> %s", consoleMetadataKey, b.cacheDir)
+
 	return nil
 }
 
@@ -817,7 +876,13 @@ func (b *BackupAPPRestore) saveResult(status, message string) {
 		CacheDir:      b.cacheDir,
 	}
 	body, _ := ffjson.Marshal(rr)
-	err := db.GetManager().KeyValueDao().Put("/rainbond/backup_restore/"+rr.RestoreID, string(body))
+	key := "/rainbond/backup_restore/" + rr.RestoreID
+
+	// Delete existing record first to avoid duplicate key error
+	_ = db.GetManager().KeyValueDao().Delete(key)
+
+	// Create new record
+	err := db.GetManager().KeyValueDao().Put(key, string(body))
 	if err != nil {
 		logrus.Errorf("save restore result error %s", err.Error())
 	}
