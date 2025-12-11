@@ -271,12 +271,8 @@ func (l *LocalStorage) ChunkExists(sessionID string, chunkIndex int) bool {
 func (l *LocalStorage) MergeChunks(sessionID string, outputPath string, totalChunks int) error {
 	chunkDir := l.GetChunkDir(sessionID)
 
-	// 验证所有分片是否存在
-	for i := 0; i < totalChunks; i++ {
-		if !l.ChunkExists(sessionID, i) {
-			return fmt.Errorf("chunk %d is missing", i)
-		}
-	}
+	// 不预先检查所有分片是否存在（避免 N 次文件系统调用）
+	// 直接在读取时检查，失败会返回明确错误
 
 	// 确保输出目录存在
 	outputDir := filepath.Dir(outputPath)
