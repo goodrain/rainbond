@@ -135,12 +135,16 @@ func (i *SlugShareItem) ShareToLocal() error {
 		i.Logger.Error(util.Translation("Generate MD5 failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
+
+	// 上传 slug 文件
 	if err := storage.Default().StorageCli.UploadFileToFile(i.LocalSlugPath, i.SlugPath, i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		logrus.Errorf("copy file to share path error: %s", err.Error())
 		i.Logger.Error(util.Translation("Copy file failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
+
+	// 上传 MD5 文件
 	if err := storage.Default().StorageCli.UploadFileToFile(md5, i.SlugPath+".md5", i.Logger); err != nil {
 		os.Remove(i.SlugPath)
 		os.Remove(i.SlugPath + ".md5")
@@ -148,6 +152,15 @@ func (i *SlugShareItem) ShareToLocal() error {
 		i.Logger.Error(util.Translation("Copy MD5 file failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
+
+	// 清理临时 MD5 文件（上传成功后不再需要）
+	if err := os.Remove(md5); err != nil {
+		logrus.Warnf("Failed to remove temporary MD5 file %s: %v", md5, err)
+		// 不返回错误，因为主要任务已完成
+	} else {
+		logrus.Debugf("Removed temporary MD5 file: %s", md5)
+	}
+
 	i.Logger.Info("分享数据中心本地完成", map[string]string{"step": "slug-share", "status": "success"})
 	return nil
 }
