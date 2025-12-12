@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/mq/mqcomponent/grpcserver"
 	"github.com/goodrain/rainbond/mq/mqcomponent/metrics"
 	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
+	"github.com/goodrain/rainbond/pkg/component/cleanup"
 	"github.com/goodrain/rainbond/pkg/component/eventlog"
 	"github.com/goodrain/rainbond/pkg/component/filepersistence"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
@@ -79,6 +80,11 @@ func StorageClient() rainbond.Component {
 // FilePersistenceClient -
 func FilePersistenceClient() rainbond.Component {
 	return filepersistence.New()
+}
+
+// Cleanup -
+func Cleanup() rainbond.Component {
+	return cleanup.New()
 }
 
 // HubRegistry -
