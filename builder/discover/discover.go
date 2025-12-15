@@ -20,6 +20,7 @@ package discover
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"os"
@@ -36,6 +37,7 @@ import (
 const WTOPIC string = "builder"
 
 var healthStatus = make(map[string]string, 1)
+var isReady = false
 
 // TaskManager task
 type TaskManager struct {
@@ -44,6 +46,7 @@ type TaskManager struct {
 	client                 client.MQClient
 	exec                   exector.Manager
 	callbackChan           chan *pb.TaskMessage
+	ready                  bool
 }
 
 // NewChaosTaskManager return *TaskManager
@@ -69,7 +72,44 @@ func NewChaosTaskManager(exec exector.Manager) *TaskManager {
 // Start 启动
 func (t *TaskManager) Start(errChan chan error) error {
 	go t.Do(errChan)
-	logrus.Info("start discover success.")
+
+	// 等待消费循环启动并进入等待状态
+	// 这个时间需要足够长，确保 Do() 循环已经执行到 Dequeue 的 Wait() 调用
+	// 避免 lost wakeup 问题导致第一次任务丢失
+	logrus.Info("waiting for consumer loop to start...")
+	time.Sleep(time.Second * 3)
+
+	// 发送一个测试任务并尝试接收，确保消费循环真正在运行
+	// 这是一个"预热"过程
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	testBody := map[string]string{"test": "warmup"}
+	testJSON, _ := json.Marshal(testBody)
+
+	// 发送预热任务到实际使用的 topic
+	topic := configs.Default().ChaosConfig.Topic
+	_, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
+		Topic: topic,
+		Message: &pb.TaskMessage{
+			TaskType:   "warmup",
+			CreateTime: time.Now().Format(time.RFC3339),
+			TaskBody:   testJSON,
+			User:       "system",
+		},
+	})
+
+	if err != nil {
+		logrus.Warnf("warmup enqueue failed (non-critical): %v", err)
+	} else {
+		logrus.Info("warmup task sent, consumer loop should be active now")
+		// 再等待一小段时间，让消费者处理预热任务
+		time.Sleep(time.Millisecond * 500)
+	}
+
+	t.ready = true
+	isReady = true
+	logrus.Info("start discover success, chaos service is ready.")
 	return nil
 }
 func (t *TaskManager) callback(task *pb.TaskMessage) {
@@ -140,4 +180,9 @@ func (t *TaskManager) Stop() error {
 // HealthCheck 组件的健康检查
 func HealthCheck() map[string]string {
 	return healthStatus
+}
+
+// IsReady 返回服务是否已经就绪
+func IsReady() bool {
+	return isReady
 }

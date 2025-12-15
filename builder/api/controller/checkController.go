@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -153,49 +154,75 @@ func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 
 // CheckHealth Health probe
 func CheckHealth(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+
+	// 检查服务是否已经完全就绪
+	if !discover.IsReady() {
+		logrus.Warn("chaos service is not ready yet")
+		httputil.ReturnError(r, w, 503, "service is starting, please retry later")
+		return
+	}
+
 	mqClient := mq.Default().MqClient
 	if mqClient == nil {
 		httputil.ReturnError(r, w, 500, "task queue client not available")
 		return
 	}
-	taskBody, _ := json.Marshal("health check")
+
+	// 测试 MQ 的完整循环：Enqueue -> Dequeue
+	// 这确保消费者循环已经在运行，避免 lost wakeup 问题
+	taskBody, _ := json.Marshal("health check test")
+	testTopic := client.BuilderHealth
+
+	// 先尝试 Dequeue，清空可能存在的旧消息
+	hostName, _ := os.Hostname()
+	dequeueReq := &pb.DequeueRequest{
+		Topic:      testTopic,
+		ClientHost: hostName + "-health-check",
+	}
+
+	// 发送测试消息
 	err := mqClient.SendBuilderTopic(client.TaskStruct{
-		Topic:    client.BuilderHealth,
+		Topic:    testTopic,
 		TaskType: "check_builder_health",
 		TaskBody: taskBody,
 		Arch:     "test",
 	})
 	if err != nil {
 		logrus.Errorf("builder check send builder topic failure: %v", err)
-		httputil.ReturnError(r, w, 500, "health check error")
+		httputil.ReturnError(r, w, 500, "health check send failed")
 		return
 	}
-	// 等待一小段时间确保消息有时间被发送
-	hostName, _ := os.Hostname()
-	// 接收健康检测任务
-	dequeueReq := &pb.DequeueRequest{
-		Topic:      client.BuilderHealth,
-		ClientHost: hostName + "health-chaos",
-	}
-	for i := 0; i < 3; i++ {
-		time.Sleep(2 * time.Second)
+
+	// 给消息一点时间传递和处理
+	time.Sleep(100 * time.Millisecond)
+
+	// 尝试接收测试消息，验证消费者循环正在运行
+	for i := 0; i < 5; i++ {
 		msg, err := mqClient.Dequeue(ctx, dequeueReq)
 		if err != nil {
-			logrus.Errorf("failed to dequeue health check message: %v", err)
+			logrus.Warnf("dequeue attempt %d failed: %v", i+1, err)
+			time.Sleep(time.Second)
 			continue
 		}
 
-		if msg == nil || len(msg.TaskBody) == 0 {
-			continue
+		if msg != nil && len(msg.TaskBody) > 0 {
+			// 成功接收到测试消息，说明 MQ 循环正常
+			healthInfo := map[string]string{
+				"status":  "ready",
+				"message": "builder service is healthy and ready (MQ verified)",
+			}
+			httputil.ReturnSuccess(r, w, healthInfo)
+			return
 		}
-		healthInfo := map[string]string{
-			"status":  "health",
-			"message": "builder service is healthy",
-		}
-		httputil.ReturnSuccess(r, w, healthInfo)
-		return
+
+		// 没收到消息，可能是 lost wakeup，等待一下再试
+		logrus.Warnf("dequeue attempt %d returned empty, retrying...", i+1)
+		time.Sleep(time.Second)
 	}
-	httputil.ReturnError(r, w, 500, "health check error")
+
+	// 如果所有尝试都失败，返回未就绪状态
+	logrus.Error("health check failed: unable to verify MQ consumer loop")
+	httputil.ReturnError(r, w, 503, "service consumer loop not ready, please retry later")
 }
