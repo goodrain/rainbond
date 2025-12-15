@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"github.com/containerd/containerd"
 	ctrcontent "github.com/containerd/containerd/cmd/ctr/commands/content"
 	"github.com/containerd/containerd/content"
@@ -776,4 +777,150 @@ func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger 
 		ID:              status.Ref,
 	}
 	printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
+}
+
+// GetImageMetadata 轻量级获取镜像元数据（不下载镜像层）
+// 只下载 manifest 和 config blob（通常 < 20KB），不下载完整镜像层
+func (c *containerdImageCliImpl) GetImageMetadata(image string, username, password string, logger event.Logger) (*ocispec.ImageConfig, error) {
+	// 1. 解析镜像引用
+	named, err := refdocker.ParseDockerRef(image)
+	if err != nil {
+		return nil, fmt.Errorf("parse image reference: %w", err)
+	}
+	reference := named.String()
+
+	// 2. 配置上下文和超时
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// 3. 配置认证和 TLS（复用现有逻辑）
+	hostOpt := config.HostOptions{
+		DefaultTLS: &tls.Config{InsecureSkipVerify: true},
+		Credentials: func(host string) (string, string, error) {
+			return username, password, nil
+		},
+	}
+
+	// 4. 创建 Resolver
+	options := docker.ResolverOptions{
+		Hosts: config.ConfigureHosts(ctx, hostOpt),
+	}
+	resolver := docker.NewResolver(options)
+
+	// 5. 获取 Manifest（轻量级）
+	_, desc, err := resolver.Resolve(ctx, reference)
+	if err != nil {
+		// 尝试 HTTP 降级
+		printLog(logger, "debug", "尝试使用 HTTP 协议获取镜像元数据", map[string]string{"step": "metadata-fetch"})
+		hostOpt.DefaultScheme = "http"
+		options.Hosts = config.ConfigureHosts(ctx, hostOpt)
+		resolver = docker.NewResolver(options)
+		_, desc, err = resolver.Resolve(ctx, reference)
+		if err != nil {
+			return nil, fmt.Errorf("resolve image: %w", err)
+		}
+	}
+
+	// 6. 创建 Fetcher
+	fetcher, err := resolver.Fetcher(ctx, reference)
+	if err != nil {
+		return nil, fmt.Errorf("get fetcher: %w", err)
+	}
+
+	// 7. 下载 Manifest 内容
+	manifestReader, err := fetcher.Fetch(ctx, desc)
+	if err != nil {
+		return nil, fmt.Errorf("fetch manifest: %w", err)
+	}
+	defer manifestReader.Close()
+
+	manifestBytes, err := io.ReadAll(manifestReader)
+	if err != nil {
+		return nil, fmt.Errorf("read manifest: %w", err)
+	}
+
+	// 8. 使用 images.Manifest 解析 manifest，自动处理不同格式
+	manifestDesc := desc
+	manifestDesc.Size = int64(len(manifestBytes))
+
+	// 使用 images.Manifest 解析，自动处理 OCI 和 Docker Schema v2 格式
+	manifest, err := images.Manifest(ctx, &staticContentProvider{data: manifestBytes}, manifestDesc, platforms.DefaultStrict())
+	if err != nil {
+		return nil, fmt.Errorf("parse manifest: %w", err)
+	}
+
+	// 9. 下载 Config Blob（关键：只下载配置，不下载层）
+	configReader, err := fetcher.Fetch(ctx, manifest.Config)
+	if err != nil {
+		return nil, fmt.Errorf("fetch config blob: %w", err)
+	}
+	defer configReader.Close()
+
+	// 读取 config blob，并验证大小
+	configBytes, err := io.ReadAll(configReader)
+	if err != nil {
+		return nil, fmt.Errorf("read config blob: %w", err)
+	}
+
+	// 验证读取的数据是否完整
+	if int64(len(configBytes)) != manifest.Config.Size {
+		logrus.Warnf("[GetImageMetadata] Config size mismatch: expected %d, got %d", manifest.Config.Size, len(configBytes))
+	}
+
+	// 检查是否为空
+	if len(configBytes) == 0 {
+		return nil, fmt.Errorf("config blob is empty")
+	}
+
+	// 10. 解析 Config 得到元数据
+	var ociImage ocispec.Image
+	if err := json.Unmarshal(configBytes, &ociImage); err != nil {
+		// 输出前200字节用于调试
+		debugStr := string(configBytes)
+		if len(debugStr) > 200 {
+			debugStr = debugStr[:200] + "..."
+		}
+		logrus.Errorf("[GetImageMetadata] Failed to unmarshal config (size: %d): %v, content: %s", len(configBytes), err, debugStr)
+		return nil, fmt.Errorf("unmarshal image config (size: %d bytes): %w", len(configBytes), err)
+	}
+
+	// 11. 记录成功日志
+	printLog(logger, "info",
+		fmt.Sprintf("成功获取镜像元数据 (下载 %d bytes)", len(manifestBytes)+len(configBytes)),
+		map[string]string{"step": "metadata-fetch"})
+
+	return &ociImage.Config, nil
+}
+
+// staticContentProvider 提供静态内容的 content.Provider 实现
+type staticContentProvider struct {
+	data []byte
+}
+
+func (s *staticContentProvider) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+	return &staticReaderAt{data: s.data}, nil
+}
+
+type staticReaderAt struct {
+	data []byte
+}
+
+func (s *staticReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+	if off >= int64(len(s.data)) {
+		return 0, io.EOF
+	}
+	n = copy(p, s.data[off:])
+	if n < len(p) {
+		err = io.EOF
+	}
+	return n, err
+}
+
+func (s *staticReaderAt) Size() int64 {
+	return int64(len(s.data))
+}
+
+func (s *staticReaderAt) Close() error {
+	return nil
 }

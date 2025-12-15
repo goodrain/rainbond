@@ -444,3 +444,8 @@ func (d *dockerImageCliImpl) ImageLoad(tarFile string, logger event.Logger) ([]s
 	}
 	return images, nil
 }
+
+// GetImageMetadata 轻量级获取镜像元数据（Docker 运行时不支持）
+func (d *dockerImageCliImpl) GetImageMetadata(image string, username, password string, logger event.Logger) (*ocispec.ImageConfig, error) {
+	return nil, fmt.Errorf("GetImageMetadata not supported for Docker runtime, please use Containerd")
+}
