@@ -32,6 +32,7 @@ import (
 
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -119,6 +120,13 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *apimodel.Bui
 	eventID := r.Body.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
+
+	// 检查 chaos 服务健康状态
+	if err := s.checkChaosHealth(); err != nil {
+		logger.Error("chaos service is not ready: "+err.Error(), map[string]string{"step": "health-check", "status": "failure"})
+		return errors.New("build service is not ready, please try again later")
+	}
+
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
@@ -3174,4 +3182,55 @@ func (s *ServiceAction) executeCommand(podName, namespace, containerName string,
 	}
 	// 返回输出结果
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+// checkChaosHealth 检查 chaos 服务健康状态，如果服务未就绪则重试
+func (s *ServiceAction) checkChaosHealth() error {
+	builderAPI := configs.Default().APIConfig.BuilderAPI
+	if len(builderAPI) == 0 {
+		logrus.Warn("builder API is not configured, skip health check")
+		return nil
+	}
+
+	// 使用第一个 builder API 地址
+	builderAddr := builderAPI[0]
+	healthURL := fmt.Sprintf("http://%s/v2/builder/health", builderAddr)
+
+	// 重试配置：最多重试 5 次，每次等待 2 秒
+	maxRetries := 5
+	retryInterval := 2 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			logrus.Infof("chaos service not ready, retrying (%d/%d)...", i, maxRetries)
+			time.Sleep(retryInterval)
+		}
+
+		client := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+		resp, err := client.Get(healthURL)
+		if err != nil {
+			logrus.Warnf("failed to check chaos health: %v", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			logrus.Info("chaos service is ready")
+			return nil
+		} else if resp.StatusCode == 503 {
+			// 服务正在启动中
+			body, _ := io.ReadAll(resp.Body)
+			logrus.Warnf("chaos service is starting: %s", string(body))
+			continue
+		} else {
+			// 其他错误
+			body, _ := io.ReadAll(resp.Body)
+			logrus.Warnf("chaos health check failed with status %d: %s", resp.StatusCode, string(body))
+			continue
+		}
+	}
+
+	return errors.New("chaos service is not ready after multiple retries, please try again later")
 }
