@@ -24,6 +24,10 @@ type ImageClient interface {
 	ImageSave(image, destination string) error
 	ImageLoad(tarFile string, logger event.Logger) ([]string, error)
 	TrustedImagePush(image, user, pass string, logger event.Logger, timeout int) error
+	// GetImageMetadata 轻量级获取镜像元数据（不下载镜像层）
+	// 只下载 manifest 和 config blob（通常 < 20KB），不下载完整镜像层
+	// 返回镜像配置信息，失败时返回错误但不应阻塞构建流程
+	GetImageMetadata(image string, username, password string, logger event.Logger) (*ocispec.ImageConfig, error)
 }
 
 // ImageClientFactory client factory
