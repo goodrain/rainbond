@@ -73,6 +73,8 @@ type InterfaceStorage interface {
 	UploadFileToFile(src string, dst string, logger event.Logger) error
 	DownloadDirToDir(srcDir, dstDir string) error
 	DownloadFileToDir(srcFile, dstDir string) error
+	// ReadFile reads a file directly from storage and returns a reader
+	ReadFile(filePath string) (ReadCloser, error)
 
 	// 分片上传相关方法
 	SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (string, error)
@@ -80,6 +82,11 @@ type InterfaceStorage interface {
 	ChunkExists(sessionID string, chunkIndex int) bool
 	CleanupChunks(sessionID string) error
 	GetChunkDir(sessionID string) string
+}
+
+type ReadCloser interface {
+	Read(p []byte) (n int, err error)
+	Close() error
 }
 
 type SrcFile interface {

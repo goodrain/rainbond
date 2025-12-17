@@ -204,7 +204,6 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				if rule.ID != nil && (*rule.ID == "delete-chunks-1d" ||
 					*rule.ID == "delete-restore-1d" ||
 					*rule.ID == "delete-temp-events-1d" ||
-					*rule.ID == "delete-event-logs-7d" ||
 					*rule.ID == "delete-app-import-1d" ||
 					*rule.ID == "delete-app-export-7d" ||
 					*rule.ID == "delete-build-tenant-7d" ||
@@ -251,14 +250,15 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 						Days: aws.Int64(1), // 临时事件文件 1 天后自动删除
 					},
 				},
-				{
-					ID:     aws.String("delete-event-logs-7d"),
-					Status: aws.String("Enabled"),
-					Prefix: aws.String("logs/eventlog/"),
-					Expiration: &s3.LifecycleExpiration{
-						Days: aws.Int64(7), // 事件日志 7 天后自动删除
-					},
-				},
+				// 事件日志永久保存，不自动清理
+				// {
+				//     ID:     aws.String("delete-event-logs-7d"),
+				//     Status: aws.String("Enabled"),
+				//     Prefix: aws.String("logs/eventlog/"),
+				//     Expiration: &s3.LifecycleExpiration{
+				//         Days: aws.Int64(7),
+				//     },
+				// },
 				{
 					ID:     aws.String("delete-app-import-1d"),
 					Status: aws.String("Enabled"),
@@ -932,4 +932,22 @@ func (s3s *S3Storage) CleanupChunks(sessionID string) error {
 
 	logrus.Debugf("Cleaned up chunks for session: %s from S3", sessionID)
 	return nil
+}
+
+// ReadFile reads a file directly from S3 and returns a reader
+func (s3s *S3Storage) ReadFile(filePath string) (ReadCloser, error) {
+	bucketName, key, err := s3s.ParseDirPath(filePath, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse file path: %w", err)
+	}
+
+	result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object from S3: %w", err)
+	}
+
+	return result.Body, nil
 }

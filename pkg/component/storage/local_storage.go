@@ -324,3 +324,12 @@ func (l *LocalStorage) CleanupChunks(sessionID string) error {
 	logrus.Debugf("Cleaned up chunks for session: %s", sessionID)
 	return nil
 }
+
+// ReadFile reads a file directly from local storage and returns a reader
+func (l *LocalStorage) ReadFile(filePath string) (ReadCloser, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	return file, nil
+}
