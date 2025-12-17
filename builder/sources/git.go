@@ -29,6 +29,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -52,6 +53,35 @@ import (
 	netssh "golang.org/x/crypto/ssh"
 	sshkey "golang.org/x/crypto/ssh"
 )
+
+// dirLockManager 目录锁管理器，用于防止对同一目录的并发 Git 操作
+type dirLockManager struct {
+	locks sync.Map // key: directory path, value: *sync.Mutex
+}
+
+// globalDirLockManager 全局目录锁管理器实例
+var globalDirLockManager = &dirLockManager{}
+
+// getLock 获取指定目录的锁
+func (m *dirLockManager) getLock(dir string) *sync.Mutex {
+	lock, _ := m.locks.LoadOrStore(dir, &sync.Mutex{})
+	return lock.(*sync.Mutex)
+}
+
+// lock 对指定目录加锁
+func (m *dirLockManager) lock(dir string) {
+	mutex := m.getLock(dir)
+	logrus.Debugf("Acquiring lock for directory: %s", dir)
+	mutex.Lock()
+	logrus.Debugf("Lock acquired for directory: %s", dir)
+}
+
+// unlock 对指定目录解锁
+func (m *dirLockManager) unlock(dir string) {
+	mutex := m.getLock(dir)
+	mutex.Unlock()
+	logrus.Debugf("Lock released for directory: %s", dir)
+}
 
 // CodeSourceInfo 代码源信息
 type CodeSourceInfo struct {
@@ -123,8 +153,8 @@ func getShowURL(rurl string) string {
 	return ""
 }
 
-// GitClone git clone code
-func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+// gitCloneInternal git clone code 内部实现（不加锁）
+func gitCloneInternal(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	if !strings.HasSuffix(csi.RepositoryURL, ".git") {
 		csi.RepositoryURL = csi.RepositoryURL + ".git"
@@ -381,6 +411,16 @@ Loop:
 	}
 	return rs, "", err
 }
+
+// GitClone git clone code（带锁的外部接口）
+func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+	// 对目录加锁，防止并发 Git 操作冲突
+	globalDirLockManager.lock(sourceDir)
+	defer globalDirLockManager.unlock(sourceDir)
+
+	return gitCloneInternal(csi, sourceDir, logger, timeout)
+}
+
 func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod, error) {
 	switch ep.Protocol {
 	case "ssh":
@@ -396,8 +436,8 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 	return nil, nil
 }
 
-// GitPull git pull code
-func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+// gitPullInternal git pull code 内部实现（不加锁）
+func gitPullInternal(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
@@ -526,10 +566,24 @@ Loop:
 	return rs, "", err
 }
 
+// GitPull git pull code（带锁的外部接口）
+func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+	// 对目录加锁，防止并发 Git 操作冲突
+	globalDirLockManager.lock(sourceDir)
+	defer globalDirLockManager.unlock(sourceDir)
+
+	return gitPullInternal(csi, sourceDir, logger, timeout)
+}
+
 // GitCloneOrPull if code exist in local,use git pull.
 func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+	// 对目录加锁，防止并发 Git 操作冲突
+	// 确保检查 .git 目录和执行 pull/clone 操作是原子的
+	globalDirLockManager.lock(sourceDir)
+	defer globalDirLockManager.unlock(sourceDir)
+
 	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
-		re, msg, err := GitPull(csi, sourceDir, logger, timeout)
+		re, msg, err := gitPullInternal(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
 			return re, msg, nil
 		}
@@ -542,7 +596,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 			logger.Error(util.Translation("Clear code directory failed"), map[string]string{"step": "clone-code", "status": "failure"})
 		}
 	}
-	return GitClone(csi, sourceDir, logger, timeout)
+	return gitCloneInternal(csi, sourceDir, logger, timeout)
 }
 
 // GitCheckout checkout the specified branch
