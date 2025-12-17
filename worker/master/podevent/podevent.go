@@ -1006,7 +1006,7 @@ func hasStartupProbeFailureEvent(clientset kubernetes.Interface, pod *corev1.Pod
 
 // Constants for probe health check thresholds
 const (
-	ReadinessUnhealthyThreshold = 1 * time.Minute // Alert if readiness unhealthy for > 1 minute
+	ReadinessUnhealthyThreshold = 0 * time.Second // Alert immediately when readiness check fails
 	LivenessRestartThreshold    = 3               // Alert if liveness caused > 3 restarts
 	StartupProbeFailureMin      = 5               // Alert if startup probe failed > 5 times
 )
@@ -1074,8 +1074,14 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 			logrus.Infof("Creating ReadinessUnhealthy event for pod %s/%s container %s...", pod.Namespace, pod.Name, cs.Name)
 
 			// Create event message
-			msg := fmt.Sprintf("容器 [%s] 运行正常但未通过就绪检查已持续 %.0f 分钟，流量已被移除。请检查健康检查配置或应用状态。",
-				cs.Name, unhealthyDuration.Minutes())
+			var durationStr string
+			if unhealthyDuration < time.Minute {
+				durationStr = fmt.Sprintf("%.0f 秒", unhealthyDuration.Seconds())
+			} else {
+				durationStr = fmt.Sprintf("%.1f 分钟", unhealthyDuration.Minutes())
+			}
+			msg := fmt.Sprintf("容器 [%s] 运行正常但未通过就绪检查已持续 %s，流量已被移除。请检查健康检查配置或应用状态。",
+				cs.Name, durationStr)
 
 			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeReadinessUnhealthy.String(), model.EventStatusFailure.String(), msg)
 			if err != nil {
