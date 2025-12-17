@@ -152,31 +152,34 @@ func (a MessageDataList) Len() int           { return len(a) }
 func (a MessageDataList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unixtime }
 
-// GetMessages GetMessages
+// GetMessages GetMessages - directly reads from storage without downloading to local
 func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interface{}, error) {
 	var message MessageDataList
-	apath := path.Join(m.HomePath, "eventlog", eventID+".log")
-	if ok, err := util.FileExists(apath); !ok {
-		if err != nil {
-			logrus.Errorf("check file exist error %s", err.Error())
-		}
 
-		// 从存储下载文件，带重试机制
-		err = m.downloadWithRetry(eventID, apath)
-		if err != nil {
-			logrus.Errorf("download file to dir failure:%v", err)
-			return message, nil
-		}
-	}
-	eventFile, err := os.Open(apath)
+	// 构造存储路径（S3/MinIO 路径）
+	s3Path := path.Join("grdata", "logs", "eventlog", eventID+".log")
+
+	// 直接从存储读取文件流
+	fileReader, err := storage.Default().StorageCli.ReadFile(s3Path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+		// 如果从存储读取失败，尝试从本地读取（向后兼容）
+		localPath := path.Join(m.HomePath, "eventlog", eventID+".log")
+		logrus.Debugf("Failed to read from storage, trying local path: %s, error: %v", localPath, err)
+
+		localFile, localErr := os.Open(localPath)
+		if localErr != nil {
+			if os.IsNotExist(localErr) {
+				logrus.Warnf("Event log file not found in storage or local: %s", eventID)
+				return message, nil
+			}
+			return nil, fmt.Errorf("failed to read event log from both storage and local: %w", localErr)
 		}
-		return nil, err
+		fileReader = localFile
 	}
-	defer eventFile.Close()
-	reader := bufio.NewReader(eventFile)
+	defer fileReader.Close()
+
+	// 使用 bufio.Reader 逐行读取和解析
+	reader := bufio.NewReader(fileReader)
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil {
@@ -207,41 +210,6 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		}
 	}
 	return message, nil
-}
-
-// downloadWithRetry 从存储下载文件，带重试机制
-func (m *EventFilePlugin) downloadWithRetry(eventID, localPath string) error {
-	maxRetries := 3
-	retryDelay := time.Second
-
-	// 构造正确的 S3 路径:从 localPath 中提取相对于根目录的路径
-	// localPath 格式: /grdata/logs/eventlog/eventID.log
-	// 需要构造成: grdata/logs/eventlog/eventID.log (去掉开头的 /)
-	s3Path := path.Join("grdata", "logs", "eventlog", eventID+".log")
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		err := storage.Default().StorageCli.DownloadFileToDir(
-			s3Path,
-			path.Join(m.HomePath, "eventlog"),
-		)
-		if err == nil {
-			logrus.Debugf("Successfully downloaded log file from storage: %s", eventID)
-			return nil
-		}
-
-		if attempt < maxRetries {
-			logrus.Warnf("Failed to download log file %s (attempt %d/%d): %v, retrying in %v...",
-				eventID, attempt, maxRetries, err, retryDelay)
-			time.Sleep(retryDelay)
-			// 指数退避
-			retryDelay *= 2
-		} else {
-			return fmt.Errorf("failed to download log file %s after %d attempts: %w",
-				eventID, maxRetries, err)
-		}
-	}
-
-	return nil
 }
 
 // CheckLevel check log level
