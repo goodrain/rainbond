@@ -217,19 +217,19 @@ func (p *PodEvent) Handle() {
 	for {
 		select {
 		case pod := <-p.podEventCh:
-			// Extend monitoring window: record events from 5 seconds to 30 minutes after startup
-			// This catches immediate failures faster and monitors long-running issues longer
+			// Monitor all pod events regardless of age to catch runtime issues
+			// Skip only very recently created pods (< 5s) to avoid noise from pod initialization
 			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
 			logrus.Infof("Received pod event: %s/%s, age: %.1fs, phase: %s",
 				pod.Namespace, pod.Name, podAge.Seconds(), pod.Status.Phase)
 
-			if podAge > 5*time.Second && podAge < 30*time.Minute {
+			if podAge > 5*time.Second {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 				AbnormalEvent(p.clientset, pod)
 				// Detect probe health issues (Readiness/Liveness/Startup)
 				p.detectProbeIssues(pod)
 			} else {
-				logrus.Infof("Pod %s/%s outside monitoring window (age: %.1fs)",
+				logrus.Debugf("Pod %s/%s too young (age: %.1fs), skipping checks",
 					pod.Namespace, pod.Name, podAge.Seconds())
 			}
 		case <-ticker.C:
@@ -668,7 +668,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 		}
 
 		// Check for Pod-level issues
-		// Pod Evicted - node ran out of resources
+		// Pod Evicted - node ran out of resources (can happen at any time during pod lifecycle)
 		if pod.Status.Reason == "Evicted" {
 			evictedEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "Evicted")
 			if err != nil && err != gorm.ErrRecordNotFound {
@@ -678,14 +678,23 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 			if evictedEvent != nil {
 				return
 			}
+
+			// Parse eviction reason from pod status message
 			var msg string
-			if strings.Contains(pod.Status.Message, "memory") {
-				msg = util.Translation("Deployment failed: container out of memory killed")
-			} else if strings.Contains(pod.Status.Message, "disk") {
-				msg = util.Translation("Deployment failed: insufficient storage resources")
+			statusMsg := strings.ToLower(pod.Status.Message)
+			if strings.Contains(statusMsg, "memory") || strings.Contains(statusMsg, "mem") {
+				msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: container out of memory killed"), pod.Status.Message)
+			} else if strings.Contains(statusMsg, "disk") || strings.Contains(statusMsg, "ephemeral-storage") {
+				msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: pod evicted due to disk pressure"), pod.Status.Message)
+			} else if strings.Contains(statusMsg, "pid") {
+				msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: pod evicted due to PID exhaustion"), pod.Status.Message)
+			} else if strings.Contains(statusMsg, "inodes") {
+				msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: pod evicted due to inode exhaustion"), pod.Status.Message)
 			} else {
-				msg = fmt.Sprintf("%s: %s", util.Translation("Pod scheduling failed"), pod.Status.Message)
+				msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: pod evicted due to resource pressure"), pod.Status.Message)
 			}
+
+			logrus.Warnf("Pod %s/%s was evicted: %s", pod.Namespace, pod.Name, pod.Status.Message)
 			_, err = createSystemEvent(tenantID, serviceID, pod.Name, "Evicted", model.EventStatusFailure.String(), msg)
 			if err != nil {
 				logrus.Warningf("pod: %s; type: Evicted; error creating event: %v", pod.GetName(), err)
@@ -1332,9 +1341,10 @@ func (p *PodEvent) periodicProbeCheck() {
 			return true
 		}
 
-		// Check if pod is too old (> 30 minutes), remove from periodic check
+		// Clean up very old pods from cache (> 24 hours) to prevent memory leak
+		// But still monitor them if they have issues
 		podAge := time.Since(latestPod.CreationTimestamp.Time)
-		if podAge > 30*time.Minute {
+		if podAge > 24*time.Hour {
 			p.recentPods.Delete(key)
 			return true
 		}
@@ -1364,9 +1374,9 @@ func (p *PodEvent) periodicProbeCheck() {
 			continue
 		}
 
-		// Check if pod is in monitoring window
+		// Skip very young pods to avoid initialization noise
 		podAge := time.Since(pod.CreationTimestamp.Time)
-		if podAge <= 5*time.Second || podAge >= 30*time.Minute {
+		if podAge <= 5*time.Second {
 			continue
 		}
 

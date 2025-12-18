@@ -118,6 +118,12 @@ var translationMetadata = map[string]string{
 	"Deployment failed: container is being terminated repeatedly": "容器反复崩溃重启，请查看右侧日志定位应用代码问题",
 	"Deployment failed: container out of memory killed":           "容器因内存超限被终止，请增加内存限制或优化应用内存使用",
 
+	// Deployment related errors - pod eviction
+	"Deployment failed: pod evicted due to resource pressure": "Pod 因资源压力被驱逐",
+	"Deployment failed: pod evicted due to PID exhaustion":    "Pod 因 PID 资源耗尽被驱逐，请降低进程数或联系管理员增加节点 PID 限制",
+	"Deployment failed: pod evicted due to inode exhaustion":  "Pod 因 inode 资源耗尽被驱逐，请清理临时文件或联系管理员",
+	"Deployment failed: pod evicted due to disk pressure":     "Pod 因磁盘压力被驱逐，请清理磁盘空间或增加存储卷大小",
+
 	// Deployment related errors - health check issues
 	"Deployment failed: readiness probe failed": "就绪检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
 	"Deployment failed: liveness probe failed":  "存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
