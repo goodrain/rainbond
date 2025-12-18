@@ -191,37 +191,84 @@ func (s3s *S3Storage) ensureBucketExists(bucketName string) error {
 
 // ensureBucketLifecycle 检查并配置桶的生命周期策略
 func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool) error {
+	logrus.Infof("[Lifecycle] ensureBucketLifecycle called for bucket: %s, bucketExists: %v", bucketName, bucketExists)
+
 	// 如果桶已存在，先检查是否已有生命周期策略
 	if bucketExists {
+		logrus.Infof("[Lifecycle] Bucket exists, checking existing lifecycle configuration for: %s", bucketName)
 		existingConfig, err := s3s.s3Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
 			Bucket: aws.String(bucketName),
 		})
 
-		if err == nil && existingConfig != nil && len(existingConfig.Rules) > 0 {
+		if err != nil {
+			logrus.Warnf("[Lifecycle] Failed to get existing lifecycle config for %s: %v (will attempt to create new one)", bucketName, err)
+		} else if existingConfig != nil && len(existingConfig.Rules) > 0 {
+			logrus.Infof("[Lifecycle] Found existing lifecycle rules for %s: %d rules", bucketName, len(existingConfig.Rules))
 			// 检查是否已有我们的规则（通过 Rule ID 判断）
 			hasOurRules := false
 			for _, rule := range existingConfig.Rules {
-				if rule.ID != nil && (*rule.ID == "delete-chunks-1d" ||
-					*rule.ID == "delete-restore-1d" ||
-					*rule.ID == "delete-temp-events-1d" ||
-					*rule.ID == "delete-app-import-1d" ||
-					*rule.ID == "delete-app-export-7d" ||
-					*rule.ID == "delete-build-tenant-7d" ||
-					*rule.ID == "abort-incomplete-multipart-1d") {
-					hasOurRules = true
-					break
+				if rule.ID != nil {
+					logrus.Debugf("[Lifecycle] Checking existing rule: %s", *rule.ID)
+					if *rule.ID == "delete-chunks-1d" ||
+						*rule.ID == "delete-restore-1d" ||
+						*rule.ID == "delete-temp-events-1d" ||
+						*rule.ID == "delete-app-import-1d" ||
+						*rule.ID == "delete-app-export-7d" ||
+						*rule.ID == "delete-build-tenant-7d" ||
+						*rule.ID == "abort-incomplete-multipart-1d" {
+						hasOurRules = true
+						logrus.Infof("[Lifecycle] Found our rule: %s, skipping lifecycle configuration", *rule.ID)
+						break
+					}
 				}
 			}
 
 			if hasOurRules {
-				logrus.Debugf("Bucket %s already has lifecycle policy configured", bucketName)
+				logrus.Infof("[Lifecycle] Bucket %s already has our lifecycle policy configured, skipping", bucketName)
 				return nil
 			}
+			logrus.Infof("[Lifecycle] No matching rules found, will create new lifecycle policy")
+		} else {
+			logrus.Infof("[Lifecycle] No existing lifecycle rules found for %s", bucketName)
 		}
 		// 如果获取失败或没有规则，继续配置
+	} else {
+		logrus.Infof("[Lifecycle] Bucket is new, will create lifecycle policy")
 	}
 
-	// 配置生命周期策略
+	// 配置生命周期策略（使用 Filter 格式以兼容 MinIO）
+	// 注意：MinIO 要求每个规则必须有 Expiration，且空 Prefix 需要特殊处理
+	logrus.Infof("[Lifecycle] Creating lifecycle configuration input for bucket: %s", bucketName)
+
+	// 先测试一个最简单的规则，验证 MinIO 能接受
+	testSimpleRule := false
+	if testSimpleRule {
+		logrus.Info("[Lifecycle] Testing with single simple rule first...")
+		input := &s3.PutBucketLifecycleConfigurationInput{
+			Bucket: aws.String(bucketName),
+			LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
+				Rules: []*s3.LifecycleRule{
+					{
+						ID:     aws.String("test-rule"),
+						Status: aws.String("Enabled"),
+						Filter: &s3.LifecycleRuleFilter{
+							Prefix: aws.String("test/"),
+						},
+						Expiration: &s3.LifecycleExpiration{
+							Days: aws.Int64(1),
+						},
+					},
+				},
+			},
+		}
+		resp, err := s3s.s3Client.PutBucketLifecycleConfiguration(input)
+		if err != nil {
+			logrus.Errorf("[Lifecycle] Simple rule test failed: %v", err)
+			return fmt.Errorf("simple rule test failed: %w", err)
+		}
+		logrus.Infof("[Lifecycle] Simple rule test succeeded: %+v", resp)
+		return nil
+	}
 	input := &s3.PutBucketLifecycleConfigurationInput{
 		Bucket: aws.String(bucketName),
 		LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
@@ -229,7 +276,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-chunks-1d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("package_build/temp/chunks/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("package_build/temp/chunks/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(1), // 分片文件 1 天后自动删除
 					},
@@ -237,7 +286,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-restore-1d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("restore/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("restore/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(1), // 恢复文件 1 天后自动删除
 					},
@@ -245,7 +296,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-temp-events-1d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("package_build/temp/events/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("package_build/temp/events/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(1), // 临时事件文件 1 天后自动删除
 					},
@@ -254,7 +307,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				// {
 				//     ID:     aws.String("delete-event-logs-7d"),
 				//     Status: aws.String("Enabled"),
-				//     Prefix: aws.String("logs/eventlog/"),
+				//     Filter: &s3.LifecycleRuleFilter{
+				//         Prefix: aws.String("logs/eventlog/"),
+				//     },
 				//     Expiration: &s3.LifecycleExpiration{
 				//         Days: aws.Int64(7),
 				//     },
@@ -262,7 +317,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-app-import-1d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("app/import/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("app/import/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(1), // 应用导入临时文件 1 天后自动删除
 					},
@@ -270,7 +327,9 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-app-export-7d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("app/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("app/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(7), // 应用导出文件 7 天后自动删除
 					},
@@ -278,29 +337,52 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 				{
 					ID:     aws.String("delete-build-tenant-7d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String("build/tenant/"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("build/tenant/"),
+					},
 					Expiration: &s3.LifecycleExpiration{
 						Days: aws.Int64(7), // 应用发布 Slug 包 7 天后自动删除
 					},
 				},
+				// 未完成的分段上传清理规则（单独配置，需要有 Expiration）
 				{
 					ID:     aws.String("abort-incomplete-multipart-1d"),
 					Status: aws.String("Enabled"),
-					Prefix: aws.String(""),
+					Filter: &s3.LifecycleRuleFilter{
+						// 空 Filter 表示应用到整个 bucket
+					},
 					AbortIncompleteMultipartUpload: &s3.AbortIncompleteMultipartUpload{
 						DaysAfterInitiation: aws.Int64(1), // 未完成的分段上传 1 天后清理
+					},
+					// MinIO 可能要求即使只有 AbortIncompleteMultipartUpload 也需要 Expiration
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(365), // 设置一个很长的过期时间，实际不会清理正常文件
 					},
 				},
 			},
 		},
 	}
 
-	_, err := s3s.s3Client.PutBucketLifecycleConfiguration(input)
+	logrus.Infof("[Lifecycle] Prepared %d lifecycle rules, calling PutBucketLifecycleConfiguration for bucket: %s",
+		len(input.LifecycleConfiguration.Rules), bucketName)
+
+	for i, rule := range input.LifecycleConfiguration.Rules {
+		prefix := ""
+		if rule.Filter != nil && rule.Filter.Prefix != nil {
+			prefix = *rule.Filter.Prefix
+		}
+		logrus.Debugf("[Lifecycle] Rule %d: ID=%s, Status=%s, Prefix=%s",
+			i+1, *rule.ID, *rule.Status, prefix)
+	}
+
+	resp, err := s3s.s3Client.PutBucketLifecycleConfiguration(input)
 	if err != nil {
+		logrus.Errorf("[Lifecycle] PutBucketLifecycleConfiguration failed for bucket %s: %v", bucketName, err)
 		return fmt.Errorf("failed to configure bucket lifecycle: %w", err)
 	}
 
-	logrus.Infof("Successfully configured lifecycle policy for bucket: %s", bucketName)
+	logrus.Infof("[Lifecycle] PutBucketLifecycleConfiguration response: %+v", resp)
+	logrus.Infof("[Lifecycle] Successfully configured lifecycle policy for bucket: %s", bucketName)
 	return nil
 }
 
@@ -950,4 +1032,46 @@ func (s3s *S3Storage) ReadFile(filePath string) (ReadCloser, error) {
 	}
 
 	return result.Body, nil
+}
+
+// InitBucketLifecycle 在 API 启动时主动初始化默认 bucket 的生命周期策略
+func (s3s *S3Storage) InitBucketLifecycle() error {
+	// 默认初始化 grdata bucket 的生命周期策略
+	bucketName := "grdata"
+
+	logrus.Infof("[Lifecycle Init] Starting to initialize bucket lifecycle policy for: %s", bucketName)
+
+	// 检查 bucket 是否存在
+	logrus.Infof("[Lifecycle Init] Checking if bucket exists: %s", bucketName)
+	headResp, err := s3s.s3Client.HeadBucket(&s3.HeadBucketInput{
+		Bucket: aws.String(bucketName),
+	})
+
+	bucketExists := true
+	if err != nil {
+		logrus.Warnf("[Lifecycle Init] Bucket %s does not exist or error checking: %v", bucketName, err)
+		logrus.Infof("[Lifecycle Init] Attempting to create bucket: %s", bucketName)
+		// 如果 bucket 不存在，先创建
+		createResp, err := s3s.s3Client.CreateBucket(&s3.CreateBucketInput{
+			Bucket: aws.String(bucketName),
+		})
+		if err != nil {
+			logrus.Errorf("[Lifecycle Init] Failed to create bucket %s: %v", bucketName, err)
+			return fmt.Errorf("failed to create bucket %s: %w", bucketName, err)
+		}
+		bucketExists = false
+		logrus.Infof("[Lifecycle Init] Successfully created new bucket: %s, response: %+v", bucketName, createResp)
+	} else {
+		logrus.Infof("[Lifecycle Init] Bucket %s already exists, response: %+v", bucketName, headResp)
+	}
+
+	// 配置生命周期策略
+	logrus.Infof("[Lifecycle Init] Configuring lifecycle policy for bucket: %s (bucketExists=%v)", bucketName, bucketExists)
+	if err := s3s.ensureBucketLifecycle(bucketName, bucketExists); err != nil {
+		logrus.Errorf("[Lifecycle Init] Failed to configure lifecycle for bucket %s: %v", bucketName, err)
+		return fmt.Errorf("failed to configure lifecycle for bucket %s: %w", bucketName, err)
+	}
+
+	logrus.Infof("[Lifecycle Init] Successfully initialized bucket lifecycle policy for: %s", bucketName)
+	return nil
 }
