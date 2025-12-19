@@ -34,7 +34,7 @@ on:
         type: choice
         options:
           - ""
-          - type=registry,oci-mediatypes=true,compression=estargz
+          - type=registry,oci-mediatypes=true,compression=estargz,force-compression=true
       
 env:
   VERSION: ${{ github.event.inputs.version }}
