@@ -375,6 +375,7 @@ func ChangePluginStatus(w http.ResponseWriter, r *http.Request) {
 func (v2 *V2) clusterRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", controller.GetManager().GetClusterInfo)
+	r.Get("/health", controller.GetManager().GetPlatformHealth)
 	r.Get("/builder/mavensetting", controller.GetManager().MavenSettingList)
 	r.Post("/builder/mavensetting", controller.GetManager().MavenSettingAdd)
 	r.Get("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDetail)

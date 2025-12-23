@@ -53,6 +53,7 @@ func InitAPIHandle() error {
 	defApplicationHandler = NewApplicationHandler()
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
 	defNodesHandler = NewNodesHandler()
+	defPlatformHealthHandler = NewPlatformHealthHandler()
 
 	// 初始化 TarImageHandle
 	// 镜像的加载和推送在 builder 服务中异步完成
@@ -223,4 +224,11 @@ var defRegistryAuthSecretHandler RegistryAuthSecretHandler
 // GetRegistryAuthSecretHandler -
 func GetRegistryAuthSecretHandler() RegistryAuthSecretHandler {
 	return defRegistryAuthSecretHandler
+}
+
+var defPlatformHealthHandler PlatformHealthHandler
+
+// GetPlatformHealthHandler returns the default platform health handler.
+func GetPlatformHealthHandler() PlatformHealthHandler {
+	return defPlatformHealthHandler
 }
