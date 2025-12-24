@@ -232,15 +232,40 @@ Loop:
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	}
 	if err != nil {
+		// Get error string for pattern matching first
+		errLower := strings.ToLower(err.Error())
+
+		// Handle "repository already exists" error - this can occur during concurrent operations
+		if strings.Contains(errLower, "repository already exists") ||
+		   strings.Contains(err.Error(), "repository already exists") {
+			logrus.Warnf("Repository already exists at %s, attempting to remove and retry clone", sourceDir)
+			// Remove the existing directory
+			if reerr := os.RemoveAll(sourceDir); reerr != nil {
+				errMsg := "仓库目录已存在且无法删除，请稍后重试"
+				if logger != nil {
+					logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
+				}
+				logrus.Errorf("Failed to remove existing repository directory: %v", reerr)
+				return rs, errMsg, fmt.Errorf("failed to remove existing repository: %v", reerr)
+			}
+			// Retry clone after removal
+			rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
+			if err == nil {
+				logrus.Infof("Successfully cloned repository after removing existing directory")
+				return rs, "", nil
+			}
+			// If retry also fails, continue with normal error handling below
+			logrus.Errorf("Retry clone after directory removal also failed: %v", err)
+			errLower = strings.ToLower(err.Error())
+		}
+
+		// Clean up on any error
 		if reerr := os.RemoveAll(sourceDir); reerr != nil {
 			errMsg := util.Translation("Pull code error, failed to delete code directory")
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
-
-		// Get error string for pattern matching
-		errLower := strings.ToLower(err.Error())
 
 		// Log detailed error information for debugging
 		logrus.Errorf("[Git Clone Error] URL: %s, Error Type: %T, Error String: %s, HasUser: %v, HasPassword: %v",
