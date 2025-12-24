@@ -920,7 +920,7 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 		return err
 	}
 	if k8serror.IsNotFound(err) {
-		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", imageDomain)
+		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true\n  insecure = true", imageDomain)
 		buildKitTomlCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: buildKitTomlCMName,
