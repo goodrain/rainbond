@@ -117,6 +117,9 @@ var translationMetadata = map[string]string{
 	"Deployment failed: container crashed during runtime":         "容器异常退出，请查看日志定位问题",
 	"Deployment failed: container is being terminated repeatedly": "容器反复崩溃，请查看日志定位问题",
 	"Deployment failed: container out of memory killed":           "容器内存超限被终止，请增加内存限制",
+	"Resource not found":                                          "资源不存在",
+	"Deployment failed: ConfigMap not found":                      "配置不存在，请检查配置",
+	"Deployment failed: Secret not found":                         "密钥不存在，请检查配置",
 
 	// Deployment related errors - health check issues
 	"Deployment failed: readiness probe failed": "就绪检查失败，请查看日志或调整健康检查配置",

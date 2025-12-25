@@ -477,6 +477,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 			}
 		}
 	}
+	// Handle Pod Running phase - clean up resolved events
 	if pod != nil && pod.Status.Phase == corev1.PodRunning {
 		servicePods, err := clientset.CoreV1().Pods(pod.GetNamespace()).List(context.Background(), metav1.ListOptions{
 			FieldSelector: "metadata.namespace!=" + utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
@@ -530,6 +531,11 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				logrus.Warningf("Delete component scheduling pod event: %v", err)
 			}
 		}
+	}
+
+	// Check for container issues in both Pending and Running phases
+	// Some errors (e.g. ConfigMap/Secret not found) appear while Pod is Pending
+	if pod != nil && (pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning) {
 		// Check for runtime container issues
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			// Check both current and last terminated state for container exit errors
@@ -655,7 +661,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				}
 			}
 
-			// CreateContainerConfigError - container config issue
+			// CreateContainerConfigError - container config issue (ConfigMap/Secret not found, etc.)
 			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == "CreateContainerConfigError" {
 				configErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CreateContainerConfigError")
 				if err != nil && err != gorm.ErrRecordNotFound {
@@ -663,9 +669,50 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					return
 				}
 				if configErrorEvent != nil {
-					return
+					// Check if event is for a different pod (e.g., during rolling update)
+					if configErrorEvent.TargetID != pod.Name {
+						// Old pod's event, delete it and create new one
+						logrus.Infof("Found old CreateContainerConfigError event for pod %s (current: %s), deleting and creating new event",
+							configErrorEvent.TargetID, pod.Name)
+						if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "CreateContainerConfigError"); err != nil && err != gorm.ErrRecordNotFound {
+							logrus.Warnf("Failed to delete old CreateContainerConfigError event: %v", err)
+						}
+					} else {
+						// Same pod, event already exists, skip
+						return
+					}
 				}
+
+				// Extract detailed error message (e.g., which ConfigMap/Secret is missing)
 				msg := util.Translation("Deployment failed: container configuration error")
+				if containerStatus.State.Waiting.Message != "" {
+					detailedMsg := containerStatus.State.Waiting.Message
+
+					// Extract resource name from error message
+					// Example: configmap "non-existent-configmap" not found
+					// Example: secret "my-secret" not found
+					if strings.Contains(strings.ToLower(detailedMsg), "configmap") && strings.Contains(strings.ToLower(detailedMsg), "not found") {
+						// Try to extract ConfigMap name from quotes
+						resourceName := extractQuotedName(detailedMsg)
+						if resourceName != "" {
+							msg = fmt.Sprintf("%s: ConfigMap '%s'", util.Translation("Resource not found"), resourceName)
+						} else {
+							msg = util.Translation("Deployment failed: ConfigMap not found")
+						}
+					} else if strings.Contains(strings.ToLower(detailedMsg), "secret") && strings.Contains(strings.ToLower(detailedMsg), "not found") {
+						// Try to extract Secret name from quotes
+						resourceName := extractQuotedName(detailedMsg)
+						if resourceName != "" {
+							msg = fmt.Sprintf("%s: Secret '%s'", util.Translation("Resource not found"), resourceName)
+						} else {
+							msg = util.Translation("Deployment failed: Secret not found")
+						}
+					} else {
+						// Other config errors
+						msg = fmt.Sprintf("%s: %s", util.Translation("Deployment failed: container configuration error"), detailedMsg)
+					}
+				}
+
 				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "CreateContainerConfigError", model.EventStatusFailure.String(), msg)
 				if err != nil {
 					logrus.Warningf("pod: %s; type: CreateContainerConfigError; error creating event: %v", pod.GetName(), err)
@@ -1353,6 +1400,22 @@ func (p *PodEvent) checkStartupProbeFailure(pod *corev1.Pod, cs corev1.Container
 			}
 		}
 	}
+}
+
+// extractQuotedName extracts the resource name from error messages like:
+// 'configmap "my-configmap" not found' -> 'my-configmap'
+// 'secret "my-secret" not found' -> 'my-secret'
+func extractQuotedName(message string) string {
+	// Find content between double quotes
+	startIdx := strings.Index(message, "\"")
+	if startIdx == -1 {
+		return ""
+	}
+	endIdx := strings.Index(message[startIdx+1:], "\"")
+	if endIdx == -1 {
+		return ""
+	}
+	return message[startIdx+1 : startIdx+1+endIdx]
 }
 
 // calculateBackoffDelay calculates the exponential backoff delay for CrashLoopBackOff
