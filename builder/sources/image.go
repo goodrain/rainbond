@@ -24,6 +24,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"sync"
+	"text/tabwriter"
+	"time"
+
 	"github.com/containerd/containerd"
 	ctrcontent "github.com/containerd/containerd/cmd/ctr/commands/content"
 	"github.com/containerd/containerd/errdefs"
@@ -51,18 +60,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"sync"
-	"text/tabwriter"
-	"time"
 )
 
 // ErrorNoAuth error no auth
@@ -920,7 +921,7 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 		return err
 	}
 	if k8serror.IsNotFound(err) {
-		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true\n  insecure = true", imageDomain)
+		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true", imageDomain)
 		buildKitTomlCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: buildKitTomlCMName,
