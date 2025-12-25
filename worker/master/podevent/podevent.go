@@ -220,13 +220,13 @@ func (p *PodEvent) Handle() {
 	for {
 		select {
 		case pod := <-p.podEventCh:
-			// Extend monitoring window: record events from 5 seconds to 30 minutes after startup
-			// This catches immediate failures faster and monitors long-running issues longer
+			// Monitoring window: 0 seconds to 30 minutes after startup
+			// Immediate detection for scheduling failures, extended monitoring for runtime issues
 			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
 			logrus.Infof("Received pod event: %s/%s, age: %.1fs, phase: %s",
 				pod.Namespace, pod.Name, podAge.Seconds(), pod.Status.Phase)
 
-			if podAge > 5*time.Second && podAge < 30*time.Minute {
+			if podAge < 30*time.Minute {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 				AbnormalEvent(p.clientset, pod)
 				// Detect probe health issues (Readiness/Liveness/Startup)
@@ -347,6 +347,8 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 	if pod != nil && pod.Status.Phase == corev1.PodPending {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodScheduled && condition.Status == "False" {
+				logrus.Infof("Pod %s/%s unschedulable - Reason: %s, Message: %s",
+					pod.Namespace, pod.Name, condition.Reason, condition.Message)
 				var msg string
 				// Use more detailed and user-friendly messages with internationalization support
 				if strings.Contains(condition.Message, "affinity/selector") {
@@ -371,19 +373,44 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					// For other scheduling failures, provide the original message
 					msg = fmt.Sprintf("%s: %s", util.Translation("Pod scheduling failed"), condition.Message)
 				}
-				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "Unschedulable")
+
+				// Use a consistent event type for all scheduling failures
+				eventType := "Unschedulable"
+				if condition.Reason != "" {
+					eventType = condition.Reason
+				}
+
+				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, eventType)
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Warningf("error fetching latest unfinished pod event: %v", err)
 					return
 				}
 				if unSchedulableEvent != nil {
-					return
+					// Check if event is for a different pod (e.g., during rolling update)
+					if unSchedulableEvent.TargetID != pod.Name {
+						// Old pod's event, delete it and create new one
+						logrus.Infof("Found old unschedulable event for pod %s (current: %s), deleting and creating new event",
+							unSchedulableEvent.TargetID, pod.Name)
+						if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, eventType); err != nil && err != gorm.ErrRecordNotFound {
+							logrus.Warnf("Failed to delete old unschedulable event: %v", err)
+						}
+					} else {
+						// Same pod, event already exists, skip
+						logrus.Infof("Pod %s/%s - Unschedulable event already exists (type: %s), skipping",
+							pod.Namespace, pod.Name, eventType)
+						return
+					}
 				}
-				_, err = createSystemEvent(tenantID, serviceID, pod.Name, condition.Reason, model.EventStatusFailure.String(), msg)
+
+				logrus.Infof("Creating unschedulable event for pod %s/%s (type: %s, msg: %s)",
+					pod.Namespace, pod.Name, eventType, msg)
+				eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, eventType, model.EventStatusFailure.String(), msg)
 				if err != nil {
-					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
+					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), eventType, err)
 					return
 				}
+				logrus.Infof("✓ Created unschedulable event for pod %s/%s (eventID: %s)",
+					pod.Namespace, pod.Name, eventID)
 			}
 			if condition.Type == corev1.PodInitialized && condition.Status == "False" {
 				serviceRelations, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(serviceID)
