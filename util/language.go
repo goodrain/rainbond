@@ -95,54 +95,57 @@ var translationMetadata = map[string]string{
 	"Change slug package permission failed":        "修改源码包权限失败",
 
 	// Deployment related errors - resource issues
-	"Deployment failed: namespace resource quota exceeded": "命名空间资源配额已超限，请联系管理员增加CPU/内存配额",
-	"Deployment failed: insufficient CPU resources":        "集群CPU资源不足，请降低CPU请求值或联系管理员增加节点",
-	"Deployment failed: insufficient memory resources":     "集群内存资源不足，请降低内存请求值或联系管理员增加节点",
-	"Deployment failed: insufficient storage resources":    "存储资源不足，请联系管理员检查存储配置",
-	"Deployment failed: no nodes available for scheduling": "没有可用节点进行调度，请联系管理员检查集群节点状态",
+	"Deployment failed: namespace resource quota exceeded": "资源配额不足，请联系管理员",
+	"Deployment failed: insufficient CPU resources":        "CPU资源不足，请降低需求或联系管理员",
+	"Deployment failed: insufficient memory resources":     "内存资源不足，请降低需求或联系管理员",
+	"Deployment failed: insufficient storage resources":    "存储资源不足，请联系管理员",
+	"Deployment failed: no nodes available for scheduling": "没有可用节点，请联系管理员",
 
 	// Deployment related errors - storage issues
-	"Deployment failed: persistent volume claim is pending": "存储卷申请处于等待状态，请检查存储卷配置或联系管理员",
+	"Deployment failed: persistent volume claim is pending": "存储卷申请等待中，请联系管理员",
 
 	// Deployment related errors - image issues
-	"Deployment failed: invalid image name":               "镜像名称格式无效，请检查镜像地址格式",
-	"Deployment failed: image pull failed":                "拉取镜像失败，请检查镜像是否存在或镜像仓库是否可访问",
-	"Deployment failed: image pull authentication failed": "拉取镜像认证失败，请检查镜像仓库的用户名和密码",
-	"Deployment failed: image not found":                  "镜像不存在，请检查镜像名称和标签是否正确",
+	"Deployment failed: invalid image name":               "镜像名称格式无效，请检查镜像地址",
+	"Deployment failed: image pull failed":                "拉取镜像失败，请检查镜像是否存在",
+	"Deployment failed: image pull authentication failed": "拉取镜像认证失败，请检查用户名和密码",
+	"Deployment failed: image not found":                  "镜像不存在，请检查镜像名称和标签",
 
 	// Deployment related errors - container issues
-	"Deployment failed: container configuration error":            "容器配置错误，请检查环境变量、存储卷挂载等配置",
-	"Deployment failed: container creation failed":                "容器创建失败，请查看实例日志定位问题",
-	"Deployment failed: container startup failed":                 "容器启动失败，请查看实例日志定位启动脚本或命令问题",
-	"Deployment failed: container crashed during runtime":         "容器运行时异常退出，请查看右侧日志定位应用代码问题",
-	"Deployment failed: container is being terminated repeatedly": "容器反复崩溃重启，请查看右侧日志定位应用代码问题",
-	"Deployment failed: container out of memory killed":           "容器因内存超限被终止，请增加内存限制或优化应用内存使用",
+	"Deployment failed: container configuration error":            "容器配置错误，请检查配置",
+	"Deployment failed: container creation failed":                "容器创建失败，请查看日志",
+	"Deployment failed: container startup failed":                 "容器启动失败，请查看日志",
+	"Deployment failed: container crashed during runtime":         "容器异常退出，请查看日志定位问题",
+	"Deployment failed: container is being terminated repeatedly": "容器反复崩溃，请查看日志定位问题",
+	"Deployment failed: container out of memory killed":           "容器内存超限被终止，请增加内存限制",
 
 	// Deployment related errors - health check issues
-	"Deployment failed: readiness probe failed": "就绪检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
-	"Deployment failed: liveness probe failed":  "存活检查失败，应用未能正常响应健康检查，请查看实例日志或调整健康检查配置",
-	"Deployment failed: startup probe failed":   "启动检查失败，应用启动超时，请查看实例日志或增加启动超时时间",
+	"Deployment failed: readiness probe failed": "就绪检查失败，请查看日志或调整健康检查配置",
+	"Deployment failed: liveness probe failed":  "存活检查失败，请查看日志或调整健康检查配置",
+	"Deployment failed: startup probe failed":   "启动检查失败，请查看日志或增加启动超时时间",
 
 	// Runtime health check monitoring - Readiness probe
-	"Container is running but failing readiness checks": "容器运行正常但未通过就绪检查",
-	"minutes. Traffic has been removed. Please check health check configuration or application status.": "分钟，流量已被移除。请检查健康检查配置或应用状态。",
+	"Container is running but failing readiness checks": "容器健康检查失败",
+	"minutes. Traffic has been removed. Please check health check configuration or application status.": "分钟，已暂停接收访问。建议查看日志或调整健康检查设置。",
 
 	// Runtime health check monitoring - Liveness probe
-	"Container restarted due to liveness probe failure": "容器因存活检查失败已重启",
-	"times. Last failure: container was forcefully terminated by Kubernetes (Exit Code 137).": "次。最近一次失败：容器被 Kubernetes 强制终止 (Exit Code 137)。",
+	"Container restarted due to liveness probe failure": "容器健康检查失败，已自动重启",
+	"times. Last failure: container was forcefully terminated by Kubernetes (Exit Code 137).": "次。建议查看日志定位问题。",
 
 	// Runtime health check monitoring - Startup probe
-	"Container startup health check failed":                    "容器启动阶段健康检查失败",
-	"times, entered backoff restart (next retry in about":      "次，已进入退避重启（下次重试：约",
-	"seconds). Please check startup time configuration or initialization logic.": "秒后）。请检查启动时间配置或初始化逻辑。",
+	"Container startup health check failed":                    "容器启动失败",
+	"times, entered backoff restart (next retry in about":      "次，",
+	"seconds). Please check startup time configuration or initialization logic.": "秒后重试。建议查看日志或增加启动超时时间。",
+
+	// Health check recovery event
+	"Health check passed": "健康检测通过",
 
 	// Deployment related errors - permission and security
-	"Deployment failed: insufficient permissions":  "权限不足，请联系管理员检查服务账号权限",
-	"Deployment failed: security policy violation": "违反安全策略，请联系管理员检查Pod安全策略配置",
+	"Deployment failed: insufficient permissions":  "权限不足，请联系管理员",
+	"Deployment failed: security policy violation": "违反安全策略，请联系管理员",
 
 	// Deployment related errors - general
 	"Create workload failed":              "创建工作负载失败",
-	"Deployment timeout: Pod not created": "部署超时：实例未创建，请检查资源配额、节点状态和存储配置",
+	"Deployment timeout: Pod not created": "部署超时，请联系管理员",
 	"Service deploy timeout":              "服务部署超时",
 
 	// Pod status descriptions (user-friendly)
@@ -184,27 +187,27 @@ var translationMetadata = map[string]string{
 	"restart service timeout": "重启服务超时，建议观察服务实例运行状态",
 
 	// ========== Runtime stage - Pod scheduling ==========
-	"Deployment failed: node affinity not satisfied":    "不满足节点亲和性要求，请检查节点标签配置",
-	"Deployment failed: node has taints":                "节点存在污点，Pod无法调度到该节点",
-	"Deployment failed: hostport conflict":              "主机端口冲突，该端口已被其他Pod占用",
-	"Deployment failed: pod topology spread constraint": "Pod拓扑分布约束未满足",
+	"Deployment failed: node affinity not satisfied":    "不满足节点亲和性要求，请联系管理员",
+	"Deployment failed: node has taints":                "节点存在污点，请联系管理员",
+	"Deployment failed: hostport conflict":              "主机端口冲突，请联系管理员",
+	"Deployment failed: pod topology spread constraint": "不满足分布约束，请联系管理员",
 
 	// Runtime stage - Storage related
-	"Deployment failed: volume mount timeout":     "存储卷挂载超时，请检查存储卷状态",
-	"Deployment failed: volume attachment failed": "存储卷附加失败，请检查存储配置",
+	"Deployment failed: volume mount timeout":     "存储卷挂载超时，请联系管理员",
+	"Deployment failed: volume attachment failed": "存储卷附加失败，请联系管理员",
 
 	// Runtime stage - Network related
-	"Deployment failed: CNI plugin error":            "容器网络接口插件错误，请联系管理员",
-	"Deployment failed: pod sandbox creation failed": "Pod沙箱创建失败，请查看节点日志",
+	"Deployment failed: CNI plugin error":            "网络插件错误，请联系管理员",
+	"Deployment failed: pod sandbox creation failed": "Pod沙箱创建失败，请联系管理员",
 
 	// ========== Shutdown stage - Resource deletion ==========
-	"Delete service failure":        "删除Service失败，请检查集群状态",
-	"Delete secret failure":         "删除Secret失败，请检查集群状态",
-	"Delete configmap failure":      "删除ConfigMap失败，请检查集群状态",
-	"Delete ingress failure":        "删除Ingress失败，请检查集群状态",
-	"Delete workload failure":       "删除工作负载失败，请检查集群状态",
-	"Delete HPA failure":            "删除自动扩容策略失败，请检查集群状态",
-	"Delete servicemonitor failure": "删除服务监控失败，请检查集群状态",
+	"Delete service failure":        "删除Service失败",
+	"Delete secret failure":         "删除Secret失败",
+	"Delete configmap failure":      "删除ConfigMap失败",
+	"Delete ingress failure":        "删除Ingress失败",
+	"Delete workload failure":       "删除工作负载失败",
+	"Delete HPA failure":            "删除自动扩容策略失败",
+	"Delete servicemonitor failure": "删除服务监控失败",
 
 	// Shutdown stage - Pod termination
 	"Pod termination timeout": "Pod终止超时，可能存在僵死进程",

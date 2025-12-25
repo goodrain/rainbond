@@ -62,6 +62,9 @@ var EventTypeLivenessRestart EventType = "LivenessRestart"
 // EventTypeStartupProbeFailure - Startup probe failure in CrashLoopBackOff
 var EventTypeStartupProbeFailure EventType = "StartupProbeFailure"
 
+// EventTypeHealthCheckPassed - Health check passed (recovery from any health check failure)
+var EventTypeHealthCheckPassed EventType = "HealthCheckPassed"
+
 // SortableEventType implements sort.Interface for []EventType
 type SortableEventType []EventType
 
@@ -1073,15 +1076,8 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 
 			logrus.Infof("Creating ReadinessUnhealthy event for pod %s/%s container %s...", pod.Namespace, pod.Name, cs.Name)
 
-			// Create event message
-			var durationStr string
-			if unhealthyDuration < time.Minute {
-				durationStr = fmt.Sprintf("%.0f 秒", unhealthyDuration.Seconds())
-			} else {
-				durationStr = fmt.Sprintf("%.1f 分钟", unhealthyDuration.Minutes())
-			}
-			msg := fmt.Sprintf("容器 [%s] 运行正常但未通过就绪检查已持续 %s，流量已被移除。请检查健康检查配置或应用状态。",
-				cs.Name, durationStr)
+			msg := fmt.Sprintf("容器 [%s] 健康检查失败，已暂停接收访问。建议查看日志或调整健康检查设置。",
+				cs.Name)
 
 			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeReadinessUnhealthy.String(), model.EventStatusFailure.String(), msg)
 			if err != nil {
@@ -1103,6 +1099,41 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 				logger.Info("Kubernetes events confirmed readiness probe failures",
 					map[string]string{"step": "probe-check", "status": "info"})
 			}
+		}
+	} else if cs.State.Running != nil && cs.Ready {
+		// Container is running and ready - check if it recovered from previous failure
+		existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String())
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logrus.Warnf("error fetching readiness unhealthy event: %v", err)
+			return
+		}
+
+		if existingEvent != nil {
+			// There was a failure event, create recovery event and delete failure event
+			logrus.Infof("Container %s/%s/%s recovered from readiness failure, creating recovery event",
+				pod.Namespace, pod.Name, cs.Name)
+
+			msg := fmt.Sprintf("容器 [%s] 健康检测通过。", cs.Name)
+			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeHealthCheckPassed.String(), model.EventStatusSuccess.String(), msg)
+			if err != nil {
+				logrus.Warnf("pod: %s; type: HealthCheckPassed; error creating event: %v", pod.GetName(), err)
+			} else {
+				logrus.Infof("✓ Created HealthCheckPassed event for pod %s/%s container %s (eventID: %s)",
+					pod.Namespace, pod.Name, cs.Name, eventID)
+			}
+
+			// Delete the failure event
+			if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String()); err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warnf("Failed to delete ReadinessUnhealthy event: %v", err)
+			}
+
+			// Clear the unhealthy state
+			containerKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, cs.Name)
+			p.healthStateCache.Lock()
+			if state, exists := p.healthStateCache.states[containerKey]; exists {
+				state.ReadinessUnhealthySince = time.Time{}
+			}
+			p.healthStateCache.Unlock()
 		}
 	}
 }
@@ -1148,7 +1179,7 @@ func (p *PodEvent) checkLivenessRestart(pod *corev1.Pod, cs corev1.ContainerStat
 							}
 						}
 
-						msg := fmt.Sprintf("容器 [%s] 因存活检查失败已重启 %d 次。最近一次失败：容器被 Kubernetes 强制终止 (Exit Code 137)。",
+						msg := fmt.Sprintf("容器 [%s] 健康检查失败，已自动重启 %d 次。建议查看日志定位问题。",
 							cs.Name, cs.RestartCount)
 
 						eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeLivenessRestart.String(), model.EventStatusFailure.String(), msg)
@@ -1167,6 +1198,34 @@ func (p *PodEvent) checkLivenessRestart(pod *corev1.Pod, cs corev1.ContainerStat
 						go recordPodLogsToEventWithPrevious(p.clientset, pod, eventID, cs.Name)
 					}
 				}
+			}
+		}
+	} else if cs.State.Running != nil && cs.Ready {
+		// Container is running and ready - check if it recovered from liveness probe failures
+		existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeLivenessRestart.String())
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logrus.Warnf("error fetching liveness restart event: %v", err)
+			return
+		}
+
+		if existingEvent != nil {
+			// There was a failure event, check if container has been stable (no new restarts)
+			// We consider it recovered if it's been running and ready
+			logrus.Infof("Container %s/%s/%s recovered from liveness failures, creating recovery event",
+				pod.Namespace, pod.Name, cs.Name)
+
+			msg := fmt.Sprintf("容器 [%s] 健康检测通过。", cs.Name)
+			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeHealthCheckPassed.String(), model.EventStatusSuccess.String(), msg)
+			if err != nil {
+				logrus.Warnf("pod: %s; type: HealthCheckPassed; error creating event: %v", pod.GetName(), err)
+			} else {
+				logrus.Infof("✓ Created HealthCheckPassed event for pod %s/%s container %s (eventID: %s)",
+					pod.Namespace, pod.Name, cs.Name, eventID)
+			}
+
+			// Delete the failure event
+			if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeLivenessRestart.String()); err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warnf("Failed to delete LivenessRestart event: %v", err)
 			}
 		}
 	}
@@ -1214,7 +1273,7 @@ func (p *PodEvent) checkStartupProbeFailure(pod *corev1.Pod, cs corev1.Container
 			// Calculate backoff time (kubernetes uses exponential backoff)
 			backoffSeconds := calculateBackoffDelay(cs.RestartCount)
 
-			msg := fmt.Sprintf("容器 [%s] 启动阶段健康检查失败 %d 次，已进入退避重启（下次重试：约 %d 秒后）。请检查启动时间配置或初始化逻辑。",
+			msg := fmt.Sprintf("容器 [%s] 启动失败 %d 次，%d 秒后重试。建议查看日志或增加启动超时时间。",
 				cs.Name, cs.RestartCount, backoffSeconds)
 
 			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeStartupProbeFailure.String(), model.EventStatusFailure.String(), msg)
@@ -1238,6 +1297,33 @@ func (p *PodEvent) checkStartupProbeFailure(pod *corev1.Pod, cs corev1.Container
 
 			// Get logs from previous instance
 			go recordPodLogsToEventWithPrevious(p.clientset, pod, eventID, cs.Name)
+		}
+	} else if cs.State.Running != nil && cs.Ready {
+		// Container is running and ready - check if it recovered from startup probe failures
+		existingEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, EventTypeStartupProbeFailure.String())
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logrus.Warnf("error fetching startup probe failure event: %v", err)
+			return
+		}
+
+		if existingEvent != nil {
+			// There was a failure event, container has successfully started now
+			logrus.Infof("Container %s/%s/%s recovered from startup failures, creating recovery event",
+				pod.Namespace, pod.Name, cs.Name)
+
+			msg := fmt.Sprintf("容器 [%s] 健康检测通过。", cs.Name)
+			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeHealthCheckPassed.String(), model.EventStatusSuccess.String(), msg)
+			if err != nil {
+				logrus.Warnf("pod: %s; type: HealthCheckPassed; error creating event: %v", pod.GetName(), err)
+			} else {
+				logrus.Infof("✓ Created HealthCheckPassed event for pod %s/%s container %s (eventID: %s)",
+					pod.Namespace, pod.Name, cs.Name, eventID)
+			}
+
+			// Delete the failure event
+			if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeStartupProbeFailure.String()); err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warnf("Failed to delete StartupProbeFailure event: %v", err)
+			}
 		}
 	}
 }
