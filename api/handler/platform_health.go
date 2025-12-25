@@ -320,7 +320,7 @@ func (h *platformHealthHandler) checkDiskSpace(ctx context.Context) []model.Heal
 	}
 
 	for _, sample := range result {
-		node := string(sample.Metric["node"])
+		node := string(sample.Metric["instance"])
 		if node == "" {
 			node = "unknown"
 		}
@@ -401,7 +401,7 @@ func (h *platformHealthHandler) checkNodeStatus(ctx context.Context) []model.Hea
 	nodeResult, err := h.queryPrometheus(ctx, nodeQuery)
 	if err == nil {
 		for _, sample := range nodeResult {
-			node := string(sample.Metric["node"])
+			node := string(sample.Metric["instance"])
 			if node == "" {
 				node = "unknown"
 			}
