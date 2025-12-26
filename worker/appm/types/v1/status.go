@@ -268,6 +268,18 @@ func (a *AppService) GetServiceStatus() string {
 			}
 		}
 
+		// Check if there are any pods in abnormal state before returning WAITING
+		if hasAbnormalPods(a.pods) {
+			// Check if we have any ready pods
+			readyReplicas := a.deployment.Status.ReadyReplicas
+			if readyReplicas > 0 && readyReplicas < int32(a.Replicas) {
+				// Some pods are ready, some are abnormal
+				return SOMEABNORMAL
+			}
+			// All pods are abnormal or no pods are ready
+			return ABNORMAL
+		}
+
 		// Deployment exists, but pods not ready yet - waiting for pods to be ready
 		// This covers: initial start, restart, or scaling up
 		return WAITING
@@ -297,6 +309,18 @@ func (a *AppService) GetServiceStatus() string {
 			}
 		}
 
+		// Check if there are any pods in abnormal state before returning WAITING
+		if hasAbnormalPods(a.pods) {
+			// Check if we have any ready pods
+			readyReplicas := a.statefulset.Status.ReadyReplicas
+			if readyReplicas > 0 && readyReplicas < int32(a.Replicas) {
+				// Some pods are ready, some are abnormal
+				return SOMEABNORMAL
+			}
+			// All pods are abnormal or no pods are ready
+			return ABNORMAL
+		}
+
 		// StatefulSet exists, but pods not ready yet
 		return WAITING
 	}
@@ -323,6 +347,34 @@ func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
 		for _, con := range pod.Status.ContainerStatuses {
 			//have Terminated container
 			if con.State.Terminated != nil && con.State.Terminated.ExitCode == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasAbnormalPods checks if there are any pods in abnormal state
+// This is used for Deployment and StatefulSet workloads
+func hasAbnormalPods(pods []*corev1.Pod) bool {
+	if len(pods) == 0 {
+		return false
+	}
+	for _, pod := range pods {
+		// Skip pods on lost nodes
+		if IsPodNodeLost(pod) {
+			continue
+		}
+		// Check if pod phase is Failed
+		if pod.Status.Phase == corev1.PodFailed {
+			return true
+		}
+		// Check if pod has containers with non-zero exit code
+		for _, con := range pod.Status.ContainerStatuses {
+			if con.State.Terminated != nil && con.State.Terminated.ExitCode != 0 {
+				return true
+			}
+			if con.LastTerminationState.Terminated != nil && con.LastTerminationState.Terminated.ExitCode != 0 {
 				return true
 			}
 		}

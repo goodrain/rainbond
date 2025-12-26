@@ -554,21 +554,19 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					logrus.Warningf("error fetching container exit error event: %v", err)
 					return
 				}
-				// Time-based deduplication: only skip if event was created within last 30 seconds
-				// This allows recording repeated crashes while avoiding duplicate detection of same crash
+				// 扩大去重窗口到45秒，避免同一次崩溃被多次检测
 				if exitErrorEvent != nil {
 					eventTime, err := time.Parse(time.RFC3339, exitErrorEvent.CreatedAt)
 					if err != nil {
 						logrus.Warningf("failed to parse event time: %v", err)
-						// If we can't parse the time, assume it's an old event and create a new one
 					} else {
 						timeSinceLastEvent := time.Now().Sub(eventTime)
-						if timeSinceLastEvent < 30*time.Second {
-							// Recent event exists, likely duplicate detection of same crash
+						if timeSinceLastEvent < 45*time.Second {
+							// 45秒内的事件认为是重复检测，跳过
+							logrus.Debugf("Skipping duplicate ContainerExitError (last event: %v ago)", timeSinceLastEvent)
 							return
 						}
 					}
-					// Old event exists, but this is a new crash - continue to create new event
 				}
 
 				// Determine if this is a startup failure or runtime crash
@@ -601,10 +599,12 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 					logrus.Warningf("pod: %s; type: ContainerExitError; error creating event: %v", pod.GetName(), err)
 					return
 				}
-				// Delete old AbnormalExited event to avoid duplicates
-				// (AbnormalExited is created by recordUpdateEvent, but ContainerExitError has more details)
+				// 删除其他相关事件，避免重复（ContainerExitError 包含最详细信息）
 				if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "AbnormalExited"); err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Debugf("failed to delete AbnormalExited event: %v", err)
+				}
+				if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "CrashLoopBackOff"); err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Debugf("failed to delete CrashLoopBackOff event: %v", err)
 				}
 
 				// Record container logs (300 lines)
@@ -620,12 +620,25 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 
 			// CrashLoopBackOff - container keeps crashing
 			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == EventTypeCrashLoopBackOff.String() {
-				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CrashLoopBackOff")
+				// 如果已有 ContainerExitError，跳过 CrashLoopBackOff（ContainerExitError 更详细）
+				exitErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ContainerExitError")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching container exit error event: %v", err)
+					return
+				}
+				if exitErrorEvent != nil {
+					// 已有 ContainerExitError，跳过 CrashLoopBackOff
+					logrus.Debugf("Skipping CrashLoopBackOff event, ContainerExitError already exists for %s", serviceID)
+					return
+				}
+
+				// 检查是否已有 CrashLoopBackOff 事件
+				crashLoopEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CrashLoopBackOff")
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Warningf("error fetching latest unfinished pod event: %v", err)
 					return
 				}
-				if unSchedulableEvent != nil {
+				if crashLoopEvent != nil {
 					return
 				}
 				msg := util.Translation("Deployment failed: container is being terminated repeatedly")
@@ -993,8 +1006,9 @@ func recordPodLogsToEvent(clientset kubernetes.Interface, pod *corev1.Pod, event
 	logger.Info("==================== End of Pod Container Logs ====================",
 		map[string]string{"step": "pod-logs", "status": "info"})
 
-	// 发送完成标记，触发立即持久化（避免等待GC）
-	logger.Info("Pod logs recording completed", map[string]string{"step": "last", "status": "success"})
+	// Note: Don't send completion marker with step="last" for ContainerExitError events
+	// because it would update the event status to "success", breaking the deduplication logic
+	// Container crashes should remain as failure events even after logs are recorded
 }
 
 // recordPodLogsToEventWithPrevious 记录 Pod 容器日志到 event 日志中（包括上一个实例的日志）
@@ -1036,8 +1050,9 @@ func recordPodLogsToEventWithPrevious(clientset kubernetes.Interface, pod *corev
 	logger.Info("==================== End of Pod Container Logs ====================",
 		map[string]string{"step": "pod-logs", "status": "info"})
 
-	// 发送完成标记，触发立即持久化（避免等待GC）
-	logger.Info("Pod logs recording completed", map[string]string{"step": "last", "status": "success"})
+	// Note: Don't send completion marker with step="last" for ContainerExitError events
+	// because it would update the event status to "success", breaking the deduplication logic
+	// Container crashes should remain as failure events even after logs are recorded
 }
 
 // getContainerSpec retrieves the container spec from pod by container name
