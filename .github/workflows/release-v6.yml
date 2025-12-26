@@ -38,23 +38,24 @@ on:
       
 env:
   VERSION: ${{ github.event.inputs.version }}
-  
+  IS_MULTI_ARCH: ${{ github.event.inputs.platforms == 'linux/amd64,linux/arm64' }}
+
 jobs:
   rainbond-region:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
     strategy:
       matrix:
         component: [api, chaos, worker, init-probe, mq]
-    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ github.event.inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
+    if: github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.branch }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -82,7 +83,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: linux/${{ matrix.arch }}
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
           context: .
@@ -90,12 +91,17 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}
+            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
 
   rainbond-operator:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ github.event.inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'operator' }}
     steps:
       - name: Checkout repository
@@ -104,9 +110,6 @@ jobs:
           repository: goodrain/rainbond-operator
           ref: ${{ github.event.inputs.branch }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -126,18 +129,22 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: linux/${{ matrix.arch }}
           context: .
           file: ./Dockerfile
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rainbond-operator:${{ env.VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}
-
+            rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
   rainbond-ui:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ github.event.inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
     steps:
       - name: Checkout repository
@@ -145,9 +152,6 @@ jobs:
         with:
           repository: goodrain/rainbond-ui
           ref: ${{ github.event.inputs.branch }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -161,27 +165,29 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: linux/${{ matrix.arch }}
           context: .
           file: ./Dockerfile
           push: true
           tags: |
-            rainbond/rainbond-ui:${{ env.VERSION }}
+            rainbond/rainbond-ui:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
   
   rainbond-allinone:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     needs: [rainbond-ui]
     environment: release-v6
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ github.event.inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
     steps:
-      - name: Checkout repository
+      - name: Checkout rainbond-console repository
         uses: actions/checkout@v3
         with:
           repository: goodrain/rainbond-console
           ref: ${{ github.event.inputs.branch }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -209,14 +215,75 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: linux/${{ matrix.arch }}
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
             VERSION=${{ env.VERSION }}
+            IMAGE_VERSION=${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }} 
           context: .
           file: ./Dockerfile
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rainbond:${{ env.VERSION }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}
+            rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+
+  multi-arch-manifest:
+    runs-on: ubuntu-latest
+    needs: [rainbond-region, rainbond-operator, rainbond-ui, rainbond-allinone]
+    if: |
+      github.event.inputs.platforms == 'linux/amd64,linux/arm64' &&
+      github.event.inputs.build-who == 'all'
+    environment: release-v6
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Create manifests
+        run: |
+          VERSION="${{ env.VERSION }}"
+
+          # Region components
+          for component in api chaos worker init-probe mq; do
+            echo "Creating manifest for rbd-${component}..."
+            docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
+              rainbond/rbd-${component}:${VERSION}-amd64 \
+              rainbond/rbd-${component}:${VERSION}-arm64
+
+            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-amd64 \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-arm64
+          done
+
+          # Operator
+          echo "Creating manifest for rainbond-operator..."
+          docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
+            rainbond/rainbond-operator:${VERSION}-amd64 \
+            rainbond/rainbond-operator:${VERSION}-arm64
+
+          docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-amd64 \
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-arm64
+
+          # Allinone (Console)
+          echo "Creating manifest for rainbond..."
+          docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
+            rainbond/rainbond:${VERSION}-amd64 \
+            rainbond/rainbond:${VERSION}-arm64
+
+          docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
