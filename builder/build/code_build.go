@@ -140,12 +140,15 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	}
 	//build runtime image
 	if err := s.re.ImageClient.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.GetRunnerImage(s.re.BRVersion), "", "", s.re.Logger); err != nil {
+		failMsg := fmt.Sprintf("%s: %s", util.Translation("Pull runner image failed, please check if the image is accessible"), builder.RUNNERIMAGENAME)
+		s.re.Logger.Error(failMsg, map[string]string{"step": "builder-exector", "status": "failure"})
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
 	err := sources.ImageBuild(s.re.Arch, cacheDir, s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.BuildKitImage, s.re.BuildKitArgs, s.re.BuildKitCache, s.re.KubeClient)
 	if err != nil {
-		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		failMsg := util.Translation("Build image failed, please check build logs")
+		s.re.Logger.Error(failMsg, map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return "", err
 	}
@@ -257,6 +260,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		// handle nodejs or static dir
 		if err := s.HandleNodeJsDir(re); err != nil {
 			logrus.Error("handle nodejs code error:", err)
+			re.Logger.Error(util.Translation("Handle nodejs code error"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		sourceTarFileName, err = s.getSourceCodeTarFile(re)
@@ -291,6 +295,10 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		{Name: "CODE_COMMIT_USER", Value: re.Commit.User},
 		{Name: "CODE_COMMIT_MESSAGE", Value: re.Commit.Message},
 		{Name: "LANGUAGE", Value: re.Lang.String()},
+	}
+	// Add LANG_GOODRAIN_ME from environment variable if set
+	if langGoodRainMe := os.Getenv("LANG_GOODRAIN_ME"); langGoodRainMe != "" {
+		envs = append(envs, corev1.EnvVar{Name: "LANG_GOODRAIN_ME", Value: langGoodRainMe})
 	}
 	if re.ServerType == "oss" {
 		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_URL", Value: re.RepositoryURL})
@@ -480,6 +488,8 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 
 	// Get builder image at build time
 	if err := s.re.ImageClient.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.GetBuilderImage(s.re.BRVersion), "", "", re.Logger); err != nil {
+		failMsg := fmt.Sprintf("%s: %s", util.Translation("Pull builder image failed"), builder.BUILDERIMAGENAME)
+		re.Logger.Error(failMsg, map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 
@@ -487,6 +497,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+		re.Logger.Error(util.Translation("Create build job failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})

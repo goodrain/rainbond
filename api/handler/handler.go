@@ -224,3 +224,4 @@ var defRegistryAuthSecretHandler RegistryAuthSecretHandler
 func GetRegistryAuthSecretHandler() RegistryAuthSecretHandler {
 	return defRegistryAuthSecretHandler
 }
+

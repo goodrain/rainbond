@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -155,6 +156,7 @@ type appRuntimeStore struct {
 	volumeTypeListeners    map[string]chan<- *model.TenantServiceVolumeType
 	volumeTypeListenerLock sync.Mutex
 	resourceCache          *ResourceCache
+	initLocks              sync.Map // map[serviceID]*sync.Mutex for AppService initialization
 }
 
 // NewStore new app runtime store
@@ -758,17 +760,51 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 
 // getAppService if  creator is true, will create new app service where not found in store
 func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
-	var appservice *v1.AppService
-	appservice = a.GetAppService(serviceID)
-	if appservice == nil && creator {
-		var err error
-		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
-		if err != nil {
-			logrus.Infof("init cache app service %s failure:%s ", serviceID, err.Error())
-			return nil, err
-		}
-		a.RegistAppService(appservice)
+	key := v1.GetCacheKeyOnlyServiceID(serviceID)
+
+	// 第一次检查（无锁，快速路径）
+	if app, ok := a.appServices.Load(key); ok {
+		return app.(*v1.AppService), nil
 	}
+
+	// 如果不需要创建，直接返回nil
+	if !creator {
+		return nil, nil
+	}
+
+	// 获取该 serviceID 的专属锁
+	// 使用 LoadOrStore 确保每个 serviceID 只有一个锁实例
+	lockInterface, _ := a.initLocks.LoadOrStore(serviceID, &sync.Mutex{})
+	mu := lockInterface.(*sync.Mutex)
+
+	// 加锁，确保同一 serviceID 的初始化串行执行
+	mu.Lock()
+	defer mu.Unlock()
+
+	// 第二次检查（持有锁）
+	// 可能在等待锁期间，其他协程已经完成了初始化
+	if app, ok := a.appServices.Load(key); ok {
+		logrus.Debugf("[getAppService] 并发场景：其他协程已完成初始化 AppService (serviceID=%s)", serviceID)
+		return app.(*v1.AppService), nil
+	}
+
+	// 当前协程获得初始化权，开始真正的初始化
+	logrus.Infof("[getAppService] 内存中未找到 AppService (serviceID=%s)，开始从数据库初始化", serviceID)
+
+	appservice, err := conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
+	if err != nil {
+		logrus.Warnf("[getAppService] 从数据库初始化 AppService 失败 (serviceID=%s, createrID=%s): %s",
+			serviceID, createrID, err.Error())
+		return nil, err
+	}
+
+	// 存储到缓存
+	a.appServices.Store(key, appservice)
+	atomic.AddInt32(&a.appCount, 1)
+
+	logrus.Infof("[getAppService] 成功从数据库初始化 AppService (serviceID=%s, TenantID=%s, ServiceAlias=%s)",
+		serviceID, appservice.TenantID, appservice.ServiceAlias)
+
 	return appservice, nil
 }
 
@@ -783,6 +819,23 @@ func (a *appRuntimeStore) getOperatorManaged(appID string) *v1.OperatorManaged {
 }
 
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
+	// Log deployment updates to debug status sync issues
+	if deployment, ok := newObj.(*appsv1.Deployment); ok {
+		oldDeployment := oldObj.(*appsv1.Deployment)
+		serviceID := deployment.Labels["service_id"]
+		if serviceID != "" && oldDeployment.Status.ReadyReplicas != deployment.Status.ReadyReplicas {
+			logrus.Infof("[Deployment更新] %s Deployment %s: ReadyReplicas变化 %d -> %d, DesiredReplicas=%d",
+				deployment.Namespace, deployment.Name,
+				oldDeployment.Status.ReadyReplicas, deployment.Status.ReadyReplicas,
+				func() int32 {
+					if deployment.Spec.Replicas != nil {
+						return *deployment.Spec.Replicas
+					}
+					return 0
+				}())
+		}
+	}
+
 	// ingress update maybe change owner component
 	if ingress, ok := newObj.(*networkingv1.Ingress); ok {
 		oldIngress := oldObj.(*networkingv1.Ingress)
@@ -1052,8 +1105,8 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 // RegistAppService regist a app model to store.
 func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 	a.appServices.Store(v1.GetCacheKeyOnlyServiceID(app.ServiceID), app)
-	a.appCount++
-	logrus.Debugf("current have %d app after add \n", a.appCount)
+	newCount := atomic.AddInt32(&a.appCount, 1)
+	logrus.Debugf("current have %d app after add \n", newCount)
 }
 
 func (a *appRuntimeStore) RegistOperatorManaged(app *v1.OperatorManaged) {
@@ -1074,8 +1127,6 @@ func (a *appRuntimeStore) DeleteAppService(app *v1.AppService) {
 // DeleteAppServiceByKey delete cache app service
 func (a *appRuntimeStore) DeleteAppServiceByKey(key v1.CacheKey) {
 	a.appServices.Delete(key)
-	a.appCount--
-	logrus.Debugf("current have %d app after delete \n", a.appCount)
 }
 
 func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
@@ -1262,13 +1313,16 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	var queryComponentIDs []string
+
 	for _, serviceID := range serviceIDs {
 		app := a.GetAppService(serviceID)
 		if app == nil {
 			queryComponentIDs = append(queryComponentIDs, serviceID)
 			continue
 		}
+
 		status := app.GetServiceStatus()
+
 		if status == v1.UNKNOW {
 			app := a.UpdateGetAppService(serviceID)
 			if app == nil {
@@ -1653,8 +1707,15 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			pod := obj.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
 			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
 				if err == conversion.ErrServiceNotFound {
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
@@ -1662,7 +1723,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}
@@ -1689,8 +1750,15 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			pod := cur.(*corev1.Pod)
 			a.resourceCache.SetPodResource(pod)
 			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+
+			// 检查必需标签是否存在
+			if serviceID == "" || version == "" || createrID == "" {
+				return
+			}
+
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
+
 				if err == conversion.ErrServiceNotFound {
 					a.k8sClient.Clientset.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 				}
@@ -1698,7 +1766,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
 						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
 						if err != nil {
-							logrus.Errorf("get vm failure: %v", err)
+							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
 						appservice.SetVirtualMachine(vm)
 					}

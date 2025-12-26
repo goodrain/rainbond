@@ -43,6 +43,7 @@ func main() {
 		Registry(component.EventLog()).
 		Registry(component.K8sClient()).
 		Registry(component.StorageClient()).
+		Registry(component.Cleanup()).
 		Registry(component.HubRegistry()).
 		Registry(component.Proxy()).
 		Registry(component.MQ()).

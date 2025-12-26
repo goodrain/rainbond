@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/sirupsen/logrus"
@@ -70,7 +71,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	hubUser, hubPass := builder.GetImageUserInfoV2(t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword)
 	if _, err := e.imageClient.ImagePull(t.ImageURL, hubUser, hubPass, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
-		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Pull plugin image failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
@@ -78,24 +79,24 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	err := e.imageClient.ImageTag(t.ImageURL, newTag, logger, 1)
 	if err != nil {
 		logrus.Errorf("set plugin image tag error, %v", err)
-		logger.Error("修改镜像tag失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Tag plugin image failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
 	if err := e.imageClient.ImagePush(newTag, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 10); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
-		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Push plugin image to registry failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
-		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Update version info failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	version.BuildLocalImage = newTag
 	version.Status = "complete"
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-		logger.Error("更新插件版本信息错误", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Update version info failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("从镜像构建插件完成", map[string]string{"step": "last", "status": "success"})

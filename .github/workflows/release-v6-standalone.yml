@@ -32,6 +32,17 @@ jobs:
         with:
           repository: goodrain/rainbond-console
           ref: ${{ github.event.inputs.branch }}
+      
+      # - name: Free Disk Space (Ubuntu)
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     tool-cache: false
+      #     android: true
+      #     dotnet: true
+      #     haskell: true
+      #     large-packages: true
+      #     docker-images: true
+      #     swap-storage: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

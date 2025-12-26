@@ -267,6 +267,11 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		go e.runTask(e.garbageCollection, task, false)
 	case "build_from_kubeblocks":
 		go e.runTask(e.buildFromKubeBlocks, task, false)
+	case "warmup":
+		// 预热任务，用于确保消费循环已经启动，避免 lost wakeup 问题
+		// 直接忽略，从任务队列中移除即可
+		logrus.Info("[RunTask] Received warmup task, consumer loop is active")
+		<-e.tasks // 从队列中移除
 	default:
 		logrus.Warnf("[RunTask] Unknown task type: %s, using default handler", task.TaskType)
 		go e.runTaskWithErr(e.exec, task, false)
@@ -310,7 +315,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 			debug.PrintStack()
-			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error(util.Translation("Back end service drift. Please check the rbd-chaos log"), map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	start := time.Now()
@@ -366,7 +371,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 			debug.PrintStack()
-			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error(util.Translation("Back end service drift. Please check the rbd-chaos log"), map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	defer func() {
@@ -418,7 +423,7 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			v.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "builder-exector", "status": "starting"})
+			v.Logger.Error(util.Translation("Back end service drift. Please check the rbd-chaos log"), map[string]string{"step": "builder-exector", "status": "starting"})
 		}
 	}()
 	start := time.Now()
@@ -461,7 +466,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error(util.Translation("Back end service drift. Please check the rbd-chaos log"), map[string]string{"step": "callback", "status": "failure"})
 			}
 		}()
 		defer func() {

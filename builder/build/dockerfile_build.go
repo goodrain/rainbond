@@ -56,7 +56,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	_, err := sources.ParseFile(filepath)
 	if err != nil {
 		logrus.Error("parse dockerfile error.", err.Error())
-		re.Logger.Error(fmt.Sprintf("Parse dockerfile error"), map[string]string{"step": "builder-exector"})
+		re.Logger.Error(fmt.Sprintf("%s: %s", util.Translation("Parse dockerfile error"), err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
 	buildImageName := CreateImageName(re.ServiceID, re.DeployVersion)
@@ -208,6 +208,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+		re.Logger.Error(util.Translation("Create build job failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
@@ -307,6 +308,7 @@ func (d *dockerfileBuild) createAuthSecret(re *Request) (sc corev1.Secret, err e
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(re.TenantID)
 	if err != nil {
 		logrus.Errorf("get tenant failed:%v", err.Error())
+		re.Logger.Error(util.Translation("Get tenant info failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return secret, err
 	}
 	secrets, err := re.KubeClient.CoreV1().Secrets(tenant.Namespace).List(context.Background(), metav1.ListOptions{})

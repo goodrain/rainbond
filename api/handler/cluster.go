@@ -306,12 +306,6 @@ func (c *clusterAction) listNodes(ctx context.Context) ([]*corev1.Node, error) {
 	var nodes []*corev1.Node
 	for idx := range nodeList.Items {
 		node := &nodeList.Items[idx]
-		// check if node contains taints
-		if containsTaints(node) {
-			logrus.Debugf("[GetClusterInfo] node(%s) contains NoSchedule taints", node.GetName())
-			continue
-		}
-
 		nodes = append(nodes, node)
 	}
 

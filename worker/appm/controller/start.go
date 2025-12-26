@@ -21,6 +21,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,14 +61,9 @@ func (s *startController) Begin() {
 				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
-					if err != ErrWaitTimeOut {
-						service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
-						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
-						s.errorCallback(service)
-					} else {
-						logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
-						service.Logger.Error(util.Translation("start service timeout"), event.GetTimeoutLoggerOption())
-					}
+					service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
+					logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
+					s.errorCallback(service)
 				} else {
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), event.GetLastLoggerOption())
@@ -134,36 +130,42 @@ func (s *startController) startOne(app v1.AppService) error {
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Create(s.ctx, statefulset, metav1.CreateOptions{})
 		if err != nil {
+			s.logWorkloadCreateError(app, "StatefulSet", err)
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err = s.manager.client.AppsV1().Deployments(app.GetNamespace()).Create(s.ctx, deployment, metav1.CreateOptions{})
 		if err != nil {
+			s.logWorkloadCreateError(app, "Deployment", err)
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
 		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm)
 		if err != nil {
+			s.logWorkloadCreateError(app, "VirtualMachine", err)
 			return fmt.Errorf("create vm failure:%s;", err.Error())
 		}
 	}
 	if job := app.GetJob(); job != nil {
 		_, err = s.manager.client.BatchV1().Jobs(app.GetNamespace()).Create(s.ctx, job, metav1.CreateOptions{})
 		if err != nil {
+			s.logWorkloadCreateError(app, "Job", err)
 			return fmt.Errorf("create job failure:%s;", err.Error())
 		}
 	}
 	if cronjob := app.GetCronJob(); cronjob != nil {
 		_, err = s.manager.client.BatchV1().CronJobs(app.GetNamespace()).Create(s.ctx, cronjob, metav1.CreateOptions{})
 		if err != nil {
+			s.logWorkloadCreateError(app, "CronJob", err)
 			return fmt.Errorf("create cronjob failure:%s;", err.Error())
 		}
 	}
 	if cronjob := app.GetBetaCronJob(); cronjob != nil {
 		_, err = s.manager.client.BatchV1beta1().CronJobs(app.GetNamespace()).Create(s.ctx, cronjob, metav1.CreateOptions{})
 		if err != nil {
+			s.logWorkloadCreateError(app, "CronJob", err)
 			return fmt.Errorf("create beta cronjob failure:%s;", err.Error())
 		}
 	}
@@ -246,13 +248,10 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 
-	//step 8: waiting endpoint ready
-	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
-
-	if app.ServiceType == v1.TypeKubeBlocks {
-		return nil
-	}
-	return s.WaitingReady(app)
+	// Workload created successfully
+	// No longer wait for pod ready - let probe health detection handle it
+	// If there are issues, ReadinessUnhealthy/LivenessRestart/StartupProbeFailure events will be created
+	return nil
 }
 
 // WaitingReady wait app start or upgrade ready
@@ -277,7 +276,7 @@ func (s *startController) WaitingReady(app v1.AppService) error {
 	if timeout.Seconds() < 40 {
 		timeout = time.Second * 40
 	}
-	if err := WaitReady(s.manager.store, storeAppService, timeout, app.Logger, s.stopChan); err != nil {
+	if err := WaitReadyWithClient(s.manager.store, storeAppService, timeout, app.Logger, s.stopChan, s.manager.client); err != nil {
 		return err
 	}
 	return nil
@@ -285,4 +284,44 @@ func (s *startController) WaitingReady(app v1.AppService) error {
 func (s *startController) Stop() error {
 	close(s.stopChan)
 	return nil
+}
+
+// logWorkloadCreateError logs user-friendly error messages when workload creation fails
+func (s *startController) logWorkloadCreateError(app v1.AppService, workloadType string, err error) {
+	if err == nil {
+		return
+	}
+
+	errMsg := err.Error()
+	var userMessage string
+
+	// Analyze error and provide user-friendly messages
+	if errors.IsInvalid(err) {
+		userMessage = util.Translation("Deployment failed: container configuration error")
+	} else if errors.IsForbidden(err) {
+		if containsIgnoreCase(errMsg, "quota") || containsIgnoreCase(errMsg, "exceeded quota") {
+			userMessage = util.Translation("Deployment failed: namespace resource quota exceeded")
+		} else {
+			userMessage = util.Translation("Deployment failed: insufficient permissions")
+		}
+	} else if errors.IsAlreadyExists(err) {
+		// This shouldn't happen but handle it gracefully
+		userMessage = fmt.Sprintf("%s already exists", workloadType)
+	} else if containsIgnoreCase(errMsg, "admission webhook") {
+		userMessage = util.Translation("Deployment failed: security policy violation")
+	} else if containsIgnoreCase(errMsg, "timeout") {
+		userMessage = util.Translation("Deployment timeout: Pod not created")
+	} else {
+		// Generic error with details
+		userMessage = fmt.Sprintf("%s: %s", util.Translation("Create workload failed"), errMsg)
+	}
+
+	// Log to application logger so user can see it
+	app.Logger.Error(userMessage, event.GetLoggerOption("failure"))
+	logrus.Errorf("Service %s: %s creation failed: %v", app.ServiceAlias, workloadType, err)
+}
+
+// containsIgnoreCase checks if s contains substr (case insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

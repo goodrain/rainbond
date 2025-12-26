@@ -167,7 +167,7 @@ func (m *Manager) startExec(task *model.Task) error {
 	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
-		logger.Error("component init create failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component init create failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("application init create failure")
 	}
@@ -177,7 +177,7 @@ func (m *Manager) startExec(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 	if err != nil {
 		logrus.Errorf("component run start controller failure:%s", err.Error())
-		logger.Error("component run start controller failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component run start controller failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("component start failure")
 	}
@@ -330,7 +330,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
-		logger.Error("component init create failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component init create failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("application init create failure")
 	}
@@ -358,7 +358,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	newAppService, err := conversion.InitAppService(body.DryRun, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
-		logger.Error("component init create failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component init create failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("component init create failure")
 	}
@@ -434,7 +434,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
-		logger.Error("component init create failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component init create failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("component init create failure")
 	}
@@ -559,7 +559,7 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
-		logger.Error("component init create failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("component init create failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("component init create failure")
 	}
@@ -569,7 +569,7 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 	err = m.controllerManager.StartController(controller.TypeControllerRefreshHPA, *newAppService)
 	if err != nil {
 		logrus.Errorf("component run  refreshhpa controller failure: %s", err.Error())
-		logger.Error("component run refreshhpa controller failure", event.GetCallbackLoggerOption())
+		logger.Error(util.Translation("refresh hpa failure"), event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("refresh hpa: %v", err)
 	}

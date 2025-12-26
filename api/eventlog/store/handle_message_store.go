@@ -98,7 +98,7 @@ func (h *handleMessageStore) RealseSubChan(eventID, subID string) {}
 // 使用对象池
 func (h *handleMessageStore) Gc() {
 	h.log.Debug("Handle message store gc core start.")
-	tiker := time.NewTicker(time.Second * 30)
+	tiker := time.NewTicker(time.Second * 3) // 改为3秒，快速持久化
 	for {
 		select {
 		case <-tiker.C:
@@ -120,7 +120,7 @@ func (h *handleMessageStore) gcRun() {
 	}
 	var gcEvent []string
 	for k, v := range h.barrels {
-		if v.updateTime.Add(time.Second * 30).Before(time.Now()) {
+		if v.updateTime.Add(time.Second * 3).Before(time.Now()) { // 改为3秒
 			h.saveBeforeGc(h.barrels[k])
 			gcEvent = append(gcEvent, k)
 		}

@@ -3,12 +3,6 @@ package storage
 import (
 	"bytes"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util/zip"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -16,6 +10,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util/zip"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type S3Storage struct {
@@ -159,13 +160,14 @@ func (s3s *S3Storage) ServeFile(w http.ResponseWriter, r *http.Request, filePath
 	}
 }
 
-// ensureBucketExists 检查桶是否存在，若不存在则创建桶
+// ensureBucketExists 检查桶是否存在，若不存在则创建桶并配置生命周期策略
 func (s3s *S3Storage) ensureBucketExists(bucketName string) error {
 	// 检查桶是否存在
 	_, err := s3s.s3Client.HeadBucket(&s3.HeadBucketInput{
 		Bucket: aws.String(bucketName),
 	})
 
+	bucketExists := true
 	if err != nil {
 		// 如果桶不存在，创建桶
 		_, err = s3s.s3Client.CreateBucket(&s3.CreateBucketInput{
@@ -174,7 +176,213 @@ func (s3s *S3Storage) ensureBucketExists(bucketName string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create bucket: %w", err)
 		}
+		bucketExists = false
+		logrus.Infof("Created new bucket: %s", bucketName)
 	}
+
+	// 检查并确保生命周期策略存在（支持已有桶的升级场景）
+	if err := s3s.ensureBucketLifecycle(bucketName, bucketExists); err != nil {
+		logrus.Warnf("Failed to configure bucket lifecycle for %s: %v", bucketName, err)
+		// 不返回错误，因为桶已创建/存在，生命周期配置失败不应阻止操作
+	}
+
+	return nil
+}
+
+// ensureBucketLifecycle 检查并配置桶的生命周期策略
+func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool) error {
+	logrus.Infof("[Lifecycle] ensureBucketLifecycle called for bucket: %s, bucketExists: %v", bucketName, bucketExists)
+
+	// 如果桶已存在，先检查是否已有生命周期策略
+	if bucketExists {
+		logrus.Infof("[Lifecycle] Bucket exists, checking existing lifecycle configuration for: %s", bucketName)
+		existingConfig, err := s3s.s3Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+			Bucket: aws.String(bucketName),
+		})
+
+		if err != nil {
+			logrus.Warnf("[Lifecycle] Failed to get existing lifecycle config for %s: %v (will attempt to create new one)", bucketName, err)
+		} else if existingConfig != nil && len(existingConfig.Rules) > 0 {
+			logrus.Infof("[Lifecycle] Found existing lifecycle rules for %s: %d rules", bucketName, len(existingConfig.Rules))
+			// 检查是否已有我们的规则（通过 Rule ID 判断）
+			hasOurRules := false
+			for _, rule := range existingConfig.Rules {
+				if rule.ID != nil {
+					logrus.Debugf("[Lifecycle] Checking existing rule: %s", *rule.ID)
+					if *rule.ID == "delete-chunks-1d" ||
+						*rule.ID == "delete-restore-1d" ||
+						*rule.ID == "delete-temp-events-1d" ||
+						*rule.ID == "delete-app-import-1d" ||
+						*rule.ID == "delete-app-export-7d" ||
+						*rule.ID == "delete-build-tenant-7d" ||
+						*rule.ID == "abort-incomplete-multipart-1d" {
+						hasOurRules = true
+						logrus.Infof("[Lifecycle] Found our rule: %s, skipping lifecycle configuration", *rule.ID)
+						break
+					}
+				}
+			}
+
+			if hasOurRules {
+				logrus.Infof("[Lifecycle] Bucket %s already has our lifecycle policy configured, skipping", bucketName)
+				return nil
+			}
+			logrus.Infof("[Lifecycle] No matching rules found, will create new lifecycle policy")
+		} else {
+			logrus.Infof("[Lifecycle] No existing lifecycle rules found for %s", bucketName)
+		}
+		// 如果获取失败或没有规则，继续配置
+	} else {
+		logrus.Infof("[Lifecycle] Bucket is new, will create lifecycle policy")
+	}
+
+	// 配置生命周期策略（使用 Filter 格式以兼容 MinIO）
+	// 注意：MinIO 要求每个规则必须有 Expiration，且空 Prefix 需要特殊处理
+	logrus.Infof("[Lifecycle] Creating lifecycle configuration input for bucket: %s", bucketName)
+
+	// 先测试一个最简单的规则，验证 MinIO 能接受
+	testSimpleRule := false
+	if testSimpleRule {
+		logrus.Info("[Lifecycle] Testing with single simple rule first...")
+		input := &s3.PutBucketLifecycleConfigurationInput{
+			Bucket: aws.String(bucketName),
+			LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
+				Rules: []*s3.LifecycleRule{
+					{
+						ID:     aws.String("test-rule"),
+						Status: aws.String("Enabled"),
+						Filter: &s3.LifecycleRuleFilter{
+							Prefix: aws.String("test/"),
+						},
+						Expiration: &s3.LifecycleExpiration{
+							Days: aws.Int64(1),
+						},
+					},
+				},
+			},
+		}
+		resp, err := s3s.s3Client.PutBucketLifecycleConfiguration(input)
+		if err != nil {
+			logrus.Errorf("[Lifecycle] Simple rule test failed: %v", err)
+			return fmt.Errorf("simple rule test failed: %w", err)
+		}
+		logrus.Infof("[Lifecycle] Simple rule test succeeded: %+v", resp)
+		return nil
+	}
+	input := &s3.PutBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucketName),
+		LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
+			Rules: []*s3.LifecycleRule{
+				{
+					ID:     aws.String("delete-chunks-1d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("package_build/temp/chunks/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(1), // 分片文件 1 天后自动删除
+					},
+				},
+				{
+					ID:     aws.String("delete-restore-1d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("restore/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(1), // 恢复文件 1 天后自动删除
+					},
+				},
+				{
+					ID:     aws.String("delete-temp-events-1d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("package_build/temp/events/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(1), // 临时事件文件 1 天后自动删除
+					},
+				},
+				// 事件日志永久保存，不自动清理
+				// {
+				//     ID:     aws.String("delete-event-logs-7d"),
+				//     Status: aws.String("Enabled"),
+				//     Filter: &s3.LifecycleRuleFilter{
+				//         Prefix: aws.String("logs/eventlog/"),
+				//     },
+				//     Expiration: &s3.LifecycleExpiration{
+				//         Days: aws.Int64(7),
+				//     },
+				// },
+				{
+					ID:     aws.String("delete-app-import-1d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("app/import/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(1), // 应用导入临时文件 1 天后自动删除
+					},
+				},
+				{
+					ID:     aws.String("delete-app-export-7d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("app/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(7), // 应用导出文件 7 天后自动删除
+					},
+				},
+				{
+					ID:     aws.String("delete-build-tenant-7d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("build/tenant/"),
+					},
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(7), // 应用发布 Slug 包 7 天后自动删除
+					},
+				},
+				// 未完成的分段上传清理规则（单独配置，需要有 Expiration）
+				{
+					ID:     aws.String("abort-incomplete-multipart-1d"),
+					Status: aws.String("Enabled"),
+					Filter: &s3.LifecycleRuleFilter{
+						// 空 Filter 表示应用到整个 bucket
+					},
+					AbortIncompleteMultipartUpload: &s3.AbortIncompleteMultipartUpload{
+						DaysAfterInitiation: aws.Int64(1), // 未完成的分段上传 1 天后清理
+					},
+					// MinIO 可能要求即使只有 AbortIncompleteMultipartUpload 也需要 Expiration
+					Expiration: &s3.LifecycleExpiration{
+						Days: aws.Int64(365), // 设置一个很长的过期时间，实际不会清理正常文件
+					},
+				},
+			},
+		},
+	}
+
+	logrus.Infof("[Lifecycle] Prepared %d lifecycle rules, calling PutBucketLifecycleConfiguration for bucket: %s",
+		len(input.LifecycleConfiguration.Rules), bucketName)
+
+	for i, rule := range input.LifecycleConfiguration.Rules {
+		prefix := ""
+		if rule.Filter != nil && rule.Filter.Prefix != nil {
+			prefix = *rule.Filter.Prefix
+		}
+		logrus.Debugf("[Lifecycle] Rule %d: ID=%s, Status=%s, Prefix=%s",
+			i+1, *rule.ID, *rule.Status, prefix)
+	}
+
+	resp, err := s3s.s3Client.PutBucketLifecycleConfiguration(input)
+	if err != nil {
+		logrus.Errorf("[Lifecycle] PutBucketLifecycleConfiguration failed for bucket %s: %v", bucketName, err)
+		return fmt.Errorf("failed to configure bucket lifecycle: %w", err)
+	}
+
+	logrus.Infof("[Lifecycle] PutBucketLifecycleConfiguration response: %+v", resp)
+	logrus.Infof("[Lifecycle] Successfully configured lifecycle policy for bucket: %s", bucketName)
 	return nil
 }
 
@@ -263,6 +471,7 @@ func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
 		logrus.Errorf("Failed to parse file path: %s", err.Error())
 		return err
 	}
+
 	_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(key),
@@ -311,12 +520,10 @@ func (s3s *S3Storage) S3CopyWithProgress(srcFile io.Reader, bucket, key string, 
 	var written int64
 
 	// 初始化分块上传
-	input := &s3.CreateMultipartUploadInput{
+	resp, err := s3s.s3Client.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-	}
-
-	resp, err := s3s.s3Client.CreateMultipartUpload(input)
+	})
 	if err != nil {
 		if logger != nil {
 			logger.Error("初始化分块上传失败", map[string]string{"step": "share"})
@@ -495,6 +702,8 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 		return fmt.Errorf("解析源路径失败: %v", err)
 	}
 
+	logrus.Infof("[S3下载] 开始下载, srcDir: %s, dstDir: %s, bucket: %s, prefix: %s", srcDir, dstDir, bucketName, prefix)
+
 	// 检查目标目录是否存在，如果不存在则创建
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return fmt.Errorf("无法创建目录 %s: %v", dstDir, err)
@@ -508,16 +717,25 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 
 	result, err := s3s.s3Client.ListObjectsV2(listInput)
 	if err != nil {
+		logrus.Errorf("[S3下载] 列出S3对象失败: %v", err)
 		return fmt.Errorf("无法列出 S3 目录 %s: %v", srcDir, err)
 	}
 
+	logrus.Infof("[S3下载] S3返回对象数: %d", len(result.Contents))
+	for i, item := range result.Contents {
+		logrus.Infof("[S3下载] 对象[%d]: Key=%s, Size=%d", i, *item.Key, *item.Size)
+	}
+
 	// 下载每个文件
+	downloadCount := 0
 	for _, item := range result.Contents {
 		if *item.Key == prefix {
+			logrus.Infof("[S3下载] 跳过目录自身: %s", prefix)
 			continue
 		}
 		key := *item.Key
 		dstFilePath := fmt.Sprintf("%s/%s", dstDir, filepath.Base(key))
+		logrus.Infof("[S3下载] 正在下载文件: %s -> %s", key, dstFilePath)
 
 		// 从 S3 下载文件
 		input := &s3.GetObjectInput{
@@ -540,16 +758,21 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 		}
 
 		// 将 S3 文件内容写入目标文件
-		if _, err := io.Copy(dstFile, result.Body); err != nil {
+		written, err := io.Copy(dstFile, result.Body)
+		if err != nil {
 			dstFile.Close()
 			result.Body.Close() // 确保在错误情况下关闭S3连接
+			logrus.Errorf("[S3下载] 写入文件失败: %s, error: %v", dstFilePath, err)
 			return fmt.Errorf("无法写入文件 %s: %v", dstFilePath, err)
 		}
 
 		dstFile.Close()
 		result.Body.Close() // 确保在每次循环结束时关闭S3连接
+		downloadCount++
+		logrus.Infof("[S3下载] 文件下载成功: %s, 大小: %d bytes", dstFilePath, written)
 	}
 
+	logrus.Infof("[S3下载] 下载完成, 总共下载了 %d 个文件到 %s", downloadCount, dstDir)
 	return nil
 }
 
@@ -590,5 +813,265 @@ func (s3s *S3Storage) DownloadFileToDir(srcFile, dstDir string) error {
 	if _, err := io.Copy(dstFile, result.Body); err != nil {
 		return fmt.Errorf("无法写入文件 %s: %v", dstFilePath, err)
 	}
+	return nil
+}
+
+// GetChunkDir 获取分片存储目录（S3使用key前缀）
+func (s3s *S3Storage) GetChunkDir(sessionID string) string {
+	return fmt.Sprintf("package_build/temp/chunks/%s", sessionID)
+}
+
+// SaveChunk 保存分片到S3
+func (s3s *S3Storage) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (string, error) {
+	// S3 使用统一的bucket（从配置或默认）
+	bucketName := "grdata"
+	if err := s3s.ensureBucketExists(bucketName); err != nil {
+		return "", err
+	}
+
+	key := fmt.Sprintf("%s/chunk_%d", s3s.GetChunkDir(sessionID), chunkIndex)
+
+	// 读取分片内容到内存
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		logrus.Errorf("Failed to read chunk data: %v", err)
+		return "", err
+	}
+
+	// 上传到S3
+	_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(content),
+	})
+	if err != nil {
+		logrus.Errorf("Failed to upload chunk to S3: %v", err)
+		return "", err
+	}
+
+	logrus.Debugf("Saved chunk %d to S3, size: %d bytes, key: %s", chunkIndex, len(content), key)
+	return key, nil
+}
+
+// ChunkExists 检查S3中分片是否存在
+func (s3s *S3Storage) ChunkExists(sessionID string, chunkIndex int) bool {
+	bucketName := "grdata"
+	key := fmt.Sprintf("%s/chunk_%d", s3s.GetChunkDir(sessionID), chunkIndex)
+
+	_, err := s3s.s3Client.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	return err == nil
+}
+
+// MergeChunks 从S3下载所有分片并合并到本地文件
+func (s3s *S3Storage) MergeChunks(sessionID string, outputPath string, totalChunks int) error {
+	bucketName := "grdata"
+	chunkKeyPrefix := s3s.GetChunkDir(sessionID)
+
+	// 不预先检查所有分片是否存在（避免 N 次 HEAD 请求）
+	// 直接在下载时检查，失败会返回明确错误
+
+	// 如果输出路径是S3路径，使用S3的CopyObject合并
+	if strings.HasPrefix(outputPath, "/grdata/") || strings.HasPrefix(outputPath, "grdata/") {
+		return s3s.mergeChunksToS3(bucketName, chunkKeyPrefix, outputPath, totalChunks)
+	}
+
+	// 如果是本地路径，下载并合并到本地
+	return s3s.mergeChunksToLocal(bucketName, chunkKeyPrefix, outputPath, totalChunks)
+}
+
+// mergeChunksToLocal 下载S3分片并合并到本地文件
+func (s3s *S3Storage) mergeChunksToLocal(bucketName, chunkKeyPrefix, outputPath string, totalChunks int) error {
+	// 确保输出目录存在
+	outputDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// 创建输出文件
+	outputFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %v", err)
+	}
+	defer outputFile.Close()
+
+	// 按顺序下载并合并所有分片
+	var totalWritten int64
+	for i := 0; i < totalChunks; i++ {
+		key := fmt.Sprintf("%s/chunk_%d", chunkKeyPrefix, i)
+
+		// 从S3下载分片
+		result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to download chunk %d from S3: %v", i, err)
+		}
+
+		written, err := io.Copy(outputFile, result.Body)
+		result.Body.Close()
+		if err != nil {
+			return fmt.Errorf("failed to merge chunk %d: %v", i, err)
+		}
+
+		totalWritten += written
+		logrus.Debugf("Merged chunk %d from S3, size: %d bytes", i, written)
+	}
+
+	logrus.Infof("Successfully merged %d chunks from S3 to %s, total size: %d bytes", totalChunks, outputPath, totalWritten)
+	return nil
+}
+
+// mergeChunksToS3 在S3内部合并分片（使用复制）
+func (s3s *S3Storage) mergeChunksToS3(bucketName, chunkKeyPrefix, outputPath string, totalChunks int) error {
+	// S3不支持直接合并对象，需要先下载到本地临时文件，再上传
+	tempFile, err := os.CreateTemp("", "s3-merge-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	// 下载所有分片到临时文件
+	for i := 0; i < totalChunks; i++ {
+		key := fmt.Sprintf("%s/chunk_%d", chunkKeyPrefix, i)
+		result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to download chunk %d: %v", i, err)
+		}
+
+		_, err = io.Copy(tempFile, result.Body)
+		result.Body.Close()
+		if err != nil {
+			return fmt.Errorf("failed to write chunk %d to temp file: %v", i, err)
+		}
+	}
+
+	// 重置文件指针到开始位置
+	tempFile.Seek(0, 0)
+
+	// 解析输出路径并上传到S3
+	_, outputKey, err := s3s.ParseDirPath(outputPath, true)
+	if err != nil {
+		return err
+	}
+
+	_, err = s3s.s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(outputKey),
+		Body:   tempFile,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload merged file to S3: %v", err)
+	}
+
+	logrus.Infof("Successfully merged %d chunks to S3: %s", totalChunks, outputKey)
+	return nil
+}
+
+// CleanupChunks 清理S3中的分片文件
+func (s3s *S3Storage) CleanupChunks(sessionID string) error {
+	bucketName := "grdata"
+	prefix := s3s.GetChunkDir(sessionID)
+
+	// 列出所有分片
+	result, err := s3s.s3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(prefix),
+	})
+	if err != nil {
+		logrus.Errorf("Failed to list chunks in S3: %v", err)
+		return err
+	}
+
+	// 批量删除
+	if len(result.Contents) == 0 {
+		return nil
+	}
+
+	objects := make([]*s3.ObjectIdentifier, 0, len(result.Contents))
+	for _, obj := range result.Contents {
+		objects = append(objects, &s3.ObjectIdentifier{Key: obj.Key})
+	}
+
+	_, err = s3s.s3Client.DeleteObjects(&s3.DeleteObjectsInput{
+		Bucket: aws.String(bucketName),
+		Delete: &s3.Delete{
+			Objects: objects,
+			Quiet:   aws.Bool(true),
+		},
+	})
+	if err != nil {
+		logrus.Errorf("Failed to delete chunks from S3: %v", err)
+		return err
+	}
+
+	logrus.Debugf("Cleaned up chunks for session: %s from S3", sessionID)
+	return nil
+}
+
+// ReadFile reads a file directly from S3 and returns a reader
+func (s3s *S3Storage) ReadFile(filePath string) (ReadCloser, error) {
+	bucketName, key, err := s3s.ParseDirPath(filePath, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse file path: %w", err)
+	}
+
+	result, err := s3s.s3Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object from S3: %w", err)
+	}
+
+	return result.Body, nil
+}
+
+// InitBucketLifecycle 在 API 启动时主动初始化默认 bucket 的生命周期策略
+func (s3s *S3Storage) InitBucketLifecycle() error {
+	// 默认初始化 grdata bucket 的生命周期策略
+	bucketName := "grdata"
+
+	logrus.Infof("[Lifecycle Init] Starting to initialize bucket lifecycle policy for: %s", bucketName)
+
+	// 检查 bucket 是否存在
+	logrus.Infof("[Lifecycle Init] Checking if bucket exists: %s", bucketName)
+	headResp, err := s3s.s3Client.HeadBucket(&s3.HeadBucketInput{
+		Bucket: aws.String(bucketName),
+	})
+
+	bucketExists := true
+	if err != nil {
+		logrus.Warnf("[Lifecycle Init] Bucket %s does not exist or error checking: %v", bucketName, err)
+		logrus.Infof("[Lifecycle Init] Attempting to create bucket: %s", bucketName)
+		// 如果 bucket 不存在，先创建
+		createResp, err := s3s.s3Client.CreateBucket(&s3.CreateBucketInput{
+			Bucket: aws.String(bucketName),
+		})
+		if err != nil {
+			logrus.Errorf("[Lifecycle Init] Failed to create bucket %s: %v", bucketName, err)
+			return fmt.Errorf("failed to create bucket %s: %w", bucketName, err)
+		}
+		bucketExists = false
+		logrus.Infof("[Lifecycle Init] Successfully created new bucket: %s, response: %+v", bucketName, createResp)
+	} else {
+		logrus.Infof("[Lifecycle Init] Bucket %s already exists, response: %+v", bucketName, headResp)
+	}
+
+	// 配置生命周期策略
+	logrus.Infof("[Lifecycle Init] Configuring lifecycle policy for bucket: %s (bucketExists=%v)", bucketName, bucketExists)
+	if err := s3s.ensureBucketLifecycle(bucketName, bucketExists); err != nil {
+		logrus.Errorf("[Lifecycle Init] Failed to configure lifecycle for bucket %s: %v", bucketName, err)
+		return fmt.Errorf("failed to configure lifecycle for bucket %s: %w", bucketName, err)
+	}
+
+	logrus.Infof("[Lifecycle Init] Successfully initialized bucket lifecycle policy for: %s", bucketName)
 	return nil
 }

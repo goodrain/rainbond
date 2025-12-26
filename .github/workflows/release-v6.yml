@@ -28,6 +28,13 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
+      outputs:
+        description: 'outputs parameter'
+        default: ''
+        type: choice
+        options:
+          - ""
+          - type=registry,oci-mediatypes=true,compression=estargz,force-compression=true
       
 env:
   VERSION: ${{ github.event.inputs.version }}
@@ -80,6 +87,7 @@ jobs:
             RELEASE_DESC=${{ env.release_desc }}
           context: .
           file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
             rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}
@@ -121,6 +129,7 @@ jobs:
           platforms: ${{ github.event.inputs.platforms }}
           context: .
           file: ./Dockerfile
+          outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
             rainbond/rainbond-operator:${{ env.VERSION }}
@@ -206,6 +215,7 @@ jobs:
             VERSION=${{ env.VERSION }}
           context: .
           file: ./Dockerfile
+          outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
             rainbond/rainbond:${{ env.VERSION }}
