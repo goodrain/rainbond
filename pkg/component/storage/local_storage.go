@@ -271,8 +271,12 @@ func (l *LocalStorage) ChunkExists(sessionID string, chunkIndex int) bool {
 func (l *LocalStorage) MergeChunks(sessionID string, outputPath string, totalChunks int) error {
 	chunkDir := l.GetChunkDir(sessionID)
 
-	// 不预先检查所有分片是否存在（避免 N 次文件系统调用）
-	// 直接在读取时检查，失败会返回明确错误
+	// 验证所有分片是否存在
+	for i := 0; i < totalChunks; i++ {
+		if !l.ChunkExists(sessionID, i) {
+			return fmt.Errorf("chunk %d is missing", i)
+		}
+	}
 
 	// 确保输出目录存在
 	outputDir := filepath.Dir(outputPath)
@@ -319,4 +323,13 @@ func (l *LocalStorage) CleanupChunks(sessionID string) error {
 	}
 	logrus.Debugf("Cleaned up chunks for session: %s", sessionID)
 	return nil
+}
+
+// ReadFile reads a file directly from local storage and returns a reader
+func (l *LocalStorage) ReadFile(filePath string) (ReadCloser, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	return file, nil
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 
@@ -75,25 +76,25 @@ func (i *MarketSlugItem) Run() error {
 	if i.SlugInfo.FTPHost != "" && i.SlugInfo.FTPPort != "" {
 		sFTPClient, err := sources.NewSFTPClient(i.SlugInfo.FTPUser, i.SlugInfo.FTPPassword, i.SlugInfo.FTPHost, i.SlugInfo.FTPPort)
 		if err != nil {
-			i.Logger.Error("创建FTP客户端失败", map[string]string{"step": "slug-share", "status": "failure"})
+			i.Logger.Error(util.Translation("Create FTP client failed"), map[string]string{"step": "slug-share", "status": "failure"})
 			return err
 		}
 		defer sFTPClient.Close()
 		if err := sFTPClient.DownloadFile(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
-			i.Logger.Error("源码包远程FTP获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
+			i.Logger.Error(util.Translation("Download slug package from remote FTP failed"), map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
-			return nil
+			return err
 		}
 	} else {
 		if err := storage.Default().StorageCli.UploadFileToFile(i.SlugInfo.SlugPath, i.TGZPath, i.Logger); err != nil {
-			i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
+			i.Logger.Error(util.Translation("Get slug package from local storage failed"), map[string]string{"step": "slug-share", "status": "failure"})
 			logrus.Errorf("copy slug file error when build service, %s", err.Error())
-			return nil
+			return err
 		}
 	}
 	if err := os.Chown(i.TGZPath, 200, 200); err != nil {
 		os.Remove(i.TGZPath)
-		i.Logger.Error("源码包本地获取失败，安装失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Get slug package from local storage failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		logrus.Errorf("chown slug file error when build service, %s", err.Error())
 		return nil
 	}
@@ -106,7 +107,7 @@ func (i *MarketSlugItem) Run() error {
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
-		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "slug-share", "status": "failure"})
+		i.Logger.Error(util.Translation("Update version info failed"), map[string]string{"step": "slug-share", "status": "failure"})
 		return err
 	}
 	return nil

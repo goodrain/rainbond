@@ -260,7 +260,7 @@ func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificat
 // DeleteGatewayCertificate delete gateway certificate
 func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
 	err := g.kubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !k8serror.IsNotFound(err) {
 		logrus.Errorf("delete gateway certificate secret failure: %v", err)
 		return err
 	}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -74,12 +75,12 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 	_, err := i.ImageClient.ImagePull(i.LocalImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
-		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(util.Translation("Pull image failed, please check if the image is accessible"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	if err := i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.LocalImageName, i.ImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(util.Translation("Tag image failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	user, pass := builder.GetImageUserInfoV2(i.ImageName, i.ImageInfo.HubUser, i.ImageInfo.HubPassword)
@@ -90,11 +91,11 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 	}
 	if err != nil {
 		if err.Error() == "authentication required" {
-			i.Logger.Error("镜像仓库授权失败", map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error(util.Translation("Image registry authentication failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		logrus.Errorf("push image into registry error: %s", err.Error())
-		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error(util.Translation("Push image to registry failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	return i.updateShareStatus("success")
@@ -129,7 +130,7 @@ func (i *PluginShareItem) updateShareStatus(status string) error {
 	err := db.GetManager().KeyValueDao().Put(fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
 	if err != nil {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
-		i.Logger.Error("存储分享结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error(util.Translation("Save share result failed"), map[string]string{"step": "callback", "status": "failure"})
 	}
 	if status == "success" {
 		i.Logger.Info("创建分享结果成功,分享成功", map[string]string{"step": "last", "status": "success"})

@@ -160,12 +160,93 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		}
 		d.image = ParseImageName(d.source)
 	}
-	// 简化镜像检测：跳过镜像拉取和检测步骤，直接使用指定的镜像
-	// 只记录镜像信息，不进行实际的拉取操作
-	d.logger.Info(fmt.Sprintf("使用镜像: %s (跳过拉取检测)", d.image.Source()), map[string]string{"step": "image-parse"})
+	// ========== 轻量级镜像元数据检测 ==========
+	user := d.user
+	pass := d.pass
 
-	// 注意：由于跳过了镜像拉取，无法获取镜像的环境变量、卷和端口信息
-	// 这些信息需要在后续的部署阶段从实际镜像中获取
+	// 如果是内部镜像仓库，使用默认凭证
+	if strings.HasPrefix(d.image.Source(), builder.REGISTRYDOMAIN) {
+		if user == "" {
+			user = builder.REGISTRYUSER
+		}
+		if pass == "" {
+			pass = builder.REGISTRYPASS
+		}
+	}
+
+	// 调用新方法获取元数据（轻量级，不下载镜像层）
+	imageConfig, err := d.imageClient.GetImageMetadata(d.image.Source(), user, pass, d.logger)
+	if err != nil {
+		// 检测失败：记录警告但继续构建（降级策略）
+		d.logger.Info(
+			fmt.Sprintf("无法获取镜像元数据: %v (将在部署时从实际镜像获取)", err),
+			map[string]string{"step": "image-parse", "status": "warning"})
+		logrus.Warnf("[LightweightDetect] Failed to get metadata for %s: %v", d.image.Source(), err)
+	} else {
+		// 检测成功：提取元数据
+		d.logger.Info(
+			fmt.Sprintf("成功获取镜像元数据: %s", d.image.Source()),
+			map[string]string{"step": "image-parse"})
+
+		if imageConfig != nil {
+			// 1. 提取环境变量
+			for _, env := range imageConfig.Env {
+				envInfo := strings.Split(env, "=")
+				if len(envInfo) == 2 {
+					// 只添加用户未明确指定的环境变量
+					if _, exists := d.envs[envInfo[0]]; !exists {
+						d.envs[envInfo[0]] = &types.Env{Name: envInfo[0], Value: envInfo[1]}
+					}
+				}
+			}
+
+			// 2. 提取卷信息
+			for volumePath := range imageConfig.Volumes {
+				if _, exists := d.volumes[volumePath]; !exists {
+					d.volumes[volumePath] = &types.Volume{
+						VolumePath: volumePath,
+						VolumeType: model.ShareFileVolumeType.String(),
+					}
+				}
+			}
+
+			// 3. 提取暴露端口
+			for portSpec := range imageConfig.ExposedPorts {
+				// 解析端口格式：例如 "80/tcp" 或 "53/udp"
+				parts := strings.Split(portSpec, "/")
+				if len(parts) >= 1 {
+					portNum, err := strconv.Atoi(parts[0])
+					if err != nil {
+						logrus.Warnf("[LightweightDetect] Invalid port format: %s", portSpec)
+						continue
+					}
+
+					// 确定协议
+					protocol := "tcp"
+					if len(parts) >= 2 && parts[1] == "udp" {
+						protocol = "udp"
+					} else {
+						protocol = GetPortProtocol(portNum)
+					}
+
+					// 更新或添加端口
+					if existingPort, exists := d.ports[portNum]; exists {
+						existingPort.Protocol = protocol
+					} else {
+						d.ports[portNum] = &types.Port{
+							ContainerPort: portNum,
+							Protocol:      protocol,
+						}
+					}
+				}
+			}
+
+			logrus.Debugf("[LightweightDetect] Extracted: %d envs, %d volumes, %d ports",
+				len(imageConfig.Env), len(imageConfig.Volumes), len(imageConfig.ExposedPorts))
+		}
+	}
+	// ========== 元数据检测结束 ==========
+
 	d.serviceType = DetermineDeployType(d.image)
 	return d.errors
 }

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	rainbondutil "github.com/goodrain/rainbond/util"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	corev1 "k8s.io/api/core/v1"
@@ -54,8 +55,10 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 		podStatus.Type = podStatusTbl[string(pod.Status.Phase)]
 		if len(pod.Status.Reason) > 0 {
 			podStatus.Reason = pod.Status.Reason
+			// Translate common Pod-level failure reasons to user-friendly messages
+			podStatus.Message = translatePodReason(pod.Status.Reason, pod.Status.Message)
 		}
-		if len(pod.Status.Message) > 0 {
+		if len(pod.Status.Message) > 0 && podStatus.Message == "" {
 			podStatus.Message = pod.Status.Message
 		}
 	} else {
@@ -68,7 +71,8 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 			}
 			podStatus.Type = podStatusTbl[string(condition.Type)] // find the latest not ready condition
 			podStatus.Reason = condition.Reason
-			podStatus.Message = condition.Message
+			// Translate condition reasons to user-friendly messages
+			podStatus.Message = translateConditionReason(condition.Reason, condition.Message)
 		}
 	}
 	if podStatus.Type == pb.PodStatus_PENDING {
@@ -115,6 +119,9 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 				podStatus.Type = pb.PodStatus_ABNORMAL
 				if cstatus.State.Terminated.Reason == "OOMKilled" {
 					podStatus.Advice = PodStatusAdviceOOM.String()
+					podStatus.Message = rainbondutil.Translation("Deployment failed: container out of memory killed")
+				} else if cstatus.State.Terminated.Reason != "" {
+					podStatus.Message = translateContainerTerminatedReason(cstatus.State.Terminated.Reason, cstatus.State.Terminated.Message)
 				}
 				for _, OwnerReference := range pod.OwnerReferences {
 					if OwnerReference.Kind == "Job" {
@@ -135,9 +142,22 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 				events := f(clientset, pod)
 				if events != nil {
 					for _, evt := range events.Items {
-						if strings.Contains(evt.Message, "Liveness probe failed") || strings.Contains(evt.Message, "Readiness probe failed") {
+						if strings.Contains(evt.Message, "Liveness probe failed") {
 							podStatus.Type = pb.PodStatus_UNHEALTHY
 							podStatus.Advice = PodStatusAdviceUnhealthy.String()
+							podStatus.Message = rainbondutil.Translation("Deployment failed: liveness probe failed")
+							return
+						}
+						if strings.Contains(evt.Message, "Readiness probe failed") {
+							podStatus.Type = pb.PodStatus_UNHEALTHY
+							podStatus.Advice = PodStatusAdviceUnhealthy.String()
+							podStatus.Message = rainbondutil.Translation("Deployment failed: readiness probe failed")
+							return
+						}
+						if strings.Contains(evt.Message, "Startup probe failed") {
+							podStatus.Type = pb.PodStatus_UNHEALTHY
+							podStatus.Advice = PodStatusAdviceUnhealthy.String()
+							podStatus.Message = rainbondutil.Translation("Deployment failed: startup probe failed")
 							return
 						}
 					}
@@ -147,10 +167,105 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 				w := cstatus.State.Waiting
 				if w.Reason != "PodInitializing" && w.Reason != "ContainerCreating" {
 					podStatus.Type = pb.PodStatus_ABNORMAL
+					// Translate container waiting reasons to user-friendly messages
+					podStatus.Message = translateContainerWaitingReason(w.Reason, w.Message)
 					return
 				}
 			}
 		}
+	}
+}
+
+// translatePodReason translates Pod-level failure reasons to user-friendly messages
+func translatePodReason(reason, message string) string {
+	switch reason {
+	case "OutOfMemory":
+		return rainbondutil.Translation("Deployment failed: container out of memory killed")
+	case "Evicted":
+		if strings.Contains(message, "node") {
+			return rainbondutil.Translation("Deployment failed: no nodes available for scheduling")
+		}
+		return fmt.Sprintf("%s: %s", rainbondutil.Translation("Deployment failed: container configuration error"), message)
+	default:
+		if message != "" {
+			return message
+		}
+		return reason
+	}
+}
+
+// translateConditionReason translates Pod condition reasons to user-friendly messages
+func translateConditionReason(reason, message string) string {
+	switch reason {
+	case "Unschedulable":
+		if strings.Contains(message, "Insufficient cpu") {
+			return rainbondutil.Translation("Deployment failed: insufficient CPU resources")
+		}
+		if strings.Contains(message, "Insufficient memory") {
+			return rainbondutil.Translation("Deployment failed: insufficient memory resources")
+		}
+		if strings.Contains(message, "Insufficient") {
+			return rainbondutil.Translation("Deployment failed: insufficient storage resources")
+		}
+		if strings.Contains(message, "node(s)") {
+			return rainbondutil.Translation("Deployment failed: no nodes available for scheduling")
+		}
+		return fmt.Sprintf("%s: %s", rainbondutil.Translation("Pod scheduling failed"), message)
+	case "ContainersNotReady":
+		return rainbondutil.Translation("Deployment failed: container creation failed")
+	case "PodInitializing":
+		return rainbondutil.Translation("Pod is initializing")
+	default:
+		if message != "" {
+			return message
+		}
+		return reason
+	}
+}
+
+// translateContainerWaitingReason translates container waiting reasons to user-friendly messages
+func translateContainerWaitingReason(reason, message string) string {
+	switch reason {
+	case "ErrImagePull", "ImagePullBackOff":
+		if strings.Contains(message, "not found") || strings.Contains(message, "manifest unknown") {
+			return rainbondutil.Translation("Deployment failed: image not found")
+		}
+		if strings.Contains(message, "unauthorized") || strings.Contains(message, "authentication") {
+			return rainbondutil.Translation("Deployment failed: image pull authentication failed")
+		}
+		return rainbondutil.Translation("Deployment failed: image pull failed")
+	case "InvalidImageName":
+		return rainbondutil.Translation("Deployment failed: invalid image name")
+	case "CreateContainerConfigError":
+		return rainbondutil.Translation("Deployment failed: container configuration error")
+	case "CreateContainerError":
+		return rainbondutil.Translation("Deployment failed: container creation failed")
+	case "CrashLoopBackOff":
+		return rainbondutil.Translation("Deployment failed: container is being terminated repeatedly")
+	case "RunContainerError":
+		return rainbondutil.Translation("Deployment failed: container startup failed")
+	default:
+		if message != "" {
+			return fmt.Sprintf("%s: %s", reason, message)
+		}
+		return reason
+	}
+}
+
+// translateContainerTerminatedReason translates container terminated reasons to user-friendly messages
+func translateContainerTerminatedReason(reason, message string) string {
+	switch reason {
+	case "OOMKilled":
+		return rainbondutil.Translation("Deployment failed: container out of memory killed")
+	case "Error":
+		return rainbondutil.Translation("Deployment failed: container startup failed")
+	case "ContainerCannotRun":
+		return rainbondutil.Translation("Deployment failed: container configuration error")
+	default:
+		if message != "" {
+			return fmt.Sprintf("%s: %s", reason, message)
+		}
+		return reason
 	}
 }
 

@@ -91,12 +91,12 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		return err
 	}
 	if _, _, err := sources.GitClone(sources.CodeSourceInfo{RepositoryURL: t.GitURL, Branch: t.Repo, User: t.GitUsername, Password: t.GitPassword}, sourceDir, logger, 4); err != nil {
-		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Pull plugin code failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]git clone code error %v", err)
 		return err
 	}
 	if !checkDockerfile(sourceDir) {
-		logger.Error("代码未检测到dockerfile，暂不支持构建，任务即将退出", map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(util.Translation("Dockerfile not found in plugin code"), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Error("代码未检测到dockerfile")
 		return fmt.Errorf("have no dockerfile")
 	}

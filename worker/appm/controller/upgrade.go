@@ -52,12 +52,8 @@ func (s *upgradeController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
-				if err != ErrWaitTimeOut {
-					service.Logger.Error(util.Translation("upgrade service error"), event.GetCallbackLoggerOption())
-					logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
-				} else {
-					service.Logger.Error(util.Translation("upgrade service timeout"), event.GetTimeoutLoggerOption())
-				}
+				service.Logger.Error(util.Translation("upgrade service error"), event.GetCallbackLoggerOption())
+				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
 				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 			}
@@ -220,8 +216,8 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
-
-    return s.WaitingReady(app)
+	// No longer wait for upgrade ready - let probe health detection handle it
+	return nil
 }
 
 // WaitingReady wait app start or upgrade ready
