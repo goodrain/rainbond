@@ -24,7 +24,6 @@ import (
 
 // ClusterInterface -
 type ClusterInterface interface {
-	GetPlatformHealth(w http.ResponseWriter, r *http.Request)
 	GetClusterInfo(w http.ResponseWriter, r *http.Request)
 	MavenSettingList(w http.ResponseWriter, r *http.Request)
 	MavenSettingAdd(w http.ResponseWriter, r *http.Request)

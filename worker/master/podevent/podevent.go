@@ -992,6 +992,9 @@ func recordPodLogsToEvent(clientset kubernetes.Interface, pod *corev1.Pod, event
 
 	logger.Info("==================== End of Pod Container Logs ====================",
 		map[string]string{"step": "pod-logs", "status": "info"})
+
+	// 发送完成标记，触发立即持久化（避免等待GC）
+	logger.Info("Pod logs recording completed", map[string]string{"step": "last", "status": "success"})
 }
 
 // recordPodLogsToEventWithPrevious 记录 Pod 容器日志到 event 日志中（包括上一个实例的日志）
@@ -1032,6 +1035,9 @@ func recordPodLogsToEventWithPrevious(clientset kubernetes.Interface, pod *corev
 
 	logger.Info("==================== End of Pod Container Logs ====================",
 		map[string]string{"step": "pod-logs", "status": "info"})
+
+	// 发送完成标记，触发立即持久化（避免等待GC）
+	logger.Info("Pod logs recording completed", map[string]string{"step": "last", "status": "success"})
 }
 
 // getContainerSpec retrieves the container spec from pod by container name

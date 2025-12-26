@@ -49,18 +49,6 @@ import (
 type ClusterController struct {
 }
 
-// GetPlatformHealth 获取平台健康状态
-func (c *ClusterController) GetPlatformHealth(w http.ResponseWriter, r *http.Request) {
-	healthData, err := handler.GetPlatformHealthHandler().GetPlatformHealth(r.Context())
-	if err != nil {
-		logrus.Errorf("Failed to get platform health: %v", err)
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, healthData)
-}
-
 // GetClusterInfo -
 func (c *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Request) {
 	nodes, err := handler.GetClusterHandler().GetClusterInfo(r.Context())
