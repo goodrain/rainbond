@@ -231,9 +231,7 @@ jobs:
   multi-arch-manifest:
     runs-on: ubuntu-latest
     needs: [rainbond-region, rainbond-operator, rainbond-ui, rainbond-allinone]
-    if: |
-      github.event.inputs.platforms == 'linux/amd64,linux/arm64' &&
-      github.event.inputs.build-who == 'all'
+    if: github.event.inputs.platforms == 'linux/amd64,linux/arm64'
     environment: release-v6
     steps:
       - name: Set up Docker Buildx
@@ -255,35 +253,42 @@ jobs:
       - name: Create manifests
         run: |
           VERSION="${{ env.VERSION }}"
+          BUILD_WHO="${{ github.event.inputs.build-who }}"
 
           # Region components
-          for component in api chaos worker init-probe mq; do
-            echo "Creating manifest for rbd-${component}..."
-            docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
-              rainbond/rbd-${component}:${VERSION}-amd64 \
-              rainbond/rbd-${component}:${VERSION}-arm64
+          if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "region" ]]; then
+            for component in api chaos worker init-probe mq; do
+              echo "Creating manifest for rbd-${component}..."
+              docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
+                rainbond/rbd-${component}:${VERSION}-amd64 \
+                rainbond/rbd-${component}:${VERSION}-arm64
 
-            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-amd64 \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-arm64
-          done
+              docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
+                registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-amd64 \
+                registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-arm64
+            done
+          fi
 
           # Operator
-          echo "Creating manifest for rainbond-operator..."
-          docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
-            rainbond/rainbond-operator:${VERSION}-amd64 \
-            rainbond/rainbond-operator:${VERSION}-arm64
+          if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "operator" ]]; then
+            echo "Creating manifest for rainbond-operator..."
+            docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
+              rainbond/rainbond-operator:${VERSION}-amd64 \
+              rainbond/rainbond-operator:${VERSION}-arm64
 
-          docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-amd64 \
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-arm64
+            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-amd64 \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-arm64
+          fi
 
           # Allinone (Console)
-          echo "Creating manifest for rainbond..."
-          docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
-            rainbond/rainbond:${VERSION}-amd64 \
-            rainbond/rainbond:${VERSION}-arm64
+          if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
+            echo "Creating manifest for rainbond..."
+            docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
+              rainbond/rainbond:${VERSION}-amd64 \
+              rainbond/rainbond:${VERSION}-arm64
 
-          docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
+            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
+              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
+          fi
