@@ -310,7 +310,8 @@ func (c *EventDaoImpl) DelAbnormalEvent(serviceID, Opt string) error {
 // DelAllAbnormalEvent delete all Abnormal event in components when stop.
 func (c *EventDaoImpl) DelAllAbnormalEvent(serviceID string, Opts []string) error {
 	var event model.ServiceEvent
-	if err := c.DB.Where("target=? and service_id=? and opt_type in (?) and status=?", model.TargetTypePod, serviceID, Opts, model.EventStatusFailure.String()).
+	// Delete events with both failure and success status (for health check events like HealthCheckPassed)
+	if err := c.DB.Where("target=? and service_id=? and opt_type in (?)", model.TargetTypePod, serviceID, Opts).
 		Delete(&event).Error; err != nil {
 		return err
 	}

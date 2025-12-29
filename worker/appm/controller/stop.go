@@ -61,7 +61,22 @@ func (s *stopController) Begin() {
 				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), event.GetLastLoggerOption())
-				err = db.GetManager().ServiceEventDao().DelAllAbnormalEvent(service.ServiceID, []string{"INITIATING", "CrashLoopBackOff", "Unschedulable"})
+				err = db.GetManager().ServiceEventDao().DelAllAbnormalEvent(service.ServiceID, []string{
+				"INITIATING",
+				"CrashLoopBackOff",
+				"Unschedulable",
+				"ReadinessUnhealthy",
+				"LivenessRestart",
+				"StartupProbeFailure",
+				"LivenessProbeFailed",
+				"ReadinessProbeFailed",
+				"HealthCheckPassed",
+				"ContainerExitError",
+				"ImagePullBackOff",
+				"CreateContainerConfigError",
+				"OOMKilled",
+				"Evicted",
+			})
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Error("delete abnormal event error: ", err)
 				}
