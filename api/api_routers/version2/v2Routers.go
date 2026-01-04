@@ -134,6 +134,9 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/static/plugins/{plugin_name}", PluginStaticProxy)
 	r.Get("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
+	r.Post("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
+	r.Put("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
+	r.Delete("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
 	r.Post("/plugins/{plugin_name}/status", ChangePluginStatus)
 	return r
 }
