@@ -614,10 +614,10 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 	eventID := gjson.GetBytes(task.TaskBody, "event_id").String()
 	deployVersion := gjson.GetBytes(task.TaskBody, "deploy_version").String()
 	action := gjson.GetBytes(task.TaskBody, "action").String()
-	
+
 	// 获取日志记录器
 	logger := event.GetManager().GetLogger(eventID)
-	
+
 	defer event.GetManager().ReleaseLogger(logger)
 	defer func() {
 		if r := recover(); r != nil {
@@ -626,7 +626,7 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 			logger.Error("KubeBlocks build task failed", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-	
+
 	// 参数校验
 	if serviceID == "" {
 		logger.Error("Service ID is required for KubeBlocks component", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -636,7 +636,7 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 		logger.Error("Deploy version is required for KubeBlocks component", map[string]string{"step": "builder-exector", "status": "failure"})
 		return
 	}
-	
+
 	var configs = make(map[string]string)
 	if configsJson := gjson.GetBytes(task.TaskBody, "configs"); configsJson.Exists() {
 		configsJson.ForEach(func(key, value gjson.Result) bool {
@@ -644,13 +644,13 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 			return true
 		})
 	}
-	
+
 	if err := e.UpdateDeployVersion(serviceID, deployVersion); err != nil {
 		logger.Error("Update KubeBlocks deploy version failed", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("Update KubeBlocks service deploy version failure %s", err.Error())
 		return
 	}
-	
+
 	err := e.sendAction(tenantID, serviceID, eventID, deployVersion, action, configs, logger)
 	if err != nil {
 		logger.Error("Send KubeBlocks deployment action failed", map[string]string{"step": "callback", "status": "failure"})
@@ -851,7 +851,7 @@ func (e *exectorManager) shouldPerformSourceScan(taskBody []byte) bool {
 	}
 
 	// Get service ID from task body
-	serviceID := gjson.GetBytes(taskBody, "service_id").String()
+	serviceID := gjson.GetBytes(taskBody, "service_alias").String()
 	if serviceID == "" {
 		logrus.Warn("Service ID not found in task body, skipping source scan")
 		return false
@@ -1054,5 +1054,3 @@ func (e *exectorManager) httpGet(url string) (string, error) {
 
 	return string(body), nil
 }
-
-
