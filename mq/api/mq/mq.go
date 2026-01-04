@@ -82,6 +82,7 @@ func (e *etcdQueue) Start() error {
 	e.registerTopic(client.WorkerTopic)
 	e.registerTopic(client.WorkerHealth)
 	e.registerTopic(client.BuilderHealth)
+	e.registerTopic(client.SourceScanTopic)
 	logrus.Info("etcd message queue client started success")
 	return nil
 }
@@ -122,7 +123,10 @@ func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
 	DequeueNumber++
-	res, _ := e.client.Get(e.queueKey(topic))
+	res, ok := e.client.Get(e.queueKey(topic))
+	if !ok {
+		return "", context.DeadlineExceeded
+	}
 	return res, nil
 }
 

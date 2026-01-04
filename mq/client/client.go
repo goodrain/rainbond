@@ -41,6 +41,9 @@ var WindowsBuilderTopic = "windows_builder"
 var WorkerTopic = "worker"
 var WorkerHealth = "worker-health"
 
+// SourceScanTopic source code scan topic
+var SourceScanTopic = "source-scan"
+
 // MQClient mq  client
 type MQClient interface {
 	pb.TaskQueueClient
