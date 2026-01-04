@@ -91,8 +91,8 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
 
   rainbond-operator:
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
@@ -135,8 +135,8 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
   rainbond-ui:
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
@@ -170,7 +170,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            rainbond/rainbond-ui:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            rainbond/rainbond-ui:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
   
   rainbond-allinone:
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
@@ -219,14 +219,14 @@ jobs:
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
             VERSION=${{ env.VERSION }}
-            IMAGE_VERSION=${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }} 
+            IMAGE_VERSION=${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }} 
           context: .
           file: ./Dockerfile
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           tags: |
-            rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) }}
+            rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
 
   multi-arch-manifest:
     runs-on: ubuntu-latest
