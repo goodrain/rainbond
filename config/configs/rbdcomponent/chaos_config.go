@@ -24,6 +24,7 @@ type ChaosConfig struct {
 	KeepCount        int
 	CleanInterval    int
 	BRVersion        string
+	SourceScanURL    string
 }
 
 func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
@@ -45,4 +46,5 @@ func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
 	fs.IntVar(&cc.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 	fs.IntVar(&cc.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
 	fs.StringVar(&cc.BRVersion, "br-version", "stable", "builder and runner version")
+	fs.StringVar(&cc.SourceScanURL, "source-scan-url", "", "rainbond source scan service URL, eg: http://rainbond-sourcescan:8080")
 }

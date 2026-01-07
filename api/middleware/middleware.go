@@ -23,6 +23,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
@@ -32,17 +40,11 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	rutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"io"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var pool []string
@@ -396,21 +398,73 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 			tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 			var ctx context.Context
 
-			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, "", "", synType)
-			if err != nil {
-				logrus.Error("create event error : ", err)
-				httputil.ReturnError(r, w, 500, "操作失败")
-				return
+			// Check if this is a source code build operation that might need source scanning
+			// Only defer event creation for source code builds, not image builds
+			skipEventCreation := false
+			buildKind := ""
+			if kindI, ok := reqData["kind"]; ok {
+				buildKind, _ = kindI.(string)
 			}
-			ctx = context.WithValue(r.Context(), ctxutil.ContextKey("event"), event)
-			ctx = context.WithValue(ctx, ctxutil.ContextKey("event_id"), event.EventID)
-			rw := &resWriter{origWriter: w}
-			f(rw, r.WithContext(ctx))
-			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode >= 400) { // status code 2XX/3XX all equal to success
-				util.UpdateEvent(event.EventID, rw.statusCode)
+			if optType == "build-service" && buildKind == "build_from_source_code" && shouldDeferBuildEvent() {
+				logrus.Infof("Source-scan plugin detected for source code build, deferring build-service event creation until after scan")
+				skipEventCreation = true
+			}
+
+			if skipEventCreation {
+				// Generate event ID but don't create event yet
+				eventID := rutil.NewUUID()
+				ctx = context.WithValue(r.Context(), ctxutil.ContextKey("event_id"), eventID)
+				ctx = context.WithValue(ctx, ctxutil.ContextKey("deferred_event"), true)
+				// Store event creation parameters in context for later use
+				ctx = context.WithValue(ctx, ctxutil.ContextKey("deferred_event_params"), map[string]interface{}{
+					"target":   target,
+					"optType":  optType,
+					"targetID": targetID,
+					"tenantID": tenantID,
+					"body":     string(body),
+					"operator": operator,
+					"synType":  synType,
+				})
+				rw := &resWriter{origWriter: w}
+				f(rw, r.WithContext(ctx))
+			} else {
+				// Normal flow: create event immediately
+				event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, "", "", synType)
+				if err != nil {
+					logrus.Error("create event error : ", err)
+					httputil.ReturnError(r, w, 500, "操作失败")
+					return
+				}
+				ctx = context.WithValue(r.Context(), ctxutil.ContextKey("event"), event)
+				ctx = context.WithValue(ctx, ctxutil.ContextKey("event_id"), event.EventID)
+				rw := &resWriter{origWriter: w}
+				f(rw, r.WithContext(ctx))
+				if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode >= 400) { // status code 2XX/3XX all equal to success
+					util.UpdateEvent(event.EventID, rw.statusCode)
+				}
 			}
 		}
 	}
+}
+
+// shouldDeferBuildEvent checks if build event creation should be deferred due to source scanning
+func shouldDeferBuildEvent() bool {
+	// Check if source-scan plugin is installed
+	ctx := context.Background()
+	plugin, err := k8s.Default().RainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).Get(ctx, "rainbond-sourcescan", metav1.GetOptions{})
+	if err != nil {
+		logrus.Debugf("Source-scan plugin not found: %v", err)
+		return false
+	}
+
+	// Check if plugin has a backend configured
+	if plugin.Spec.Backend == "" {
+		logrus.Debug("Source-scan plugin found but Backend is empty")
+		return false
+	}
+
+	logrus.Infof("Source-scan plugin active with backend: %s, deferring build event creation", plugin.Spec.Backend)
+	return true
 }
 
 func debugRequestBody(r *http.Request) {

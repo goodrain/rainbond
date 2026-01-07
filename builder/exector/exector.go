@@ -20,32 +20,37 @@ package exector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/pkg/component/mq"
+	"io"
+	"net/http"
 	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
-
 	"github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/util"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
+
+	"github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
+
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // MetricTaskNum task number
@@ -92,6 +97,10 @@ func NewManager() (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	rainbondClient, err := versioned.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	numCPU := runtime.NumCPU()
 	// 示例逻辑：根据 CPU 核数设置基准最大并发数，实际中可以加上内存的判断
@@ -108,6 +117,7 @@ func NewManager() (Manager, error) {
 		BuildKitArgs:      strings.Split(configDefault.ChaosConfig.BuildKitArgs, "&"),
 		BuildKitCache:     configDefault.ChaosConfig.BuildKitCache,
 		KubeClient:        kubeClient,
+		RainbondClient:    rainbondClient,
 		mqClient:          mq.Default().MqClient,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
 		maxConcurrentTask: maxConcurrentTask,
@@ -122,6 +132,7 @@ type exectorManager struct {
 	BuildKitArgs      []string
 	BuildKitCache     bool
 	KubeClient        kubernetes.Interface
+	RainbondClient    versioned.Interface
 	tasks             chan *pb.TaskMessage
 	callback          func(*pb.TaskMessage)
 	maxConcurrentTask int
@@ -356,6 +367,103 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 // buildFromSourceCode build app from source code
 // support git repository
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
+	// Check if this is a callback from source-scan
+	sourceScanCompleted := gjson.GetBytes(task.TaskBody, "source_scan_completed").Bool()
+	if sourceScanCompleted {
+		// Get scan event logger
+		scanEventID := gjson.GetBytes(task.TaskBody, "source_scan_event_id").String()
+		scanLogger := event.GetManager().GetLogger(scanEventID)
+		defer event.GetManager().ReleaseLogger(scanLogger)
+
+		sourceScanPassed := gjson.GetBytes(task.TaskBody, "source_scan_passed").Bool()
+
+		if sourceScanPassed {
+			logrus.Info("Source scan passed, creating build-service event and continuing with build")
+			scanLogger.Info("源码安全检测通过", map[string]string{"step": "source-scan-complete", "status": "success"})
+			// Update scan event to complete
+			if err := e.updateSourceScanEvent(scanEventID, "success", "complete", "源码安全检测通过"); err != nil {
+				logrus.Errorf("Failed to update source scan event: %v", err)
+			}
+
+			// NOW create the build-service event since scan passed
+			buildEventID := gjson.GetBytes(task.TaskBody, "event_id").String()
+			tenantID := gjson.GetBytes(task.TaskBody, "tenant_id").String()
+			serviceID := gjson.GetBytes(task.TaskBody, "service_id").String()
+			operator := gjson.GetBytes(task.TaskBody, "operator").String()
+
+			if err := e.createBuildServiceEvent(buildEventID, tenantID, serviceID, operator); err != nil {
+				logrus.Errorf("Failed to create build-service event: %v", err)
+				// Continue anyway - event creation failure shouldn't stop build
+			} else {
+				logrus.Infof("Created build-service event: %s", buildEventID)
+			}
+
+			// Continue to build (fall through)
+		} else {
+			logrus.Warn("Source scan failed, stopping build")
+			scanLogger.Error("源码安全检测未通过，请查看检测报告", map[string]string{"step": "source-scan-complete", "status": "failure"})
+			// Update scan event to failure
+			if err := e.updateSourceScanEvent(scanEventID, "failure", "complete", "源码安全检测未通过"); err != nil {
+				logrus.Errorf("Failed to update source scan event: %v", err)
+			}
+			return
+		}
+	} else {
+		// Check if source code scanning is required
+		if e.shouldPerformSourceScan(task.TaskBody) {
+			// Create a new source scan event
+			scanEventID := util.NewUUID()
+			tenantID := gjson.GetBytes(task.TaskBody, "tenant_id").String()
+			serviceID := gjson.GetBytes(task.TaskBody, "service_id").String()
+			operator := gjson.GetBytes(task.TaskBody, "operator").String()
+
+			logrus.Info("Source code scan required, creating source scan event (build event will be created after scan)")
+
+			// Create source scan event in database
+			if err := e.createSourceScanEvent(scanEventID, tenantID, serviceID, operator); err != nil {
+				logrus.Errorf("Failed to create source scan event: %v", err)
+			}
+
+			// Get logger for the scan event
+			scanLogger := event.GetManager().GetLogger(scanEventID)
+			defer event.GetManager().ReleaseLogger(scanLogger)
+			scanLogger.Info("开始源码安全检测，请稍候...", map[string]string{"step": "source-scan-start", "status": "starting"})
+
+			if err := e.forwardToSourceScan(task, scanEventID); err != nil {
+				logrus.Errorf("Failed to forward task to source-scan: %v", err)
+				scanLogger.Error("转发源码检测任务失败，将创建构建事件并继续正常构建流程", map[string]string{"step": "source-scan-start", "status": "failure"})
+				if err := e.updateSourceScanEvent(scanEventID, "failure", "complete", "转发失败"); err != nil {
+					logrus.Errorf("Failed to update source scan event: %v", err)
+				}
+
+				// Create build event since scan failed and we'll continue with build
+				buildEventID := gjson.GetBytes(task.TaskBody, "event_id").String()
+				if err := e.createBuildServiceEvent(buildEventID, tenantID, serviceID, operator); err != nil {
+					logrus.Errorf("Failed to create build-service event: %v", err)
+				} else {
+					logrus.Infof("Created build-service event after scan failure: %s", buildEventID)
+				}
+				// Continue with normal build if forwarding fails
+			} else {
+				logrus.Info("Task successfully forwarded to source-scan topic, waiting for scan result")
+				// Stop here, wait for scan result
+				return
+			}
+		} else {
+			// Source scan not needed, create build event if it was deferred
+			buildEventID := gjson.GetBytes(task.TaskBody, "event_id").String()
+			tenantID := gjson.GetBytes(task.TaskBody, "tenant_id").String()
+			serviceID := gjson.GetBytes(task.TaskBody, "service_id").String()
+			operator := gjson.GetBytes(task.TaskBody, "operator").String()
+
+			// Check if event was deferred (plugin installed but this component doesn't need scan)
+			// In this case, we still need to create the build event
+			if err := e.createBuildServiceEventIfNotExists(buildEventID, tenantID, serviceID, operator); err != nil {
+				logrus.Debugf("Build event may already exist or creation not needed: %v", err)
+			}
+		}
+	}
+
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
 	i.BuildKitImage = e.BuildKitImage
@@ -506,10 +614,10 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 	eventID := gjson.GetBytes(task.TaskBody, "event_id").String()
 	deployVersion := gjson.GetBytes(task.TaskBody, "deploy_version").String()
 	action := gjson.GetBytes(task.TaskBody, "action").String()
-	
+
 	// 获取日志记录器
 	logger := event.GetManager().GetLogger(eventID)
-	
+
 	defer event.GetManager().ReleaseLogger(logger)
 	defer func() {
 		if r := recover(); r != nil {
@@ -518,7 +626,7 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 			logger.Error("KubeBlocks build task failed", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-	
+
 	// 参数校验
 	if serviceID == "" {
 		logger.Error("Service ID is required for KubeBlocks component", map[string]string{"step": "builder-exector", "status": "failure"})
@@ -528,7 +636,7 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 		logger.Error("Deploy version is required for KubeBlocks component", map[string]string{"step": "builder-exector", "status": "failure"})
 		return
 	}
-	
+
 	var configs = make(map[string]string)
 	if configsJson := gjson.GetBytes(task.TaskBody, "configs"); configsJson.Exists() {
 		configsJson.ForEach(func(key, value gjson.Result) bool {
@@ -536,13 +644,13 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 			return true
 		})
 	}
-	
+
 	if err := e.UpdateDeployVersion(serviceID, deployVersion); err != nil {
 		logger.Error("Update KubeBlocks deploy version failed", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("Update KubeBlocks service deploy version failure %s", err.Error())
 		return
 	}
-	
+
 	err := e.sendAction(tenantID, serviceID, eventID, deployVersion, action, configs, logger)
 	if err != nil {
 		logger.Error("Send KubeBlocks deployment action failed", map[string]string{"step": "callback", "status": "failure"})
@@ -726,4 +834,223 @@ func (e *exectorManager) UpdateDeployVersion(serviceID, newVersion string) error
 	return db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion)
 }
 
+// shouldPerformSourceScan checks if source code scanning should be performed
+func (e *exectorManager) shouldPerformSourceScan(taskBody []byte) bool {
+	// Check if source scan plugin is installed
+	sourceScanURL := e.getSourceScanPluginURL()
+	if sourceScanURL == "" {
+		logrus.Debug("Source scan plugin not installed, skipping source scan")
+		return false
+	}
 
+	// Check if source scan has already been completed
+	sourceScanCompleted := gjson.GetBytes(taskBody, "source_scan_completed").Bool()
+	if sourceScanCompleted {
+		logrus.Debug("Source scan already completed, skipping")
+		return false
+	}
+
+	// Get service ID from task body
+	serviceID := gjson.GetBytes(taskBody, "service_alias").String()
+	if serviceID == "" {
+		logrus.Warn("Service ID not found in task body, skipping source scan")
+		return false
+	}
+
+	// Make HTTP request to check if scanning is enabled
+	checkURL := fmt.Sprintf("%s/api/v1/components/%s", sourceScanURL, serviceID)
+	resp, err := e.httpGet(checkURL)
+	if err != nil {
+		logrus.Warnf("Failed to check source scan status: %v, skipping source scan", err)
+		return false
+	}
+
+	// Parse response to check if enabled
+	enabled := gjson.Get(resp, "data.enabled").Bool()
+	return enabled
+}
+
+// getSourceScanPluginURL retrieves the source scan plugin URL from rbdplugin
+// Returns empty string if plugin is not installed or Backend is empty
+func (e *exectorManager) getSourceScanPluginURL() string {
+	const pluginName = "rainbond-sourcescan"
+
+	// Try to get plugin from rbdplugin
+	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
+	defer cancel()
+
+	plugin, err := e.RainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).Get(ctx, pluginName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Debugf("Source scan plugin %s not found: %v", pluginName, err)
+		return ""
+	}
+
+	// Get Backend URL from plugin spec
+	if plugin.Spec.Backend == "" {
+		logrus.Debugf("Source scan plugin %s found but Backend is empty", pluginName)
+		return ""
+	}
+
+	logrus.Infof("Using source scan URL from rbdplugin: %s", plugin.Spec.Backend)
+	return plugin.Spec.Backend
+}
+
+// createSourceScanEvent creates a new source scan event in database
+func (e *exectorManager) createSourceScanEvent(eventID, tenantID, serviceID, operator string) error {
+	now := time.Now().Format(time.RFC3339)
+	event := &dbmodel.ServiceEvent{
+		EventID:     eventID,
+		TenantID:    tenantID,
+		ServiceID:   serviceID,
+		Target:      dbmodel.TargetTypeService,
+		TargetID:    serviceID,
+		UserName:    operator,
+		StartTime:   now,
+		CreatedAt:   now,
+		SynType:     dbmodel.ASYNEVENTTYPE,
+		OptType:     "source-scan",
+		FinalStatus: "",
+		Status:      "",
+	}
+
+	return db.GetManager().ServiceEventDao().AddModel(event)
+}
+
+// updateSourceScanEvent updates source scan event status
+func (e *exectorManager) updateSourceScanEvent(eventID, status, finalStatus, message string) error {
+	logrus.Infof("Updating source scan event %s: status=%s, finalStatus=%s, message=%s", eventID, status, finalStatus, message)
+
+	// Use Updates() instead of UpdateModel to only update specified fields
+	// This avoids overwriting other fields with zero values
+	updates := map[string]interface{}{
+		"end_time":     time.Now().Format(time.RFC3339),
+		"status":       status,
+		"final_status": finalStatus,
+		"message":      message,
+	}
+
+	err := db.GetManager().DB().Model(&dbmodel.ServiceEvent{}).
+		Where("event_id = ?", eventID).
+		Updates(updates).Error
+
+	if err != nil {
+		logrus.Errorf("Failed to update source scan event %s: %v", eventID, err)
+	} else {
+		logrus.Infof("Successfully updated source scan event %s", eventID)
+
+		// Verify the update
+		updatedEvent, verifyErr := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+		if verifyErr != nil {
+			logrus.Warnf("Failed to verify event update: %v", verifyErr)
+		} else if updatedEvent != nil {
+			logrus.Infof("Verified event %s: OptType=%s, Status=%s, FinalStatus=%s",
+				eventID, updatedEvent.OptType, updatedEvent.Status, updatedEvent.FinalStatus)
+		} else {
+			logrus.Warnf("Event %s not found after update!", eventID)
+		}
+	}
+
+	return err
+}
+
+// createBuildServiceEvent creates a new build-service event in database
+func (e *exectorManager) createBuildServiceEvent(eventID, tenantID, serviceID, operator string) error {
+	now := time.Now().Format(time.RFC3339)
+	event := &dbmodel.ServiceEvent{
+		EventID:     eventID,
+		TenantID:    tenantID,
+		ServiceID:   serviceID,
+		Target:      dbmodel.TargetTypeService,
+		TargetID:    serviceID,
+		UserName:    operator,
+		StartTime:   now,
+		CreatedAt:   now,
+		SynType:     dbmodel.ASYNEVENTTYPE,
+		OptType:     "build-service",
+		FinalStatus: "",
+		Status:      "",
+	}
+
+	return db.GetManager().ServiceEventDao().AddModel(event)
+}
+
+// createBuildServiceEventIfNotExists creates build-service event only if it doesn't already exist
+func (e *exectorManager) createBuildServiceEventIfNotExists(eventID, tenantID, serviceID, operator string) error {
+	// Check if event already exists
+	existingEvent, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+	if err == nil && existingEvent != nil {
+		logrus.Debugf("Build-service event %s already exists, skipping creation", eventID)
+		return nil
+	}
+
+	// Event doesn't exist, create it
+	logrus.Infof("Creating build-service event %s (was deferred)", eventID)
+	return e.createBuildServiceEvent(eventID, tenantID, serviceID, operator)
+}
+
+// forwardToSourceScan forwards the build task to source-scan topic
+func (e *exectorManager) forwardToSourceScan(task *pb.TaskMessage, scanEventID string) error {
+	logrus.Infof("Forwarding task to source-scan, original TaskBody length: %d bytes", len(task.TaskBody))
+
+	// Unmarshal TaskBody to avoid double serialization
+	var taskBodyMap map[string]interface{}
+	if err := json.Unmarshal(task.TaskBody, &taskBodyMap); err != nil {
+		logrus.Errorf("Failed to unmarshal task body: %v", err)
+		return fmt.Errorf("failed to unmarshal task body: %w", err)
+	}
+
+	// Add source scan event ID
+	taskBodyMap["source_scan_event_id"] = scanEventID
+
+	// Log key fields being forwarded
+	serviceID, _ := taskBodyMap["service_id"].(string)
+	repoURL, _ := taskBodyMap["repo_url"].(string)
+	branch, _ := taskBodyMap["branch"].(string)
+	logrus.Infof("Forwarding source scan task - service_id: %s, repo_url: %s, branch: %s, scan_event_id: %s", serviceID, repoURL, branch, scanEventID)
+
+	// Create source scan task
+	sourceScanTask := mqclient.TaskStruct{
+		Topic:    mqclient.SourceScanTopic,
+		TaskType: "source_code_scan",
+		TaskBody: taskBodyMap,
+		Arch:     task.Arch,
+	}
+
+	// Send to source-scan topic
+	if err := e.mqClient.SendBuilderTopic(sourceScanTask); err != nil {
+		logrus.Errorf("Failed to send to source-scan topic: %v", err)
+		return fmt.Errorf("failed to send task to source-scan topic: %w", err)
+	}
+
+	logrus.Infof("Successfully forwarded task to source-scan topic")
+	return nil
+}
+
+// httpGet performs an HTTP GET request and returns the response body as string
+func (e *exectorManager) httpGet(url string) (string, error) {
+	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
+}
