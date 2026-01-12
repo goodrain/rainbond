@@ -840,18 +840,64 @@ func (c *containerdImageCliImpl) GetImageMetadata(image string, username, passwo
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 
-	// 8. 使用 images.Manifest 解析 manifest，自动处理不同格式
-	manifestDesc := desc
-	manifestDesc.Size = int64(len(manifestBytes))
+	// 8. 检查是否为 Image Index (多架构镜像)
+	var finalManifest ocispec.Manifest
+	switch desc.MediaType {
+	case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		// 多架构镜像，需要选择当前平台的 manifest
+		printLog(logger, "debug", "检测到多架构镜像，正在选择当前平台的 manifest", map[string]string{"step": "metadata-fetch"})
 
-	// 使用 images.Manifest 解析，自动处理 OCI 和 Docker Schema v2 格式
-	manifest, err := images.Manifest(ctx, &staticContentProvider{data: manifestBytes}, manifestDesc, platforms.DefaultStrict())
-	if err != nil {
-		return nil, fmt.Errorf("parse manifest: %w", err)
+		var index ocispec.Index
+		if err := json.Unmarshal(manifestBytes, &index); err != nil {
+			return nil, fmt.Errorf("unmarshal image index: %w", err)
+		}
+
+		// 使用 platforms.DefaultSpec() 匹配当前平台
+		platformMatcher := platforms.NewMatcher(platforms.DefaultSpec())
+		var selectedDesc *ocispec.Descriptor
+		for _, manifestDesc := range index.Manifests {
+			if manifestDesc.Platform != nil && platformMatcher.Match(*manifestDesc.Platform) {
+				selectedDesc = &manifestDesc
+				break
+			}
+		}
+
+		if selectedDesc == nil {
+			return nil, fmt.Errorf("no manifest found for platform %s", platforms.DefaultSpec())
+		}
+
+		printLog(logger, "debug",
+			fmt.Sprintf("选择平台: %s/%s", selectedDesc.Platform.OS, selectedDesc.Platform.Architecture),
+			map[string]string{"step": "metadata-fetch"})
+
+		// 下载选中平台的 manifest
+		platformManifestReader, err := fetcher.Fetch(ctx, *selectedDesc)
+		if err != nil {
+			return nil, fmt.Errorf("fetch platform manifest: %w", err)
+		}
+		defer platformManifestReader.Close()
+
+		platformManifestBytes, err := io.ReadAll(platformManifestReader)
+		if err != nil {
+			return nil, fmt.Errorf("read platform manifest: %w", err)
+		}
+
+		if err := json.Unmarshal(platformManifestBytes, &finalManifest); err != nil {
+			return nil, fmt.Errorf("unmarshal platform manifest: %w", err)
+		}
+
+	case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+		// 单架构镜像，直接解析
+		if err := json.Unmarshal(manifestBytes, &finalManifest); err != nil {
+			return nil, fmt.Errorf("unmarshal manifest: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported manifest media type: %s", desc.MediaType)
 	}
 
 	// 9. 下载 Config Blob（关键：只下载配置，不下载层）
-	configReader, err := fetcher.Fetch(ctx, manifest.Config)
+	configReader, err := fetcher.Fetch(ctx, finalManifest.Config)
 	if err != nil {
 		return nil, fmt.Errorf("fetch config blob: %w", err)
 	}
@@ -864,8 +910,8 @@ func (c *containerdImageCliImpl) GetImageMetadata(image string, username, passwo
 	}
 
 	// 验证读取的数据是否完整
-	if int64(len(configBytes)) != manifest.Config.Size {
-		logrus.Warnf("[GetImageMetadata] Config size mismatch: expected %d, got %d", manifest.Config.Size, len(configBytes))
+	if int64(len(configBytes)) != finalManifest.Config.Size {
+		logrus.Warnf("[GetImageMetadata] Config size mismatch: expected %d, got %d", finalManifest.Config.Size, len(configBytes))
 	}
 
 	// 检查是否为空
