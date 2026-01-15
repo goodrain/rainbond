@@ -129,6 +129,16 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 			logger.Error("tar包镜像加载失败", map[string]string{"step": "load-tar", "status": "failure"})
 		} else {
 			logrus.Infof("[LoadTarImage] Successfully loaded %d images: %v", len(imageNames), imageNames)
+
+			// 检查是否加载了有效的镜像
+			if len(imageNames) == 0 {
+				logrus.Errorf("[LoadTarImage] No valid images found in tar file")
+				status = "failure"
+				message = "tar包中没有找到有效的镜像"
+				logger.Error("tar包中没有找到有效的镜像", map[string]string{"step": "load-tar", "status": "failure"})
+				goto SaveResult
+			}
+
 			images = imageNames
 			metadata = make(map[string]model.ImageMetadata)
 			targetImages = make(map[string]string)

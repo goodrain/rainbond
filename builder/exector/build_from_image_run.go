@@ -21,8 +21,10 @@ package exector
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -76,6 +78,24 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 
 // Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
+	// 验证镜像名称格式
+	if strings.TrimSpace(i.Image) == "" {
+		failCause := "镜像名称为空，请检查构建配置"
+		logrus.Errorf("build from image failed: image name is empty")
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
+		return fmt.Errorf("image name is empty")
+	}
+
+	// 验证镜像名称格式是否有效
+	if _, err := reference.ParseAnyReference(i.Image); err != nil {
+		failCause := fmt.Sprintf("镜像名称格式无效: %s (错误: %s)", i.Image, err.Error())
+		logrus.Errorf("build from image failed: invalid image reference format: %s, error: %s", i.Image, err.Error())
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
+		return fmt.Errorf("invalid reference format: %s", i.Image)
+	}
+
 	user, pass := builder.GetImageUserInfoV2(i.Image, i.HubUser, i.HubPassword)
 	_, err := i.ImageClient.ImagePull(i.Image, user, pass, i.Logger, 30)
 	if err != nil {

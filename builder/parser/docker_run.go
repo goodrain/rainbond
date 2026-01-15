@@ -117,6 +117,30 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像解析失败"), SolveAdvice("modify_image", "请检查上传的tar包是否正确")))
 			return d.errors
 		}
+		// 检查是否加载了有效的镜像
+		if len(imageNames) == 0 {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("tar包中没有找到有效的镜像"), SolveAdvice("modify_image", "请确认上传的tar包中包含有效的镜像文件")))
+			return d.errors
+		}
+		// 过滤空镜像名并验证格式
+		var validImageNames []string
+		for _, imageName := range imageNames {
+			if strings.TrimSpace(imageName) == "" {
+				logrus.Warnf("skip empty image name from tar file")
+				continue
+			}
+			if _, err := reference.ParseAnyReference(imageName); err != nil {
+				logrus.Errorf("invalid image name format: %s, error: %v", imageName, err)
+				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称格式无效: %s", imageName), SolveAdvice("modify_image", "请确认tar包中的镜像格式是否正确")))
+				return d.errors
+			}
+			validImageNames = append(validImageNames, imageName)
+		}
+		if len(validImageNames) == 0 {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("tar包中没有找到格式正确的镜像"), SolveAdvice("modify_image", "请确认上传的tar包中包含有效的镜像文件")))
+			return d.errors
+		}
+		imageNames = validImageNames
 		imagePrefix := path.Join(builder.REGISTRYDOMAIN, d.namespace)
 		var tarImages []*types.Image
 		for _, imageName := range imageNames {

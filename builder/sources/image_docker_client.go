@@ -435,11 +435,15 @@ func (d *dockerImageCliImpl) ImageLoad(tarFile string, logger event.Logger) ([]s
 			if jm.Error != nil {
 				return nil, jm.Error
 			}
-			image := strings.Replace(jm.Stream, "\n", "", -1)
-			strList := strings.Split(image, " ")
-			imageName := strList[2]
-			images = append(images, imageName)
-			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
+			// 安全解析镜像名称，避免数组越界
+			if strings.Contains(jm.Stream, "Loaded image:") {
+				image := strings.Replace(jm.Stream, "\n", "", -1)
+				strList := strings.Split(image, " ")
+				if len(strList) >= 3 && strList[2] != "" {
+					images = append(images, strList[2])
+					logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
+				}
+			}
 		}
 	}
 	return images, nil
