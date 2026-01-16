@@ -587,10 +587,15 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		Stdin:     true,
 		StdinOnce: true,
 		Command:   []string{"buildctl-daemonless.sh"},
-		Env: []corev1.EnvVar{{
-			Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
-			Value: "20",
-		},
+		Env: []corev1.EnvVar{
+			{
+				Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
+				Value: util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", "100"),
+			},
+			{
+				Name:  "BUILDKITD_FLAGS",
+				Value: util.GetenvDefault("BUILDKITD_FLAGS", "--oci-worker-gc=false"),
+			},
 		},
 		Args: []string{
 			"build",
