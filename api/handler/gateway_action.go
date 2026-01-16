@@ -219,6 +219,17 @@ func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificat
 		return err
 	}
 	hosts, err := apiutil.GetCertificateDomains(secret)
+	if err != nil {
+		logrus.Errorf("get certificate domains failure: %v", err)
+		return err
+	}
+
+	// Check for domain conflicts across all namespaces
+	if err := apiutil.CheckDomainConflict(context.Background(), hosts, req.Namespace, req.Name); err != nil {
+		logrus.Errorf("domain conflict detected: %s", err.Error())
+		return err
+	}
+
 	oldApisixTls, err := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
