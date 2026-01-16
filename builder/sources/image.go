@@ -616,6 +616,19 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 	if len(BuildKitArgs) > 0 {
 		container.Args = append(container.Args, BuildKitArgs...)
 	}
+
+	// 添加 BuildKit 缓存支持
+	if BuildKitCache {
+		// 使用 Registry cache，支持多阶段构建和完整的层缓存
+		// 缓存镜像基于服务ID，不包含版本号，这样所有版本可以共享缓存
+		baseImageName := CreateImageName(ServiceID, "cache")
+		cacheRef := util.GetenvDefault("BUILDKIT_CACHE_REF", baseImageName)
+		container.Args = append(container.Args,
+			"--export-cache", fmt.Sprintf("type=registry,ref=%s,mode=max", cacheRef),
+			"--import-cache", fmt.Sprintf("type=registry,ref=%s", cacheRef))
+		logger.Info(fmt.Sprintf("BuildKit cache enabled, cache ref: %s", cacheRef), map[string]string{"step": "builder-exector"})
+	}
+
 	container.VolumeMounts = volumeMounts
 	podSpec.Containers = append(podSpec.Containers, container)
 	job.Spec = podSpec
