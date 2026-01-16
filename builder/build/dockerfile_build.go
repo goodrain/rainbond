@@ -166,6 +166,16 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		Stdin:     true,
 		StdinOnce: true,
 		Command:   []string{"buildctl-daemonless.sh"},
+		Env: []corev1.EnvVar{
+			{
+				Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
+				Value: util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", "100"),
+			},
+			{
+				Name:  "BUILDKITD_FLAGS",
+				Value: util.GetenvDefault("BUILDKITD_FLAGS", "--oci-worker-gc=false"),
+			},
+		},
 		Args: []string{
 			"build",
 			"--frontend",
@@ -193,6 +203,18 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			envKey := strings.Replace(key, "ARG_", "", -1)
 			container.Args = append(container.Args, fmt.Sprintf("--opt=build-arg:%s=%s", envKey, re.BuildEnvs[key]))
 		}
+	}
+
+	// 添加 BuildKit 缓存支持
+	if re.BuildKitCache {
+		// 使用 Registry cache，支持多阶段构建和完整的层缓存
+		// 缓存镜像基于服务ID，不包含版本号，这样所有版本可以共享缓存
+		baseImageName := CreateImageName(re.ServiceID, "cache")
+		cacheRef := util.GetenvDefault("BUILDKIT_CACHE_REF", baseImageName)
+		container.Args = append(container.Args,
+			"--export-cache", fmt.Sprintf("type=registry,ref=%s,mode=max", cacheRef),
+			"--import-cache", fmt.Sprintf("type=registry,ref=%s", cacheRef))
+		re.Logger.Info(fmt.Sprintf("BuildKit cache enabled, cache ref: %s", cacheRef), map[string]string{"step": "builder-exector"})
 	}
 
 	container.VolumeMounts = mounts

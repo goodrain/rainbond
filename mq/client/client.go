@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -68,9 +69,21 @@ func NewMqClient(mqAddr string) (MQClient, error) {
 		PermitWithoutStream: true,             // 即使没有活跃的 stream 也发送 keepalive
 	}
 
+	// 配置 backoff 参数，加快服务重启后的重连速度
+	backoffConfig := backoff.Config{
+		BaseDelay:  1 * time.Second,  // 初始重试延迟
+		Multiplier: 1.5,              // 指数退避倍数
+		Jitter:     0.2,              // 20% 随机抖动
+		MaxDelay:   10 * time.Second, // 最大重试延迟（默认 120s 太长）
+	}
+
 	conn, err := grpc.DialContext(ctx, mqAddr,
 		grpc.WithInsecure(),
 		grpc.WithKeepaliveParams(kaParams),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff:           backoffConfig,
+			MinConnectTimeout: 5 * time.Second,
+		}),
 	)
 	if err != nil {
 		cancel()

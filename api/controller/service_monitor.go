@@ -398,7 +398,6 @@ func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
-	reader, outStream := io.Pipe()
 	// Check if the file exists first
 	checkCmd := []string{"test", "-e", filePath}
 	req := f.clientset.CoreV1().RESTClient().Get().
@@ -429,8 +428,94 @@ func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace 
 		return fmt.Errorf("file not found: %s", filePath)
 	}
 
-	// If file exists, proceed with tar
+	// Check if file is a directory
+	isDirCmd := []string{"test", "-d", filePath}
 	req = f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   isDirCmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err = remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	var isDirStdout, isDirStderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &isDirStdout,
+		Stderr: &isDirStderr,
+	})
+	isDirectory := (err == nil)
+
+	// For single files, try to use cat command (no tar dependency)
+	if !isDirectory {
+		return f.downloadFileUsingCat(containerName, podName, filePath, namespace)
+	}
+
+	// For directories, try tar first, fallback to cat if tar is not available
+	err = f.downloadUsingTar(containerName, podName, filePath, namespace)
+	if err != nil && strings.Contains(err.Error(), "tar") {
+		logrus.Warnf("tar command not available, falling back to simple file copy: %v", err)
+		return f.downloadFileUsingCat(containerName, podName, filePath, namespace)
+	}
+	return err
+}
+
+func (f FileManage) downloadFileUsingCat(containerName, podName, filePath, namespace string) error {
+	req := f.clientset.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"cat", filePath},
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create executor: %v", err)
+	}
+
+	fileName := path.Base(filePath)
+	destPath := path.Join("./", fileName)
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file: %v", err)
+	}
+	defer outFile.Close()
+
+	var stderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: outFile,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to download file using cat: %v, stderr: %s", err, stderr.String())
+	}
+
+	logrus.Debugf("Successfully downloaded file %s using cat command", fileName)
+	return nil
+}
+
+func (f FileManage) downloadUsingTar(containerName, podName, filePath, namespace string) error {
+	reader, outStream := io.Pipe()
+
+	req := f.clientset.CoreV1().RESTClient().Get().
 		Resource("pods").
 		Name(podName).
 		Namespace(namespace).
@@ -444,7 +529,7 @@ func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace 
 			TTY:       false,
 		}, scheme.ParameterCodec)
 
-	exec, err = remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
 	if err != nil {
 		return fmt.Errorf("failed to create executor: %v", err)
 	}
@@ -476,6 +561,27 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 	logrus.Debugf("开始上传目录/文件: 源路径=%s, 目标路径=%s", srcPath, destPath)
 
 	// 检查源路径是否存在
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return fmt.Errorf("源路径检查失败: %v", err)
+	}
+
+	// For single files, use tee command (no tar dependency)
+	if !srcInfo.IsDir() {
+		return f.uploadFileUsingTee(containerName, podName, srcPath, destPath, namespace)
+	}
+
+	// For directories, try tar first, fallback to recursive tee if tar is not available
+	err = f.uploadUsingTar(containerName, podName, srcPath, destPath, namespace)
+	if err != nil && strings.Contains(err.Error(), "tar") {
+		logrus.Warnf("tar command not available, falling back to recursive file copy: %v", err)
+		return f.uploadDirectoryUsingTee(containerName, podName, srcPath, destPath, namespace)
+	}
+	return err
+}
+
+// uploadUsingTar uploads files/directories using tar command
+func (f FileManage) uploadUsingTar(containerName, podName, srcPath, destPath, namespace string) error {
 	srcInfo, err := os.Stat(srcPath)
 	if err != nil {
 		return fmt.Errorf("源路径检查失败: %v", err)
@@ -572,6 +678,259 @@ func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, nam
 	}
 
 	logrus.Debug("文件/目录上传完成")
+	return nil
+}
+
+// uploadDirectoryUsingTee recursively uploads directory using tee command (no tar dependency)
+func (f FileManage) uploadDirectoryUsingTee(containerName, podName, srcPath, destPath, namespace string) error {
+	logrus.Debugf("使用递归方式上传目录: %s -> %s", srcPath, destPath)
+
+	return filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 获取相对路径
+		relPath, err := filepath.Rel(srcPath, path)
+		if err != nil {
+			return fmt.Errorf("获取相对路径失败: %v", err)
+		}
+
+		// 构建目标路径
+		var targetPath string
+		if relPath == "." {
+			targetPath = destPath
+		} else {
+			targetPath = filepath.Join(destPath, relPath)
+		}
+
+		// 如果是目录，创建目录
+		if info.IsDir() {
+			if relPath != "." {
+				mkdirCmd := []string{"mkdir", "-p", targetPath}
+				req := f.clientset.CoreV1().RESTClient().Post().
+					Resource("pods").
+					Name(podName).
+					Namespace(namespace).
+					SubResource("exec").
+					VersionedParams(&corev1.PodExecOptions{
+						Container: containerName,
+						Command:   mkdirCmd,
+						Stdin:     false,
+						Stdout:    true,
+						Stderr:    true,
+						TTY:       false,
+					}, scheme.ParameterCodec)
+
+				exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+				if err != nil {
+					return fmt.Errorf("创建目录执行器失败: %v", err)
+				}
+
+				var stderr bytes.Buffer
+				if err := exec.Stream(remotecommand.StreamOptions{
+					Stdout: &bytes.Buffer{},
+					Stderr: &stderr,
+				}); err != nil {
+					logrus.Warnf("创建目录警告: %v, stderr: %s", err, stderr.String())
+				}
+			}
+			return nil
+		}
+
+		// 如果是文件，使用 tee 上传
+		logrus.Debugf("上传文件: %s -> %s", path, targetPath)
+
+		srcFile, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("打开源文件失败: %v", err)
+		}
+		defer srcFile.Close()
+
+		teeCmd := []string{"tee", targetPath}
+		req := f.clientset.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(podName).
+			Namespace(namespace).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   teeCmd,
+				Stdin:     true,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+			}, scheme.ParameterCodec)
+
+		exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+		if err != nil {
+			return fmt.Errorf("创建 tee 执行器失败: %v", err)
+		}
+
+		var stderr bytes.Buffer
+		err = exec.Stream(remotecommand.StreamOptions{
+			Stdin:  srcFile,
+			Stdout: &bytes.Buffer{},
+			Stderr: &stderr,
+			Tty:    false,
+		})
+		if err != nil {
+			return fmt.Errorf("上传文件失败: %v, stderr: %s", err, stderr.String())
+		}
+
+		return nil
+	})
+}
+
+// checkTarAvailable checks if tar command is available in the container
+func (f FileManage) checkTarAvailable(containerName, podName, namespace string) bool {
+	checkCmd := []string{"tar", "--version"}
+	req := f.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   checkCmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return false
+	}
+
+	var stdout, stderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+
+	// If tar command exists, it should succeed or show version info
+	return err == nil
+}
+
+// uploadFileUsingTee uploads a single file using tee command (no tar dependency)
+func (f FileManage) uploadFileUsingTee(containerName, podName, srcPath, destPath, namespace string) error {
+	// Read the source file
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %v", err)
+	}
+	defer srcFile.Close()
+
+	// Get filename from path
+	fileName := filepath.Base(srcPath)
+
+	// Build destination path
+	var fullPath string
+	if strings.HasSuffix(destPath, "/") || destPath == "" {
+		fullPath = path.Join(destPath, fileName)
+	} else {
+		// Check if destPath is a directory in the container
+		isDirCmd := []string{"test", "-d", destPath}
+		isDirReq := f.clientset.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(podName).
+			Namespace(namespace).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   isDirCmd,
+				Stdin:     false,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+			}, scheme.ParameterCodec)
+
+		isDirExec, err := remotecommand.NewSPDYExecutor(f.config, "POST", isDirReq.URL())
+		if err != nil {
+			return fmt.Errorf("failed to create directory check executor: %v", err)
+		}
+
+		var isDirStdout, isDirStderr bytes.Buffer
+		err = isDirExec.Stream(remotecommand.StreamOptions{
+			Stdout: &isDirStdout,
+			Stderr: &isDirStderr,
+		})
+
+		// If test -d succeeds (err == nil), it's a directory
+		if err == nil {
+			fullPath = path.Join(destPath, fileName)
+		} else {
+			fullPath = destPath
+		}
+	}
+
+	// Create parent directory if needed
+	dirPath := path.Dir(fullPath)
+	if dirPath != "." && dirPath != "/" {
+		mkdirCmd := []string{"mkdir", "-p", dirPath}
+		req := f.clientset.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(podName).
+			Namespace(namespace).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Container: containerName,
+				Command:   mkdirCmd,
+				Stdin:     false,
+				Stdout:    true,
+				Stderr:    true,
+				TTY:       false,
+			}, scheme.ParameterCodec)
+
+		exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+		if err != nil {
+			return fmt.Errorf("failed to create mkdir executor: %v", err)
+		}
+
+		var stderr bytes.Buffer
+		if err := exec.Stream(remotecommand.StreamOptions{
+			Stdout: &bytes.Buffer{},
+			Stderr: &stderr,
+		}); err != nil {
+			logrus.Warnf("mkdir warning: %v, stderr: %s", err, stderr.String())
+		}
+	}
+
+	// Use tee command to write file
+	teeCmd := []string{"tee", fullPath}
+	req := f.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   teeCmd,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(f.config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to create tee executor: %v", err)
+	}
+
+	var stderr bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  srcFile,
+		Stdout: &bytes.Buffer{},
+		Stderr: &stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file using tee: %v, stderr: %s", err, stderr.String())
+	}
+
+	logrus.Debugf("Successfully uploaded file %s using tee command", fileName)
 	return nil
 }
 

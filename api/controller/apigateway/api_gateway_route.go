@@ -737,6 +737,18 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create ApisixTls resource
+	hosts := make([]v2.HostType, len(req.Domains))
+	for i, domain := range req.Domains {
+		hosts[i] = v2.HostType(domain)
+	}
+
+	// Check for domain conflicts across all namespaces
+	if err := util.CheckDomainConflict(r.Context(), hosts, tenant.Namespace, req.RouteName); err != nil {
+		logrus.Errorf("domain conflict detected: %s", err.Error())
+		httputil.ReturnError(r, w, http.StatusConflict, fmt.Sprintf("domain conflict: %v", err))
+		return
+	}
+
 	apisixTls := &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
 			Kind:       util.ApisixTLS,
@@ -749,13 +761,7 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 		},
 		Spec: &v2.ApisixTlsSpec{
 			IngressClassName: "apisix",
-			Hosts: func() []v2.HostType {
-				hosts := make([]v2.HostType, len(req.Domains))
-				for i, domain := range req.Domains {
-					hosts[i] = v2.HostType(domain)
-				}
-				return hosts
-			}(),
+			Hosts:            hosts,
 			Secret: v2.ApisixSecret{
 				Name:      req.RouteName,
 				Namespace: tenant.Namespace,

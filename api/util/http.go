@@ -19,12 +19,18 @@
 package util
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
+
 	"github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
+
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 )
 
 // CloseResponse close response
@@ -98,3 +104,78 @@ const ApisixTLS = "ApisixTls"
 
 // ResponseRewrite -
 const ResponseRewrite = "response-rewrite"
+
+// CheckDomainConflict checks if any of the given domains conflict with existing ApisixTls resources across all namespaces.
+// It returns an error with details about the conflict if found, or nil if no conflict exists.
+// Parameters:
+//   - ctx: context for the operation
+//   - domains: list of domains to check
+//   - currentNamespace: namespace of the current resource (to allow same-namespace same-name updates)
+//   - currentName: name of the current resource (to allow updates to the same resource)
+func CheckDomainConflict(ctx context.Context, domains []v2.HostType, currentNamespace, currentName string) error {
+	c := k8s.Default().ApiSixClient.ApisixV2()
+
+	// List all namespaces
+	namespaces, err := k8s.Default().Clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list namespaces: %v", err)
+	}
+
+	// Check each namespace for ApisixTls resources
+	for _, ns := range namespaces.Items {
+		tlsList, err := c.ApisixTlses(ns.Name).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			// Skip namespaces we can't access
+			continue
+		}
+
+		for _, tls := range tlsList.Items {
+			// Skip the current resource being created/updated
+			if tls.Namespace == currentNamespace && tls.Name == currentName {
+				continue
+			}
+
+			// Check for domain conflicts
+			for _, newDomain := range domains {
+				for _, existingDomain := range tls.Spec.Hosts {
+					if domainsConflict(string(newDomain), string(existingDomain)) {
+						return fmt.Errorf("domain '%s' conflicts with existing domain '%s' in namespace '%s' (resource: %s)",
+							newDomain, existingDomain, tls.Namespace, tls.Name)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// domainsConflict checks if two domains conflict with each other.
+// Domains conflict if:
+// - They are exactly the same
+// - One is a wildcard that matches the other (e.g., *.example.com matches test.example.com)
+// - Both are the same wildcard
+func domainsConflict(domain1, domain2 string) bool {
+	// Exact match
+	if domain1 == domain2 {
+		return true
+	}
+
+	// Check if domain1 is a wildcard that matches domain2
+	if strings.HasPrefix(domain1, "*.") {
+		wildcardBase := domain1[2:] // Remove "*."
+		if strings.HasSuffix(domain2, wildcardBase) {
+			return true
+		}
+	}
+
+	// Check if domain2 is a wildcard that matches domain1
+	if strings.HasPrefix(domain2, "*.") {
+		wildcardBase := domain2[2:] // Remove "*."
+		if strings.HasSuffix(domain1, wildcardBase) {
+			return true
+		}
+	}
+
+	return false
+}

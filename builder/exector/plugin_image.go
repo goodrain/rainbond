@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/db"
@@ -68,6 +69,22 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
+	// 验证镜像名称格式
+	if strings.TrimSpace(t.ImageURL) == "" {
+		failCause := "插件镜像名称为空，请检查构建配置"
+		logrus.Errorf("build plugin from image failed: image URL is empty")
+		logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		return fmt.Errorf("image URL is empty")
+	}
+
+	// 验证镜像名称格式是否有效
+	if _, err := reference.ParseAnyReference(t.ImageURL); err != nil {
+		failCause := fmt.Sprintf("插件镜像名称格式无效: %s (错误: %s)", t.ImageURL, err.Error())
+		logrus.Errorf("build plugin from image failed: invalid image reference format: %s, error: %s", t.ImageURL, err.Error())
+		logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		return fmt.Errorf("invalid reference format: %s", t.ImageURL)
+	}
+
 	hubUser, hubPass := builder.GetImageUserInfoV2(t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword)
 	if _, err := e.imageClient.ImagePull(t.ImageURL, hubUser, hubPass, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)

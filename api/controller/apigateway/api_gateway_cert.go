@@ -47,6 +47,13 @@ func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for domain conflicts across all namespaces
+	if err := util.CheckDomainConflict(r.Context(), hosts, tenant.Namespace, name); err != nil {
+		logrus.Errorf("domain conflict detected: %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCertDomainConflict)
+		return
+	}
+
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixTlses(tenant.Namespace).Create(r.Context(), &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
@@ -156,6 +163,14 @@ func (g Struct) AutoCreateCert(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
 	err := handler.GetAPIGatewayHandler().CreateCert(tenant.Namespace, r.URL.Query().Get("domain"))
 	if err != nil {
+		return
+	}
+
+	// Check for domain conflicts across all namespaces
+	hosts := []v2.HostType{v2.HostType(domain)}
+	if err := util.CheckDomainConflict(r.Context(), hosts, tenant.Namespace, domain); err != nil {
+		logrus.Errorf("domain conflict detected: %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCertDomainConflict)
 		return
 	}
 
