@@ -52,9 +52,6 @@ func newByMessage(status, code int, message string) Coder {
 	if _, ok := codes[code]; ok {
 		panic(fmt.Sprintf("bcode %d already exists", code))
 	}
-	if status == 409 && code != 10103 {
-		panic("status code 409 Don't use it for now")
-	}
 	codes[code] = struct{}{}
 	return newCode(status, code, message)
 }
