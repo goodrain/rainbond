@@ -155,10 +155,19 @@ type langTypeFunc func(homepath string) Lang
 var checkFuncList []langTypeFunc
 
 func dockerfile(homepath string) Lang {
-	if ok, _ := util.FileExists(path.Join(homepath, "Dockerfile")); !ok {
-		return NO
+	// 优先检查根目录（向后兼容，性能最优）
+	if ok, _ := util.FileExists(path.Join(homepath, "Dockerfile")); ok {
+		return Dockerfile
 	}
-	return Dockerfile
+
+	// 检查子目录（深度2，最多5个文件）
+	// 这样可以覆盖大部分微服务项目场景（如 services/api/Dockerfile）
+	dockerfiles := FindDockerfiles(homepath, 2, 5)
+	if len(dockerfiles) > 0 {
+		return Dockerfile
+	}
+
+	return NO
 }
 func python(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "requirements.txt")); ok {
