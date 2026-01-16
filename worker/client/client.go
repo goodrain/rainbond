@@ -29,6 +29,8 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/keepalive"
 )
 
 // AppRuntimeSyncClient grpc client
@@ -44,7 +46,31 @@ func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient,
 	c = new(AppRuntimeSyncClient)
 	c.ctx = ctx
 	logrus.Infof("discover app runtime sync server address %s", grpcServer)
-	c.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
+
+	// Configure keepalive to detect broken connections quickly
+	kaParams := keepalive.ClientParameters{
+		Time:                10 * time.Second, // Send keepalive ping every 10 seconds
+		Timeout:             3 * time.Second,  // Wait 3 seconds for ping ack before considering connection dead
+		PermitWithoutStream: true,             // Send pings even without active streams
+	}
+
+	// Configure backoff for faster reconnection after server restart
+	backoffConfig := backoff.Config{
+		BaseDelay:  1 * time.Second,  // Initial retry delay
+		Multiplier: 1.5,              // Exponential backoff multiplier
+		Jitter:     0.2,              // Add 20% jitter to prevent thundering herd
+		MaxDelay:   10 * time.Second, // Maximum retry delay (default is 120s, too long for service restart)
+	}
+
+	c.cc, err = grpc.Dial(
+		grpcServer,
+		grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(kaParams),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff:           backoffConfig,
+			MinConnectTimeout: 5 * time.Second,
+		}),
+	)
 
 	if err != nil {
 		return nil, err
@@ -57,6 +83,14 @@ func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient,
 // when watch occurred error,will exec this method
 func (a *AppRuntimeSyncClient) Error(err error) {
 	logrus.Errorf("discover app runtime sync server address occurred err:%s", err.Error())
+}
+
+// Close closes the gRPC client connection
+func (a *AppRuntimeSyncClient) Close() error {
+	if a.cc != nil {
+		return a.cc.Close()
+	}
+	return nil
 }
 
 // GetStatus get status

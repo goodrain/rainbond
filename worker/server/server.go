@@ -44,6 +44,7 @@ import (
 	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,11 +72,30 @@ type RuntimeServer struct {
 func CreaterRuntimeServer(store store.Storer,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// Configure server keepalive parameters
+	kaServerParams := keepalive.ServerParameters{
+		MaxConnectionIdle:     5 * time.Minute,  // Close idle connections after 5 minutes
+		MaxConnectionAge:      30 * time.Minute, // Force reconnection every 30 minutes for load balancing
+		MaxConnectionAgeGrace: 10 * time.Second, // Allow 10 seconds for graceful shutdown
+		Time:                  10 * time.Second, // Send keepalive ping every 10 seconds if no activity
+		Timeout:               3 * time.Second,  // Wait 3 seconds for ping ack before considering connection dead
+	}
+
+	// Configure enforcement policy to allow client's frequent pings
+	kaEnforcementPolicy := keepalive.EnforcementPolicy{
+		MinTime:             5 * time.Second, // Minimum time client should wait before sending a ping (default is 5 minutes)
+		PermitWithoutStream: true,            // Allow pings even when there are no active streams
+	}
+
 	rs := &RuntimeServer{
-		ctx:          ctx,
-		cancel:       cancel,
-		logger:       logrus.WithField("WHO", "RuntimeServer"),
-		server:       grpc.NewServer(),
+		ctx:    ctx,
+		cancel: cancel,
+		logger: logrus.WithField("WHO", "RuntimeServer"),
+		server: grpc.NewServer(
+			grpc.KeepaliveParams(kaServerParams),
+			grpc.KeepaliveEnforcementPolicy(kaEnforcementPolicy),
+		),
 		hostIP:       configs.Default().PublicConfig.HostIP,
 		store:        store,
 		updateCh:     updateCh,
