@@ -21,14 +21,16 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
+	"time"
+
 	"github.com/goodrain/rainbond/api/eventlog/conf"
 	"github.com/goodrain/rainbond/api/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/api/eventlog/store"
-	"io"
-	"net"
-
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -65,7 +67,23 @@ func (s *EventLogRPCServer) Start() error {
 		return err
 	}
 	s.lis = lis
-	server := grpc.NewServer()
+
+	// 配置服务端 keepalive 参数
+	kaServerParams := keepalive.ServerParameters{
+		Time:    10 * time.Second, // 每 10 秒发送心跳检测
+		Timeout: 3 * time.Second,  // 心跳超时时间
+	}
+
+	// 配置 enforcement policy，允许客户端频繁发送 ping
+	kaEnforcementPolicy := keepalive.EnforcementPolicy{
+		MinTime:             5 * time.Second, // 允许客户端最小 5 秒发一次 ping
+		PermitWithoutStream: true,            // 允许无活动流时发送 ping
+	}
+
+	server := grpc.NewServer(
+		grpc.KeepaliveParams(kaServerParams),
+		grpc.KeepaliveEnforcementPolicy(kaEnforcementPolicy),
+	)
 	pb.RegisterEventLogServer(server, s)
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
