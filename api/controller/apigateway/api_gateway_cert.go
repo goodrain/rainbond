@@ -161,19 +161,16 @@ func (g Struct) DeleteCert(w http.ResponseWriter, r *http.Request) {
 func (g Struct) AutoCreateCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	domain := r.URL.Query().Get("domain")
+	err := handler.GetAPIGatewayHandler().CreateCert(tenant.Namespace, r.URL.Query().Get("domain"))
+	if err != nil {
+		return
+	}
 
-	// Check for domain conflicts across all namespaces first
+	// Check for domain conflicts across all namespaces
 	hosts := []v2.HostType{v2.HostType(domain)}
 	if err := util.CheckDomainConflict(r.Context(), hosts, tenant.Namespace, domain); err != nil {
 		logrus.Errorf("domain conflict detected: %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCertDomainConflict)
-		return
-	}
-
-	err := handler.GetAPIGatewayHandler().CreateCert(tenant.Namespace, domain)
-	if err != nil {
-		logrus.Errorf("create cert error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCreateCert)
 		return
 	}
 
