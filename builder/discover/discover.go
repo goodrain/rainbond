@@ -139,11 +139,11 @@ func (t *TaskManager) Do(errChan chan error) {
 			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
-					logrus.Warn(err.Error())
+					logrus.Debug("waiting for build task...")
 					continue
 				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
-					logrus.Warn(err.Error())
+					logrus.Debug("waiting for build task...")
 					continue
 				}
 				logrus.Errorf("message dequeue failure %s, will retry", err.Error())
