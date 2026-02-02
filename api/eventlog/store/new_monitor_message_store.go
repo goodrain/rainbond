@@ -136,8 +136,13 @@ func (h *newMonitorMessageStore) Gc() {
 		}
 		var gcEvent []string
 		for k, v := range h.barrels {
-			if len(v.subSocketChan) == 0 {
-				if v.UpdateTime.Add(time.Minute * 3).Before(time.Now()) { // barrel 超时未收到消息
+			// 检查list大小，防止内存泄漏
+			if len(v.list) > 1000 {
+				h.log.Warnf("monitor message barrel %s has too many messages (%d), forcing gc", k, len(v.list))
+				gcEvent = append(gcEvent, k)
+			} else if len(v.subSocketChan) == 0 {
+				// 缩短超时时间从3分钟到1分钟
+				if v.UpdateTime.Add(time.Minute * 1).Before(time.Now()) { // barrel 超时未收到消息
 					gcEvent = append(gcEvent, k)
 				}
 			}

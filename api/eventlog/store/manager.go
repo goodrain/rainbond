@@ -74,6 +74,13 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 创建消息文件存储（JSON Lines格式）
+	messageFileStore, err := NewJSONLinesFileStore(conf.StorageHomePath+"/eventlog", log.WithField("module", "messageFileStore"))
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	storeManager := &storeManager{
 		cancel:                cancel,
@@ -89,6 +96,7 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 		chanCacheSize:         100,
 		dbPlugin:              dbPlugin,
 		filePlugin:            filePlugin,
+		messageFileStore:      messageFileStore,
 		errChan:               make(chan error),
 	}
 	handle := NewStore("handle", storeManager)
@@ -119,6 +127,7 @@ type storeManager struct {
 	log                    *logrus.Entry
 	dbPlugin               db2.Manager
 	filePlugin             db2.Manager
+	messageFileStore       FileStore // 新增：消息文件存储
 	errChan                chan error
 }
 
@@ -328,7 +337,9 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db2.Even
 	}
 	//message := s.pool.Get().(*db.EventLogMessage)不能使用对象池，会阻塞进程
 	var message db2.EventLogMessage
-	message.Content = msg
+	// 不再保存原始Content字节数组，避免内存冗余占用
+	// 反序列化后，字段已经被解析，不需要再保留原始数据
+	// message.Content = msg
 	if messageType == "json" {
 		err := ffjson.Unmarshal(msg, &message)
 		if err != nil {
@@ -523,6 +534,9 @@ func (s *storeManager) Stop() {
 	}
 	if s.dbPlugin != nil {
 		s.dbPlugin.Close()
+	}
+	if s.messageFileStore != nil {
+		s.messageFileStore.Close()
 	}
 	s.log.Info("Stop the store manager.")
 }

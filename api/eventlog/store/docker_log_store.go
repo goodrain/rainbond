@@ -44,6 +44,7 @@ type dockerLogStore struct {
 	barrelSize   int
 	barrelEvent  chan []string
 	allLogCount  float64 //ues to pometheus monitor
+	fileStore    FileStore
 }
 
 func (h *dockerLogStore) Scrape(ch chan<- prometheus.Metric, namespace, exporter, from string) error {
@@ -84,6 +85,7 @@ func (h *dockerLogStore) InsertMessage(message *db2.EventLogMessage) {
 	defer h.rwLock.Unlock()
 	ba := h.pool.Get().(*dockerLogEventBarrel)
 	ba.name = message.EventID
+	ba.fileStore = h.fileStore
 	ba.persistenceTime = time.Now()
 	ba.insertMessage(message)
 	h.barrels[message.EventID] = ba
@@ -107,6 +109,7 @@ func (h *dockerLogStore) SubChan(eventID, subID string) chan *db2.EventLogMessag
 	ba := h.pool.Get().(*dockerLogEventBarrel)
 	ba.updateTime = time.Now()
 	ba.name = eventID
+	ba.fileStore = h.fileStore
 	h.barrels[eventID] = ba
 	return ba.addSubChan(subID)
 }
@@ -153,16 +156,12 @@ func (h *dockerLogStore) handle() []string {
 	}
 	var gcEvent []string
 	for k := range h.barrels {
-		if h.barrels[k].updateTime.Add(time.Minute*1).Before(time.Now()) && h.barrels[k].GetSubChanLength() == 0 {
-			h.saveBeforeGc(k, h.barrels[k])
+		barrel := h.barrels[k]
+
+		// 简化GC策略：1分钟未活跃 且 无订阅者
+		if barrel.updateTime.Add(time.Minute*1).Before(time.Now()) && barrel.GetSubChanLength() == 0 {
 			gcEvent = append(gcEvent, k)
 			h.log.Debugf("barrel %s need be gc", k)
-		} else if h.barrels[k].persistenceTime.Add(time.Minute * 1).Before(time.Now()) {
-			//The interval not persisted for more than 1 minute should be more than 30 seconds
-			if len(h.barrels[k].barrel) > 0 {
-				h.log.Debugf("barrel %s need persistence", k)
-				h.barrels[k].persistence()
-			}
 		}
 	}
 	return gcEvent
@@ -198,72 +197,52 @@ func (h *dockerLogStore) stop() {
 }
 
 // gc删除前持久化数据
+// saveBeforeGc 废弃：现在使用流式处理，消息立即写入文件
+// 保留方法以兼容现有调用
 func (h *dockerLogStore) saveBeforeGc(eventID string, v *dockerLogEventBarrel) {
-	v.persistencelock.Lock()
-	v.gcPersistence()
-	if len(v.persistenceBarrel) > 0 {
-		if err := h.filePlugin.SaveMessage(v.persistenceBarrel); err != nil {
-			h.log.Error("persistence barrel message error.", err.Error())
-			h.InsertGarbageMessage(v.persistenceBarrel...)
-		}
-		h.log.Infof("persistence barrel(%s) %d log message to file.", eventID, len(v.persistenceBarrel))
-	}
-	v.persistenceBarrel = nil
-	v.persistencelock.Unlock()
+	// 不再需要保存，消息已经实时写入文件
 }
 func (h *dockerLogStore) InsertGarbageMessage(message ...*db2.EventLogMessage) {}
 
 // TODD
+// handleBarrelEvent 废弃：现在使用流式处理，消息立即写入文件
+// 保留方法以兼容现有启动流程
 func (h *dockerLogStore) handleBarrelEvent() {
 	for {
 		select {
-		case event := <-h.barrelEvent:
-			if len(event) < 1 {
-				return
-			}
-			h.log.Debug("Handle message store do event.", event)
-			if event[0] == "persistence" { //持久化命令
-				h.persistence(event)
-			}
+		case <-h.barrelEvent:
+			// 不再处理，消息已经在insertMessage中实时写入
 		case <-h.ctx.Done():
 			return
 		}
 	}
 }
 
+// persistence 废弃：现在使用流式处理
 func (h *dockerLogStore) persistence(event []string) {
-	if len(event) == 2 {
-		eventID := event[1]
-		h.rwLock.RLock()
-		defer h.rwLock.RUnlock()
-		if ba, ok := h.barrels[eventID]; ok {
-			if ba.needPersistence { //取消异步持久化
-				if err := h.filePlugin.SaveMessage(ba.persistenceBarrel); err != nil {
-					h.log.Error("persistence barrel message error.", err.Error())
-					h.InsertGarbageMessage(ba.persistenceBarrel...)
-				}
-				h.log.Infof("persistence barrel(%s) %d log message to file.", eventID, len(ba.persistenceBarrel))
-				ba.persistenceBarrel = ba.persistenceBarrel[:0]
-				ba.needPersistence = false
-			}
-		}
-	}
+	// 不再需要批量持久化
 }
 
 func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []string) {
-	h.rwLock.RLock()
-	defer h.rwLock.RUnlock()
-	if ba, ok := h.barrels[eventID]; ok {
-		for _, m := range ba.barrel {
-			if len(m.Content) > 0 {
-				re = append(re, string(m.Content))
+	// 从fileStore读取历史消息
+	if h.fileStore != nil {
+		messages, err := h.fileStore.ReadLast(eventID, length)
+		if err != nil {
+			logrus.Errorf("Failed to read history for %s: %v", eventID, err)
+		} else {
+			for _, m := range messages {
+				// 将消息转换为字符串
+				re = append(re, m.Message)
 			}
 		}
 	}
+
 	logrus.Debugf("want length: %d; the length of re: %d;", length, len(re))
 	if len(re) >= length && length > 0 {
-		return re[:length-1]
+		return re[:length]
 	}
+
+	// 如果fileStore没有足够的消息，尝试从旧的filePlugin读取
 	filelength := func() int {
 		if length-len(re) > 0 {
 			return length - len(re)

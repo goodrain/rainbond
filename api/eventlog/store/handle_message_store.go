@@ -120,7 +120,12 @@ func (h *handleMessageStore) gcRun() {
 	}
 	var gcEvent []string
 	for k, v := range h.barrels {
-		if v.updateTime.Add(time.Second * 3).Before(time.Now()) { // 改为3秒
+		// 检查消息数量，防止内存泄漏
+		if len(v.barrel) > 2000 {
+			h.log.Warnf("barrel %s has too many messages (%d), forcing gc", k, len(v.barrel))
+			h.saveBeforeGc(h.barrels[k])
+			gcEvent = append(gcEvent, k)
+		} else if v.updateTime.Add(time.Second * 3).Before(time.Now()) { // 改为3秒
 			h.saveBeforeGc(h.barrels[k])
 			gcEvent = append(gcEvent, k)
 		}

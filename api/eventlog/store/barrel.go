@@ -104,56 +104,95 @@ func (e *EventBarrel) gcPersistence() {
 }
 
 type readEventBarrel struct {
-	barrel        []*db.EventLogMessage
+	// 移除barrel数组，不再在内存中缓存消息
+	// barrel        []*db.EventLogMessage
 	subSocketChan map[string]chan *db.EventLogMessage
 	subLock       sync.Mutex
 	updateTime    time.Time
+	// 新增字段
+	eventID   string     // 事件ID
+	fileStore FileStore  // 文件存储
 }
 
 func (r *readEventBarrel) empty() {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	if r.barrel != nil {
-		r.barrel = r.barrel[:0]
-	}
-	//关闭订阅chan
+
+	// 关闭所有订阅通道
 	for _, ch := range r.subSocketChan {
 		close(ch)
 	}
 	r.subSocketChan = make(map[string]chan *db.EventLogMessage)
+
+	// 注意：不删除文件，保留供后续查询
+	// 如果需要删除文件，可以在这里调用：
+	// if r.fileStore != nil && r.eventID != "" {
+	//     r.fileStore.Delete(r.eventID)
+	// }
 }
 
 func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
-	r.barrel = append(r.barrel, message)
 	r.updateTime = time.Now()
+
+	// 1. 立即持久化到文件（不在内存累积）
+	if r.fileStore != nil && message != nil {
+		if err := r.fileStore.Append(r.eventID, message); err != nil {
+			logrus.Errorf("Failed to append message to file for event %s: %v", r.eventID, err)
+		}
+	}
+
+	// 2. 只转发给当前活跃的订阅者（不缓存）
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	for _, v := range r.subSocketChan { //向订阅的通道发送消息
+
+	for _, v := range r.subSocketChan {
 		select {
 		case v <- message:
 		default:
+			// 通道满则丢弃，避免阻塞
 		}
 	}
 }
 
 func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
+	// 从文件读取历史消息并推送
+	if r.fileStore != nil && r.eventID != "" {
+		// 只推送最近1000条，避免推送过多
+		messages, err := r.fileStore.ReadLast(r.eventID, 1000)
+		if err != nil {
+			logrus.Errorf("Failed to read history for event %s: %v", r.eventID, err)
+		} else {
+			// 推送历史消息
+			for _, m := range messages {
+				select {
+				case ch <- m:
+				case <-time.After(5 * time.Second):
+					// 超时保护，避免阻塞
+					logrus.Warnf("Timeout pushing history for event %s", r.eventID)
+					goto done
+				}
+			}
+		}
+	}
+
+done:
+	// 注册订阅通道
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	//send cache message
-	for _, m := range r.barrel {
-		ch <- m
-	}
 	r.subSocketChan[subID] = ch
 }
 
 // 增加socket订阅
 func (r *readEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
-	defer r.subLock.Unlock()
 	if sub, ok := r.subSocketChan[subID]; ok {
+		r.subLock.Unlock()
 		return sub
 	}
+	r.subLock.Unlock()
+
 	ch := make(chan *db.EventLogMessage, 10)
+	// 异步推送历史消息（从文件读取）
 	go r.pushCashMessage(ch, subID)
 	return ch
 }
@@ -169,57 +208,86 @@ func (r *readEventBarrel) delSubChan(subID string) {
 }
 
 type dockerLogEventBarrel struct {
-	name              string
-	barrel            []*db.EventLogMessage
-	subSocketChan     map[string]chan *db.EventLogMessage
-	subLock           sync.Mutex
-	updateTime        time.Time
-	size              int
-	cacheSize         int64
-	persistencelock   sync.Mutex
-	persistenceTime   time.Time
-	needPersistence   bool
-	persistenceBarrel []*db.EventLogMessage
-	barrelEvent       chan []string
+	name            string
+	// 移除barrel数组，使用流式处理
+	// barrel          []*db.EventLogMessage
+	subSocketChan   map[string]chan *db.EventLogMessage
+	subLock         sync.Mutex
+	updateTime      time.Time
+	size            int
+	cacheSize       int64
+	persistencelock sync.Mutex
+	persistenceTime time.Time
+	// 移除持久化相关字段，改用直接写文件
+	// needPersistence   bool
+	// persistenceBarrel []*db.EventLogMessage
+	// barrelEvent       chan []string
+	// 新增文件存储
+	fileStore FileStore
 }
 
 func (r *dockerLogEventBarrel) empty() {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
-	if r.barrel != nil {
-		r.barrel = r.barrel[:0]
-	}
+
+	// 关闭所有订阅通道
 	for _, ch := range r.subSocketChan {
 		close(ch)
 	}
 	r.subSocketChan = make(map[string]chan *db.EventLogMessage)
 	r.size = 0
 	r.name = ""
-	r.persistenceBarrel = r.persistenceBarrel[:0]
-	r.needPersistence = false
+	// 不删除文件，保留供查询
 }
 
 func (r *dockerLogEventBarrel) insertMessage(message *db.EventLogMessage) {
-	r.subLock.Lock()
-	defer r.subLock.Unlock()
-	r.barrel = append(r.barrel, message)
 	if r.name == "" {
 		r.name = message.EventID
 	}
 	r.updateTime = time.Now()
-	for _, v := range r.subSocketChan { //向订阅的通道发送消息
+	r.size++
+
+	// 1. 立即持久化到文件（流式处理）
+	if r.fileStore != nil && message != nil {
+		if err := r.fileStore.Append(r.name, message); err != nil {
+			logrus.Errorf("Failed to append docker log for %s: %v", r.name, err)
+		}
+	}
+
+	// 2. 转发给订阅者（不缓存）
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
+
+	for _, v := range r.subSocketChan {
 		select {
 		case v <- message:
 		default:
+			// 通道满则丢弃
 		}
-	}
-	r.size++
-	if int64(len(r.barrel)) >= r.cacheSize {
-		r.persistence()
 	}
 }
 
 func (r *dockerLogEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
+	// 从文件读取历史消息并推送
+	if r.fileStore != nil && r.name != "" {
+		// Docker日志可能很多，只推送最近1000条
+		messages, err := r.fileStore.ReadLast(r.name, 1000)
+		if err != nil {
+			logrus.Errorf("Failed to read docker log history for %s: %v", r.name, err)
+		} else {
+			for _, m := range messages {
+				select {
+				case ch <- m:
+				case <-time.After(5 * time.Second):
+					logrus.Warnf("Timeout pushing docker log history for %s", r.name)
+					goto done
+				}
+			}
+		}
+	}
+
+done:
+	// 注册订阅
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	r.subSocketChan[subID] = ch
@@ -228,11 +296,14 @@ func (r *dockerLogEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subI
 // 增加socket订阅
 func (r *dockerLogEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
-	defer r.subLock.Unlock()
 	if sub, ok := r.subSocketChan[subID]; ok {
+		r.subLock.Unlock()
 		return sub
 	}
+	r.subLock.Unlock()
+
 	ch := make(chan *db.EventLogMessage, 100)
+	// 异步推送历史
 	go r.pushCashMessage(ch, subID)
 	return ch
 }
@@ -247,26 +318,18 @@ func (r *dockerLogEventBarrel) delSubChan(subID string) {
 	}
 }
 
-// persistence 持久化
+// persistence 废弃：现在使用流式处理，消息立即写入文件
+// 保留方法以避免编译错误，但不再使用
 func (r *dockerLogEventBarrel) persistence() {
 	r.persistencelock.Lock()
 	defer r.persistencelock.Unlock()
-	r.needPersistence = true
-	r.persistenceBarrel = append(r.persistenceBarrel, r.barrel...) //数据转到持久化等候队列
-	r.barrel = r.barrel[:0]                                        //缓存队列清空
-	select {
-	case r.barrelEvent <- []string{"persistence", r.name}: //发出持久化命令
-		r.persistenceTime = time.Now()
-	default:
-		logrus.Errorln("docker log persistence delay")
-	}
+	r.persistenceTime = time.Now()
+	// 不再需要批量持久化，insertMessage已经实时写文件
 }
 
-// 调用者加锁
+// gcPersistence 废弃：保留以兼容现有调用
 func (r *dockerLogEventBarrel) gcPersistence() {
-	r.needPersistence = true
-	r.persistenceBarrel = append(r.persistenceBarrel, r.barrel...) //数据转到持久化等候队列
-	r.barrel = nil
+	// 不再需要
 }
 func (r *dockerLogEventBarrel) GetSubChanLength() int {
 	r.subLock.Lock()

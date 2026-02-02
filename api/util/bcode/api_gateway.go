@@ -113,5 +113,5 @@ var (
 	ErrorAPISixCertUpdateError = newByMessage(http.StatusBadRequest, APISixCertUpdateError, "apisix cert update error")
 
 	// ErrorAPISixCertDomainConflict 表示证书域名冲突错误
-	ErrorAPISixCertDomainConflict = newByMessage(http.StatusConflict, APISixCertDomainConflict, "certificate domain already exists in another namespace")
+	ErrorAPISixCertDomainConflict = newByMessage(http.StatusBadRequest, APISixCertDomainConflict, "certificate domain already exists in another namespace")
 )
