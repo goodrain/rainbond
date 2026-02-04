@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    networks:
+      - frontend
+    secrets:
+      - my_secret
+    configs:
+      - my_config
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+networks:
+  frontend:
+
+secrets:
+  my_secret:
+    external: true
+
+configs:
+  my_config:
+    external: true

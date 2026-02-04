@@ -112,10 +112,13 @@ func parseV3(bodys [][]byte) (ComposeObject, error) {
 	// Specifically, keys such as "volumes_from" are not supported in V3.
 
 	// Finally, we convert the object from docker/cli's ServiceConfig to our appropriate one
-	komposeObject, err := dockerComposeToKomposeMapping(config)
+	komposeObject, report, err := dockerComposeToKomposeMapping(config)
 	if err != nil {
 		return ComposeObject{}, err
 	}
+
+	// Attach the support report
+	komposeObject.SupportReport = report
 
 	return komposeObject, nil
 }
@@ -165,7 +168,10 @@ func loadV3Ports(ports []types.ServicePortConfig) []Ports {
 	return komposePorts
 }
 
-func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, error) {
+func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, *FieldSupportReport, error) {
+
+	// Create field support report
+	report := NewFieldSupportReport()
 
 	// Step 1. Initialize what's going to be returned
 	co := ComposeObject{
@@ -224,13 +230,13 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 
 			cpuLimit, err := strconv.ParseFloat(composeServiceConfig.Deploy.Resources.Limits.NanoCPUs, 64)
 			if err != nil {
-				return ComposeObject{}, fmt.Errorf("Unable to convert cpu limits resources value")
+				return ComposeObject{}, report, fmt.Errorf("Unable to convert cpu limits resources value")
 			}
 			serviceConfig.CPULimit = int64(cpuLimit * 1000)
 
 			cpuReservation, err := strconv.ParseFloat(composeServiceConfig.Deploy.Resources.Reservations.NanoCPUs, 64)
 			if err != nil {
-				return ComposeObject{}, fmt.Errorf("Unable to convert cpu limits reservation value")
+				return ComposeObject{}, report, fmt.Errorf("Unable to convert cpu limits reservation value")
 			}
 			serviceConfig.CPUReservation = int64(cpuReservation * 1000)
 
@@ -301,7 +307,7 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 			case "kompose.service.type":
 				serviceType, err := handleServiceType(value)
 				if err != nil {
-					return ComposeObject{}, fmt.Errorf("handleServiceType failed")
+					return ComposeObject{}, report, fmt.Errorf("handleServiceType failed")
 				}
 
 				serviceConfig.ServiceType = serviceType
@@ -313,7 +319,7 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		}
 
 		if serviceConfig.ExposeService == "" && serviceConfig.ExposeServiceTLS != "" {
-			return ComposeObject{}, fmt.Errorf("kompose.service.expose.tls-secret was specified without kompose.service.expose")
+			return ComposeObject{}, report, fmt.Errorf("kompose.service.expose.tls-secret was specified without kompose.service.expose")
 		}
 
 		// Log if the name will been changed
@@ -326,5 +332,58 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 	}
 	handleVolume(&co)
 
-	return co, nil
+	// Check for unsupported fields in v3
+	checkV3UnsupportedFields(composeObject, report)
+
+	return co, report, nil
 }
+
+// checkV3UnsupportedFields checks for unsupported fields in Docker Compose v3
+func checkV3UnsupportedFields(config *types.Config, report *FieldSupportReport) {
+	for _, service := range config.Services {
+		serviceName := service.Name
+
+		// Check for networks (limited support)
+		if len(service.Networks) > 0 {
+			report.AddDegraded(serviceName, "networks",
+				"Custom networks configuration will be ignored",
+				"Rainbond manages networking automatically")
+		}
+
+		// Check for secrets (not supported)
+		if len(service.Secrets) > 0 {
+			report.AddUnsupported(serviceName, "secrets",
+				"Docker Compose secrets are not supported",
+				"Use Rainbond's configuration management or environment variables instead")
+		}
+
+		// Check for configs (not supported)
+		if len(service.Configs) > 0 {
+			report.AddUnsupported(serviceName, "configs",
+				"Docker Compose configs are not supported",
+				"Use Rainbond's configuration file management instead")
+		}
+
+		// Check for logging (limited support)
+		if service.Logging != nil {
+			report.AddDegraded(serviceName, "logging",
+				"Custom logging configuration will be ignored",
+				"Rainbond manages logging automatically")
+		}
+
+		// Check for ulimits (not supported)
+		if service.Ulimits != nil && len(service.Ulimits) > 0 {
+			report.AddUnsupported(serviceName, "ulimits",
+				"Ulimits configuration is not supported",
+				"Contact administrator to configure ulimits at node level")
+		}
+
+		// Check for deploy.endpoint_mode (not supported)
+		if service.Deploy.EndpointMode != "" {
+			report.AddDegraded(serviceName, "deploy.endpoint_mode",
+				"Endpoint mode configuration will be ignored",
+				"Rainbond manages service endpoints automatically")
+		}
+	}
+}
+

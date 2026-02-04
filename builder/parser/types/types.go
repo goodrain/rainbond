@@ -36,8 +36,9 @@ type Port struct {
 
 // Volume -
 type Volume struct {
-	VolumePath string `json:"volume_path"`
-	VolumeType string `json:"volume_type"`
+	VolumePath  string `json:"volume_path"`
+	VolumeType  string `json:"volume_type"`
+	FileContent string `json:"file_content,omitempty"`
 }
 
 // Env env desc

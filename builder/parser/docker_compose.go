@@ -103,9 +103,19 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
 	if err != nil {
 		logrus.Warning("parse compose file error,", err.Error())
-		d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("ComposeFile解析错误"), SolveAdvice("modify_compose", "请确认ComposeFile输入是否语法正确")))
+		// 将详细的错误信息包含在响应中
+		errorInfo := fmt.Sprintf("ComposeFile解析错误: %s", err.Error())
+		d.errappend(ErrorAndSolve(FatalError, errorInfo, SolveAdvice("modify_compose", "请检查 Docker Compose 文件格式是否正确")))
 		return d.errors
 	}
+
+	// Process field support report if available
+	if co.SupportReport != nil && co.SupportReport.HasIssues() {
+		d.logFieldSupportReport(co.SupportReport)
+		// Also add warnings to error list for API response
+		d.addSupportReportToErrors(co.SupportReport)
+	}
+
 	for kev, sc := range co.ServiceConfigs {
 		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
 		ports := make(map[int]*types.Port)
@@ -127,18 +137,30 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			if strings.Contains(v.MountPath, ":") {
-				infos := strings.Split(v.MountPath, ":")
+			volumePath := v.MountPath
+			volumeType := model.ShareFileVolumeType.String()
+			fileContent := ""
+
+			// Check if this is a config file
+			if v.VolumeType == "config-file" {
+				volumeType = model.ConfigFileVolumeType.String()
+				fileContent = "" // Set to empty string for config files
+			}
+
+			if strings.Contains(volumePath, ":") {
+				infos := strings.Split(volumePath, ":")
 				if len(infos) > 1 {
-					volumes[v.MountPath] = &types.Volume{
-						VolumePath: infos[1],
-						VolumeType: model.ShareFileVolumeType.String(),
+					volumes[volumePath] = &types.Volume{
+						VolumePath:  infos[1],
+						VolumeType:  volumeType,
+						FileContent: fileContent,
 					}
 				}
 			} else {
-				volumes[v.MountPath] = &types.Volume{
-					VolumePath: v.MountPath,
-					VolumeType: model.ShareFileVolumeType.String(),
+				volumes[volumePath] = &types.Volume{
+					VolumePath:  volumePath,
+					VolumeType:  volumeType,
+					FileContent: fileContent,
 				}
 			}
 		}
@@ -157,7 +179,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			image:      ParseImageName(sc.Image),
 			args:       sc.Args,
 			depends:    sc.Links,
-			imageAlias: sc.ContainerName,
+			imageAlias: kev, // Use service name instead of container_name
 			name:       kev,
 		}
 		if sc.DependsON != nil {
@@ -191,13 +213,17 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			}
 		}
 		//do not pull image, but check image exist
+		logrus.Infof("开始检查服务 %s 的镜像: %s", serviceName, service.image.String())
 		d.logger.Debug(fmt.Sprintf("start check service %s ", service.name), map[string]string{"step": "service_check", "status": "running"})
 		exist, err := sources.ImageExist(service.image.String(), hubUser, hubPass)
 		if err != nil {
-			logrus.Errorf("check image(%s) exist failure %s", service.image.String(), err.Error())
+			logrus.Errorf("服务 %s 镜像检查失败: %s, 错误: %s", serviceName, service.image.String(), err.Error())
 		}
 		if !exist {
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
+			logrus.Warnf("服务 %s 镜像不存在: %s", serviceName, service.image.String())
+			d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
+		} else {
+			logrus.Infof("服务 %s 镜像检查成功: %s", serviceName, service.image.String())
 		}
 	}
 	return d.errors
@@ -237,4 +263,80 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 //GetImage 获取镜像名
 func (d *DockerComposeParse) GetImage() Image {
 	return Image{}
+}
+
+// logFieldSupportReport logs field support issues to the event logger
+func (d *DockerComposeParse) logFieldSupportReport(report *compose.FieldSupportReport) {
+	if report == nil || !report.HasIssues() {
+		return
+	}
+
+	// Sort issues by level (unsupported first, then degraded, then info)
+	report.SortByLevel()
+
+	// Log each issue
+	for _, issue := range report.Issues {
+		msg := fmt.Sprintf("[%s] Service '%s', Field '%s': %s",
+			issue.Level, issue.Service, issue.Field, issue.Message)
+
+		switch issue.Level {
+		case compose.SupportLevelUnsupported:
+			// Log as error for unsupported fields
+			d.logger.Error(msg, map[string]string{
+				"suggestion": issue.Suggestion,
+				"level":      "error",
+			})
+		case compose.SupportLevelDegraded:
+			// Log as info with warning level for degraded fields
+			d.logger.Info(msg, map[string]string{
+				"suggestion": issue.Suggestion,
+				"level":      "warning",
+			})
+		case compose.SupportLevelInfo:
+			// Log as info for informational messages
+			d.logger.Info(msg, map[string]string{
+				"suggestion": issue.Suggestion,
+				"level":      "info",
+			})
+		}
+	}
+
+	// Log summary
+	summary := fmt.Sprintf("Compose file analysis: %d unsupported, %d degraded, %d info",
+		len(report.GetIssuesByLevel(compose.SupportLevelUnsupported)),
+		len(report.GetIssuesByLevel(compose.SupportLevelDegraded)),
+		len(report.GetIssuesByLevel(compose.SupportLevelInfo)))
+	d.logger.Info(summary, map[string]string{"level": "info"})
+}
+
+// addSupportReportToErrors adds field support issues to the error list for API response
+func (d *DockerComposeParse) addSupportReportToErrors(report *compose.FieldSupportReport) {
+	if report == nil || !report.HasIssues() {
+		return
+	}
+
+	// Sort issues by level
+	report.SortByLevel()
+
+	// Add unsupported fields as negligible errors (warnings)
+	// These fields are not supported but won't prevent service creation
+	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelUnsupported) {
+		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s' 不支持: %s",
+			issue.Service, issue.Field, issue.Message)
+		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
+	}
+
+	// Add degraded fields as negligible errors (warnings)
+	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelDegraded) {
+		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s' 有限支持: %s",
+			issue.Service, issue.Field, issue.Message)
+		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
+	}
+
+	// Add info messages as negligible errors
+	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelInfo) {
+		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s': %s",
+			issue.Service, issue.Field, issue.Message)
+		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
+	}
 }

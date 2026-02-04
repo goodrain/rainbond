@@ -99,7 +99,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		}
 	}()
 	logger.Info("Start component deploy source check.", map[string]string{"step": "starting"})
-	logrus.Infof("start check service by type: %s ", input.SourceType)
+	logrus.Infof("开始检查服务，类型: %s", input.SourceType)
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
@@ -127,9 +127,12 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	}
 	if pr == nil {
 		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("不支持的服务类型: %s", input.SourceType)
 		return
 	}
+	logrus.Infof("开始解析服务配置，类型: %s", input.SourceType)
 	errList := pr.Parse()
+	logrus.Infof("服务配置解析完成，类型: %s, 错误数: %d", input.SourceType, len(errList))
 	for i, err := range errList {
 		if err.SolveAdvice == "" && input.SourceType == "vm-run" {
 			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
