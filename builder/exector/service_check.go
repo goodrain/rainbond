@@ -138,7 +138,13 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
 		}
 		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" {
-			errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", pr.GetImage())
+			// Get image name for better error message
+			imageName := pr.GetImage().String()
+			if imageName != "" {
+				errList[i].SolveAdvice = fmt.Sprintf("请检查镜像名称是否正确：%s", imageName)
+			} else {
+				errList[i].SolveAdvice = "请检查镜像配置是否正确"
+			}
 		}
 		if err.SolveAdvice == "" && input.SourceType == "sourcecode" {
 			errList[i].SolveAdvice = "源码智能解析失败"
