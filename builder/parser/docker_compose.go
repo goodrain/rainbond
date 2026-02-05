@@ -271,42 +271,26 @@ func (d *DockerComposeParse) logFieldSupportReport(report *compose.FieldSupportR
 		return
 	}
 
-	// Sort issues by level (unsupported first, then degraded, then info)
-	report.SortByLevel()
+	// Only log degraded (limited support) warnings
+	degradedIssues := report.GetIssuesByLevel(compose.SupportLevelDegraded)
+	if len(degradedIssues) == 0 {
+		return
+	}
 
-	// Log each issue
-	for _, issue := range report.Issues {
-		msg := fmt.Sprintf("[%s] Service '%s', Field '%s': %s",
-			issue.Level, issue.Service, issue.Field, issue.Message)
-
-		switch issue.Level {
-		case compose.SupportLevelUnsupported:
-			// Log as error for unsupported fields
-			d.logger.Error(msg, map[string]string{
-				"suggestion": issue.Suggestion,
-				"level":      "error",
-			})
-		case compose.SupportLevelDegraded:
-			// Log as info with warning level for degraded fields
-			d.logger.Info(msg, map[string]string{
-				"suggestion": issue.Suggestion,
-				"level":      "warning",
-			})
-		case compose.SupportLevelInfo:
-			// Log as info for informational messages
-			d.logger.Info(msg, map[string]string{
-				"suggestion": issue.Suggestion,
-				"level":      "info",
-			})
-		}
+	// Log each degraded issue with simplified message
+	for _, issue := range degradedIssues {
+		// Simplified user-friendly message format
+		msg := d.getSimplifiedWarningMessage(issue)
+		d.logger.Info(msg, map[string]string{
+			"level": "warning",
+		})
 	}
 
 	// Log summary
-	summary := fmt.Sprintf("Compose file analysis: %d unsupported, %d degraded, %d info",
-		len(report.GetIssuesByLevel(compose.SupportLevelUnsupported)),
-		len(report.GetIssuesByLevel(compose.SupportLevelDegraded)),
-		len(report.GetIssuesByLevel(compose.SupportLevelInfo)))
-	d.logger.Info(summary, map[string]string{"level": "info"})
+	if len(degradedIssues) > 0 {
+		summary := fmt.Sprintf("检测到 %d 个配置项有限支持或将被忽略", len(degradedIssues))
+		d.logger.Info(summary, map[string]string{"level": "info"})
+	}
 }
 
 // addSupportReportToErrors adds field support issues to the error list for API response
@@ -315,28 +299,34 @@ func (d *DockerComposeParse) addSupportReportToErrors(report *compose.FieldSuppo
 		return
 	}
 
-	// Sort issues by level
-	report.SortByLevel()
-
-	// Add unsupported fields as negligible errors (warnings)
-	// These fields are not supported but won't prevent service creation
-	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelUnsupported) {
-		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s' 不支持: %s",
-			issue.Service, issue.Field, issue.Message)
-		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
-	}
-
-	// Add degraded fields as negligible errors (warnings)
+	// Only add degraded (limited support) warnings
+	// Ignore unsupported and info level issues
 	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelDegraded) {
-		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s' 有限支持: %s",
-			issue.Service, issue.Field, issue.Message)
-		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
+		// Use simplified warning message
+		warningMsg := d.getSimplifiedWarningMessage(issue)
+		d.errappend(ErrorAndSolve(NegligibleError, warningMsg, ""))
 	}
+}
 
-	// Add info messages as negligible errors
-	for _, issue := range report.GetIssuesByLevel(compose.SupportLevelInfo) {
-		errorInfo := fmt.Sprintf("服务 '%s' 的字段 '%s': %s",
-			issue.Service, issue.Field, issue.Message)
-		d.errappend(ErrorAndSolve(NegligibleError, errorInfo, issue.Suggestion))
+// getSimplifiedWarningMessage generates user-friendly warning messages
+func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssue) string {
+	serviceName := issue.Service
+	field := issue.Field
+
+	// Simplified messages based on field type
+	switch field {
+	case "networks":
+		return fmt.Sprintf("服务 %s：networks 网络配置将被忽略，平台会自动管理网络连接", serviceName)
+	case "depends_on":
+		return fmt.Sprintf("服务 %s：depends_on 的健康检查条件不支持，将按普通依赖关系处理", serviceName)
+	case "logging":
+		return fmt.Sprintf("服务 %s：logging 日志配置将被忽略，平台会统一收集日志", serviceName)
+	case "container_name":
+		return fmt.Sprintf("服务 %s：container_name 容器名称在多副本时会被自动生成", serviceName)
+	case "profiles":
+		return fmt.Sprintf("服务 %s：profiles 配置将被忽略，所有服务都会被部署", serviceName)
+	default:
+		// Fallback to generic message
+		return fmt.Sprintf("服务 %s：%s 配置项有限支持，可能会被调整或忽略", serviceName, field)
 	}
 }
