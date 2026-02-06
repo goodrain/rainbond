@@ -20,11 +20,12 @@ package code
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/db"
-	"github.com/jinzhu/gorm"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
+
+	"github.com/goodrain/rainbond/db"
+	"github.com/jinzhu/gorm"
 
 	simplejson "github.com/bitly/go-simplejson"
 
@@ -36,6 +37,15 @@ var ErrRuntimeNotSupport = fmt.Errorf("runtime version not support")
 
 // CheckRuntime CheckRuntime
 func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
+	// Handle combined language types (e.g., "Node.js,static")
+	langStr := string(lang)
+
+	// Check for Node.js related languages first
+	// Note: NodeJSStatic is deprecated, all Node.js projects use Nodejs type now
+	if strings.Contains(langStr, string(Nodejs)) {
+		return readNodeRuntimeInfo(buildPath)
+	}
+
 	switch lang {
 	case PHP:
 		return readPHPRuntimeInfo(buildPath)
@@ -45,12 +55,6 @@ func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
 		return readJavaRuntimeInfo(buildPath)
 	case Nodejs:
 		return readNodeRuntimeInfo(buildPath)
-	case NodeJSStatic:
-		runtime, err := readNodeRuntimeInfo(buildPath)
-		if err != nil {
-			return nil, err
-		}
-		return runtime, nil
 	case Static:
 		return map[string]string{}, nil
 	default:
@@ -63,7 +67,7 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "composer.json")); !ok {
 		return phpRuntimeInfo, nil
 	}
-	body, err := ioutil.ReadFile(path.Join(buildPath, "composer.json"))
+	body, err := os.ReadFile(path.Join(buildPath, "composer.json"))
 	if err != nil {
 		return phpRuntimeInfo, nil
 	}
@@ -122,7 +126,7 @@ func readPythonRuntimeInfo(buildPath string) (map[string]string, error) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); !ok {
 		return runtimeInfo, nil
 	}
-	body, err := ioutil.ReadFile(path.Join(buildPath, "runtime.txt"))
+	body, err := os.ReadFile(path.Join(buildPath, "runtime.txt"))
 	if err != nil {
 		return runtimeInfo, nil
 	}
@@ -169,7 +173,7 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "package.json")); !ok {
 		return runtimeInfo, nil
 	}
-	body, err := ioutil.ReadFile(path.Join(buildPath, "package.json"))
+	body, err := os.ReadFile(path.Join(buildPath, "package.json"))
 	if err != nil {
 		return runtimeInfo, nil
 	}
@@ -177,24 +181,87 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	if err != nil {
 		return runtimeInfo, nil
 	}
+
+	// Parse Node.js version using enhanced version resolver
 	if json.Get("engines") != nil {
 		if v := json.Get("engines").Get("node"); v != nil {
 			nodeVersion, _ := v.String()
-			// The latest version is used by default. (11.1.0 is latest version in ui)
-			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
-				vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("node", nodeVersion)
-				if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
-					v, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("node")
-					if err != nil {
-						return runtimeInfo, nil
+			if nodeVersion != "" {
+				// Use the new version resolver
+				versionInfo := ResolveNodeVersion(nodeVersion)
+
+				// Try to get version from database first (for backward compatibility)
+				if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
+					vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("node", nodeVersion)
+					if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
+						dbVersion, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("node")
+						if err == nil {
+							nodeVersion = dbVersion.Version
+						} else {
+							// Fall back to resolved version
+							nodeVersion = versionInfo.Resolved
+						}
 					}
-					nodeVersion = v.Version
+				} else {
+					// For non-range versions, use the resolved version
+					nodeVersion = versionInfo.Resolved
 				}
+
+				runtimeInfo["RUNTIMES"] = nodeVersion
+				runtimeInfo["NODE_VERSION_ORIGINAL"] = versionInfo.Original
+				runtimeInfo["NODE_VERSION_SOURCE"] = versionInfo.Source
 			}
-			runtimeInfo["RUNTIMES"] = nodeVersion
 		}
 	}
-	// default npm
-	runtimeInfo["PACKAGE_TOOL"] = "npm"
+
+	// If no version specified, use default
+	if runtimeInfo["RUNTIMES"] == "" {
+		runtimeInfo["RUNTIMES"] = DefaultNodeVersion
+		runtimeInfo["NODE_VERSION_SOURCE"] = "default"
+	}
+
+	// Detect package manager (replaces hardcoded npm)
+	pmInfo := DetectPackageManager(buildPath)
+	runtimeInfo["PACKAGE_TOOL"] = string(pmInfo.Manager)
+	if pmInfo.LockFile != "" {
+		runtimeInfo["PACKAGE_LOCK_FILE"] = pmInfo.LockFile
+	}
+	if pmInfo.Version != "" {
+		runtimeInfo["PACKAGE_MANAGER_VERSION"] = pmInfo.Version
+	}
+
+	// Detect framework
+	if framework := DetectFramework(buildPath); framework != nil {
+		runtimeInfo["FRAMEWORK"] = framework.Name
+		runtimeInfo["FRAMEWORK_DISPLAY_NAME"] = framework.DisplayName
+		if framework.Version != "" {
+			runtimeInfo["FRAMEWORK_VERSION"] = framework.Version
+		}
+		runtimeInfo["RUNTIME_TYPE"] = framework.RuntimeType
+		if framework.OutputDir != "" {
+			runtimeInfo["OUTPUT_DIR"] = framework.OutputDir
+		}
+		if framework.BuildCmd != "" {
+			runtimeInfo["BUILD_CMD"] = framework.BuildCmd
+		}
+		if framework.StartCmd != "" {
+			runtimeInfo["START_CMD"] = framework.StartCmd
+		}
+	}
+
+	// Detect config files
+	configFiles := DetectConfigFiles(buildPath)
+	runtimeInfo["HAS_NPMRC"] = boolToString(configFiles.HasNpmrc)
+	runtimeInfo["HAS_YARNRC"] = boolToString(configFiles.HasYarnrc)
+	runtimeInfo["HAS_PNPMRC"] = boolToString(configFiles.HasPnpmrc)
+
 	return runtimeInfo, nil
+}
+
+// boolToString converts a boolean to "true" or "false" string
+func boolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }

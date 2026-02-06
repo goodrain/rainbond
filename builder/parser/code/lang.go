@@ -35,7 +35,8 @@ func init() {
 	checkFuncList = append(checkFuncList, javaMaven)
 	checkFuncList = append(checkFuncList, php)
 	checkFuncList = append(checkFuncList, python)
-	checkFuncList = append(checkFuncList, nodeJSStatic)
+	// Note: nodeJSStatic removed - Node.js projects are now unified under 'nodejs'
+	// CNB Paketo will determine if it's a static site or Node.js service based on framework detection
 	checkFuncList = append(checkFuncList, nodejs)
 	checkFuncList = append(checkFuncList, ruby)
 	checkFuncList = append(checkFuncList, static)

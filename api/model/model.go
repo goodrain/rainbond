@@ -1735,6 +1735,10 @@ type BuildCodeInfo struct {
 	// in: body
 	// required: false
 	DockerfilePath string `json:"dockerfile_path"`
+	// 构建类型: cnb 或 slug
+	// in: body
+	// required: false
+	BuildType string `json:"build_type"`
 }
 
 // BuildSlugInfo -

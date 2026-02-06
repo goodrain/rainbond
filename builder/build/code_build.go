@@ -330,8 +330,13 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				lang = "openJDK"
 			case code.PHP:
 				lang = "php"
-			case code.Nodejs, code.NodeJSStatic:
+			case code.Nodejs:
 				lang = "node"
+			default:
+				// Handle combined language types (e.g., "Node.js,static")
+				if strings.Contains(string(re.Lang), string(code.Nodejs)) {
+					lang = "node"
+				}
 			}
 			version, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(lang, v)
 			if err != nil {
@@ -568,7 +573,14 @@ func (e *ErrorBuild) Error() string {
 }
 
 func (s *slugBuild) HandleNodeJsDir(re *Request) error {
-	if re.Lang == code.NodeJSStatic {
+	// Check if this is a frontend Node.js project that needs static file handling
+	// This is determined by RUNTIME_TYPE from framework detection or BUILD_RUNTIME_TYPE from console
+	isFrontend := re.BuildEnvs["RUNTIME_TYPE"] == "frontend" || re.BuildEnvs["BUILD_RUNTIME_TYPE"] == "frontend"
+
+	// Also check for combined language types containing "static" for backward compatibility
+	isStaticLang := strings.Contains(string(re.Lang), string(code.Static))
+
+	if isFrontend || isStaticLang {
 		if ok, _ := util.FileExists(path.Join(re.SourceDir, "nodestatic.json")); ok {
 			if err := os.RemoveAll(path.Join(re.SourceDir, "nodestatic.json")); err != nil {
 				logrus.Error("remove nodestatic json error:", err)
@@ -591,6 +603,33 @@ func (s *slugBuild) HandleNodeJsDir(re *Request) error {
 			return err
 		}
 	}
+
+	// Handle pnpm package manager
+	if re.BuildEnvs["PACKAGE_TOOL"] == "pnpm" {
+		// Ensure pnpm-lock.yaml exists
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "pnpm-lock.yaml")); !ok {
+			filePtr, err := os.Create(path.Join(re.SourceDir, "pnpm-lock.yaml"))
+			if err != nil {
+				logrus.Error("create pnpm-lock.yaml error:", err)
+				return err
+			}
+			defer filePtr.Close()
+		}
+		// Remove conflicting lock files
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "package-lock.json")); ok {
+			if err := os.RemoveAll(path.Join(re.SourceDir, "package-lock.json")); err != nil {
+				logrus.Error("remove package-lock.json error:", err)
+				return err
+			}
+		}
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "yarn.lock")); ok {
+			if err := os.RemoveAll(path.Join(re.SourceDir, "yarn.lock")); err != nil {
+				logrus.Error("remove yarn.lock error:", err)
+				return err
+			}
+		}
+	}
+
 	if re.BuildEnvs["PACKAGE_TOOL"] == "yarn" {
 		if ok, _ := util.FileExists(path.Join(re.SourceDir, "yarn.lock")); !ok {
 			filePtr, err := os.Create(path.Join(re.SourceDir, "yarn.lock"))
@@ -623,5 +662,30 @@ func (s *slugBuild) HandleNodeJsDir(re *Request) error {
 			}
 		}
 	}
+
+	// Inject .npmrc from UI configuration
+	if npmrcContent := re.BuildEnvs["NPMRC_CONTENT"]; npmrcContent != "" {
+		npmrcPath := path.Join(re.SourceDir, ".npmrc")
+		// Backup existing file
+		if ok, _ := util.FileExists(npmrcPath); ok {
+			if err := os.Rename(npmrcPath, npmrcPath+".bak"); err != nil {
+				logrus.Warn("backup .npmrc error:", err)
+			}
+		}
+		if err := os.WriteFile(npmrcPath, []byte(npmrcContent), 0644); err != nil {
+			logrus.Error("write .npmrc error:", err)
+			return err
+		}
+	}
+
+	// Inject .yarnrc.yml from UI configuration
+	if yarnrcContent := re.BuildEnvs["YARNRC_CONTENT"]; yarnrcContent != "" {
+		yarnrcPath := path.Join(re.SourceDir, ".yarnrc.yml")
+		if err := os.WriteFile(yarnrcPath, []byte(yarnrcContent), 0644); err != nil {
+			logrus.Error("write .yarnrc.yml error:", err)
+			return err
+		}
+	}
+
 	return nil
 }

@@ -140,6 +140,27 @@ func GetBuild(lang code.Lang) (Build, error) {
 	return slugBuilder()
 }
 
+// GetBuildByType returns a builder based on build type
+// For Node.js with CNB build type, returns CNB builder
+// For other cases, falls back to the default builder for the language
+func GetBuildByType(lang code.Lang, buildType string) (Build, error) {
+	switch buildType {
+	case "cnb":
+		// Only Node.js supports CNB build currently
+		// Handle combined language types (e.g., "Node.js,static")
+		langStr := string(lang)
+		if lang == code.Nodejs || strings.Contains(langStr, string(code.Nodejs)) {
+			return cnbBuilder()
+		}
+		// Other languages fall back to default builder
+		return GetBuild(lang)
+	case "slug":
+		fallthrough
+	default:
+		return GetBuild(lang)
+	}
+}
+
 // CreateImageName create image name
 func CreateImageName(serviceID, deployversion string) string {
 	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))

@@ -423,6 +423,10 @@ func (o *OperationHandler) buildFromSourceCode(r *model.ComponentBuildReq, servi
 	if r.CodeInfo.DockerfilePath != "" {
 		body["dockerfile_path"] = r.CodeInfo.DockerfilePath
 	}
+	// 传递 build_type 到构建任务 (cnb 或 slug)
+	if r.CodeInfo.BuildType != "" {
+		body["build_type"] = r.CodeInfo.BuildType
+	}
 	body["expire"] = 180
 	body["configs"] = r.Configs
 	return o.sendBuildTopic(service.ServiceID, "build_from_source_code", body, r.Arch)

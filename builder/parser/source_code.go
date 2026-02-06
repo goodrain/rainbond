@@ -64,8 +64,9 @@ type SourceCodeParse struct {
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
 
-	isMulti  bool
-	services []*types.Service
+	isMulti     bool
+	services    []*types.Service
+	runtimeInfo *types.RuntimeInfo // structured detection results
 }
 
 // CreateSourceCodeParse create parser
@@ -421,12 +422,16 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.errappend(ErrorAndSolve(FatalError, "代码选择的运行时版本不支持", "请参考文档查看平台各语言支持的Runtime版本"))
 		return d.errors
 	}
+	// Set BUILD_* environment variables for the actual build process
 	for k, v := range runtimeInfo {
 		d.envs["BUILD_"+k] = &types.Env{
 			Name:  "BUILD_" + k,
 			Value: v,
 		}
 	}
+	// Build structured RuntimeInfo for API response
+	d.runtimeInfo = d.buildRuntimeInfo(runtimeInfo, lang)
+
 	d.memory = getRecommendedMemory(lang)
 	var ProcfileLine string
 	d.Procfile, ProcfileLine = code.CheckProcfile(buildPath, lang)
@@ -642,6 +647,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		ServiceType: model.ServiceTypeStatelessMultiple.String(),
 		OS:          runtime.GOOS,
 		Dockerfiles: d.dockerfiles,
+		RuntimeInfo: d.runtimeInfo,
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
@@ -739,4 +745,86 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+// buildRuntimeInfo constructs a structured RuntimeInfo from the flat runtimeInfo map.
+// This provides a typed API response while BUILD_* envs are still used for the actual build process.
+func (d *SourceCodeParse) buildRuntimeInfo(runtimeInfo map[string]string, lang code.Lang) *types.RuntimeInfo {
+	if runtimeInfo == nil {
+		return nil
+	}
+
+	info := types.NewRuntimeInfo(lang.String())
+
+	// Set language version
+	if version, ok := runtimeInfo["RUNTIMES"]; ok {
+		info.LanguageVersion = version
+	}
+	// Check multiple possible source field names for different languages
+	if source, ok := runtimeInfo["NODE_VERSION_SOURCE"]; ok {
+		info.VersionSource = source
+	} else if source, ok := runtimeInfo["RUNTIMES_SOURCE"]; ok {
+		info.VersionSource = source
+	}
+
+	// Build framework info if present
+	if framework, ok := runtimeInfo["FRAMEWORK"]; ok && framework != "" {
+		displayName := runtimeInfo["FRAMEWORK_DISPLAY_NAME"]
+		if displayName == "" {
+			displayName = framework
+		}
+		info.WithFramework(
+			framework,
+			displayName,
+			runtimeInfo["FRAMEWORK_VERSION"],
+			runtimeInfo["RUNTIME_TYPE"],
+		)
+	}
+
+	// Build package manager info if present
+	if pkgManager, ok := runtimeInfo["PACKAGE_TOOL"]; ok && pkgManager != "" {
+		info.WithPackageManager(
+			pkgManager,
+			runtimeInfo["PACKAGE_MANAGER_VERSION"],
+			runtimeInfo["PACKAGE_LOCK_FILE"],
+		)
+	}
+
+	// Build config if present
+	outputDir := runtimeInfo["OUTPUT_DIR"]
+	buildCmd := runtimeInfo["BUILD_CMD"]
+	startCmd := runtimeInfo["START_CMD"]
+	installCmd := runtimeInfo["INSTALL_CMD"]
+	if outputDir != "" || buildCmd != "" || startCmd != "" || installCmd != "" {
+		info.WithBuildConfig(outputDir, buildCmd, startCmd, installCmd)
+	}
+
+	// Config files detection
+	configFiles := &types.ConfigFiles{}
+	hasConfigFiles := false
+	if runtimeInfo["HAS_NPMRC"] == "true" {
+		configFiles.HasNpmrc = true
+		hasConfigFiles = true
+	}
+	if runtimeInfo["HAS_YARNRC"] == "true" {
+		configFiles.HasYarnrc = true
+		hasConfigFiles = true
+	}
+	if runtimeInfo["HAS_PNPMRC"] == "true" {
+		configFiles.HasPnpmrc = true
+		hasConfigFiles = true
+	}
+	if runtimeInfo["HAS_DOCKERFILE"] == "true" {
+		configFiles.HasDockerfile = true
+		hasConfigFiles = true
+	}
+	if runtimeInfo["HAS_PROCFILE"] == "true" {
+		configFiles.HasProcfile = true
+		hasConfigFiles = true
+	}
+	if hasConfigFiles {
+		info.ConfigFiles = configFiles
+	}
+
+	return info
 }
