@@ -191,15 +191,22 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	for serviceName, service := range d.services {
 		//验证depends是否完整
 		existDepends := []string{}
+		missingDepends := []string{}
 		for i, depend := range service.depends {
 			if strings.Contains(depend, ":") {
 				service.depends[i] = strings.Split(depend, ":")[0]
 			}
 			if _, ok := d.services[service.depends[i]]; !ok {
-				d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s依赖项定义错误", serviceName), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务的依赖服务是否正确", serviceName))))
+				missingDepends = append(missingDepends, service.depends[i])
 			} else {
 				existDepends = append(existDepends, service.depends[i])
 			}
+		}
+		// Only add one error per service with all missing dependencies
+		if len(missingDepends) > 0 {
+			d.errappend(ErrorAndSolve(NegligibleError,
+				fmt.Sprintf("服务 %s 依赖的服务不存在：%s", serviceName, strings.Join(missingDepends, ", ")),
+				"请检查这些依赖服务是否在 compose 文件中定义"))
 		}
 		service.depends = existDepends
 		var hubUser = d.user
@@ -316,17 +323,17 @@ func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssu
 	// Simplified messages based on field type
 	switch field {
 	case "networks":
-		return fmt.Sprintf("服务 %s：networks 网络配置将被忽略，平台会自动管理网络连接", serviceName)
+		return fmt.Sprintf("服务 %s：网络配置将被忽略，平台会自动管理服务间网络连接", serviceName)
 	case "depends_on":
-		return fmt.Sprintf("服务 %s：depends_on 的健康检查条件不支持，将按普通依赖关系处理", serviceName)
+		return fmt.Sprintf("服务 %s：依赖关系中的健康检查条件将被忽略，仅保留启动顺序", serviceName)
 	case "logging":
-		return fmt.Sprintf("服务 %s：logging 日志配置将被忽略，平台会统一收集日志", serviceName)
+		return fmt.Sprintf("服务 %s：日志配置将被忽略，平台会统一收集和管理日志", serviceName)
 	case "container_name":
-		return fmt.Sprintf("服务 %s：container_name 容器名称在多副本时会被自动生成", serviceName)
+		return fmt.Sprintf("服务 %s：自定义容器名称在多副本时会被自动生成", serviceName)
 	case "profiles":
 		return fmt.Sprintf("服务 %s：profiles 配置将被忽略，所有服务都会被部署", serviceName)
 	default:
 		// Fallback to generic message
-		return fmt.Sprintf("服务 %s：%s 配置项有限支持，可能会被调整或忽略", serviceName, field)
+		return fmt.Sprintf("服务 %s：%s 配置有限支持，可能会被调整", serviceName, field)
 	}
 }

@@ -349,17 +349,25 @@ func isConfigFile(mountPath string, volumeType string) bool {
 // convertSpecDependsOn converts depends_on from compose-go format
 func convertSpecDependsOn(serviceName string, dependsOn composetypes.DependsOnConfig, report *FieldSupportReport) []string {
 	var deps []string
+	hasConditions := false
+
 	for dep := range dependsOn {
 		deps = append(deps, dep)
 	}
 
-	// If depends_on has conditions, log a warning
-	for dep, config := range dependsOn {
+	// Check if any dependency has non-default conditions
+	for _, config := range dependsOn {
 		if config.Condition != "" && config.Condition != "service_started" {
-			report.AddDegraded(serviceName, "depends_on",
-				fmt.Sprintf("Dependency '%s' has condition '%s' which will be ignored", dep, config.Condition),
-				"Only service_started condition is supported, other conditions will be treated as simple dependencies")
+			hasConditions = true
+			break
 		}
+	}
+
+	// Add one warning per service instead of one per dependency
+	if hasConditions {
+		report.AddDegraded(serviceName, "depends_on",
+			"Has dependencies with health check conditions",
+			"Health check conditions are not supported")
 	}
 
 	return deps
