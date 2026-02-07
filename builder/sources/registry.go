@@ -46,34 +46,34 @@ func ImageExist(imageName, user, password string) (bool, error) {
 	startTime := time.Now()
 	logrus.Infof("开始检查镜像是否存在: %s", imageName)
 
-	// 首先尝试原始镜像名称
-	exist, err := checkImageExist(imageName, user, password)
-	if exist {
-		logrus.Infof("镜像 %s 存在，总耗时: %v", imageName, time.Since(startTime))
-		return true, nil
-	}
-
-	// 如果失败，检查是否是 docker.io 镜像，尝试使用代理
+	// 检查是否是 docker.io 镜像，如果是则直接使用代理
 	ref, parseErr := reference.ParseAnyReference(imageName)
 	if parseErr == nil {
 		name, nameErr := reference.ParseNamed(ref.String())
 		if nameErr == nil {
 			domain := reference.Domain(name)
-			// 如果是 docker.io 或没有域名前缀（默认是 docker.io），使用镜像代理
+			// 如果是 docker.io 或没有域名前缀（默认是 docker.io），直接使用镜像代理
 			if domain == "docker.io" || !strings.Contains(imageName, "/") || strings.Count(imageName, "/") == 1 {
 				proxyImageName := "docker.1ms.run/" + imageName
 				// 移除可能的 docker.io 前缀避免重复
 				proxyImageName = strings.Replace(proxyImageName, "docker.1ms.run/docker.io/", "docker.1ms.run/", 1)
 
-				logrus.Infof("原始镜像检查失败，尝试使用镜像代理: %s", proxyImageName)
+				logrus.Infof("检测到 docker.io 镜像，直接使用镜像代理: %s", proxyImageName)
 				exist, proxyErr := checkImageExist(proxyImageName, user, password)
 				if exist {
 					logrus.Infof("通过镜像代理找到镜像: %s，总耗时: %v", proxyImageName, time.Since(startTime))
 					return true, nil
 				}
-				logrus.Warnf("镜像代理也失败: %v", proxyErr)
+				logrus.Warnf("镜像代理失败，尝试原始地址: %v", proxyErr)
 			}
 		}
+	}
+
+	// 如果代理失败或不是 docker.io 镜像，尝试原始镜像名称
+	exist, err := checkImageExist(imageName, user, password)
+	if exist {
+		logrus.Infof("镜像 %s 存在，总耗时: %v", imageName, time.Since(startTime))
+		return true, nil
 	}
 
 	logrus.Errorf("镜像 %s 检查失败，总耗时: %v, 错误: %v", imageName, time.Since(startTime), err)
