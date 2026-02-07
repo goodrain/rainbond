@@ -336,10 +336,19 @@ func isConfigFile(mountPath string, volumeType string) bool {
 	}
 
 	// Check path patterns (e.g., /etc/nginx/nginx.conf)
+	// Only treat as config file if the basename has a file extension
 	pathPatterns := []string{"/etc/", "/config/", "/conf/"}
 	for _, pattern := range pathPatterns {
 		if strings.Contains(mountPath, pattern) && !strings.HasSuffix(mountPath, "/") {
-			return true
+			// Exclude conf.d directory
+			if strings.Contains(mountPath, "conf.d") {
+				continue
+			}
+			// Only treat as config file if basename has an extension
+			basename := filepath.Base(mountPath)
+			if strings.Contains(basename, ".") {
+				return true
+			}
 		}
 	}
 

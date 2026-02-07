@@ -108,18 +108,24 @@ func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 		}
 		logrus.Debug("successful write file to: ", fileName)
 		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
 		w.Header().Add("Access-Control-Allow-Origin", origin)
 		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
 		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header,X-TEAM-NAME,X-REGION-NAME")
 		httputil.ReturnSuccess(r, w, nil)
 
 	case "OPTIONS":
 		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
 		w.Header().Add("Access-Control-Allow-Origin", origin)
 		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
 		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header,X-TEAM-NAME,X-REGION-NAME")
 		httputil.ReturnSuccess(r, w, nil)
 	}
 }

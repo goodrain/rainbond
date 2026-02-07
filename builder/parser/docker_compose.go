@@ -20,6 +20,9 @@ package parser
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"runtime"
 	"strings"
 
@@ -29,6 +32,8 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/component/storage"
+	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,6 +46,10 @@ type DockerComposeParse struct {
 	source       string
 	user         string
 	password     string
+	// 新增字段：支持项目包上传
+	eventID         string
+	composeFilePath string
+	projectPath     string
 }
 
 //ServiceInfoFromDC service info from dockercompose
@@ -93,12 +102,40 @@ func CreateDockerComposeParse(source string, user, pass string, logger event.Log
 	}
 }
 
+//CreateDockerComposeParseFromProject create parser from project package
+func CreateDockerComposeParseFromProject(eventID, composeFilePath, user, pass string, logger event.Logger) Parser {
+	return &DockerComposeParse{
+		eventID:         eventID,
+		composeFilePath: composeFilePath,
+		logger:          logger,
+		services:        make(map[string]*ServiceInfoFromDC),
+		user:            user,
+		password:        pass,
+	}
+}
+
 //Parse 解码
 func (d *DockerComposeParse) Parse() ParseErrorList {
+	// 1. 如果是项目包方式，从 S3 下载并解压
+	if d.eventID != "" {
+		if err := d.downloadAndExtractProject(); err != nil {
+			d.errappend(Errorf(FatalError, "下载或解压项目失败: "+err.Error()))
+			return d.errors
+		}
+		// 读取 compose 文件内容
+		if err := d.loadComposeFile(); err != nil {
+			d.errappend(Errorf(FatalError, "读取 compose 文件失败: "+err.Error()))
+			return d.errors
+		}
+	}
+
+	// 2. 验证 source 不为空
 	if d.source == "" {
 		d.errappend(Errorf(FatalError, "source can not be empty"))
 		return d.errors
 	}
+
+	// 3. 解析 compose 文件
 	comp := compose.Compose{}
 	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
 	if err != nil {
@@ -150,8 +187,37 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			if strings.Contains(volumePath, ":") {
 				infos := strings.Split(volumePath, ":")
 				if len(infos) > 1 {
+					sourcePath := infos[0]
+					targetPath := infos[1]
+
+					// 如果有项目路径，检查源路径是否是项目中的文件或目录
+					if d.projectPath != "" && !path.IsAbs(sourcePath) {
+						fullPath := path.Join(d.projectPath, sourcePath)
+						fileInfo, err := os.Stat(fullPath)
+						if err == nil {
+							if fileInfo.IsDir() {
+								// 是目录
+								volumeType = model.ShareFileVolumeType.String()
+								logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
+							} else {
+								// 是文件
+								volumeType = model.ConfigFileVolumeType.String()
+								// 读取文件内容
+								content, readErr := ioutil.ReadFile(fullPath)
+								if readErr == nil {
+									fileContent = string(content)
+									logrus.Infof("detected file volume: %s -> %s, size: %d bytes", sourcePath, targetPath, len(content))
+								} else {
+									logrus.Warnf("failed to read file %s: %v", fullPath, readErr)
+								}
+							}
+						} else {
+							logrus.Warnf("volume source path not found in project: %s", sourcePath)
+						}
+					}
+
 					volumes[volumePath] = &types.Volume{
-						VolumePath:  infos[1],
+						VolumePath:  targetPath,
 						VolumeType:  volumeType,
 						FileContent: fileContent,
 					}
@@ -171,6 +237,42 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				Value: e.Value,
 			}
 		}
+
+		// 处理 env_file：读取项目中的环境变量文件
+		if d.projectPath != "" && len(sc.EnvFile) > 0 {
+			for _, envFile := range sc.EnvFile {
+				envFilePath := path.Join(d.projectPath, envFile)
+				content, err := ioutil.ReadFile(envFilePath)
+				if err == nil {
+					logrus.Infof("loading env file: %s", envFile)
+					// 解析 env 文件
+					lines := strings.Split(string(content), "\n")
+					for _, line := range lines {
+						line = strings.TrimSpace(line)
+						// 跳过空行和注释
+						if line == "" || strings.HasPrefix(line, "#") {
+							continue
+						}
+						// 解析 KEY=VALUE 格式
+						parts := strings.SplitN(line, "=", 2)
+						if len(parts) == 2 {
+							key := strings.TrimSpace(parts[0])
+							value := strings.TrimSpace(parts[1])
+							// 移除值两端的引号
+							value = strings.Trim(value, "\"'")
+							envs[key] = &types.Env{
+								Name:  key,
+								Value: value,
+							}
+							logrus.Debugf("loaded env from file: %s=%s", key, value)
+						}
+					}
+				} else {
+					logrus.Warnf("failed to read env file %s: %v", envFile, err)
+				}
+			}
+		}
+
 		service := ServiceInfoFromDC{
 			ports:      ports,
 			volumes:    volumes,
@@ -336,4 +438,80 @@ func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssu
 		// Fallback to generic message
 		return fmt.Sprintf("服务 %s：%s 配置有限支持，可能会被调整", serviceName, field)
 	}
+}
+
+// downloadAndExtractProject downloads and extracts the project package from S3
+func (d *DockerComposeParse) downloadAndExtractProject() error {
+	projectPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", d.eventID)
+	d.projectPath = projectPath
+
+	// Download project files from S3
+	err := storage.Default().StorageCli.DownloadDirToDir(projectPath, projectPath)
+	if err != nil {
+		logrus.Errorf("download project from S3 failed: %v", err)
+		return fmt.Errorf("下载项目文件失败: %v", err)
+	}
+
+	// Read directory to find the archive file
+	fileList, err := ioutil.ReadDir(projectPath)
+	if err != nil || len(fileList) == 0 {
+		return fmt.Errorf("项目目录为空或无法读取")
+	}
+
+	// Get the first file (should be the archive)
+	filePath := path.Join(projectPath, fileList[0].Name())
+	ext := path.Ext(fileList[0].Name())
+
+	// Extract based on file extension
+	switch ext {
+	case ".tar":
+		if err := util.UnTar(filePath, projectPath, false); err != nil {
+			logrus.Errorf("untar project file failed: %v", err)
+			return fmt.Errorf("解压 tar 文件失败: %v", err)
+		}
+	case ".tgz", ".gz":
+		if err := util.UnTar(filePath, projectPath, true); err != nil {
+			logrus.Errorf("untar project file failed: %v", err)
+			return fmt.Errorf("解压 tgz 文件失败: %v", err)
+		}
+	case ".zip":
+		if err := util.Unzip(filePath, projectPath); err != nil {
+			logrus.Errorf("unzip project file failed: %v", err)
+			return fmt.Errorf("解压 zip 文件失败: %v", err)
+		}
+	default:
+		return fmt.Errorf("不支持的文件格式: %s", ext)
+	}
+
+	logrus.Infof("project extracted successfully to: %s", projectPath)
+	return nil
+}
+
+// loadComposeFile loads the compose file content from the extracted project
+func (d *DockerComposeParse) loadComposeFile() error {
+	composeFilePath := path.Join(d.projectPath, d.composeFilePath)
+
+	// Try to read the specified compose file
+	content, err := ioutil.ReadFile(composeFilePath)
+	if err != nil {
+		// If not found, try common compose file names
+		commonNames := []string{"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
+		found := false
+		for _, name := range commonNames {
+			tryPath := path.Join(d.projectPath, name)
+			content, err = ioutil.ReadFile(tryPath)
+			if err == nil {
+				logrus.Infof("found compose file at: %s", tryPath)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("未找到 compose 文件: %s", d.composeFilePath)
+		}
+	}
+
+	d.source = string(content)
+	logrus.Infof("compose file loaded successfully, size: %d bytes", len(content))
+	return nil
 }
