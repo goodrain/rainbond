@@ -444,6 +444,7 @@ func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssu
 func (d *DockerComposeParse) downloadAndExtractProject() error {
 	projectPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", d.eventID)
 	d.projectPath = projectPath
+	logrus.Infof("[DEBUG] 项目路径: %s, event_id: %s", projectPath, d.eventID)
 
 	// Download project files from S3
 	err := storage.Default().StorageCli.DownloadDirToDir(projectPath, projectPath)
@@ -451,16 +452,25 @@ func (d *DockerComposeParse) downloadAndExtractProject() error {
 		logrus.Errorf("download project from S3 failed: %v", err)
 		return fmt.Errorf("下载项目文件失败: %v", err)
 	}
+	logrus.Infof("[DEBUG] S3 下载完成")
 
 	// Read directory to find the archive file
 	fileList, err := ioutil.ReadDir(projectPath)
 	if err != nil || len(fileList) == 0 {
+		logrus.Errorf("[DEBUG] 读取目录失败或目录为空: %v", err)
 		return fmt.Errorf("项目目录为空或无法读取")
+	}
+
+	// Log all files in directory
+	logrus.Infof("[DEBUG] 下载后目录内容 (%d 个文件):", len(fileList))
+	for i, f := range fileList {
+		logrus.Infof("[DEBUG]   [%d] %s (size: %d, isDir: %v)", i, f.Name(), f.Size(), f.IsDir())
 	}
 
 	// Get the first file (should be the archive)
 	filePath := path.Join(projectPath, fileList[0].Name())
 	ext := path.Ext(fileList[0].Name())
+	logrus.Infof("[DEBUG] 准备解压文件: %s, 扩展名: %s", filePath, ext)
 
 	// Extract based on file extension
 	switch ext {
@@ -483,6 +493,15 @@ func (d *DockerComposeParse) downloadAndExtractProject() error {
 		return fmt.Errorf("不支持的文件格式: %s", ext)
 	}
 
+	// Log files after extraction
+	fileListAfter, err := ioutil.ReadDir(projectPath)
+	if err == nil {
+		logrus.Infof("[DEBUG] 解压后目录内容 (%d 个文件):", len(fileListAfter))
+		for i, f := range fileListAfter {
+			logrus.Infof("[DEBUG]   [%d] %s (size: %d, isDir: %v)", i, f.Name(), f.Size(), f.IsDir())
+		}
+	}
+
 	logrus.Infof("project extracted successfully to: %s", projectPath)
 	return nil
 }
@@ -490,25 +509,58 @@ func (d *DockerComposeParse) downloadAndExtractProject() error {
 // loadComposeFile loads the compose file content from the extracted project
 func (d *DockerComposeParse) loadComposeFile() error {
 	composeFilePath := path.Join(d.projectPath, d.composeFilePath)
+	logrus.Infof("[DEBUG] 尝试读取 compose 文件: %s", composeFilePath)
+	logrus.Infof("[DEBUG] 项目路径: %s, compose 文件路径参数: %s", d.projectPath, d.composeFilePath)
 
 	// Try to read the specified compose file
 	content, err := ioutil.ReadFile(composeFilePath)
 	if err != nil {
+		logrus.Warnf("[DEBUG] 读取指定文件失败: %v", err)
+
 		// If not found, try common compose file names
 		commonNames := []string{"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
 		found := false
+		logrus.Infof("[DEBUG] 尝试查找常见的 compose 文件名...")
+
 		for _, name := range commonNames {
 			tryPath := path.Join(d.projectPath, name)
+			logrus.Infof("[DEBUG] 尝试: %s", tryPath)
 			content, err = ioutil.ReadFile(tryPath)
 			if err == nil {
 				logrus.Infof("found compose file at: %s", tryPath)
 				found = true
 				break
+			} else {
+				logrus.Warnf("[DEBUG] 读取失败: %v", err)
 			}
 		}
+
 		if !found {
-			return fmt.Errorf("未找到 compose 文件: %s", d.composeFilePath)
+			// List all files in project directory for debugging
+			logrus.Errorf("[DEBUG] 未找到任何 compose 文件，列出项目目录所有文件:")
+			fileList, err := ioutil.ReadDir(d.projectPath)
+			if err == nil {
+				for i, f := range fileList {
+					logrus.Errorf("[DEBUG]   [%d] %s (isDir: %v)", i, f.Name(), f.IsDir())
+					// If it's a directory, list its contents too
+					if f.IsDir() {
+						subPath := path.Join(d.projectPath, f.Name())
+						subFiles, subErr := ioutil.ReadDir(subPath)
+						if subErr == nil {
+							for j, sf := range subFiles {
+								logrus.Errorf("[DEBUG]     [%d.%d] %s/%s (isDir: %v)", i, j, f.Name(), sf.Name(), sf.IsDir())
+							}
+						}
+					}
+				}
+			} else {
+				logrus.Errorf("[DEBUG] 无法读取项目目录: %v", err)
+			}
+
+			return fmt.Errorf("未找到 compose 文件: %s (已尝试: %s, %v)", d.composeFilePath, composeFilePath, commonNames)
 		}
+	} else {
+		logrus.Infof("[DEBUG] 成功读取指定的 compose 文件")
 	}
 
 	d.source = string(content)
