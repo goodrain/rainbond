@@ -178,6 +178,12 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			volumeType := model.ShareFileVolumeType.String()
 			fileContent := ""
 
+			// Check if compose parser already identified this as a config file
+			if v.VolumeType == "config-file" {
+				volumeType = model.ConfigFileVolumeType.String()
+				logrus.Infof("volume marked as config-file by parser: %s", volumePath)
+			}
+
 			if strings.Contains(volumePath, ":") {
 				infos := strings.Split(volumePath, ":")
 				if len(infos) > 1 {
