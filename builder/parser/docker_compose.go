@@ -50,6 +50,7 @@ type DockerComposeParse struct {
 	eventID         string
 	composeFilePath string
 	projectPath     string
+	composeDir      string // compose 文件所在目录，volume 相对路径基于此目录
 }
 
 //ServiceInfoFromDC service info from dockercompose
@@ -181,7 +182,6 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			// Check if compose parser already identified this as a config file
 			if v.VolumeType == "config-file" {
 				volumeType = model.ConfigFileVolumeType.String()
-				logrus.Infof("volume marked as config-file by parser: %s", volumePath)
 			}
 
 			if strings.Contains(volumePath, ":") {
@@ -190,32 +190,32 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 					sourcePath := infos[0]
 					targetPath := infos[1]
 
-					// 如果有项目路径，检查源路径是否是项目中的文件或目录
-					if d.projectPath != "" && !path.IsAbs(sourcePath) {
-						fullPath := path.Join(d.projectPath, sourcePath)
+					// 使用 composeDir 作为基准路径（volume 相对路径是相对于 compose 文件所在目录的）
+					baseDir := d.composeDir
+					if baseDir == "" {
+						baseDir = d.projectPath
+					}
+
+					if baseDir != "" && !path.IsAbs(sourcePath) {
+						fullPath := path.Join(baseDir, sourcePath)
 						fileInfo, err := os.Stat(fullPath)
 						if err == nil {
 							if fileInfo.IsDir() {
-								// 是目录
 								volumeType = model.ShareFileVolumeType.String()
 								logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
 							} else {
-								// 是文件
 								volumeType = model.ConfigFileVolumeType.String()
-								// 读取文件内容
 								content, readErr := ioutil.ReadFile(fullPath)
 								if readErr == nil {
 									fileContent = string(content)
-									logrus.Infof("detected file volume: %s -> %s, size: %d bytes, content preview: %.100s...", sourcePath, targetPath, len(content), fileContent)
+									logrus.Infof("detected file volume: %s -> %s, size: %d bytes", sourcePath, targetPath, len(content))
 								} else {
 									logrus.Warnf("failed to read file %s: %v", fullPath, readErr)
 								}
 							}
 						} else {
-							logrus.Warnf("volume source path not found in project: %s (full path: %s)", sourcePath, fullPath)
+							logrus.Warnf("volume source not found: %s (tried: %s)", sourcePath, fullPath)
 						}
-					} else if d.projectPath == "" {
-						logrus.Warnf("no project path available, cannot read file content for: %s", sourcePath)
 					}
 
 					volumes[volumePath] = &types.Volume{
@@ -223,7 +223,6 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 						VolumeType:  volumeType,
 						FileContent: fileContent,
 					}
-					logrus.Infof("volume added: path=%s, type=%s, has_content=%v", targetPath, volumeType, len(fileContent) > 0)
 				}
 			} else {
 				volumes[volumePath] = &types.Volume{
@@ -242,9 +241,9 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 
 		// 处理 env_file：读取项目中的环境变量文件
-		if d.projectPath != "" && len(sc.EnvFile) > 0 {
+		if d.composeDir != "" && len(sc.EnvFile) > 0 {
 			for _, envFile := range sc.EnvFile {
-				envFilePath := path.Join(d.projectPath, envFile)
+				envFilePath := path.Join(d.composeDir, envFile)
 				content, err := ioutil.ReadFile(envFilePath)
 				if err == nil {
 					logrus.Infof("loading env file: %s", envFile)
@@ -515,80 +514,56 @@ func (d *DockerComposeParse) loadComposeFile() error {
 	logrus.Infof("[DEBUG] 尝试读取 compose 文件: %s", composeFilePath)
 	logrus.Infof("[DEBUG] 项目路径: %s, compose 文件路径参数: %s", d.projectPath, d.composeFilePath)
 
+	var foundPath string
+
 	// Try to read the specified compose file
 	content, err := ioutil.ReadFile(composeFilePath)
-	if err != nil {
+	if err == nil {
+		foundPath = composeFilePath
+		logrus.Infof("[DEBUG] 成功读取指定的 compose 文件")
+	} else {
 		logrus.Warnf("[DEBUG] 读取指定文件失败: %v", err)
 
-		// If not found, try common compose file names in root directory
 		commonNames := []string{"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
-		found := false
-		logrus.Infof("[DEBUG] 尝试在根目录查找常见的 compose 文件名...")
 
+		// Try root directory
 		for _, name := range commonNames {
 			tryPath := path.Join(d.projectPath, name)
-			logrus.Infof("[DEBUG] 尝试: %s", tryPath)
 			content, err = ioutil.ReadFile(tryPath)
 			if err == nil {
+				foundPath = tryPath
 				logrus.Infof("found compose file at: %s", tryPath)
-				found = true
 				break
-			} else {
-				logrus.Warnf("[DEBUG] 读取失败: %v", err)
 			}
 		}
 
-		// If still not found, try common subdirectories
-		if !found {
-			commonSubdirs := []string{"docker", "compose", "deployment", "deploy", "."}
-			logrus.Infof("[DEBUG] 在根目录未找到，尝试在常见子目录中查找...")
-
+		// Try common subdirectories
+		if foundPath == "" {
+			commonSubdirs := []string{"docker", "compose", "deployment", "deploy"}
 			for _, subdir := range commonSubdirs {
 				for _, name := range commonNames {
 					tryPath := path.Join(d.projectPath, subdir, name)
-					logrus.Infof("[DEBUG] 尝试: %s", tryPath)
 					content, err = ioutil.ReadFile(tryPath)
 					if err == nil {
+						foundPath = tryPath
 						logrus.Infof("found compose file at: %s", tryPath)
-						found = true
 						break
 					}
 				}
-				if found {
+				if foundPath != "" {
 					break
 				}
 			}
 		}
 
-		if !found {
-			// List all files in project directory for debugging
-			logrus.Errorf("[DEBUG] 未找到任何 compose 文件，列出项目目录所有文件:")
-			fileList, err := ioutil.ReadDir(d.projectPath)
-			if err == nil {
-				for i, f := range fileList {
-					logrus.Errorf("[DEBUG]   [%d] %s (isDir: %v)", i, f.Name(), f.IsDir())
-					// If it's a directory, list its contents too
-					if f.IsDir() {
-						subPath := path.Join(d.projectPath, f.Name())
-						subFiles, subErr := ioutil.ReadDir(subPath)
-						if subErr == nil {
-							for j, sf := range subFiles {
-								logrus.Errorf("[DEBUG]     [%d.%d] %s/%s (isDir: %v)", i, j, f.Name(), sf.Name(), sf.IsDir())
-							}
-						}
-					}
-				}
-			} else {
-				logrus.Errorf("[DEBUG] 无法读取项目目录: %v", err)
-			}
-
-			return fmt.Errorf("未找到 compose 文件: %s (已尝试根目录和常见子目录: docker/, compose/, deployment/, deploy/)", d.composeFilePath)
+		if foundPath == "" {
+			return fmt.Errorf("未找到 compose 文件: %s", d.composeFilePath)
 		}
-	} else {
-		logrus.Infof("[DEBUG] 成功读取指定的 compose 文件")
 	}
 
+	// 记录 compose 文件所在目录，volume 相对路径基于此目录
+	d.composeDir = path.Dir(foundPath)
 	d.source = string(content)
-	logrus.Infof("compose file loaded successfully, size: %d bytes", len(content))
+	logrus.Infof("compose file loaded: %s, composeDir: %s, size: %d bytes", foundPath, d.composeDir, len(content))
 	return nil
 }
