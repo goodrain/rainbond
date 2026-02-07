@@ -152,6 +152,11 @@ func checkUnsupportedKey(composeProject *project.Project) []string {
 
 // LoadBytes loads a compose file byte into KomposeObject
 func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
+	return c.LoadBytesWithWorkDir(bodys, "")
+}
+
+// LoadBytesWithWorkDir loads a compose file byte into KomposeObject with optional working directory
+func (c *Compose) LoadBytesWithWorkDir(bodys [][]byte, workDir string) (ComposeObject, error) {
 
 	// Load the json / yaml file in order to get the version value
 	var version string
@@ -195,7 +200,7 @@ func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
 		return co, nil
 	// Use compose-go for 3.8+, spec, or inferred spec
 	case "3.8", "3.9", "3.10", "spec", "compose-spec":
-		co, report, err := parseSpec(bodys)
+		co, report, err := parseSpec(bodys, workDir)
 		if err != nil {
 			return ComposeObject{}, err
 		}

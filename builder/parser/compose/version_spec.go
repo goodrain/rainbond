@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,25 +20,40 @@ import (
 )
 
 // parseSpec parses Docker Compose Spec (no version or v3.8+) using compose-go v2
-func parseSpec(bodys [][]byte) (ComposeObject, *FieldSupportReport, error) {
+func parseSpec(bodys [][]byte, workDir string) (ComposeObject, *FieldSupportReport, error) {
 	report := NewFieldSupportReport()
 
-	// Create a temporary directory to store compose files
-	cacheName := uuid.New().String()
-	cacheDir := "/cache/docker-compose/" + cacheName
-	if err := util.CheckAndCreateDir(cacheDir); err != nil {
-		return ComposeObject{}, report, fmt.Errorf("create cache docker compose file dir error: %s", err.Error())
+	var cacheDir string
+	var files []string
+
+	if workDir != "" {
+		// 使用项目的实际目录作为工作目录，这样 compose-go 能找到 .env 等文件
+		cacheDir = workDir
+		for i, body := range bodys {
+			filename := filepath.Join(cacheDir, fmt.Sprintf("%d-docker-compose.yml", i))
+			if err := ioutil.WriteFile(filename, body, 0755); err != nil {
+				return ComposeObject{}, report, fmt.Errorf("write compose file to project dir error: %s", err.Error())
+			}
+			files = append(files, filename)
+		}
+	} else {
+		// 没有项目目录，使用临时 cache 目录
+		cacheName := uuid.New().String()
+		cacheDir = "/cache/docker-compose/" + cacheName
+		if err := util.CheckAndCreateDir(cacheDir); err != nil {
+			return ComposeObject{}, report, fmt.Errorf("create cache docker compose file dir error: %s", err.Error())
+		}
+		for i, body := range bodys {
+			filename := filepath.Join(cacheDir, fmt.Sprintf("%d-docker-compose.yml", i))
+			if err := ioutil.WriteFile(filename, body, 0755); err != nil {
+				return ComposeObject{}, report, fmt.Errorf("write cache docker compose file error: %s", err.Error())
+			}
+			files = append(files, filename)
+		}
 	}
 
-	// Write compose files to disk (compose-go requires file paths)
-	var files []string
-	for i, body := range bodys {
-		filename := filepath.Join(cacheDir, fmt.Sprintf("%d-docker-compose.yml", i))
-		if err := ioutil.WriteFile(filename, body, 0755); err != nil {
-			return ComposeObject{}, report, fmt.Errorf("write cache docker compose file error: %s", err.Error())
-		}
-		files = append(files, filename)
-	}
+	// 确保 .env 文件存在，compose-go 在 env_file 引用 .env 时要求文件必须存在
+	ensureEnvFile(cacheDir)
 
 	// Load the compose project using compose-go
 	ctx := context.Background()
@@ -477,6 +493,30 @@ func checkSpecUnsupportedFields(serviceName string, service *composetypes.Servic
 		report.AddUnsupported(serviceName, "ulimits",
 			"Ulimits configuration is not supported",
 			"Contact administrator to configure ulimits at node level")
+	}
+}
+
+// ensureEnvFile 确保工作目录中存在 .env 文件
+// compose-go 在解析 env_file 引用时要求文件必须存在
+// 如果不存在，尝试从 .env.example 复制，否则创建空文件
+func ensureEnvFile(dir string) {
+	envPath := filepath.Join(dir, ".env")
+	if _, err := os.Stat(envPath); err == nil {
+		return // .env 已存在
+	}
+
+	// 尝试从 .env.example 复制
+	examplePath := filepath.Join(dir, ".env.example")
+	if content, err := ioutil.ReadFile(examplePath); err == nil {
+		if writeErr := ioutil.WriteFile(envPath, content, 0644); writeErr == nil {
+			logrus.Infof("created .env from .env.example in %s", dir)
+			return
+		}
+	}
+
+	// 创建空 .env 文件
+	if err := ioutil.WriteFile(envPath, []byte(""), 0644); err == nil {
+		logrus.Infof("created empty .env in %s", dir)
 	}
 }
 

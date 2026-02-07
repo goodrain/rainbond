@@ -138,7 +138,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 
 	// 3. 解析 compose 文件
 	comp := compose.Compose{}
-	co, err := comp.LoadBytes([][]byte{[]byte(d.source)})
+	co, err := comp.LoadBytesWithWorkDir([][]byte{[]byte(d.source)}, d.composeDir)
 	if err != nil {
 		logrus.Warning("parse compose file error,", err.Error())
 		// 将详细的错误信息包含在响应中
@@ -175,7 +175,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			volumePath := v.MountPath
+			targetPath := v.MountPath  // 容器内挂载路径
+			sourcePath := v.Host       // 宿主机/项目中的源路径
 			volumeType := model.ShareFileVolumeType.String()
 			fileContent := ""
 
@@ -184,52 +185,47 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				volumeType = model.ConfigFileVolumeType.String()
 			}
 
-			if strings.Contains(volumePath, ":") {
-				infos := strings.Split(volumePath, ":")
-				if len(infos) > 1 {
-					sourcePath := infos[0]
-					targetPath := infos[1]
+			// 如果有源路径，尝试从项目中读取文件内容
+			// compose-go 会把相对路径解析为基于 WorkingDir 的绝对路径
+			// 当使用项目包模式时，WorkingDir 就是 composeDir，所以 sourcePath 已经是正确的绝对路径
+			if sourcePath != "" && d.composeDir != "" {
+				resolvedPath := sourcePath
+				if !path.IsAbs(sourcePath) {
+					resolvedPath = path.Join(d.composeDir, sourcePath)
+				}
 
-					// 使用 composeDir 作为基准路径（volume 相对路径是相对于 compose 文件所在目录的）
-					baseDir := d.composeDir
-					if baseDir == "" {
-						baseDir = d.projectPath
-					}
-
-					if baseDir != "" && !path.IsAbs(sourcePath) {
-						fullPath := path.Join(baseDir, sourcePath)
-						fileInfo, err := os.Stat(fullPath)
-						if err == nil {
-							if fileInfo.IsDir() {
-								volumeType = model.ShareFileVolumeType.String()
-								logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
-							} else {
-								volumeType = model.ConfigFileVolumeType.String()
-								content, readErr := ioutil.ReadFile(fullPath)
-								if readErr == nil {
-									fileContent = string(content)
-									logrus.Infof("detected file volume: %s -> %s, size: %d bytes", sourcePath, targetPath, len(content))
-								} else {
-									logrus.Warnf("failed to read file %s: %v", fullPath, readErr)
-								}
-							}
+				fileInfo, err := os.Stat(resolvedPath)
+				if err == nil {
+					if fileInfo.IsDir() {
+						volumeType = model.ShareFileVolumeType.String()
+						logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
+					} else if fileInfo.Size() > 1<<20 {
+						// 超过 1MB，ConfigMap 不支持，直接忽略
+						logrus.Infof("skipping volume (size %d > 1MB): %s -> %s", fileInfo.Size(), sourcePath, targetPath)
+						continue
+					} else if fileInfo.Size() == 0 {
+						// 空文件，直接忽略
+						logrus.Infof("skipping empty config file: %s -> %s", sourcePath, targetPath)
+						continue
+					} else {
+						volumeType = model.ConfigFileVolumeType.String()
+						content, readErr := ioutil.ReadFile(resolvedPath)
+						if readErr == nil {
+							fileContent = string(content)
+							logrus.Infof("detected config file volume: %s -> %s, size: %d bytes", sourcePath, targetPath, len(content))
 						} else {
-							logrus.Warnf("volume source not found: %s (tried: %s)", sourcePath, fullPath)
+							logrus.Warnf("failed to read config file %s: %v", resolvedPath, readErr)
 						}
 					}
+				} else {
+					logrus.Warnf("volume source not found: %s (resolved: %s)", sourcePath, resolvedPath)
+				}
+			}
 
-					volumes[volumePath] = &types.Volume{
-						VolumePath:  targetPath,
-						VolumeType:  volumeType,
-						FileContent: fileContent,
-					}
-				}
-			} else {
-				volumes[volumePath] = &types.Volume{
-					VolumePath:  volumePath,
-					VolumeType:  volumeType,
-					FileContent: fileContent,
-				}
+			volumes[targetPath] = &types.Volume{
+				VolumePath:  targetPath,
+				VolumeType:  volumeType,
+				FileContent: fileContent,
 			}
 		}
 		envs := make(map[string]*types.Env)
@@ -280,8 +276,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			volumes:    volumes,
 			envs:       envs,
 			memory:     int(sc.MemLimit / 1024 / 1024),
-			image:      ParseImageName(sc.Image),
-			args:       sc.Args,
+			image:      ParseImageName(proxyDockerIOImage(sc.Image)),
 			depends:    sc.Links,
 			imageAlias: kev, // Use service name instead of container_name
 			name:       kev,
@@ -566,4 +561,36 @@ func (d *DockerComposeParse) loadComposeFile() error {
 	d.source = string(content)
 	logrus.Infof("compose file loaded: %s, composeDir: %s, size: %d bytes", foundPath, d.composeDir, len(content))
 	return nil
+}
+
+// proxyDockerIOImage 将 docker.io 镜像替换为代理地址
+// 例如: nginx:latest -> docker.1ms.run/library/nginx:latest
+//       langgenius/dify-api:1.12.1 -> docker.1ms.run/langgenius/dify-api:1.12.1
+//       docker.io/library/nginx:latest -> docker.1ms.run/library/nginx:latest
+func proxyDockerIOImage(imageName string) string {
+	// 已经是代理地址，不处理
+	if strings.HasPrefix(imageName, "docker.1ms.run/") {
+		return imageName
+	}
+
+	// 去掉 docker.io/ 前缀（如果有）
+	name := imageName
+	if strings.HasPrefix(name, "docker.io/") {
+		name = strings.TrimPrefix(name, "docker.io/")
+	}
+
+	// 判断是否是 docker.io 镜像：
+	// 没有 / 或第一段不含 .（非域名）的都是 docker.io 镜像
+	// 排除：包含 . 的域名（如 ghcr.io/xxx, registry.example.com/xxx）
+	parts := strings.SplitN(name, "/", 2)
+	if len(parts) == 1 || !strings.Contains(parts[0], ".") {
+		// 对于官方镜像（没有 /），需要加 library/ 前缀
+		if !strings.Contains(name, "/") {
+			return "docker.1ms.run/library/" + name
+		}
+		return "docker.1ms.run/" + name
+	}
+
+	// 非 docker.io 镜像，不处理
+	return imageName
 }

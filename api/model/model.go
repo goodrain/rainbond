@@ -1141,7 +1141,8 @@ type ServiceCheckStruct struct {
 		TenantID   string
 		Username   string `json:"username"`
 		Password   string `json:"password"`
-		EventID    string `json:"event_id"`
+		EventID         string `json:"event_id"`
+		ComposeFilePath string `json:"compose_file_path"`
 	}
 }
 
