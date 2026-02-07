@@ -178,12 +178,6 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			volumeType := model.ShareFileVolumeType.String()
 			fileContent := ""
 
-			// Check if this is a config file
-			if v.VolumeType == "config-file" {
-				volumeType = model.ConfigFileVolumeType.String()
-				fileContent = "" // Set to empty string for config files
-			}
-
 			if strings.Contains(volumePath, ":") {
 				infos := strings.Split(volumePath, ":")
 				if len(infos) > 1 {
@@ -206,14 +200,16 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 								content, readErr := ioutil.ReadFile(fullPath)
 								if readErr == nil {
 									fileContent = string(content)
-									logrus.Infof("detected file volume: %s -> %s, size: %d bytes", sourcePath, targetPath, len(content))
+									logrus.Infof("detected file volume: %s -> %s, size: %d bytes, content preview: %.100s...", sourcePath, targetPath, len(content), fileContent)
 								} else {
 									logrus.Warnf("failed to read file %s: %v", fullPath, readErr)
 								}
 							}
 						} else {
-							logrus.Warnf("volume source path not found in project: %s", sourcePath)
+							logrus.Warnf("volume source path not found in project: %s (full path: %s)", sourcePath, fullPath)
 						}
+					} else if d.projectPath == "" {
+						logrus.Warnf("no project path available, cannot read file content for: %s", sourcePath)
 					}
 
 					volumes[volumePath] = &types.Volume{
@@ -221,6 +217,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 						VolumeType:  volumeType,
 						FileContent: fileContent,
 					}
+					logrus.Infof("volume added: path=%s, type=%s, has_content=%v", targetPath, volumeType, len(fileContent) > 0)
 				}
 			} else {
 				volumes[volumePath] = &types.Volume{
