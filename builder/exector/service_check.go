@@ -42,12 +42,13 @@ type ServiceCheckInput struct {
 	// 代码： https://github.com/shurcooL/githubql.git master
 	// docker-run: docker run --name xxx nginx:latest nginx
 	// docker-compose: compose全文
-	SourceBody string `json:"source_body"`
-	Namespace  string `json:"namespace"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	TenantID   string
-	EventID    string `json:"event_id"`
+	SourceBody      string `json:"source_body"`
+	Namespace       string `json:"namespace"`
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	TenantID        string
+	EventID         string `json:"event_id"`
+	ComposeFilePath string `json:"compose_file_path"`
 }
 
 // ServiceCheckResult 应用检测结果
@@ -105,17 +106,29 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	case "docker-run":
 		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger, input.Namespace)
 	case "docker-compose":
-		var yamlbody = input.SourceBody
-		if input.SourceBody[0] == '{' {
-			yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
-			if err != nil {
-				logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-				logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
-				return
+		// 如果提供了 event_id，使用项目包方式
+		if input.EventID != "" {
+			composeFilePath := input.ComposeFilePath
+			if composeFilePath == "" {
+				composeFilePath = "docker-compose.yml"
 			}
-			yamlbody = string(yamlbyte)
+			logrus.Infof("使用项目包方式检查 docker-compose，event_id: %s, compose_file_path: %s", input.EventID, composeFilePath)
+			pr = parser.CreateDockerComposeParseFromProject(input.EventID, composeFilePath, input.Username, input.Password, logger)
+		} else {
+			// 传统方式：直接传递 YAML 内容
+			var yamlbody = input.SourceBody
+			if input.SourceBody[0] == '{' {
+				yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
+				if err != nil {
+					logrus.Errorf("json bytes format is error, %s", input.SourceBody)
+					logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
+					return
+				}
+				yamlbody = string(yamlbyte)
+			}
+			logrus.Infof("使用传统方式检查 docker-compose，直接解析 YAML 内容")
+			pr = parser.CreateDockerComposeParse(yamlbody, input.Username, input.Password, logger)
 		}
-		pr = parser.CreateDockerComposeParse(yamlbody, input.Username, input.Password, logger)
 	case "sourcecode":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	case "third-party-service":
