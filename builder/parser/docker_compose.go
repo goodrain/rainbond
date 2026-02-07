@@ -517,10 +517,10 @@ func (d *DockerComposeParse) loadComposeFile() error {
 	if err != nil {
 		logrus.Warnf("[DEBUG] 读取指定文件失败: %v", err)
 
-		// If not found, try common compose file names
+		// If not found, try common compose file names in root directory
 		commonNames := []string{"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
 		found := false
-		logrus.Infof("[DEBUG] 尝试查找常见的 compose 文件名...")
+		logrus.Infof("[DEBUG] 尝试在根目录查找常见的 compose 文件名...")
 
 		for _, name := range commonNames {
 			tryPath := path.Join(d.projectPath, name)
@@ -532,6 +532,28 @@ func (d *DockerComposeParse) loadComposeFile() error {
 				break
 			} else {
 				logrus.Warnf("[DEBUG] 读取失败: %v", err)
+			}
+		}
+
+		// If still not found, try common subdirectories
+		if !found {
+			commonSubdirs := []string{"docker", "compose", "deployment", "deploy", "."}
+			logrus.Infof("[DEBUG] 在根目录未找到，尝试在常见子目录中查找...")
+
+			for _, subdir := range commonSubdirs {
+				for _, name := range commonNames {
+					tryPath := path.Join(d.projectPath, subdir, name)
+					logrus.Infof("[DEBUG] 尝试: %s", tryPath)
+					content, err = ioutil.ReadFile(tryPath)
+					if err == nil {
+						logrus.Infof("found compose file at: %s", tryPath)
+						found = true
+						break
+					}
+				}
+				if found {
+					break
+				}
 			}
 		}
 
@@ -557,7 +579,7 @@ func (d *DockerComposeParse) loadComposeFile() error {
 				logrus.Errorf("[DEBUG] 无法读取项目目录: %v", err)
 			}
 
-			return fmt.Errorf("未找到 compose 文件: %s (已尝试: %s, %v)", d.composeFilePath, composeFilePath, commonNames)
+			return fmt.Errorf("未找到 compose 文件: %s (已尝试根目录和常见子目录: docker/, compose/, deployment/, deploy/)", d.composeFilePath)
 		}
 	} else {
 		logrus.Infof("[DEBUG] 成功读取指定的 compose 文件")
