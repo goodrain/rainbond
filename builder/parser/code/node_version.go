@@ -28,7 +28,7 @@ import (
 const DefaultNodeVersion = "20.x"
 
 // SupportedNodeMajorVersions lists the supported major versions
-var SupportedNodeMajorVersions = []int{18, 20, 22}
+var SupportedNodeMajorVersions = []int{18, 20, 22, 24}
 
 // NodeVersionInfo contains parsed Node.js version information
 type NodeVersionInfo struct {

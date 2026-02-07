@@ -470,10 +470,17 @@ func (c *cnbBuild) buildEnvVars(re *Request) []corev1.EnvVar {
 	}
 
 	// Add Node.js version if specified (CNB_NODE_VERSION from frontend, or RUNTIMES for backward compatibility)
+	// We set it in two places:
+	// 1. As env var (for buildpacks that read via os.Getenv())
+	// 2. As annotation + downwardAPI (CNB Platform API standard, set in buildPlatformAnnotations())
+	var nodeVersionForPlatform string
 	if nodeVersion, ok := re.BuildEnvs["CNB_NODE_VERSION"]; ok && nodeVersion != "" {
-		envs = append(envs, corev1.EnvVar{Name: "BP_NODE_VERSION", Value: nodeVersion})
+		nodeVersionForPlatform = nodeVersion
 	} else if nodeVersion, ok := re.BuildEnvs["RUNTIMES"]; ok && nodeVersion != "" {
-		envs = append(envs, corev1.EnvVar{Name: "BP_NODE_VERSION", Value: nodeVersion})
+		nodeVersionForPlatform = nodeVersion
+	}
+	if nodeVersionForPlatform != "" {
+		envs = append(envs, corev1.EnvVar{Name: "BP_NODE_VERSION", Value: nodeVersionForPlatform})
 	}
 
 	// For static builds (indicated by CNB_OUTPUT_DIR), configure nginx web server
@@ -613,6 +620,13 @@ func (c *cnbBuild) createVolumeAndMount(re *Request, secretName, _ string) ([]co
 func (c *cnbBuild) buildPlatformAnnotations(re *Request) map[string]string {
 	annotations := make(map[string]string)
 
+	// Add Node.js version if specified (CNB_NODE_VERSION from frontend, or RUNTIMES for backward compatibility)
+	if nodeVersion, ok := re.BuildEnvs["CNB_NODE_VERSION"]; ok && nodeVersion != "" {
+		annotations["cnb-bp-node-version"] = nodeVersion
+	} else if nodeVersion, ok := re.BuildEnvs["RUNTIMES"]; ok && nodeVersion != "" {
+		annotations["cnb-bp-node-version"] = nodeVersion
+	}
+
 	// For static builds (indicated by CNB_OUTPUT_DIR), set nginx web server
 	if outputDir, ok := re.BuildEnvs["CNB_OUTPUT_DIR"]; ok && outputDir != "" {
 		annotations["cnb-bp-web-server"] = "nginx"
@@ -637,6 +651,7 @@ func (c *cnbBuild) createPlatformVolume(re *Request) (*corev1.Volume, *corev1.Vo
 
 	// Map annotation keys to BP_* env file names
 	annotationToEnvName := map[string]string{
+		"cnb-bp-node-version":                "BP_NODE_VERSION",
 		"cnb-bp-web-server":                  "BP_WEB_SERVER",
 		"cnb-bp-web-server-root":             "BP_WEB_SERVER_ROOT",
 		"cnb-bp-web-server-enable-push-state": "BP_WEB_SERVER_ENABLE_PUSH_STATE",

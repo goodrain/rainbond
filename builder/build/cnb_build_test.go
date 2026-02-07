@@ -282,6 +282,18 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 			name:        "No CNB_OUTPUT_DIR - no annotations",
 			buildEnvs:   map[string]string{},
 			wantKeys:    []string{},
+			notWantKeys: []string{"cnb-bp-web-server", "cnb-bp-node-version"},
+		},
+		{
+			name:        "With CNB_NODE_VERSION - node version annotation",
+			buildEnvs:   map[string]string{"CNB_NODE_VERSION": "20.20.0"},
+			wantKeys:    []string{"cnb-bp-node-version"},
+			notWantKeys: []string{"cnb-bp-web-server"},
+		},
+		{
+			name:        "With RUNTIMES fallback - node version annotation",
+			buildEnvs:   map[string]string{"RUNTIMES": "18.17.0"},
+			wantKeys:    []string{"cnb-bp-node-version"},
 			notWantKeys: []string{"cnb-bp-web-server"},
 		},
 		{
@@ -298,8 +310,8 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 		},
 		{
 			name:        "Both static build and build script",
-			buildEnvs:   map[string]string{"CNB_OUTPUT_DIR": "build", "CNB_BUILD_SCRIPT": "build"},
-			wantKeys:    []string{"cnb-bp-web-server", "cnb-bp-node-run-scripts"},
+			buildEnvs:   map[string]string{"CNB_OUTPUT_DIR": "build", "CNB_BUILD_SCRIPT": "build", "CNB_NODE_VERSION": "20.20.0"},
+			wantKeys:    []string{"cnb-bp-web-server", "cnb-bp-node-run-scripts", "cnb-bp-node-version"},
 			notWantKeys: []string{},
 		},
 	}
@@ -334,6 +346,7 @@ func TestBuildPlatformAnnotations_Values(t *testing.T) {
 		BuildEnvs: map[string]string{
 			"CNB_OUTPUT_DIR":   "dist",
 			"CNB_BUILD_SCRIPT": "build:prod",
+			"CNB_NODE_VERSION": "20.20.0",
 		},
 	}
 
@@ -350,6 +363,9 @@ func TestBuildPlatformAnnotations_Values(t *testing.T) {
 	}
 	if annotations["cnb-bp-node-run-scripts"] != "build:prod" {
 		t.Errorf("Expected cnb-bp-node-run-scripts='build:prod', got '%s'", annotations["cnb-bp-node-run-scripts"])
+	}
+	if annotations["cnb-bp-node-version"] != "20.20.0" {
+		t.Errorf("Expected cnb-bp-node-version='20.20.0', got '%s'", annotations["cnb-bp-node-version"])
 	}
 }
 
