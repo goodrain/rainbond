@@ -50,6 +50,7 @@ type ClusterInterface interface {
 	GetRbdPods(w http.ResponseWriter, r *http.Request)
 	HistoryRbdLogs(w http.ResponseWriter, r *http.Request)
 	ListPlugins(w http.ResponseWriter, r *http.Request)
+	CreateRBDPlugin(w http.ResponseWriter, r *http.Request)
 	ListAbilities(w http.ResponseWriter, r *http.Request)
 	GetAbility(w http.ResponseWriter, r *http.Request)
 	UpdateAbility(w http.ResponseWriter, r *http.Request)

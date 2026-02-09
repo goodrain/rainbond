@@ -469,6 +469,19 @@ func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// CreateRBDPlugin creates an RBDPlugin CR
+func (c *ClusterController) CreateRBDPlugin(w http.ResponseWriter, r *http.Request) {
+	var req model.CreateRBDPluginReq
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	if err := handler.GetClusterHandler().CreatePlugin(&req); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 // ListAbilities -
 func (c *ClusterController) ListAbilities(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.GetClusterHandler().ListAbilities()

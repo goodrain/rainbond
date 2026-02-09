@@ -2253,25 +2253,37 @@ type RainbondComponent struct {
 
 // RainbondPlugins -
 type RainbondPlugins struct {
-	RegionAppID string `json:"region_app_id"`
-	Name        string `json:"name"`
-	TeamName    string `json:"team_name"`
-	//Namespace   string `json:"namespace"`
-	Icon                string            `json:"icon"`
-	Description         string            `json:"description"`
-	Version             string            `json:"version"`
-	Namespace           string            `json:"namespace"`
-	Author              string            `json:"author"`
-	Status              string            `json:"status"`
-	Alias               string            `json:"alias"`
-	AccessURLs          []string          `json:"access_urls"`
-	Labels              map[string]string `json:"labels"`
-	FrontedPath         string            `json:"fronted_path"`
-	FrontedRelativePath string            `json:"fronted_relative_path"`
-	PluginType          string            `json:"plugin_type"`
-	PluginViews         []string          `json:"plugin_views"`
-	EnableStatus        string            `json:"enable_status"`
-	Backend             string            `json:"backend"`
+	RegionAppID       string            `json:"region_app_id"`
+	Name              string            `json:"name"`
+	TeamName          string            `json:"team_name"`
+	Status            string            `json:"status"`
+	Alias             string            `json:"alias"`
+	Labels            map[string]string `json:"labels"`
+	PluginType        string            `json:"plugin_type"`
+	PluginViews       []string          `json:"plugin_views"`
+	EnableStatus      string            `json:"enable_status"`
+	FrontendComponent string            `json:"frontend_component"`
+	EntryPath         string            `json:"entry_path"`
+	MenuTitle         string            `json:"menu_title"`
+	RoutePath         string            `json:"route_path"`
+	Namespace         string            `json:"namespace"`
+	BackendService    string            `json:"backend_service"`
+	FrontendService   string            `json:"frontend_service"`
+}
+
+// CreateRBDPluginReq defines the request body for creating an RBDPlugin CR
+type CreateRBDPluginReq struct {
+	PluginID          string   `json:"plugin_id" validate:"required"`
+	PluginName        string   `json:"plugin_name"`
+	PluginType        string   `json:"plugin_type"`
+	FrontendComponent string   `json:"frontend_component"`
+	EntryPath         string   `json:"entry_path"`
+	PluginViews       []string `json:"plugin_views"`
+	MenuTitle         string   `json:"menu_title"`
+	RoutePath         string   `json:"route_path"`
+	Namespace         string   `json:"namespace"`
+	BackendService    string   `json:"backend_service"`
+	FrontendService   string   `json:"frontend_service"`
 }
 
 // CreateUpdateGovernanceModeReq -

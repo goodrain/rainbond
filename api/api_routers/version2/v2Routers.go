@@ -30,12 +30,10 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	http2 "github.com/goodrain/rainbond/util/http"
 	"io"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -166,19 +164,9 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func resolveBackend(plugin *v1alpha1.RBDPlugin) (url *url.URL, err error) {
-	backend := plugin.Spec.Backend
-	// 路径可能为两种形式，携带环境变量的，和固定值不携带环境变量：
-	// 1. http://${WEBSERVER_HOST}:${WEBSERVER_PORT} ,这种形式下，需要从环境变量中获取值并渲染
-	// 2. http://webserver.default.svc:80 ,这种形式下，直接从网络获取内容
-	// 除此之外，路径可能不携带协议，如：webserver.default.svc:80，这种情况下，默认使用 http 请求
-
-	// 处理携带环境变量的情况，如 http://${WEBSERVER_HOST}:${WEBSERVER_PORT}
-	if strings.Contains(backend, "${") {
-		envVars, err := getAppEnvVars(plugin.GetLabels()["app_id"])
-		if err != nil {
-			return nil, err
-		}
-		backend = replaceEnvVariables(backend, envVars)
+	backend := plugin.Spec.BackendService
+	if backend == "" {
+		return nil, fmt.Errorf("plugin %s has no backend_service configured", plugin.Name)
 	}
 	if !strings.HasPrefix(backend, "http://") && !strings.HasPrefix(backend, "https://") {
 		backend = "http://" + backend
@@ -221,133 +209,37 @@ func PluginStaticProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func resolveFrontedPathContent(plugin *v1alpha1.RBDPlugin) (content string, err error) {
-	path := plugin.Spec.FrontedPath
-	// 检查路径前缀
-	if strings.HasPrefix(path, "configmap://") {
-		// 解析 configmap:// 并从 Kubernetes 获取内容
-		return resolveConfigMapContent(plugin)
+	frontendService := plugin.Spec.FrontendService
+	if frontendService == "" {
+		return "", fmt.Errorf("plugin %s has no frontend_service configured", plugin.Name)
 	}
-	return resolveNetworkPathContent(plugin)
-}
-
-func resolveNetworkPathContent(plugin *v1alpha1.RBDPlugin) (string, error) {
-	path := plugin.Spec.FrontedPath
-	// 路径可能为两种形式，携带环境变量的，和固定值不携带环境变量：
-	// 1. http://${WEBSERVER_HOST}:${WEBSERVER_PORT}/${WEBSERVER_PATH} ,这种形式下，需要从环境变量中获取值并渲染
-	// 2. http://webserver.default.svc:80/path ,这种形式下，直接从网络获取内容
-	// 除此之外，路径可能不携带协议，如：webserver.default.svc:80/path，这种情况下，默认使用 http 请求
-
-	// 1. 处理携带环境变量的情况，如 http://${WEBSERVER_HOST}:${WEBSERVER_PORT}/${WEBSERVER_PATH}
-	if strings.Contains(path, "${") {
-		envVars, err := getAppEnvVars(plugin.GetLabels()["app_id"])
-		if err != nil {
-			return "", err
-		}
-		path = replaceEnvVariables(path, envVars)
+	entryPath := plugin.Spec.EntryPath
+	if entryPath == "" {
+		return "", fmt.Errorf("plugin %s has no entry_path configured", plugin.Name)
 	}
-
-	// 2. 处理路径是否携带协议
-	if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
-		// 如果没有协议，默认当作 http 请求处理
-		path = "http://" + path
+	fetchURL := frontendService
+	if !strings.HasPrefix(fetchURL, "http://") && !strings.HasPrefix(fetchURL, "https://") {
+		fetchURL = "http://" + fetchURL
 	}
-
-	resp, err := http.Get(path)
+	fetchURL = strings.TrimRight(fetchURL, "/") + "/" + strings.TrimLeft(entryPath, "/")
+	resp, err := http.Get(fetchURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch content from %s: %v", path, err)
+		return "", fmt.Errorf("failed to fetch content from %s: %v", fetchURL, err)
 	}
 	defer resp.Body.Close()
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read content from %s: %v", path, err)
+		return "", fmt.Errorf("failed to read content from %s: %v", fetchURL, err)
 	}
 	return string(body), nil
 }
 
-// replaceEnvVariables 使用从 Deployment 和 StatefulSet 中获取的环境变量进行替换
-func replaceEnvVariables(path string, envVars map[string]string) string {
-	return os.Expand(path, func(variable string) string {
-		// 查找环境变量，返回替换值
-		if value, found := envVars[variable]; found {
-			return value
-		}
-		// 未找到时返回原样
-		return fmt.Sprintf("${%s}", variable)
-	})
+func resolveNetworkPathContent(plugin *v1alpha1.RBDPlugin) (string, error) {
+	return resolveFrontedPathContent(plugin)
 }
 
 func resolveConfigMapContent(plugin *v1alpha1.RBDPlugin) (string, error) {
-	path := plugin.Spec.FrontedPath
-	// 路径可能为两种形式，携带环境变量的，和固定值不携带环境变量：
-	// 1. configmap://${_NAMESPACE}/${CONFIG_NAME}/${CONFIG_KEY} ,这种形式下，需要从环境变量中获取 _NAMESPACE、CONFIG_NAME、CONFIG_KEY 的值并渲染
-	// 2. configmap://defaultns/configname/configkey ,这种形式下，直接从 Kubernetes API 获取 ConfigMap 的内容
-
-	// 1. 处理携带环境变量的情况，如 configmap://${_NAMESPACE}/${CONFIG_NAME}/${CONFIG_KEY}
-	if strings.Contains(path, "${") {
-		envVars, err := getAppEnvVars(plugin.GetLabels()["app_id"])
-		if err != nil {
-			return "", err
-		}
-		path = replaceEnvVariables(path, envVars)
-	}
-	// 2. 处理路径是否包含命名空间、ConfigMap 名称和键
-	// 2. 解析 configmap://namespace/configmap/key 格式的路径
-	parts := strings.Split(strings.TrimPrefix(path, "configmap://"), "/")
-	if len(parts) != 3 {
-		return "", fmt.Errorf("invalid configmap path format: %s", path)
-	}
-	namespace, configName, configKey := parts[0], parts[1], parts[2]
-	// 3. 使用 Kubernetes API 读取 ConfigMap 内容
-	configMap, err := k8s.Default().Clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to get ConfigMap %s in namespace %s: %v", configName, namespace, err)
-	}
-	// 4. 获取指定的 key 内容
-	value, ok := configMap.Data[configKey]
-	if !ok {
-		return "", fmt.Errorf("ConfigMap %s in namespace %s does not contain key %s", configName, namespace, configKey)
-	}
-	return value, nil
-}
-
-// getAppEnvVars 查找指定 app_id 下的 Deployment 和 StatefulSet，并提取环境变量
-func getAppEnvVars(appID string) (map[string]string, error) {
-	envVars := make(map[string]string)
-	// 获取 Deployment 列表
-	deployments, err := k8s.Default().Clientset.AppsV1().Deployments(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app_id=%s", appID),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list deployments: %v", err)
-	}
-
-	// 获取 Deployment 中的环境变量
-	for _, deploy := range deployments.Items {
-		for _, container := range deploy.Spec.Template.Spec.Containers {
-			for _, env := range container.Env {
-				envVars[env.Name] = env.Value
-			}
-		}
-	}
-
-	// 获取 StatefulSet 列表
-	statefulsets, err := k8s.Default().Clientset.AppsV1().StatefulSets(corev1.NamespaceAll).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app_id=%s", appID),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list statefulsets: %v", err)
-	}
-
-	// 获取 StatefulSet 中的环境变量
-	for _, sts := range statefulsets.Items {
-		for _, container := range sts.Spec.Template.Spec.Containers {
-			for _, env := range container.Env {
-				envVars[env.Name] = env.Value
-			}
-		}
-	}
-	return envVars, nil
+	return resolveFrontedPathContent(plugin)
 }
 
 func ChangePluginStatus(w http.ResponseWriter, r *http.Request) {
@@ -404,6 +296,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	r.Get("/plugins", controller.GetManager().ListPlugins)
+	r.Post("/plugins", controller.GetManager().CreateRBDPlugin)
 	r.Get("/abilities", controller.GetManager().ListAbilities)
 	r.Get("/abilities/{ability_id}", controller.GetManager().GetAbility)
 	r.Put("/abilities/{ability_id}", controller.GetManager().UpdateAbility)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -86,6 +85,7 @@ type ClusterHandler interface {
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
 	ListPlugins(official bool) (rbds []*model.RainbondPlugins, err error)
+	CreatePlugin(req *model.CreateRBDPluginReq) error
 	ListAbilities() (rbds []unstructured.Unstructured, err error)
 	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
 	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
@@ -763,6 +763,41 @@ func (c *clusterAction) ListPlugins(official bool) (plugins []*model.RainbondPlu
 	return res, nil
 }
 
+// CreatePlugin creates or updates an RBDPlugin CR
+func (c *clusterAction) CreatePlugin(req *model.CreateRBDPluginReq) error {
+	var pluginViews []v1alpha1.PluginView
+	for _, v := range req.PluginViews {
+		pluginViews = append(pluginViews, v1alpha1.PluginView(v))
+	}
+
+	plugin := &v1alpha1.RBDPlugin{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: req.PluginID,
+		},
+		Spec: v1alpha1.RBDPluginSpec{
+			DisplayName:       req.PluginName,
+			PluginType:        v1alpha1.PluginType(req.PluginType),
+			FrontendComponent: req.FrontendComponent,
+			EntryPath:         req.EntryPath,
+			PluginViews:       pluginViews,
+			MenuTitle:         req.MenuTitle,
+			RoutePath:         req.RoutePath,
+			Namespace:         req.Namespace,
+			BackendService:    req.BackendService,
+			FrontendService:   req.FrontendService,
+		},
+	}
+
+	existing, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Get(context.Background(), req.PluginID, metav1.GetOptions{})
+	if err == nil {
+		existing.Spec = plugin.Spec
+		_, err = c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Update(context.Background(), existing, metav1.UpdateOptions{})
+		return err
+	}
+	_, err = c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Create(context.Background(), plugin, metav1.CreateOptions{})
+	return err
+}
+
 // ListAbilities -
 func (c *clusterAction) ListAbilities() (rbds []unstructured.Unstructured, err error) {
 	list, err := c.rainbondClient.RainbondV1alpha1().RBDAbilities(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
@@ -914,9 +949,8 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 			status = appStatuses[appID]
 		}
 		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
-		frontedRelativePath, _ := extractFilePath(plugin.Spec.FrontedPath)
 		var pluginViews []string
-		for _, view := range plugin.Spec.PluginView {
+		for _, view := range plugin.Spec.PluginViews {
 			pluginViews = append(pluginViews, view.String())
 		}
 
@@ -925,42 +959,25 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 			enableStatus = v1alpha1.True.String()
 		}
 		plugins = append(plugins, &model.RainbondPlugins{
-			RegionAppID:         appID,
-			Name:                plugin.GetName(),
-			TeamName:            teamNames[appTeamIDs[appID]],
-			Icon:                plugin.Spec.Icon,
-			Description:         plugin.Spec.Description,
-			Version:             plugin.Spec.Version,
-			Author:              "plugin.Spec.Author",
-			Status:              status,
-			Alias:               plugin.Spec.DisplayName,
-			AccessURLs:          plugin.Spec.AccessURLs,
-			Labels:              plugin.Labels,
-			FrontedPath:         plugin.Spec.FrontedPath,
-			FrontedRelativePath: frontedRelativePath,
-			PluginType:          plugin.Spec.PluginType.String(),
-			PluginViews:         pluginViews,
-			EnableStatus:        enableStatus,
-			Backend:             plugin.Spec.Backend,
+			RegionAppID:       appID,
+			Name:              plugin.GetName(),
+			TeamName:          teamNames[appTeamIDs[appID]],
+			Status:            status,
+			Alias:             plugin.Spec.DisplayName,
+			Labels:            plugin.Labels,
+			PluginType:        plugin.Spec.PluginType.String(),
+			PluginViews:       pluginViews,
+			EnableStatus:      enableStatus,
+			FrontendComponent: plugin.Spec.FrontendComponent,
+			EntryPath:         plugin.Spec.EntryPath,
+			MenuTitle:         plugin.Spec.MenuTitle,
+			RoutePath:         plugin.Spec.RoutePath,
+			Namespace:         plugin.Spec.Namespace,
+			BackendService:    plugin.Spec.BackendService,
+			FrontendService:   plugin.Spec.FrontendService,
 		})
 	}
 	return plugins, nil
-}
-
-func extractFilePath(frontedPath string) (string, error) {
-	// 解析 frontedPath
-	parsedURL, err := url.Parse(frontedPath)
-	if err != nil {
-		return "", err
-	}
-
-	// 返回路径部分，路径部分可能以 / 开头
-	filePath := parsedURL.Path
-
-	// 去掉路径前面的斜杠
-	filePath = strings.TrimPrefix(filePath, "/")
-
-	return filePath, nil
 }
 
 const (

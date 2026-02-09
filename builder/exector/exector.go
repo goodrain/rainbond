@@ -886,13 +886,17 @@ func (e *exectorManager) getSourceScanPluginURL() string {
 	}
 
 	// Get Backend URL from plugin spec
-	if plugin.Spec.Backend == "" {
-		logrus.Debugf("Source scan plugin %s found but Backend is empty", pluginName)
+	if plugin.Spec.BackendService == "" {
+		logrus.Debugf("Source scan plugin %s found but BackendService is empty", pluginName)
 		return ""
 	}
 
-	logrus.Infof("Using source scan URL from rbdplugin: %s", plugin.Spec.Backend)
-	return plugin.Spec.Backend
+	backendURL := plugin.Spec.BackendService
+	if !strings.HasPrefix(backendURL, "http://") && !strings.HasPrefix(backendURL, "https://") {
+		backendURL = "http://" + backendURL
+	}
+	logrus.Infof("Using source scan URL from rbdplugin: %s", backendURL)
+	return backendURL
 }
 
 // createSourceScanEvent creates a new source scan event in database

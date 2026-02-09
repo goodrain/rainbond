@@ -458,12 +458,12 @@ func shouldDeferBuildEvent() bool {
 	}
 
 	// Check if plugin has a backend configured
-	if plugin.Spec.Backend == "" {
-		logrus.Debug("Source-scan plugin found but Backend is empty")
+	if plugin.Spec.BackendService == "" {
+		logrus.Debug("Source-scan plugin found but BackendService is empty")
 		return false
 	}
 
-	logrus.Infof("Source-scan plugin active with backend: %s, deferring build event creation", plugin.Spec.Backend)
+	logrus.Infof("Source-scan plugin active with backend: %s, deferring build event creation", plugin.Spec.BackendService)
 	return true
 }
 
