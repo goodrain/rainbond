@@ -617,7 +617,7 @@ func (d *SourceCodeParse) GetImage() Image {
 
 // GetArgs 启动参数
 func (d *SourceCodeParse) GetArgs() []string {
-	if d.Lang == code.Nodejs {
+	if d.Lang == code.Nodejs || d.Lang == code.Static {
 		return nil
 	}
 	return d.args

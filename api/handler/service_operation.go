@@ -108,7 +108,7 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		FinishTime:   time.Now(),
 		PlanVersion:  buildReq.PlanVersion,
 	}
-	if buildReq.CodeInfo.Cmd != "" {
+	if buildReq.CodeInfo.Cmd != "" && buildReq.CodeInfo.BuildType != "cnb" {
 		version.Cmd = buildReq.CodeInfo.Cmd
 	}
 	if err = db.GetManager().VersionInfoDao().AddModel(&version); err != nil {
