@@ -87,9 +87,10 @@ func (c *cnbBuild) Build(re *Request) (*Response, error) {
 	// Validate project files and warn user about common issues
 	c.validateProjectFiles(re)
 
-	// Inject .npmrc for China mirror support
-	if err := c.injectNpmrc(re); err != nil {
-		logrus.Warnf("inject .npmrc failed: %v", err)
+	// Inject mirror config (.npmrc/.yarnrc/.pnpmrc) for Node.js projects
+	// Pure static projects (no package.json) are skipped automatically
+	if err := c.injectMirrorConfig(re); err != nil {
+		logrus.Warnf("inject mirror config failed: %v", err)
 	}
 
 	// Prepare platform env directory with BP_* environment variables
@@ -122,6 +123,13 @@ func (c *cnbBuild) Build(re *Request) (*Response, error) {
 // injectMirrorConfig injects .npmrc, .yarnrc, .pnpmrc files for npm/yarn/pnpm registry configuration
 // This replaces the old injectNpmrc method to support all three package managers
 func (c *cnbBuild) injectMirrorConfig(re *Request) error {
+	// Skip for pure static projects (no package.json) - they don't need npm/yarn/pnpm configuration
+	packageJsonPath := path.Join(re.SourceDir, "package.json")
+	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		logrus.Info("No package.json found, skipping package manager config injection")
+		return nil
+	}
+
 	// Determine mirror source: project (use existing files) or global (use platform config)
 	mirrorSource := re.BuildEnvs["CNB_MIRROR_SOURCE"]
 
@@ -214,13 +222,6 @@ func (c *cnbBuild) injectConfigFile(re *Request, fileName, envKey string) error 
 	return nil
 }
 
-// injectNpmrc injects .npmrc file for npm/yarn registry configuration
-// Deprecated: Use injectMirrorConfig instead for full package manager support
-func (c *cnbBuild) injectNpmrc(re *Request) error {
-	// Delegate to the new method for backward compatibility
-	return c.injectMirrorConfig(re)
-}
-
 
 // stopPreBuildJob stops any previous build jobs for the service
 func (c *cnbBuild) stopPreBuildJob(re *Request) error {
@@ -280,6 +281,7 @@ func (c *cnbBuild) setSourceDirPermissions(re *Request) error {
 	// Use chmod to make directory writable by all users as a simple solution
 	return os.Chmod(re.SourceDir, 0777)
 }
+
 
 // runCNBBuildJob creates and runs the CNB build pod
 func (c *cnbBuild) runCNBBuildJob(re *Request, buildImageName string) error {
@@ -420,7 +422,7 @@ func (c *cnbBuild) runCNBBuildJob(re *Request, buildImageName string) error {
 }
 
 // buildCreatorArgs builds the lifecycle creator arguments
-func (c *cnbBuild) buildCreatorArgs(_ *Request, buildImageName, runImage string) []string {
+func (c *cnbBuild) buildCreatorArgs(re *Request, buildImageName, runImage string) []string {
 	args := []string{
 		"-app=/workspace",
 		"-layers=/layers",
@@ -433,6 +435,26 @@ func (c *cnbBuild) buildCreatorArgs(_ *Request, buildImageName, runImage string)
 	// Note: -cache-image is disabled because CNB_INSECURE_REGISTRIES does not work
 	// for cache image access in lifecycle 0.20. Using local -cache-dir only.
 	// TODO: Re-enable when lifecycle properly supports insecure registries for cache
+
+	// For pure static projects (no package.json), use a custom order.toml
+	// that only includes the nginx buildpack. This avoids requiring Node.js
+	// buildpack detection (which needs package.json) entirely.
+	packageJsonPath := path.Join(re.SourceDir, "package.json")
+	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		orderPath := path.Join(re.SourceDir, ".cnb-order.toml")
+		nginxBuildpackVersion := util.GetenvDefault("CNB_NGINX_BUILDPACK_VERSION", "1.0.12")
+		orderContent := fmt.Sprintf(`[[order]]
+  [[order.group]]
+    id = "paketo-buildpacks/nginx"
+    version = "%s"
+`, nginxBuildpackVersion)
+		if err := os.WriteFile(orderPath, []byte(orderContent), 0644); err != nil {
+			logrus.Warnf("failed to write custom order.toml for static project: %v", err)
+		} else {
+			args = append(args, "-order=/workspace/.cnb-order.toml")
+			logrus.Infof("Pure static project: using custom order.toml with nginx buildpack v%s", nginxBuildpackVersion)
+		}
+	}
 
 	// Add the output image name (positional argument at the end)
 	args = append(args, buildImageName)
@@ -458,6 +480,29 @@ func (c *cnbBuild) buildEnvVars(re *Request) []corev1.EnvVar {
 			Value: "/home/cnb/.docker",
 		},
 	}
+
+	// Detect if this is a pure static project (no package.json)
+	packageJsonPath := path.Join(re.SourceDir, "package.json")
+	isPureStatic := false
+	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		isPureStatic = true
+	}
+
+	// For pure static projects: configure nginx web server and return early
+	if isPureStatic {
+		outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
+		if outputDir == "" {
+			outputDir = "." // Default to root directory
+		}
+		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER", Value: "nginx"})
+		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ROOT", Value: outputDir})
+		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ENABLE_PUSH_STATE", Value: "true"})
+
+		logrus.Infof("Pure static project: nginx web server at '%s'", outputDir)
+		return envs
+	}
+
+	// Node.js project: continue with existing Node.js logic below
 
 	// Add China mirror configuration for Paketo dependency downloads
 	enableChinaMirror := util.GetenvDefault("ENABLE_CHINA_MIRROR", "true")

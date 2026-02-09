@@ -147,6 +147,27 @@ func GetLangType(homepath string) (Lang, error) {
 	if len(arr) == 0 {
 		return NO, ErrCodeUnableIdentify
 	} else {
+		// 当同时检测到 Node.js 和 static 时，移除 static
+		// 有 package.json 的项目不能走纯静态 CNB 构建（nginx buildpack 处理不了 package.json）
+		hasNodejs := false
+		hasStatic := false
+		for _, lang := range arr {
+			if lang == string(Nodejs) {
+				hasNodejs = true
+			}
+			if lang == string(Static) {
+				hasStatic = true
+			}
+		}
+		if hasNodejs && hasStatic {
+			filtered := make([]string, 0, len(arr))
+			for _, lang := range arr {
+				if lang != string(Static) {
+					filtered = append(filtered, lang)
+				}
+			}
+			arr = filtered
+		}
 		return Lang(strings.Join(arr, ",")), nil
 	}
 }

@@ -146,10 +146,14 @@ func GetBuild(lang code.Lang) (Build, error) {
 func GetBuildByType(lang code.Lang, buildType string) (Build, error) {
 	switch buildType {
 	case "cnb":
-		// Only Node.js supports CNB build currently
+		// Support Node.js projects (with package.json)
 		// Handle combined language types (e.g., "Node.js,static")
 		langStr := string(lang)
 		if lang == code.Nodejs || strings.Contains(langStr, string(code.Nodejs)) {
+			return cnbBuilder()
+		}
+		// Support pure static projects (no package.json, only HTML)
+		if lang == code.Static || strings.Contains(langStr, string(code.Static)) {
 			return cnbBuilder()
 		}
 		// Other languages fall back to default builder
