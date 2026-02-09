@@ -527,6 +527,17 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 
+	// CNB 构建默认监听 8080 端口（Paketo buildpack 规范）
+	// - 纯静态语言：始终使用 nginx，端口 8080
+	// - Node.js 前端框架（static 类型）：构建后由 nginx 托管，端口 8080
+	// - Node.js 后端框架（dynamic 类型）：端口由用户代码决定，不预设
+	if d.Lang == code.Static ||
+		(d.Lang == code.Nodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
+		if _, ok := d.ports[8080]; !ok {
+			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
+		}
+	}
+
 	// 扫描所有 Dockerfile 文件
 	// 参数：最大深度 5 层，最多返回 20 个文件
 	d.dockerfiles = code.FindDockerfiles(buildPath, 5, 20)
@@ -808,10 +819,6 @@ func (d *SourceCodeParse) buildRuntimeInfo(runtimeInfo map[string]string, lang c
 	}
 	if runtimeInfo["HAS_YARNRC"] == "true" {
 		configFiles.HasYarnrc = true
-		hasConfigFiles = true
-	}
-	if runtimeInfo["HAS_PNPMRC"] == "true" {
-		configFiles.HasPnpmrc = true
 		hasConfigFiles = true
 	}
 	if runtimeInfo["HAS_DOCKERFILE"] == "true" {

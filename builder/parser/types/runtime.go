@@ -94,14 +94,11 @@ type BuildConfig struct {
 
 // ConfigFiles indicates which configuration files were detected.
 type ConfigFiles struct {
-	// HasNpmrc indicates .npmrc file exists
+	// HasNpmrc indicates .npmrc file exists (used by npm and pnpm)
 	HasNpmrc bool `json:"has_npmrc,omitempty"`
 
 	// HasYarnrc indicates .yarnrc or .yarnrc.yml file exists
 	HasYarnrc bool `json:"has_yarnrc,omitempty"`
-
-	// HasPnpmrc indicates .pnpmrc file exists
-	HasPnpmrc bool `json:"has_pnpmrc,omitempty"`
 
 	// HasDockerfile indicates Dockerfile exists
 	HasDockerfile bool `json:"has_dockerfile,omitempty"`

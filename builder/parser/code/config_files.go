@@ -26,20 +26,19 @@ import (
 )
 
 // ConfigFiles represents detected configuration files in a Node.js project
+// Note: pnpm uses .npmrc (not .pnpmrc), so only .npmrc and .yarnrc are tracked
 type ConfigFiles struct {
-	HasNpmrc  bool   // .npmrc exists
-	HasYarnrc bool   // .yarnrc or .yarnrc.yml exists
-	HasPnpmrc bool   // .pnpmrc exists
-	NpmrcPath string // path to .npmrc if exists
+	HasNpmrc   bool   // .npmrc exists (used by npm and pnpm)
+	HasYarnrc  bool   // .yarnrc or .yarnrc.yml exists
+	NpmrcPath  string // path to .npmrc if exists
 	YarnrcPath string // path to .yarnrc or .yarnrc.yml if exists
-	PnpmrcPath string // path to .pnpmrc if exists
 }
 
 // DetectConfigFiles detects configuration files in a Node.js project
 func DetectConfigFiles(buildPath string) ConfigFiles {
 	config := ConfigFiles{}
 
-	// Check .npmrc
+	// Check .npmrc (used by both npm and pnpm)
 	npmrcPath := path.Join(buildPath, ".npmrc")
 	if ok, _ := util.FileExists(npmrcPath); ok {
 		config.HasNpmrc = true
@@ -55,13 +54,6 @@ func DetectConfigFiles(buildPath string) ConfigFiles {
 	} else if ok, _ := util.FileExists(yarnrcYmlPath); ok {
 		config.HasYarnrc = true
 		config.YarnrcPath = yarnrcYmlPath
-	}
-
-	// Check .pnpmrc (though pnpm typically uses .npmrc)
-	pnpmrcPath := path.Join(buildPath, ".pnpmrc")
-	if ok, _ := util.FileExists(pnpmrcPath); ok {
-		config.HasPnpmrc = true
-		config.PnpmrcPath = pnpmrcPath
 	}
 
 	return config
@@ -97,17 +89,9 @@ func (c ConfigFiles) GetYarnrcContent() (string, error) {
 	return ReadConfigFileContent(c.YarnrcPath)
 }
 
-// GetPnpmrcContent returns the content of .pnpmrc file if it exists
-func (c ConfigFiles) GetPnpmrcContent() (string, error) {
-	if !c.HasPnpmrc {
-		return "", nil
-	}
-	return ReadConfigFileContent(c.PnpmrcPath)
-}
-
 // HasAnyConfigFile returns true if any configuration file exists
 func (c ConfigFiles) HasAnyConfigFile() bool {
-	return c.HasNpmrc || c.HasYarnrc || c.HasPnpmrc
+	return c.HasNpmrc || c.HasYarnrc
 }
 
 // GetRelevantConfigFile returns the path to the most relevant config file
@@ -115,10 +99,7 @@ func (c ConfigFiles) HasAnyConfigFile() bool {
 func (c ConfigFiles) GetRelevantConfigFile(pm PackageManager) string {
 	switch pm {
 	case PackageManagerPNPM:
-		// pnpm uses .npmrc primarily, but also supports .pnpmrc
-		if c.HasPnpmrc {
-			return c.PnpmrcPath
-		}
+		// pnpm uses .npmrc for configuration
 		if c.HasNpmrc {
 			return c.NpmrcPath
 		}

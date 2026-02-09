@@ -194,13 +194,8 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 				if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
 					vv, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion("node", nodeVersion)
 					if (err != nil && err == gorm.ErrRecordNotFound) || !vv.Show {
-						dbVersion, err := db.GetManager().LongVersionDao().GetDefaultVersionByLanguageAndVersion("node")
-						if err == nil {
-							nodeVersion = dbVersion.Version
-						} else {
-							// Fall back to resolved version
-							nodeVersion = versionInfo.Resolved
-						}
+						// Database doesn't have this version, use resolved version
+						nodeVersion = versionInfo.Resolved
 					}
 				} else {
 					// For non-range versions, use the resolved version
@@ -253,7 +248,6 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	configFiles := DetectConfigFiles(buildPath)
 	runtimeInfo["HAS_NPMRC"] = boolToString(configFiles.HasNpmrc)
 	runtimeInfo["HAS_YARNRC"] = boolToString(configFiles.HasYarnrc)
-	runtimeInfo["HAS_PNPMRC"] = boolToString(configFiles.HasPnpmrc)
 
 	return runtimeInfo, nil
 }

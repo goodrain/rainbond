@@ -45,9 +45,6 @@ func TestDetectConfigFiles_Npmrc(t *testing.T) {
 	if config.HasYarnrc {
 		t.Error("Expected HasYarnrc to be false")
 	}
-	if config.HasPnpmrc {
-		t.Error("Expected HasPnpmrc to be false")
-	}
 	if config.NpmrcPath != path.Join(tmpDir, ".npmrc") {
 		t.Errorf("Expected NpmrcPath to be %s, got %s", path.Join(tmpDir, ".npmrc"), config.NpmrcPath)
 	}
@@ -60,7 +57,6 @@ func TestDetectConfigFiles_YarnrcClassic(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create .yarnrc (classic)
 	if err := os.WriteFile(path.Join(tmpDir, ".yarnrc"), []byte("registry \"https://registry.npmmirror.com\""), 0644); err != nil {
 		t.Fatalf("Failed to write .yarnrc: %v", err)
 	}
@@ -85,7 +81,6 @@ func TestDetectConfigFiles_YarnrcYml(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create .yarnrc.yml (berry/modern)
 	yarnrcContent := `nodeLinker: node-modules
 npmRegistryServer: "https://registry.npmmirror.com"`
 	if err := os.WriteFile(path.Join(tmpDir, ".yarnrc.yml"), []byte(yarnrcContent), 0644); err != nil {
@@ -102,28 +97,6 @@ npmRegistryServer: "https://registry.npmmirror.com"`
 	}
 }
 
-func TestDetectConfigFiles_Pnpmrc(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test-pnpmrc-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create .pnpmrc
-	if err := os.WriteFile(path.Join(tmpDir, ".pnpmrc"), []byte("shamefully-hoist=true"), 0644); err != nil {
-		t.Fatalf("Failed to write .pnpmrc: %v", err)
-	}
-
-	config := DetectConfigFiles(tmpDir)
-
-	if !config.HasPnpmrc {
-		t.Error("Expected HasPnpmrc to be true")
-	}
-	if config.PnpmrcPath != path.Join(tmpDir, ".pnpmrc") {
-		t.Errorf("Expected PnpmrcPath to be %s, got %s", path.Join(tmpDir, ".pnpmrc"), config.PnpmrcPath)
-	}
-}
-
 func TestDetectConfigFiles_Multiple(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-multi-config-*")
 	if err != nil {
@@ -131,10 +104,8 @@ func TestDetectConfigFiles_Multiple(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create multiple config files
 	os.WriteFile(path.Join(tmpDir, ".npmrc"), []byte("registry=https://registry.npmmirror.com"), 0644)
 	os.WriteFile(path.Join(tmpDir, ".yarnrc.yml"), []byte("nodeLinker: node-modules"), 0644)
-	os.WriteFile(path.Join(tmpDir, ".pnpmrc"), []byte("shamefully-hoist=true"), 0644)
 
 	config := DetectConfigFiles(tmpDir)
 
@@ -143,9 +114,6 @@ func TestDetectConfigFiles_Multiple(t *testing.T) {
 	}
 	if !config.HasYarnrc {
 		t.Error("Expected HasYarnrc to be true")
-	}
-	if !config.HasPnpmrc {
-		t.Error("Expected HasPnpmrc to be true")
 	}
 }
 
@@ -163,9 +131,6 @@ func TestDetectConfigFiles_None(t *testing.T) {
 	}
 	if config.HasYarnrc {
 		t.Error("Expected HasYarnrc to be false")
-	}
-	if config.HasPnpmrc {
-		t.Error("Expected HasPnpmrc to be false")
 	}
 	if config.HasAnyConfigFile() {
 		t.Error("Expected HasAnyConfigFile to be false")
@@ -227,8 +192,7 @@ func TestConfigFiles_HasAnyConfigFile(t *testing.T) {
 		{"no config", ConfigFiles{}, false},
 		{"npmrc only", ConfigFiles{HasNpmrc: true}, true},
 		{"yarnrc only", ConfigFiles{HasYarnrc: true}, true},
-		{"pnpmrc only", ConfigFiles{HasPnpmrc: true}, true},
-		{"all configs", ConfigFiles{HasNpmrc: true, HasYarnrc: true, HasPnpmrc: true}, true},
+		{"all configs", ConfigFiles{HasNpmrc: true, HasYarnrc: true}, true},
 	}
 
 	for _, tt := range tests {
@@ -247,14 +211,11 @@ func TestConfigFiles_GetRelevantConfigFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create all config files
 	npmrcPath := path.Join(tmpDir, ".npmrc")
 	yarnrcPath := path.Join(tmpDir, ".yarnrc.yml")
-	pnpmrcPath := path.Join(tmpDir, ".pnpmrc")
 
 	os.WriteFile(npmrcPath, []byte(""), 0644)
 	os.WriteFile(yarnrcPath, []byte(""), 0644)
-	os.WriteFile(pnpmrcPath, []byte(""), 0644)
 
 	config := DetectConfigFiles(tmpDir)
 
@@ -264,7 +225,7 @@ func TestConfigFiles_GetRelevantConfigFile(t *testing.T) {
 	}{
 		{PackageManagerNPM, npmrcPath},
 		{PackageManagerYarn, yarnrcPath},
-		{PackageManagerPNPM, pnpmrcPath}, // pnpm prefers .pnpmrc if exists
+		{PackageManagerPNPM, npmrcPath}, // pnpm uses .npmrc
 	}
 
 	for _, tt := range tests {
@@ -272,24 +233,5 @@ func TestConfigFiles_GetRelevantConfigFile(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("GetRelevantConfigFile(%s) = %q, want %q", tt.pm, result, tt.expected)
 		}
-	}
-}
-
-func TestConfigFiles_GetRelevantConfigFile_PnpmFallback(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test-pnpm-fallback-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create only .npmrc (pnpm should fall back to it)
-	npmrcPath := path.Join(tmpDir, ".npmrc")
-	os.WriteFile(npmrcPath, []byte(""), 0644)
-
-	config := DetectConfigFiles(tmpDir)
-
-	result := config.GetRelevantConfigFile(PackageManagerPNPM)
-	if result != npmrcPath {
-		t.Errorf("GetRelevantConfigFile(pnpm) should fall back to .npmrc, got %q", result)
 	}
 }

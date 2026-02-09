@@ -63,10 +63,6 @@ const DefaultNpmrcContent = `registry=https://registry.npmmirror.com
 const DefaultYarnrcContent = `registry "https://registry.npmmirror.com"
 `
 
-// DefaultPnpmrcContent is the default .pnpmrc content for China mirror
-const DefaultPnpmrcContent = `registry=https://registry.npmmirror.com
-`
-
 // cnbBuilder creates a new CNB builder
 func cnbBuilder() (Build, error) {
 	return &cnbBuild{}, nil
@@ -87,7 +83,7 @@ func (c *cnbBuild) Build(re *Request) (*Response, error) {
 	// Validate project files and warn user about common issues
 	c.validateProjectFiles(re)
 
-	// Inject mirror config (.npmrc/.yarnrc/.pnpmrc) for Node.js projects
+	// Inject mirror config (.npmrc/.yarnrc) for Node.js projects
 	// Pure static projects (no package.json) are skipped automatically
 	if err := c.injectMirrorConfig(re); err != nil {
 		logrus.Warnf("inject mirror config failed: %v", err)
@@ -120,7 +116,7 @@ func (c *cnbBuild) Build(re *Request) (*Response, error) {
 	}, nil
 }
 
-// injectMirrorConfig injects .npmrc, .yarnrc, .pnpmrc files for npm/yarn/pnpm registry configuration
+// injectMirrorConfig injects .npmrc and .yarnrc files for npm/yarn/pnpm registry configuration
 // This replaces the old injectNpmrc method to support all three package managers
 func (c *cnbBuild) injectMirrorConfig(re *Request) error {
 	// Skip for pure static projects (no package.json) - they don't need npm/yarn/pnpm configuration
@@ -137,7 +133,7 @@ func (c *cnbBuild) injectMirrorConfig(re *Request) error {
 	if mirrorSource == "project" {
 		// Check if any config file exists in the project
 		hasConfig := false
-		configFiles := []string{".npmrc", ".yarnrc", ".pnpmrc"}
+		configFiles := []string{".npmrc", ".yarnrc"}
 		for _, file := range configFiles {
 			filePath := re.SourceDir + "/" + file
 			if _, err := os.Stat(filePath); err == nil {
@@ -168,15 +164,10 @@ func (c *cnbBuild) injectMirrorConfig(re *Request) error {
 		logrus.Warnf("inject .yarnrc failed: %v", err)
 	}
 
-	// Handle .pnpmrc
-	if err := c.injectConfigFile(re, ".pnpmrc", "CNB_MIRROR_PNPMRC"); err != nil {
-		logrus.Warnf("inject .pnpmrc failed: %v", err)
-	}
-
 	return nil
 }
 
-// injectConfigFile injects a single config file (.npmrc, .yarnrc, or .pnpmrc)
+// injectConfigFile injects a single config file (.npmrc or .yarnrc)
 func (c *cnbBuild) injectConfigFile(re *Request, fileName, envKey string) error {
 	filePath := re.SourceDir + "/" + fileName
 
@@ -207,9 +198,6 @@ func (c *cnbBuild) injectConfigFile(re *Request, fileName, envKey string) error 
 	case ".yarnrc":
 		// Yarn classic (.yarnrc) format
 		defaultContent = util.GetenvDefault("DEFAULT_YARNRC", DefaultYarnrcContent)
-	case ".pnpmrc":
-		// pnpm uses same format as npm
-		defaultContent = util.GetenvDefault("DEFAULT_PNPMRC", DefaultPnpmrcContent)
 	default:
 		return nil
 	}
