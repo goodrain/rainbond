@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -62,6 +63,7 @@ type ServiceInfoFromDC struct {
 	memory      int
 	image       Image
 	args        []string
+	command     []string // compose entrypoint -> K8s command
 	depends     []string
 	imageAlias  string
 	serviceType string
@@ -197,8 +199,22 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				fileInfo, err := os.Stat(resolvedPath)
 				if err == nil {
 					if fileInfo.IsDir() {
-						volumeType = model.ShareFileVolumeType.String()
-						logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
+						// 目录：递归遍历所有文件，每个文件生成一个 config-file
+						dirFiles := d.walkDirForConfigFiles(resolvedPath, targetPath)
+						if len(dirFiles) > 0 {
+							for _, vol := range dirFiles {
+								volumes[vol.VolumePath] = vol
+							}
+							logrus.Infof("detected directory volume with %d config files: %s -> %s", len(dirFiles), sourcePath, targetPath)
+						} else {
+							// 空目录，作为普通存储卷
+							volumes[targetPath] = &types.Volume{
+								VolumePath: targetPath,
+								VolumeType: model.ShareFileVolumeType.String(),
+							}
+							logrus.Infof("detected empty directory volume: %s -> %s", sourcePath, targetPath)
+						}
+						continue
 					} else if fileInfo.Size() > 1<<20 {
 						// 超过 1MB，ConfigMap 不支持，直接忽略
 						logrus.Infof("skipping volume (size %d > 1MB): %s -> %s", fileInfo.Size(), sourcePath, targetPath)
@@ -218,7 +234,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 						}
 					}
 				} else {
-					logrus.Warnf("volume source not found: %s (resolved: %s)", sourcePath, resolvedPath)
+					// 源路径不存在，作为普通存储卷
+					logrus.Warnf("volume source not found: %s (resolved: %s), treating as share-file volume", sourcePath, resolvedPath)
 				}
 			}
 
@@ -277,6 +294,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 			envs:       envs,
 			memory:     int(sc.MemLimit / 1024 / 1024),
 			image:      ParseImageName(proxyDockerIOImage(sc.Image)),
+			args:       sc.Command,    // compose command -> K8s args
+			command:    sc.Entrypoint, // compose entrypoint -> K8s command
 			depends:    sc.Links,
 			imageAlias: kev, // Use service name instead of container_name
 			name:       kev,
@@ -327,7 +346,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		if !exist {
 			logrus.Warnf("服务 %s 镜像不存在: %s", serviceName, service.image.String())
-			d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
+			d.errappend(ErrorAndSolve(NegligibleError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), ""))
 		} else {
 			logrus.Infof("服务 %s 镜像检查成功: %s", serviceName, service.image.String())
 		}
@@ -349,6 +368,7 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			Volumes:        service.GetVolumes(),
 			Image:          service.image,
 			Args:           service.args,
+			Command:        service.command,
 			DependServices: service.depends,
 			ImageAlias:     service.imageAlias,
 			ServiceType:    service.serviceType,
@@ -435,6 +455,59 @@ func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssu
 		// Fallback to generic message
 		return fmt.Sprintf("服务 %s：%s 配置有限支持，可能会被调整", serviceName, field)
 	}
+}
+
+// walkDirForConfigFiles recursively walks a directory and creates config-file volumes for each file.
+// sourceDir is the absolute path of the source directory in the project.
+// targetDir is the container mount path for this volume.
+// Returns a map of container_path -> Volume for all files found.
+func (d *DockerComposeParse) walkDirForConfigFiles(sourceDir, targetDir string) map[string]*types.Volume {
+	result := make(map[string]*types.Volume)
+
+	filepath.Walk(sourceDir, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			logrus.Warnf("failed to access path %s: %v", filePath, err)
+			return nil
+		}
+		// 跳过目录本身
+		if info.IsDir() {
+			return nil
+		}
+		// 超过 1MB 的文件跳过（ConfigMap 限制）
+		if info.Size() > 1<<20 {
+			logrus.Infof("skipping file in directory (size %d > 1MB): %s", info.Size(), filePath)
+			return nil
+		}
+		// 空文件跳过
+		if info.Size() == 0 {
+			logrus.Infof("skipping empty file in directory: %s", filePath)
+			return nil
+		}
+
+		// 计算相对路径，拼接容器内目标路径
+		relPath, relErr := filepath.Rel(sourceDir, filePath)
+		if relErr != nil {
+			logrus.Warnf("failed to get relative path for %s: %v", filePath, relErr)
+			return nil
+		}
+		containerPath := path.Join(targetDir, relPath)
+
+		content, readErr := ioutil.ReadFile(filePath)
+		if readErr != nil {
+			logrus.Warnf("failed to read file %s: %v", filePath, readErr)
+			return nil
+		}
+
+		result[containerPath] = &types.Volume{
+			VolumePath:  containerPath,
+			VolumeType:  model.ConfigFileVolumeType.String(),
+			FileContent: string(content),
+		}
+		logrus.Infof("detected config file from directory: %s -> %s, size: %d bytes", filePath, containerPath, len(content))
+		return nil
+	})
+
+	return result
 }
 
 // downloadAndExtractProject downloads and extracts the project package from S3

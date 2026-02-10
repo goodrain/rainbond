@@ -66,6 +66,8 @@ func parseSpec(bodys [][]byte, workDir string) (ComposeObject, *FieldSupportRepo
 		opts.SkipConsistencyCheck = true
 		// Skip validation to be more permissive
 		opts.SkipValidation = true
+		// Activate all profiles so that services with profiles are not filtered out
+		opts.Profiles = []string{"*"}
 	}
 
 	project, err := composego.LoadWithContext(ctx, composetypes.ConfigDetails{
@@ -139,14 +141,14 @@ func composeGoToKomposeMapping(project *composetypes.Project) (ComposeObject, *F
 		serviceConfig.Tty = service.Tty
 		serviceConfig.TmpFs = service.Tmpfs
 
-		// Command
+		// Command (compose command -> K8s args)
 		if service.Command != nil {
 			serviceConfig.Command = service.Command
 		}
 
-		// Entrypoint
+		// Entrypoint (compose entrypoint -> K8s command)
 		if service.Entrypoint != nil {
-			serviceConfig.Args = service.Entrypoint
+			serviceConfig.Entrypoint = service.Entrypoint
 		}
 
 		// Environment variables

@@ -203,8 +203,8 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		serviceConfig.Stdin = composeServiceConfig.StdinOpen
 		serviceConfig.Tty = composeServiceConfig.Tty
 		serviceConfig.TmpFs = composeServiceConfig.Tmpfs
-		serviceConfig.Command = composeServiceConfig.Entrypoint
-		serviceConfig.Args = composeServiceConfig.Command
+		serviceConfig.Entrypoint = composeServiceConfig.Entrypoint
+		serviceConfig.Command = composeServiceConfig.Command
 		serviceConfig.Labels = composeServiceConfig.Labels
 		serviceConfig.DependsON = composeServiceConfig.DependsOn
 		serviceConfig.Links = composeServiceConfig.Links

@@ -186,6 +186,7 @@ type ServiceInfo struct {
 	Volumes        []types.Volume `json:"volumes,omitempty"`
 	Image          Image          `json:"image,omitempty"`
 	Args           []string       `json:"args,omitempty"`
+	Command        []string       `json:"command,omitempty"` // K8s container command (from compose entrypoint)
 	DependServices []string       `json:"depends,omitempty"`
 	ServiceType    string         `json:"service_type,omitempty"`
 	Branchs        []string       `json:"branchs,omitempty"`

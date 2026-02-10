@@ -150,7 +150,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		if err.SolveAdvice == "" && input.SourceType == "vm-run" {
 			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
 		}
-		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" {
+		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" && input.SourceType != "docker-compose" {
 			// Get image name for better error message
 			imageName := pr.GetImage().String()
 			if imageName != "" {

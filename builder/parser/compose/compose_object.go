@@ -66,6 +66,7 @@ type ServiceConfig struct {
 	EnvFile          []string            `compose:"env_file"`
 	Port             []Ports             `compose:"ports"`
 	Command          []string            `compose:"command"`
+	Entrypoint       []string            `compose:"entrypoint"`
 	DependsON        []string            `compose:"depends_on"`
 	Links            []string            `compose:"links"`
 	WorkingDir       string              `compose:""`
