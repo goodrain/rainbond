@@ -49,10 +49,12 @@ const (
 const (
 	// DefaultNpmRegistry is the default npm registry for China
 	DefaultNpmRegistry = "https://registry.npmmirror.com"
-	// DefaultNodeDistURL is the default Node.js binary download URL for China
-	DefaultNodeDistURL = "https://cdn.npmmirror.com/binaries/node"
-	// DefaultDependencyMirror is the default dependency mirror for Paketo buildpacks
-	DefaultDependencyMirror = "https://cdn.npmmirror.com/binaries"
+	// DefaultDependencyMirror is the default dependency mirror for Paketo buildpacks.
+	// Paketo transforms original URL (e.g. https://nodejs.org/dist/v22/node-v22-linux-x64.tar.xz)
+	// using: mirrorPath + originalPath(with skip-path removed)
+	// Result: https://npmmirror.com/mirrors/node/v22/node-v22-linux-x64.tar.xz
+	// Can be overridden via BP_DEPENDENCY_MIRROR env var on rbd-chaos pod.
+	DefaultDependencyMirror = "https://npmmirror.com/mirrors/node,skip-path=/dist"
 )
 
 // DefaultNpmrcContent is the default .npmrc content for China mirror
@@ -87,6 +89,11 @@ func (c *cnbBuild) Build(re *Request) (*Response, error) {
 	// Pure static projects (no package.json) are skipped automatically
 	if err := c.injectMirrorConfig(re); err != nil {
 		logrus.Warnf("inject mirror config failed: %v", err)
+	}
+
+	// Inject Procfile for custom start command (Node.js backend projects)
+	if err := c.injectProcfile(re); err != nil {
+		logrus.Warnf("inject Procfile failed: %v", err)
 	}
 
 	// Prepare platform env directory with BP_* environment variables
@@ -208,6 +215,27 @@ func (c *cnbBuild) injectConfigFile(re *Request, fileName, envKey string) error 
 	}
 
 	return nil
+}
+
+// injectProcfile injects a Procfile for custom start command support.
+// This is used for Node.js backend projects where the user specifies a start command via UI.
+func (c *cnbBuild) injectProcfile(re *Request) error {
+	startCommand, ok := re.BuildEnvs["CNB_START_COMMAND"]
+	if !ok || startCommand == "" {
+		return nil
+	}
+
+	procfilePath := path.Join(re.SourceDir, "Procfile")
+
+	// Don't overwrite existing Procfile
+	if _, err := os.Stat(procfilePath); err == nil {
+		logrus.Info("Procfile already exists in project, skipping injection")
+		return nil
+	}
+
+	content := fmt.Sprintf("web: %s\n", startCommand)
+	logrus.Infof("Injecting Procfile with start command: %s", startCommand)
+	return os.WriteFile(procfilePath, []byte(content), 0644)
 }
 
 
@@ -450,7 +478,9 @@ func (c *cnbBuild) buildCreatorArgs(re *Request, buildImageName, runImage string
 	return args
 }
 
-// buildEnvVars builds environment variables for the container
+// buildEnvVars builds environment variables for the CNB build container.
+// Only CNB lifecycle control vars and proxy settings go here.
+// All BP_* buildpack configuration vars are passed via platform/env (DownwardAPI annotations).
 func (c *cnbBuild) buildEnvVars(re *Request) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
@@ -458,83 +488,13 @@ func (c *cnbBuild) buildEnvVars(re *Request) []corev1.EnvVar {
 			Value: "0.12",
 		},
 		{
-			// CNB_INSECURE_REGISTRIES for self-signed certificates
 			Name:  "CNB_INSECURE_REGISTRIES",
 			Value: builder.REGISTRYDOMAIN,
 		},
 		{
-			// DOCKER_CONFIG points to the docker config directory
 			Name:  "DOCKER_CONFIG",
 			Value: "/home/cnb/.docker",
 		},
-	}
-
-	// Detect if this is a pure static project (no package.json)
-	packageJsonPath := path.Join(re.SourceDir, "package.json")
-	isPureStatic := false
-	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
-		isPureStatic = true
-	}
-
-	// For pure static projects: configure nginx web server and return early
-	if isPureStatic {
-		outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
-		if outputDir == "" {
-			outputDir = "." // Default to root directory
-		}
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER", Value: "nginx"})
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ROOT", Value: outputDir})
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ENABLE_PUSH_STATE", Value: "true"})
-
-		logrus.Infof("Pure static project: nginx web server at '%s'", outputDir)
-		return envs
-	}
-
-	// Node.js project: continue with existing Node.js logic below
-
-	// Add China mirror configuration for Paketo dependency downloads
-	enableChinaMirror := util.GetenvDefault("ENABLE_CHINA_MIRROR", "true")
-	if enableChinaMirror == "true" {
-		// BP_DEPENDENCY_MIRROR configures Paketo buildpacks to use mirror for downloading dependencies
-		dependencyMirror := util.GetenvDefault("BP_DEPENDENCY_MIRROR", DefaultDependencyMirror)
-		if dependencyMirror != "" {
-			envs = append(envs, corev1.EnvVar{Name: "BP_DEPENDENCY_MIRROR", Value: dependencyMirror})
-		}
-	}
-
-	// Add Node.js version if specified (CNB_NODE_VERSION from frontend, or RUNTIMES for backward compatibility)
-	// We set it in two places:
-	// 1. As env var (for buildpacks that read via os.Getenv())
-	// 2. As annotation + downwardAPI (CNB Platform API standard, set in buildPlatformAnnotations())
-	var nodeVersionForPlatform string
-	if nodeVersion, ok := re.BuildEnvs["CNB_NODE_VERSION"]; ok && nodeVersion != "" {
-		nodeVersionForPlatform = nodeVersion
-	} else if nodeVersion, ok := re.BuildEnvs["RUNTIMES"]; ok && nodeVersion != "" {
-		nodeVersionForPlatform = nodeVersion
-	}
-	if nodeVersionForPlatform != "" {
-		envs = append(envs, corev1.EnvVar{Name: "BP_NODE_VERSION", Value: nodeVersionForPlatform})
-	}
-
-	// For static builds (indicated by CNB_OUTPUT_DIR), configure nginx web server
-	// This sets BP_WEB_SERVER as container env var which nginx buildpack reads via os.Getenv()
-	if outputDir, ok := re.BuildEnvs["CNB_OUTPUT_DIR"]; ok && outputDir != "" {
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER", Value: "nginx"})
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ROOT", Value: outputDir})
-		// Enable SPA routing support for single-page applications
-		envs = append(envs, corev1.EnvVar{Name: "BP_WEB_SERVER_ENABLE_PUSH_STATE", Value: "true"})
-	}
-
-	// Add custom build scripts if specified (CNB_BUILD_SCRIPT from frontend)
-	if buildScript, ok := re.BuildEnvs["CNB_BUILD_SCRIPT"]; ok && buildScript != "" {
-		envs = append(envs, corev1.EnvVar{Name: "BP_NODE_RUN_SCRIPTS", Value: buildScript})
-	}
-
-	// Add any additional environment variables prefixed with BP_
-	for key, value := range re.BuildEnvs {
-		if strings.HasPrefix(key, "BP_") {
-			envs = append(envs, corev1.EnvVar{Name: key, Value: value})
-		}
 	}
 
 	// Add proxy settings if configured
@@ -648,56 +608,114 @@ func (c *cnbBuild) createVolumeAndMount(re *Request, secretName, _ string) ([]co
 	return volumes, volumeMounts
 }
 
-// buildPlatformAnnotations creates annotations for platform env values
-// These annotations will be exposed as files via DownwardAPI
+// buildPlatformAnnotations creates annotations for platform env values.
+// These annotations are the SOLE source of BP_* buildpack configuration.
+// They are exposed as files in /platform/env/ via DownwardAPI volume.
+// Annotation key format: cnb-bp-xxx-yyy maps to BP_XXX_YYY
 func (c *cnbBuild) buildPlatformAnnotations(re *Request) map[string]string {
 	annotations := make(map[string]string)
 
-	// Add Node.js version if specified (CNB_NODE_VERSION from frontend, or RUNTIMES for backward compatibility)
+	// Detect if this is a pure static project (no package.json)
+	packageJsonPath := path.Join(re.SourceDir, "package.json")
+	isPureStatic := false
+	if _, err := os.Stat(packageJsonPath); os.IsNotExist(err) {
+		isPureStatic = true
+	}
+
+	// For pure static projects: configure nginx web server and return early
+	if isPureStatic {
+		outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
+		if outputDir == "" {
+			outputDir = "."
+		}
+		annotations["cnb-bp-web-server"] = "nginx"
+		annotations["cnb-bp-web-server-root"] = outputDir
+		annotations["cnb-bp-web-server-enable-push-state"] = "true"
+		logrus.Infof("Pure static project: nginx web server at '%s'", outputDir)
+		return annotations
+	}
+
+	// --- Node.js project configuration ---
+
+	// NODE_ENV: default "production" for build phase (next build, vite build, etc.)
+	nodeEnv := "production"
+	if customNodeEnv, ok := re.BuildEnvs["CNB_NODE_ENV"]; ok && customNodeEnv != "" {
+		nodeEnv = customNodeEnv
+	}
+	annotations["cnb-node-env"] = nodeEnv
+
+	// Node.js version
 	if nodeVersion, ok := re.BuildEnvs["CNB_NODE_VERSION"]; ok && nodeVersion != "" {
 		annotations["cnb-bp-node-version"] = nodeVersion
 	} else if nodeVersion, ok := re.BuildEnvs["RUNTIMES"]; ok && nodeVersion != "" {
 		annotations["cnb-bp-node-version"] = nodeVersion
 	}
 
-	// For static builds (indicated by CNB_OUTPUT_DIR), set nginx web server
+	// Dependency mirror for Paketo buildpack binary downloads
+	enableChinaMirror := util.GetenvDefault("ENABLE_CHINA_MIRROR", "true")
+	if enableChinaMirror == "true" {
+		dependencyMirror := util.GetenvDefault("BP_DEPENDENCY_MIRROR", DefaultDependencyMirror)
+		if dependencyMirror != "" {
+			annotations["cnb-bp-dependency-mirror"] = dependencyMirror
+		}
+	}
+
+	// Build script: set after injectBuildScript() has processed arguments
+	if buildScript, ok := re.BuildEnvs["CNB_BUILD_SCRIPT"]; ok && buildScript != "" {
+		annotations["cnb-bp-node-run-scripts"] = buildScript
+	}
+
+	// Web server configuration ONLY for frontend/static builds (indicated by CNB_OUTPUT_DIR).
+	// Backend projects (no CNB_OUTPUT_DIR) do NOT get web server configuration.
 	if outputDir, ok := re.BuildEnvs["CNB_OUTPUT_DIR"]; ok && outputDir != "" {
 		annotations["cnb-bp-web-server"] = "nginx"
 		annotations["cnb-bp-web-server-root"] = outputDir
 		annotations["cnb-bp-web-server-enable-push-state"] = "true"
 	}
 
-	// Add build script if specified
-	if buildScript, ok := re.BuildEnvs["CNB_BUILD_SCRIPT"]; ok && buildScript != "" {
-		annotations["cnb-bp-node-run-scripts"] = buildScript
+	// Pass through any additional BP_* variables from BuildEnvs
+	for key, value := range re.BuildEnvs {
+		if strings.HasPrefix(key, "BP_") && value != "" {
+			annotationKey := bpEnvToAnnotationKey(key)
+			if _, exists := annotations[annotationKey]; !exists {
+				annotations[annotationKey] = value
+			}
+		}
 	}
 
 	return annotations
 }
 
-// createPlatformVolume creates a DownwardAPI volume for platform/env
+// bpEnvToAnnotationKey converts a BP_* env var name to a cnb annotation key.
+// e.g. BP_NODE_VERSION -> cnb-bp-node-version
+func bpEnvToAnnotationKey(envName string) string {
+	lower := strings.ToLower(envName)
+	dashed := strings.ReplaceAll(lower, "_", "-")
+	return "cnb-" + dashed
+}
+
+// annotationKeyToBPEnv converts a cnb annotation key back to a BP_* env var name.
+// e.g. cnb-bp-node-version -> BP_NODE_VERSION
+func annotationKeyToBPEnv(annotationKey string) string {
+	withoutPrefix := strings.TrimPrefix(annotationKey, "cnb-")
+	upper := strings.ToUpper(withoutPrefix)
+	return strings.ReplaceAll(upper, "-", "_")
+}
+
+// createPlatformVolume creates a DownwardAPI volume for platform/env.
+// It dynamically maps annotation keys (cnb-bp-xxx-yyy) to BP_XXX_YYY env file names.
 func (c *cnbBuild) createPlatformVolume(re *Request) (*corev1.Volume, *corev1.VolumeMount) {
 	annotations := c.buildPlatformAnnotations(re)
 	if len(annotations) == 0 {
 		return nil, nil
 	}
 
-	// Map annotation keys to BP_* env file names
-	annotationToEnvName := map[string]string{
-		"cnb-bp-node-version":                "BP_NODE_VERSION",
-		"cnb-bp-web-server":                  "BP_WEB_SERVER",
-		"cnb-bp-web-server-root":             "BP_WEB_SERVER_ROOT",
-		"cnb-bp-web-server-enable-push-state": "BP_WEB_SERVER_ENABLE_PUSH_STATE",
-		"cnb-bp-node-run-scripts":            "BP_NODE_RUN_SCRIPTS",
-	}
-
-	// Build DownwardAPI items from annotations
 	var items []corev1.DownwardAPIVolumeFile
 	for key := range annotations {
-		envName, ok := annotationToEnvName[key]
-		if !ok {
+		if !strings.HasPrefix(key, "cnb-") {
 			continue
 		}
+		envName := annotationKeyToBPEnv(key)
 		items = append(items, corev1.DownwardAPIVolumeFile{
 			Path: "env/" + envName,
 			FieldRef: &corev1.ObjectFieldSelector{
