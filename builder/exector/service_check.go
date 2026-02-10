@@ -164,6 +164,9 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		}
 	}
 	serviceInfos := pr.GetServiceInfo()
+	for i, si := range serviceInfos {
+		logrus.Infof("[compose-debug] serviceInfo[%d]: name=%s, workingDir=%q, args=%v, command=%v", i, si.Name, si.WorkingDir, si.Args, si.Command)
+	}
 	sr, err := CreateResult(errList, serviceInfos)
 	if err != nil {
 		logrus.Errorf("create check result error,%s", err.Error())

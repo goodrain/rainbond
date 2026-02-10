@@ -426,7 +426,32 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by cmd attribute error: %v", err)
 	}
 	if cmdAttribute != nil {
-		c.Command = strings.Split(cmdAttribute.AttributeValue, " ")
+		var cmdList []string
+		if err := json.Unmarshal([]byte(cmdAttribute.AttributeValue), &cmdList); err == nil {
+			c.Command = cmdList
+		} else {
+			// fallback: old format stored as space-separated string
+			c.Command = strings.Split(cmdAttribute.AttributeValue, " ")
+		}
+	}
+	argsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameArgs)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("get by args attribute error: %v", err)
+	}
+	if argsAttribute != nil {
+		var argsList []string
+		if err := json.Unmarshal([]byte(argsAttribute.AttributeValue), &argsList); err == nil {
+			c.Args = argsList
+		} else {
+			c.Args = strings.Split(argsAttribute.AttributeValue, " ")
+		}
+	}
+	workingDirAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameWorkingDir)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("get by workingDir attribute error: %v", err)
+	}
+	if workingDirAttribute != nil && workingDirAttribute.AttributeValue != "" {
+		c.WorkingDir = workingDirAttribute.AttributeValue
 	}
 	lifeCycle, err := createLifecycle(as, dbmanager)
 	if err != nil {
