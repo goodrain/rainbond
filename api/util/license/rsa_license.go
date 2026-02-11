@@ -16,6 +16,7 @@ import (
 // LicenseToken is the license data structure for plugin authorization.
 type LicenseToken struct {
 	Code           string   `json:"code"`
+	EnterpriseID   string   `json:"enterprise_id"`
 	ClusterID      string   `json:"cluster_id"`
 	Company        string   `json:"company"`
 	Contact        string   `json:"contact"`
@@ -24,6 +25,7 @@ type LicenseToken struct {
 	StartAt        int64    `json:"start_at"`
 	ExpireAt       int64    `json:"expire_at"`
 	SubscribeUntil int64    `json:"subscribe_until"`
+	ClusterLimit   int      `json:"cluster_limit"`
 	NodeLimit      int      `json:"node_limit"`
 	MemoryLimit    int64    `json:"memory_limit"`
 	CPULimit       int64    `json:"cpu_limit"`
@@ -35,13 +37,15 @@ type LicenseStatus struct {
 	Valid          bool   `json:"valid"`
 	Reason         string `json:"reason,omitempty"`
 	Code           string `json:"code,omitempty"`
+	EnterpriseID   string `json:"enterprise_id,omitempty"`
+	ClusterID      string `json:"cluster_id,omitempty"`
 	Company        string `json:"company,omitempty"`
 	Contact        string `json:"contact,omitempty"`
 	Tier           string `json:"tier,omitempty"`
-	ClusterID      string `json:"cluster_id,omitempty"`
 	StartAt        int64  `json:"start_at,omitempty"`
 	ExpireAt       int64  `json:"expire_at,omitempty"`
 	SubscribeUntil int64  `json:"subscribe_until,omitempty"`
+	ClusterLimit   int    `json:"cluster_limit,omitempty"`
 	NodeLimit      int    `json:"node_limit,omitempty"`
 	MemoryLimit    int64  `json:"memory_limit,omitempty"`
 	CPULimit       int64  `json:"cpu_limit,omitempty"`
@@ -124,13 +128,13 @@ func VerifySignature(token *LicenseToken, pubKey *rsa.PublicKey) error {
 	return rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], sigBytes)
 }
 
-// ValidateToken validates signature, cluster ID binding, and time window.
-func ValidateToken(token *LicenseToken, pubKey *rsa.PublicKey, clusterID string, now time.Time) error {
+// ValidateToken validates signature, enterprise ID binding, and time window.
+func ValidateToken(token *LicenseToken, pubKey *rsa.PublicKey, enterpriseID string, now time.Time) error {
 	if err := VerifySignature(token, pubKey); err != nil {
 		return fmt.Errorf("invalid signature: %w", err)
 	}
-	if token.ClusterID != clusterID {
-		return fmt.Errorf("cluster ID mismatch: license=%s, actual=%s", token.ClusterID, clusterID)
+	if token.EnterpriseID != enterpriseID {
+		return fmt.Errorf("enterprise ID mismatch: license=%s, actual=%s", token.EnterpriseID, enterpriseID)
 	}
 	unix := now.Unix()
 	if unix < token.StartAt {
@@ -160,13 +164,15 @@ func TokenToStatus(token *LicenseToken, valid bool, reason string) *LicenseStatu
 	}
 	if token != nil {
 		s.Code = token.Code
+		s.EnterpriseID = token.EnterpriseID
+		s.ClusterID = token.ClusterID
 		s.Company = token.Company
 		s.Contact = token.Contact
 		s.Tier = token.Tier
-		s.ClusterID = token.ClusterID
 		s.StartAt = token.StartAt
 		s.ExpireAt = token.ExpireAt
 		s.SubscribeUntil = token.SubscribeUntil
+		s.ClusterLimit = token.ClusterLimit
 		s.NodeLimit = token.NodeLimit
 		s.MemoryLimit = token.MemoryLimit
 		s.CPULimit = token.CPULimit

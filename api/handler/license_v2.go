@@ -16,13 +16,13 @@ import (
 const (
 	licenseConfigMapNamespace = "rbd-system"
 	licenseConfigMapName      = "rbd-license-info"
-	licenseConfigMapKey       = "license_token"
+	licenseConfigMapKey       = "license"
 )
 
 // LicenseV2Handler handles license V2 operations.
 type LicenseV2Handler interface {
 	GetClusterID(ctx context.Context) (string, error)
-	ActivateLicense(ctx context.Context, licenseCode string) (*license.LicenseStatus, error)
+	ActivateLicense(ctx context.Context, licenseCode string, enterpriseID string) (*license.LicenseStatus, error)
 	GetLicenseStatus(ctx context.Context) (*license.LicenseStatus, error)
 }
 
@@ -48,7 +48,7 @@ func (l *licenseV2Action) GetClusterID(ctx context.Context) (string, error) {
 	return string(ns.UID), nil
 }
 
-func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode string) (*license.LicenseStatus, error) {
+func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode string, enterpriseID string) (*license.LicenseStatus, error) {
 	// Decode
 	token, err := license.DecodeLicense(licenseCode)
 	if err != nil {
@@ -66,13 +66,9 @@ func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode strin
 		return license.TokenToStatus(token, false, fmt.Sprintf("invalid signature: %v", err)), nil
 	}
 
-	// Get cluster ID and verify
-	clusterID, err := l.GetClusterID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get cluster ID: %w", err)
-	}
-	if token.ClusterID != clusterID {
-		return license.TokenToStatus(token, false, fmt.Sprintf("cluster ID mismatch: license=%s, actual=%s", token.ClusterID, clusterID)), nil
+	// Verify enterprise_id (strong check)
+	if token.EnterpriseID != enterpriseID {
+		return license.TokenToStatus(token, false, fmt.Sprintf("enterprise ID mismatch: license=%s, actual=%s", token.EnterpriseID, enterpriseID)), nil
 	}
 
 	// Verify time window
@@ -82,6 +78,14 @@ func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode strin
 	}
 	if now.Unix() > token.ExpireAt {
 		return license.TokenToStatus(token, false, "license expired"), nil
+	}
+
+	// Record current cluster_id for audit (not validated)
+	clusterID, err := l.GetClusterID(ctx)
+	if err != nil {
+		logrus.Warnf("Failed to get cluster ID for audit: %v", err)
+	} else {
+		token.ClusterID = clusterID
 	}
 
 	// Write JSON (not base64) to ConfigMap so plugins can directly json.Unmarshal
@@ -96,7 +100,7 @@ func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode strin
 	// Invalidate middleware cache
 	InvalidateLicenseCacheFunc()
 
-	logrus.Infof("License activated: code=%s, company=%s, cluster=%s", token.Code, token.Company, token.ClusterID)
+	logrus.Infof("License activated: code=%s, company=%s, enterprise=%s, cluster=%s", token.Code, token.Company, token.EnterpriseID, token.ClusterID)
 	return license.TokenToStatus(token, true, ""), nil
 }
 

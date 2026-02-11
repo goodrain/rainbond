@@ -37,18 +37,23 @@ func (l *LicenseV2Controller) GetClusterID(w http.ResponseWriter, r *http.Reques
 // ActivateLicense activates a license.
 func (l *LicenseV2Controller) ActivateLicense(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		License string `json:"license"`
+		LicenseCode  string `json:"license_code"`
+		EnterpriseID string `json:"enterprise_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.ReturnError(r, w, 400, "invalid request body")
 		return
 	}
-	if req.License == "" {
-		httputil.ReturnError(r, w, 400, "license field is required")
+	if req.LicenseCode == "" {
+		httputil.ReturnError(r, w, 400, "license_code field is required")
+		return
+	}
+	if req.EnterpriseID == "" {
+		httputil.ReturnError(r, w, 400, "enterprise_id field is required")
 		return
 	}
 
-	status, err := handler.GetLicenseV2Handler().ActivateLicense(r.Context(), req.License)
+	status, err := handler.GetLicenseV2Handler().ActivateLicense(r.Context(), req.LicenseCode, req.EnterpriseID)
 	if err != nil {
 		logrus.Errorf("activate license: %v", err)
 		httputil.ReturnError(r, w, 500, err.Error())

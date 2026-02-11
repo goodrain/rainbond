@@ -96,7 +96,7 @@ func verifyRSALicense() bool {
 		return false
 	}
 
-	licenseData := cm.Data["license_token"]
+	licenseData := cm.Data["license"]
 	if licenseData == "" {
 		return false
 	}

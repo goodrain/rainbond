@@ -46,11 +46,12 @@ func signTestToken(t *testing.T, token *LicenseToken, privKey *rsa.PrivateKey) {
 	token.Signature = base64.StdEncoding.EncodeToString(sig)
 }
 
-func newValidToken(clusterID string) LicenseToken {
+func newValidToken(enterpriseID string) LicenseToken {
 	now := time.Now().Unix()
 	return LicenseToken{
 		Code:           "TEST-001",
-		ClusterID:      clusterID,
+		EnterpriseID:   enterpriseID,
+		ClusterID:      "cluster-audit-only",
 		Company:        "Test Corp",
 		Contact:        "test@example.com",
 		Tier:           "advanced",
@@ -58,6 +59,7 @@ func newValidToken(clusterID string) LicenseToken {
 		StartAt:        now - 3600,
 		ExpireAt:       now + 86400,
 		SubscribeUntil: now + 86400,
+		ClusterLimit:   -1,
 		NodeLimit:      -1,
 		MemoryLimit:    -1,
 		CPULimit:       -1,
@@ -65,7 +67,7 @@ func newValidToken(clusterID string) LicenseToken {
 }
 
 func TestDecodeLicense(t *testing.T) {
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	data, err := json.Marshal(token)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +103,7 @@ func TestDecodeLicense_InvalidJSON(t *testing.T) {
 
 func TestVerifySignature_Valid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	signTestToken(t, &token, privKey)
 
 	if err := VerifySignature(&token, pubKey); err != nil {
@@ -111,7 +113,7 @@ func TestVerifySignature_Valid(t *testing.T) {
 
 func TestVerifySignature_Tampered(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	signTestToken(t, &token, privKey)
 
 	token.Company = "Tampered Corp"
@@ -123,7 +125,7 @@ func TestVerifySignature_Tampered(t *testing.T) {
 func TestVerifySignature_WrongKey(t *testing.T) {
 	privKey, _ := generateTestKeyPair(t)
 	_, wrongPubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	signTestToken(t, &token, privKey)
 
 	if err := VerifySignature(&token, wrongPubKey); err == nil {
@@ -133,42 +135,42 @@ func TestVerifySignature_WrongKey(t *testing.T) {
 
 func TestValidateToken_Valid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	signTestToken(t, &token, privKey)
 
-	if err := ValidateToken(&token, pubKey, "cluster-1", time.Now()); err != nil {
+	if err := ValidateToken(&token, pubKey, "ent-1", time.Now()); err != nil {
 		t.Fatalf("ValidateToken failed for valid token: %v", err)
 	}
 }
 
-func TestValidateToken_ClusterMismatch(t *testing.T) {
+func TestValidateToken_EnterpriseMismatch(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	signTestToken(t, &token, privKey)
 
-	if err := ValidateToken(&token, pubKey, "cluster-2", time.Now()); err == nil {
-		t.Fatal("expected error for cluster ID mismatch")
+	if err := ValidateToken(&token, pubKey, "ent-2", time.Now()); err == nil {
+		t.Fatal("expected error for enterprise ID mismatch")
 	}
 }
 
 func TestValidateToken_Expired(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	token.ExpireAt = time.Now().Unix() - 3600
 	signTestToken(t, &token, privKey)
 
-	if err := ValidateToken(&token, pubKey, "cluster-1", time.Now()); err == nil {
+	if err := ValidateToken(&token, pubKey, "ent-1", time.Now()); err == nil {
 		t.Fatal("expected error for expired token")
 	}
 }
 
 func TestValidateToken_NotYetValid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	token.StartAt = time.Now().Unix() + 86400
 	signTestToken(t, &token, privKey)
 
-	if err := ValidateToken(&token, pubKey, "cluster-1", time.Now()); err == nil {
+	if err := ValidateToken(&token, pubKey, "ent-1", time.Now()); err == nil {
 		t.Fatal("expected error for not-yet-valid token")
 	}
 }
@@ -218,7 +220,7 @@ func TestParsePublicKey_InvalidPEM(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
-	token := newValidToken("cluster-round-trip")
+	token := newValidToken("ent-round-trip")
 	signTestToken(t, &token, privKey)
 
 	// Encode
@@ -239,7 +241,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	// Validate
-	if err := ValidateToken(decoded, pubKey, "cluster-round-trip", time.Now()); err != nil {
+	if err := ValidateToken(decoded, pubKey, "ent-round-trip", time.Now()); err != nil {
 		t.Fatalf("ValidateToken after round trip: %v", err)
 	}
 
@@ -250,16 +252,22 @@ func TestRoundTrip(t *testing.T) {
 	if decoded.Company != token.Company {
 		t.Errorf("Company mismatch: %s != %s", decoded.Company, token.Company)
 	}
+	if decoded.EnterpriseID != token.EnterpriseID {
+		t.Errorf("EnterpriseID mismatch: %s != %s", decoded.EnterpriseID, token.EnterpriseID)
+	}
 }
 
 func TestTokenToStatus(t *testing.T) {
-	token := newValidToken("cluster-1")
+	token := newValidToken("ent-1")
 	status := TokenToStatus(&token, true, "")
 	if !status.Valid {
 		t.Fatal("expected valid status")
 	}
 	if status.Company != "Test Corp" {
 		t.Errorf("expected company Test Corp, got %s", status.Company)
+	}
+	if status.EnterpriseID != "ent-1" {
+		t.Errorf("expected enterprise_id ent-1, got %s", status.EnterpriseID)
 	}
 
 	status = TokenToStatus(nil, false, "no license")

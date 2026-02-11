@@ -217,15 +217,10 @@ func resolveFrontedPathContent(plugin *v1alpha1.RBDPlugin) (content string, err 
 	if frontendService == "" {
 		return "", fmt.Errorf("plugin %s has no frontend_service configured", plugin.Name)
 	}
-	entryPath := plugin.Spec.EntryPath
-	if entryPath == "" {
-		return "", fmt.Errorf("plugin %s has no entry_path configured", plugin.Name)
-	}
 	fetchURL := frontendService
 	if !strings.HasPrefix(fetchURL, "http://") && !strings.HasPrefix(fetchURL, "https://") {
 		fetchURL = "http://" + fetchURL
 	}
-	fetchURL = strings.TrimRight(fetchURL, "/") + "/" + strings.TrimLeft(entryPath, "/")
 	resp, err := http.Get(fetchURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch content from %s: %v", fetchURL, err)
