@@ -116,6 +116,10 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 			pr = parser.CreateDockerComposeParseFromProject(input.EventID, composeFilePath, input.Username, input.Password, logger)
 		} else {
 			// 传统方式：直接传递 YAML 内容
+			if len(input.SourceBody) == 0 {
+				logger.Error("Docker compose content is empty", map[string]string{"step": "callback", "status": "failure"})
+				return
+			}
 			var yamlbody = input.SourceBody
 			if input.SourceBody[0] == '{' {
 				yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
