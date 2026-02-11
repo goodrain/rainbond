@@ -21,7 +21,6 @@ const (
 
 // LicenseV2Handler handles license V2 operations.
 type LicenseV2Handler interface {
-	GetClusterID(ctx context.Context) (string, error)
 	ActivateLicense(ctx context.Context, licenseCode string, enterpriseID string) (*license.LicenseStatus, error)
 	GetLicenseStatus(ctx context.Context) (*license.LicenseStatus, error)
 }
@@ -38,14 +37,6 @@ func CreateLicenseV2Handler() {
 // GetLicenseV2Handler returns the singleton LicenseV2Handler.
 func GetLicenseV2Handler() LicenseV2Handler {
 	return defaultLicenseV2Handler
-}
-
-func (l *licenseV2Action) GetClusterID(ctx context.Context) (string, error) {
-	ns, err := k8s.Default().Clientset.CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("get kube-system namespace: %w", err)
-	}
-	return string(ns.UID), nil
 }
 
 func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode string, enterpriseID string) (*license.LicenseStatus, error) {
@@ -80,14 +71,6 @@ func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode strin
 		return license.TokenToStatus(token, false, "license expired"), nil
 	}
 
-	// Record current cluster_id for audit (not validated)
-	clusterID, err := l.GetClusterID(ctx)
-	if err != nil {
-		logrus.Warnf("Failed to get cluster ID for audit: %v", err)
-	} else {
-		token.ClusterID = clusterID
-	}
-
 	// Write JSON (not base64) to ConfigMap so plugins can directly json.Unmarshal
 	tokenJSON, err := license.MarshalLicenseJSON(token)
 	if err != nil {
@@ -100,7 +83,7 @@ func (l *licenseV2Action) ActivateLicense(ctx context.Context, licenseCode strin
 	// Invalidate middleware cache
 	InvalidateLicenseCacheFunc()
 
-	logrus.Infof("License activated: code=%s, company=%s, enterprise=%s, cluster=%s", token.Code, token.Company, token.EnterpriseID, token.ClusterID)
+	logrus.Infof("License activated: code=%s, company=%s, enterprise=%s", token.Code, token.Company, token.EnterpriseID)
 	return license.TokenToStatus(token, true, ""), nil
 }
 
@@ -154,7 +137,6 @@ func (l *licenseV2Action) writeLicenseConfigMap(ctx context.Context, licenseData
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
-		// Create new ConfigMap
 		cm = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      licenseConfigMapName,
@@ -168,7 +150,6 @@ func (l *licenseV2Action) writeLicenseConfigMap(ctx context.Context, licenseData
 		return err
 	}
 
-	// Update existing
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}

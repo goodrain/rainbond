@@ -45,13 +45,11 @@ type V2 struct {
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	// License endpoints - must be before license.Verify middleware
+	// License endpoints
 	r.Mount("/license", v2.licenseRouter())
 
-	license := middleware.NewLicense()
-	r.Use(license.Verify)
+	r.Get("/health", controller.GetManager().Health)
 	r.Get("/show", controller.GetManager().Show)
-
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
 	r.Mount("/cluster", v2.clusterRouter())
@@ -60,7 +58,6 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/prometheus", v2.prometheusRouter())
 	r.Get("/event", controller.GetManager().Event)
 	r.Mount("/app", v2.appRouter())
-	r.Get("/health", controller.GetManager().Health)
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
 	// deprecated use /gateway/ports

@@ -23,15 +23,9 @@ func GetLicenseV2Controller() *LicenseV2Controller {
 	return licenseV2Controller
 }
 
-// GetClusterID returns the cluster ID.
+// GetClusterID is deprecated - cluster ID is no longer used for license verification.
 func (l *LicenseV2Controller) GetClusterID(w http.ResponseWriter, r *http.Request) {
-	clusterID, err := handler.GetLicenseV2Handler().GetClusterID(r.Context())
-	if err != nil {
-		logrus.Errorf("get cluster ID: %v", err)
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	httputil.ReturnSuccess(r, w, map[string]string{"cluster_id": clusterID})
+	httputil.ReturnSuccess(r, w, map[string]string{"cluster_id": ""})
 }
 
 // ActivateLicense activates a license.
