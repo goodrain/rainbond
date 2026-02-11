@@ -36,6 +36,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
+	_ "github.com/goodrain/rainbond/builder/build/cnb" // register CNB builder
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"

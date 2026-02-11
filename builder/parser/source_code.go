@@ -527,14 +527,19 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	}
 
-	// CNB 构建默认监听 8080 端口（Paketo buildpack 规范）
+	// CNB 构建默认端口
 	// - 纯静态语言：始终使用 nginx，端口 8080
 	// - Node.js 前端框架（static 类型）：构建后由 nginx 托管，端口 8080
-	// - Node.js 后端框架（dynamic 类型）：端口由用户代码决定，不预设
+	// - Node.js 后端框架（dynamic 类型）：默认端口 3000（Next.js/Nuxt/Remix/Nest.js/Express）
 	if d.Lang == code.Static ||
 		(d.Lang == code.Nodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
 		if _, ok := d.ports[8080]; !ok {
 			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
+		}
+	}
+	if d.Lang == code.Nodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
+		if _, ok := d.ports[3000]; !ok {
+			d.ports[3000] = &types.Port{ContainerPort: 3000, Protocol: "http"}
 		}
 	}
 
