@@ -53,6 +53,16 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 		annotations["cnb-bp-node-run-scripts"] = v
 	}
 
+	// Start script: CNB_START_SCRIPT → BP_NPM_START_SCRIPT (or BP_PNPM_START_SCRIPT for pnpm)
+	if v, ok := re.BuildEnvs["CNB_START_SCRIPT"]; ok && v != "" {
+		packageTool := re.BuildEnvs["BUILD_PACKAGE_TOOL"]
+		bpKey := "cnb-bp-npm-start-script"
+		if packageTool == "pnpm" {
+			bpKey = "cnb-bp-pnpm-start-script"
+		}
+		annotations[bpKey] = v
+	}
+
 	// Web server: framework type determines frontend (nginx) vs backend (no nginx)
 	framework := re.BuildEnvs["CNB_FRAMEWORK"]
 	if framework != "" {

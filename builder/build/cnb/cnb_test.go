@@ -333,6 +333,23 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 		}
 	})
 
+	t.Run("CNB_START_SCRIPT to BP_NPM_START_SCRIPT", func(t *testing.T) {
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{"CNB_START_SCRIPT": "start:prod"}})
+		if ann["cnb-bp-npm-start-script"] != "start:prod" {
+			t.Errorf("expected start:prod, got %q", ann["cnb-bp-npm-start-script"])
+		}
+	})
+
+	t.Run("CNB_START_SCRIPT with pnpm", func(t *testing.T) {
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
+			"CNB_START_SCRIPT":   "serve",
+			"BUILD_PACKAGE_TOOL": "pnpm",
+		}})
+		if ann["cnb-bp-pnpm-start-script"] != "serve" {
+			t.Errorf("expected serve, got %q", ann["cnb-bp-pnpm-start-script"])
+		}
+	})
+
 	t.Run("BP_NPM_START_SCRIPT passthrough", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{"BP_NPM_START_SCRIPT": "start:prod"}})
 		if ann["cnb-bp-npm-start-script"] != "start:prod" {
@@ -901,6 +918,139 @@ func TestRunCNBBuildJob(t *testing.T) {
 		}
 		if len(ctrl.deleted) != 1 {
 			t.Errorf("expected job cleanup, got %d deletions", len(ctrl.deleted))
+		}
+	})
+
+	t.Run("CNB_START_SCRIPT in pod annotations and downward API", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		b := newTestBuilder(ctrl)
+		dir := newNodeDir(t)
+		re := &build.Request{
+			ServiceID:     "svc1",
+			DeployVersion: "v1",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     dir,
+			CacheDir:      "/tmp/cache",
+			BuildEnvs:     map[string]string{"CNB_START_SCRIPT": "start:prod"},
+			Logger:        logger,
+		}
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+
+		// Verify Pod annotation
+		if v, ok := capturedPod.Annotations["cnb-bp-npm-start-script"]; !ok || v != "start:prod" {
+			t.Errorf("Pod annotation cnb-bp-npm-start-script = %q (exists=%v); want start:prod", v, ok)
+			t.Logf("All annotations: %v", capturedPod.Annotations)
+		}
+
+		// Verify DownwardAPI volume has the env file
+		foundEnvFile := false
+		for _, vol := range capturedPod.Spec.Volumes {
+			if vol.Name == "platform" && vol.DownwardAPI != nil {
+				for _, item := range vol.DownwardAPI.Items {
+					if item.Path == "env/BP_NPM_START_SCRIPT" {
+						foundEnvFile = true
+						if item.FieldRef.FieldPath != "metadata.annotations['cnb-bp-npm-start-script']" {
+							t.Errorf("FieldPath = %q; want metadata.annotations['cnb-bp-npm-start-script']", item.FieldRef.FieldPath)
+						}
+					}
+				}
+			}
+		}
+		if !foundEnvFile {
+			t.Error("DownwardAPI volume missing env/BP_NPM_START_SCRIPT item")
+		}
+	})
+
+	t.Run("CNB_START_SCRIPT and BP_* passthrough in pod annotations and downward API", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		b := newTestBuilder(ctrl)
+		dir := newNodeDir(t)
+		re := &build.Request{
+			ServiceID:     "svc1",
+			DeployVersion: "v1",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     dir,
+			CacheDir:      "/tmp/cache",
+			BuildEnvs: map[string]string{
+				"CNB_START_SCRIPT": "start:prod",
+				"BP_NODE_VERSION":  "20.10.0",
+				"BP_CUSTOM_FLAG":   "enabled",
+			},
+			Logger: logger,
+		}
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+
+		// Verify all annotations exist on the Pod
+		wantAnnotations := map[string]string{
+			"cnb-bp-npm-start-script": "start:prod",
+			"cnb-bp-node-version":     "20.10.0",
+			"cnb-bp-custom-flag":      "enabled",
+		}
+		for annKey, wantVal := range wantAnnotations {
+			if got, ok := capturedPod.Annotations[annKey]; !ok {
+				t.Errorf("missing annotation %q", annKey)
+			} else if got != wantVal {
+				t.Errorf("annotation %q = %q; want %q", annKey, got, wantVal)
+			}
+		}
+
+		// Verify DownwardAPI volume has all env files
+		wantEnvFiles := map[string]string{
+			"env/BP_NPM_START_SCRIPT": "metadata.annotations['cnb-bp-npm-start-script']",
+			"env/BP_NODE_VERSION":     "metadata.annotations['cnb-bp-node-version']",
+			"env/BP_CUSTOM_FLAG":      "metadata.annotations['cnb-bp-custom-flag']",
+		}
+		foundFiles := make(map[string]bool)
+		for _, vol := range capturedPod.Spec.Volumes {
+			if vol.Name == "platform" && vol.DownwardAPI != nil {
+				for _, item := range vol.DownwardAPI.Items {
+					if wantField, ok := wantEnvFiles[item.Path]; ok {
+						foundFiles[item.Path] = true
+						if item.FieldRef.FieldPath != wantField {
+							t.Errorf("DownwardAPI %s FieldPath = %q; want %q", item.Path, item.FieldRef.FieldPath, wantField)
+						}
+					}
+				}
+			}
+		}
+		for path := range wantEnvFiles {
+			if !foundFiles[path] {
+				t.Errorf("DownwardAPI volume missing %s item", path)
+			}
 		}
 	})
 }
