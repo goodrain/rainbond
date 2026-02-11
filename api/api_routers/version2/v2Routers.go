@@ -44,6 +44,10 @@ type V2 struct {
 // Routes routes
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
+
+	// License endpoints - must be before license.Verify middleware
+	r.Mount("/license", v2.licenseRouter())
+
 	license := middleware.NewLicense()
 	r.Use(license.Verify)
 	r.Get("/show", controller.GetManager().Show)
@@ -683,5 +687,13 @@ func (v2 *V2) notificationEventRouter() chi.Router {
 func (v2 *V2) portRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/avail-port", controller.GetManager().GetAvailablePort)
+	return r
+}
+
+func (v2 *V2) licenseRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/cluster-id", controller.GetLicenseV2Controller().GetClusterID)
+	r.Post("/activate", controller.GetLicenseV2Controller().ActivateLicense)
+	r.Get("/status", controller.GetLicenseV2Controller().GetLicenseStatus)
 	return r
 }

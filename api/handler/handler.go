@@ -54,6 +54,8 @@ func InitAPIHandle() error {
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
 	defNodesHandler = NewNodesHandler()
 
+	CreateLicenseV2Handler()
+
 	// 初始化 TarImageHandle
 	// 镜像的加载和推送在 builder 服务中异步完成
 	CreateTarImageHandle(mq.Default().MqClient)

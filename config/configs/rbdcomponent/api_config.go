@@ -27,8 +27,6 @@ type APIConfig struct {
 	EnableFeature          []string
 	Debug                  bool
 	MinExtPort             int // minimum external port
-	LicensePath            string
-	LicSoPath              string
 	KuberentesDashboardAPI string
 	GrctlImage             string
 	RegionName             string
@@ -52,8 +50,6 @@ func AddAPIFlags(fs *pflag.FlagSet, apic *APIConfig) {
 	fs.BoolVar(&apic.Debug, "debug", false, "open debug will enable pprof")
 	fs.IntVar(&apic.MinExtPort, "min-ext-port", 0, "minimum external port")
 	fs.StringArrayVar(&apic.EnableFeature, "enable-feature", []string{}, "List of special features supported, such as `windows`")
-	fs.StringVar(&apic.LicensePath, "license-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
-	fs.StringVar(&apic.LicSoPath, "license-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
 	fs.StringVar(&apic.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard."+utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)+":443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
 	fs.StringVar(&apic.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:latest", "use shell image")
 	fs.StringSliceVar(&apic.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")

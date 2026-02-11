@@ -26,16 +26,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
-	"github.com/goodrain/rainbond/api/util/license"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -480,14 +476,6 @@ func debugRequestBody(r *http.Request) {
 	}
 }
 
-// LicenseCache for caching information
-var LicenseCache struct {
-	sync.RWMutex
-	Data     *license.LicenseResp
-	InfoBody string
-	ExpireAt time.Time
-}
-
 // LicenseVerification verification Information
 func LicenseVerification(r *http.Request, resourceValidation bool) *util.APIHandleError {
 	if !resourceValidation {
@@ -498,75 +486,9 @@ func LicenseVerification(r *http.Request, resourceValidation bool) *util.APIHand
 		// If the plugin does not exist, it is considered an open source version and returned directly without License verification.
 		return nil
 	}
-	enterpriseID, infoBody, actualCluster, actualNode, actualMemory, err := ParseLicenseParam(r)
-	if err != nil {
-		return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_license"))
-	}
 
-	now := time.Now()
-	// check whether the cache is valid
-	LicenseCache.RLock()
-	if LicenseCache.Data != nil && LicenseCache.ExpireAt.After(now) && LicenseCache.InfoBody == infoBody {
-		logrus.Debug("Using cached license data")
-		LicenseCache.RUnlock()
-		return validateLicense(*LicenseCache.Data, actualCluster, actualNode, actualMemory, now)
+	if verifyRSALicense() {
+		return nil
 	}
-	LicenseCache.RUnlock()
-
-	logrus.Debug("Fetching new license data")
-	lic := license.ReadLicense(enterpriseID, infoBody)
-	if lic == nil {
-		return util.CreateAPIHandleError(400, fmt.Errorf("invaild license"))
-	}
-
-	// Update the cache for 10 minute
-	resp := lic.SetResp(actualCluster, actualNode, actualMemory)
-	LicenseCache.Lock()
-	LicenseCache.Data = resp
-	LicenseCache.ExpireAt = now.Add(10 * time.Minute)
-	LicenseCache.InfoBody = infoBody
-	LicenseCache.Unlock()
-
-	return validateLicense(*resp, actualCluster, actualNode, actualMemory, now)
-}
-
-// validateLicense - 执行 License 验证逻辑
-func validateLicense(licenseResp license.LicenseResp, actualCluster, actualNode, actualMemory int64, now time.Time) *util.APIHandleError {
-	if licenseResp.ExpectCluster != -1 && actualCluster > licenseResp.ExpectCluster {
-		return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_license"))
-	}
-	if licenseResp.ExpectNode != -1 && actualNode > licenseResp.ExpectNode {
-		return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_node"))
-	}
-	if licenseResp.ExpectMemory != -1 && actualMemory > licenseResp.ExpectMemory {
-		return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_memory"))
-	}
-	if licenseResp.EndTime != "" {
-		endTime, err := time.Parse("2006-01-02 15:04:05", licenseResp.EndTime)
-		if err == nil && endTime.Before(now) {
-			return util.CreateAPIHandleError(412, fmt.Errorf("authorize_expiration_of_authorization"))
-		}
-	}
-	return nil
-}
-
-func ParseLicenseParam(r *http.Request) (enterpriseID, infoBody string, actualCluster, actualNode, actualMemory int64, err error) {
-	enterpriseID = r.Header.Get("enterprise_id")
-	infoBody = r.Header.Get("info_body")
-	actualClusterStr := r.Header.Get("actual_cluster")
-	actualNodeStr := r.Header.Get("actual_node")
-	actualMemoryStr := r.Header.Get("actual_memory")
-	actualCluster, err = strconv.ParseInt(actualClusterStr, 10, 64)
-	if err != nil {
-		return
-	}
-	actualNode, err = strconv.ParseInt(actualNodeStr, 10, 64)
-	if err != nil {
-		return
-	}
-	actualMemory, err = strconv.ParseInt(actualMemoryStr, 10, 64)
-	if err != nil {
-		return
-	}
-	return
+	return util.CreateAPIHandleError(412, fmt.Errorf("authorize_cluster_lack_of_license"))
 }
