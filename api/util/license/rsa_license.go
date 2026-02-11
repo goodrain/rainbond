@@ -34,21 +34,22 @@ type LicenseToken struct {
 
 // LicenseStatus represents the status response of a license validation.
 type LicenseStatus struct {
-	Valid          bool   `json:"valid"`
-	Reason         string `json:"reason,omitempty"`
-	Code           string `json:"code,omitempty"`
-	EnterpriseID   string `json:"enterprise_id,omitempty"`
-	ClusterID      string `json:"cluster_id,omitempty"`
-	Company        string `json:"company,omitempty"`
-	Contact        string `json:"contact,omitempty"`
-	Tier           string `json:"tier,omitempty"`
-	StartAt        int64  `json:"start_at,omitempty"`
-	ExpireAt       int64  `json:"expire_at,omitempty"`
-	SubscribeUntil int64  `json:"subscribe_until,omitempty"`
-	ClusterLimit   int    `json:"cluster_limit,omitempty"`
-	NodeLimit      int    `json:"node_limit,omitempty"`
-	MemoryLimit    int64  `json:"memory_limit,omitempty"`
-	CPULimit       int64  `json:"cpu_limit,omitempty"`
+	Valid          bool     `json:"valid"`
+	Reason         string   `json:"reason,omitempty"`
+	Code           string   `json:"code,omitempty"`
+	EnterpriseID   string   `json:"enterprise_id,omitempty"`
+	ClusterID      string   `json:"cluster_id,omitempty"`
+	Company        string   `json:"company,omitempty"`
+	Contact        string   `json:"contact,omitempty"`
+	Tier           string   `json:"tier,omitempty"`
+	AllowedPlugins []string `json:"allowed_plugins,omitempty"`
+	StartAt        int64    `json:"start_at,omitempty"`
+	ExpireAt       int64    `json:"expire_at,omitempty"`
+	SubscribeUntil int64    `json:"subscribe_until,omitempty"`
+	ClusterLimit   int      `json:"cluster_limit,omitempty"`
+	NodeLimit      int      `json:"node_limit,omitempty"`
+	MemoryLimit    int64    `json:"memory_limit,omitempty"`
+	CPULimit       int64    `json:"cpu_limit,omitempty"`
 }
 
 // ParsePublicKey parses a PEM-encoded RSA public key.
@@ -169,6 +170,7 @@ func TokenToStatus(token *LicenseToken, valid bool, reason string) *LicenseStatu
 		s.Company = token.Company
 		s.Contact = token.Contact
 		s.Tier = token.Tier
+		s.AllowedPlugins = token.AllowedPlugins
 		s.StartAt = token.StartAt
 		s.ExpireAt = token.ExpireAt
 		s.SubscribeUntil = token.SubscribeUntil
