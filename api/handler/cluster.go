@@ -770,9 +770,15 @@ func (c *clusterAction) CreatePlugin(req *model.CreateRBDPluginReq) error {
 		pluginViews = append(pluginViews, v1alpha1.PluginView(v))
 	}
 
+	labels := make(map[string]string)
+	if req.AppID != "" {
+		labels["app_id"] = req.AppID
+	}
+
 	plugin := &v1alpha1.RBDPlugin{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.PluginID,
+			Name:   req.PluginID,
+			Labels: labels,
 		},
 		Spec: v1alpha1.RBDPluginSpec{
 			DisplayName:       req.PluginName,
@@ -791,6 +797,12 @@ func (c *clusterAction) CreatePlugin(req *model.CreateRBDPluginReq) error {
 	existing, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Get(context.Background(), req.PluginID, metav1.GetOptions{})
 	if err == nil {
 		existing.Spec = plugin.Spec
+		if existing.Labels == nil {
+			existing.Labels = make(map[string]string)
+		}
+		for k, v := range labels {
+			existing.Labels[k] = v
+		}
 		_, err = c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Update(context.Background(), existing, metav1.UpdateOptions{})
 		return err
 	}

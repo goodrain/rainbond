@@ -2284,6 +2284,7 @@ type CreateRBDPluginReq struct {
 	Namespace         string   `json:"namespace"`
 	BackendService    string   `json:"backend_service"`
 	FrontendService   string   `json:"frontend_service"`
+	AppID             string   `json:"app_id"`
 }
 
 // CreateUpdateGovernanceModeReq -
