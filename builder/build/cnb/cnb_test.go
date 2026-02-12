@@ -297,6 +297,38 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 		}
 	})
 
+	t.Run("nextjs SSR skips nginx", func(t *testing.T) {
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
+			"CNB_FRAMEWORK": "nextjs",
+		}})
+		if _, ok := ann["cnb-bp-web-server"]; ok {
+			t.Error("nextjs SSR without CNB_OUTPUT_DIR should not have nginx")
+		}
+	})
+
+	t.Run("nextjs static export gets nginx", func(t *testing.T) {
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
+			"CNB_FRAMEWORK":  "nextjs",
+			"CNB_OUTPUT_DIR": "out",
+		}})
+		if ann["cnb-bp-web-server"] != "nginx" {
+			t.Error("nextjs with CNB_OUTPUT_DIR should have nginx for static export")
+		}
+		if ann["cnb-bp-web-server-root"] != "out" {
+			t.Errorf("expected output dir 'out', got %q", ann["cnb-bp-web-server-root"])
+		}
+	})
+
+	t.Run("nuxt static export gets nginx", func(t *testing.T) {
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
+			"CNB_FRAMEWORK":  "nuxt",
+			"CNB_OUTPUT_DIR": ".output/public",
+		}})
+		if ann["cnb-bp-web-server"] != "nginx" {
+			t.Error("nuxt with CNB_OUTPUT_DIR should have nginx for static export")
+		}
+	})
+
 	t.Run("static framework gets nginx", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
 			"CNB_FRAMEWORK": "react",

@@ -55,7 +55,7 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 
 	// Start script: CNB_START_SCRIPT → BP_NPM_START_SCRIPT (or BP_PNPM_START_SCRIPT for pnpm)
 	if v, ok := re.BuildEnvs["CNB_START_SCRIPT"]; ok && v != "" {
-		packageTool := re.BuildEnvs["BUILD_PACKAGE_TOOL"]
+		packageTool := re.BuildEnvs["CNB_PACKAGE_TOOL"]
 		bpKey := "cnb-bp-npm-start-script"
 		if packageTool == "pnpm" {
 			bpKey = "cnb-bp-pnpm-start-script"
@@ -64,10 +64,15 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	}
 
 	// Web server: framework type determines frontend (nginx) vs backend (no nginx)
+	// Server frameworks (nextjs, nuxt, etc.) with CNB_OUTPUT_DIR → static export → nginx
+	// Server frameworks without CNB_OUTPUT_DIR → dynamic server → no nginx
 	framework := re.BuildEnvs["CNB_FRAMEWORK"]
 	if framework != "" {
-		if !serverFrameworks[framework] {
-			outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
+		outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
+		isServer := serverFrameworks[framework]
+		// nextjs/nuxt with CNB_OUTPUT_DIR → static export mode (e.g. next export, nuxt generate)
+		isStaticExport := (framework == "nextjs" || framework == "nuxt") && outputDir != ""
+		if !isServer || isStaticExport {
 			if outputDir == "" {
 				outputDir = "dist"
 			}

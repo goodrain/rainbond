@@ -101,10 +101,12 @@ func (b *Builder) validateProjectFiles(re *build.Request) error {
 
 // setSourceDirPermissions sets the source directory permissions recursively for CNB user
 func (b *Builder) setSourceDirPermissions(re *build.Request) error {
-	gitDir := filepath.Join(re.SourceDir, ".git")
-	if _, err := os.Stat(gitDir); err == nil {
-		if err := os.RemoveAll(gitDir); err != nil {
-			logrus.Warnf("failed to remove .git directory: %v", err)
+	if re.BuildEnvs["KEEP_GIT"] != "true" {
+		gitDir := filepath.Join(re.SourceDir, ".git")
+		if _, err := os.Stat(gitDir); err == nil {
+			if err := os.RemoveAll(gitDir); err != nil {
+				logrus.Warnf("failed to remove .git directory: %v", err)
+			}
 		}
 	}
 	return filepath.WalkDir(re.SourceDir, func(path string, d os.DirEntry, err error) error {

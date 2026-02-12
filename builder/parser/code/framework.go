@@ -21,6 +21,7 @@ package code
 import (
 	"os"
 	"path"
+	"regexp"
 
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/util"
@@ -113,6 +114,16 @@ var frameworkDetectors = []frameworkDetector{
 		startCmd:    "",
 	},
 	{
+		name:        "angular",
+		displayName: "Angular",
+		packages:    []string{"@angular/core"},
+		configFiles: []string{"angular.json"},
+		runtimeType: "static",
+		outputDir:   "dist",
+		buildCmd:    "build",
+		startCmd:    "",
+	},
+	{
 		name:        "vite",
 		displayName: "Vite",
 		packages:    []string{"vite"},
@@ -178,7 +189,7 @@ func DetectFramework(buildPath string) *Framework {
 		if hasAnyDependency(pkgJSON, detector.packages) {
 			// Check config files (if defined)
 			if len(detector.configFiles) == 0 || hasAnyFile(buildPath, detector.configFiles) {
-				return &Framework{
+				fw := &Framework{
 					Name:        detector.name,
 					DisplayName: detector.displayName,
 					Version:     getDependencyVersion(pkgJSON, detector.packages[0]),
@@ -187,11 +198,65 @@ func DetectFramework(buildPath string) *Framework {
 					BuildCmd:    detector.buildCmd,
 					StartCmd:    detector.startCmd,
 				}
+				// Next.js with output: 'export' is a static project
+				if fw.Name == "nextjs" && isNextJSStaticExport(buildPath, detector.configFiles) {
+					logrus.Infof("Next.js project detected with output: 'export', classifying as static")
+					fw.Name = "nextjs-static"
+					fw.DisplayName = "Next.js (静态导出)"
+					fw.RuntimeType = "static"
+					fw.OutputDir = "out"
+					fw.StartCmd = ""
+				}
+				// Nuxt with target: 'static' or ssr: false is a static project
+				if fw.Name == "nuxt" && isNuxtStaticMode(buildPath, detector.configFiles) {
+					logrus.Infof("Nuxt project detected as static mode, classifying as static")
+					fw.Name = "nuxt-static"
+					fw.DisplayName = "Nuxt (静态生成)"
+					fw.RuntimeType = "static"
+					fw.OutputDir = "dist"
+					fw.StartCmd = ""
+				}
+				return fw
 			}
 		}
 	}
 
 	return nil // No framework detected
+}
+
+// isNextJSStaticExport checks if a Next.js config file contains output: 'export'
+func isNextJSStaticExport(buildPath string, configFiles []string) bool {
+	re := regexp.MustCompile(`output\s*:\s*['"]export['"]`)
+	for _, file := range configFiles {
+		filePath := path.Join(buildPath, file)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+		if re.Match(content) {
+			return true
+		}
+	}
+	return false
+}
+
+// isNuxtStaticMode checks if a Nuxt config file indicates static mode:
+// - Nuxt 2: target: 'static'
+// - Nuxt 3: ssr: false (SPA mode)
+func isNuxtStaticMode(buildPath string, configFiles []string) bool {
+	reTarget := regexp.MustCompile(`target\s*:\s*['"]static['"]`)
+	reSSR := regexp.MustCompile(`ssr\s*:\s*false`)
+	for _, file := range configFiles {
+		filePath := path.Join(buildPath, file)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+		if reTarget.Match(content) || reSSR.Match(content) {
+			return true
+		}
+	}
+	return false
 }
 
 // readPackageJSON reads and parses package.json file

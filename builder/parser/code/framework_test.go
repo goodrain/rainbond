@@ -72,6 +72,93 @@ func TestDetectFramework_NextJS(t *testing.T) {
 	}
 }
 
+func TestDetectFramework_NextJS_StaticExport(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-nextjs-static-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nextjs-static",
+		"dependencies": {
+			"next": "14.2.3",
+			"react": "18.2.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	// next.config.mjs with output: 'export'
+	nextConfig := `const nextConfig = {
+  output: 'export',
+  images: { unoptimized: true },
+}
+export default nextConfig`
+	if err := os.WriteFile(path.Join(tmpDir, "next.config.mjs"), []byte(nextConfig), 0644); err != nil {
+		t.Fatalf("Failed to write next.config.mjs: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Next.js framework, got nil")
+	}
+
+	if framework.Name != "nextjs-static" {
+		t.Errorf("Expected framework name 'nextjs-static', got '%s'", framework.Name)
+	}
+	if framework.RuntimeType != "static" {
+		t.Errorf("Expected runtime type 'static' for output: 'export', got '%s'", framework.RuntimeType)
+	}
+	if framework.OutputDir != "out" {
+		t.Errorf("Expected output dir 'out' for static export, got '%s'", framework.OutputDir)
+	}
+	if framework.StartCmd != "" {
+		t.Errorf("Expected empty start cmd for static export, got '%s'", framework.StartCmd)
+	}
+}
+
+func TestDetectFramework_NextJS_SSR(t *testing.T) {
+	// NextJS without output: 'export' should remain dynamic
+	tmpDir, err := os.MkdirTemp("", "test-nextjs-ssr-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nextjs-ssr",
+		"dependencies": {
+			"next": "14.2.3",
+			"react": "18.2.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	nextConfig := `const nextConfig = {
+  reactStrictMode: true,
+}
+module.exports = nextConfig`
+	if err := os.WriteFile(path.Join(tmpDir, "next.config.js"), []byte(nextConfig), 0644); err != nil {
+		t.Fatalf("Failed to write next.config.js: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Next.js framework, got nil")
+	}
+
+	if framework.RuntimeType != "dynamic" {
+		t.Errorf("Expected runtime type 'dynamic' for SSR, got '%s'", framework.RuntimeType)
+	}
+	if framework.OutputDir != ".next" {
+		t.Errorf("Expected output dir '.next' for SSR, got '%s'", framework.OutputDir)
+	}
+}
+
 func TestDetectFramework_Nuxt(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nuxt-*")
 	if err != nil {
@@ -103,6 +190,86 @@ func TestDetectFramework_Nuxt(t *testing.T) {
 	}
 	if framework.RuntimeType != "dynamic" {
 		t.Errorf("Expected runtime type 'dynamic', got '%s'", framework.RuntimeType)
+	}
+}
+
+func TestDetectFramework_Nuxt_StaticTarget(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-nuxt-static-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nuxt-static",
+		"dependencies": {
+			"nuxt": "2.17.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	nuxtConfig := `export default {
+  target: 'static',
+  head: { title: 'My App' },
+}`
+	if err := os.WriteFile(path.Join(tmpDir, "nuxt.config.js"), []byte(nuxtConfig), 0644); err != nil {
+		t.Fatalf("Failed to write nuxt.config.js: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Nuxt framework, got nil")
+	}
+	if framework.RuntimeType != "static" {
+		t.Errorf("Expected runtime type 'static' for target: 'static', got '%s'", framework.RuntimeType)
+	}
+	if framework.Name != "nuxt-static" {
+		t.Errorf("Expected framework name 'nuxt-static', got '%s'", framework.Name)
+	}
+	if framework.OutputDir != "dist" {
+		t.Errorf("Expected output dir 'dist', got '%s'", framework.OutputDir)
+	}
+	if framework.StartCmd != "" {
+		t.Errorf("Expected empty start cmd, got '%s'", framework.StartCmd)
+	}
+}
+
+func TestDetectFramework_Nuxt3_SSRFalse(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-nuxt3-spa-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nuxt3-spa",
+		"dependencies": {
+			"nuxt": "3.8.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	nuxtConfig := `export default defineNuxtConfig({
+  ssr: false,
+  app: { head: { title: 'SPA App' } },
+})`
+	if err := os.WriteFile(path.Join(tmpDir, "nuxt.config.ts"), []byte(nuxtConfig), 0644); err != nil {
+		t.Fatalf("Failed to write nuxt.config.ts: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Nuxt framework, got nil")
+	}
+	if framework.RuntimeType != "static" {
+		t.Errorf("Expected runtime type 'static' for ssr: false, got '%s'", framework.RuntimeType)
+	}
+	if framework.Name != "nuxt-static" {
+		t.Errorf("Expected framework name 'nuxt-static', got '%s'", framework.Name)
 	}
 }
 
@@ -210,6 +377,71 @@ func TestDetectFramework_CRA(t *testing.T) {
 	}
 	if framework.OutputDir != "build" {
 		t.Errorf("Expected output dir 'build', got '%s'", framework.OutputDir)
+	}
+}
+
+func TestDetectFramework_Angular_SPA(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-angular-spa-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-angular-spa",
+		"dependencies": {
+			"@angular/core": "^19.2.0",
+			"@angular/router": "^19.2.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+	if err := os.WriteFile(path.Join(tmpDir, "angular.json"), []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to write angular.json: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Angular framework, got nil")
+	}
+	if framework.Name != "angular" {
+		t.Errorf("Expected 'angular', got '%s'", framework.Name)
+	}
+	if framework.RuntimeType != "static" {
+		t.Errorf("Expected 'static' for SPA, got '%s'", framework.RuntimeType)
+	}
+}
+
+func TestDetectFramework_Angular_SSR(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-angular-ssr-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Angular SSR project has @angular/ssr and express, but should still detect as Angular
+	packageJSON := `{
+		"name": "test-angular-ssr",
+		"dependencies": {
+			"@angular/core": "^19.2.0",
+			"@angular/ssr": "^19.2.19",
+			"express": "^4.18.2"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+	if err := os.WriteFile(path.Join(tmpDir, "angular.json"), []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to write angular.json: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Angular framework, got nil")
+	}
+	if framework.Name != "angular" {
+		t.Errorf("Expected 'angular', got '%s' (should not detect as express)", framework.Name)
 	}
 }
 
@@ -339,8 +571,8 @@ func TestCleanVersion(t *testing.T) {
 
 func TestGetSupportedFrameworks(t *testing.T) {
 	frameworks := GetSupportedFrameworks()
-	if len(frameworks) != 11 {
-		t.Errorf("Expected 11 supported frameworks, got %d", len(frameworks))
+	if len(frameworks) != 12 {
+		t.Errorf("Expected 12 supported frameworks, got %d", len(frameworks))
 	}
 
 	// Check that all frameworks have required fields
@@ -372,6 +604,7 @@ func TestGetDisplayName(t *testing.T) {
 		{"docusaurus", "Docusaurus"},
 		{"remix", "Remix"},
 		{"express", "Express"},
+		{"angular", "Angular"},
 		{"nestjs", "Nest.js"},
 		{"unknown", "unknown"},
 	}
