@@ -22,6 +22,7 @@ type LicenseToken struct {
 	Contact        string   `json:"contact"`
 	Tier           string   `json:"tier"`
 	PluginMapping  map[string]string `json:"plugin_mapping"`
+	PluginNames    map[string]string `json:"plugin_names"`
 	StartAt        int64             `json:"start_at"`
 	ExpireAt       int64    `json:"expire_at"`
 	SubscribeUntil int64    `json:"subscribe_until"`
@@ -44,6 +45,7 @@ type LicenseStatus struct {
 	Contact        string   `json:"contact,omitempty"`
 	Tier           string   `json:"tier,omitempty"`
 	PluginMapping  map[string]string `json:"plugin_mapping,omitempty"`
+	PluginNames    map[string]string `json:"plugin_names,omitempty"`
 	StartAt        int64             `json:"start_at,omitempty"`
 	ExpireAt       int64    `json:"expire_at,omitempty"`
 	SubscribeUntil int64    `json:"subscribe_until,omitempty"`
@@ -169,6 +171,7 @@ func TokenToStatus(token *LicenseToken, valid bool, reason string) *LicenseStatu
 		s.Contact = token.Contact
 		s.Tier = token.Tier
 		s.PluginMapping = token.PluginMapping
+		s.PluginNames = token.PluginNames
 		s.StartAt = token.StartAt
 		s.ExpireAt = token.ExpireAt
 		s.SubscribeUntil = token.SubscribeUntil
