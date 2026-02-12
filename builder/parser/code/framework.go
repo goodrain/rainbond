@@ -216,6 +216,10 @@ func DetectFramework(buildPath string) *Framework {
 					fw.OutputDir = "dist"
 					fw.StartCmd = ""
 				}
+				// Angular: read actual output path from angular.json
+				if fw.Name == "angular" {
+					fw.OutputDir = getAngularOutputDir(buildPath)
+				}
 				return fw
 			}
 		}
@@ -257,6 +261,39 @@ func isNuxtStaticMode(buildPath string, configFiles []string) bool {
 		}
 	}
 	return false
+}
+
+// getAngularOutputDir reads angular.json to determine the actual build output directory.
+// Angular outputs to dist/<project>/ or dist/<project>/browser/ (Angular 17+).
+func getAngularOutputDir(buildPath string) string {
+	filePath := path.Join(buildPath, "angular.json")
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "dist"
+	}
+	json, err := simplejson.NewJson(content)
+	if err != nil {
+		return "dist"
+	}
+	projects := json.Get("projects")
+	projectMap, err := projects.Map()
+	if err != nil || len(projectMap) == 0 {
+		return "dist"
+	}
+	// Use the first project found
+	for name := range projectMap {
+		outputPath := projects.Get(name).GetPath("architect", "build", "options", "outputPath").MustString("")
+		if outputPath == "" {
+			continue
+		}
+		builder := projects.Get(name).GetPath("architect", "build", "builder").MustString("")
+		// Angular 17+ application builder outputs browser files to outputPath/browser/
+		if builder == "@angular-devkit/build-angular:application" {
+			return outputPath + "/browser"
+		}
+		return outputPath
+	}
+	return "dist"
 }
 
 // readPackageJSON reads and parses package.json file
