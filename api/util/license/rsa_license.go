@@ -21,8 +21,8 @@ type LicenseToken struct {
 	Company        string   `json:"company"`
 	Contact        string   `json:"contact"`
 	Tier           string   `json:"tier"`
-	AllowedPlugins []string `json:"allowed_plugins"`
-	StartAt        int64    `json:"start_at"`
+	PluginMapping  map[string]string `json:"plugin_mapping"`
+	StartAt        int64             `json:"start_at"`
 	ExpireAt       int64    `json:"expire_at"`
 	SubscribeUntil int64    `json:"subscribe_until"`
 	ClusterLimit   int      `json:"cluster_limit"`
@@ -43,8 +43,8 @@ type LicenseStatus struct {
 	Company        string   `json:"company,omitempty"`
 	Contact        string   `json:"contact,omitempty"`
 	Tier           string   `json:"tier,omitempty"`
-	AllowedPlugins []string `json:"allowed_plugins,omitempty"`
-	StartAt        int64    `json:"start_at,omitempty"`
+	PluginMapping  map[string]string `json:"plugin_mapping,omitempty"`
+	StartAt        int64             `json:"start_at,omitempty"`
 	ExpireAt       int64    `json:"expire_at,omitempty"`
 	SubscribeUntil int64    `json:"subscribe_until,omitempty"`
 	ClusterLimit   int      `json:"cluster_limit,omitempty"`
@@ -151,12 +151,8 @@ func ValidateToken(token *LicenseToken, pubKey *rsa.PublicKey, enterpriseID stri
 
 // IsPluginAllowed checks if a plugin is allowed by the license.
 func IsPluginAllowed(token *LicenseToken, pluginID string) bool {
-	for _, p := range token.AllowedPlugins {
-		if p == "*" || p == pluginID {
-			return true
-		}
-	}
-	return false
+	_, ok := token.PluginMapping[pluginID]
+	return ok
 }
 
 // TokenToStatus converts a LicenseToken to a LicenseStatus.
@@ -172,7 +168,7 @@ func TokenToStatus(token *LicenseToken, valid bool, reason string) *LicenseStatu
 		s.Company = token.Company
 		s.Contact = token.Contact
 		s.Tier = token.Tier
-		s.AllowedPlugins = token.AllowedPlugins
+		s.PluginMapping = token.PluginMapping
 		s.StartAt = token.StartAt
 		s.ExpireAt = token.ExpireAt
 		s.SubscribeUntil = token.SubscribeUntil

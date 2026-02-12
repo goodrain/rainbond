@@ -55,7 +55,7 @@ func newValidToken(enterpriseID string) LicenseToken {
 		Company:        "Test Corp",
 		Contact:        "test@example.com",
 		Tier:           "advanced",
-		AllowedPlugins: []string{"*"},
+		PluginMapping:  map[string]string{"plugin-a": "app-key-a", "plugin-b": "app-key-b"},
 		StartAt:        now - 3600,
 		ExpireAt:       now + 86400,
 		SubscribeUntil: now + 86400,
@@ -176,14 +176,14 @@ func TestValidateToken_NotYetValid(t *testing.T) {
 }
 
 func TestIsPluginAllowed_Wildcard(t *testing.T) {
-	token := &LicenseToken{AllowedPlugins: []string{"*"}}
+	token := &LicenseToken{PluginMapping: map[string]string{"any-plugin": "app-key-1"}}
 	if !IsPluginAllowed(token, "any-plugin") {
-		t.Fatal("expected wildcard to allow any plugin")
+		t.Fatal("expected plugin to be allowed when present in mapping")
 	}
 }
 
 func TestIsPluginAllowed_Specific(t *testing.T) {
-	token := &LicenseToken{AllowedPlugins: []string{"plugin-a", "plugin-b"}}
+	token := &LicenseToken{PluginMapping: map[string]string{"plugin-a": "key-a", "plugin-b": "key-b"}}
 	if !IsPluginAllowed(token, "plugin-a") {
 		t.Fatal("expected plugin-a to be allowed")
 	}
@@ -193,7 +193,7 @@ func TestIsPluginAllowed_Specific(t *testing.T) {
 }
 
 func TestIsPluginAllowed_Denied(t *testing.T) {
-	token := &LicenseToken{AllowedPlugins: []string{"plugin-a"}}
+	token := &LicenseToken{PluginMapping: map[string]string{"plugin-a": "key-a"}}
 	if IsPluginAllowed(token, "plugin-c") {
 		t.Fatal("expected plugin-c to be denied")
 	}
