@@ -29,6 +29,7 @@ type LicenseToken struct {
 	NodeLimit      int      `json:"node_limit"`
 	MemoryLimit    int64    `json:"memory_limit"`
 	CPULimit       int64    `json:"cpu_limit"`
+	AccessKey      string   `json:"access_key"`
 	Signature      string   `json:"signature"`
 }
 
@@ -50,6 +51,7 @@ type LicenseStatus struct {
 	NodeLimit      int      `json:"node_limit,omitempty"`
 	MemoryLimit    int64    `json:"memory_limit,omitempty"`
 	CPULimit       int64    `json:"cpu_limit,omitempty"`
+	AccessKey      string   `json:"access_key,omitempty"`
 }
 
 // ParsePublicKey parses a PEM-encoded RSA public key.
@@ -178,6 +180,7 @@ func TokenToStatus(token *LicenseToken, valid bool, reason string) *LicenseStatu
 		s.NodeLimit = token.NodeLimit
 		s.MemoryLimit = token.MemoryLimit
 		s.CPULimit = token.CPULimit
+		s.AccessKey = token.AccessKey
 	}
 	return s
 }
