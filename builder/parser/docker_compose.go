@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -212,8 +213,44 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				fileInfo, err := os.Stat(resolvedPath)
 				if err == nil {
 					if fileInfo.IsDir() {
-						// 目录，作为普通存储卷
-						logrus.Infof("detected directory volume: %s -> %s", sourcePath, targetPath)
+						// 遍历目录，将目录下的文件全部映射为配置文件，空目录作为存储卷
+						isEmpty := true
+						filepath.Walk(resolvedPath, func(filePath string, info os.FileInfo, walkErr error) error {
+							if walkErr != nil {
+								return nil
+							}
+							if info.IsDir() {
+								return nil
+							}
+							isEmpty = false
+							if info.Size() > 1<<20 {
+								logrus.Infof("skipping file in directory (size %d > 1MB): %s", info.Size(), filePath)
+								return nil
+							}
+							if info.Size() == 0 {
+								logrus.Infof("skipping empty file in directory: %s", filePath)
+								return nil
+							}
+							relPath, _ := filepath.Rel(resolvedPath, filePath)
+							containerPath := path.Join(targetPath, relPath)
+							content, readErr := ioutil.ReadFile(filePath)
+							if readErr != nil {
+								logrus.Warnf("failed to read file %s in directory: %v", filePath, readErr)
+								return nil
+							}
+							volumes[containerPath] = &types.Volume{
+								VolumePath:  containerPath,
+								VolumeType:  model.ConfigFileVolumeType.String(),
+								FileContent: string(content),
+							}
+							logrus.Infof("detected config file from directory: %s -> %s, size: %d bytes", filePath, containerPath, len(content))
+							return nil
+						})
+						if isEmpty {
+							logrus.Infof("detected empty directory volume: %s -> %s", sourcePath, targetPath)
+						} else {
+							continue
+						}
 					} else if fileInfo.Size() > 1<<20 {
 						// 超过 1MB，ConfigMap 不支持，直接忽略
 						logrus.Infof("skipping volume (size %d > 1MB): %s -> %s", fileInfo.Size(), sourcePath, targetPath)
