@@ -63,16 +63,14 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 		annotations[bpKey] = v
 	}
 
-	// Web server: framework type determines frontend (nginx) vs backend (no nginx)
-	// Server frameworks (nextjs, nuxt, etc.) with CNB_OUTPUT_DIR → static export → nginx
-	// Server frameworks without CNB_OUTPUT_DIR → dynamic server → no nginx
+	// Web server: framework determines frontend (nginx) vs backend (no nginx).
+	// Server frameworks (nextjs, nuxt, express, etc.) run their own process.
+	// Static/export variants (nextjs-static, nuxt-static, vite, cra, etc.) use nginx.
 	framework := re.BuildEnvs["CNB_FRAMEWORK"]
 	if framework != "" {
-		outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
 		isServer := serverFrameworks[framework]
-		// nextjs/nuxt with CNB_OUTPUT_DIR → static export mode (e.g. next export, nuxt generate)
-		isStaticExport := (framework == "nextjs" || framework == "nuxt") && outputDir != ""
-		if !isServer || isStaticExport {
+		if !isServer {
+			outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
 			if outputDir == "" {
 				outputDir = "dist"
 			}

@@ -308,11 +308,11 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 
 	t.Run("nextjs static export gets nginx", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
-			"CNB_FRAMEWORK":  "nextjs",
+			"CNB_FRAMEWORK":  "nextjs-static",
 			"CNB_OUTPUT_DIR": "out",
 		}})
 		if ann["cnb-bp-web-server"] != "nginx" {
-			t.Error("nextjs with CNB_OUTPUT_DIR should have nginx for static export")
+			t.Error("nextjs-static should have nginx")
 		}
 		if ann["cnb-bp-web-server-root"] != "out" {
 			t.Errorf("expected output dir 'out', got %q", ann["cnb-bp-web-server-root"])
@@ -321,11 +321,11 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 
 	t.Run("nuxt static export gets nginx", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
-			"CNB_FRAMEWORK":  "nuxt",
-			"CNB_OUTPUT_DIR": ".output/public",
+			"CNB_FRAMEWORK":  "nuxt-static",
+			"CNB_OUTPUT_DIR": "dist",
 		}})
 		if ann["cnb-bp-web-server"] != "nginx" {
-			t.Error("nuxt with CNB_OUTPUT_DIR should have nginx for static export")
+			t.Error("nuxt-static should have nginx")
 		}
 	})
 

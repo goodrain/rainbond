@@ -99,7 +99,7 @@ func (b *Builder) validateProjectFiles(re *build.Request) error {
 	return nil
 }
 
-// setSourceDirPermissions sets the source directory permissions recursively for CNB user
+// setSourceDirPermissions removes .git and sets permissions for CNB build
 func (b *Builder) setSourceDirPermissions(re *build.Request) error {
 	if re.BuildEnvs["KEEP_GIT"] != "true" {
 		gitDir := filepath.Join(re.SourceDir, ".git")
@@ -109,6 +109,8 @@ func (b *Builder) setSourceDirPermissions(re *build.Request) error {
 			}
 		}
 	}
+	// chmod 777 so files are accessible; actual chown to cnb user
+	// is done inside the CNB Job container where the cnb user exists
 	return filepath.WalkDir(re.SourceDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err

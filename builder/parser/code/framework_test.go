@@ -72,6 +72,42 @@ func TestDetectFramework_NextJS(t *testing.T) {
 	}
 }
 
+func TestDetectFramework_NextJS_NoConfigFile(t *testing.T) {
+	// Next.js project with only package.json, no next.config.* file
+	// Should still be detected as dynamic (SSR)
+	tmpDir, err := os.MkdirTemp("", "test-nextjs-noconfig-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nextjs-noconfig",
+		"dependencies": {
+			"next": "14.2.3",
+			"react": "18.2.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Next.js framework without config file, got nil")
+	}
+
+	if framework.Name != "nextjs" {
+		t.Errorf("Expected framework name 'nextjs', got '%s'", framework.Name)
+	}
+	if framework.RuntimeType != "dynamic" {
+		t.Errorf("Expected runtime type 'dynamic', got '%s'", framework.RuntimeType)
+	}
+	if framework.OutputDir != ".next" {
+		t.Errorf("Expected output dir '.next', got '%s'", framework.OutputDir)
+	}
+}
+
 func TestDetectFramework_NextJS_StaticExport(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nextjs-static-*")
 	if err != nil {
@@ -270,6 +306,47 @@ func TestDetectFramework_Nuxt3_SSRFalse(t *testing.T) {
 	}
 	if framework.Name != "nuxt-static" {
 		t.Errorf("Expected framework name 'nuxt-static', got '%s'", framework.Name)
+	}
+}
+
+func TestDetectFramework_Nuxt3_NitroStatic(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-nuxt3-nitro-static-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packageJSON := `{
+		"name": "test-nuxt3-nitro-static",
+		"dependencies": {
+			"nuxt": "3.16.0"
+		}
+	}`
+	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		t.Fatalf("Failed to write package.json: %v", err)
+	}
+
+	nuxtConfig := `export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
+  ssr: true,
+  nitro: {
+    static: true,
+  },
+})`
+	if err := os.WriteFile(path.Join(tmpDir, "nuxt.config.ts"), []byte(nuxtConfig), 0644); err != nil {
+		t.Fatalf("Failed to write nuxt.config.ts: %v", err)
+	}
+
+	framework := DetectFramework(tmpDir)
+	if framework == nil {
+		t.Fatal("Expected to detect Nuxt framework, got nil")
+	}
+	if framework.Name != "nuxt-static" {
+		t.Errorf("Expected framework name 'nuxt-static' for nitro.static:true, got '%s'", framework.Name)
+	}
+	if framework.RuntimeType != "static" {
+		t.Errorf("Expected runtime type 'static' for nitro.static:true, got '%s'", framework.RuntimeType)
 	}
 }
 
@@ -571,8 +648,8 @@ func TestCleanVersion(t *testing.T) {
 
 func TestGetSupportedFrameworks(t *testing.T) {
 	frameworks := GetSupportedFrameworks()
-	if len(frameworks) != 12 {
-		t.Errorf("Expected 12 supported frameworks, got %d", len(frameworks))
+	if len(frameworks) != 13 {
+		t.Errorf("Expected 13 supported frameworks, got %d", len(frameworks))
 	}
 
 	// Check that all frameworks have required fields

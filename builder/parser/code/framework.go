@@ -30,7 +30,7 @@ import (
 
 // Framework represents detected Node.js framework information
 type Framework struct {
-	Name        string // nextjs, nuxt, umi, vite, cra, vue-cli, gatsby, remix, express, nestjs
+	Name        string // nextjs, nuxt, umi, vite, cra, vue-cli, gatsby, remix, express, koa, nestjs
 	DisplayName string // Next.js, Nuxt, Umi...
 	Version     string // 14.2.3
 	RuntimeType string // static | dynamic
@@ -57,7 +57,7 @@ var frameworkDetectors = []frameworkDetector{
 		name:        "nextjs",
 		displayName: "Next.js",
 		packages:    []string{"next"},
-		configFiles: []string{"next.config.js", "next.config.mjs", "next.config.ts"},
+		configFiles: nil, // next.config.js is optional, package name is specific enough
 		runtimeType: "dynamic",
 		outputDir:   ".next",
 		buildCmd:    "build", // CNB BP_NODE_RUN_SCRIPTS expects script name only
@@ -67,7 +67,7 @@ var frameworkDetectors = []frameworkDetector{
 		name:        "nuxt",
 		displayName: "Nuxt",
 		packages:    []string{"nuxt", "nuxt3"},
-		configFiles: []string{"nuxt.config.js", "nuxt.config.ts"},
+		configFiles: nil, // nuxt.config.* is common but not strictly required in Nuxt 3
 		runtimeType: "dynamic",
 		outputDir:   ".nuxt",
 		buildCmd:    "build",
@@ -173,6 +173,16 @@ var frameworkDetectors = []frameworkDetector{
 		buildCmd:    "",
 		startCmd:    "start",
 	},
+	{
+		name:        "koa",
+		displayName: "Koa",
+		packages:    []string{"koa"},
+		configFiles: nil,
+		runtimeType: "dynamic",
+		outputDir:   "",
+		buildCmd:    "",
+		startCmd:    "start",
+	},
 }
 
 // DetectFramework detects Node.js framework from project source
@@ -199,7 +209,8 @@ func DetectFramework(buildPath string) *Framework {
 					StartCmd:    detector.startCmd,
 				}
 				// Next.js with output: 'export' is a static project
-				if fw.Name == "nextjs" && isNextJSStaticExport(buildPath, detector.configFiles) {
+				nextjsConfigFiles := []string{"next.config.js", "next.config.mjs", "next.config.ts"}
+				if fw.Name == "nextjs" && isNextJSStaticExport(buildPath, nextjsConfigFiles) {
 					logrus.Infof("Next.js project detected with output: 'export', classifying as static")
 					fw.Name = "nextjs-static"
 					fw.DisplayName = "Next.js (静态导出)"
@@ -208,7 +219,8 @@ func DetectFramework(buildPath string) *Framework {
 					fw.StartCmd = ""
 				}
 				// Nuxt with target: 'static' or ssr: false is a static project
-				if fw.Name == "nuxt" && isNuxtStaticMode(buildPath, detector.configFiles) {
+				nuxtConfigFiles := []string{"nuxt.config.js", "nuxt.config.ts"}
+				if fw.Name == "nuxt" && isNuxtStaticMode(buildPath, nuxtConfigFiles) {
 					logrus.Infof("Nuxt project detected as static mode, classifying as static")
 					fw.Name = "nuxt-static"
 					fw.DisplayName = "Nuxt (静态生成)"
@@ -247,16 +259,18 @@ func isNextJSStaticExport(buildPath string, configFiles []string) bool {
 // isNuxtStaticMode checks if a Nuxt config file indicates static mode:
 // - Nuxt 2: target: 'static'
 // - Nuxt 3: ssr: false (SPA mode)
+// - Nuxt 3: nitro: { static: true } (SSG mode via nuxt generate)
 func isNuxtStaticMode(buildPath string, configFiles []string) bool {
 	reTarget := regexp.MustCompile(`target\s*:\s*['"]static['"]`)
 	reSSR := regexp.MustCompile(`ssr\s*:\s*false`)
+	reNitroStatic := regexp.MustCompile(`(?s)nitro\s*:.*?static\s*:\s*true`)
 	for _, file := range configFiles {
 		filePath := path.Join(buildPath, file)
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			continue
 		}
-		if reTarget.Match(content) || reSSR.Match(content) {
+		if reTarget.Match(content) || reSSR.Match(content) || reNitroStatic.Match(content) {
 			return true
 		}
 	}

@@ -105,13 +105,15 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	creatorArgs := b.buildCreatorArgs(re, buildImageName, cnbRunImage)
 
+	// Chown workspace to cnb user inside the builder image (where cnb user exists with correct UID),
+	// then exec the lifecycle creator. This ensures buildpacks can chmod generated files.
 	container := corev1.Container{
 		Name:         name,
 		Image:        cnbBuilderImage,
 		Stdin:        true,
 		StdinOnce:    true,
-		Command:      []string{CNBLifecycleCreatorPath},
-		Args:         creatorArgs,
+		Command:      []string{"sh", "-c", `chown -R cnb:cnb /workspace && exec "$@"`, "--"},
+		Args:         append([]string{CNBLifecycleCreatorPath}, creatorArgs...),
 		Env:          b.buildEnvVars(re),
 		VolumeMounts: mounts,
 	}
