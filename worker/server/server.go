@@ -324,6 +324,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 
 	pods := app.GetPods(false)
 	var oldpods, newpods []*pb.ServiceAppPod
+	nodeMemCache := make(map[string]int64) // 缓存节点可分配内存，避免重复查询
 	for _, pod := range pods {
 		if v1.IsPodTerminated(pod) {
 			continue
@@ -335,9 +336,18 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		volumes := make([]string, 0)
 		for _, container := range pod.Spec.Containers {
+			memLimit := container.Resources.Limits.Memory().Value()
+			if memLimit == 0 && pod.Spec.NodeName != "" {
+				if cached, ok := nodeMemCache[pod.Spec.NodeName]; ok {
+					memLimit = cached
+				} else if node, err := r.k8sComponent.Clientset.CoreV1().Nodes().Get(ctx, pod.Spec.NodeName, metav1.GetOptions{}); err == nil {
+					memLimit = node.Status.Allocatable.Memory().Value()
+					nodeMemCache[pod.Spec.NodeName] = memLimit
+				}
+			}
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
-				MemoryLimit:   container.Resources.Limits.Memory().Value(),
+				MemoryLimit:   memLimit,
 				CpuRequest:    container.Resources.Limits.Cpu().MilliValue(),
 				MemoryRequest: container.Resources.Limits.Memory().Value(),
 			}
