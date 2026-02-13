@@ -383,10 +383,7 @@ func FindDockerfiles(rootPath string, maxDepth int, maxFiles int) []string {
 			}
 
 			dirName := file.Name()
-			// 跳过隐藏目录和忽略目录
-			if strings.HasPrefix(dirName, ".") && dirName != "." {
-				continue
-			}
+			// 跳过忽略目录（包括 .git, .svn 等特定隐藏目录）
 			if ignoreDirs[dirName] {
 				continue
 			}
