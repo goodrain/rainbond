@@ -330,7 +330,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				lang = "openJDK"
 			case code.PHP:
 				lang = "php"
-			case code.Nodejs:
+			case code.Nodejs, code.NodeJSStatic:
 				lang = "node"
 			default:
 				// Handle combined language types (e.g., "Node.js,static")
