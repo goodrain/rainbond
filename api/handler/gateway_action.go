@@ -1273,29 +1273,34 @@ func selectAvailablePort(used []int) int {
 	}
 
 	sort.Ints(used)
-	selectPort := used[len(used)-1] + 1
-	if selectPort < minPort {
-		selectPort = minPort
-	}
-	//顺序分配端口
-	if selectPort <= maxPort {
-		return selectPort
-	}
-	//捡漏以前端口
-	selectPort = minPort
+
+	// 优先从 minPort 开始找空闲端口（捡漏）
+	selectPort := minPort
 	for _, p := range used {
+		// 跳过小于最小端口的记录
+		if p < minPort {
+			continue
+		}
+		// 如果当前端口已被使用，尝试下一个
 		if p == selectPort {
 			selectPort = selectPort + 1
 			continue
 		}
+		// 找到间隙，返回空闲端口
 		if p > selectPort {
-			return selectPort
+			if selectPort <= maxPort {
+				return selectPort
+			}
+			break
 		}
-		selectPort = selectPort + 1
 	}
+
+	// 如果没有间隙，使用最大端口 + 1
 	if selectPort <= maxPort {
 		return selectPort
 	}
+
+	// 无可用端口
 	return 0
 }
 
