@@ -774,6 +774,10 @@ func (c *clusterAction) CreatePlugin(req *model.CreateRBDPluginReq) error {
 	if req.AppID != "" {
 		labels["app_id"] = req.AppID
 	}
+	// Add official plugin label for platform plugins
+	if req.PluginID != "" {
+		labels[OfficialPluginLabel] = req.PluginID
+	}
 
 	plugin := &v1alpha1.RBDPlugin{
 		ObjectMeta: metav1.ObjectMeta{
