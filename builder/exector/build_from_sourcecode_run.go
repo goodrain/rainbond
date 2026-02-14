@@ -36,6 +36,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
+	_ "github.com/goodrain/rainbond/builder/build/cnb" // register CNB builder
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -76,6 +77,7 @@ type SourceCodeBuildItem struct {
 	DeployVersion string
 	Lang          string
 	Runtime       string
+	BuildType     string // cnb or slug
 	BuildEnvs     map[string]string
 	CodeSouceInfo sources.CodeSourceInfo
 	RepoInfo      *sources.RepostoryBuildInfo
@@ -134,6 +136,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		CodeSouceInfo: csi,
 		Lang:          gjson.GetBytes(in, "lang").String(),
 		Runtime:       gjson.GetBytes(in, "runtime").String(),
+		BuildType:     gjson.GetBytes(in, "build_type").String(),
 		Configs:       gjson.GetBytes(in, "configs").Map(),
 		BuildEnvs:     be,
 	}
@@ -350,8 +353,10 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 }
 
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
-	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
-	if i.Lang == "NodeJSStatic" && i.BuildEnvs["MODE"] == "DOCKERFILE" {
+	codeBuild, err := build.GetBuildByType(code.Lang(i.Lang), i.BuildType)
+	// Handle Node.js projects with DOCKERFILE mode
+	// Check for Node.js language (including combined types like "Node.js,static")
+	if strings.Contains(i.Lang, string(code.Nodejs)) && i.BuildEnvs["MODE"] == "DOCKERFILE" {
 		codeBuild, err = build.GetBuild(code.NodeJSDockerfile)
 	}
 	if err != nil {

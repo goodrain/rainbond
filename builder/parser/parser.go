@@ -198,12 +198,17 @@ type ServiceInfo struct {
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 	//os type,default linux
-	OS string `json:"os"`
+	OS   string `json:"os"`
 	Name string `json:"name,omitempty"` // module name
 	Cname string `json:"cname,omitempty"` // service cname
 	Packaging string `json:"packaging,omitempty"`
 	// Dockerfile 文件列表，相对于代码根目录的路径
 	Dockerfiles []string `json:"dockerfiles,omitempty"`
+
+	// RuntimeInfo contains structured detection results (framework, package manager, etc.)
+	// This is the preferred way to access detection metadata.
+	// Note: Envs still contains BUILD_* variables for the actual build process.
+	RuntimeInfo *types.RuntimeInfo `json:"runtime_info,omitempty"`
 }
 
 // GetServiceInfo GetServiceInfo
