@@ -286,6 +286,10 @@ type BuildPluginStruct struct {
 			Namespace   string `json:"namespace"`
 			IsTrust     bool   `json:"is_trust,omitempty"`
 		} `json:"ImageInfo" validate:"ImageInfo"`
+		// 插件架构
+		// in: body
+		// required: false
+		Arch string `json:"arch"` // Plugin architecture (amd64, arm64, etc.)
 	}
 }
 

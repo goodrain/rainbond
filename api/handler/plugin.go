@@ -362,6 +362,7 @@ func (p *PluginAction) buildPlugin(b *apimodel.BuildPluginStruct, plugin *dbmode
 		GitURL:        plugin.GitURL,
 		GitUsername:   b.Body.Username,
 		GitPassword:   b.Body.Password,
+		Arch:          b.Body.Arch,
 	}
 	taskType := "plugin_image_build"
 	if plugin.BuildModel == "dockerfile" {

@@ -35,6 +35,7 @@ type BuildPluginTaskBody struct {
 	PluginCMD     string `json:"plugin_cmd"`
 	PluginCPU     int    `json:"plugin_cpu"`
 	PluginMemory  int    `json:"plugin_memory"`
+	Arch          string `json:"arch"` // Plugin architecture (amd64, arm64, etc.)
 	ImageInfo     struct {
 		HubURL      string `json:"hub_url"`
 		HubUser     string `json:"hub_user"`
