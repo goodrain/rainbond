@@ -8,6 +8,12 @@ var versions = map[string]Version{
 			thirdcomponentCRD531,
 		},
 	},
+	"6.6.0": {
+		CRDs: []string{
+			rbdpluginsCRD660,
+			rbdabilitiesCRD660,
+		},
+	},
 }
 
 type Version struct {
@@ -223,6 +229,162 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
+`
+
+var rbdpluginsCRD660 = `
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: rbdplugins.rainbond.io
+spec:
+  group: rainbond.io
+  names:
+    kind: RBDPlugin
+    listKind: RBDPluginList
+    plural: rbdplugins
+    singular: rbdplugin
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RBDPlugin is the Schema for the rbdplugins API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RBDPluginSpec defines the desired state of RBDPlugin
+            properties:
+              display_name:
+                description: The alias is the name used for display, and if this
+                  field is not set, the name in the metadata will be used
+                type: string
+              plugin_type:
+                enum:
+                - JSInject
+                - Iframe
+                type: string
+              frontend_component:
+                description: Frontend component name
+                type: string
+              entry_path:
+                description: Entry path for the plugin
+                type: string
+              plugin_views:
+                items:
+                  description: PluginView View where the plugin is located
+                  enum:
+                  - Platform
+                  - Team
+                  - Application
+                  - Component
+                  type: string
+                type: array
+              menu_title:
+                description: Menu title for the plugin
+                type: string
+              route_path:
+                description: Route path for the plugin
+                type: string
+              namespace:
+                description: Namespace identifier for the plugin
+                type: string
+              backend_service:
+                description: Backend service address
+                type: string
+              frontend_service:
+                description: Frontend service address
+                type: string
+            type: object
+          status:
+            description: RBDPluginStatus defines the observed state of RBDPlugin
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+`
+
+var rbdabilitiesCRD660 = `
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: rbdabilities.rainbond.io
+spec:
+  group: rainbond.io
+  names:
+    kind: RBDAbility
+    listKind: RBDAbilityList
+    plural: rbdabilities
+    singular: rbdability
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RBDAbility is the Schema for the rbdplugins API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RBDAbilitySpec defines the desired state of RBDAbility
+            properties:
+              alias:
+                description: Alias The alias is the name used for display, and if
+                  this field is not set, the name in the metadata will be used
+                type: string
+              watchGroups:
+                description: Foo is an example field of RBDAbility. Edit rbdplugin_types.go
+                  to remove/update
+                items:
+                  description: WatchGroup Defines what types of resources are listed.
+                    For example, if apiVersion is apps/v1, kind is Deployment, it
+                    means that the platform will list all Deployment resources.
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                  type: object
+                type: array
+            type: object
+          status:
+            description: RBDAbilityStatus defines the observed state of RBDAbility
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
 `
 
 var helmappCRD531 = `
