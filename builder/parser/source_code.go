@@ -194,7 +194,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				return d.errors
 			}
 			// 认证错误
-			if strings.Contains(err.Error(), "authentication failed") || strings.Contains(err.Error(), "401") {
+			if strings.Contains(err.Error(), "authentication failed") ||
+			   strings.Contains(err.Error(), "authentication required") ||
+			   strings.Contains(err.Error(), "Unauthorized") ||
+			   strings.Contains(err.Error(), "401") {
 				solve := "请检查用户名密码或访问令牌是否正确"
 				d.errappend(ErrorAndSolve(FatalError, "身份验证失败", solve))
 				return d.errors
