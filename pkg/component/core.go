@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/builder/exector"
 	exec_monitor "github.com/goodrain/rainbond/builder/monitor"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/crd"
 	db "github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/mqcomponent/grpcserver"
@@ -70,6 +71,17 @@ func Database() rainbond.Component {
 // K8sClient -
 func K8sClient() rainbond.Component {
 	return k8s.New()
+}
+
+// CRDEnsure ensures all required CRDs are applied at startup.
+func CRDEnsure() rainbond.FuncComponent {
+	return func(ctx context.Context) error {
+		logrus.Info("ensuring CRDs are up to date...")
+		if err := crd.EnsureCRDs(ctx, k8s.Default().RestConfig); err != nil {
+			logrus.Warningf("ensure CRDs: %v", err)
+		}
+		return nil
+	}
 }
 
 // StorageClient -
