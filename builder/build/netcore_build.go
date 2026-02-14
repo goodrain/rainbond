@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
@@ -124,7 +125,9 @@ func (d *customDockerfileBuild) writeDockerfile(sourceDir string, envs map[strin
 		envs["DOTNET_RUNTIME"] = runtimeVersion.FileName
 	}
 	dockerfile := util.ParseVariable(netDockerfileTmpl, envs)
-	if lang == "NodeJSStatic" && envs["MODE"] == "DOCKERFILE" {
+	// Handle Node.js projects with DOCKERFILE mode
+	// Check for Node.js language (including combined types like "Node.js,static")
+	if strings.Contains(string(lang), "Node") && envs["MODE"] == "DOCKERFILE" {
 		if envs["NODE_BUILD_CMD"] == "" {
 			envs["NODE_BUILD_CMD"] = envs["PACKAGE_TOOL"] + " run build"
 		}

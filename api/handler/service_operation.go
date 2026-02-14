@@ -108,7 +108,7 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		FinishTime:   time.Now(),
 		PlanVersion:  buildReq.PlanVersion,
 	}
-	if buildReq.CodeInfo.Cmd != "" {
+	if buildReq.CodeInfo.Cmd != "" && buildReq.CodeInfo.BuildType != "cnb" {
 		version.Cmd = buildReq.CodeInfo.Cmd
 	}
 	if err = db.GetManager().VersionInfoDao().AddModel(&version); err != nil {
@@ -422,6 +422,10 @@ func (o *OperationHandler) buildFromSourceCode(r *model.ComponentBuildReq, servi
 	// 传递 dockerfile_path 到构建任务
 	if r.CodeInfo.DockerfilePath != "" {
 		body["dockerfile_path"] = r.CodeInfo.DockerfilePath
+	}
+	// 传递 build_type 到构建任务 (cnb 或 slug)
+	if r.CodeInfo.BuildType != "" {
+		body["build_type"] = r.CodeInfo.BuildType
 	}
 	body["expire"] = 180
 	body["configs"] = r.Configs

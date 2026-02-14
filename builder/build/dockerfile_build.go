@@ -354,7 +354,7 @@ func (d *dockerfileBuild) createAuthSecret(re *Request) (sc corev1.Secret, err e
 			auths := make(map[string]interface{})
 			err = json.Unmarshal(config, &auths)
 			if err != nil {
-				logrus.Debug("json unmarshal config str error:%v", err.Error())
+				logrus.Debugf("json unmarshal config str error:%v", err.Error())
 				continue
 			}
 			hubConfig := auths["auths"]
@@ -373,17 +373,17 @@ func (d *dockerfileBuild) createAuthSecret(re *Request) (sc corev1.Secret, err e
 
 			domain, err := base64.StdEncoding.DecodeString(domainStr)
 			if err != nil {
-				logrus.Debug("base64 decode domain error:%v", err.Error())
+				logrus.Debugf("base64 decode domain error:%v", err.Error())
 				continue
 			}
 			passWord, err := base64.StdEncoding.DecodeString(passwordStr)
 			if err != nil {
-				logrus.Debug("base64 decode password error:%v", err.Error())
+				logrus.Debugf("base64 decode password error:%v", err.Error())
 				continue
 			}
 			userName, err := base64.StdEncoding.DecodeString(usernameStr)
 			if err != nil {
-				logrus.Debug("base64 decode username error:%v", err.Error())
+				logrus.Debugf("base64 decode username error:%v", err.Error())
 				continue
 			}
 			registryAuth["username"] = string(userName)

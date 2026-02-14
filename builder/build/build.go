@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -54,6 +55,14 @@ func init() {
 }
 
 var buildcreaters map[code.Lang]CreaterBuild
+
+// cnbCreater is registered by the cnb subpackage via init()
+var cnbCreater CreaterBuild
+
+// RegisterCNBBuilder registers the CNB builder factory (called from cnb package init)
+func RegisterCNBBuilder(fn CreaterBuild) {
+	cnbCreater = fn
+}
 
 // Build app build pack
 type Build interface {
@@ -140,6 +149,33 @@ func GetBuild(lang code.Lang) (Build, error) {
 	return slugBuilder()
 }
 
+// GetBuildByType returns a builder based on build type
+// For Node.js with CNB build type, returns CNB builder
+// For other cases, falls back to the default builder for the language
+func GetBuildByType(lang code.Lang, buildType string) (Build, error) {
+	switch buildType {
+	case "cnb":
+		if cnbCreater == nil {
+			return nil, fmt.Errorf("CNB builder not registered")
+		}
+		// Support Node.js projects (with package.json)
+		langStr := string(lang)
+		if lang == code.Nodejs || strings.Contains(langStr, string(code.Nodejs)) {
+			return cnbCreater()
+		}
+		// Support pure static projects (no package.json, only HTML)
+		if lang == code.Static || strings.Contains(langStr, string(code.Static)) {
+			return cnbCreater()
+		}
+		// Other languages fall back to default builder
+		return GetBuild(lang)
+	case "slug":
+		fallthrough
+	default:
+		return GetBuild(lang)
+	}
+}
+
 // CreateImageName create image name
 func CreateImageName(serviceID, deployversion string) string {
 	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))
@@ -182,4 +218,16 @@ func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kub
 		}
 	}
 	return auths
+}
+
+// CreateAuthSecret creates the registry authentication secret (used by both dockerfile and CNB builds)
+func CreateAuthSecret(re *Request) (corev1.Secret, error) {
+	d := &dockerfileBuild{}
+	return d.createAuthSecret(re)
+}
+
+// DeleteAuthSecret deletes the registry authentication secret
+func DeleteAuthSecret(re *Request, secretName string) {
+	d := &dockerfileBuild{}
+	d.deleteAuthSecret(re, secretName)
 }
