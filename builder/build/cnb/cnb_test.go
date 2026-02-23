@@ -375,10 +375,10 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 	t.Run("CNB_START_SCRIPT with pnpm", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
 			"CNB_START_SCRIPT":   "serve",
-			"BUILD_PACKAGE_TOOL": "pnpm",
+			"CNB_PACKAGE_TOOL": "pnpm",
 		}})
-		if ann["cnb-bp-pnpm-start-script"] != "serve" {
-			t.Errorf("expected serve, got %q", ann["cnb-bp-pnpm-start-script"])
+		if ann["cnb-bp-npm-start-script"] != "serve" {
+			t.Errorf("expected serve, got %q", ann["cnb-bp-npm-start-script"])
 		}
 	})
 
@@ -437,8 +437,8 @@ func TestBuildEnvVars(t *testing.T) {
 		for _, e := range envs {
 			m[e.Name] = e.Value
 		}
-		if m["CNB_PLATFORM_API"] != "0.12" {
-			t.Error("expected CNB_PLATFORM_API=0.12")
+		if m["CNB_PLATFORM_API"] != "0.13" {
+			t.Error("expected CNB_PLATFORM_API=0.13")
 		}
 		if m["DOCKER_CONFIG"] != "/home/cnb/.docker" {
 			t.Error("expected DOCKER_CONFIG=/home/cnb/.docker")
@@ -472,7 +472,7 @@ func TestBuildCreatorArgs(t *testing.T) {
 		dir := newNodeDir(t)
 		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
 		args := b.buildCreatorArgs(re, "img:v1", "run:v1")
-		for _, r := range []string{"-app=/workspace", "-layers=/layers", "-platform=/platform", "-cache-dir=/cache"} {
+		for _, r := range []string{"-app=/workspace", "-layers=/layers", "-platform=/platform"} {
 			found := false
 			for _, a := range args {
 				if a == r {
@@ -517,11 +517,11 @@ func TestCreateVolumeAndMount(t *testing.T) {
 	b := &Builder{}
 	re := &build.Request{SourceDir: "/tmp/src", CacheDir: "/tmp/cache"}
 	vols, mounts := b.createVolumeAndMount(re, "secret-name")
-	if len(vols) != 6 {
-		t.Errorf("expected 6 volumes, got %d", len(vols))
+	if len(vols) != 5 {
+		t.Errorf("expected 5 volumes, got %d", len(vols))
 	}
-	if len(mounts) != 6 {
-		t.Errorf("expected 6 mounts, got %d", len(mounts))
+	if len(mounts) != 5 {
+		t.Errorf("expected 5 mounts, got %d", len(mounts))
 	}
 	// Check docker-config uses secret
 	found := false
