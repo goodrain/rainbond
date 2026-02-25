@@ -155,22 +155,26 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		logLevel = v
 	}
 
+	noCache := re.BuildEnvs["NO_CACHE"] == "True" || re.BuildEnvs["NO_CACHE"] == "true"
+
 	args := []string{
 		"-app=/workspace",
 		"-layers=/layers",
 		"-platform=/platform",
 		"-run-image=" + runImage,
-		"-cache-image=" + stableImageTag(buildImageName, "cnb-cache"),
-		"-previous-image=" + latestImage,
 		"-tag=" + latestImage,
 		"-insecure-registry=" + registryHost,
-		"-parallel",
 		"-log-level=" + logLevel,
 	}
 
-	// Skip cache restore when NO_CACHE is set
-	if re.BuildEnvs["NO_CACHE"] == "True" || re.BuildEnvs["NO_CACHE"] == "true" {
+	if noCache {
+		// Skip both cache restore and image layer reuse
 		args = append(args, "-skip-restore")
+	} else {
+		// Enable registry cache, previous image layer reuse, and parallel export
+		args = append(args, "-cache-image="+stableImageTag(buildImageName, "cnb-cache"))
+		args = append(args, "-previous-image="+latestImage)
+		args = append(args, "-parallel")
 	}
 
 	// Custom order from language config (e.g., pure static projects need nginx-only order)

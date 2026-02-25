@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/util"
@@ -30,13 +31,13 @@ import (
 
 // Framework represents detected Node.js framework information
 type Framework struct {
-	Name        string // nextjs, nuxt, umi, vite, cra, vue-cli, gatsby, remix, express, koa, nestjs
-	DisplayName string // Next.js, Nuxt, Umi...
-	Version     string // 14.2.3
-	RuntimeType string // static | dynamic
-	OutputDir   string // default output directory
-	BuildCmd    string // package.json script name (e.g., "build"), used for BP_NODE_RUN_SCRIPTS
-	StartCmd    string // package.json script name (e.g., "start"), used for BP_NODE_RUN_SCRIPTS
+	Name        string `json:"name"`         // nextjs, nuxt, umi, vite, cra, vue-cli, gatsby, remix, express, koa, nestjs
+	DisplayName string `json:"display_name"` // Next.js, Nuxt, Umi...
+	Version     string `json:"version"`      // 14.2.3
+	RuntimeType string `json:"runtime_type"` // static | dynamic
+	OutputDir   string `json:"output_dir"`   // default output directory
+	BuildCmd    string `json:"build_cmd"`    // package.json script name (e.g., "build"), used for BP_NODE_RUN_SCRIPTS
+	StartCmd    string `json:"start_cmd"`    // package.json script name (e.g., "start"), used for BP_NODE_RUN_SCRIPTS
 }
 
 // frameworkDetector defines detection rules for each framework
@@ -74,36 +75,6 @@ var frameworkDetectors = []frameworkDetector{
 		startCmd:    "start",
 	},
 	{
-		name:        "umi",
-		displayName: "Umi",
-		packages:    []string{"umi", "@umijs/max"},
-		configFiles: []string{".umirc.ts", ".umirc.js", "config/config.ts"},
-		runtimeType: "static",
-		outputDir:   "dist",
-		buildCmd:    "build",
-		startCmd:    "",
-	},
-	{
-		name:        "remix",
-		displayName: "Remix",
-		packages:    []string{"@remix-run/node", "@remix-run/react"},
-		configFiles: []string{"remix.config.js"},
-		runtimeType: "dynamic",
-		outputDir:   "",
-		buildCmd:    "build",
-		startCmd:    "start",
-	},
-	{
-		name:        "gatsby",
-		displayName: "Gatsby",
-		packages:    []string{"gatsby"},
-		configFiles: []string{"gatsby-config.js", "gatsby-config.ts"},
-		runtimeType: "static",
-		outputDir:   "public",
-		buildCmd:    "build",
-		startCmd:    "",
-	},
-	{
 		name:        "docusaurus",
 		displayName: "Docusaurus",
 		packages:    []string{"@docusaurus/core"},
@@ -134,7 +105,7 @@ var frameworkDetectors = []frameworkDetector{
 		startCmd:    "",
 	},
 	{
-		name:        "cra",
+		name:        "react",
 		displayName: "Create React App",
 		packages:    []string{"react-scripts"},
 		configFiles: nil,
@@ -144,7 +115,7 @@ var frameworkDetectors = []frameworkDetector{
 		startCmd:    "",
 	},
 	{
-		name:        "vue-cli",
+		name:        "vue",
 		displayName: "Vue CLI",
 		packages:    []string{"@vue/cli-service"},
 		configFiles: []string{"vue.config.js"},
@@ -426,18 +397,37 @@ func GetDisplayName(frameworkName string) string {
 	return frameworkName
 }
 
-// GetSupportedFrameworks returns list of all supported frameworks
-func GetSupportedFrameworks() []Framework {
-	frameworks := make([]Framework, 0, len(frameworkDetectors))
-	for _, detector := range frameworkDetectors {
-		frameworks = append(frameworks, Framework{
-			Name:        detector.name,
-			DisplayName: detector.displayName,
-			RuntimeType: detector.runtimeType,
-			OutputDir:   detector.outputDir,
-			BuildCmd:    detector.buildCmd,
-			StartCmd:    detector.startCmd,
-		})
+// extraNodeFrameworks defines frameworks that are dynamically detected or serve as catch-all options.
+// These are not in frameworkDetectors but are needed by the frontend framework selector.
+var extraNodeFrameworks = []Framework{
+	{Name: "nextjs-static", DisplayName: "Next.js", RuntimeType: "static", OutputDir: "out", BuildCmd: "build"},
+	{Name: "nuxt-static", DisplayName: "Nuxt", RuntimeType: "static", OutputDir: "dist", BuildCmd: "build"},
+	{Name: "other-static", DisplayName: "Other", RuntimeType: "static", OutputDir: "dist", BuildCmd: "build"},
+	{Name: "other-server", DisplayName: "Other", RuntimeType: "dynamic", OutputDir: "", BuildCmd: "", StartCmd: "start"},
+}
+
+// GetSupportedFrameworks returns list of all supported frameworks for a given language.
+// If lang is empty, defaults to "nodejs".
+func GetSupportedFrameworks(lang string) []Framework {
+	if lang == "" {
+		lang = "nodejs"
 	}
-	return frameworks
+	switch strings.ToLower(lang) {
+	case "nodejs", "node", "node.js":
+		frameworks := make([]Framework, 0, len(frameworkDetectors)+len(extraNodeFrameworks))
+		for _, detector := range frameworkDetectors {
+			frameworks = append(frameworks, Framework{
+				Name:        detector.name,
+				DisplayName: detector.displayName,
+				RuntimeType: detector.runtimeType,
+				OutputDir:   detector.outputDir,
+				BuildCmd:    detector.buildCmd,
+				StartCmd:    detector.startCmd,
+			})
+		}
+		frameworks = append(frameworks, extraNodeFrameworks...)
+		return frameworks
+	default:
+		return []Framework{}
+	}
 }
