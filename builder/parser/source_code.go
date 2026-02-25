@@ -774,7 +774,12 @@ func (d *SourceCodeParse) buildRuntimeInfo(runtimeInfo map[string]string, lang c
 
 	// Set language version
 	if version, ok := runtimeInfo["RUNTIMES"]; ok {
-		info.LanguageVersion = version
+		// Resolve fuzzy version (e.g. "20.x") to exact CNB version (e.g. "20.20.0")
+		if matched := code.MatchCNBVersion(lang.String(), version); matched != "" {
+			info.LanguageVersion = matched
+		} else {
+			info.LanguageVersion = version
+		}
 	}
 	// Check multiple possible source field names for different languages
 	if source, ok := runtimeInfo["NODE_VERSION_SOURCE"]; ok {
