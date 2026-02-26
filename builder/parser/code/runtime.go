@@ -242,6 +242,13 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 		if framework.StartCmd != "" {
 			runtimeInfo["START_CMD"] = framework.StartCmd
 		}
+	} else {
+		// Fallback: no specific framework detected, default to other-static
+		runtimeInfo["FRAMEWORK"] = "other-static"
+		runtimeInfo["FRAMEWORK_DISPLAY_NAME"] = "Other"
+		runtimeInfo["RUNTIME_TYPE"] = "static"
+		runtimeInfo["OUTPUT_DIR"] = "dist"
+		runtimeInfo["BUILD_CMD"] = "build"
 	}
 
 	// Detect config files
