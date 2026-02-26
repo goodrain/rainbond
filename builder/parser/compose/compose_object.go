@@ -25,6 +25,7 @@ import (
 // ComposeObject holds the generic struct of Kompose transformation
 type ComposeObject struct {
 	ServiceConfigs map[string]ServiceConfig
+	SupportReport  *FieldSupportReport // Field support report for warnings and errors
 }
 
 // ConvertOptions holds all options that controls transformation process
@@ -65,6 +66,7 @@ type ServiceConfig struct {
 	EnvFile          []string            `compose:"env_file"`
 	Port             []Ports             `compose:"ports"`
 	Command          []string            `compose:"command"`
+	Entrypoint       []string            `compose:"entrypoint"`
 	DependsON        []string            `compose:"depends_on"`
 	Links            []string            `compose:"links"`
 	WorkingDir       string              `compose:""`
@@ -143,4 +145,5 @@ type Volumes struct {
 	Mode       string // access mode for volume
 	PVCName    string // name of PVC
 	PVCSize    string // PVC size
+	VolumeType string // volume type: "config-file" or empty for regular volume
 }

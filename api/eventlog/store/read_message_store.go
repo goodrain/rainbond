@@ -31,13 +31,14 @@ import (
 )
 
 type readMessageStore struct {
-	conf    conf.EventStoreConf
-	log     *logrus.Entry
-	barrels map[string]*readEventBarrel
-	lock    sync.Mutex
-	cancel  func()
-	ctx     context.Context
-	pool    *sync.Pool
+	conf      conf.EventStoreConf
+	log       *logrus.Entry
+	barrels   map[string]*readEventBarrel
+	lock      sync.Mutex
+	cancel    func()
+	ctx       context.Context
+	pool      *sync.Pool
+	fileStore FileStore
 }
 
 func (h *readMessageStore) Scrape(ch chan<- prometheus.Metric, namespace, exporter, from string) error {
@@ -53,6 +54,9 @@ func (h *readMessageStore) InsertMessage(message *db.EventLogMessage) {
 		ba.insertMessage(message)
 	} else {
 		ba := h.pool.Get().(*readEventBarrel)
+		// 注入eventID和fileStore
+		ba.eventID = message.EventID
+		ba.fileStore = h.fileStore
 		ba.insertMessage(message)
 		h.barrels[message.EventID] = ba
 	}
@@ -68,6 +72,9 @@ func (h *readMessageStore) SubChan(eventID, subID string) chan *db.EventLogMessa
 		return ba.addSubChan(subID)
 	}
 	ba := h.pool.Get().(*readEventBarrel)
+	// 注入eventID和fileStore
+	ba.eventID = eventID
+	ba.fileStore = h.fileStore
 	ba.updateTime = time.Now()
 	h.barrels[eventID] = ba
 	return ba.addSubChan(subID)
@@ -83,32 +90,49 @@ func (h *readMessageStore) Run() {
 	go h.Gc()
 }
 func (h *readMessageStore) Gc() {
-	tiker := time.NewTicker(time.Second * 30)
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-tiker.C:
+		case <-ticker.C:
 		case <-h.ctx.Done():
 			h.log.Debug("read message store gc stop.")
-			tiker.Stop()
 			return
 		}
+
 		if len(h.barrels) == 0 {
 			continue
 		}
+
 		var gcEvent []string
+		h.lock.Lock()
 		for k, v := range h.barrels {
-			if v.updateTime.Add(time.Minute * 2).Before(time.Now()) { // barrel 超时未收到消息
-				gcEvent = append(gcEvent, k)
+			// 改进GC策略：
+			// 1. 超时未活跃的barrel（1分钟）且无订阅者
+			if v.updateTime.Add(time.Minute * 1).Before(time.Now()) {
+				v.subLock.Lock()
+				hasSubscribers := len(v.subSocketChan) > 0
+				v.subLock.Unlock()
+
+				// 只有没有订阅者时才清理
+				if !hasSubscribers {
+					gcEvent = append(gcEvent, k)
+				}
 			}
 		}
-		if gcEvent != nil && len(gcEvent) > 0 {
+
+		// 执行清理
+		if len(gcEvent) > 0 {
 			for _, id := range gcEvent {
 				barrel := h.barrels[id]
 				barrel.empty()
-				h.pool.Put(barrel) //放回对象池
+				h.pool.Put(barrel)
 				delete(h.barrels, id)
 			}
+			h.log.Debugf("GC cleaned %d event barrels", len(gcEvent))
 		}
+		h.lock.Unlock()
 	}
 }
 func (h *readMessageStore) stop() {

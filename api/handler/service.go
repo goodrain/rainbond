@@ -68,6 +68,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/util/flushwriter"
@@ -2104,8 +2105,72 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 			}
 		}
 
+		// Create RBAC resources for rbd-plugins namespace
+		if t.Namespace == "rbd-plugins" {
+			if err := s.createPluginTeamRBAC(t.Namespace); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
+}
+
+// createPluginTeamRBAC creates ClusterRole and ClusterRoleBinding for rbd-plugins namespace
+func (s *ServiceAction) createPluginTeamRBAC(namespace string) error {
+	ctx := context.Background()
+
+	// Create ClusterRole
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default-cluster-admin",
+			Labels: map[string]string{
+				"created-by": "rainbond",
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			},
+		},
+	}
+
+	_, err := s.kubeClient.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{})
+	if err != nil && !k8sErrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create ClusterRole: %v", err)
+	}
+
+	// Create ClusterRoleBinding
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default-cluster-admin-binding",
+			Labels: map[string]string{
+				"created-by": "rainbond",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "default-cluster-admin",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "default",
+				Namespace: namespace,
+			},
+		},
+	}
+
+	_, err = s.kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{})
+	if err != nil && !k8sErrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create ClusterRoleBinding: %v", err)
+	}
+
+	logrus.Infof("Successfully created RBAC resources for namespace %s", namespace)
+	return nil
 }
 
 // CreateTenandIDAndName create tenant_id and tenant_name

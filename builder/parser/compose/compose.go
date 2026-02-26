@@ -152,6 +152,11 @@ func checkUnsupportedKey(composeProject *project.Project) []string {
 
 // LoadBytes loads a compose file byte into KomposeObject
 func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
+	return c.LoadBytesWithWorkDir(bodys, "")
+}
+
+// LoadBytesWithWorkDir loads a compose file byte into KomposeObject with optional working directory
+func (c *Compose) LoadBytesWithWorkDir(bodys [][]byte, workDir string) (ComposeObject, error) {
 
 	// Load the json / yaml file in order to get the version value
 	var version string
@@ -169,27 +174,40 @@ func (c *Compose) LoadBytes(bodys [][]byte) (ComposeObject, error) {
 		version = composeVersion
 	}
 
+	// If no version specified, infer it from the content
+	if version == "" {
+		version = inferComposeVersion(bodys[0])
+		logrus.Infof("No version specified, inferred version: %s", version)
+	}
+
 	logrus.Debugf("Docker Compose version: %s", version)
 
 	// Convert based on version
 	switch version {
 	// Use libcompose for 1 or 2
-	// If blank, it's assumed it's 1 or 2
-	case "", "1", "1.0", "2", "2.0", "2.1", "2.2", "2.3", "2.4":
+	case "1", "1.0", "2", "2.0", "2.1", "2.2", "2.3", "2.4":
 		co, err := parseV1V2(bodys)
 		if err != nil {
 			return ComposeObject{}, err
 		}
 		return co, nil
-	// Use docker/cli for 3
+	// Use docker/cli for 3.0-3.7
 	case "3", "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7":
 		co, err := parseV3(bodys)
 		if err != nil {
 			return ComposeObject{}, err
 		}
 		return co, nil
+	// Use compose-go for 3.8+, spec, or inferred spec
+	case "3.8", "3.9", "3.10", "spec", "compose-spec":
+		co, report, err := parseSpec(bodys, workDir)
+		if err != nil {
+			return ComposeObject{}, err
+		}
+		co.SupportReport = report
+		return co, nil
 	default:
-		return ComposeObject{}, fmt.Errorf("Version %s of Docker Compose is not supported. Please use version 1, 2 or 3", version)
+		return ComposeObject{}, fmt.Errorf("Version %s of Docker Compose is not supported. Please use version 1, 2, 3, or Compose Spec", version)
 	}
 
 }

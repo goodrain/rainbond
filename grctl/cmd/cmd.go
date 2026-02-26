@@ -33,7 +33,6 @@ import (
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
 	cmds = append(cmds, NewSourceBuildCmd())
-	cmds = append(cmds, NewCmdLicense())
 	cmds = append(cmds, NewCmdConfig())
 	cmds = append(cmds, NewCmdRegistry())
 	cmds = append(cmds, NewCmdReplace())

@@ -176,8 +176,8 @@ func libComposeToKomposeMapping(composeObject *project.Project) (ComposeObject, 
 		if newName != composeServiceConfig.ContainerName {
 			logrus.Infof("Container name in service %q has been changed from %q to %q", name, composeServiceConfig.ContainerName, newName)
 		}
-		serviceConfig.Command = composeServiceConfig.Entrypoint
-		serviceConfig.Args = composeServiceConfig.Command
+		serviceConfig.Entrypoint = composeServiceConfig.Entrypoint
+		serviceConfig.Command = composeServiceConfig.Command
 		serviceConfig.Dockerfile = composeServiceConfig.Build.Dockerfile
 		serviceConfig.BuildArgs = composeServiceConfig.Build.Args
 

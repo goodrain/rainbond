@@ -76,37 +76,28 @@ func (p PluginView) String() string {
 	return string(p)
 }
 
-type Author struct {
-	Name  string `json:"name,omitempty"`
-	Email string `json:"email,omitempty"`
-	URL   string `json:"url,omitempty"`
-}
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // RBDPluginSpec defines the desired state of RBDPlugin
 type RBDPluginSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of RBDPlugin. Edit rbdplugin_types.go to remove/update
 	// DisplayName The alias is the name used for display, and if this field is not set, the name in the metadata will be used
 	DisplayName string `json:"display_name,omitempty"`
-	Description string `json:"description,omitempty"`
 	// +kubebuilder:validation:Enum=JSInject;Iframe
 	PluginType PluginType `json:"plugin_type,omitempty"`
-
-	PluginView []PluginView `json:"plugin_views,omitempty"`
-
-	Authors     []Author `json:"authors,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-	Version     string   `json:"version,omitempty"`
-	FrontedPath string   `json:"fronted_path,omitempty"`
-	Backend     string   `json:"backend,omitempty"`
-	// AccessUrls Access URL defines the accessible address of the plug-in.
-	// If this field is not set, all accessible addresses under the application will be listed in the platform.
-	AccessURLs []string `json:"access_urls,omitempty"`
+	// FrontendComponent Frontend component name
+	FrontendComponent string `json:"frontend_component,omitempty"`
+	// EntryPath Entry path for the plugin
+	EntryPath string `json:"entry_path,omitempty"`
+	// PluginViews View where the plugin is located
+	PluginViews []PluginView `json:"plugin_views,omitempty"`
+	// MenuTitle Menu title for the plugin
+	MenuTitle string `json:"menu_title,omitempty"`
+	// RoutePath Route path for the plugin
+	RoutePath string `json:"route_path,omitempty"`
+	// Namespace Namespace identifier for the plugin
+	Namespace string `json:"namespace,omitempty"`
+	// BackendService Backend service address (k8s FQDN)
+	BackendService string `json:"backend_service,omitempty"`
+	// FrontendService Frontend service address (k8s FQDN)
+	FrontendService string `json:"frontend_service,omitempty"`
 }
 
 // RBDPluginStatus defines the observed state of RBDPlugin

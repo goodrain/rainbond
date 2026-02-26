@@ -186,6 +186,8 @@ type ServiceInfo struct {
 	Volumes        []types.Volume `json:"volumes,omitempty"`
 	Image          Image          `json:"image,omitempty"`
 	Args           []string       `json:"args,omitempty"`
+	Command        []string       `json:"command,omitempty"` // K8s container command (from compose entrypoint)
+	WorkingDir     string         `json:"working_dir,omitempty"`
 	DependServices []string       `json:"depends,omitempty"`
 	ServiceType    string         `json:"service_type,omitempty"`
 	Branchs        []string       `json:"branchs,omitempty"`
@@ -196,12 +198,17 @@ type ServiceInfo struct {
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 	//os type,default linux
-	OS string `json:"os"`
+	OS   string `json:"os"`
 	Name string `json:"name,omitempty"` // module name
 	Cname string `json:"cname,omitempty"` // service cname
 	Packaging string `json:"packaging,omitempty"`
 	// Dockerfile 文件列表，相对于代码根目录的路径
 	Dockerfiles []string `json:"dockerfiles,omitempty"`
+
+	// RuntimeInfo contains structured detection results (framework, package manager, etc.)
+	// This is the preferred way to access detection metadata.
+	// Note: Envs still contains BUILD_* variables for the actual build process.
+	RuntimeInfo *types.RuntimeInfo `json:"runtime_info,omitempty"`
 }
 
 // GetServiceInfo GetServiceInfo

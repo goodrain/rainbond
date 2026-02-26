@@ -94,9 +94,9 @@ func WrapTransport(transport http.RoundTripper, url, username, password string) 
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
-			ResponseHeaderTimeout: 180 * time.Second,  // 设置响应超时
-			TLSHandshakeTimeout:  60 * time.Second,   // TLS握手超时
-			IdleConnTimeout:      90 * time.Second,   // 空闲连接超时
+			ResponseHeaderTimeout: 30 * time.Second,  // 减少响应超时到30秒
+			TLSHandshakeTimeout:   10 * time.Second,  // 减少TLS握手超时到10秒
+			IdleConnTimeout:       30 * time.Second,  // 减少空闲连接超时到30秒
 		}
 	}
 	tokenTransport := &TokenTransport{

@@ -15,11 +15,11 @@ require (
 	github.com/containerd/containerd v1.6.3
 	github.com/containerd/typeurl v1.0.2
 	github.com/crossplane/crossplane-runtime v0.14.1-0.20210722005935-0b469fcc77cd
-	github.com/docker/cli v20.10.16+incompatible
+	github.com/docker/cli v24.0.7+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.16+incompatible
 	github.com/docker/go-metrics v0.0.1
-	github.com/docker/go-units v0.4.0 // indirect
+	github.com/docker/go-units v0.5.0 // indirect
 	github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/eapache/channels v1.1.0
 	github.com/emicklei/go-restful v2.15.0+incompatible
@@ -100,6 +100,7 @@ require (
 require (
 	github.com/apache/apisix-ingress-controller v1.8.1
 	github.com/cert-manager/cert-manager v1.17.1
+	github.com/compose-spec/compose-go/v2 v2.1.0
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gin-gonic/gin v1.9.1
@@ -152,6 +153,7 @@ require (
 	github.com/creack/pty v1.1.11 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/distribution/reference v0.5.0 // indirect
 	github.com/docker/docker-credential-helpers v0.6.4 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
@@ -209,6 +211,7 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

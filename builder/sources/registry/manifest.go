@@ -96,13 +96,21 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 // CheckManifest checks if the manifest of the given image is exist.
 func (registry *Registry) CheckManifest(repository, reference string) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	logrus.Infof("检查镜像清单 URL: %s", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		logrus.Errorf("创建 HTTP 请求失败: %v", err)
 		return err
 	}
 
+	logrus.Infof("发送 HTTP 请求到镜像仓库...")
 	_, err = registry.Client.Do(req)
+	if err != nil {
+		logrus.Errorf("HTTP 请求失败: %v", err)
+	} else {
+		logrus.Infof("镜像清单检查成功")
+	}
 	return err
 }
 

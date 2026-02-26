@@ -65,6 +65,10 @@ const (
 	K8sAttributeNameHostAliases = "hostAliases"
 	// K8sAttributeNameCmd -
 	K8sAttributeNameCmd = "cmd"
+	// K8sAttributeNameArgs -
+	K8sAttributeNameArgs = "args"
+	// K8sAttributeNameWorkingDir -
+	K8sAttributeNameWorkingDir = "workingDir"
 )
 
 // ComponentK8sAttributes -

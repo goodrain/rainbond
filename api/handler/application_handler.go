@@ -440,7 +440,19 @@ func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
 }
 
 func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
+	// Get tenant info for namespace
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return errors.Wrap(err, "get tenant for app failed")
+	}
+
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		// Delete RBDPlugin resources associated with this app
+		if err := a.deleteRBDPlugins(tenant.Namespace, app.AppID); err != nil {
+			logrus.Warningf("failed to delete RBDPlugin resources for app %s: %v", app.AppID, err)
+			// Don't fail the transaction if RBDPlugin deletion fails
+		}
+
 		return errors.WithMessage(a.deleteApp(tx, app), "delete app from db")
 	})
 }
@@ -496,6 +508,34 @@ func (a *ApplicationAction) deleteApp(tx *gorm.DB, app *dbmodel.Application) err
 
 	// delete application
 	return db.GetManager().ApplicationDaoTransactions(tx).DeleteApp(app.AppID)
+}
+
+// deleteRBDPlugins deletes all RBDPlugin resources associated with the app
+func (a *ApplicationAction) deleteRBDPlugins(namespace, appID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// List RBDPlugins with app_id label
+	labelSelector := fmt.Sprintf("app_id=%s", appID)
+	plugins, err := a.rainbondClient.RainbondV1alpha1().RBDPlugins(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "list RBDPlugins with label %s", labelSelector)
+	}
+
+	// Delete each RBDPlugin
+	for _, plugin := range plugins.Items {
+		if err := a.rainbondClient.RainbondV1alpha1().RBDPlugins(namespace).Delete(ctx, plugin.Name, metav1.DeleteOptions{}); err != nil {
+			if !k8sErrors.IsNotFound(err) {
+				logrus.Warningf("failed to delete RBDPlugin %s: %v", plugin.Name, err)
+			}
+		} else {
+			logrus.Infof("deleted RBDPlugin %s for app %s", plugin.Name, appID)
+		}
+	}
+
+	return nil
 }
 
 // BatchUpdateComponentPorts -

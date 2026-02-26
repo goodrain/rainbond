@@ -109,7 +109,7 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 	}
 
 	fpConfig := configs.Default().FilePersistenceConfig
-	if fpConfig.FilePersistenceType != "" {
+	if fpConfig.FilePersistenceType != "" && filepersistence.Default().FilePersistenceCli != nil {
 		//旧逻辑兼容
 		err = filepersistence.Default().FilePersistenceCli.DeleteFileSystem(context.Background(), serviceGCReq.ServiceAlias)
 		if err != nil {

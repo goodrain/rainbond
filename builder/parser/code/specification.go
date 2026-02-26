@@ -159,17 +159,20 @@ func phpCheck(buildPath string) Specification {
 	return common()
 }
 func nodeCheck(buildPath string) Specification {
-	var yarn, npm bool
+	var yarn, npm, pnpm bool
 	if ok, _ := util.FileExists(path.Join(buildPath, "yarn.lock")); ok {
 		yarn = true
 	}
 	if ok, _ := util.FileExists(path.Join(buildPath, "package-lock.json")); ok {
 		npm = true
 	}
-	if !yarn && !npm {
+	if ok, _ := util.FileExists(path.Join(buildPath, "pnpm-lock.yaml")); ok {
+		pnpm = true
+	}
+	if !yarn && !npm && !pnpm {
 		return Specification{
 			Conform:   false,
-			Noconform: map[string]string{"代码目录未发现yarn.lock或package-lock.json文件": "必须生成并提交yarn.lock或package-lock.json文件"},
+			Noconform: map[string]string{"代码目录未发现yarn.lock、package-lock.json或pnpm-lock.yaml文件": "必须生成并提交yarn.lock、package-lock.json或pnpm-lock.yaml文件"},
 		}
 	}
 	return common()

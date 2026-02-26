@@ -42,12 +42,13 @@ type ServiceCheckInput struct {
 	// 代码： https://github.com/shurcooL/githubql.git master
 	// docker-run: docker run --name xxx nginx:latest nginx
 	// docker-compose: compose全文
-	SourceBody string `json:"source_body"`
-	Namespace  string `json:"namespace"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	TenantID   string
-	EventID    string `json:"event_id"`
+	SourceBody      string `json:"source_body"`
+	Namespace       string `json:"namespace"`
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	TenantID        string
+	EventID         string `json:"event_id"`
+	ComposeFilePath string `json:"compose_file_path"`
 }
 
 // ServiceCheckResult 应用检测结果
@@ -99,23 +100,39 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		}
 	}()
 	logger.Info("Start component deploy source check.", map[string]string{"step": "starting"})
-	logrus.Infof("start check service by type: %s ", input.SourceType)
+	logrus.Infof("开始检查服务，类型: %s", input.SourceType)
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
 		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger, input.Namespace)
 	case "docker-compose":
-		var yamlbody = input.SourceBody
-		if input.SourceBody[0] == '{' {
-			yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
-			if err != nil {
-				logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-				logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
+		// 如果提供了 event_id，使用项目包方式
+		if input.EventID != "" {
+			composeFilePath := input.ComposeFilePath
+			if composeFilePath == "" {
+				composeFilePath = "docker-compose.yml"
+			}
+			logrus.Infof("使用项目包方式检查 docker-compose，event_id: %s, compose_file_path: %s", input.EventID, composeFilePath)
+			pr = parser.CreateDockerComposeParseFromProject(input.EventID, composeFilePath, input.Username, input.Password, logger)
+		} else {
+			// 传统方式：直接传递 YAML 内容
+			if len(input.SourceBody) == 0 {
+				logger.Error("Docker compose content is empty", map[string]string{"step": "callback", "status": "failure"})
 				return
 			}
-			yamlbody = string(yamlbyte)
+			var yamlbody = input.SourceBody
+			if input.SourceBody[0] == '{' {
+				yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
+				if err != nil {
+					logrus.Errorf("json bytes format is error, %s", input.SourceBody)
+					logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
+					return
+				}
+				yamlbody = string(yamlbyte)
+			}
+			logrus.Infof("使用传统方式检查 docker-compose，直接解析 YAML 内容")
+			pr = parser.CreateDockerComposeParse(yamlbody, input.Username, input.Password, logger)
 		}
-		pr = parser.CreateDockerComposeParse(yamlbody, input.Username, input.Password, logger)
 	case "sourcecode":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	case "third-party-service":
@@ -127,21 +144,33 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	}
 	if pr == nil {
 		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})
+		logrus.Errorf("不支持的服务类型: %s", input.SourceType)
 		return
 	}
+	logrus.Infof("开始解析服务配置，类型: %s", input.SourceType)
 	errList := pr.Parse()
+	logrus.Infof("服务配置解析完成，类型: %s, 错误数: %d", input.SourceType, len(errList))
 	for i, err := range errList {
 		if err.SolveAdvice == "" && input.SourceType == "vm-run" {
 			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
 		}
-		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" {
-			errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", pr.GetImage())
+		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" && input.SourceType != "docker-compose" {
+			// Get image name for better error message
+			imageName := pr.GetImage().String()
+			if imageName != "" {
+				errList[i].SolveAdvice = fmt.Sprintf("请检查镜像名称是否正确：%s", imageName)
+			} else {
+				errList[i].SolveAdvice = "请检查镜像配置是否正确"
+			}
 		}
 		if err.SolveAdvice == "" && input.SourceType == "sourcecode" {
 			errList[i].SolveAdvice = "源码智能解析失败"
 		}
 	}
 	serviceInfos := pr.GetServiceInfo()
+	for i, si := range serviceInfos {
+		logrus.Infof("[compose-debug] serviceInfo[%d]: name=%s, workingDir=%q, args=%v, command=%v", i, si.Name, si.WorkingDir, si.Args, si.Command)
+	}
 	sr, err := CreateResult(errList, serviceInfos)
 	if err != nil {
 		logrus.Errorf("create check result error,%s", err.Error())
