@@ -181,14 +181,10 @@ func (c *VersionInfoDaoImpl) GetServicesAndCount(finalStatus string, count uint)
 	return result, nil
 }
 
-// SearchExpireVersionInfo 查询所有过期的版本信息
-// SELECT * from tenant_service_version
-// WHERE service_id = ?
-// GROUP BY service_id
-// ORDER BY id LIMIT ?
+// SearchExpireVersionInfo 查询过期的成功版本信息，按 id 升序取最旧的 count 条
 func (c *VersionInfoDaoImpl) SearchExpireVersionInfo(serviceID string, count uint) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	if err := c.DB.Where("service_id=?", serviceID).Limit(count).Find(&result).Error; err != nil {
+	if err := c.DB.Where("service_id=? AND final_status=?", serviceID, "success").Order("id ASC").Limit(count).Find(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil

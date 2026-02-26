@@ -80,81 +80,96 @@ func (t *Manager) Start(errchan chan error) error {
 		err := util.Exec(t.ctx, func() error {
 			//保留份数 默认5份
 			keepCount := t.keepCount
+			logrus.Infof("[镜像清理] 开始执行清理任务，保留版本数: %d，查询 final_status=success 且版本数超过 %d 的组件", keepCount, keepCount)
 			// 获取构建成功的 并且大于5个版本的serviceId和具体的版本数
 			services, err := db.GetManager().VersionInfoDao().GetServicesAndCount("success", keepCount)
 			if err != nil {
-				logrus.Error(err)
-				return err
+				logrus.Error("[镜像清理] 查询超量版本组件失败: ", err)
+				return nil
 			}
+			logrus.Infof("[镜像清理] 查询到 %d 个组件的版本数超过 %d", len(services), keepCount)
 			for _, service := range services {
+				needDelete := service.Count - keepCount
+				logrus.Infof("[镜像清理] 组件 %s 共有 %d 个成功版本，需删除最旧的 %d 个", service.ServiceID, service.Count, needDelete)
 				// service.Count-5： 超过指定数量的版本数,一定是正整数
-				versions, err := db.GetManager().VersionInfoDao().SearchExpireVersionInfo(service.ServiceID, service.Count-keepCount)
+				versions, err := db.GetManager().VersionInfoDao().SearchExpireVersionInfo(service.ServiceID, needDelete)
 				if err != nil {
-					logrus.Error("SearchExpireVersionInfo error: ", err.Error())
+					logrus.Errorf("[镜像清理] 查询组件 %s 过期版本失败: %s", service.ServiceID, err.Error())
 					continue
 				}
+				logrus.Infof("[镜像清理] 组件 %s 查询到 %d 个过期版本待删除", service.ServiceID, len(versions))
 				for _, v := range versions {
+					logrus.Infof("[镜像清理] 待删除版本: ID=%s, DeliveredType=%q, FinalStatus=%s, Path=%s", v.BuildVersion, v.DeliveredType, v.FinalStatus, v.DeliveredPath)
 					if v.DeliveredType == "image" {
 						// 跳过系统镜像（builder 和 runner）
 						if strings.Contains(strings.ToLower(v.DeliveredPath), "builder") ||
 							strings.Contains(strings.ToLower(v.DeliveredPath), "runner") {
-							logrus.Infof("Skipping system image: %s", v.DeliveredPath)
+							logrus.Infof("[镜像清理] 跳过系统镜像: %s", v.DeliveredPath)
 							continue
 						}
 
 						//clean rbd-hub images
 						imageInfo := sources.ImageNameHandle(v.DeliveredPath)
+						logrus.Infof("[镜像清理] 处理镜像版本 ID=%s, 路径=%s, host=%s", v.BuildVersion, v.DeliveredPath, imageInfo.Host)
 						if strings.Contains(imageInfo.Host, "goodrain.me") {
+							logrus.Infof("[镜像清理] 删除 rbd-hub registry 中的 tag: %s/%s", imageInfo.Name, imageInfo.Tag)
 							reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
 							if err != nil {
-								logrus.Error(err)
+								logrus.Errorf("[镜像清理] 连接 rbd-hub 失败: %v", err)
 								continue
 							} else {
 								err = reg.CleanRepoByTag(imageInfo.Name, imageInfo.Tag, keepCount)
 								if err != nil {
+									logrus.Errorf("[镜像清理] 删除 rbd-hub tag 失败 %s:%s, err: %v", imageInfo.Name, imageInfo.Tag, err)
 									continue
 								}
 							}
+						} else {
+							logrus.Infof("[镜像清理] 镜像 host 非 goodrain.me，跳过 registry 清理: %s", imageInfo.Host)
 						}
+						logrus.Infof("[镜像清理] 删除本地镜像: %s", v.DeliveredPath)
 						err := t.imageClient.ImageRemove(v.DeliveredPath)
 
 						// 如果删除镜像失败 并且不是镜像不存在的错误
 						if err != nil && !(errdefs.IsNotFound(err) || dockercli.IsErrNotFound(err)) {
-							logrus.Error(err)
+							logrus.Errorf("[镜像清理] 删除本地镜像失败 %s: %v", v.DeliveredPath, err)
 							continue
 						}
 
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-							logrus.Error(err)
+							logrus.Errorf("[镜像清理] 删除数据库版本记录失败 %s: %v", v.BuildVersion, err)
 							continue
 						}
-						logrus.Info("Image deletion successful:", v.DeliveredPath)
+						logrus.Infof("[镜像清理] 镜像版本删除成功: %s", v.DeliveredPath)
 						continue
 					}
 					if v.DeliveredType == "slug" {
 						filePath := v.DeliveredPath
+						logrus.Infof("[镜像清理] 删除 slug 文件: %s", filePath)
 						if err := os.Remove(filePath); err != nil {
 							// 如果删除文件失败 并且不是文件不存在的错误
 							if !errors.Is(err, os.ErrNotExist) {
-								logrus.Error(err)
+								logrus.Errorf("[镜像清理] 删除 slug 文件失败 %s: %v", filePath, err)
 								continue
 							}
+							logrus.Infof("[镜像清理] slug 文件不存在，跳过: %s", filePath)
 						}
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-							logrus.Error(err)
+							logrus.Errorf("[镜像清理] 删除数据库版本记录失败 %s: %v", v.BuildVersion, err)
 							continue
 						}
-						logrus.Info("file deletion successful:", filePath)
+						logrus.Infof("[镜像清理] slug 文件删除成功: %s", filePath)
 					}
 				}
 			}
 			// only registry garbage-collect
+			logrus.Info("[镜像清理] 执行 rbd-hub registry garbage-collect")
 			cmd := []string{"registry", "garbage-collect", "/etc/docker/registry/config.yml"}
 			out, b, err := t.PodExecCmd(t.config, t.clientset, "rbd-hub", cmd)
 			if err != nil {
-				logrus.Error("rbd-hub exec cmd fail: ", out.String(), b.String(), err.Error())
+				logrus.Error("[镜像清理] rbd-hub garbage-collect 执行失败: ", out.String(), b.String(), err.Error())
 			} else {
-				logrus.Info("rbd-hub exec cmd success.")
+				logrus.Info("[镜像清理] rbd-hub garbage-collect 执行成功")
 			}
 			return nil
 		}, duration)
