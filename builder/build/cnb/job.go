@@ -215,7 +215,6 @@ func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]corev1.Volume, []corev1.VolumeMount) {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostPathDirectoryType := corev1.HostPathDirectory
-	hostsFilePathType := corev1.HostPathFile
 
 	volumes := []corev1.Volume{
 		{
@@ -253,15 +252,6 @@ func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]
 				},
 			},
 		},
-		{
-			Name: "hosts",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/hosts",
-					Type: &hostsFilePathType,
-				},
-			},
-		},
 	}
 
 	volumeMounts := []corev1.VolumeMount{
@@ -269,7 +259,6 @@ func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]
 		{Name: "layers", MountPath: "/layers"},
 		{Name: "grdata", MountPath: "/grdata"},
 		{Name: "docker-config", MountPath: "/home/cnb/.docker"},
-		{Name: "hosts", MountPath: "/etc/hosts"},
 	}
 
 	return volumes, volumeMounts
