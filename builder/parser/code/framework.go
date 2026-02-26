@@ -98,7 +98,7 @@ var frameworkDetectors = []frameworkDetector{
 		name:        "vite",
 		displayName: "Vite",
 		packages:    []string{"vite"},
-		configFiles: []string{"vite.config.js", "vite.config.ts"},
+		configFiles: nil, // vite.config.* is optional, package name is specific enough
 		runtimeType: "static",
 		outputDir:   "dist",
 		buildCmd:    "build",
@@ -118,7 +118,7 @@ var frameworkDetectors = []frameworkDetector{
 		name:        "vue",
 		displayName: "Vue CLI",
 		packages:    []string{"@vue/cli-service"},
-		configFiles: []string{"vue.config.js"},
+		configFiles: nil, // vue.config.js is optional, package name is specific enough
 		runtimeType: "static",
 		outputDir:   "dist",
 		buildCmd:    "build",
@@ -128,7 +128,7 @@ var frameworkDetectors = []frameworkDetector{
 		name:        "nestjs",
 		displayName: "Nest.js",
 		packages:    []string{"@nestjs/core"},
-		configFiles: []string{"nest-cli.json"},
+		configFiles: nil, // nest-cli.json is optional, package name is specific enough
 		runtimeType: "dynamic",
 		outputDir:   "dist",
 		buildCmd:    "build",
