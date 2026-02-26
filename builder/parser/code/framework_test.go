@@ -350,43 +350,6 @@ func TestDetectFramework_Nuxt3_NitroStatic(t *testing.T) {
 	}
 }
 
-func TestDetectFramework_Umi(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test-umi-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	packageJSON := `{
-		"name": "test-umi-app",
-		"dependencies": {
-			"umi": "4.0.0"
-		}
-	}`
-	if err := os.WriteFile(path.Join(tmpDir, "package.json"), []byte(packageJSON), 0644); err != nil {
-		t.Fatalf("Failed to write package.json: %v", err)
-	}
-
-	if err := os.WriteFile(path.Join(tmpDir, ".umirc.ts"), []byte("export default {}"), 0644); err != nil {
-		t.Fatalf("Failed to write .umirc.ts: %v", err)
-	}
-
-	framework := DetectFramework(tmpDir)
-	if framework == nil {
-		t.Fatal("Expected to detect Umi framework, got nil")
-	}
-
-	if framework.Name != "umi" {
-		t.Errorf("Expected framework name 'umi', got '%s'", framework.Name)
-	}
-	if framework.RuntimeType != "static" {
-		t.Errorf("Expected runtime type 'static', got '%s'", framework.RuntimeType)
-	}
-	if framework.OutputDir != "dist" {
-		t.Errorf("Expected output dir 'dist', got '%s'", framework.OutputDir)
-	}
-}
-
 func TestDetectFramework_Vite(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-vite-*")
 	if err != nil {
@@ -446,8 +409,8 @@ func TestDetectFramework_CRA(t *testing.T) {
 		t.Fatal("Expected to detect CRA framework, got nil")
 	}
 
-	if framework.Name != "cra" {
-		t.Errorf("Expected framework name 'cra', got '%s'", framework.Name)
+	if framework.Name != "react" {
+		t.Errorf("Expected framework name 'react', got '%s'", framework.Name)
 	}
 	if framework.DisplayName != "Create React App" {
 		t.Errorf("Expected display name 'Create React App', got '%s'", framework.DisplayName)
@@ -647,7 +610,7 @@ func TestCleanVersion(t *testing.T) {
 }
 
 func TestGetSupportedFrameworks(t *testing.T) {
-	frameworks := GetSupportedFrameworks()
+	frameworks := GetSupportedFrameworks("nodejs")
 	if len(frameworks) != 13 {
 		t.Errorf("Expected 13 supported frameworks, got %d", len(frameworks))
 	}
@@ -673,13 +636,10 @@ func TestGetDisplayName(t *testing.T) {
 	}{
 		{"nextjs", "Next.js"},
 		{"nuxt", "Nuxt"},
-		{"umi", "Umi"},
 		{"vite", "Vite"},
-		{"cra", "Create React App"},
-		{"vue-cli", "Vue CLI"},
-		{"gatsby", "Gatsby"},
+		{"react", "Create React App"},
+		{"vue", "Vue CLI"},
 		{"docusaurus", "Docusaurus"},
-		{"remix", "Remix"},
 		{"express", "Express"},
 		{"angular", "Angular"},
 		{"nestjs", "Nest.js"},

@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -688,4 +689,24 @@ func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	return
+}
+
+// ListCNBVersions returns the supported CNB build versions for a given language.
+func (c *ClusterController) ListCNBVersions(w http.ResponseWriter, r *http.Request) {
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = "nodejs"
+	}
+	versions := code.GetCNBVersions(lang)
+	httputil.ReturnSuccess(r, w, versions)
+}
+
+// ListCNBFrameworks returns the supported CNB build frameworks for a given language.
+func (c *ClusterController) ListCNBFrameworks(w http.ResponseWriter, r *http.Request) {
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = "nodejs"
+	}
+	frameworks := code.GetSupportedFrameworks(lang)
+	httputil.ReturnSuccess(r, w, frameworks)
 }

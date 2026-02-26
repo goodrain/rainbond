@@ -305,6 +305,8 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
 	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
 	r.Delete("/langVersion", controller.GetManager().DeleteLangVersion)
+	r.Get("/cnb/versions", controller.GetManager().ListCNBVersions)
+	r.Get("/cnb/frameworks", controller.GetManager().ListCNBFrameworks)
 	r.Post("/over_score", controller.GetManager().SetOverScore)
 	r.Get("/kubeblocks/supported-databases", controller.GetManager().GetSupportedDatabases)
 	r.Get("/kubeblocks/storage-classes", controller.GetManager().GetStorageClasses)

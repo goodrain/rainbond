@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/eapache/channels"
@@ -146,13 +147,34 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 // buildCreatorArgs builds the lifecycle creator arguments
 func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage string) []string {
+	registryHost, _ := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
+	latestImage := stableImageTag(buildImageName, "latest")
+
+	logLevel := "info"
+	if v := re.BuildEnvs["CNB_LOG_LEVEL"]; v != "" {
+		logLevel = v
+	}
+
+	noCache := re.BuildEnvs["NO_CACHE"] == "True" || re.BuildEnvs["NO_CACHE"] == "true"
+
 	args := []string{
 		"-app=/workspace",
 		"-layers=/layers",
 		"-platform=/platform",
 		"-run-image=" + runImage,
-		"-cache-dir=/cache",
-		"-log-level=info",
+		"-tag=" + latestImage,
+		"-insecure-registry=" + registryHost,
+		"-log-level=" + logLevel,
+	}
+
+	if noCache {
+		// Skip both cache restore and image layer reuse
+		args = append(args, "-skip-restore")
+	} else {
+		// Enable registry cache, previous image layer reuse, and parallel export
+		args = append(args, "-cache-image="+stableImageTag(buildImageName, "cnb-cache"))
+		args = append(args, "-previous-image="+latestImage)
+		args = append(args, "-parallel")
 	}
 
 	// Custom order from language config (e.g., pure static projects need nginx-only order)
@@ -169,9 +191,10 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 
 // buildEnvVars builds environment variables for the CNB build container.
 func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
+	registryHost, _ := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
 	envs := []corev1.EnvVar{
-		{Name: "CNB_PLATFORM_API", Value: "0.12"},
-		{Name: "CNB_INSECURE_REGISTRIES", Value: builder.REGISTRYDOMAIN},
+		{Name: "CNB_PLATFORM_API", Value: "0.13"},
+		{Name: "CNB_INSECURE_REGISTRIES", Value: registryHost},
 		{Name: "DOCKER_CONFIG", Value: "/home/cnb/.docker"},
 	}
 
@@ -201,15 +224,6 @@ func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: filepath.Join("/opt/rainbond/", re.SourceDir),
 					Type: &hostPathDirectoryType,
-				},
-			},
-		},
-		{
-			Name: "cache",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: filepath.Join("/opt/rainbond/", re.CacheDir),
-					Type: &hostPathType,
 				},
 			},
 		},
@@ -252,7 +266,6 @@ func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]
 
 	volumeMounts := []corev1.VolumeMount{
 		{Name: "workspace", MountPath: "/workspace"},
-		{Name: "cache", MountPath: "/cache"},
 		{Name: "layers", MountPath: "/layers"},
 		{Name: "grdata", MountPath: "/grdata"},
 		{Name: "docker-config", MountPath: "/home/cnb/.docker"},
@@ -308,4 +321,13 @@ func (b *Builder) waitingComplete(re *build.Request, reChan *channels.RingChanne
 			}
 		}
 	}
+}
+
+// stableImageTag replaces the tag portion of an image reference.
+// e.g. "goodrain.me/workload:20260220215515" + "latest" → "goodrain.me/workload:latest"
+func stableImageTag(imageName, tag string) string {
+	if i := strings.LastIndex(imageName, ":"); i != -1 {
+		return imageName[:i] + ":" + tag
+	}
+	return imageName + ":" + tag
 }
