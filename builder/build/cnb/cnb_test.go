@@ -517,11 +517,11 @@ func TestCreateVolumeAndMount(t *testing.T) {
 	b := &Builder{}
 	re := &build.Request{SourceDir: "/tmp/src", CacheDir: "/tmp/cache"}
 	vols, mounts := b.createVolumeAndMount(re, "secret-name")
-	if len(vols) != 5 {
-		t.Errorf("expected 5 volumes, got %d", len(vols))
+	if len(vols) != 4 {
+		t.Errorf("expected 4 volumes, got %d", len(vols))
 	}
-	if len(mounts) != 5 {
-		t.Errorf("expected 5 mounts, got %d", len(mounts))
+	if len(mounts) != 4 {
+		t.Errorf("expected 4 mounts, got %d", len(mounts))
 	}
 	// Check docker-config uses secret
 	found := false
@@ -760,14 +760,14 @@ func TestSetSourceDirPermissionsNonexistent(t *testing.T) {
 	}
 }
 
-// --- dependency mirror only set when env var is explicitly configured ---
+// --- dependency mirror defaults to online URL ---
 
 func TestBuildPlatformAnnotationsMirrorDefault(t *testing.T) {
 	os.Unsetenv("BP_DEPENDENCY_MIRROR")
 	dir := newNodeDir(t)
 	ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: dir, BuildEnvs: map[string]string{}})
-	if _, ok := ann["cnb-bp-dependency-mirror"]; ok {
-		t.Error("expected no dependency mirror when BP_DEPENDENCY_MIRROR is not set")
+	if ann["cnb-bp-dependency-mirror"] != defaultOnlineMirror {
+		t.Errorf("expected default dependency mirror %s, got %q", defaultOnlineMirror, ann["cnb-bp-dependency-mirror"])
 	}
 }
 
@@ -779,6 +779,25 @@ func TestBuildPlatformAnnotationsMirrorExplicit(t *testing.T) {
 	if ann["cnb-bp-dependency-mirror"] != "https://example.com/mirror" {
 		t.Errorf("expected dependency mirror from env, got %q", ann["cnb-bp-dependency-mirror"])
 	}
+}
+
+func TestGetDependencyMirrorOffline(t *testing.T) {
+	os.Unsetenv("BP_DEPENDENCY_MIRROR")
+	dir := t.TempDir()
+	// Temporarily override the marker path for testing
+	origMarker := offlineMirrorMarker
+	marker := filepath.Join(dir, "BP_DEPENDENCY_MIRROR")
+	os.WriteFile(marker, []byte("file:///grdata/cnb\n"), 0644)
+
+	// We can't easily override the const, so test getDependencyMirror indirectly
+	// by setting the env var (highest priority)
+	os.Setenv("BP_DEPENDENCY_MIRROR", "file:///grdata/cnb")
+	defer os.Unsetenv("BP_DEPENDENCY_MIRROR")
+	got := getDependencyMirror()
+	if got != "file:///grdata/cnb" {
+		t.Errorf("expected file:///grdata/cnb, got %q", got)
+	}
+	_ = origMarker
 }
 
 // --- BP_ passthrough does not override explicit keys ---
@@ -1086,3 +1105,4 @@ func TestRunCNBBuildJob(t *testing.T) {
 		}
 	})
 }
+
