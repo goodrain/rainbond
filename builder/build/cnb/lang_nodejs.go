@@ -153,7 +153,7 @@ const defaultOnlineMirror = "https://buildpack.rainbond.com/cnb"
 
 // offlineMirrorMarker is the file path inside the build pod (grdata mount)
 // that an offline provisioning tool writes to switch to local file:// mirror.
-const offlineMirrorMarker = "/grdata/cnb/BP_DEPENDENCY_MIRROR"
+var offlineMirrorMarker = "/grdata/cnb/BP_DEPENDENCY_MIRROR"
 
 // getDependencyMirror returns the CNB dependency mirror URL.
 // Priority: env var > offline marker file > default online URL.

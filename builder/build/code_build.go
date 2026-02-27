@@ -573,14 +573,9 @@ func (e *ErrorBuild) Error() string {
 }
 
 func (s *slugBuild) HandleNodeJsDir(re *Request) error {
-	// Check if this is a frontend Node.js project that needs static file handling
-	// This is determined by RUNTIME_TYPE from framework detection or BUILD_RUNTIME_TYPE from console
-	isFrontend := re.BuildEnvs["RUNTIME_TYPE"] == "frontend" || re.BuildEnvs["BUILD_RUNTIME_TYPE"] == "frontend"
-
-	// Also check for combined language types containing "static" for backward compatibility
-	isStaticLang := strings.Contains(string(re.Lang), string(code.Static))
-
-	if isFrontend || isStaticLang {
+	// For slug builds, use language type to determine if static file handling is needed.
+	// RUNTIME_TYPE is set by framework detection for CNB builds and should not be used here.
+	if re.Lang == code.NodeJSStatic {
 		if ok, _ := util.FileExists(path.Join(re.SourceDir, "nodestatic.json")); ok {
 			if err := os.RemoveAll(path.Join(re.SourceDir, "nodestatic.json")); err != nil {
 				logrus.Error("remove nodestatic json error:", err)
