@@ -172,12 +172,6 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		"-log-level=" + logLevel,
 	}
 
-	// If the run image is on a different registry, add an extra -insecure-registry
-	// so the lifecycle creator can access it (e.g., self-signed cert or HTTP).
-	if runImageHost := imageHost(runImage); runImageHost != "" && runImageHost != registryHost {
-		args = append(args, "-insecure-registry="+runImageHost)
-	}
-
 	if noCache {
 		// Skip both cache restore and image layer reuse
 		args = append(args, "-skip-restore")
@@ -332,18 +326,3 @@ func stableImageTag(imageName, tag string) string {
 	return imageName + ":" + tag
 }
 
-// imageHost extracts the registry host from an image reference.
-// e.g. "registry.cn-hangzhou.aliyuncs.com/goodrain/run:v1" → "registry.cn-hangzhou.aliyuncs.com"
-//
-//	"goodrain.me/run:v1" → "goodrain.me"
-//	"run:v1" (no slash, Docker Hub) → ""
-func imageHost(image string) string {
-	// Strip tag
-	if i := strings.LastIndex(image, ":"); i != -1 {
-		image = image[:i]
-	}
-	if i := strings.Index(image, "/"); i != -1 {
-		return image[:i]
-	}
-	return ""
-}

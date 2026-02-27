@@ -1288,7 +1288,7 @@ func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
 		}
 	})
 
-	t.Run("different registry - two insecure-registry flags", func(t *testing.T) {
+	t.Run("different registry - only local insecure-registry", func(t *testing.T) {
 		origDomain := builder.REGISTRYDOMAIN
 		builder.REGISTRYDOMAIN = "goodrain.me"
 		defer func() { builder.REGISTRYDOMAIN = origDomain }()
@@ -1303,17 +1303,13 @@ func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
 				insecureFlags = append(insecureFlags, a)
 			}
 		}
-		if len(insecureFlags) != 2 {
-			t.Errorf("expected 2 insecure-registry flags, got %d; flags=%v", len(insecureFlags), insecureFlags)
+		if len(insecureFlags) != 1 {
+			t.Errorf("expected 1 insecure-registry flag (local only), got %d; flags=%v", len(insecureFlags), insecureFlags)
 		}
-		foundRunHost := false
 		for _, f := range insecureFlags {
 			if strings.Contains(f, "registry.cn-hangzhou.aliyuncs.com") {
-				foundRunHost = true
+				t.Errorf("external registry should NOT be marked as insecure; flags=%v", insecureFlags)
 			}
-		}
-		if !foundRunHost {
-			t.Errorf("expected insecure-registry for run image host; flags=%v", insecureFlags)
 		}
 	})
 }
