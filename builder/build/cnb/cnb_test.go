@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
@@ -1102,6 +1103,217 @@ func TestRunCNBBuildJob(t *testing.T) {
 			if !foundFiles[path] {
 				t.Errorf("DownwardAPI volume missing %s item", path)
 			}
+		}
+	})
+}
+
+// --- config.go: offline mode ---
+
+func TestIsOfflineMode(t *testing.T) {
+	t.Run("offline when marker file exists", func(t *testing.T) {
+		dir := t.TempDir()
+		marker := filepath.Join(dir, "BP_DEPENDENCY_MIRROR")
+		os.WriteFile(marker, []byte("file:///grdata/cnb"), 0644)
+
+		orig := offlineMirrorMarker
+		offlineMirrorMarker = marker
+		defer func() { offlineMirrorMarker = orig }()
+
+		if !isOfflineMode() {
+			t.Error("expected offline mode when marker file exists")
+		}
+	})
+
+	t.Run("online when marker file absent", func(t *testing.T) {
+		orig := offlineMirrorMarker
+		offlineMirrorMarker = "/nonexistent/path/marker"
+		defer func() { offlineMirrorMarker = orig }()
+
+		if isOfflineMode() {
+			t.Error("expected online mode when marker file absent")
+		}
+	})
+}
+
+func TestGetCNBBuilderImageOffline(t *testing.T) {
+	tests := []struct {
+		name           string
+		envVar         string
+		offline        bool
+		registryDomain string
+		want           string
+	}{
+		{
+			name: "default online",
+			want: DefaultCNBBuilder,
+		},
+		{
+			name:   "env var override",
+			envVar: "custom-registry.com/builder:v1",
+			want:   "custom-registry.com/builder:v1",
+		},
+		{
+			name:           "offline with goodrain.me",
+			offline:        true,
+			registryDomain: "goodrain.me",
+			want:           "goodrain.me/" + cnbBuilderShortName,
+		},
+		{
+			name:           "offline with custom registry",
+			offline:        true,
+			registryDomain: "harbor.example.com/lib",
+			want:           "harbor.example.com/lib/" + cnbBuilderShortName,
+		},
+		{
+			name:           "env var takes priority over offline",
+			envVar:         "custom:v1",
+			offline:        true,
+			registryDomain: "goodrain.me",
+			want:           "custom:v1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Unsetenv("CNB_BUILDER_IMAGE")
+			if tt.envVar != "" {
+				os.Setenv("CNB_BUILDER_IMAGE", tt.envVar)
+				defer os.Unsetenv("CNB_BUILDER_IMAGE")
+			}
+
+			orig := offlineMirrorMarker
+			if tt.offline {
+				dir := t.TempDir()
+				marker := filepath.Join(dir, "marker")
+				os.WriteFile(marker, []byte("file:///grdata/cnb"), 0644)
+				offlineMirrorMarker = marker
+			} else {
+				offlineMirrorMarker = "/nonexistent/marker"
+			}
+			defer func() { offlineMirrorMarker = orig }()
+
+			if tt.registryDomain != "" {
+				origDomain := builder.REGISTRYDOMAIN
+				builder.REGISTRYDOMAIN = tt.registryDomain
+				defer func() { builder.REGISTRYDOMAIN = origDomain }()
+			}
+
+			if got := GetCNBBuilderImage(); got != tt.want {
+				t.Errorf("GetCNBBuilderImage() = %q; want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetCNBRunImageOffline(t *testing.T) {
+	tests := []struct {
+		name           string
+		envVar         string
+		offline        bool
+		registryDomain string
+		want           string
+	}{
+		{
+			name: "default online",
+			want: DefaultCNBRunImage,
+		},
+		{
+			name:           "offline with goodrain.me",
+			offline:        true,
+			registryDomain: "goodrain.me",
+			want:           "goodrain.me/" + cnbRunShortName,
+		},
+		{
+			name:           "offline with custom registry",
+			offline:        true,
+			registryDomain: "harbor.example.com/lib",
+			want:           "harbor.example.com/lib/" + cnbRunShortName,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Unsetenv("CNB_RUN_IMAGE")
+			if tt.envVar != "" {
+				os.Setenv("CNB_RUN_IMAGE", tt.envVar)
+				defer os.Unsetenv("CNB_RUN_IMAGE")
+			}
+
+			orig := offlineMirrorMarker
+			if tt.offline {
+				dir := t.TempDir()
+				marker := filepath.Join(dir, "marker")
+				os.WriteFile(marker, []byte("file:///grdata/cnb"), 0644)
+				offlineMirrorMarker = marker
+			} else {
+				offlineMirrorMarker = "/nonexistent/marker"
+			}
+			defer func() { offlineMirrorMarker = orig }()
+
+			if tt.registryDomain != "" {
+				origDomain := builder.REGISTRYDOMAIN
+				builder.REGISTRYDOMAIN = tt.registryDomain
+				defer func() { builder.REGISTRYDOMAIN = origDomain }()
+			}
+
+			if got := GetCNBRunImage(); got != tt.want {
+				t.Errorf("GetCNBRunImage() = %q; want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// --- job.go: insecure-registry for run image ---
+
+func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
+	b := &Builder{}
+
+	t.Run("same registry - single insecure-registry", func(t *testing.T) {
+		origDomain := builder.REGISTRYDOMAIN
+		builder.REGISTRYDOMAIN = "goodrain.me"
+		defer func() { builder.REGISTRYDOMAIN = origDomain }()
+
+		dir := newNodeDir(t)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
+		args := b.buildCreatorArgs(re, "goodrain.me/app:v1", "goodrain.me/run:v1")
+
+		count := 0
+		for _, a := range args {
+			if strings.HasPrefix(a, "-insecure-registry=") {
+				count++
+			}
+		}
+		if count != 1 {
+			t.Errorf("expected 1 insecure-registry flag, got %d; args=%v", count, args)
+		}
+	})
+
+	t.Run("different registry - two insecure-registry flags", func(t *testing.T) {
+		origDomain := builder.REGISTRYDOMAIN
+		builder.REGISTRYDOMAIN = "goodrain.me"
+		defer func() { builder.REGISTRYDOMAIN = origDomain }()
+
+		dir := newNodeDir(t)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
+		args := b.buildCreatorArgs(re, "goodrain.me/app:v1", "registry.cn-hangzhou.aliyuncs.com/goodrain/run:v1")
+
+		insecureFlags := []string{}
+		for _, a := range args {
+			if strings.HasPrefix(a, "-insecure-registry=") {
+				insecureFlags = append(insecureFlags, a)
+			}
+		}
+		if len(insecureFlags) != 2 {
+			t.Errorf("expected 2 insecure-registry flags, got %d; flags=%v", len(insecureFlags), insecureFlags)
+		}
+		foundRunHost := false
+		for _, f := range insecureFlags {
+			if strings.Contains(f, "registry.cn-hangzhou.aliyuncs.com") {
+				foundRunHost = true
+			}
+		}
+		if !foundRunHost {
+			t.Errorf("expected insecure-registry for run image host; flags=%v", insecureFlags)
 		}
 	})
 }
