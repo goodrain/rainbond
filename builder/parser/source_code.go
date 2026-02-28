@@ -534,13 +534,16 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	// - 纯静态语言：始终使用 nginx，端口 8080
 	// - Node.js 前端框架（static 类型）：构建后由 nginx 托管，端口 8080
 	// - Node.js 后端框架（dynamic 类型）：默认端口 3000（Next.js/Nuxt/Remix/Nest.js/Express）
-	if d.Lang == code.Static ||
-		(d.Lang == code.Nodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
+	// 多语言场景（如 "dockerfile,Node.js"）也需要设置 CNB 默认端口
+	langStr := string(d.Lang)
+	hasNodejs := strings.Contains(langStr, string(code.Nodejs))
+	hasStatic := strings.Contains(langStr, string(code.Static))
+	if hasStatic || (hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
 		if _, ok := d.ports[8080]; !ok {
 			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
 		}
 	}
-	if d.Lang == code.Nodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
+	if hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
 		if _, ok := d.ports[3000]; !ok {
 			d.ports[3000] = &types.Port{ContainerPort: 3000, Protocol: "http"}
 		}
@@ -635,8 +638,11 @@ func (d *SourceCodeParse) GetImage() Image {
 }
 
 // GetArgs 启动参数
+// Nodejs/Static 走 CNB 构建，镜像自带 entrypoint，不需要 slug runner 的 ["start", "web"] 参数。
+// 多语言场景（如 "dockerfile,Node.js"）同样适用。
 func (d *SourceCodeParse) GetArgs() []string {
-	if d.Lang == code.Nodejs || d.Lang == code.Static {
+	lang := string(d.Lang)
+	if strings.Contains(lang, string(code.Nodejs)) || strings.Contains(lang, string(code.Static)) {
 		return nil
 	}
 	return d.args
