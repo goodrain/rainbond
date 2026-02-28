@@ -24,13 +24,16 @@ var cnbNodeVersions = []CNBVersion{
 }
 
 // GetCNBVersions returns the supported CNB versions for a given language.
+// Supports composite languages like "dockerfile,Node.js" by checking each part.
 func GetCNBVersions(lang string) []CNBVersion {
-	switch strings.ToLower(lang) {
-	case "nodejs", "node", "node.js":
-		return cnbNodeVersions
-	default:
-		return []CNBVersion{}
+	lower := strings.ToLower(lang)
+	for _, part := range strings.Split(lower, ",") {
+		switch strings.TrimSpace(part) {
+		case "nodejs", "node", "node.js":
+			return cnbNodeVersions
+		}
 	}
+	return []CNBVersion{}
 }
 
 // MatchCNBVersion resolves a fuzzy version spec (e.g. "20.x", ">=20.0", "20")
