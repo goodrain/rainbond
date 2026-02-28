@@ -329,7 +329,7 @@ func PodTemplateSpecResource(parameter model.YamlResourceParameter, volumeClaimT
 				hcm.Path = readinessProbe.HTTPGet.Path
 				hcm.Port = int(readinessProbe.HTTPGet.Port.IntVal)
 				if hcm.Port == 0 {
-					hcm.Port = int(NameAndPort[livenessProbe.HTTPGet.Port.StrVal])
+					hcm.Port = int(NameAndPort[readinessProbe.HTTPGet.Port.StrVal])
 				}
 				if hcm.Port == 0 {
 					hcm.Port = int(po)
