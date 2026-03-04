@@ -337,9 +337,7 @@ func (s *storeManager) parsingMessage(msg []byte, messageType string) (*db2.Even
 	}
 	//message := s.pool.Get().(*db.EventLogMessage)不能使用对象池，会阻塞进程
 	var message db2.EventLogMessage
-	// 不再保存原始Content字节数组，避免内存冗余占用
-	// 反序列化后，字段已经被解析，不需要再保留原始数据
-	// message.Content = msg
+	message.Content = msg
 	if messageType == "json" {
 		err := ffjson.Unmarshal(msg, &message)
 		if err != nil {
