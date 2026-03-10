@@ -19,6 +19,8 @@
 package multi
 
 import (
+	"strings"
+
 	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
@@ -30,9 +32,11 @@ type ServiceInterface interface {
 
 // NewMultiServiceI creates a new MultiModuler.
 func NewMultiServiceI(lang string) ServiceInterface {
-	switch lang {
-	case "Java-maven":
-		return NewMaven()
+	for _, part := range strings.Split(lang, ",") {
+		switch strings.TrimSpace(part) {
+		case "Java-maven":
+			return NewMaven()
+		}
 	}
 	return nil
 }
