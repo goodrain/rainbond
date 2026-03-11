@@ -24,6 +24,8 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetAppStatus(t *testing.T) {
@@ -107,4 +109,59 @@ func TestGetAppStatus(t *testing.T) {
 			assert.Equal(t, tc.want, status)
 		})
 	}
+}
+
+func TestNsEventHandlerProvidesAddFunc(t *testing.T) {
+	handler := (&appRuntimeStore{}).nsEventHandler()
+	assert.NotNil(t, handler.AddFunc, "namespace add events should trigger image pull secret sync")
+}
+
+func TestNsEventHandlerSyncsManagedNamespacesOnAddAndUpdate(t *testing.T) {
+	var synced []string
+	store := &appRuntimeStore{
+		syncImagePullSecret: func(namespace string) error {
+			synced = append(synced, namespace)
+			return nil
+		},
+	}
+	handler := store.nsEventHandler()
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test",
+			Labels: map[string]string{"app.kubernetes.io/managed-by": "rainbond"},
+		},
+		Status: corev1.NamespaceStatus{Phase: corev1.NamespaceActive},
+	}
+
+	handler.AddFunc(ns)
+	handler.UpdateFunc(nil, ns)
+
+	assert.Equal(t, []string{"test", "test"}, synced)
+}
+
+func TestNsEventHandlerSkipsNamespacesThatShouldNotSync(t *testing.T) {
+	var synced []string
+	store := &appRuntimeStore{
+		syncImagePullSecret: func(namespace string) error {
+			synced = append(synced, namespace)
+			return nil
+		},
+	}
+	handler := store.nsEventHandler()
+	unmanaged := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "external"},
+		Status:     corev1.NamespaceStatus{Phase: corev1.NamespaceActive},
+	}
+	terminating := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test",
+			Labels: map[string]string{"app.kubernetes.io/managed-by": "rainbond"},
+		},
+		Status: corev1.NamespaceStatus{Phase: corev1.NamespaceTerminating},
+	}
+
+	handler.AddFunc(unmanaged)
+	handler.UpdateFunc(nil, terminating)
+
+	assert.Empty(t, synced)
 }

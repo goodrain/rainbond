@@ -157,6 +157,7 @@ type appRuntimeStore struct {
 	volumeTypeListenerLock sync.Mutex
 	resourceCache          *ResourceCache
 	initLocks              sync.Map // map[serviceID]*sync.Mutex for AppService initialization
+	syncImagePullSecret    func(string) error
 }
 
 // NewStore new app runtime store
@@ -176,6 +177,7 @@ func NewStore(dbmanager db.Manager) Storer {
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
 	}
+	store.syncImagePullSecret = store.createOrUpdateImagePullSecret
 	crdClient, err := internalclientset.NewForConfig(store.k8sClient.RestConfig)
 	if err != nil {
 		logrus.Errorf("create crd client failure %s", err.Error())
@@ -1850,22 +1852,34 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 
 func (a *appRuntimeStore) nsEventHandler() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ns := obj.(*corev1.Namespace)
+			a.syncNamespaceImagePullSecret(ns)
+		},
 		UpdateFunc: func(old, cur interface{}) {
 			ns := cur.(*corev1.Namespace)
-
-			// check if the namespace is created by Rainbond
-			if !filterOutNotRainbondNamespace(ns) {
-				return
-			}
-
-			if ns.Status.Phase == corev1.NamespaceTerminating {
-				return
-			}
-
-			if err := a.createOrUpdateImagePullSecret(ns.Name); err != nil {
-				logrus.Errorf("create or update imagepullsecret: %v", err)
-			}
+			a.syncNamespaceImagePullSecret(ns)
 		},
+	}
+}
+
+func (a *appRuntimeStore) syncNamespaceImagePullSecret(ns *corev1.Namespace) {
+	// check if the namespace is created by Rainbond
+	if !filterOutNotRainbondNamespace(ns) {
+		return
+	}
+
+	if ns.Status.Phase == corev1.NamespaceTerminating {
+		return
+	}
+
+	syncFn := a.syncImagePullSecret
+	if syncFn == nil {
+		syncFn = a.createOrUpdateImagePullSecret
+	}
+
+	if err := syncFn(ns.Name); err != nil {
+		logrus.Errorf("create or update imagepullsecret: %v", err)
 	}
 }
 
