@@ -83,6 +83,26 @@ func TestCNBDefaultPorts_MultiLanguage(t *testing.T) {
 	}
 }
 
+func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
+	d := &SourceCodeParse{
+		ports:    make(map[int]*types.Port),
+		volumes:  make(map[string]*types.Volume),
+		envs:     make(map[string]*types.Env),
+		image:    Image{},
+		Lang:     code.Lang("dockerfile,Java-maven"),
+		isMulti:  true,
+		services: []*types.Service{{Name: "api", Cname: "api", Packaging: "jar"}},
+	}
+
+	got := d.GetServiceInfo()
+	if len(got) != 1 {
+		t.Fatalf("GetServiceInfo() returned %d services, want 1", len(got))
+	}
+	if got[0].Lang != code.JavaMaven {
+		t.Fatalf("GetServiceInfo()[0].Lang = %q, want %q", got[0].Lang, code.JavaMaven)
+	}
+}
+
 // applyCNBDefaultPorts mirrors the port logic in source_code.go Parse() for testability.
 func applyCNBDefaultPorts(d *SourceCodeParse, runtimeType string) {
 	var runtimeInfo map[string]string
