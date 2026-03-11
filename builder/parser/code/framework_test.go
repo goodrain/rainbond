@@ -611,8 +611,9 @@ func TestCleanVersion(t *testing.T) {
 
 func TestGetSupportedFrameworks(t *testing.T) {
 	frameworks := GetSupportedFrameworks("nodejs")
-	if len(frameworks) != 13 {
-		t.Errorf("Expected 13 supported frameworks, got %d", len(frameworks))
+	expectedCount := len(frameworkDetectors) + len(extraNodeFrameworks)
+	if len(frameworks) != expectedCount {
+		t.Errorf("Expected %d supported frameworks, got %d", expectedCount, len(frameworks))
 	}
 
 	// Check that all frameworks have required fields

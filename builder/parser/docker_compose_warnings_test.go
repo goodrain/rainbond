@@ -18,12 +18,10 @@ func TestDockerComposeParseWithWarnings(t *testing.T) {
 	// Create mock logger
 	mockLogger := event.NewLogger("test-event", make(chan []byte, 100))
 
-	// Create parser
-	parser := &DockerComposeParse{
-		source: string(content),
-		logger: mockLogger,
-		errors: make([]ParseError, 0),
-	}
+	// Create parser via factory to keep internal maps initialized,
+	// then override composeDir so spec parsing uses a writable temp dir.
+	parser := CreateDockerComposeParse(string(content), "", "", mockLogger).(*DockerComposeParse)
+	parser.composeDir = t.TempDir()
 
 	// Parse
 	errors := parser.Parse()
@@ -39,31 +37,25 @@ func TestDockerComposeParseWithWarnings(t *testing.T) {
 		t.Logf("  %d. [%s] %s - %s", i+1, err.ErrorType, err.ErrorInfo, err.SolveAdvice)
 	}
 
-	// Check for specific warnings
+	// Check for current degraded warnings returned to API clients.
+	// Unsupported fields such as secrets/configs stay in SupportReport and are not appended to Parse errors.
 	hasNetworkWarning := false
-	hasSecretWarning := false
-	hasConfigWarning := false
+	hasLoggingWarning := false
 
 	for _, err := range errors {
-		if contains(err.ErrorInfo, "networks") {
+		if contains(err.ErrorInfo, "网络配置") {
 			hasNetworkWarning = true
 		}
-		if contains(err.ErrorInfo, "secrets") {
-			hasSecretWarning = true
-		}
-		if contains(err.ErrorInfo, "configs") {
-			hasConfigWarning = true
+		if contains(err.ErrorInfo, "日志配置") {
+			hasLoggingWarning = true
 		}
 	}
 
 	if !hasNetworkWarning {
 		t.Error("Expected network warning but didn't find it")
 	}
-	if !hasSecretWarning {
-		t.Error("Expected secret warning but didn't find it")
-	}
-	if !hasConfigWarning {
-		t.Error("Expected config warning but didn't find it")
+	if !hasLoggingWarning {
+		t.Error("Expected logging warning but didn't find it")
 	}
 }
 

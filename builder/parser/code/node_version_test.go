@@ -181,10 +181,10 @@ func TestResolveNodeVersion_UnsupportedVersion(t *testing.T) {
 		input    string
 		expected int // expected major version after fallback
 	}{
-		{"14.0.0", 18},  // too old, should use oldest supported
-		{"16.0.0", 18},  // too old, should use oldest supported
-		{"24.0.0", 22},  // too new, should use newest supported
-		{"100.0.0", 22}, // way too new
+		{"14.0.0", SupportedNodeMajorVersions[0]},                                  // too old, should use oldest supported
+		{"16.0.0", SupportedNodeMajorVersions[0]},                                  // too old, should use oldest supported
+		{"24.0.0", SupportedNodeMajorVersions[len(SupportedNodeMajorVersions)-1]},   // supported max
+		{"100.0.0", SupportedNodeMajorVersions[len(SupportedNodeMajorVersions)-1]},  // way too new
 	}
 
 	for _, tt := range tests {

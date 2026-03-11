@@ -195,9 +195,9 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			}
 			// 认证错误
 			if strings.Contains(err.Error(), "authentication failed") ||
-			   strings.Contains(err.Error(), "authentication required") ||
-			   strings.Contains(err.Error(), "Unauthorized") ||
-			   strings.Contains(err.Error(), "401") {
+				strings.Contains(err.Error(), "authentication required") ||
+				strings.Contains(err.Error(), "Unauthorized") ||
+				strings.Contains(err.Error(), "401") {
 				solve := "请检查用户名密码或访问令牌是否正确"
 				d.errappend(ErrorAndSolve(FatalError, "身份验证失败", solve))
 				return d.errors
@@ -676,6 +676,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
+		serviceInfo.Lang = normalizeMultiModuleLanguage(serviceInfo.Lang)
 		for idx := range d.services {
 			svc := d.services[idx]
 			info := serviceInfo
@@ -698,6 +699,15 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 
 	return res
+}
+
+func normalizeMultiModuleLanguage(lang code.Lang) code.Lang {
+	for _, part := range strings.Split(string(lang), ",") {
+		if strings.TrimSpace(part) == string(code.JavaMaven) {
+			return code.JavaMaven
+		}
+	}
+	return lang
 }
 
 func removeQuotes(value string) string {
