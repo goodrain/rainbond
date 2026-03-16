@@ -53,6 +53,9 @@ func InitAPIHandle() error {
 	defApplicationHandler = NewApplicationHandler()
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager()
 	defNodesHandler = NewNodesHandler()
+	defDiscoveryHandler = NewDiscoveryHandler()
+	defClusterResourceHandler = NewClusterResourceHandler()
+	defStorageHandler = NewStorageHandler()
 
 	CreateLicenseV2Handler()
 
@@ -227,3 +230,23 @@ func GetRegistryAuthSecretHandler() RegistryAuthSecretHandler {
 	return defRegistryAuthSecretHandler
 }
 
+var defDiscoveryHandler DiscoveryHandler
+
+// GetDiscoveryHandler returns the default discovery handler
+func GetDiscoveryHandler() DiscoveryHandler {
+	return defDiscoveryHandler
+}
+
+var defClusterResourceHandler ClusterResourceHandler
+
+// GetClusterResourceHandler returns the default cluster resource handler
+func GetClusterResourceHandler() ClusterResourceHandler {
+	return defClusterResourceHandler
+}
+
+var defStorageHandler StorageHandler
+
+// GetStorageHandler returns the default storage handler
+func GetStorageHandler() StorageHandler {
+	return defStorageHandler
+}
