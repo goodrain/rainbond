@@ -326,6 +326,20 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().GetClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().ChangeClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/restores", controller.GetManager().RestoreClusterFromBackup)
+	// StorageClasses
+	r.Get("/storageclasses", controller.GetStorageController().ListStorageClasses)
+	r.Post("/storageclasses", controller.GetStorageController().CreateStorageClass)
+	r.Delete("/storageclasses/{name}", controller.GetStorageController().DeleteStorageClass)
+	// PersistentVolumes
+	r.Get("/persistentvolumes", controller.GetStorageController().ListPersistentVolumes)
+	r.Post("/persistentvolumes", controller.GetStorageController().CreatePersistentVolume)
+	r.Delete("/persistentvolumes/{name}", controller.GetStorageController().DeletePersistentVolume)
+	// Platform Resources (cluster-scoped generic)
+	r.Get("/platform-resources/types", controller.GetClusterResourceController().ListResourceTypes)
+	r.Get("/platform-resources", controller.GetClusterResourceController().ListResources)
+	r.Post("/platform-resources", controller.GetClusterResourceController().CreateResource)
+	r.Get("/platform-resources/{name}", controller.GetClusterResourceController().GetResource)
+	r.Delete("/platform-resources/{name}", controller.GetClusterResourceController().DeleteResource)
 	return r
 }
 
