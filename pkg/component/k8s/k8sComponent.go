@@ -59,8 +59,6 @@ type Component struct {
 	KruiseClient   *kruiseclientset.Clientset
 	MetricClient   *metrics.Clientset
 	K8SVersion     *utilversion.Version
-	// TestClientset is used for testing only, allows injecting fake clients
-	TestClientset kubernetes.Interface
 }
 
 var (
@@ -156,9 +154,4 @@ func (k *Component) CloseHandle() {
 // Default -
 func Default() *Component {
 	return defaultK8sComponent
-}
-
-// SetDefaultForTest sets the default k8s component for testing purposes
-func SetDefaultForTest(component *Component) {
-	defaultK8sComponent = component
 }

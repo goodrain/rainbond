@@ -41,7 +41,7 @@ require (
 	github.com/goodrain/rainbond-oam v0.0.0-20221115150510-dd668a6d6765
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/gorilla/websocket v1.5.3
-	github.com/gosuri/uitable v0.0.4 // indirect
+	github.com/gosuri/uitable v0.0.4
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/jinzhu/gorm v1.9.16
 	github.com/json-iterator/go v1.1.12

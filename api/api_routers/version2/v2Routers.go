@@ -137,15 +137,6 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 	r.Put("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
 	r.Delete("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
 	r.Post("/plugins/{plugin_name}/status", ChangePluginStatus)
-	// Platform Discovery API
-	r.Get("/discovery/cluster-resources", controller.GetClusterScopedResourceTypes)
-	// Platform Resource CRUD
-	r.Get("/resources/{group}/{version}/{resource}", controller.ListClusterResources)
-	r.Get("/resources/{group}/{version}/{resource}/{name}", controller.GetClusterResource)
-	// Platform Storage API
-	r.Get("/storage/overview", controller.GetStorageOverview)
-	r.Get("/storage/storageclasses", controller.ListStorageClasses)
-	r.Get("/storage/pvs", controller.ListPersistentVolumes)
 	return r
 }
 
