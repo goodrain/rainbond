@@ -339,6 +339,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/platform-resources", controller.GetClusterResourceController().ListResources)
 	r.Post("/platform-resources", controller.GetClusterResourceController().CreateResource)
 	r.Get("/platform-resources/{name}", controller.GetClusterResourceController().GetResource)
+	r.Put("/platform-resources/{name}", controller.GetClusterResourceController().UpdateResource)
 	r.Delete("/platform-resources/{name}", controller.GetClusterResourceController().DeleteResource)
 	return r
 }

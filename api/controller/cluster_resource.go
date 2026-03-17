@@ -69,6 +69,24 @@ func (c *ClusterResourceController) CreateResource(w http.ResponseWriter, r *htt
 	httputil.ReturnSuccess(r, w, obj)
 }
 
+func (c *ClusterResourceController) UpdateResource(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	group := r.URL.Query().Get("group")
+	version := r.URL.Query().Get("version")
+	resource := r.URL.Query().Get("resource")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	obj, err := handler.GetClusterResourceHandler().UpdateResource(group, version, resource, name, body)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, obj)
+}
+
 func (c *ClusterResourceController) DeleteResource(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	group := r.URL.Query().Get("group")

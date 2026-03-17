@@ -87,6 +87,26 @@ func (h *ClusterResourceHandler) CreateResource(group, version, resource string,
 	return k8s.Default().DynamicClient.Resource(gvr).Create(context.Background(), obj, metav1.CreateOptions{})
 }
 
+func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name string, yamlBody []byte) (*unstructured.Unstructured, error) {
+	if err := validateGVRParams(group, version, resource); err != nil {
+		return nil, err
+	}
+	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
+	obj := &unstructured.Unstructured{}
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
+	if err := decoder.Decode(obj); err != nil {
+		return nil, fmt.Errorf("invalid YAML: %v", err)
+	}
+	if obj.GetResourceVersion() == "" {
+		current, err := k8s.Default().DynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		obj.SetResourceVersion(current.GetResourceVersion())
+	}
+	return k8s.Default().DynamicClient.Resource(gvr).Update(context.Background(), obj, metav1.UpdateOptions{})
+}
+
 func (h *ClusterResourceHandler) DeleteResource(group, version, resource, name string) error {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return err
