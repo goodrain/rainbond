@@ -28,6 +28,7 @@ import (
 	"helm.sh/helm/v3/pkg/strvals"
 	helmtime "helm.sh/helm/v3/pkg/time"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"sigs.k8s.io/yaml"
 )
 
 // ReleaseInfo -
@@ -518,4 +519,48 @@ func removeKubeVersionFromChart(ch *chart.Chart) {
 	for _, subChart := range ch.Dependencies() {
 		removeKubeVersionFromChart(subChart)
 	}
+}
+
+// ListReleases returns all Helm releases in the current namespace.
+func (h *Helm) ListReleases() ([]*release.Release, error) {
+	client := action.NewList(h.cfg)
+	client.All = true
+	return client.Run()
+}
+
+// InstallFromRepo installs a chart from a configured Helm repo directly into the cluster.
+//
+// IMPORTANT: This method intentionally does NOT delegate to the private install() helper,
+// because that helper unconditionally sets ClientOnly=true (line ~181), which causes Helm
+// to only render manifests without actually deploying to the cluster.
+// This method calls action.NewInstall directly with DryRun=false, ClientOnly=false.
+func (h *Helm) InstallFromRepo(repoName, chart, version, releaseName, valuesYAML string) (*release.Release, error) {
+	client := action.NewInstall(h.cfg)
+	client.ReleaseName = releaseName
+	client.Namespace = h.namespace
+	client.Version = version
+	client.DryRun = false
+	client.ClientOnly = false
+
+	// Validate and parse values YAML before attempting install
+	vals := map[string]interface{}{}
+	if valuesYAML != "" {
+		if err := yaml.Unmarshal([]byte(valuesYAML), &vals); err != nil {
+			return nil, fmt.Errorf("invalid values YAML: %v", err)
+		}
+	}
+
+	// Locate chart in local repo cache
+	chartRef := fmt.Sprintf("%s/%s", repoName, chart)
+	cp, err := client.ChartPathOptions.LocateChart(chartRef, h.settings)
+	if err != nil {
+		return nil, fmt.Errorf("locate chart %s: %v", chartRef, err)
+	}
+
+	chartLoaded, err := loader.Load(cp)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %v", err)
+	}
+
+	return client.Run(chartLoaded, vals)
 }

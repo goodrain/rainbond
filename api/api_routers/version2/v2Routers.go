@@ -456,6 +456,18 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Put("/registry/auth", controller.GetManager().RegistryAuthSecret)
 	r.Delete("/registry/auth", controller.GetManager().RegistryAuthSecret)
 
+	// Helm releases (direct cluster install)
+	r.Get("/helm/releases", controller.GetHelmReleaseController().ListReleases)
+	r.Post("/helm/releases", controller.GetHelmReleaseController().InstallRelease)
+	r.Delete("/helm/releases/{release_name}", controller.GetHelmReleaseController().UninstallRelease)
+
+	// Namespace-scoped resources
+	r.Get("/ns-resource-types", controller.GetNsResourceController().ListNsResourceTypes)
+	r.Get("/ns-resources", controller.GetNsResourceController().ListNsResources)
+	r.Post("/ns-resources", controller.GetNsResourceController().CreateNsResource)
+	r.Get("/ns-resources/{name}", controller.GetNsResourceController().GetNsResource)
+	r.Delete("/ns-resources/{name}", controller.GetNsResourceController().DeleteNsResource)
+
 	return r
 }
 
