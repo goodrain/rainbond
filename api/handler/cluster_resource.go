@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/discovery"
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 // ResourceTypeInfo describes a K8s resource type
@@ -81,10 +82,14 @@ func (h *ClusterResourceHandler) CreateResource(group, version, resource string,
 	obj := &unstructured.Unstructured{}
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
 	if err := decoder.Decode(obj); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %v", err)
+		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
 	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	return k8s.Default().DynamicClient.Resource(gvr).Create(context.Background(), obj, metav1.CreateOptions{})
+	result, err := k8s.Default().DynamicClient.Resource(gvr).Create(context.Background(), obj, metav1.CreateOptions{})
+	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
+		return nil, httputil.NewErrBadRequest(err)
+	}
+	return result, err
 }
 
 func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name string, yamlBody []byte) (*unstructured.Unstructured, error) {
@@ -95,7 +100,7 @@ func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name s
 	obj := &unstructured.Unstructured{}
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
 	if err := decoder.Decode(obj); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %v", err)
+		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
 	}
 	if obj.GetResourceVersion() == "" {
 		current, err := k8s.Default().DynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
@@ -104,7 +109,11 @@ func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name s
 		}
 		obj.SetResourceVersion(current.GetResourceVersion())
 	}
-	return k8s.Default().DynamicClient.Resource(gvr).Update(context.Background(), obj, metav1.UpdateOptions{})
+	result, err := k8s.Default().DynamicClient.Resource(gvr).Update(context.Background(), obj, metav1.UpdateOptions{})
+	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
+		return nil, httputil.NewErrBadRequest(err)
+	}
+	return result, err
 }
 
 func (h *ClusterResourceHandler) DeleteResource(group, version, resource, name string) error {
