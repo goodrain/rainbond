@@ -89,13 +89,52 @@ func (h *StorageHandler) DeleteStorageClass(name string) error {
 	return err
 }
 
-// ListPersistentVolumes returns all PersistentVolumes
-func (h *StorageHandler) ListPersistentVolumes() ([]corev1.PersistentVolume, error) {
+// PVInfo is the flat API response struct for a PersistentVolume
+type PVInfo struct {
+	Name          string   `json:"name"`
+	Capacity      string   `json:"capacity"`
+	AccessModes   []string `json:"access_modes"`
+	StorageClass  string   `json:"storage_class"`
+	Status        string   `json:"status"`
+	ReclaimPolicy string   `json:"reclaim_policy"`
+	Claim         string   `json:"claim"`
+}
+
+// ListPersistentVolumes returns all PersistentVolumes as flat PVInfo structs
+func (h *StorageHandler) ListPersistentVolumes() ([]PVInfo, error) {
 	list, err := k8s.Default().Clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	result := make([]PVInfo, 0, len(list.Items))
+	for _, pv := range list.Items {
+		capacity := ""
+		if q, ok := pv.Spec.Capacity[corev1.ResourceStorage]; ok {
+			capacity = q.String()
+		}
+		modes := make([]string, 0, len(pv.Spec.AccessModes))
+		for _, m := range pv.Spec.AccessModes {
+			modes = append(modes, string(m))
+		}
+		claim := ""
+		if pv.Spec.ClaimRef != nil {
+			claim = pv.Spec.ClaimRef.Namespace + "/" + pv.Spec.ClaimRef.Name
+		}
+		reclaimPolicy := ""
+		if pv.Spec.PersistentVolumeReclaimPolicy != "" {
+			reclaimPolicy = string(pv.Spec.PersistentVolumeReclaimPolicy)
+		}
+		result = append(result, PVInfo{
+			Name:          pv.Name,
+			Capacity:      capacity,
+			AccessModes:   modes,
+			StorageClass:  pv.Spec.StorageClassName,
+			Status:        string(pv.Status.Phase),
+			ReclaimPolicy: reclaimPolicy,
+			Claim:         claim,
+		})
+	}
+	return result, nil
 }
 
 // CreatePersistentVolume decodes YAML and creates a PersistentVolume
