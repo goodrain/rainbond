@@ -745,7 +745,11 @@ type AddTenantStruct struct {
 		Eid         string `json:"eid" validata:"eid"`
 		Token       string `json:"token" validate:"token"`
 		LimitMemory int    `json:"limit_memory" validate:"limit_memory"`
-		Namespace   string `json:"namespace" validate:"namespace"`
+		Namespace string `json:"namespace" validate:"namespace"`
+		// whether to bind an existing namespace instead of creating a new one
+		// in: body
+		// required: false
+		BindExistingNamespace bool `json:"bind_existing_namespace"`
 	}
 }
 

@@ -446,7 +446,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		if ts.Body.Namespace != "" {
 			dbts.Namespace = ts.Body.Namespace
 		}
-		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
+		if err := handler.GetServiceManager().CreateTenant(&dbts, ts.Body.BindExistingNamespace); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
 				return
@@ -470,7 +470,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		if ts.Body.Namespace != "" {
 			dbts.Namespace = ts.Body.Namespace
 		}
-		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
+		if err := handler.GetServiceManager().CreateTenant(&dbts, ts.Body.BindExistingNamespace); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
 				return

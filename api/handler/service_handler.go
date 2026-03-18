@@ -66,7 +66,7 @@ type ServiceHandler interface {
 	GetStatus(serviceID string) (*apimodel.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) []map[string]interface{}
 	GetEnterpriseServicesStatus(enterpriseID string) (map[string]string, *util.APIHandleError)
-	CreateTenant(*dbmodel.Tenants) error
+	CreateTenant(*dbmodel.Tenants, bool) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) (*K8sPodInfos, error)
 	GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, error)

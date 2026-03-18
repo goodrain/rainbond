@@ -2038,7 +2038,7 @@ func (s *ServiceAction) GetEnterpriseServicesStatus(enterpriseID string) (map[st
 }
 
 // CreateTenant create tenant
-func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
+func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants, bindExisting bool) error {
 	tenant, _ := db.GetManager().TenantDao().GetTenantIDByName(t.Name)
 	if tenant != nil {
 		return fmt.Errorf("tenant name %s is exist", t.Name)
@@ -2070,6 +2070,20 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 			},
 		}, metav1.CreateOptions{}); err != nil {
 			if k8sErrors.IsAlreadyExists(err) {
+				if bindExisting {
+					// Bind mode: patch managed-by label onto existing namespace
+					// Intentionally skip NetworkPolicy and RBAC blocks below
+					ns, getErr := s.kubeClient.CoreV1().Namespaces().Get(context.Background(), t.Namespace, metav1.GetOptions{})
+					if getErr != nil {
+						return getErr
+					}
+					if ns.Labels == nil {
+						ns.Labels = make(map[string]string)
+					}
+					ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
+					_, updateErr := s.kubeClient.CoreV1().Namespaces().Update(context.Background(), ns, metav1.UpdateOptions{})
+					return updateErr
+				}
 				return bcode.ErrNamespaceExists
 			}
 			return err
