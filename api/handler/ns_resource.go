@@ -142,6 +142,9 @@ func (h *NsResourceHandler) getTenantNamespace(tenantName string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("tenant %s not found: %v", tenantName, err)
 	}
+	if tenant.Namespace != "" {
+		return tenant.Namespace, nil
+	}
 	return tenant.UUID, nil
 }
 
