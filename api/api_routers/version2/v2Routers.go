@@ -467,7 +467,12 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/ns-resources", controller.GetNsResourceController().ListNsResources)
 	r.Post("/ns-resources", controller.GetNsResourceController().CreateNsResource)
 	r.Get("/ns-resources/{name}", controller.GetNsResourceController().GetNsResource)
+	r.Put("/ns-resources/{name}", controller.GetNsResourceController().UpdateNsResource)
 	r.Delete("/ns-resources/{name}", controller.GetNsResourceController().DeleteNsResource)
+	r.Get("/resource-center/workloads/{resource}/{name}", controller.GetResourceCenterController().GetWorkloadDetail)
+	r.Get("/resource-center/pods/{pod_name}", controller.GetResourceCenterController().GetPodDetail)
+	r.Get("/resource-center/events", controller.GetResourceCenterController().ListEvents)
+	r.Get("/resource-center/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 
 	return r
 }

@@ -74,6 +74,26 @@ func (c *NsResourceController) CreateNsResource(w http.ResponseWriter, r *http.R
 	httputil.ReturnSuccess(r, w, obj)
 }
 
+// UpdateNsResource updates a namespaced resource from request body
+func (c *NsResourceController) UpdateNsResource(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	name := chi.URLParam(r, "name")
+	group := r.URL.Query().Get("group")
+	version := r.URL.Query().Get("version")
+	resource := r.URL.Query().Get("resource")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	obj, err := handler.GetNsResourceHandler().UpdateNsResource(tenantName, group, version, resource, name, body)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, obj)
+}
+
 // DeleteNsResource deletes a resource by name from the tenant namespace
 func (c *NsResourceController) DeleteNsResource(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")

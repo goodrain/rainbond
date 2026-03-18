@@ -9,22 +9,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/discovery"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	httputil "github.com/goodrain/rainbond/util/http"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NsResourceInfo is the list item response for a namespace-scoped resource
 type NsResourceInfo struct {
-	Name       string `json:"name"`
-	Kind       string `json:"kind"`
-	APIVersion string `json:"api_version"`
-	Status     string `json:"status"`
-	Replicas   string `json:"replicas,omitempty"`
-	Source     string `json:"source"`
-	CreatedAt  string `json:"created_at"`
+	Name          string               `json:"name"`
+	Kind          string               `json:"kind"`
+	APIVersion    string               `json:"api_version"`
+	Status        string               `json:"status"`
+	Replicas      int64                `json:"replicas,omitempty"`
+	ReadyReplicas int64                `json:"ready_replicas,omitempty"`
+	Source        string               `json:"source"`
+	CreatedAt     string               `json:"created_at"`
+	Node          string               `json:"node,omitempty"`
+	RestartCount  int32                `json:"restart_count,omitempty"`
+	Owner         string               `json:"owner,omitempty"`
+	PodIP         string               `json:"pod_ip,omitempty"`
+	Type          string               `json:"type,omitempty"`
+	ClusterIP     string               `json:"cluster_ip,omitempty"`
+	Ports         []corev1.ServicePort `json:"ports,omitempty"`
+	Selector      map[string]string    `json:"selector,omitempty"`
+	DataCount     int                  `json:"data_count,omitempty"`
+	Storage       string               `json:"storage,omitempty"`
+	AccessModes   []string             `json:"access_modes,omitempty"`
+	StorageClass  string               `json:"storage_class,omitempty"`
+	VolumeName    string               `json:"volume_name,omitempty"`
 }
 
 // NsResourceHandler handles namespace-scoped K8s resource operations
@@ -120,6 +137,39 @@ func (h *NsResourceHandler) CreateNsResource(tenantName, group, version, resourc
 	return k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Create(context.Background(), obj, metav1.CreateOptions{})
 }
 
+// UpdateNsResource updates a resource in the tenant namespace from YAML body
+func (h *NsResourceHandler) UpdateNsResource(tenantName, group, version, resource, name string, yamlBody []byte) (*unstructured.Unstructured, error) {
+	if err := validateGVRParams(group, version, resource); err != nil {
+		return nil, err
+	}
+	ns, err := h.getTenantNamespace(tenantName)
+	if err != nil {
+		return nil, err
+	}
+	obj := &unstructured.Unstructured{}
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
+	if err := decoder.Decode(obj); err != nil {
+		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
+	}
+	obj.SetNamespace(ns)
+	if obj.GetName() == "" {
+		obj.SetName(name)
+	}
+	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
+	if obj.GetResourceVersion() == "" {
+		current, err := k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		obj.SetResourceVersion(current.GetResourceVersion())
+	}
+	result, err := k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Update(context.Background(), obj, metav1.UpdateOptions{})
+	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
+		return nil, httputil.NewErrBadRequest(err)
+	}
+	return result, err
+}
+
 // DeleteNsResource deletes a resource by name from the tenant namespace
 func (h *NsResourceHandler) DeleteNsResource(tenantName, group, version, resource, name string) error {
 	if err := validateGVRParams(group, version, resource); err != nil {
@@ -167,7 +217,7 @@ func detectResourceSource(labels map[string]string) string {
 
 func toNsResourceInfo(obj unstructured.Unstructured) NsResourceInfo {
 	source := detectResourceSource(obj.GetLabels())
-	return NsResourceInfo{
+	info := NsResourceInfo{
 		Name:       obj.GetName(),
 		Kind:       obj.GetKind(),
 		APIVersion: obj.GetAPIVersion(),
@@ -175,6 +225,8 @@ func toNsResourceInfo(obj unstructured.Unstructured) NsResourceInfo {
 		CreatedAt:  obj.GetCreationTimestamp().String(),
 		Status:     computeNsResourceStatus(obj),
 	}
+	fillNsResourceInfo(&info, obj)
+	return info
 }
 
 func computeNsResourceStatus(obj unstructured.Unstructured) string {
@@ -183,6 +235,13 @@ func computeNsResourceStatus(obj unstructured.Unstructured) string {
 		available, _, _ := unstructured.NestedInt64(obj.Object, "status", "availableReplicas")
 		desired, _, _ := unstructured.NestedInt64(obj.Object, "spec", "replicas")
 		if desired > 0 && available == desired {
+			return "running"
+		}
+		return "warning"
+	case "DaemonSet":
+		ready, _, _ := unstructured.NestedInt64(obj.Object, "status", "numberReady")
+		desired, _, _ := unstructured.NestedInt64(obj.Object, "status", "desiredNumberScheduled")
+		if desired > 0 && ready == desired {
 			return "running"
 		}
 		return "warning"
@@ -201,6 +260,97 @@ func computeNsResourceStatus(obj unstructured.Unstructured) string {
 	default:
 		return "active"
 	}
+}
+
+func fillNsResourceInfo(info *NsResourceInfo, obj unstructured.Unstructured) {
+	switch obj.GetKind() {
+	case "Deployment", "StatefulSet":
+		info.Replicas, _, _ = unstructured.NestedInt64(obj.Object, "spec", "replicas")
+		info.ReadyReplicas, _, _ = unstructured.NestedInt64(obj.Object, "status", "readyReplicas")
+	case "DaemonSet":
+		info.Replicas, _, _ = unstructured.NestedInt64(obj.Object, "status", "desiredNumberScheduled")
+		info.ReadyReplicas, _, _ = unstructured.NestedInt64(obj.Object, "status", "numberReady")
+	case "Pod":
+		info.Node, _, _ = unstructured.NestedString(obj.Object, "spec", "nodeName")
+		info.PodIP, _, _ = unstructured.NestedString(obj.Object, "status", "podIP")
+		for _, owner := range obj.GetOwnerReferences() {
+			if owner.Controller != nil && *owner.Controller {
+				info.Owner = owner.Name
+				break
+			}
+		}
+		statuses, _, _ := unstructured.NestedSlice(obj.Object, "status", "containerStatuses")
+		var restartCount int64
+		for _, item := range statuses {
+			if statusMap, ok := item.(map[string]interface{}); ok {
+				switch count := statusMap["restartCount"].(type) {
+				case int64:
+					restartCount += count
+				case int32:
+					restartCount += int64(count)
+				case float64:
+					restartCount += int64(count)
+				}
+			}
+		}
+		info.RestartCount = int32(restartCount)
+	case "Service":
+		info.Type, _, _ = unstructured.NestedString(obj.Object, "spec", "type")
+		info.ClusterIP, _, _ = unstructured.NestedString(obj.Object, "spec", "clusterIP")
+		info.Selector, _, _ = unstructured.NestedStringMap(obj.Object, "spec", "selector")
+		var ports []corev1.ServicePort
+		portList, _, _ := unstructured.NestedSlice(obj.Object, "spec", "ports")
+		for _, item := range portList {
+			if portMap, ok := item.(map[string]interface{}); ok {
+				var port corev1.ServicePort
+				switch p := portMap["port"].(type) {
+				case int64:
+					port.Port = int32(p)
+				case int32:
+					port.Port = p
+				case float64:
+					port.Port = int32(p)
+				}
+				if protocol, ok := portMap["protocol"].(string); ok {
+					port.Protocol = corev1.Protocol(protocol)
+				}
+				if targetPort, ok := portMap["targetPort"].(string); ok {
+					port.TargetPort = intstrFromString(targetPort)
+				} else {
+					switch targetPort := portMap["targetPort"].(type) {
+					case int64:
+						port.TargetPort = intstrFromInt(targetPort)
+					case int32:
+						port.TargetPort = intstr.FromInt(int(targetPort))
+					case float64:
+						port.TargetPort = intstr.FromInt(int(targetPort))
+					}
+				}
+				ports = append(ports, port)
+			}
+		}
+		info.Ports = ports
+	case "ConfigMap", "Secret":
+		data, _, _ := unstructured.NestedMap(obj.Object, "data")
+		if len(data) == 0 {
+			data, _, _ = unstructured.NestedMap(obj.Object, "stringData")
+		}
+		info.DataCount = len(data)
+	case "PersistentVolumeClaim":
+		info.Storage, _, _ = unstructured.NestedString(obj.Object, "spec", "resources", "requests", "storage")
+		info.StorageClass, _, _ = unstructured.NestedString(obj.Object, "spec", "storageClassName")
+		info.VolumeName, _, _ = unstructured.NestedString(obj.Object, "spec", "volumeName")
+		accessModes, _, _ := unstructured.NestedStringSlice(obj.Object, "spec", "accessModes")
+		info.AccessModes = accessModes
+	}
+}
+
+func intstrFromString(value string) intstr.IntOrString {
+	return intstr.FromString(value)
+}
+
+func intstrFromInt(value int64) intstr.IntOrString {
+	return intstr.FromInt(int(value))
 }
 
 var nsResourceHandler *NsResourceHandler
