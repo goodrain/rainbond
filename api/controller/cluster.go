@@ -134,6 +134,16 @@ func (c *ClusterController) BatchGetGateway(w http.ResponseWriter, r *http.Reque
 // GetNamespace Get the unconnected namespaces under the current cluster
 func (c *ClusterController) GetNamespace(w http.ResponseWriter, r *http.Request) {
 	content := r.FormValue("content")
+	format := r.FormValue("format")
+	if format == "detail" {
+		ns, err := handler.GetClusterHandler().GetNamespaceDetail(r.Context(), content)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+		httputil.ReturnSuccess(r, w, ns)
+		return
+	}
 	ns, err := handler.GetClusterHandler().GetNamespace(r.Context(), content)
 	if err != nil {
 		err.Handle(r, w)
