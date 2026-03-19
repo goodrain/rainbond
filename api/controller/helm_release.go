@@ -48,6 +48,27 @@ func (c *HelmReleaseController) InstallRelease(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, rel)
 }
 
+// PreviewChart resolves chart metadata and values before installation.
+func (c *HelmReleaseController) PreviewChart(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	var req installReleaseReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	req.Normalize()
+	if err := req.ValidateForPreview(); err != nil {
+		httputil.ReturnBcodeError(r, w, httputil.NewErrBadRequest(err))
+		return
+	}
+	preview, err := handler.GetHelmReleaseHandler().PreviewChart(tenantName, req.HelmReleaseInstallRequest)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, preview)
+}
+
 // UninstallRelease removes a Helm release from the tenant's namespace.
 func (c *HelmReleaseController) UninstallRelease(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")

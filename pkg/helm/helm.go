@@ -529,13 +529,12 @@ func normalizeOCIChartReference(chartRef, version string) (string, string) {
 	return caps[1], caps[3]
 }
 
-// InstallFromReference installs a chart from a repo name, repo URL, direct chart URL or OCI reference.
-func (h *Helm) InstallFromReference(chartRef, repoURL, version, releaseName, valuesYAML, username, password string) (*release.Release, error) {
+func (h *Helm) resolveChartPath(chartRef, repoURL, version, username, password string) (string, string, error) {
 	chartRef, version = normalizeOCIChartReference(chartRef, version)
 	if err := h.loginRegistryIfNeeded(chartRef, username, password); err != nil {
-		return nil, fmt.Errorf("login registry %s: %v", chartRef, err)
+		return "", "", fmt.Errorf("login registry %s: %v", chartRef, err)
 	}
-	client := h.newInstallAction(releaseName, version)
+	client := h.newInstallAction("", version)
 	cpo := &ChartPathOptions{
 		ChartPathOptions: client.ChartPathOptions,
 		RegistryClient:   h.cfg.RegistryClient,
@@ -546,14 +545,45 @@ func (h *Helm) InstallFromReference(chartRef, repoURL, version, releaseName, val
 	cpo.Password = password
 	cp, err := cpo.LocateChart(chartRef, h.settings.RepositoryCache, h.settings)
 	if err != nil {
-		return nil, fmt.Errorf("locate chart %s: %v", chartRef, err)
+		return "", "", fmt.Errorf("locate chart %s: %v", chartRef, err)
 	}
-	return h.installLoadedChart(cp, releaseName, version, valuesYAML)
+	return cp, version, nil
+}
+
+// InstallFromReference installs a chart from a repo name, repo URL, direct chart URL or OCI reference.
+func (h *Helm) InstallFromReference(chartRef, repoURL, version, releaseName, valuesYAML, username, password string) (*release.Release, error) {
+	cp, resolvedVersion, err := h.resolveChartPath(chartRef, repoURL, version, username, password)
+	if err != nil {
+		return nil, err
+	}
+	return h.installLoadedChart(cp, releaseName, resolvedVersion, valuesYAML)
 }
 
 // InstallFromChartPath installs a chart from a local directory or archive path.
 func (h *Helm) InstallFromChartPath(chartPath, version, releaseName, valuesYAML string) (*release.Release, error) {
 	return h.installLoadedChart(chartPath, releaseName, version, valuesYAML)
+}
+
+// LoadChartFromReference resolves a chart reference and loads chart metadata without installing it.
+func (h *Helm) LoadChartFromReference(chartRef, repoURL, version, username, password string) (*chart.Chart, string, string, error) {
+	cp, resolvedVersion, err := h.resolveChartPath(chartRef, repoURL, version, username, password)
+	if err != nil {
+		return nil, "", "", err
+	}
+	chartLoaded, err := loader.Load(cp)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("load chart: %v", err)
+	}
+	return chartLoaded, cp, resolvedVersion, nil
+}
+
+// LoadChartFromPath loads a chart from a local directory or archive path without installing it.
+func (h *Helm) LoadChartFromPath(chartPath string) (*chart.Chart, error) {
+	chartLoaded, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %v", err)
+	}
+	return chartLoaded, nil
 }
 
 // checkIfInstallable validates if a chart can be installed

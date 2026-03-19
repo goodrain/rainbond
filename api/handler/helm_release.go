@@ -1,11 +1,18 @@
 package handler
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/helm"
+	"helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
@@ -35,6 +42,17 @@ type HelmReleaseInstallRequest struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	EventID     string `json:"event_id"`
+}
+
+type HelmReleaseChartPreview struct {
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
+	Description string            `json:"description"`
+	Icon        string            `json:"icon"`
+	Keywords    []string          `json:"keywords"`
+	AppVersion  string            `json:"app_version"`
+	Values      map[string]string `json:"values"`
+	Readme      string            `json:"readme"`
 }
 
 func (r *HelmReleaseInstallRequest) Normalize() {
@@ -71,6 +89,33 @@ func (r *HelmReleaseInstallRequest) Validate() error {
 		}
 	case HelmReleaseSourceOCI:
 		if !strings.HasPrefix(r.ChartURL, "oci://") {
+			return fmt.Errorf("oci source requires chart_url with oci:// prefix")
+		}
+	case HelmReleaseSourceUpload:
+		if r.EventID == "" {
+			return fmt.Errorf("event_id is required for upload source")
+		}
+	default:
+		return fmt.Errorf("unsupported source_type %q", r.SourceType)
+	}
+	return nil
+}
+
+func (r *HelmReleaseInstallRequest) ValidateForPreview() error {
+	switch r.SourceType {
+	case HelmReleaseSourceStore:
+		if r.RepoName == "" {
+			return fmt.Errorf("repo_name is required for store source")
+		}
+		if r.Chart == "" && r.ChartName == "" {
+			return fmt.Errorf("chart is required for store source")
+		}
+	case HelmReleaseSourceRepo:
+		if strings.TrimSpace(firstNonEmpty(r.ChartURL, r.ChartName)) == "" {
+			return fmt.Errorf("chart_url is required for repo source")
+		}
+	case HelmReleaseSourceOCI:
+		if !strings.HasPrefix(strings.TrimSpace(r.ChartURL), "oci://") {
 			return fmt.Errorf("oci source requires chart_url with oci:// prefix")
 		}
 	case HelmReleaseSourceUpload:
@@ -133,6 +178,66 @@ func (h *HelmReleaseHandler) InstallRelease(tenantName string, req HelmReleaseIn
 	}
 }
 
+// PreviewChart resolves chart metadata, readme and values files before installation.
+func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInstallRequest) (*HelmReleaseChartPreview, error) {
+	req.Normalize()
+	if err := req.ValidateForPreview(); err != nil {
+		return nil, err
+	}
+	hc, err := h.newHelm(tenantName)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		ch        *chart.Chart
+		chartPath string
+		version   string
+	)
+
+	switch req.SourceType {
+	case HelmReleaseSourceStore:
+		chartRef := fmt.Sprintf("%s/%s", req.RepoName, req.Chart)
+		ch, chartPath, version, err = hc.LoadChartFromReference(chartRef, "", req.Version, "", "")
+	case HelmReleaseSourceRepo:
+		chartRef := firstNonEmpty(req.ChartURL, req.ChartName)
+		ch, chartPath, version, err = hc.LoadChartFromReference(chartRef, req.RepoURL, req.Version, req.Username, req.Password)
+	case HelmReleaseSourceOCI:
+		ch, chartPath, version, err = hc.LoadChartFromReference(req.ChartURL, "", req.Version, req.Username, req.Password)
+	case HelmReleaseSourceUpload:
+		chartPath, version, err = GetUploadChartPathAndVersion(req.EventID)
+		if err == nil {
+			ch, err = hc.LoadChartFromPath(chartPath)
+		}
+	default:
+		err = fmt.Errorf("unsupported source_type %q", req.SourceType)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	values, readme, err := readChartPreviewFiles(chartPath)
+	if err != nil {
+		return nil, err
+	}
+	if version == "" && ch != nil && ch.Metadata != nil {
+		version = ch.Metadata.Version
+	}
+	preview := &HelmReleaseChartPreview{
+		Version: version,
+		Values:  values,
+		Readme:  readme,
+	}
+	if ch != nil && ch.Metadata != nil {
+		preview.Name = ch.Metadata.Name
+		preview.Description = ch.Metadata.Description
+		preview.Icon = ch.Metadata.Icon
+		preview.Keywords = ch.Metadata.Keywords
+		preview.AppVersion = ch.Metadata.AppVersion
+	}
+	return preview, nil
+}
+
 // UninstallRelease uninstalls a Helm release from the tenant's namespace.
 func (h *HelmReleaseHandler) UninstallRelease(tenantName, releaseName string) error {
 	hc, err := h.newHelm(tenantName)
@@ -159,4 +264,81 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func readChartPreviewFiles(chartPath string) (map[string]string, string, error) {
+	stat, err := os.Stat(chartPath)
+	if err != nil {
+		return nil, "", err
+	}
+	if stat.IsDir() {
+		return readChartPreviewFilesFromDir(chartPath)
+	}
+	return readChartPreviewFilesFromArchive(chartPath)
+}
+
+func readChartPreviewFilesFromDir(chartPath string) (map[string]string, string, error) {
+	values := make(map[string]string)
+	readme := ""
+	err := filepath.Walk(chartPath, func(currentPath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info == nil || info.IsDir() {
+			return walkErr
+		}
+		relPath, err := filepath.Rel(chartPath, currentPath)
+		if err != nil {
+			return err
+		}
+		content, err := os.ReadFile(currentPath)
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(relPath, "README.md") && readme == "" {
+			readme = base64.StdEncoding.EncodeToString(content)
+		}
+		if strings.HasSuffix(relPath, "values.yaml") {
+			values[filepath.ToSlash(relPath)] = base64.StdEncoding.EncodeToString(content)
+		}
+		return nil
+	})
+	return values, readme, err
+}
+
+func readChartPreviewFilesFromArchive(chartPath string) (map[string]string, string, error) {
+	file, err := os.Open(chartPath)
+	if err != nil {
+		return nil, "", err
+	}
+	defer file.Close()
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return nil, "", err
+	}
+	defer gzr.Close()
+
+	values := make(map[string]string)
+	readme := ""
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, "", err
+		}
+		if header.FileInfo().IsDir() {
+			continue
+		}
+		content, err := io.ReadAll(tr)
+		if err != nil {
+			return nil, "", err
+		}
+		if strings.HasSuffix(header.Name, "README.md") && readme == "" {
+			readme = base64.StdEncoding.EncodeToString(content)
+		}
+		if strings.HasSuffix(header.Name, "values.yaml") {
+			values[header.Name] = base64.StdEncoding.EncodeToString(content)
+		}
+	}
+	return values, readme, nil
 }

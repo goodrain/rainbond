@@ -460,6 +460,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	// Helm releases (direct cluster install)
 	r.Get("/helm/releases", controller.GetHelmReleaseController().ListReleases)
 	r.Post("/helm/releases", controller.GetHelmReleaseController().InstallRelease)
+	r.Post("/helm/chart-preview", controller.GetHelmReleaseController().PreviewChart)
 	r.Delete("/helm/releases/{release_name}", controller.GetHelmReleaseController().UninstallRelease)
 
 	// Namespace-scoped resources
