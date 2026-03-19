@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unsafe"
 
@@ -45,6 +46,8 @@ type ReleaseInfo struct {
 
 // ReleaseHistory -
 type ReleaseHistory []ReleaseInfo
+
+var ociRefTagRegexp = regexp.MustCompile(`^(oci://[^:]+(:[0-9]{1,5})?[^:]+):(.*)$`)
 
 // Helm -
 type Helm struct {
@@ -515,8 +518,20 @@ func (h *Helm) loginRegistryIfNeeded(chartRef, username, password string) error 
 	return h.cfg.RegistryClient.Login(ref.Host, registry.LoginOptBasicAuth(username, password))
 }
 
+func normalizeOCIChartReference(chartRef, version string) (string, string) {
+	if version != "" || !strings.HasPrefix(chartRef, "oci://") {
+		return chartRef, version
+	}
+	caps := ociRefTagRegexp.FindStringSubmatch(chartRef)
+	if len(caps) != 4 {
+		return chartRef, version
+	}
+	return caps[1], caps[3]
+}
+
 // InstallFromReference installs a chart from a repo name, repo URL, direct chart URL or OCI reference.
 func (h *Helm) InstallFromReference(chartRef, repoURL, version, releaseName, valuesYAML, username, password string) (*release.Release, error) {
+	chartRef, version = normalizeOCIChartReference(chartRef, version)
 	if err := h.loginRegistryIfNeeded(chartRef, username, password); err != nil {
 		return nil, fmt.Errorf("login registry %s: %v", chartRef, err)
 	}
