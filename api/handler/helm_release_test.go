@@ -2,10 +2,14 @@ package handler
 
 import (
 	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/stretchr/testify/assert"
+	helmchart "helm.sh/helm/v3/pkg/chart"
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmtime "helm.sh/helm/v3/pkg/time"
 )
 
 func TestGetHelmReleaseHandlerSingleton(t *testing.T) {
@@ -130,4 +134,34 @@ func TestResolveHelmReleaseNamespaceFallsBackToTenantNamespace(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "demo-team", tenantDao.requestedFor)
 	assert.Equal(t, "tenant-namespace", namespace)
+}
+
+func TestSummarizeHelmReleaseBuildsStableDTO(t *testing.T) {
+	release := &helmrelease.Release{
+		Name:      "demo-release",
+		Version:   3,
+		Namespace: "demo-namespace",
+		Chart: &helmchart.Chart{
+			Metadata: &helmchart.Metadata{
+				Name:       "mysql",
+				Version:    "9.4.2",
+				AppVersion: "8.0.36",
+			},
+		},
+		Info: &helmrelease.Info{
+			Status:       helmrelease.StatusDeployed,
+			LastDeployed: helmtime.Time{Time: time.Date(2026, 3, 20, 9, 30, 0, 0, time.UTC)},
+		},
+	}
+
+	summary := summarizeHelmRelease(release)
+
+	assert.Equal(t, "demo-release", summary.Name)
+	assert.Equal(t, "mysql", summary.Chart)
+	assert.Equal(t, "9.4.2", summary.ChartVersion)
+	assert.Equal(t, "8.0.36", summary.AppVersion)
+	assert.Equal(t, "deployed", summary.Status)
+	assert.Equal(t, 3, summary.Version)
+	assert.Equal(t, "demo-namespace", summary.Namespace)
+	assert.Equal(t, "2026-03-20T09:30:00Z", summary.Updated)
 }

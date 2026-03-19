@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -55,6 +56,17 @@ type HelmReleaseChartPreview struct {
 	AppVersion  string            `json:"app_version"`
 	Values      map[string]string `json:"values"`
 	Readme      string            `json:"readme"`
+}
+
+type HelmReleaseSummary struct {
+	Name         string `json:"name"`
+	Chart        string `json:"chart"`
+	ChartVersion string `json:"chart_version"`
+	AppVersion   string `json:"app_version"`
+	Status       string `json:"status"`
+	Version      int    `json:"version"`
+	Namespace    string `json:"namespace"`
+	Updated      string `json:"updated"`
 }
 
 func (r *HelmReleaseInstallRequest) Normalize() {
@@ -151,12 +163,20 @@ func (h *HelmReleaseHandler) newHelm(tenantName, namespace string) (*helm.Helm, 
 }
 
 // ListReleases returns all Helm releases in the tenant's namespace.
-func (h *HelmReleaseHandler) ListReleases(tenantName, namespace string) ([]*helmrelease.Release, error) {
+func (h *HelmReleaseHandler) ListReleases(tenantName, namespace string) ([]*HelmReleaseSummary, error) {
 	hc, err := h.newHelm(tenantName, namespace)
 	if err != nil {
 		return nil, err
 	}
-	return hc.ListReleases()
+	releases, err := hc.ListReleases()
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]*HelmReleaseSummary, 0, len(releases))
+	for _, release := range releases {
+		summaries = append(summaries, summarizeHelmRelease(release))
+	}
+	return summaries, nil
 }
 
 // InstallRelease installs a Helm release from store, repo, OCI or uploaded chart sources.
@@ -269,6 +289,32 @@ func GetHelmReleaseHandler() *HelmReleaseHandler {
 		helmReleaseHandler = &HelmReleaseHandler{}
 	}
 	return helmReleaseHandler
+}
+
+func summarizeHelmRelease(release *helmrelease.Release) *HelmReleaseSummary {
+	summary := &HelmReleaseSummary{}
+	if release == nil {
+		return summary
+	}
+
+	summary.Name = release.Name
+	summary.Version = release.Version
+	summary.Namespace = release.Namespace
+
+	if release.Chart != nil && release.Chart.Metadata != nil {
+		summary.Chart = release.Chart.Metadata.Name
+		summary.ChartVersion = release.Chart.Metadata.Version
+		summary.AppVersion = release.Chart.Metadata.AppVersion
+	}
+
+	if release.Info != nil {
+		summary.Status = release.Info.Status.String()
+		if !release.Info.LastDeployed.Time.IsZero() {
+			summary.Updated = release.Info.LastDeployed.Time.UTC().Format(time.RFC3339)
+		}
+	}
+
+	return summary
 }
 
 func firstNonEmpty(values ...string) string {
