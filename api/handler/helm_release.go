@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/helm"
 	"helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -133,7 +134,7 @@ func (h *HelmReleaseHandler) newHelm(tenantName string) (*helm.Helm, error) {
 	if err != nil {
 		return nil, fmt.Errorf("tenant %s not found: %v", tenantName, err)
 	}
-	return helm.NewHelm(tenant.UUID, repoFile, repoCache)
+	return helm.NewHelm(helmReleaseNamespace(tenant), repoFile, repoCache)
 }
 
 // ListReleases returns all Helm releases in the tenant's namespace.
@@ -264,6 +265,16 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func helmReleaseNamespace(tenant *dbmodel.Tenants) string {
+	if tenant == nil {
+		return ""
+	}
+	if strings.TrimSpace(tenant.Namespace) != "" {
+		return tenant.Namespace
+	}
+	return tenant.UUID
 }
 
 func readChartPreviewFiles(chartPath string) (map[string]string, string, error) {

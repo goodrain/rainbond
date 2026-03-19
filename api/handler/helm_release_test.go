@@ -3,6 +3,7 @@ package handler
 import (
 	"testing"
 
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -81,4 +82,25 @@ func TestHelmReleaseInstallRequestValidate(t *testing.T) {
 			require.EqualError(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestHelmReleaseNamespaceUsesTenantNamespaceWhenPresent(t *testing.T) {
+	tenant := &dbmodel.Tenants{
+		Namespace: "team-namespace",
+		UUID:      "tenant-uuid",
+	}
+
+	namespace := helmReleaseNamespace(tenant)
+
+	assert.Equal(t, "team-namespace", namespace)
+}
+
+func TestHelmReleaseNamespaceFallsBackToTenantUUID(t *testing.T) {
+	tenant := &dbmodel.Tenants{
+		UUID: "tenant-uuid",
+	}
+
+	namespace := helmReleaseNamespace(tenant)
+
+	assert.Equal(t, "tenant-uuid", namespace)
 }
