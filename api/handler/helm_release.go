@@ -32,6 +32,7 @@ const (
 // HelmReleaseInstallRequest describes all supported install sources.
 type HelmReleaseInstallRequest struct {
 	SourceType  string `json:"source_type"`
+	Namespace   string `json:"namespace"`
 	RepoName    string `json:"repo_name"`
 	RepoURL     string `json:"repo_url"`
 	Chart       string `json:"chart"`
@@ -61,6 +62,7 @@ func (r *HelmReleaseInstallRequest) Normalize() {
 	if r.SourceType == "" {
 		r.SourceType = HelmReleaseSourceStore
 	}
+	r.Namespace = strings.TrimSpace(r.Namespace)
 	r.Chart = strings.TrimSpace(firstNonEmpty(r.Chart, r.ChartName))
 	r.ChartName = strings.TrimSpace(firstNonEmpty(r.ChartName, r.Chart))
 	r.ChartURL = strings.TrimSpace(r.ChartURL)
@@ -129,17 +131,28 @@ func (r *HelmReleaseInstallRequest) ValidateForPreview() error {
 	return nil
 }
 
-func (h *HelmReleaseHandler) newHelm(tenantName string) (*helm.Helm, error) {
+func (h *HelmReleaseHandler) resolveNamespace(tenantName, namespace string) (string, error) {
+	if strings.TrimSpace(namespace) != "" {
+		return strings.TrimSpace(namespace), nil
+	}
 	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
 	if err != nil {
-		return nil, fmt.Errorf("tenant %s not found: %v", tenantName, err)
+		return "", fmt.Errorf("tenant %s not found: %v", tenantName, err)
 	}
-	return helm.NewHelm(helmReleaseNamespace(tenant), repoFile, repoCache)
+	return helmReleaseNamespace(tenant), nil
+}
+
+func (h *HelmReleaseHandler) newHelm(tenantName, namespace string) (*helm.Helm, error) {
+	resolvedNamespace, err := h.resolveNamespace(tenantName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	return helm.NewHelm(resolvedNamespace, repoFile, repoCache)
 }
 
 // ListReleases returns all Helm releases in the tenant's namespace.
-func (h *HelmReleaseHandler) ListReleases(tenantName string) ([]*helmrelease.Release, error) {
-	hc, err := h.newHelm(tenantName)
+func (h *HelmReleaseHandler) ListReleases(tenantName, namespace string) ([]*helmrelease.Release, error) {
+	hc, err := h.newHelm(tenantName, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +165,7 @@ func (h *HelmReleaseHandler) InstallRelease(tenantName string, req HelmReleaseIn
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	hc, err := h.newHelm(tenantName)
+	hc, err := h.newHelm(tenantName, req.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +198,7 @@ func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInst
 	if err := req.ValidateForPreview(); err != nil {
 		return nil, err
 	}
-	hc, err := h.newHelm(tenantName)
+	hc, err := h.newHelm(tenantName, req.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +253,8 @@ func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInst
 }
 
 // UninstallRelease uninstalls a Helm release from the tenant's namespace.
-func (h *HelmReleaseHandler) UninstallRelease(tenantName, releaseName string) error {
-	hc, err := h.newHelm(tenantName)
+func (h *HelmReleaseHandler) UninstallRelease(tenantName, releaseName, namespace string) error {
+	hc, err := h.newHelm(tenantName, namespace)
 	if err != nil {
 		return err
 	}

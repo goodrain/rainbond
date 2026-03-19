@@ -3,9 +3,9 @@ package handler
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGetHelmReleaseHandlerSingleton(t *testing.T) {
@@ -76,10 +76,12 @@ func TestHelmReleaseInstallRequestValidate(t *testing.T) {
 			tt.req.Normalize()
 			err := tt.req.Validate()
 			if tt.wantErr == "" {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				return
 			}
-			require.EqualError(t, err, tt.wantErr)
+			if assert.Error(t, err) {
+				assert.Equal(t, tt.wantErr, err.Error())
+			}
 		})
 	}
 }
@@ -103,4 +105,29 @@ func TestHelmReleaseNamespaceFallsBackToTenantUUID(t *testing.T) {
 	namespace := helmReleaseNamespace(tenant)
 
 	assert.Equal(t, "tenant-uuid", namespace)
+}
+
+func TestResolveHelmReleaseNamespaceUsesExplicitNamespace(t *testing.T) {
+	namespace, err := GetHelmReleaseHandler().resolveNamespace("demo-team", "demo-namespace")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "demo-namespace", namespace)
+}
+
+func TestResolveHelmReleaseNamespaceFallsBackToTenantNamespace(t *testing.T) {
+	tenantDao := &testTenantDao{
+		tenant: &dbmodel.Tenants{
+			Name:      "demo-team",
+			UUID:      "tenant-uuid",
+			Namespace: "tenant-namespace",
+		},
+	}
+	db.SetTestManager(testManager{tenantDao: tenantDao})
+	defer db.SetTestManager(nil)
+
+	namespace, err := GetHelmReleaseHandler().resolveNamespace("demo-team", "")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "demo-team", tenantDao.requestedFor)
+	assert.Equal(t, "tenant-namespace", namespace)
 }
