@@ -445,6 +445,7 @@ func (c *ChartPathOptions) LocateChart(name, dest string, settings *cli.EnvSetti
 			return "", err
 		}
 		name = chartURL
+		name, version = normalizeOCIChartReference(name, version)
 	}
 
 	if err := os.MkdirAll(dest, 0755); err != nil {
@@ -519,14 +520,17 @@ func (h *Helm) loginRegistryIfNeeded(chartRef, username, password string) error 
 }
 
 func normalizeOCIChartReference(chartRef, version string) (string, string) {
-	if version != "" || !strings.HasPrefix(chartRef, "oci://") {
+	if !strings.HasPrefix(chartRef, "oci://") {
 		return chartRef, version
 	}
 	caps := ociRefTagRegexp.FindStringSubmatch(chartRef)
 	if len(caps) != 4 {
 		return chartRef, version
 	}
-	return caps[1], caps[3]
+	if version == "" {
+		version = caps[3]
+	}
+	return caps[1], version
 }
 
 func (h *Helm) resolveChartPath(chartRef, repoURL, version, username, password string) (string, string, error) {
