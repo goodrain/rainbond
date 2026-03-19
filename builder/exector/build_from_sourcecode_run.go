@@ -466,6 +466,14 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 			version.ImageName = vi.DeliveredPath
 		}
 	}
+	version.Cmd = normalizeSourceBuildCmd(
+		version.Cmd,
+		i.Lang,
+		i.BuildType,
+		i.BuildEnvs["MODE"],
+		i.CodeSouceInfo.DockerfilePath,
+		build.MediumType(version.DeliveredType),
+	)
 	if vi.FinalStatus != "" {
 		version.FinalStatus = vi.FinalStatus
 	}
@@ -505,4 +513,31 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 // UpdateCheckResult UpdateCheckResult
 func (i *SourceCodeBuildItem) UpdateCheckResult(result *dbmodel.CodeCheckResult) error {
 	return nil
+}
+
+func normalizeSourceBuildCmd(cmd, lang, buildType, buildMode, dockerfilePath string, mediumType build.MediumType) string {
+	if mediumType != build.ImageMediumType {
+		return cmd
+	}
+	if !isDefaultSlugStartCmd(cmd) {
+		return cmd
+	}
+	if buildType == "cnb" {
+		return ""
+	}
+	if buildMode == "DOCKERFILE" {
+		return ""
+	}
+	if dockerfilePath != "" {
+		return ""
+	}
+	if strings.Contains(strings.ToLower(lang), "dockerfile") {
+		return ""
+	}
+	return cmd
+}
+
+func isDefaultSlugStartCmd(cmd string) bool {
+	parts := strings.Fields(cmd)
+	return len(parts) == 2 && parts[0] == "start" && parts[1] == "web"
 }
