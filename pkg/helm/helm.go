@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/provenance"
+	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
@@ -75,12 +77,24 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	*namespacePtr = namespace
 	settings.RepositoryConfig = repoFile
 	settings.RepositoryCache = repoCache
+	settings.RegistryConfig = filepath.Join(filepath.Dir(filepath.Dir(repoFile)), "registry", "config.json")
+	if err := os.MkdirAll(filepath.Dir(settings.RegistryConfig), 0755); err != nil {
+		return nil, errors.Wrap(err, "create registry config dir")
+	}
 	// initializes the action configuration
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), helmDriver, func(format string, v ...interface{}) {
 		logrus.Debugf(format, v)
 	}); err != nil {
 		return nil, errors.Wrap(err, "init config")
 	}
+	registryClient, err := registry.NewClient(
+		registry.ClientOptDebug(settings.Debug),
+		registry.ClientOptCredentialsFile(settings.RegistryConfig),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "init registry client")
+	}
+	cfg.RegistryClient = registryClient
 	return &Helm{
 		cfg:       cfg,
 		settings:  settings,
@@ -90,7 +104,7 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}, nil
 }
 
-//UpdateRepo -
+// UpdateRepo -
 func (h *Helm) UpdateRepo(names string) error {
 	return h.repoUpdate(names, ioutil.Discard)
 }
@@ -378,6 +392,7 @@ func (h *Helm) Load(chart, version string) (string, error) {
 // ChartPathOptions -
 type ChartPathOptions struct {
 	action.ChartPathOptions
+	RegistryClient *registry.Client
 }
 
 // LocateChart looks for a chart directory in known places, and returns either the full path or an error.
@@ -412,6 +427,10 @@ func (c *ChartPathOptions) LocateChart(name, dest string, settings *cli.EnvSetti
 		},
 		RepositoryConfig: settings.RepositoryConfig,
 		RepositoryCache:  settings.RepositoryCache,
+		RegistryClient:   c.RegistryClient,
+	}
+	if c.RegistryClient != nil {
+		dl.Options = append(dl.Options, getter.WithRegistryClient(c.RegistryClient))
 	}
 	if c.Verify {
 		dl.Verify = downloader.VerifyAlways
@@ -445,6 +464,81 @@ func (c *ChartPathOptions) LocateChart(name, dest string, settings *cli.EnvSetti
 		atVersion = fmt.Sprintf(" at version %q", version)
 	}
 	return filename, errors.Errorf("failed to download %q%s (hint: running `helm repo update` may help)", name, atVersion)
+}
+
+func parseValuesYAML(valuesYAML string) (map[string]interface{}, error) {
+	vals := map[string]interface{}{}
+	if valuesYAML == "" {
+		return vals, nil
+	}
+	if err := yaml.Unmarshal([]byte(valuesYAML), &vals); err != nil {
+		return nil, fmt.Errorf("invalid values YAML: %v", err)
+	}
+	return vals, nil
+}
+
+func (h *Helm) newInstallAction(releaseName, version string) *action.Install {
+	client := action.NewInstall(h.cfg)
+	client.ReleaseName = releaseName
+	client.Namespace = h.namespace
+	client.Version = version
+	client.DryRun = false
+	client.ClientOnly = false
+	return client
+}
+
+func (h *Helm) installLoadedChart(chartPath, releaseName, version, valuesYAML string) (*release.Release, error) {
+	vals, err := parseValuesYAML(valuesYAML)
+	if err != nil {
+		return nil, err
+	}
+	chartLoaded, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %v", err)
+	}
+	removeKubeVersionFromChart(chartLoaded)
+	client := h.newInstallAction(releaseName, version)
+	return client.Run(chartLoaded, vals)
+}
+
+func (h *Helm) loginRegistryIfNeeded(chartRef, username, password string) error {
+	if h.cfg.RegistryClient == nil || username == "" {
+		return nil
+	}
+	ref, err := url.Parse(chartRef)
+	if err != nil {
+		return err
+	}
+	if ref.Scheme != registry.OCIScheme {
+		return nil
+	}
+	return h.cfg.RegistryClient.Login(ref.Host, registry.LoginOptBasicAuth(username, password))
+}
+
+// InstallFromReference installs a chart from a repo name, repo URL, direct chart URL or OCI reference.
+func (h *Helm) InstallFromReference(chartRef, repoURL, version, releaseName, valuesYAML, username, password string) (*release.Release, error) {
+	if err := h.loginRegistryIfNeeded(chartRef, username, password); err != nil {
+		return nil, fmt.Errorf("login registry %s: %v", chartRef, err)
+	}
+	client := h.newInstallAction(releaseName, version)
+	cpo := &ChartPathOptions{
+		ChartPathOptions: client.ChartPathOptions,
+		RegistryClient:   h.cfg.RegistryClient,
+	}
+	cpo.RepoURL = repoURL
+	cpo.Version = version
+	cpo.Username = username
+	cpo.Password = password
+	cp, err := cpo.LocateChart(chartRef, h.settings.RepositoryCache, h.settings)
+	if err != nil {
+		return nil, fmt.Errorf("locate chart %s: %v", chartRef, err)
+	}
+	return h.installLoadedChart(cp, releaseName, version, valuesYAML)
+}
+
+// InstallFromChartPath installs a chart from a local directory or archive path.
+func (h *Helm) InstallFromChartPath(chartPath, version, releaseName, valuesYAML string) (*release.Release, error) {
+	return h.installLoadedChart(chartPath, releaseName, version, valuesYAML)
 }
 
 // checkIfInstallable validates if a chart can be installed
@@ -535,32 +629,6 @@ func (h *Helm) ListReleases() ([]*release.Release, error) {
 // to only render manifests without actually deploying to the cluster.
 // This method calls action.NewInstall directly with DryRun=false, ClientOnly=false.
 func (h *Helm) InstallFromRepo(repoName, chart, version, releaseName, valuesYAML string) (*release.Release, error) {
-	client := action.NewInstall(h.cfg)
-	client.ReleaseName = releaseName
-	client.Namespace = h.namespace
-	client.Version = version
-	client.DryRun = false
-	client.ClientOnly = false
-
-	// Validate and parse values YAML before attempting install
-	vals := map[string]interface{}{}
-	if valuesYAML != "" {
-		if err := yaml.Unmarshal([]byte(valuesYAML), &vals); err != nil {
-			return nil, fmt.Errorf("invalid values YAML: %v", err)
-		}
-	}
-
-	// Locate chart in local repo cache
 	chartRef := fmt.Sprintf("%s/%s", repoName, chart)
-	cp, err := client.ChartPathOptions.LocateChart(chartRef, h.settings)
-	if err != nil {
-		return nil, fmt.Errorf("locate chart %s: %v", chartRef, err)
-	}
-
-	chartLoaded, err := loader.Load(cp)
-	if err != nil {
-		return nil, fmt.Errorf("load chart: %v", err)
-	}
-
-	return client.Run(chartLoaded, vals)
+	return h.InstallFromReference(chartRef, "", version, releaseName, valuesYAML, "", "")
 }

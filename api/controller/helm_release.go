@@ -24,11 +24,7 @@ func (c *HelmReleaseController) ListReleases(w http.ResponseWriter, r *http.Requ
 }
 
 type installReleaseReq struct {
-	RepoName    string `json:"repo_name"`
-	Chart       string `json:"chart"`
-	Version     string `json:"version"`
-	ReleaseName string `json:"release_name"`
-	Values      string `json:"values"`
+	handler.HelmReleaseInstallRequest
 }
 
 // InstallRelease installs a Helm chart into the tenant's namespace.
@@ -39,9 +35,12 @@ func (c *HelmReleaseController) InstallRelease(w http.ResponseWriter, r *http.Re
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	rel, err := handler.GetHelmReleaseHandler().InstallRelease(
-		tenantName, req.RepoName, req.Chart, req.Version, req.ReleaseName, req.Values,
-	)
+	req.Normalize()
+	if err := req.Validate(); err != nil {
+		httputil.ReturnBcodeError(r, w, httputil.NewErrBadRequest(err))
+		return
+	}
+	rel, err := handler.GetHelmReleaseHandler().InstallRelease(tenantName, req.HelmReleaseInstallRequest)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return

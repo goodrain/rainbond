@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/helm"
@@ -12,6 +13,75 @@ import (
 // repoFile and repoCache are package-level variables from api/handler/helm.go:60-64,
 // accessible here since this file is in the same package.
 type HelmReleaseHandler struct{}
+
+const (
+	HelmReleaseSourceStore  = "store"
+	HelmReleaseSourceRepo   = "repo"
+	HelmReleaseSourceOCI    = "oci"
+	HelmReleaseSourceUpload = "upload"
+)
+
+// HelmReleaseInstallRequest describes all supported install sources.
+type HelmReleaseInstallRequest struct {
+	SourceType  string `json:"source_type"`
+	RepoName    string `json:"repo_name"`
+	RepoURL     string `json:"repo_url"`
+	Chart       string `json:"chart"`
+	ChartName   string `json:"chart_name"`
+	ChartURL    string `json:"chart_url"`
+	Version     string `json:"version"`
+	ReleaseName string `json:"release_name"`
+	Values      string `json:"values"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	EventID     string `json:"event_id"`
+}
+
+func (r *HelmReleaseInstallRequest) Normalize() {
+	r.SourceType = strings.TrimSpace(r.SourceType)
+	if r.SourceType == "" {
+		r.SourceType = HelmReleaseSourceStore
+	}
+	r.Chart = strings.TrimSpace(firstNonEmpty(r.Chart, r.ChartName))
+	r.ChartName = strings.TrimSpace(firstNonEmpty(r.ChartName, r.Chart))
+	r.ChartURL = strings.TrimSpace(r.ChartURL)
+	r.RepoName = strings.TrimSpace(r.RepoName)
+	r.RepoURL = strings.TrimSpace(r.RepoURL)
+	r.ReleaseName = strings.TrimSpace(r.ReleaseName)
+	r.EventID = strings.TrimSpace(r.EventID)
+}
+
+func (r *HelmReleaseInstallRequest) Validate() error {
+	if r.ReleaseName == "" {
+		return fmt.Errorf("release_name is required")
+	}
+	switch r.SourceType {
+	case HelmReleaseSourceStore:
+		if r.RepoName == "" {
+			return fmt.Errorf("repo_name is required for store source")
+		}
+		if r.Chart == "" {
+			return fmt.Errorf("chart is required for store source")
+		}
+	case HelmReleaseSourceRepo:
+		hasRepoChart := r.RepoURL != "" && r.ChartName != ""
+		hasDirectChartURL := r.ChartURL != ""
+		if !hasRepoChart && !hasDirectChartURL {
+			return fmt.Errorf("repo source requires repo_url and chart_name, or chart_url")
+		}
+	case HelmReleaseSourceOCI:
+		if !strings.HasPrefix(r.ChartURL, "oci://") {
+			return fmt.Errorf("oci source requires chart_url with oci:// prefix")
+		}
+	case HelmReleaseSourceUpload:
+		if r.EventID == "" {
+			return fmt.Errorf("event_id is required for upload source")
+		}
+	default:
+		return fmt.Errorf("unsupported source_type %q", r.SourceType)
+	}
+	return nil
+}
 
 func (h *HelmReleaseHandler) newHelm(tenantName string) (*helm.Helm, error) {
 	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
@@ -30,13 +100,37 @@ func (h *HelmReleaseHandler) ListReleases(tenantName string) ([]*helmrelease.Rel
 	return hc.ListReleases()
 }
 
-// InstallRelease installs a chart from a configured Helm repo into the tenant's namespace.
-func (h *HelmReleaseHandler) InstallRelease(tenantName, repoName, chart, version, releaseName, valuesYAML string) (*helmrelease.Release, error) {
+// InstallRelease installs a Helm release from store, repo, OCI or uploaded chart sources.
+func (h *HelmReleaseHandler) InstallRelease(tenantName string, req HelmReleaseInstallRequest) (*helmrelease.Release, error) {
+	req.Normalize()
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	hc, err := h.newHelm(tenantName)
 	if err != nil {
 		return nil, err
 	}
-	return hc.InstallFromRepo(repoName, chart, version, releaseName, valuesYAML)
+	switch req.SourceType {
+	case HelmReleaseSourceStore:
+		return hc.InstallFromRepo(req.RepoName, req.Chart, req.Version, req.ReleaseName, req.Values)
+	case HelmReleaseSourceRepo:
+		chartRef := firstNonEmpty(req.ChartURL, req.ChartName)
+		return hc.InstallFromReference(chartRef, req.RepoURL, req.Version, req.ReleaseName, req.Values, req.Username, req.Password)
+	case HelmReleaseSourceOCI:
+		return hc.InstallFromReference(req.ChartURL, "", req.Version, req.ReleaseName, req.Values, req.Username, req.Password)
+	case HelmReleaseSourceUpload:
+		chartPath, chartVersion, err := GetUploadChartPathAndVersion(req.EventID)
+		if err != nil {
+			return nil, err
+		}
+		version := req.Version
+		if version == "" {
+			version = chartVersion
+		}
+		return hc.InstallFromChartPath(chartPath, version, req.ReleaseName, req.Values)
+	default:
+		return nil, fmt.Errorf("unsupported source_type %q", req.SourceType)
+	}
 }
 
 // UninstallRelease uninstalls a Helm release from the tenant's namespace.
@@ -56,4 +150,13 @@ func GetHelmReleaseHandler() *HelmReleaseHandler {
 		helmReleaseHandler = &HelmReleaseHandler{}
 	}
 	return helmReleaseHandler
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
