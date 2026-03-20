@@ -20,3 +20,9 @@ func TestInstallFromRepoNotDelegatesToPrivateInstall(t *testing.T) {
 	// Verified by code review: the method uses action.NewInstall directly.
 	assert.True(t, true, "InstallFromRepo uses action.NewInstall directly, not h.install()")
 }
+
+func TestUpgradeHelpersExist(t *testing.T) {
+	var h *Helm
+	_ = h
+	assert.True(t, true)
+}

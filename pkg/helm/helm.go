@@ -36,12 +36,14 @@ import (
 
 // ReleaseInfo -
 type ReleaseInfo struct {
-	Revision    int           `json:"revision"`
-	Updated     helmtime.Time `json:"updated"`
-	Status      string        `json:"status"`
-	Chart       string        `json:"chart"`
-	AppVersion  string        `json:"app_version"`
-	Description string        `json:"description"`
+	Revision     int           `json:"revision"`
+	Updated      helmtime.Time `json:"updated"`
+	Status       string        `json:"status"`
+	Chart        string        `json:"chart"`
+	ChartName    string        `json:"chart_name"`
+	ChartVersion string        `json:"chart_version"`
+	AppVersion   string        `json:"app_version"`
+	Description  string        `json:"description"`
 }
 
 // ReleaseHistory -
@@ -505,6 +507,22 @@ func (h *Helm) installLoadedChart(chartPath, releaseName, version, valuesYAML st
 	return client.Run(chartLoaded, vals)
 }
 
+func (h *Helm) upgradeLoadedChart(chartPath, releaseName, version, valuesYAML string) (*release.Release, error) {
+	vals, err := parseValuesYAML(valuesYAML)
+	if err != nil {
+		return nil, err
+	}
+	chartLoaded, err := loader.Load(chartPath)
+	if err != nil {
+		return nil, fmt.Errorf("load chart: %v", err)
+	}
+	removeKubeVersionFromChart(chartLoaded)
+	client := action.NewUpgrade(h.cfg)
+	client.Namespace = h.namespace
+	client.Version = version
+	return client.Run(releaseName, chartLoaded, vals)
+}
+
 func (h *Helm) loginRegistryIfNeeded(chartRef, username, password string) error {
 	if h.cfg.RegistryClient == nil || username == "" {
 		return nil
@@ -568,6 +586,26 @@ func (h *Helm) InstallFromChartPath(chartPath, version, releaseName, valuesYAML 
 	return h.installLoadedChart(chartPath, releaseName, version, valuesYAML)
 }
 
+// UpgradeFromReference upgrades a release from a repo name, repo URL, direct chart URL or OCI reference.
+func (h *Helm) UpgradeFromReference(chartRef, repoURL, version, releaseName, valuesYAML, username, password string) (*release.Release, error) {
+	cp, resolvedVersion, err := h.resolveChartPath(chartRef, repoURL, version, username, password)
+	if err != nil {
+		return nil, err
+	}
+	return h.upgradeLoadedChart(cp, releaseName, resolvedVersion, valuesYAML)
+}
+
+// UpgradeFromChartPath upgrades a release from a local directory or archive path.
+func (h *Helm) UpgradeFromChartPath(chartPath, version, releaseName, valuesYAML string) (*release.Release, error) {
+	return h.upgradeLoadedChart(chartPath, releaseName, version, valuesYAML)
+}
+
+// UpgradeFromRepo upgrades a release from a configured Helm repo directly.
+func (h *Helm) UpgradeFromRepo(repoName, chart, version, releaseName, valuesYAML string) (*release.Release, error) {
+	chartRef := fmt.Sprintf("%s/%s", repoName, chart)
+	return h.UpgradeFromReference(chartRef, "", version, releaseName, valuesYAML, "", "")
+}
+
 // LoadChartFromReference resolves a chart reference and loads chart metadata without installing it.
 func (h *Helm) LoadChartFromReference(chartRef, repoURL, version, username, password string) (*chart.Chart, string, string, error) {
 	cp, resolvedVersion, err := h.resolveChartPath(chartRef, repoURL, version, username, password)
@@ -623,6 +661,10 @@ func getReleaseHistory(rls []*release.Release) (history ReleaseHistory) {
 			Chart:       c,
 			AppVersion:  a,
 			Description: d,
+		}
+		if r.Chart != nil && r.Chart.Metadata != nil {
+			rInfo.ChartName = r.Chart.Metadata.Name
+			rInfo.ChartVersion = r.Chart.Metadata.Version
 		}
 		if !r.Info.LastDeployed.IsZero() {
 			rInfo.Updated = r.Info.LastDeployed

@@ -6,6 +6,7 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	helmcmd "github.com/goodrain/rainbond/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -164,4 +165,48 @@ func TestSummarizeHelmReleaseBuildsStableDTO(t *testing.T) {
 	assert.Equal(t, 3, summary.Version)
 	assert.Equal(t, "demo-namespace", summary.Namespace)
 	assert.Equal(t, "2026-03-20T09:30:00Z", summary.Updated)
+}
+
+func TestSummarizeHelmReleaseHistoryBuildsStableDTO(t *testing.T) {
+	history := helmcmd.ReleaseHistory{
+		{
+			Revision:    3,
+			Updated:     helmtime.Time{Time: time.Date(2026, 3, 20, 7, 20, 0, 0, time.UTC)},
+			Status:      "deployed",
+			Chart:       "nginx-15.10.1",
+			AppVersion:  "1.27.1",
+			Description: "Upgrade complete",
+		},
+		{
+			Revision:    2,
+			Updated:     helmtime.Time{Time: time.Date(2026, 3, 19, 7, 20, 0, 0, time.UTC)},
+			Status:      "superseded",
+			Chart:       "nginx-15.9.0",
+			AppVersion:  "1.27.0",
+			Description: "Rollback complete",
+		},
+	}
+
+	items := summarizeHelmReleaseHistory(history)
+
+	if assert.Len(t, items, 2) {
+		assert.Equal(t, 3, items[0].Revision)
+		assert.Equal(t, "nginx", items[0].Chart)
+		assert.Equal(t, "15.10.1", items[0].ChartVersion)
+		assert.Equal(t, "1.27.1", items[0].AppVersion)
+		assert.Equal(t, "deployed", items[0].Status)
+		assert.Equal(t, "Upgrade complete", items[0].Description)
+		assert.Equal(t, "2026-03-20T07:20:00Z", items[0].Updated)
+	}
+}
+
+func TestHelmReleaseRollbackRequestValidate(t *testing.T) {
+	req := HelmReleaseRollbackRequest{}
+	err := req.Validate()
+	if assert.Error(t, err) {
+		assert.Equal(t, "revision must be greater than 0", err.Error())
+	}
+
+	req.Revision = 2
+	assert.NoError(t, req.Validate())
 }

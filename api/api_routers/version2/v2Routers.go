@@ -461,6 +461,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/helm/releases", controller.GetHelmReleaseController().ListReleases)
 	r.Post("/helm/releases", controller.GetHelmReleaseController().InstallRelease)
 	r.Post("/helm/chart-preview", controller.GetHelmReleaseController().PreviewChart)
+	r.Get("/helm/releases/{release_name}/history", controller.GetHelmReleaseController().GetReleaseHistory)
+	r.Put("/helm/releases/{release_name}", controller.GetHelmReleaseController().UpgradeRelease)
+	r.Post("/helm/releases/{release_name}/rollback", controller.GetHelmReleaseController().RollbackRelease)
 	r.Delete("/helm/releases/{release_name}", controller.GetHelmReleaseController().UninstallRelease)
 
 	// Namespace-scoped resources

@@ -69,6 +69,20 @@ type HelmReleaseSummary struct {
 	Updated      string `json:"updated"`
 }
 
+type HelmReleaseHistoryItem struct {
+	Revision     int    `json:"revision"`
+	Chart        string `json:"chart"`
+	ChartVersion string `json:"chart_version"`
+	AppVersion   string `json:"app_version"`
+	Status       string `json:"status"`
+	Description  string `json:"description"`
+	Updated      string `json:"updated"`
+}
+
+type HelmReleaseRollbackRequest struct {
+	Revision int `json:"revision"`
+}
+
 func (r *HelmReleaseInstallRequest) Normalize() {
 	r.SourceType = strings.TrimSpace(r.SourceType)
 	if r.SourceType == "" {
@@ -143,6 +157,13 @@ func (r *HelmReleaseInstallRequest) ValidateForPreview() error {
 	return nil
 }
 
+func (r *HelmReleaseRollbackRequest) Validate() error {
+	if r.Revision <= 0 {
+		return fmt.Errorf("revision must be greater than 0")
+	}
+	return nil
+}
+
 func (h *HelmReleaseHandler) resolveNamespace(tenantName, namespace string) (string, error) {
 	if strings.TrimSpace(namespace) != "" {
 		return strings.TrimSpace(namespace), nil
@@ -177,6 +198,19 @@ func (h *HelmReleaseHandler) ListReleases(tenantName, namespace string) ([]*Helm
 		summaries = append(summaries, summarizeHelmRelease(release))
 	}
 	return summaries, nil
+}
+
+// GetReleaseHistory returns the Helm revision history for the given release.
+func (h *HelmReleaseHandler) GetReleaseHistory(tenantName, releaseName, namespace string) ([]*HelmReleaseHistoryItem, error) {
+	hc, err := h.newHelm(tenantName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	history, err := hc.History(releaseName)
+	if err != nil {
+		return nil, err
+	}
+	return summarizeHelmReleaseHistory(history), nil
 }
 
 // InstallRelease installs a Helm release from store, repo, OCI or uploaded chart sources.
@@ -223,29 +257,7 @@ func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInst
 		return nil, err
 	}
 
-	var (
-		ch        *chart.Chart
-		chartPath string
-		version   string
-	)
-
-	switch req.SourceType {
-	case HelmReleaseSourceStore:
-		chartRef := fmt.Sprintf("%s/%s", req.RepoName, req.Chart)
-		ch, chartPath, version, err = hc.LoadChartFromReference(chartRef, "", req.Version, "", "")
-	case HelmReleaseSourceRepo:
-		chartRef := firstNonEmpty(req.ChartURL, req.ChartName)
-		ch, chartPath, version, err = hc.LoadChartFromReference(chartRef, req.RepoURL, req.Version, req.Username, req.Password)
-	case HelmReleaseSourceOCI:
-		ch, chartPath, version, err = hc.LoadChartFromReference(req.ChartURL, "", req.Version, req.Username, req.Password)
-	case HelmReleaseSourceUpload:
-		chartPath, version, err = GetUploadChartPathAndVersion(req.EventID)
-		if err == nil {
-			ch, err = hc.LoadChartFromPath(chartPath)
-		}
-	default:
-		err = fmt.Errorf("unsupported source_type %q", req.SourceType)
-	}
+	ch, chartPath, version, err := h.loadTargetChart(hc, req)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +282,40 @@ func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInst
 		preview.AppVersion = ch.Metadata.AppVersion
 	}
 	return preview, nil
+}
+
+// UpgradeRelease upgrades an existing Helm release using a newly specified chart source.
+func (h *HelmReleaseHandler) UpgradeRelease(tenantName, releaseName string, req HelmReleaseInstallRequest) (*helmrelease.Release, error) {
+	req.Normalize()
+	req.ReleaseName = releaseName
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	hc, err := h.newHelm(tenantName, req.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	currentRelease, err := hc.Status(releaseName)
+	if err != nil {
+		return nil, err
+	}
+	targetChart, chartPath, version, err := h.loadTargetChart(hc, req)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateUpgradeChartName(currentRelease, targetChart); err != nil {
+		return nil, err
+	}
+	return hc.UpgradeFromChartPath(chartPath, version, releaseName, req.Values)
+}
+
+// RollbackRelease rolls the given release back to a previous revision.
+func (h *HelmReleaseHandler) RollbackRelease(tenantName, releaseName, namespace string, revision int) error {
+	hc, err := h.newHelm(tenantName, namespace)
+	if err != nil {
+		return err
+	}
+	return hc.Rollback(releaseName, revision)
 }
 
 // UninstallRelease uninstalls a Helm release from the tenant's namespace.
@@ -317,6 +363,26 @@ func summarizeHelmRelease(release *helmrelease.Release) *HelmReleaseSummary {
 	return summary
 }
 
+func summarizeHelmReleaseHistory(history helm.ReleaseHistory) []*HelmReleaseHistoryItem {
+	items := make([]*HelmReleaseHistoryItem, 0, len(history))
+	for _, item := range history {
+		chartName := item.ChartName
+		if chartName == "" {
+			chartName = item.Chart
+		}
+		items = append(items, &HelmReleaseHistoryItem{
+			Revision:     item.Revision,
+			Chart:        chartName,
+			ChartVersion: item.ChartVersion,
+			AppVersion:   item.AppVersion,
+			Status:       item.Status,
+			Description:  item.Description,
+			Updated:      formatHelmReleaseTime(item.Updated.Time),
+		})
+	}
+	return items
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -334,6 +400,53 @@ func helmReleaseNamespace(tenant *dbmodel.Tenants) string {
 		return tenant.Namespace
 	}
 	return tenant.UUID
+}
+
+func formatHelmReleaseTime(ts time.Time) string {
+	if ts.IsZero() {
+		return ""
+	}
+	return ts.UTC().Format(time.RFC3339)
+}
+
+func validateUpgradeChartName(currentRelease *helmrelease.Release, targetChart *chart.Chart) error {
+	if currentRelease == nil || currentRelease.Chart == nil || currentRelease.Chart.Metadata == nil {
+		return nil
+	}
+	if targetChart == nil || targetChart.Metadata == nil {
+		return nil
+	}
+	currentName := strings.TrimSpace(currentRelease.Chart.Metadata.Name)
+	targetName := strings.TrimSpace(targetChart.Metadata.Name)
+	if currentName == "" || targetName == "" {
+		return nil
+	}
+	if currentName != targetName {
+		return fmt.Errorf("upgrade chart name %q does not match current release chart %q", targetName, currentName)
+	}
+	return nil
+}
+
+func (h *HelmReleaseHandler) loadTargetChart(hc *helm.Helm, req HelmReleaseInstallRequest) (*chart.Chart, string, string, error) {
+	switch req.SourceType {
+	case HelmReleaseSourceStore:
+		chartRef := fmt.Sprintf("%s/%s", req.RepoName, req.Chart)
+		return hc.LoadChartFromReference(chartRef, "", req.Version, "", "")
+	case HelmReleaseSourceRepo:
+		chartRef := firstNonEmpty(req.ChartURL, req.ChartName)
+		return hc.LoadChartFromReference(chartRef, req.RepoURL, req.Version, req.Username, req.Password)
+	case HelmReleaseSourceOCI:
+		return hc.LoadChartFromReference(req.ChartURL, "", req.Version, req.Username, req.Password)
+	case HelmReleaseSourceUpload:
+		chartPath, version, err := GetUploadChartPathAndVersion(req.EventID)
+		if err != nil {
+			return nil, "", "", err
+		}
+		ch, err := hc.LoadChartFromPath(chartPath)
+		return ch, chartPath, version, err
+	default:
+		return nil, "", "", fmt.Errorf("unsupported source_type %q", req.SourceType)
+	}
 }
 
 func readChartPreviewFiles(chartPath string) (map[string]string, string, error) {

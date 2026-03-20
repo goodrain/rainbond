@@ -29,6 +29,10 @@ type installReleaseReq struct {
 	handler.HelmReleaseInstallRequest
 }
 
+type rollbackReleaseReq struct {
+	handler.HelmReleaseRollbackRequest
+}
+
 // InstallRelease installs a Helm chart into the tenant's namespace.
 func (c *HelmReleaseController) InstallRelease(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")
@@ -69,6 +73,63 @@ func (c *HelmReleaseController) PreviewChart(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	httputil.ReturnSuccess(r, w, preview)
+}
+
+// GetReleaseHistory lists all revisions for the target release.
+func (c *HelmReleaseController) GetReleaseHistory(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	releaseName := chi.URLParam(r, "release_name")
+	namespace := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	list, err := handler.GetHelmReleaseHandler().GetReleaseHistory(tenantName, releaseName, namespace)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, map[string]interface{}{"list": list, "total": len(list)})
+}
+
+// UpgradeRelease upgrades an existing Helm release using the target chart source in request body.
+func (c *HelmReleaseController) UpgradeRelease(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	releaseName := chi.URLParam(r, "release_name")
+	var req installReleaseReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	req.ReleaseName = releaseName
+	req.Normalize()
+	if err := req.Validate(); err != nil {
+		httputil.ReturnBcodeError(r, w, httputil.NewErrBadRequest(err))
+		return
+	}
+	rel, err := handler.GetHelmReleaseHandler().UpgradeRelease(tenantName, releaseName, req.HelmReleaseInstallRequest)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rel)
+}
+
+// RollbackRelease rolls an existing Helm release back to a previous revision.
+func (c *HelmReleaseController) RollbackRelease(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	releaseName := chi.URLParam(r, "release_name")
+	namespace := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	var req rollbackReleaseReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		httputil.ReturnBcodeError(r, w, httputil.NewErrBadRequest(err))
+		return
+	}
+	if err := handler.GetHelmReleaseHandler().RollbackRelease(tenantName, releaseName, namespace, req.Revision); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 // UninstallRelease removes a Helm release from the tenant's namespace.
