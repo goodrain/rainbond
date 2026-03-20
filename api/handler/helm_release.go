@@ -19,6 +19,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util/constants"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -339,12 +340,12 @@ func (h *HelmReleaseHandler) PreviewChart(tenantName string, req HelmReleaseInst
 
 	ch, chartPath, version, err := h.loadTargetChart(hc, req)
 	if err != nil {
-		return nil, err
+		return nil, wrapHelmChartPreviewSourceError(err)
 	}
 
 	values, readme, err := readChartPreviewFiles(chartPath)
 	if err != nil {
-		return nil, err
+		return nil, wrapHelmChartPreviewSourceError(err)
 	}
 	if version == "" && ch != nil && ch.Metadata != nil {
 		version = ch.Metadata.Version
@@ -648,6 +649,16 @@ func (h *HelmReleaseHandler) loadTargetChart(hc *helm.Helm, req HelmReleaseInsta
 	default:
 		return nil, "", "", fmt.Errorf("unsupported source_type %q", req.SourceType)
 	}
+}
+
+func wrapHelmChartPreviewSourceError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := err.(httputil.ErrBadRequest); ok {
+		return err
+	}
+	return httputil.NewErrBadRequest(err)
 }
 
 func readChartPreviewFiles(chartPath string) (map[string]string, string, error) {

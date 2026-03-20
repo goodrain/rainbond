@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	helmcmd "github.com/goodrain/rainbond/pkg/helm"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/stretchr/testify/assert"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -90,6 +92,24 @@ func TestHelmReleaseInstallRequestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWrapHelmChartPreviewSourceErrorConvertsToBadRequest(t *testing.T) {
+	err := wrapHelmChartPreviewSourceError(fmt.Errorf("locate chart oci://example.com/demo: tls: handshake failure"))
+
+	assert.Error(t, err)
+	_, ok := err.(httputil.ErrBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, "locate chart oci://example.com/demo: tls: handshake failure", err.Error())
+}
+
+func TestWrapHelmChartPreviewSourceErrorPreservesBadRequest(t *testing.T) {
+	original := httputil.NewErrBadRequest(fmt.Errorf("chart_url is required"))
+
+	err := wrapHelmChartPreviewSourceError(original)
+
+	assert.Error(t, err)
+	assert.Equal(t, original, err)
 }
 
 func TestHelmReleaseNamespaceUsesTenantNamespaceWhenPresent(t *testing.T) {
