@@ -32,19 +32,20 @@ const (
 
 // HelmReleaseInstallRequest describes all supported install sources.
 type HelmReleaseInstallRequest struct {
-	SourceType  string `json:"source_type"`
-	Namespace   string `json:"namespace"`
-	RepoName    string `json:"repo_name"`
-	RepoURL     string `json:"repo_url"`
-	Chart       string `json:"chart"`
-	ChartName   string `json:"chart_name"`
-	ChartURL    string `json:"chart_url"`
-	Version     string `json:"version"`
-	ReleaseName string `json:"release_name"`
-	Values      string `json:"values"`
-	Username    string `json:"username"`
-	Password    string `json:"password"`
-	EventID     string `json:"event_id"`
+	SourceType        string `json:"source_type"`
+	Namespace         string `json:"namespace"`
+	RepoName          string `json:"repo_name"`
+	RepoURL           string `json:"repo_url"`
+	Chart             string `json:"chart"`
+	ChartName         string `json:"chart_name"`
+	ChartURL          string `json:"chart_url"`
+	Version           string `json:"version"`
+	ReleaseName       string `json:"release_name"`
+	Values            string `json:"values"`
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	EventID           string `json:"event_id"`
+	AllowChartReplace bool   `json:"allow_chart_replace"`
 }
 
 type HelmReleaseChartPreview struct {
@@ -303,7 +304,7 @@ func (h *HelmReleaseHandler) UpgradeRelease(tenantName, releaseName string, req 
 	if err != nil {
 		return nil, err
 	}
-	if err := validateUpgradeChartName(currentRelease, targetChart); err != nil {
+	if err := validateUpgradeChartName(currentRelease, targetChart, req.AllowChartReplace); err != nil {
 		return nil, err
 	}
 	return hc.UpgradeFromChartPath(chartPath, version, releaseName, req.Values)
@@ -367,13 +368,20 @@ func summarizeHelmReleaseHistory(history helm.ReleaseHistory) []*HelmReleaseHist
 	items := make([]*HelmReleaseHistoryItem, 0, len(history))
 	for _, item := range history {
 		chartName := item.ChartName
-		if chartName == "" {
-			chartName = item.Chart
+		chartVersion := item.ChartVersion
+		if chartName == "" || chartVersion == "" {
+			fallbackChartName, fallbackChartVersion := splitHelmChartLabel(item.Chart)
+			if chartName == "" {
+				chartName = fallbackChartName
+			}
+			if chartVersion == "" {
+				chartVersion = fallbackChartVersion
+			}
 		}
 		items = append(items, &HelmReleaseHistoryItem{
 			Revision:     item.Revision,
 			Chart:        chartName,
-			ChartVersion: item.ChartVersion,
+			ChartVersion: chartVersion,
 			AppVersion:   item.AppVersion,
 			Status:       item.Status,
 			Description:  item.Description,
@@ -409,7 +417,24 @@ func formatHelmReleaseTime(ts time.Time) string {
 	return ts.UTC().Format(time.RFC3339)
 }
 
-func validateUpgradeChartName(currentRelease *helmrelease.Release, targetChart *chart.Chart) error {
+func splitHelmChartLabel(chart string) (string, string) {
+	value := strings.TrimSpace(chart)
+	if value == "" {
+		return "", ""
+	}
+	for index := len(value) - 1; index >= 0; index-- {
+		if value[index] != '-' {
+			continue
+		}
+		if index+1 >= len(value) || (value[index+1] < '0' || value[index+1] > '9') {
+			continue
+		}
+		return value[:index], value[index+1:]
+	}
+	return value, ""
+}
+
+func validateUpgradeChartName(currentRelease *helmrelease.Release, targetChart *chart.Chart, allowChartReplace bool) error {
 	if currentRelease == nil || currentRelease.Chart == nil || currentRelease.Chart.Metadata == nil {
 		return nil
 	}
@@ -422,6 +447,9 @@ func validateUpgradeChartName(currentRelease *helmrelease.Release, targetChart *
 		return nil
 	}
 	if currentName != targetName {
+		if allowChartReplace {
+			return nil
+		}
 		return fmt.Errorf("upgrade chart name %q does not match current release chart %q", targetName, currentName)
 	}
 	return nil

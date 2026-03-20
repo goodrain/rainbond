@@ -210,3 +210,43 @@ func TestHelmReleaseRollbackRequestValidate(t *testing.T) {
 	req.Revision = 2
 	assert.NoError(t, req.Validate())
 }
+
+func TestValidateUpgradeChartNameRejectsMismatchByDefault(t *testing.T) {
+	currentRelease := &helmrelease.Release{
+		Chart: &helmchart.Chart{
+			Metadata: &helmchart.Metadata{
+				Name: "nginx",
+			},
+		},
+	}
+	targetChart := &helmchart.Chart{
+		Metadata: &helmchart.Metadata{
+			Name: "apisix",
+		},
+	}
+
+	err := validateUpgradeChartName(currentRelease, targetChart, false)
+
+	if assert.Error(t, err) {
+		assert.Equal(t, `upgrade chart name "apisix" does not match current release chart "nginx"`, err.Error())
+	}
+}
+
+func TestValidateUpgradeChartNameAllowsMismatchWithExplicitConfirmation(t *testing.T) {
+	currentRelease := &helmrelease.Release{
+		Chart: &helmchart.Chart{
+			Metadata: &helmchart.Metadata{
+				Name: "nginx",
+			},
+		},
+	}
+	targetChart := &helmchart.Chart{
+		Metadata: &helmchart.Metadata{
+			Name: "apisix",
+		},
+	}
+
+	err := validateUpgradeChartName(currentRelease, targetChart, true)
+
+	assert.NoError(t, err)
+}
