@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	rbdmodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	helmcmd "github.com/goodrain/rainbond/pkg/helm"
@@ -167,6 +168,46 @@ func TestSummarizeHelmReleaseBuildsStableDTO(t *testing.T) {
 	assert.Equal(t, "2026-03-20T09:30:00Z", summary.Updated)
 }
 
+func TestSummarizeHelmReleaseDetailBuildsStableDTO(t *testing.T) {
+	release := &helmrelease.Release{
+		Name:      "demo-release",
+		Version:   5,
+		Namespace: "demo-namespace",
+		Config: map[string]interface{}{
+			"replicaCount": 2,
+			"service": map[string]interface{}{
+				"type": "ClusterIP",
+			},
+		},
+		Chart: &helmchart.Chart{
+			Metadata: &helmchart.Metadata{
+				Name:       "grafana",
+				Version:    "8.12.1",
+				AppVersion: "12.1.1",
+			},
+		},
+		Info: &helmrelease.Info{
+			Status:       helmrelease.StatusDeployed,
+			Description:  "Install complete",
+			LastDeployed: helmtime.Time{Time: time.Date(2026, 3, 20, 9, 30, 0, 0, time.UTC)},
+		},
+	}
+
+	summary := summarizeHelmReleaseDetail(release)
+
+	assert.Equal(t, "demo-release", summary.Name)
+	assert.Equal(t, "demo-namespace", summary.Namespace)
+	assert.Equal(t, "grafana", summary.Chart)
+	assert.Equal(t, "8.12.1", summary.ChartVersion)
+	assert.Equal(t, "12.1.1", summary.AppVersion)
+	assert.Equal(t, "deployed", summary.Status)
+	assert.Equal(t, 5, summary.Revision)
+	assert.Equal(t, "Install complete", summary.Description)
+	assert.Equal(t, "2026-03-20T09:30:00Z", summary.Updated)
+	assert.Contains(t, summary.Values, "replicaCount: 2")
+	assert.Contains(t, summary.Values, "type: ClusterIP")
+}
+
 func TestSummarizeHelmReleaseHistoryBuildsStableDTO(t *testing.T) {
 	history := helmcmd.ReleaseHistory{
 		{
@@ -198,6 +239,45 @@ func TestSummarizeHelmReleaseHistoryBuildsStableDTO(t *testing.T) {
 		assert.Equal(t, "Upgrade complete", items[0].Description)
 		assert.Equal(t, "2026-03-20T07:20:00Z", items[0].Updated)
 	}
+}
+
+func TestSplitHelmReleaseResourcesClassifiesKinds(t *testing.T) {
+	resources := []NsResourceInfo{
+		{Name: "web", Kind: rbdmodel.Deployment},
+		{Name: "daemon", Kind: "DaemonSet"},
+		{Name: "svc", Kind: rbdmodel.Service},
+		{Name: "cfg", Kind: rbdmodel.ConfigMap},
+		{Name: "secret", Kind: rbdmodel.Secret},
+	}
+
+	workloads, services, others := splitHelmReleaseResources(resources)
+
+	if assert.Len(t, workloads, 2) {
+		assert.Equal(t, "web", workloads[0].Name)
+		assert.Equal(t, "daemon", workloads[1].Name)
+	}
+	if assert.Len(t, services, 1) {
+		assert.Equal(t, "svc", services[0].Name)
+	}
+	if assert.Len(t, others, 2) {
+		assert.Equal(t, "cfg", others[0].Name)
+		assert.Equal(t, "secret", others[1].Name)
+	}
+}
+
+func TestIsHelmReleaseResourceMatchesManagedByAndInstanceLabels(t *testing.T) {
+	assert.True(t, isHelmReleaseResource(map[string]string{
+		"app.kubernetes.io/managed-by": "Helm",
+		"app.kubernetes.io/instance":   "demo-release",
+	}, "demo-release"))
+	assert.False(t, isHelmReleaseResource(map[string]string{
+		"app.kubernetes.io/managed-by": "Helm",
+		"app.kubernetes.io/instance":   "other-release",
+	}, "demo-release"))
+	assert.False(t, isHelmReleaseResource(map[string]string{
+		"app.kubernetes.io/managed-by": "rainbond",
+		"app.kubernetes.io/instance":   "demo-release",
+	}, "demo-release"))
 }
 
 func TestHelmReleaseRollbackRequestValidate(t *testing.T) {

@@ -88,6 +88,19 @@ func (c *HelmReleaseController) GetReleaseHistory(w http.ResponseWriter, r *http
 	httputil.ReturnSuccess(r, w, map[string]interface{}{"list": list, "total": len(list)})
 }
 
+// GetReleaseDetail returns the current Helm release details and related resources.
+func (c *HelmReleaseController) GetReleaseDetail(w http.ResponseWriter, r *http.Request) {
+	tenantName := chi.URLParam(r, "tenant_name")
+	releaseName := chi.URLParam(r, "release_name")
+	namespace := strings.TrimSpace(r.URL.Query().Get("namespace"))
+	detail, err := handler.GetHelmReleaseHandler().GetReleaseDetail(tenantName, releaseName, namespace)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, detail)
+}
+
 // UpgradeRelease upgrades an existing Helm release using the target chart source in request body.
 func (c *HelmReleaseController) UpgradeRelease(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")

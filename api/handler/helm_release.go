@@ -3,19 +3,29 @@ package handler
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	rbdmodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/helm"
+	"github.com/goodrain/rainbond/util/constants"
 	"helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sapimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 // HelmReleaseHandler handles Helm release operations for a tenant namespace.
@@ -80,8 +90,49 @@ type HelmReleaseHistoryItem struct {
 	Updated      string `json:"updated"`
 }
 
+type HelmReleaseDetailSummary struct {
+	Name         string `json:"name"`
+	Namespace    string `json:"namespace"`
+	Status       string `json:"status"`
+	Chart        string `json:"chart"`
+	ChartVersion string `json:"chart_version"`
+	AppVersion   string `json:"app_version"`
+	Revision     int    `json:"revision"`
+	Description  string `json:"description"`
+	Updated      string `json:"updated"`
+	Values       string `json:"values"`
+}
+
+type HelmReleaseDetail struct {
+	Summary   *HelmReleaseDetailSummary `json:"summary"`
+	Workloads []NsResourceInfo          `json:"workloads"`
+	Services  []NsResourceInfo          `json:"services"`
+	Others    []NsResourceInfo          `json:"others"`
+	History   []*HelmReleaseHistoryItem `json:"history"`
+}
+
 type HelmReleaseRollbackRequest struct {
 	Revision int `json:"revision"`
+}
+
+var helmReleaseResourceTargets = []schema.GroupVersionResource{
+	{Group: "apps", Version: "v1", Resource: "deployments"},
+	{Group: "apps", Version: "v1", Resource: "statefulsets"},
+	{Group: "apps", Version: "v1", Resource: "daemonsets"},
+	{Group: "batch", Version: "v1", Resource: "jobs"},
+	{Group: "batch", Version: "v1", Resource: "cronjobs"},
+	{Group: "", Version: "v1", Resource: "services"},
+	{Group: "", Version: "v1", Resource: "configmaps"},
+	{Group: "", Version: "v1", Resource: "secrets"},
+	{Group: "", Version: "v1", Resource: "serviceaccounts"},
+	{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+	{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "roles"},
+	{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"},
+	{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
+	{Group: "autoscaling", Version: "v2", Resource: "horizontalpodautoscalers"},
+	{Group: "gateway.networking.k8s.io", Version: "v1beta1", Resource: "gateways"},
+	{Group: "gateway.networking.k8s.io", Version: "v1beta1", Resource: "httproutes"},
+	{Group: "rollouts.kruise.io", Version: "v1alpha1", Resource: "rollouts"},
 }
 
 func (r *HelmReleaseInstallRequest) Normalize() {
@@ -212,6 +263,34 @@ func (h *HelmReleaseHandler) GetReleaseHistory(tenantName, releaseName, namespac
 		return nil, err
 	}
 	return summarizeHelmReleaseHistory(history), nil
+}
+
+// GetReleaseDetail returns the Helm release status, values, history and related namespace resources.
+func (h *HelmReleaseHandler) GetReleaseDetail(tenantName, releaseName, namespace string) (*HelmReleaseDetail, error) {
+	hc, err := h.newHelm(tenantName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	release, err := hc.Status(releaseName)
+	if err != nil {
+		return nil, err
+	}
+	history, err := hc.History(releaseName)
+	if err != nil {
+		return nil, err
+	}
+	resources, err := h.listReleaseResources(tenantName, releaseName, release.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	workloads, services, others := splitHelmReleaseResources(resources)
+	return &HelmReleaseDetail{
+		Summary:   summarizeHelmReleaseDetail(release),
+		Workloads: workloads,
+		Services:  services,
+		Others:    others,
+		History:   summarizeHelmReleaseHistory(history),
+	}, nil
 }
 
 // InstallRelease installs a Helm release from store, repo, OCI or uploaded chart sources.
@@ -364,6 +443,30 @@ func summarizeHelmRelease(release *helmrelease.Release) *HelmReleaseSummary {
 	return summary
 }
 
+func summarizeHelmReleaseDetail(release *helmrelease.Release) *HelmReleaseDetailSummary {
+	summary := &HelmReleaseDetailSummary{}
+	if release == nil {
+		return summary
+	}
+	summary.Name = release.Name
+	summary.Namespace = release.Namespace
+	summary.Revision = release.Version
+	summary.Values = marshalHelmReleaseValues(release.Config)
+	if release.Chart != nil && release.Chart.Metadata != nil {
+		summary.Chart = release.Chart.Metadata.Name
+		summary.ChartVersion = release.Chart.Metadata.Version
+		summary.AppVersion = release.Chart.Metadata.AppVersion
+	}
+	if release.Info != nil {
+		summary.Status = release.Info.Status.String()
+		summary.Description = release.Info.Description
+		if !release.Info.LastDeployed.Time.IsZero() {
+			summary.Updated = release.Info.LastDeployed.Time.UTC().Format(time.RFC3339)
+		}
+	}
+	return summary
+}
+
 func summarizeHelmReleaseHistory(history helm.ReleaseHistory) []*HelmReleaseHistoryItem {
 	items := make([]*HelmReleaseHistoryItem, 0, len(history))
 	for _, item := range history {
@@ -389,6 +492,76 @@ func summarizeHelmReleaseHistory(history helm.ReleaseHistory) []*HelmReleaseHist
 		})
 	}
 	return items
+}
+
+func marshalHelmReleaseValues(values map[string]interface{}) string {
+	if len(values) == 0 {
+		return ""
+	}
+	data, err := yaml.Marshal(values)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func isHelmReleaseResource(labels map[string]string, releaseName string) bool {
+	if len(labels) == 0 || strings.TrimSpace(releaseName) == "" {
+		return false
+	}
+	return labels[constants.ResourceManagedByLabel] == "Helm" &&
+		labels[constants.ResourceInstanceLabel] == releaseName
+}
+
+func splitHelmReleaseResources(resources []NsResourceInfo) ([]NsResourceInfo, []NsResourceInfo, []NsResourceInfo) {
+	workloads := make([]NsResourceInfo, 0)
+	services := make([]NsResourceInfo, 0)
+	others := make([]NsResourceInfo, 0)
+	for _, resource := range resources {
+		switch resource.Kind {
+		case rbdmodel.Deployment, rbdmodel.StateFulSet, "DaemonSet", rbdmodel.Job, rbdmodel.CronJob, rbdmodel.Rollout:
+			workloads = append(workloads, resource)
+		case rbdmodel.Service:
+			services = append(services, resource)
+		default:
+			others = append(others, resource)
+		}
+	}
+	return workloads, services, others
+}
+
+func (h *HelmReleaseHandler) listReleaseResources(tenantName, releaseName, namespace string) ([]NsResourceInfo, error) {
+	ns := strings.TrimSpace(namespace)
+	if ns == "" {
+		resolvedNamespace, err := h.resolveNamespace(tenantName, namespace)
+		if err != nil {
+			return nil, err
+		}
+		ns = resolvedNamespace
+	}
+	resources := make([]NsResourceInfo, 0, 16)
+	for _, gvr := range helmReleaseResourceTargets {
+		list, err := k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			if k8sapimeta.IsNoMatchError(err) || k8sapierrors.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		for _, item := range list.Items {
+			if !isHelmReleaseResource(item.GetLabels(), releaseName) {
+				continue
+			}
+			resources = append(resources, toNsResourceInfo(item))
+		}
+	}
+	sort.Slice(resources, func(i, j int) bool {
+		if resources[i].Kind == resources[j].Kind {
+			return resources[i].Name < resources[j].Name
+		}
+		return resources[i].Kind < resources[j].Kind
+	})
+	return resources, nil
 }
 
 func firstNonEmpty(values ...string) string {
