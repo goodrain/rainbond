@@ -1,9 +1,10 @@
 package apigateway
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -305,9 +306,19 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		},
 	}, v1.CreateOptions{})
 	if err == nil {
-		name := r.URL.Query().Get("name")
-		if name != "" {
-			name = removeLeadingDigits(name)
+		name, found, err := resolveRouteName(
+			r.Context(),
+			tenant.Namespace,
+			r.URL.Query().Get("name"),
+			r.URL.Query().Get("intID"),
+			r.URL.Query().Get("service_alias"),
+		)
+		if err != nil {
+			logrus.Errorf("resolve route %v failure: %v", r.URL.Query().Get("name"), err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("resolve route error: %v", err))
+			return
+		}
+		if found {
 			err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("delete route %v failure: %v", name, err)
@@ -363,11 +374,22 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	var deleteName = make([]string, 0)
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-	name := chi.URLParam(r, "name")
-	name = removeLeadingDigits(name)
+	rawName := chi.URLParam(r, "name")
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
-	err := c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+	name, found, err := resolveRouteName(r.Context(), tenant.Namespace, rawName, "", "")
+	if err != nil {
+		logrus.Errorf("resolve route %v failure: %v", rawName, err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("resolve route error: %v", err))
+		return
+	}
+	if !found {
+		logrus.Errorf("delete route error route %s not found", rawName)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+		return
+	}
+
+	err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err == nil {
 		deleteName = append(deleteName, name)
 		httputil.ReturnSuccess(r, w, deleteName)
@@ -623,26 +645,100 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, name)
 }
 
-func removeLeadingDigits(name string) string {
-	// 使用正则表达式移除开头的数字
-	re := regexp.MustCompile(`^\d+`)
-	name = re.ReplaceAllString(name, "")
-
-	// 按照 "-" 切割
-	parts := strings.Split(name, "-")
-
-	// 如果切割后长度小于等于1，直接返回空字符串
-	if len(parts) <= 1 {
+func normalizeLegacyRouteName(name, appID, serviceAlias string) string {
+	if name == "" {
 		return ""
 	}
 
-	// 如果最后一个部分是 "s"，直接返回整个字符串
-	if parts[len(parts)-1] == "s" {
-		return name
+	// Newer callers should pass the actual route name directly.
+	if strings.Contains(name, "|") {
+		parts := strings.SplitN(name, "|", 3)
+		if len(parts) >= 2 && parts[1] != "" {
+			return parts[1]
+		}
 	}
 
-	// 移除最后一个部分并重新拼接
-	return strings.Join(parts[:len(parts)-1], "-")
+	// Legacy UI used "{appID}{routeName}-{serviceAlias}" as a display name. Only
+	// try to decode that format when we have enough context; otherwise preserve
+	// the original value so numeric-leading real route names are not corrupted.
+	if appID != "" && strings.HasPrefix(name, appID) && serviceAlias != "" {
+		trimmed := strings.TrimPrefix(name, appID)
+		for _, alias := range strings.Split(serviceAlias, ",") {
+			alias = strings.TrimSpace(alias)
+			if alias == "" {
+				continue
+			}
+			suffix := "-" + alias
+			if strings.HasSuffix(trimmed, suffix) {
+				return strings.TrimSuffix(trimmed, suffix)
+			}
+		}
+	}
+
+	return name
+}
+
+func routeAliasCandidates(routeName string, labels map[string]string) []string {
+	candidates := []string{routeName}
+	appID := labels["app_id"]
+	if appID == "" {
+		return candidates
+	}
+
+	candidates = append(candidates, appID+routeName)
+
+	var aliases []string
+	for labelK, labelV := range labels {
+		if labelV == "service_alias" {
+			aliases = append(aliases, labelK)
+		}
+	}
+	if len(aliases) == 0 {
+		return candidates
+	}
+
+	sort.Strings(aliases)
+	suffix := "-" + strings.Join(aliases, "-")
+	candidates = append(candidates, appID+routeName+suffix)
+	candidates = append(candidates, appID+"|"+routeName+"|"+suffix)
+	return candidates
+}
+
+func resolveRouteName(ctx context.Context, namespace, rawName, appID, serviceAlias string) (string, bool, error) {
+	if rawName == "" {
+		return "", false, nil
+	}
+
+	c := k8s.Default().ApiSixClient.ApisixV2()
+	if _, err := c.ApisixRoutes(namespace).Get(ctx, rawName, v1.GetOptions{}); err == nil {
+		return rawName, true, nil
+	} else if !errors.IsNotFound(err) {
+		return "", false, err
+	}
+
+	normalized := normalizeLegacyRouteName(rawName, appID, serviceAlias)
+	if normalized != rawName {
+		if _, err := c.ApisixRoutes(namespace).Get(ctx, normalized, v1.GetOptions{}); err == nil {
+			return normalized, true, nil
+		} else if !errors.IsNotFound(err) {
+			return "", false, err
+		}
+	}
+
+	list, err := c.ApisixRoutes(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return "", false, err
+	}
+
+	for _, item := range list.Items {
+		for _, candidate := range routeAliasCandidates(item.Name, item.Labels) {
+			if rawName == candidate || normalized == candidate {
+				return item.Name, true, nil
+			}
+		}
+	}
+
+	return "", false, nil
 }
 
 func (g Struct) CheckCertManager(w http.ResponseWriter, r *http.Request) {
@@ -700,7 +796,17 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "domains cannot be empty")
 		return
 	}
-	req.RouteName = removeLeadingDigits(req.RouteName)
+	routeName, found, err := resolveRouteName(r.Context(), tenant.Namespace, req.RouteName, req.RegionAppID, "")
+	if err != nil {
+		logrus.Errorf("resolve route %v failure: %v", req.RouteName, err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("resolve route error: %v", err))
+		return
+	}
+	if !found {
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("route %s not found", req.RouteName))
+		return
+	}
+	req.RouteName = routeName
 	cert := &cmapi.Certificate{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      req.RouteName,
@@ -942,8 +1048,16 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "route_name is required")
 		return
 	}
-
-	RouteName = removeLeadingDigits(RouteName)
+	RouteName, found, err := resolveRouteName(r.Context(), tenant.Namespace, RouteName, "", "")
+	if err != nil {
+		logrus.Errorf("resolve route %v failure: %v", r.URL.Query().Get("route_name"), err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("resolve route error: %v", err))
+		return
+	}
+	if !found {
+		httputil.ReturnSuccess(r, w, nil)
+		return
+	}
 
 	// 删除 Certificate 资源
 	scheme := runtime.NewScheme()
