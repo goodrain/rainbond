@@ -7,7 +7,7 @@ import (
 )
 
 func TestCacheOperations(t *testing.T) {
-	m := NewManager(make(chan Update))
+	m := NewManager(make(chan Update, 1))
 
 	unsetID := "unset"
 	setID := "set"

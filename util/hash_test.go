@@ -18,10 +18,20 @@
 
 package util
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestCreateFileHash(t *testing.T) {
-	if err := CreateFileHash("/tmp/hashtest", "/tmp/hashtest.md5"); err != nil {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "hashtest")
+	target := filepath.Join(dir, "hashtest.md5")
+	if err := os.WriteFile(source, []byte("rainbond"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CreateFileHash(source, target); err != nil {
 		t.Fatal(err)
 	}
 }

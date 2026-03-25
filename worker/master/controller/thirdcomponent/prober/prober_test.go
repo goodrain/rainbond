@@ -102,9 +102,7 @@ func TestProbe(t *testing.T) {
 		test := tests[i]
 		_ = test
 
-		prober := &prober{
-			recorder: &record.FakeRecorder{},
-		}
+		prober := newProber(&record.FakeRecorder{})
 		thirdComponent := &v1alpha1.ThirdComponent{
 			Spec: v1alpha1.ThirdComponentSpec{
 				Probe: test.probe,

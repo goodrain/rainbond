@@ -20,6 +20,7 @@ package exector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/parser"
@@ -42,6 +43,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
@@ -51,41 +53,43 @@ import (
 
 // SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
-	Namespace     string       `json:"namespace"`
-	TenantName    string       `json:"tenant_name"`
-	GRDataPVCName string       `json:"gr_data_pvc_name"`
-	CachePVCName  string       `json:"cache_pvc_name"`
-	CacheMode     string       `json:"cache_mode"`
-	CachePath     string       `json:"cache_path"`
-	ServiceAlias  string       `json:"service_alias"`
-	Action        string       `json:"action"`
-	Arch          string       `json:"arch"`
-	DestImage     string       `json:"dest_image"`
-	Logger        event.Logger `json:"logger"`
-	EventID       string       `json:"event_id"`
-	CacheDir      string       `json:"cache_dir"`
-	TGZDir        string       `json:"tgz_dir"`
-	ImageClient   sources.ImageClient
-	BuildKitImage string
-	BuildKitArgs  []string
-	BuildKitCache bool
-	KubeClient    kubernetes.Interface
-	RbdNamespace  string
-	RbdRepoName   string
-	TenantID      string
-	ServiceID     string
-	DeployVersion string
-	Lang          string
-	Runtime       string
-	BuildType     string // cnb or slug
-	BuildEnvs     map[string]string
-	CodeSouceInfo sources.CodeSourceInfo
-	RepoInfo      *sources.RepostoryBuildInfo
-	commit        Commit
-	Configs       map[string]gjson.Result `json:"configs"`
-	Ctx           context.Context
-	FailCause     string
-	BRVersion     string
+	Namespace        string       `json:"namespace"`
+	TenantName       string       `json:"tenant_name"`
+	GRDataPVCName    string       `json:"gr_data_pvc_name"`
+	CachePVCName     string       `json:"cache_pvc_name"`
+	CacheMode        string       `json:"cache_mode"`
+	CachePath        string       `json:"cache_path"`
+	ServiceAlias     string       `json:"service_alias"`
+	Action           string       `json:"action"`
+	Arch             string       `json:"arch"`
+	DestImage        string       `json:"dest_image"`
+	Logger           event.Logger `json:"logger"`
+	EventID          string       `json:"event_id"`
+	CacheDir         string       `json:"cache_dir"`
+	TGZDir           string       `json:"tgz_dir"`
+	ImageClient      sources.ImageClient
+	BuildKitImage    string
+	BuildKitArgs     []string
+	BuildKitCache    bool
+	KubeClient       kubernetes.Interface
+	RbdNamespace     string
+	RbdRepoName      string
+	TenantID         string
+	ServiceID        string
+	DeployVersion    string
+	Lang             string
+	Runtime          string
+	BuildType        string // cnb or slug
+	BuildStrategy    string // cnb or slug
+	BuildEnvs        map[string]string
+	CNBVersionPolicy *build.CNBVersionPolicy
+	CodeSouceInfo    sources.CodeSourceInfo
+	RepoInfo         *sources.RepostoryBuildInfo
+	commit           Commit
+	Configs          map[string]gjson.Result `json:"configs"`
+	Ctx              context.Context
+	FailCause        string
+	BRVersion        string
 }
 
 // Commit code Commit
@@ -116,34 +120,87 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		logrus.Errorf("unmarshal build envs error: %s", err.Error())
 	}
 	scb := &SourceCodeBuildItem{
-		Namespace:     gjson.GetBytes(in, "tenant_id").String(),
-		RbdNamespace:  configs.Default().PublicConfig.RbdNamespace,
-		RbdRepoName:   configs.Default().ChaosConfig.RbdRepoName,
-		CachePVCName:  configs.Default().ChaosConfig.CachePVCName,
-		GRDataPVCName: configs.Default().ChaosConfig.GRDataPVCName,
-		CacheMode:     configs.Default().ChaosConfig.CacheMode,
-		CachePath:     configs.Default().ChaosConfig.CachePath,
-		BRVersion:     configs.Default().ChaosConfig.BRVersion,
-		TenantName:    gjson.GetBytes(in, "tenant_name").String(),
-		ServiceAlias:  gjson.GetBytes(in, "service_alias").String(),
-		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
-		ServiceID:     gjson.GetBytes(in, "service_id").String(),
-		Action:        gjson.GetBytes(in, "action").String(),
-		Arch:          gjson.GetBytes(in, "arch").String(),
-		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
-		Logger:        logger,
-		EventID:       eventID,
-		CodeSouceInfo: csi,
-		Lang:          gjson.GetBytes(in, "lang").String(),
-		Runtime:       gjson.GetBytes(in, "runtime").String(),
-		BuildType:     gjson.GetBytes(in, "build_type").String(),
-		Configs:       gjson.GetBytes(in, "configs").Map(),
-		BuildEnvs:     be,
+		Namespace:        gjson.GetBytes(in, "tenant_id").String(),
+		RbdNamespace:     configs.Default().PublicConfig.RbdNamespace,
+		RbdRepoName:      configs.Default().ChaosConfig.RbdRepoName,
+		CachePVCName:     configs.Default().ChaosConfig.CachePVCName,
+		GRDataPVCName:    configs.Default().ChaosConfig.GRDataPVCName,
+		CacheMode:        configs.Default().ChaosConfig.CacheMode,
+		CachePath:        configs.Default().ChaosConfig.CachePath,
+		BRVersion:        configs.Default().ChaosConfig.BRVersion,
+		TenantName:       gjson.GetBytes(in, "tenant_name").String(),
+		ServiceAlias:     gjson.GetBytes(in, "service_alias").String(),
+		TenantID:         gjson.GetBytes(in, "tenant_id").String(),
+		ServiceID:        gjson.GetBytes(in, "service_id").String(),
+		Action:           gjson.GetBytes(in, "action").String(),
+		Arch:             gjson.GetBytes(in, "arch").String(),
+		DeployVersion:    gjson.GetBytes(in, "deploy_version").String(),
+		Logger:           logger,
+		EventID:          eventID,
+		CodeSouceInfo:    csi,
+		Lang:             gjson.GetBytes(in, "lang").String(),
+		Runtime:          gjson.GetBytes(in, "runtime").String(),
+		BuildType:        gjson.GetBytes(in, "build_type").String(),
+		BuildStrategy:    parseSourceBuildStrategy(in),
+		Configs:          gjson.GetBytes(in, "configs").Map(),
+		BuildEnvs:        be,
+		CNBVersionPolicy: parseCNBVersionPolicy(in),
 	}
 	scb.CacheDir = fmt.Sprintf("/cache/build/%s/cache/%s", scb.TenantID, scb.ServiceID)
 	//scb.SourceDir = scb.CodeSouceInfo.GetCodeSourceDir()
 	scb.TGZDir = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s", scb.TenantID, scb.ServiceID)
 	return scb
+}
+
+var hasEnterpriseCNBPlugin = func() bool {
+	component := k8s.Default()
+	if component == nil || component.RainbondClient == nil {
+		return false
+	}
+	_, err := component.RainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Get(
+		context.TODO(), "rainbond-enterprise-base", metav1.GetOptions{})
+	return err == nil
+}
+
+func parseSourceBuildStrategy(in []byte) string {
+	buildStrategy := strings.TrimSpace(gjson.GetBytes(in, "build_strategy").String())
+	if buildStrategy != "" {
+		return buildStrategy
+	}
+	return strings.TrimSpace(gjson.GetBytes(in, "build_type").String())
+}
+
+func parseCNBVersionPolicy(in []byte) *build.CNBVersionPolicy {
+	raw := gjson.GetBytes(in, "cnb_version_policy").Raw
+	if raw == "" || raw == "null" {
+		return nil
+	}
+	policy := &build.CNBVersionPolicy{}
+	if err := ffjson.Unmarshal([]byte(raw), policy); err != nil {
+		logrus.Errorf("unmarshal cnb version policy error: %v", err)
+		return nil
+	}
+	if len(policy.Languages) == 0 && policy.Version == 0 {
+		return nil
+	}
+	return policy
+}
+
+func (i *SourceCodeBuildItem) validateCNBVersionPolicy() error {
+	buildStrategy := strings.TrimSpace(i.BuildStrategy)
+	if buildStrategy == "" {
+		buildStrategy = strings.TrimSpace(i.BuildType)
+	}
+	if buildStrategy != "cnb" {
+		return nil
+	}
+	if i.CNBVersionPolicy != nil {
+		return nil
+	}
+	if !hasEnterpriseCNBPlugin() {
+		return nil
+	}
+	return fmt.Errorf("cnb_version_policy is required for enterprise cnb builds")
 }
 
 // Run Run
@@ -335,7 +392,9 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	i.Logger.Info("pull or clone code successfully, start code build", map[string]string{"step": "codee-version"})
 	res, err := i.codeBuild()
 	if err != nil {
-		if err.Error() == context.DeadlineExceeded.Error() {
+		if build.IsLegacySlugSourceBuildDisabled(err) {
+			i.FailCause = err.Error()
+		} else if errors.Is(err, context.DeadlineExceeded) {
 			failCause := util.Translation("Build timeout, exceeded maximum build time of 60 minutes, please check build logs")
 			i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 			i.FailCause = failCause
@@ -353,7 +412,14 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 }
 
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
-	codeBuild, err := build.GetBuildByType(code.Lang(i.Lang), i.BuildType)
+	if err := i.validateCNBVersionPolicy(); err != nil {
+		return nil, err
+	}
+	buildType := strings.TrimSpace(i.BuildStrategy)
+	if buildType == "" {
+		buildType = strings.TrimSpace(i.BuildType)
+	}
+	codeBuild, err := build.GetBuildByType(code.Lang(i.Lang), buildType)
 	// Handle Node.js projects with DOCKERFILE mode
 	// Check for Node.js language (including combined types like "Node.js,static")
 	if strings.Contains(i.Lang, string(code.Nodejs)) && i.BuildEnvs["MODE"] == "DOCKERFILE" {
@@ -361,6 +427,10 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	}
 	if err != nil {
 		logrus.Errorf("get code build error: %s lang %s", err.Error(), i.Lang)
+		if build.IsLegacySlugSourceBuildDisabled(err) {
+			i.Logger.Error(err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
+			return nil, err
+		}
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
@@ -370,36 +440,38 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		return nil, err
 	}
 	buildReq := &build.Request{
-		BuildKitImage: i.BuildKitImage,
-		BuildKitArgs:  i.BuildKitArgs,
-		BuildKitCache: i.BuildKitCache,
-		RbdNamespace:  i.RbdNamespace,
-		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
-		CacheDir:      i.CacheDir,
-		TGZDir:        i.TGZDir,
-		RepositoryURL: i.RepoInfo.RepostoryURL,
-		CodeSouceInfo: i.CodeSouceInfo,
-		ServiceAlias:  i.ServiceAlias,
-		ServiceID:     i.ServiceID,
-		TenantID:      i.TenantID,
-		ServerType:    i.CodeSouceInfo.ServerType,
-		Runtime:       i.Runtime,
-		Branch:        i.CodeSouceInfo.Branch,
-		DeployVersion: i.DeployVersion,
-		Commit:        build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
-		Lang:          code.Lang(i.Lang),
-		BuildEnvs:     i.BuildEnvs,
-		Logger:        i.Logger,
-		ImageClient:   i.ImageClient,
-		KubeClient:    i.KubeClient,
-		HostAlias:     hostAlias,
-		Ctx:           i.Ctx,
-		GRDataPVCName: i.GRDataPVCName,
-		CachePVCName:  i.CachePVCName,
-		CacheMode:     i.CacheMode,
-		CachePath:     i.CachePath,
-		Arch:          i.Arch,
-		BRVersion:     i.BRVersion,
+		BuildKitImage:    i.BuildKitImage,
+		BuildKitArgs:     i.BuildKitArgs,
+		BuildKitCache:    i.BuildKitCache,
+		RbdNamespace:     i.RbdNamespace,
+		SourceDir:        i.RepoInfo.GetCodeBuildAbsPath(),
+		CacheDir:         i.CacheDir,
+		TGZDir:           i.TGZDir,
+		RepositoryURL:    i.RepoInfo.RepostoryURL,
+		CodeSouceInfo:    i.CodeSouceInfo,
+		ServiceAlias:     i.ServiceAlias,
+		ServiceID:        i.ServiceID,
+		TenantID:         i.TenantID,
+		ServerType:       i.CodeSouceInfo.ServerType,
+		Runtime:          i.Runtime,
+		BuildStrategy:    i.BuildStrategy,
+		CNBVersionPolicy: i.CNBVersionPolicy,
+		Branch:           i.CodeSouceInfo.Branch,
+		DeployVersion:    i.DeployVersion,
+		Commit:           build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
+		Lang:             code.Lang(i.Lang),
+		BuildEnvs:        i.BuildEnvs,
+		Logger:           i.Logger,
+		ImageClient:      i.ImageClient,
+		KubeClient:       i.KubeClient,
+		HostAlias:        hostAlias,
+		Ctx:              i.Ctx,
+		GRDataPVCName:    i.GRDataPVCName,
+		CachePVCName:     i.CachePVCName,
+		CacheMode:        i.CacheMode,
+		CachePath:        i.CachePath,
+		Arch:             i.Arch,
+		BRVersion:        i.BRVersion,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

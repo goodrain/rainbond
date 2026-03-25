@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/builder/build"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -12,6 +13,7 @@ import (
 // Generic BP_* passthrough is handled here.
 func (b *Builder) buildPlatformAnnotations(re *build.Request) map[string]string {
 	annotations := make(map[string]string)
+	addDebugAnnotations(re, annotations)
 
 	// Language-specific annotations
 	lang := getLanguageConfig(re)
@@ -28,6 +30,43 @@ func (b *Builder) buildPlatformAnnotations(re *build.Request) map[string]string 
 	}
 
 	return annotations
+}
+
+func addDebugAnnotations(re *build.Request, annotations map[string]string) {
+	if lang := cnbDebugLanguage(re); lang != "" {
+		annotations["rainbond.io/cnb-language"] = lang
+	}
+	if procfile := strings.TrimSpace(re.BuildEnvs["BUILD_PROCFILE"]); procfile != "" {
+		annotations["rainbond.io/cnb-start-command-source"] = "procfile"
+		annotations["rainbond.io/cnb-start-command-hint"] = procfile
+		return
+	}
+	if startScript := strings.TrimSpace(re.BuildEnvs["CNB_START_SCRIPT"]); startScript != "" {
+		annotations["rainbond.io/cnb-start-command-source"] = "script"
+		annotations["rainbond.io/cnb-start-command-hint"] = startScript
+	}
+}
+
+func cnbDebugLanguage(re *build.Request) string {
+	switch re.Lang {
+	case code.JavaMaven, code.JaveWar, code.JavaJar, code.Gradle:
+		return "java"
+	case code.Python:
+		return "python"
+	case code.Golang:
+		return "golang"
+	case code.PHP:
+		return "php"
+	case code.NetCore:
+		return "dotnet"
+	case code.Static:
+		return "static"
+	default:
+		if strings.Contains(strings.ToLower(string(re.Lang)), "node") {
+			return "nodejs"
+		}
+		return ""
+	}
 }
 
 // bpEnvToAnnotationKey converts a BP_* env var name to a cnb annotation key.

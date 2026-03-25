@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Node.js mirror defaults
@@ -79,6 +80,10 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 		annotations["cnb-bp-web-server-root"] = outputDir
 		annotations["cnb-bp-web-server-enable-push-state"] = "true"
 	}
+}
+
+func (n *nodejsConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
+	return nil
 }
 
 // InjectMirrorConfig injects .npmrc and .yarnrc for npm/yarn/pnpm registry configuration.

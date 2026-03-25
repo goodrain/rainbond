@@ -27,6 +27,7 @@ import (
 )
 
 func TestEtcd_Watch(t *testing.T) {
+	t.Skip("integration test depends on local etcd endpoint")
 	cfg := &model.ThirdPartySvcDiscoveryCfg{
 		Type:    model.DiscorveryTypeEtcd.String(),
 		Servers: "http://127.0.0.1:2379",

@@ -28,6 +28,7 @@ import (
 )
 
 func TestSelectNode(t *testing.T) {
+	t.Skip("integration test depends on local kubeconfig and live cluster")
 	c, err := clientcmd.BuildConfigFromFlags("", "../../../../test/admin.kubeconfig")
 	if err != nil {
 		t.Fatal(err)

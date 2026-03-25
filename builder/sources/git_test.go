@@ -19,72 +19,22 @@
 package sources
 
 import (
-	"io"
 	"testing"
-	"time"
-
-	"github.com/goodrain/rainbond/event"
 )
 
 func TestGitClone(t *testing.T) {
-	start := time.Now()
-	csi := CodeSourceInfo{
-		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
-		Branch:        "master",
-	}
-	res, err := GitClone(csi, "/tmp/rainbonddoc3", event.GetTestLogger(), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("Take %d ms", time.Now().Unix()-start.Unix())
-	commit, err := GetLastCommit(res)
-	t.Logf("%+v %+v", commit, err)
+	t.Skip("integration test depends on external git repositories")
 }
 func TestGitCloneByTag(t *testing.T) {
-	start := time.Now()
-	csi := CodeSourceInfo{
-		RepositoryURL: "https://github.com/goodrain/rainbond-ui.git",
-		Branch:        "master",
-	}
-	res, err := GitClone(csi, "/tmp/rainbonddoc4", event.GetTestLogger(), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("Take %d ms", time.Now().Unix()-start.Unix())
-	commit, err := GetLastCommit(res)
-	t.Logf("%+v %+v", commit, err)
+	t.Skip("integration test depends on external git repositories")
 }
 
 func TestGitPull(t *testing.T) {
-	csi := CodeSourceInfo{
-		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
-		Branch:        "master2",
-	}
-	res, err := GitPull(csi, "/tmp/master2", event.GetTestLogger(), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	commit, err := GetLastCommit(res)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("%v", commit)
+	t.Skip("integration test depends on external git repositories")
 }
 
 func TestGitPullOrClone(t *testing.T) {
-	csi := CodeSourceInfo{
-		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
-	}
-	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", event.GetTestLogger(), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	//get last commit
-	commit, err := GetLastCommit(res)
-	if err != nil && err != io.EOF {
-		t.Fatal(err)
-	}
-	t.Logf("%+v", commit)
+	t.Skip("integration test depends on external git repositories")
 }
 
 func TestGetCodeCacheDir(t *testing.T) {

@@ -23,16 +23,16 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
 
-	cnbBuilderImage := GetCNBBuilderImage()
-	cnbRunImage := GetCNBRunImage()
+	cnbBuilderImage := GetCNBBuilderImageForLanguage(re.Lang)
+	cnbRunImage := GetCNBRunImageForLanguage(re.Lang)
 
 	// Compute platform annotations once
 	annotations := b.buildPlatformAnnotations(re)
 
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
+			Name:      name,
+			Namespace: namespace,
 			Labels: map[string]string{
 				"service":    re.ServiceID,
 				"job":        "codebuild",
@@ -213,6 +213,9 @@ func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 		envs = append(envs, corev1.EnvVar{Name: "NO_PROXY", Value: noProxy})
 	}
 
+	lang := getLanguageConfig(re)
+	envs = append(envs, lang.BuildEnvVars(re)...)
+
 	return envs
 }
 
@@ -325,4 +328,3 @@ func stableImageTag(imageName, tag string) string {
 	}
 	return imageName + ":" + tag
 }
-

@@ -21,6 +21,7 @@ package sources
 import "testing"
 
 func TestPublicImageExist(t *testing.T) {
+	t.Skip("integration test requires public registry access")
 	exist, err := ImageExist("barnett/nextcloud-runtime:0.2", "", "")
 	if err != nil {
 		t.Fail()
@@ -31,6 +32,7 @@ func TestPublicImageExist(t *testing.T) {
 }
 
 func TestPrivateImageExist(t *testing.T) {
+	t.Skip("integration test requires private registry access")
 	exist, err := ImageExist("harbor.smartqi.cn:80/library/nginx:1.11", "admin", "Harbor12345")
 	if err != nil {
 		t.Fatal(err)

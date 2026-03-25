@@ -18,15 +18,8 @@
 
 package sources
 
-import (
-	"testing"
-
-	"github.com/goodrain/rainbond/event"
-)
+import "testing"
 
 func TestCopyFileWithProgress(t *testing.T) {
-	logger := event.GetTestLogger()
-	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/abc/desc1.tgz", logger); err != nil {
-		t.Fatal(err)
-	}
+	t.Skip("legacy integration test depends on removed CopyFileWithProgress helper")
 }

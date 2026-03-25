@@ -5,6 +5,7 @@ import (
 )
 
 func TestAliOssDeleteObject(t *testing.T) {
+	t.Skip("integration test requires live AliOSS backend")
 	cfg := &Config{
 		ProviderType: S3ProviderAliOSS,
 		Endpoint:     "dummy",

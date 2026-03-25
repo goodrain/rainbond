@@ -5,20 +5,27 @@ import (
 	"path"
 
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	// DefaultCNBBuilder is the default online CNB builder image
-	DefaultCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-builder:0.0.72"
+	DefaultCNBBuilder = "docker.io/paketobuildpacks/ubuntu-noble-builder"
 	// DefaultCNBRunImage is the default online CNB run image
-	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.50"
+	DefaultCNBRunImage = "docker.io/paketobuildpacks/ubuntu-noble-run:latest"
+	// DefaultPHPCNBBuilder is the default Jammy Full builder image for PHP CNB builds.
+	DefaultPHPCNBBuilder = "docker.io/paketobuildpacks/builder-jammy-full:latest"
+	// DefaultPHPCNBRunImage is the default Jammy Full run image for PHP CNB builds.
+	DefaultPHPCNBRunImage = "docker.io/paketobuildpacks/run-jammy-full:latest"
 	// CNBLifecycleCreatorPath is the path to the lifecycle creator binary
 	CNBLifecycleCreatorPath = "/lifecycle/creator"
 
 	// Short image names for constructing internal registry references
 	cnbBuilderShortName = "ubuntu-noble-builder:0.0.72"
 	cnbRunShortName     = "ubuntu-noble-run:0.0.50"
+	phpBuilderShortName = "builder-jammy-full:latest"
+	phpRunShortName     = "run-jammy-full:latest"
 )
 
 // isOfflineMode checks whether the cluster is in offline/air-gapped mode
@@ -54,4 +61,34 @@ func GetCNBRunImage() string {
 		return img
 	}
 	return DefaultCNBRunImage
+}
+
+func GetCNBBuilderImageForLanguage(lang code.Lang) string {
+	if lang == code.PHP {
+		if v := os.Getenv("CNB_BUILDER_IMAGE"); v != "" {
+			return v
+		}
+		if isOfflineMode() {
+			img := path.Join(builder.REGISTRYDOMAIN, phpBuilderShortName)
+			logrus.Infof("Offline mode: using PHP CNB builder image from internal registry: %s", img)
+			return img
+		}
+		return DefaultPHPCNBBuilder
+	}
+	return GetCNBBuilderImage()
+}
+
+func GetCNBRunImageForLanguage(lang code.Lang) string {
+	if lang == code.PHP {
+		if v := os.Getenv("CNB_RUN_IMAGE"); v != "" {
+			return v
+		}
+		if isOfflineMode() {
+			img := path.Join(builder.REGISTRYDOMAIN, phpRunShortName)
+			logrus.Infof("Offline mode: using PHP CNB run image from internal registry: %s", img)
+			return img
+		}
+		return DefaultPHPCNBRunImage
+	}
+	return GetCNBRunImage()
 }

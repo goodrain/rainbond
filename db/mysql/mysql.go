@@ -19,6 +19,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"os"
 	"strconv"
 	"sync"
@@ -278,22 +279,11 @@ func (m *Manager) CheckTable() {
 
 func (m *Manager) patchTable() {
 	count := -1
-	switch m.config.DBType {
-	case "mysql":
-		// 兼容低版本 MySQL：先查询是否已存在索引，再创建，避免使用不兼容的 IF NOT EXISTS
-		var indexCount int
-		row := m.db.Raw("SELECT COUNT(1) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
-		if err := row.Scan(&indexCount); err != nil {
-			logrus.Errorf("query index exists error: %s", err.Error())
-		} else if indexCount == 0 {
-			if err := m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version);").Error; err != nil {
-				logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
-			}
-		}
-	case "sqlite":
-		if err := m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version);").Error; err != nil {
-			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
-		}
+	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
+		logrus.Errorf("backfill legacy language versions error: %s", err.Error())
+	}
+	if err := m.patchLanguageVersionUniqueIndex(); err != nil {
+		logrus.Errorf("patch enterprise_language_version unique index error: %s", err.Error())
 	}
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
@@ -356,6 +346,7 @@ func (m *Manager) initLanguageVersion() {
 	versions = append(versions, NetCompilerInitVersion...)
 	versions = append(versions, PHPInitVersion...)
 	versions = append(versions, WebRuntimeInitVersion...)
+	applySeedLongVersionDefaults(versions)
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, version := range versions {
@@ -386,13 +377,14 @@ func (m *Manager) updateLanguageVersions() {
 	versions = append(versions, NetCompilerInitVersion...)
 	versions = append(versions, PHPInitVersion...)
 	versions = append(versions, WebRuntimeInitVersion...)
+	applySeedLongVersionDefaults(versions)
 
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, version := range versions {
 			// Check if the version exists
 			var existing model.EnterpriseLanguageVersion
-			if err := m.db.Where("lang = ? AND version = ?", version.Lang, version.Version).First(&existing).Error; err != nil {
+			if err := m.db.Where("lang = ? AND version = ? AND build_strategy = ?", version.Lang, version.Version, version.BuildStrategy).First(&existing).Error; err != nil {
 				if gorm.IsRecordNotFoundError(err) {
 					// Version doesn't exist, create it
 					if err := m.db.Create(version).Error; err != nil {
@@ -408,6 +400,8 @@ func (m *Manager) updateLanguageVersions() {
 					existing.FileName = version.FileName
 					existing.Show = version.Show
 					existing.System = version.System
+					existing.BuildStrategy = version.BuildStrategy
+					existing.IsAllowed = version.IsAllowed
 					if err := m.db.Save(&existing).Error; err != nil {
 						logrus.Errorf("update language version %s-%s error: %v", version.Lang, version.Version, err)
 					}
@@ -432,6 +426,52 @@ func (m *Manager) updateLanguageVersions() {
 			logrus.Info("successfully updated language versions")
 		}
 	}
+}
+
+func (m *Manager) patchLanguageVersionUniqueIndex() error {
+	switch m.config.DBType {
+	case "mysql":
+		var columns sql.NullString
+		row := m.db.Raw("SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
+		if err := row.Scan(&columns); err != nil {
+			return err
+		}
+		if columns.Valid && columns.String == "lang,version,build_strategy" {
+			return nil
+		}
+		if columns.Valid && columns.String != "" {
+			if err := m.db.Exec("alter table enterprise_language_version drop index lang_version_unique;").Error; err != nil {
+				return err
+			}
+		}
+		return m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version, build_strategy);").Error
+	case "sqlite":
+		if err := m.db.Exec("DROP INDEX IF EXISTS lang_version_unique;").Error; err != nil {
+			return err
+		}
+		return m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version, build_strategy);").Error
+	default:
+		return nil
+	}
+}
+
+func applySeedLongVersionDefaults(versions []*model.EnterpriseLanguageVersion) {
+	for _, version := range versions {
+		if version == nil {
+			continue
+		}
+		version.BuildStrategy = model.LongVersionBuildStrategySlug
+		version.IsAllowed = true
+	}
+}
+
+func backfillLegacyLongVersionStrategy(db *gorm.DB) error {
+	return db.Model(&model.EnterpriseLanguageVersion{}).
+		Where("build_strategy IS NULL OR build_strategy = ''").
+		Updates(map[string]interface{}{
+			"build_strategy": model.LongVersionBuildStrategySlug,
+			"is_allowed":     true,
+		}).Error
 }
 
 // GolangInitVersion -

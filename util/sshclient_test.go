@@ -26,6 +26,7 @@ import (
 )
 
 func TestSSHClient(t *testing.T) {
+	t.Skip("integration test depends on reachable SSH server")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	client := NewSSHClient("172.16.100.105", "root", "", "/usr/bin/whoami", 22, &stdout, &stderr)

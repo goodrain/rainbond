@@ -5,6 +5,7 @@ import (
 )
 
 func TestS3PutObject(t *testing.T) {
+	t.Skip("integration test requires live S3 backend and local fixture")
 	cfg := &Config{
 		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
 		AccessKey:  "dummy",
@@ -23,6 +24,7 @@ func TestS3PutObject(t *testing.T) {
 }
 
 func TestS3GetObject(t *testing.T) {
+	t.Skip("integration test requires live S3 backend")
 	cfg := &Config{
 		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
 		AccessKey:  "access_key",
@@ -41,6 +43,7 @@ func TestS3GetObject(t *testing.T) {
 }
 
 func TestS3DeleteObject(t *testing.T) {
+	t.Skip("integration test requires live S3 backend")
 	cfg := &Config{
 		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
 		AccessKey:  "access_key",

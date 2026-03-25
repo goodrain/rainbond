@@ -24,6 +24,7 @@ import (
 )
 
 func TestWatchAndListIP(t *testing.T) {
+	t.Skip("integration test depends on host network interface state")
 	pool := NewIPPool([]string{"p2p0"})
 	if pool.Ready() {
 		fmt.Println(pool.GetHostIPs())

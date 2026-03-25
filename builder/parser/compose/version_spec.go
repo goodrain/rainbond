@@ -364,6 +364,9 @@ func isConfigFile(mountPath string, volumeType string) bool {
 			}
 			// Only treat as config file if basename has an extension
 			basename := filepath.Base(mountPath)
+			if strings.HasPrefix(mountPath, "/etc/") {
+				return true
+			}
 			if strings.Contains(basename, ".") {
 				return true
 			}
@@ -521,4 +524,3 @@ func ensureEnvFile(dir string) {
 		logrus.Infof("created empty .env in %s", dir)
 	}
 }
-

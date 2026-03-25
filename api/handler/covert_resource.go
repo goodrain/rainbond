@@ -32,7 +32,7 @@ func (c *clusterAction) workloadHandle(ctx context.Context, cr map[string]model.
 	stsResource := c.workloadStateFulSets(lr.Workloads.StateFulSets, namespace)
 	jobResource := c.workloadJobs(lr.Workloads.Jobs, namespace)
 	cjResource := c.workloadCronJobs(lr.Workloads.CronJobs, namespace)
-	convertResource := append(deployResource, append(stsResource, append(jobResource, append(cjResource)...)...)...)
+	convertResource := append(deployResource, append(stsResource, append(jobResource, cjResource...)...)...)
 	k8sResources := c.getAppKubernetesResources(ctx, lr.Others, namespace)
 	cr[app] = model.ApplicationResource{
 		ConvertResource:     convertResource,

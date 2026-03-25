@@ -19,6 +19,7 @@
 package util
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -41,19 +42,35 @@ func TestDeweight(t *testing.T) {
 }
 
 func TestGetDirSize(t *testing.T) {
-	t.Log(GetDirSize("/go"))
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(GetDirSize(dir))
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 }
 
 func TestGetDirSizeByCmd(t *testing.T) {
-	t.Log(GetDirSizeByCmd("/go"))
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(GetDirSizeByCmd(dir))
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 }
 
 func TestZip(t *testing.T) {
-	if err := Zip("/tmp/cache", "/tmp/cache.zip"); err != nil {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "cache")
+	if err := os.MkdirAll(source, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "a.txt"), []byte("zip"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Zip(source, filepath.Join(dir, "cache.zip")); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -65,7 +82,15 @@ func TestCreateVersionByTime(t *testing.T) {
 }
 
 func TestGetDirList(t *testing.T) {
-	list, err := GetDirList("/tmp", 2)
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "a.txt"), []byte("dirlist"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := GetDirList(dir, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,8 +98,19 @@ func TestGetDirList(t *testing.T) {
 }
 
 func TestMergeDir(t *testing.T) {
-	t.Log(filepath.Dir("/tmp/cache/asdasd"))
-	if err := MergeDir("/tmp/ctr-944254844/", "/tmp/cache"); err != nil {
+	src := filepath.Join(t.TempDir(), "src")
+	dst := filepath.Join(t.TempDir(), "dst")
+	if err := os.MkdirAll(src, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("merge"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(filepath.Dir(filepath.Join(dst, "asdasd")))
+	if err := MergeDir(src, dst); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -92,7 +128,13 @@ func TestGetCurrentDir(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	if err := CopyFile("/tmp/test2.zip", "/tmp/test4.zip"); err != nil {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "test2.zip")
+	dst := filepath.Join(dir, "test4.zip")
+	if err := os.WriteFile(src, []byte("copy"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyFile(src, dst); err != nil {
 		t.Fatal(err)
 	}
 }

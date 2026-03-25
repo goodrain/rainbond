@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
 		externalversions.WithNamespace(corev1.NamespaceAll))
 
-	ctrl := NewController(ctx, stopCh, kubeClient, rainbondClient, rainbondInformer.Rainbond().V1alpha1().HelmApps().Informer(), rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister(), "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache", "/tmp/helm/chart")
+	ctrl := NewController(ctx, stopCh, rainbondInformer.Rainbond().V1alpha1().HelmApps().Informer(), rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister())
 	go ctrl.Start()
 
 	// create namespace

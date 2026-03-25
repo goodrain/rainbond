@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // staticConfig implements LanguageConfig for pure static projects (no package.json).
@@ -27,6 +28,10 @@ func (s *staticConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	annotations["cnb-bp-dependency-mirror"] = mirror
 
 	logrus.Infof("Pure static project: nginx web server at '%s', mirror=%s", outputDir, mirror)
+}
+
+func (s *staticConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
+	return nil
 }
 
 // InjectMirrorConfig is a no-op for static projects (no package manager).
