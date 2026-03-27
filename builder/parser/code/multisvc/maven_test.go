@@ -105,8 +105,11 @@ func TestMaven_ListModules(t *testing.T) {
 		t.Errorf("Expected 3 for the length of mudules, but returned %d", len(res))
 	}
 	for _, svc := range res {
-		for _, env := range svc.Envs {
-			t.Logf("Name: %s; Value: %s", env.Name, env.Value)
+		if _, ok := svc.Envs["BUILD_PROCFILE"]; ok {
+			t.Fatalf("expected CNB multi-module maven service %s to not auto-generate BUILD_PROCFILE", svc.Name)
+		}
+		if _, ok := svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"]; !ok {
+			t.Fatalf("expected CNB multi-module maven service %s to include BUILD_MAVEN_BUILT_ARTIFACT", svc.Name)
 		}
 	}
 }

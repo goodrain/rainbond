@@ -23,11 +23,9 @@ func (s *staticConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	annotations["cnb-bp-web-server-root"] = outputDir
 	annotations["cnb-bp-web-server-enable-push-state"] = "true"
 
-	// Dependency mirror: nginx buildpack needs this to download the nginx binary.
-	mirror := getDependencyMirror()
-	annotations["cnb-bp-dependency-mirror"] = mirror
+	applyDependencyMirrorAnnotation(annotations)
 
-	logrus.Infof("Pure static project: nginx web server at '%s', mirror=%s", outputDir, mirror)
+	logrus.Infof("Pure static project: nginx web server at '%s', mirror=%s", outputDir, annotations["cnb-bp-dependency-mirror"])
 }
 
 func (s *staticConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {

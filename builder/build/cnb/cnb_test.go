@@ -375,7 +375,7 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 
 	t.Run("CNB_START_SCRIPT with pnpm", func(t *testing.T) {
 		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{SourceDir: nodeDir, BuildEnvs: map[string]string{
-			"CNB_START_SCRIPT":   "serve",
+			"CNB_START_SCRIPT": "serve",
 			"CNB_PACKAGE_TOOL": "pnpm",
 		}})
 		if ann["cnb-bp-npm-start-script"] != "serve" {
@@ -415,15 +415,50 @@ func TestCreatePlatformVolume(t *testing.T) {
 	dir := newNodeDir(t)
 	re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{"CNB_NODE_VERSION": "20"}}
 	annotations := b.buildPlatformAnnotations(re)
-	vol, mount := b.createPlatformVolume(annotations)
+	vol, mount := b.createPlatformVolume(annotations, nil)
 	if vol == nil || mount == nil {
 		t.Fatal("expected volume and mount")
 	}
 	if vol.Name != "platform" || mount.MountPath != "/platform" {
 		t.Errorf("vol=%q mount=%q", vol.Name, mount.MountPath)
 	}
-	if len(vol.DownwardAPI.Items) == 0 {
+	if vol.Projected == nil || len(vol.Projected.Sources) == 0 {
+		t.Fatal("expected projected volume sources")
+	}
+	if vol.Projected.Sources[0].DownwardAPI == nil || len(vol.Projected.Sources[0].DownwardAPI.Items) == 0 {
 		t.Error("expected DownwardAPI items")
+	}
+}
+
+func TestCreatePlatformVolumeWithBinding(t *testing.T) {
+	b := &Builder{}
+	annotations := map[string]string{
+		"cnb-bp-jvm-version":          "17",
+		"cnb-binding-java-maven-type": "maven",
+	}
+	bindings := []platformBinding{{
+		Name:          "java-maven",
+		Type:          "maven",
+		ConfigMapName: "java-maven",
+		ConfigMapKey:  "mavensetting",
+		TargetFile:    "settings.xml",
+	}}
+	vol, _ := b.createPlatformVolume(annotations, bindings)
+	if vol == nil || vol.Projected == nil {
+		t.Fatal("expected projected platform volume")
+	}
+	if len(vol.Projected.Sources) != 2 {
+		t.Fatalf("expected 2 projected sources, got %d", len(vol.Projected.Sources))
+	}
+	configSource := vol.Projected.Sources[1].ConfigMap
+	if configSource == nil {
+		t.Fatal("expected configmap projection for binding")
+	}
+	if configSource.Name != "java-maven" {
+		t.Fatalf("expected java-maven configmap, got %q", configSource.Name)
+	}
+	if len(configSource.Items) != 1 || configSource.Items[0].Path != "bindings/java-maven/settings.xml" {
+		t.Fatalf("unexpected binding projection items: %+v", configSource.Items)
 	}
 }
 
@@ -708,7 +743,7 @@ func TestWaitingComplete(t *testing.T) {
 
 func TestCreatePlatformVolumeEmpty(t *testing.T) {
 	b := &Builder{}
-	vol, mount := b.createPlatformVolume(map[string]string{})
+	vol, mount := b.createPlatformVolume(map[string]string{}, nil)
 	if vol != nil || mount != nil {
 		t.Error("expected nil for empty annotations")
 	}
@@ -716,7 +751,7 @@ func TestCreatePlatformVolumeEmpty(t *testing.T) {
 
 func TestCreatePlatformVolumeNonCNBKeys(t *testing.T) {
 	b := &Builder{}
-	vol, mount := b.createPlatformVolume(map[string]string{"other-key": "val"})
+	vol, mount := b.createPlatformVolume(map[string]string{"other-key": "val"}, nil)
 	if vol != nil || mount != nil {
 		t.Error("expected nil when no cnb- prefixed keys")
 	}
@@ -808,7 +843,7 @@ func TestBuildPlatformAnnotationsBPNoOverride(t *testing.T) {
 	ann := (&Builder{}).buildPlatformAnnotations(&build.Request{
 		SourceDir: dir,
 		BuildEnvs: map[string]string{
-			"CNB_BUILD_SCRIPT": "build:prod",
+			"CNB_BUILD_SCRIPT":    "build:prod",
 			"BP_NODE_RUN_SCRIPTS": "should-not-override",
 		},
 	})
@@ -820,11 +855,13 @@ func TestBuildPlatformAnnotationsBPNoOverride(t *testing.T) {
 // --- mock job controller ---
 
 type mockJobCtrl struct {
-	jobs       []*corev1.Pod
-	getJobsErr error
-	execJobErr error
-	execJobFn  func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
-	deleted    []string
+	jobs                        []*corev1.Pod
+	getJobsErr                  error
+	execJobErr                  error
+	execJobFn                   func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
+	deleted                     []string
+	languageBuildSettings       map[string]string
+	defaultLanguageBuildSetting string
 }
 
 func (m *mockJobCtrl) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
@@ -833,11 +870,20 @@ func (m *mockJobCtrl) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Wr
 	}
 	return m.execJobErr
 }
-func (m *mockJobCtrl) GetJob(name string) (*corev1.Pod, error)                                  { return nil, nil }
-func (m *mockJobCtrl) GetServiceJobs(serviceID string) ([]*corev1.Pod, error)                   { return m.jobs, m.getJobsErr }
-func (m *mockJobCtrl) DeleteJob(name string)                                                    { m.deleted = append(m.deleted, name) }
-func (m *mockJobCtrl) GetLanguageBuildSetting(_ context.Context, _ code.Lang, _ string) string  { return "" }
-func (m *mockJobCtrl) GetDefaultLanguageBuildSetting(_ context.Context, _ code.Lang) string     { return "" }
+func (m *mockJobCtrl) GetJob(name string) (*corev1.Pod, error) { return nil, nil }
+func (m *mockJobCtrl) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
+	return m.jobs, m.getJobsErr
+}
+func (m *mockJobCtrl) DeleteJob(name string) { m.deleted = append(m.deleted, name) }
+func (m *mockJobCtrl) GetLanguageBuildSetting(_ context.Context, _ code.Lang, name string) string {
+	if m.languageBuildSettings == nil {
+		return ""
+	}
+	return m.languageBuildSettings[name]
+}
+func (m *mockJobCtrl) GetDefaultLanguageBuildSetting(_ context.Context, _ code.Lang) string {
+	return m.defaultLanguageBuildSetting
+}
 
 func newTestBuilder(ctrl *mockJobCtrl) *Builder {
 	return &Builder{
@@ -898,14 +944,14 @@ func TestRunCNBBuildJob(t *testing.T) {
 		b := newTestBuilder(ctrl)
 		dir := newNodeDir(t)
 		re := &build.Request{
-			ServiceID:    "svc1",
+			ServiceID:     "svc1",
 			DeployVersion: "v1",
-			RbdNamespace: "ns",
-			Arch:         "amd64",
-			SourceDir:    dir,
-			CacheDir:     "/tmp/cache",
-			BuildEnvs:    map[string]string{},
-			Logger:       logger,
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     dir,
+			CacheDir:      "/tmp/cache",
+			BuildEnvs:     map[string]string{},
+			Logger:        logger,
 		}
 		err := b.runCNBBuildJob(re, "img:v1")
 		if err == nil || !strings.Contains(err.Error(), "exec failed") {
@@ -927,14 +973,14 @@ func TestRunCNBBuildJob(t *testing.T) {
 		}
 		dir := newNodeDir(t)
 		re := &build.Request{
-			ServiceID:    "svc1",
+			ServiceID:     "svc1",
 			DeployVersion: "v1",
-			RbdNamespace: "ns",
-			Arch:         "amd64",
-			SourceDir:    dir,
-			CacheDir:     "/tmp/cache",
-			BuildEnvs:    map[string]string{},
-			Logger:       logger,
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     dir,
+			CacheDir:      "/tmp/cache",
+			BuildEnvs:     map[string]string{},
+			Logger:        logger,
 		}
 		err := b.runCNBBuildJob(re, "img:v1")
 		if err == nil || !strings.Contains(err.Error(), "auth failed") {
@@ -955,14 +1001,14 @@ func TestRunCNBBuildJob(t *testing.T) {
 		b := newTestBuilder(ctrl)
 		dir := newNodeDir(t)
 		re := &build.Request{
-			ServiceID:    "svc1",
+			ServiceID:     "svc1",
 			DeployVersion: "v1",
-			RbdNamespace: "ns",
-			Arch:         "amd64",
-			SourceDir:    dir,
-			CacheDir:     "/tmp/cache",
-			BuildEnvs:    map[string]string{},
-			Logger:       logger,
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     dir,
+			CacheDir:      "/tmp/cache",
+			BuildEnvs:     map[string]string{},
+			Logger:        logger,
 		}
 		err := b.runCNBBuildJob(re, "img:v1")
 		if err != nil {
@@ -1004,6 +1050,12 @@ func TestRunCNBBuildJob(t *testing.T) {
 		if capturedPod == nil {
 			t.Fatal("pod was not captured")
 		}
+		if len(capturedPod.Spec.Containers) != 1 {
+			t.Fatalf("expected 1 container, got %d", len(capturedPod.Spec.Containers))
+		}
+		if capturedPod.Spec.Containers[0].ImagePullPolicy != corev1.PullIfNotPresent {
+			t.Fatalf("container ImagePullPolicy = %q; want %q", capturedPod.Spec.Containers[0].ImagePullPolicy, corev1.PullIfNotPresent)
+		}
 
 		// Verify Pod annotation
 		if v, ok := capturedPod.Annotations["cnb-bp-npm-start-script"]; !ok || v != "start:prod" {
@@ -1014,12 +1066,17 @@ func TestRunCNBBuildJob(t *testing.T) {
 		// Verify DownwardAPI volume has the env file
 		foundEnvFile := false
 		for _, vol := range capturedPod.Spec.Volumes {
-			if vol.Name == "platform" && vol.DownwardAPI != nil {
-				for _, item := range vol.DownwardAPI.Items {
-					if item.Path == "env/BP_NPM_START_SCRIPT" {
-						foundEnvFile = true
-						if item.FieldRef.FieldPath != "metadata.annotations['cnb-bp-npm-start-script']" {
-							t.Errorf("FieldPath = %q; want metadata.annotations['cnb-bp-npm-start-script']", item.FieldRef.FieldPath)
+			if vol.Name == "platform" && vol.Projected != nil {
+				for _, source := range vol.Projected.Sources {
+					if source.DownwardAPI == nil {
+						continue
+					}
+					for _, item := range source.DownwardAPI.Items {
+						if item.Path == "env/BP_NPM_START_SCRIPT" {
+							foundEnvFile = true
+							if item.FieldRef.FieldPath != "metadata.annotations['cnb-bp-npm-start-script']" {
+								t.Errorf("FieldPath = %q; want metadata.annotations['cnb-bp-npm-start-script']", item.FieldRef.FieldPath)
+							}
 						}
 					}
 				}
@@ -1088,12 +1145,17 @@ func TestRunCNBBuildJob(t *testing.T) {
 		}
 		foundFiles := make(map[string]bool)
 		for _, vol := range capturedPod.Spec.Volumes {
-			if vol.Name == "platform" && vol.DownwardAPI != nil {
-				for _, item := range vol.DownwardAPI.Items {
-					if wantField, ok := wantEnvFiles[item.Path]; ok {
-						foundFiles[item.Path] = true
-						if item.FieldRef.FieldPath != wantField {
-							t.Errorf("DownwardAPI %s FieldPath = %q; want %q", item.Path, item.FieldRef.FieldPath, wantField)
+			if vol.Name == "platform" && vol.Projected != nil {
+				for _, source := range vol.Projected.Sources {
+					if source.DownwardAPI == nil {
+						continue
+					}
+					for _, item := range source.DownwardAPI.Items {
+						if wantField, ok := wantEnvFiles[item.Path]; ok {
+							foundFiles[item.Path] = true
+							if item.FieldRef.FieldPath != wantField {
+								t.Errorf("DownwardAPI %s FieldPath = %q; want %q", item.Path, item.FieldRef.FieldPath, wantField)
+							}
 						}
 					}
 				}
@@ -1102,6 +1164,83 @@ func TestRunCNBBuildJob(t *testing.T) {
 		for path := range wantEnvFiles {
 			if !foundFiles[path] {
 				t.Errorf("DownwardAPI volume missing %s item", path)
+			}
+		}
+	})
+
+	t.Run("java maven fields are visible in pod annotations and envs", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		b := newTestBuilder(ctrl)
+		re := &build.Request{
+			ServiceID:     "svc1",
+			DeployVersion: "v1",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     t.TempDir(),
+			CacheDir:      "/tmp/cache",
+			Lang:          code.JavaMaven,
+			BuildEnvs: map[string]string{
+				"BUILD_MAVEN_CUSTOM_GOALS":   "clean package",
+				"BUILD_MAVEN_CUSTOM_OPTS":    "-DskipTests",
+				"BUILD_MAVEN_JAVA_OPTS":      "-Xmx1024m",
+				"BUILD_MAVEN_BUILT_MODULE":   "service-a",
+				"BUILD_MAVEN_BUILT_ARTIFACT": "service-a/target/app.jar",
+			},
+			Logger: logger,
+		}
+
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+		if len(capturedPod.Spec.Containers) != 1 {
+			t.Fatalf("expected 1 container, got %d", len(capturedPod.Spec.Containers))
+		}
+
+		wantAnnotations := map[string]string{
+			"cnb-bp-maven-build-arguments":            "clean package",
+			"cnb-bp-maven-additional-build-arguments": "-DskipTests",
+			"cnb-bp-maven-built-module":               "service-a",
+			"cnb-bp-maven-built-artifact":             "service-a/target/app.jar",
+		}
+		for key, wantValue := range wantAnnotations {
+			if got := capturedPod.Annotations[key]; got != wantValue {
+				t.Fatalf("annotation %s = %q, want %q", key, got, wantValue)
+			}
+		}
+
+		wantEnv := map[string]string{
+			"BP_MAVEN_BUILD_ARGUMENTS":            "clean package",
+			"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-DskipTests",
+			"BP_MAVEN_BUILT_MODULE":               "service-a",
+			"BP_MAVEN_BUILT_ARTIFACT":             "service-a/target/app.jar",
+			"MAVEN_OPTS":                          "-Xmx1024m",
+		}
+		foundEnv := map[string]bool{}
+		for _, env := range capturedPod.Spec.Containers[0].Env {
+			if wantValue, ok := wantEnv[env.Name]; ok {
+				foundEnv[env.Name] = true
+				if env.Value != wantValue {
+					t.Fatalf("env %s = %q, want %q", env.Name, env.Value, wantValue)
+				}
+			}
+		}
+		for name := range wantEnv {
+			if !foundEnv[name] {
+				t.Fatalf("missing env %s in CNB pod", name)
 			}
 		}
 	})
@@ -1313,4 +1452,3 @@ func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
 		}
 	})
 }
-

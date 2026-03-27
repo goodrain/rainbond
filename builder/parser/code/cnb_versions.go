@@ -23,6 +23,15 @@ var cnbNodeVersions = []CNBVersion{
 	{Version: "24.13.0", Default: true},
 }
 
+// cnbJavaVersions defines the supported Java major versions for CNB builds.
+var cnbJavaVersions = []CNBVersion{
+	{Version: "8", Default: false},
+	{Version: "11", Default: false},
+	{Version: "17", Default: true},
+	{Version: "21", Default: false},
+	{Version: "25", Default: false},
+}
+
 // GetCNBVersions returns the supported CNB versions for a given language.
 // Supports composite languages like "dockerfile,Node.js" by checking each part.
 func GetCNBVersions(lang string) []CNBVersion {
@@ -31,6 +40,8 @@ func GetCNBVersions(lang string) []CNBVersion {
 		switch strings.TrimSpace(part) {
 		case "nodejs", "node", "node.js":
 			return cnbNodeVersions
+		case "java", "openjdk", "java-maven", "java-war", "java-jar", "gradle", "java-gradle", "javagradle":
+			return cnbJavaVersions
 		}
 	}
 	return []CNBVersion{}

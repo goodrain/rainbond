@@ -49,6 +49,11 @@ type Manager struct {
 	models  []model.Interface
 }
 
+type cnbSeedVersion struct {
+	Version string
+	Default bool
+}
+
 // CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
@@ -335,18 +340,7 @@ func (m *Manager) patchTable() {
 }
 
 func (m *Manager) initLanguageVersion() {
-	var versions []*model.EnterpriseLanguageVersion
-	versions = append(versions, GolangInitVersion...)
-	versions = append(versions, NodeInitVersion...)
-	versions = append(versions, WebCompilerInitVersion...)
-	versions = append(versions, OpenJDKInitVersion...)
-	versions = append(versions, MavenInitVersion...)
-	versions = append(versions, PythonInitVersion...)
-	versions = append(versions, NetRuntimeInitVersion...)
-	versions = append(versions, NetCompilerInitVersion...)
-	versions = append(versions, PHPInitVersion...)
-	versions = append(versions, WebRuntimeInitVersion...)
-	applySeedLongVersionDefaults(versions)
+	versions := allSeedLanguageVersions()
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, version := range versions {
@@ -366,18 +360,7 @@ func (m *Manager) initLanguageVersion() {
 }
 
 func (m *Manager) updateLanguageVersions() {
-	var versions []*model.EnterpriseLanguageVersion
-	versions = append(versions, GolangInitVersion...)
-	versions = append(versions, NodeInitVersion...)
-	versions = append(versions, WebCompilerInitVersion...)
-	versions = append(versions, OpenJDKInitVersion...)
-	versions = append(versions, MavenInitVersion...)
-	versions = append(versions, PythonInitVersion...)
-	versions = append(versions, NetRuntimeInitVersion...)
-	versions = append(versions, NetCompilerInitVersion...)
-	versions = append(versions, PHPInitVersion...)
-	versions = append(versions, WebRuntimeInitVersion...)
-	applySeedLongVersionDefaults(versions)
+	versions := allSeedLanguageVersions()
 
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
@@ -463,6 +446,75 @@ func applySeedLongVersionDefaults(versions []*model.EnterpriseLanguageVersion) {
 		version.BuildStrategy = model.LongVersionBuildStrategySlug
 		version.IsAllowed = true
 	}
+}
+
+func slugSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, GolangInitVersion...)
+	versions = append(versions, NodeInitVersion...)
+	versions = append(versions, WebCompilerInitVersion...)
+	versions = append(versions, OpenJDKInitVersion...)
+	versions = append(versions, MavenInitVersion...)
+	versions = append(versions, PythonInitVersion...)
+	versions = append(versions, NetRuntimeInitVersion...)
+	versions = append(versions, NetCompilerInitVersion...)
+	versions = append(versions, PHPInitVersion...)
+	versions = append(versions, WebRuntimeInitVersion...)
+	applySeedLongVersionDefaults(versions)
+	return versions
+}
+
+func cnbSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, buildStrategySeedVersions("openJDK", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "8", Default: false},
+		{Version: "11", Default: false},
+		{Version: "17", Default: true},
+		{Version: "21", Default: false},
+		{Version: "25", Default: false},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("node", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "18.20.7", Default: false},
+		{Version: "18.20.8", Default: false},
+		{Version: "20.19.6", Default: false},
+		{Version: "20.20.0", Default: false},
+		{Version: "22.21.1", Default: false},
+		{Version: "22.22.0", Default: false},
+		{Version: "24.12.0", Default: false},
+		{Version: "24.13.0", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("python", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "3.11", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("golang", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "1.23", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("php", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "8.2", Default: true},
+	})...)
+	return versions
+}
+
+func allSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	versions := slugSeedLanguageVersions()
+	versions = append(versions, cnbSeedLanguageVersions()...)
+	return versions
+}
+
+func buildStrategySeedVersions(lang, buildStrategy string, versions []cnbSeedVersion) []*model.EnterpriseLanguageVersion {
+	var records []*model.EnterpriseLanguageVersion
+	for _, version := range versions {
+		records = append(records, &model.EnterpriseLanguageVersion{
+			Lang:          lang,
+			Version:       version.Version,
+			BuildStrategy: buildStrategy,
+			FirstChoice:   version.Default,
+			System:        true,
+			Show:          true,
+			IsAllowed:     true,
+		})
+	}
+	return records
 }
 
 func backfillLegacyLongVersionStrategy(db *gorm.DB) error {

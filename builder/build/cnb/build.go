@@ -45,6 +45,10 @@ func (b *Builder) Build(re *build.Request) (*build.Response, error) {
 		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
 		return nil, err
 	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return nil, err
+	}
 
 	b.stopPreBuildJob(re)
 

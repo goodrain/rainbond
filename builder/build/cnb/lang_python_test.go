@@ -15,9 +15,12 @@ func TestPythonLanguageConfigAnnotationsAndEnv(t *testing.T) {
 		Lang:      code.Python,
 		SourceDir: dir,
 		BuildEnvs: map[string]string{
-			"BUILD_RUNTIMES":      "3.11",
-			"BUILD_PIP_INDEX_URL": "https://pypi.tuna.tsinghua.edu.cn/simple",
-			"BUILD_PROCFILE":      "web: gunicorn app:app --bind 0.0.0.0:$PORT",
+			"BUILD_RUNTIMES":            "3.11",
+			"BUILD_PIP_INDEX_URL":       "https://pypi.tuna.tsinghua.edu.cn/simple",
+			"BUILD_CONDA_SOLVER":        "libmamba",
+			"BUILD_LIVE_RELOAD_ENABLED": "true",
+			"BP_PIP_VERSION":            "23.3.1",
+			"BUILD_PROCFILE":            "web: gunicorn app:app --bind 0.0.0.0:$PORT",
 		},
 	}
 
@@ -28,6 +31,15 @@ func TestPythonLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	annotations := (&Builder{}).buildPlatformAnnotations(re)
 	if annotations["cnb-bp-cpython-version"] != "3.11" {
 		t.Fatalf("expected cnb-bp-cpython-version=3.11, got %q", annotations["cnb-bp-cpython-version"])
+	}
+	if annotations["cnb-bp-conda-solver"] != "libmamba" {
+		t.Fatalf("expected cnb-bp-conda-solver=libmamba, got %q", annotations["cnb-bp-conda-solver"])
+	}
+	if annotations["cnb-bp-live-reload-enabled"] != "true" {
+		t.Fatalf("expected cnb-bp-live-reload-enabled=true, got %q", annotations["cnb-bp-live-reload-enabled"])
+	}
+	if annotations["cnb-bp-pip-version"] != "23.3.1" {
+		t.Fatalf("expected cnb-bp-pip-version=23.3.1, got %q", annotations["cnb-bp-pip-version"])
 	}
 	if annotations["rainbond.io/cnb-language"] != "python" {
 		t.Fatalf("expected python debug annotation, got %q", annotations["rainbond.io/cnb-language"])

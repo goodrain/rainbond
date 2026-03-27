@@ -392,9 +392,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	i.Logger.Info("pull or clone code successfully, start code build", map[string]string{"step": "codee-version"})
 	res, err := i.codeBuild()
 	if err != nil {
-		if build.IsLegacySlugSourceBuildDisabled(err) {
-			i.FailCause = err.Error()
-		} else if errors.Is(err, context.DeadlineExceeded) {
+		if errors.Is(err, context.DeadlineExceeded) {
 			failCause := util.Translation("Build timeout, exceeded maximum build time of 60 minutes, please check build logs")
 			i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
 			i.FailCause = failCause
@@ -427,10 +425,6 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	}
 	if err != nil {
 		logrus.Errorf("get code build error: %s lang %s", err.Error(), i.Lang)
-		if build.IsLegacySlugSourceBuildDisabled(err) {
-			i.Logger.Error(err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
-			return nil, err
-		}
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}

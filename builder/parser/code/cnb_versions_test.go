@@ -10,6 +10,8 @@ func TestGetCNBVersions(t *testing.T) {
 	}{
 		// Single languages
 		{"nodejs returns versions", "nodejs", len(cnbNodeVersions)},
+		{"java returns versions", "java", len(cnbJavaVersions)},
+		{"java-maven returns versions", "java-maven", len(cnbJavaVersions)},
 		{"Node.js returns versions", "Node.js", len(cnbNodeVersions)},
 		{"node returns versions", "node", len(cnbNodeVersions)},
 		{"NODEJS returns versions (case-insensitive)", "NODEJS", len(cnbNodeVersions)},
@@ -51,6 +53,8 @@ func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 		{"nodejs with major 20", "nodejs", "20", "20.20.0"},
 		{"Node.js with fuzzy 20.x", "Node.js", "20.x", "20.20.0"},
 		{"Node.js with >=22", "Node.js", ">=22", "22.22.0"},
+		{"java with exact major 17", "java", "17", "17"},
+		{"java-maven empty spec returns default", "java-maven", "", "17"},
 		// Unsupported language returns empty
 		{"python returns empty", "python", "3.11", ""},
 		{"dockerfile alone returns empty", "dockerfile", "20", ""},

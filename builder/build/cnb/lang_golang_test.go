@@ -16,6 +16,12 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 			"BUILD_GOPROXY":                 "https://goproxy.cn",
 			"BUILD_GOPRIVATE":               "github.com/example/*",
 			"BUILD_GO_INSTALL_PACKAGE_SPEC": "./cmd/api",
+			"BUILD_GO_BUILD_FLAGS":          "-trimpath",
+			"BUILD_GO_BUILD_LDFLAGS":        "-s -w",
+			"BUILD_GO_BUILD_IMPORT_PATH":    "example.com/custom",
+			"BUILD_GO_KEEP_FILES":           "static/**",
+			"BUILD_GO_WORK_USE":             "auto",
+			"BUILD_LIVE_RELOAD_ENABLED":     "true",
 		},
 	}
 
@@ -29,6 +35,24 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	}
 	if annotations["cnb-bp-go-targets"] != "./cmd/api" {
 		t.Fatalf("expected cnb-bp-go-targets=./cmd/api, got %q", annotations["cnb-bp-go-targets"])
+	}
+	if annotations["cnb-bp-go-build-flags"] != "-trimpath" {
+		t.Fatalf("expected cnb-bp-go-build-flags, got %q", annotations["cnb-bp-go-build-flags"])
+	}
+	if annotations["cnb-bp-go-build-ldflags"] != "-s -w" {
+		t.Fatalf("expected cnb-bp-go-build-ldflags, got %q", annotations["cnb-bp-go-build-ldflags"])
+	}
+	if annotations["cnb-bp-go-build-import-path"] != "example.com/custom" {
+		t.Fatalf("expected cnb-bp-go-build-import-path, got %q", annotations["cnb-bp-go-build-import-path"])
+	}
+	if annotations["cnb-bp-keep-files"] != "static/**" {
+		t.Fatalf("expected cnb-bp-keep-files, got %q", annotations["cnb-bp-keep-files"])
+	}
+	if annotations["cnb-bp-go-work-use"] != "auto" {
+		t.Fatalf("expected cnb-bp-go-work-use, got %q", annotations["cnb-bp-go-work-use"])
+	}
+	if annotations["cnb-bp-live-reload-enabled"] != "true" {
+		t.Fatalf("expected cnb-bp-live-reload-enabled, got %q", annotations["cnb-bp-live-reload-enabled"])
 	}
 	if annotations["rainbond.io/cnb-language"] != "golang" {
 		t.Fatalf("expected golang debug annotation, got %q", annotations["rainbond.io/cnb-language"])

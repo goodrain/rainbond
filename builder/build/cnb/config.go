@@ -11,9 +11,9 @@ import (
 
 const (
 	// DefaultCNBBuilder is the default online CNB builder image
-	DefaultCNBBuilder = "docker.io/paketobuildpacks/ubuntu-noble-builder"
+	DefaultCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-builder:0.0.98"
 	// DefaultCNBRunImage is the default online CNB run image
-	DefaultCNBRunImage = "docker.io/paketobuildpacks/ubuntu-noble-run:latest"
+	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.50"
 	// DefaultPHPCNBBuilder is the default Jammy Full builder image for PHP CNB builds.
 	DefaultPHPCNBBuilder = "docker.io/paketobuildpacks/builder-jammy-full:latest"
 	// DefaultPHPCNBRunImage is the default Jammy Full run image for PHP CNB builds.

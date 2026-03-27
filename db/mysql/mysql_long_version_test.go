@@ -56,6 +56,36 @@ func TestLongVersionSeedDefaultsKeepSlugVersions(t *testing.T) {
 	}
 }
 
+func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
+	versions := cnbSeedLanguageVersions()
+	if len(versions) == 0 {
+		t.Fatal("expected cnb seed versions to be populated")
+	}
+
+	foundJava := false
+	foundNode := false
+	for _, version := range versions {
+		if version.BuildStrategy != model.LongVersionBuildStrategyCNB {
+			t.Fatalf("expected cnb build strategy for %s-%s, got %q", version.Lang, version.Version, version.BuildStrategy)
+		}
+		if !version.IsAllowed {
+			t.Fatalf("expected cnb version %s-%s to be allowed", version.Lang, version.Version)
+		}
+		if version.Lang == "openJDK" && version.Version == "17" {
+			foundJava = true
+		}
+		if version.Lang == "node" && version.Version == "24.13.0" {
+			foundNode = true
+		}
+	}
+	if !foundJava {
+		t.Fatal("expected Java CNB seed version 17")
+	}
+	if !foundNode {
+		t.Fatal("expected Node CNB seed version 24.13.0")
+	}
+}
+
 func TestLongVersionBackfillLegacyStrategy(t *testing.T) {
 	db := newLongVersionPatchTestDB(t)
 	defer db.Close()

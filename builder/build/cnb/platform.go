@@ -85,35 +85,67 @@ func annotationKeyToBPEnv(annotationKey string) string {
 	return strings.ReplaceAll(upper, "-", "_")
 }
 
-// createPlatformVolume creates a DownwardAPI volume for platform/env.
-func (b *Builder) createPlatformVolume(annotations map[string]string) (*corev1.Volume, *corev1.VolumeMount) {
-	if len(annotations) == 0 {
+// createPlatformVolume creates the projected platform volume for env and bindings.
+func (b *Builder) createPlatformVolume(annotations map[string]string, bindings []platformBinding) (*corev1.Volume, *corev1.VolumeMount) {
+	if len(annotations) == 0 && len(bindings) == 0 {
 		return nil, nil
 	}
 
-	var items []corev1.DownwardAPIVolumeFile
+	var downwardItems []corev1.DownwardAPIVolumeFile
 	for key := range annotations {
 		if !strings.HasPrefix(key, "cnb-") {
 			continue
 		}
+		if strings.HasPrefix(key, "cnb-binding-") {
+			continue
+		}
 		envName := annotationKeyToBPEnv(key)
-		items = append(items, corev1.DownwardAPIVolumeFile{
+		downwardItems = append(downwardItems, corev1.DownwardAPIVolumeFile{
 			Path: "env/" + envName,
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "metadata.annotations['" + key + "']",
 			},
 		})
 	}
+	for _, binding := range bindings {
+		key := bindingTypeAnnotationKey(binding.Name)
+		downwardItems = append(downwardItems, corev1.DownwardAPIVolumeFile{
+			Path: "bindings/" + binding.Name + "/type",
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "metadata.annotations['" + key + "']",
+			},
+		})
+	}
 
-	if len(items) == 0 {
+	var projections []corev1.VolumeProjection
+	if len(downwardItems) > 0 {
+		projections = append(projections, corev1.VolumeProjection{
+			DownwardAPI: &corev1.DownwardAPIProjection{
+				Items: downwardItems,
+			},
+		})
+	}
+	for _, binding := range bindings {
+		projections = append(projections, corev1.VolumeProjection{
+			ConfigMap: &corev1.ConfigMapProjection{
+				LocalObjectReference: corev1.LocalObjectReference{Name: binding.ConfigMapName},
+				Items: []corev1.KeyToPath{{
+					Key:  binding.ConfigMapKey,
+					Path: "bindings/" + binding.Name + "/" + binding.TargetFile,
+				}},
+			},
+		})
+	}
+
+	if len(projections) == 0 {
 		return nil, nil
 	}
 
 	volume := &corev1.Volume{
 		Name: "platform",
 		VolumeSource: corev1.VolumeSource{
-			DownwardAPI: &corev1.DownwardAPIVolumeSource{
-				Items: items,
+			Projected: &corev1.ProjectedVolumeSource{
+				Sources: projections,
 			},
 		},
 	}

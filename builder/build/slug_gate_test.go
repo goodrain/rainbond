@@ -1,7 +1,6 @@
 package build_test
 
 import (
-	"strings"
 	"testing"
 
 	buildpkg "github.com/goodrain/rainbond/builder/build"
@@ -10,18 +9,12 @@ import (
 )
 
 func TestGetBuildByType_SlugRemovalGate(t *testing.T) {
-	t.Run("blocks slug source build when removal gate is enabled", func(t *testing.T) {
+	t.Run("keeps slug source build available when legacy gate env is enabled", func(t *testing.T) {
 		t.Setenv(buildpkg.SourceSlugRemovalGateEnv, "true")
 
 		_, err := buildpkg.GetBuildByType(code.JavaMaven, "slug")
-		if err == nil {
-			t.Fatal("expected slug build to be blocked when gate is enabled")
-		}
-		if !buildpkg.IsLegacySlugSourceBuildDisabled(err) {
-			t.Fatalf("expected legacy slug disabled error, got %v", err)
-		}
-		if !strings.Contains(err.Error(), "build_strategy=cnb") {
-			t.Fatalf("expected migration guidance in error, got %v", err)
+		if err != nil {
+			t.Fatalf("expected legacy slug build to stay available, got %v", err)
 		}
 	})
 

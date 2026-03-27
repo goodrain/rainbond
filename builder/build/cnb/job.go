@@ -11,6 +11,7 @@ import (
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,13 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	// Compute platform annotations once
 	annotations := b.buildPlatformAnnotations(re)
+	bindings, err := b.resolvePlatformBindings(re)
+	if err != nil {
+		return err
+	}
+	for _, binding := range bindings {
+		annotations[bindingTypeAnnotationKey(binding.Name)] = binding.Type
+	}
 
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -96,7 +104,7 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	volumes, mounts := b.createVolumeAndMount(re, secret.Name)
 
-	platformVolume, platformMount := b.createPlatformVolume(annotations)
+	platformVolume, platformMount := b.createPlatformVolume(annotations, bindings)
 	if platformVolume != nil {
 		volumes = append(volumes, *platformVolume)
 		mounts = append(mounts, *platformMount)
@@ -109,14 +117,15 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	// Chown workspace to cnb user inside the builder image (where cnb user exists with correct UID),
 	// then exec the lifecycle creator. This ensures buildpacks can chmod generated files.
 	container := corev1.Container{
-		Name:         name,
-		Image:        cnbBuilderImage,
-		Stdin:        true,
-		StdinOnce:    true,
-		Command:      []string{"sh", "-c", `chown -R cnb:cnb /workspace && exec "$@"`, "--"},
-		Args:         append([]string{CNBLifecycleCreatorPath}, creatorArgs...),
-		Env:          b.buildEnvVars(re),
-		VolumeMounts: mounts,
+		Name:            name,
+		Image:           cnbBuilderImage,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Stdin:           true,
+		StdinOnce:       true,
+		Command:         []string{"sh", "-c", `chown -R cnb:cnb /workspace && exec "$@"`, "--"},
+		Args:            append([]string{CNBLifecycleCreatorPath}, creatorArgs...),
+		Env:             b.buildEnvVars(re),
+		VolumeMounts:    mounts,
 	}
 
 	podSpec.Containers = append(podSpec.Containers, container)
@@ -160,7 +169,7 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		logLevel = v
 	}
 
-	noCache := re.BuildEnvs["NO_CACHE"] == "True" || re.BuildEnvs["NO_CACHE"] == "true"
+	noCache := truthyBuildEnv(re.BuildEnvs["NO_CACHE"]) || truthyBuildEnv(re.BuildEnvs["BUILD_NO_CACHE"])
 
 	args := []string{
 		"-app=/workspace",
@@ -217,6 +226,38 @@ func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 	envs = append(envs, lang.BuildEnvVars(re)...)
 
 	return envs
+}
+
+func (b *Builder) resolvePlatformBindings(re *build.Request) ([]platformBinding, error) {
+	explicitName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_MAVEN_SETTING_NAME", "MAVEN_SETTING_NAME"))
+	if re.Lang != code.JavaMaven {
+		return nil, nil
+	}
+	ctx := re.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	configMapName := ""
+	if explicitName != "" {
+		configMapName = b.jobCtrl.GetLanguageBuildSetting(ctx, code.JavaMaven, explicitName)
+		if configMapName == "" {
+			return nil, fmt.Errorf("maven setting config %s not found", explicitName)
+		}
+	} else {
+		configMapName = b.jobCtrl.GetDefaultLanguageBuildSetting(ctx, code.JavaMaven)
+	}
+	if configMapName == "" {
+		return nil, nil
+	}
+
+	return []platformBinding{{
+		Name:          configMapName,
+		Type:          "maven",
+		ConfigMapName: configMapName,
+		ConfigMapKey:  "mavensetting",
+		TargetFile:    "settings.xml",
+	}}, nil
 }
 
 // createVolumeAndMount creates volumes and volume mounts for the CNB build pod

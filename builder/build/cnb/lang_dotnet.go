@@ -8,6 +8,7 @@ import (
 type dotnetConfig struct{}
 
 func (d *dotnetConfig) BuildAnnotations(re *build.Request, annotations map[string]string) {
+	applyDependencyMirrorAnnotation(annotations)
 }
 
 func (d *dotnetConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {

@@ -21,9 +21,7 @@ package build
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -62,38 +60,13 @@ var buildcreaters map[code.Lang]CreaterBuild
 var cnbCreater CreaterBuild
 
 const (
-	// SourceSlugRemovalGateEnv controls whether legacy source slug builds are blocked.
+	// SourceSlugRemovalGateEnv is kept for backward compatibility but no longer affects slug builds.
 	SourceSlugRemovalGateEnv = "ENABLE_SOURCE_SLUG_REMOVAL_GATE"
-)
-
-var (
-	// ErrLegacySlugSourceBuildDisabled indicates that source slug build execution is disabled by gate.
-	ErrLegacySlugSourceBuildDisabled = errors.New("legacy slug source builds are disabled")
-	sourceSlugRemovalGateEnabled     = func() bool {
-		switch strings.ToLower(strings.TrimSpace(os.Getenv(SourceSlugRemovalGateEnv))) {
-		case "1", "t", "true", "y", "yes", "on":
-			return true
-		default:
-			return false
-		}
-	}
 )
 
 // RegisterCNBBuilder registers the CNB builder factory (called from cnb package init)
 func RegisterCNBBuilder(fn CreaterBuild) {
 	cnbCreater = fn
-}
-
-// IsLegacySlugSourceBuildDisabled reports whether err was caused by the slug removal gate.
-func IsLegacySlugSourceBuildDisabled(err error) bool {
-	return errors.Is(err, ErrLegacySlugSourceBuildDisabled)
-}
-
-func legacySlugSourceBuildDisabledError() error {
-	return fmt.Errorf(
-		"%w: slug source builds were removed in 6.8.0; migrate this component to build_strategy=cnb via slug-to-cnb migration before rebuilding",
-		ErrLegacySlugSourceBuildDisabled,
-	)
 }
 
 // Build app build pack
@@ -227,9 +200,6 @@ func GetBuildByType(lang code.Lang, buildType string) (Build, error) {
 		// Other languages fall back to default builder
 		return GetBuild(lang)
 	case "slug":
-		if sourceSlugRemovalGateEnabled() {
-			return nil, legacySlugSourceBuildDisabledError()
-		}
 		return GetBuild(lang)
 	default:
 		return GetBuild(lang)
