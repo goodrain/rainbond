@@ -2,8 +2,11 @@ package mysql
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -23,6 +26,25 @@ func newLongVersionPatchTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("auto migrate enterprise language version: %v", err)
 	}
 
+	return db
+}
+
+func newMySQLDialectPatchTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	sqlDB, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock db: %v", err)
+	}
+	db, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		sqlDB.Close()
+		t.Fatalf("open gorm mysql db: %v", err)
+	}
+	db.LogMode(false)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
 	return db
 }
 
@@ -136,5 +158,110 @@ func TestLongVersionBackfillLegacyStrategy(t *testing.T) {
 	}
 	if gotCNB.IsAllowed {
 		t.Fatal("expected non-legacy cnb version to keep is_allowed=false")
+	}
+}
+
+func TestDeduplicateLanguageVersionsRemovesHistoricalDuplicates(t *testing.T) {
+	db := newLongVersionPatchTestDB(t)
+	defer db.Close()
+
+	versions := []*model.EnterpriseLanguageVersion{
+		{
+			Lang:          "openJDK",
+			Version:       "1.8",
+			BuildStrategy: model.LongVersionBuildStrategySlug,
+			FirstChoice:   false,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+			FileName:      "OpenJDK1.8.tar.gz",
+		},
+		{
+			Lang:          "openJDK",
+			Version:       "1.8",
+			BuildStrategy: "",
+			FirstChoice:   true,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+			FileName:      "OpenJDK1.8.tar.gz",
+		},
+		{
+			Lang:          "openJDK",
+			Version:       "1.8",
+			BuildStrategy: model.LongVersionBuildStrategySlug,
+			FirstChoice:   false,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+			FileName:      "OpenJDK1.8.tar.gz",
+		},
+		{
+			Lang:          "openJDK",
+			Version:       "1.8",
+			BuildStrategy: model.LongVersionBuildStrategySlug,
+			FirstChoice:   false,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+			FileName:      "OpenJDK1.8.tar.gz",
+		},
+	}
+	for _, version := range versions {
+		if err := db.Create(version).Error; err != nil {
+			t.Fatalf("create duplicate version: %v", err)
+		}
+	}
+
+	if err := backfillLegacyLongVersionStrategy(db); err != nil {
+		t.Fatalf("backfill legacy strategy before dedup: %v", err)
+	}
+	if err := deduplicateLanguageVersions(db); err != nil {
+		t.Fatalf("deduplicate language versions: %v", err)
+	}
+
+	var rows []model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ?", "openJDK", "1.8").Find(&rows).Error; err != nil {
+		t.Fatalf("query deduplicated rows: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 historical row after deduplication, got %d", len(rows))
+	}
+	if rows[0].BuildStrategy != model.LongVersionBuildStrategySlug {
+		t.Fatalf("expected deduplicated row to use slug strategy, got %q", rows[0].BuildStrategy)
+	}
+	if !rows[0].FirstChoice {
+		t.Fatal("expected deduplicated row to preserve first_choice=true")
+	}
+
+	manager := &Manager{
+		db:     db,
+		config: config.Config{DBType: "sqlite"},
+	}
+	if err := manager.patchLanguageVersionUniqueIndex(); err != nil {
+		t.Fatalf("patch unique index after deduplication: %v", err)
+	}
+	if err := db.Create(&model.EnterpriseLanguageVersion{
+		Lang:          "openJDK",
+		Version:       "1.8",
+		BuildStrategy: model.LongVersionBuildStrategySlug,
+		Show:          true,
+		IsAllowed:     true,
+	}).Error; err == nil {
+		t.Fatal("expected unique index to reject duplicate openJDK slug row")
+	}
+}
+
+func TestLongVersionDeduplicationOrderClausesQuoteReservedColumnsForMySQL(t *testing.T) {
+	db := newMySQLDialectPatchTestDB(t)
+
+	clauses := longVersionDeduplicationOrderClauses(db)
+
+	joined := strings.Join(clauses, ",")
+	if strings.Contains(joined, "system DESC") && !strings.Contains(joined, "`system` DESC") {
+		t.Fatalf("expected quoted system order clause, got %q", joined)
+	}
+	if !strings.Contains(joined, "`system` DESC") {
+		t.Fatalf("expected mysql deduplication order clause to quote system column, got %q", joined)
 	}
 }

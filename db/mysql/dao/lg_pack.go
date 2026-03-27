@@ -34,42 +34,43 @@ func (t *LongVersionDaoImpl) UpdateModel(mo model.Interface) error {
 func (t *LongVersionDaoImpl) ListVersionByLanguage(language string, show string) ([]*model.EnterpriseLanguageVersion, error) {
 	var versions []*model.EnterpriseLanguageVersion
 
-	query := t.DB.Where("lang = ?", language).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug)
+	query := orderLongVersionQuery(t.DB.Where("lang = ?", language).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug))
 	if show != "" {
 		query = query.Where("is_show = ?", true)
 	}
 	if err := query.Find(&versions).Error; err != nil {
 		return nil, err
 	}
-	return versions, nil
+	return deduplicateListedLanguageVersions(versions), nil
 }
 
 // ListVersionByLanguageAndStrategy list by language and strategy
 func (t *LongVersionDaoImpl) ListVersionByLanguageAndStrategy(language string, show string, buildStrategy string) ([]*model.EnterpriseLanguageVersion, error) {
 	var versions []*model.EnterpriseLanguageVersion
-	query := t.DB.Where("lang = ? and build_strategy = ?", language, normalizeLongVersionBuildStrategy(buildStrategy))
+	query := orderLongVersionQuery(t.DB.Where("lang = ? and build_strategy = ?", language, normalizeLongVersionBuildStrategy(buildStrategy)))
 	if show != "" {
 		query = query.Where("is_show = ?", true)
 	}
 	if err := query.Find(&versions).Error; err != nil {
 		return nil, err
 	}
-	return versions, nil
+	return deduplicateListedLanguageVersions(versions), nil
 }
 
 // GetVersionByLanguageAndVersion -
 func (t *LongVersionDaoImpl) GetVersionByLanguageAndVersion(language, version string) (*model.EnterpriseLanguageVersion, error) {
 	ver := new(model.EnterpriseLanguageVersion)
-	if err := t.DB.Where("lang = ? and version = ?", language, version).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug).First(ver).Error; err != nil {
+	if err := orderLongVersionQuery(t.DB.Where("lang = ? and version = ?", language, version).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug)).First(ver).Error; err != nil {
 		return nil, err
 	}
+	ver.BuildStrategy = normalizeLongVersionBuildStrategy(ver.BuildStrategy)
 	return ver, nil
 }
 
 // GetVersionByLanguageAndVersionAndStrategy -
 func (t *LongVersionDaoImpl) GetVersionByLanguageAndVersionAndStrategy(language, version, buildStrategy string) (*model.EnterpriseLanguageVersion, error) {
 	ver := new(model.EnterpriseLanguageVersion)
-	if err := t.DB.Where("lang = ? and version = ? and build_strategy = ?", language, version, normalizeLongVersionBuildStrategy(buildStrategy)).First(ver).Error; err != nil {
+	if err := orderLongVersionQuery(t.DB.Where("lang = ? and version = ? and build_strategy = ?", language, version, normalizeLongVersionBuildStrategy(buildStrategy))).First(ver).Error; err != nil {
 		return nil, err
 	}
 	return ver, nil
@@ -78,16 +79,17 @@ func (t *LongVersionDaoImpl) GetVersionByLanguageAndVersionAndStrategy(language,
 // GetDefaultVersionByLanguageAndVersion -
 func (t *LongVersionDaoImpl) GetDefaultVersionByLanguageAndVersion(language string) (*model.EnterpriseLanguageVersion, error) {
 	ver := new(model.EnterpriseLanguageVersion)
-	if err := t.DB.Where("lang = ? and first_choice = ?", language, true).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug).First(ver).Error; err != nil {
+	if err := orderLongVersionQuery(t.DB.Where("lang = ? and first_choice = ?", language, true).Where("(build_strategy = ? OR build_strategy = '' OR build_strategy IS NULL)", model.LongVersionBuildStrategySlug)).First(ver).Error; err != nil {
 		return nil, err
 	}
+	ver.BuildStrategy = normalizeLongVersionBuildStrategy(ver.BuildStrategy)
 	return ver, nil
 }
 
 // GetDefaultVersionByLanguageAndStrategy -
 func (t *LongVersionDaoImpl) GetDefaultVersionByLanguageAndStrategy(language, buildStrategy string) (*model.EnterpriseLanguageVersion, error) {
 	ver := new(model.EnterpriseLanguageVersion)
-	if err := t.DB.Where("lang = ? and first_choice = ? and build_strategy = ?", language, true, normalizeLongVersionBuildStrategy(buildStrategy)).First(ver).Error; err != nil {
+	if err := orderLongVersionQuery(t.DB.Where("lang = ? and first_choice = ? and build_strategy = ?", language, true, normalizeLongVersionBuildStrategy(buildStrategy))).First(ver).Error; err != nil {
 		return nil, err
 	}
 	return ver, nil
@@ -170,4 +172,73 @@ func normalizeLongVersionBuildStrategy(buildStrategy string) string {
 		return model.LongVersionBuildStrategySlug
 	}
 	return buildStrategy
+}
+
+func orderLongVersionQuery(query *gorm.DB) *gorm.DB {
+	for _, clause := range longVersionOrderClauses(query) {
+		query = query.Order(clause)
+	}
+	return query
+}
+
+func longVersionOrderClauses(db *gorm.DB) []string {
+	scope := db.NewScope(&model.EnterpriseLanguageVersion{})
+	return []string{
+		scope.Quote("first_choice") + " DESC",
+		scope.Quote("is_show") + " DESC",
+		scope.Quote("is_allowed") + " DESC",
+		scope.Quote("system") + " DESC",
+		scope.Quote("ID") + " ASC",
+	}
+}
+
+func deduplicateListedLanguageVersions(versions []*model.EnterpriseLanguageVersion) []*model.EnterpriseLanguageVersion {
+	if len(versions) < 2 {
+		if len(versions) == 1 && versions[0] != nil {
+			versions[0].BuildStrategy = normalizeLongVersionBuildStrategy(versions[0].BuildStrategy)
+		}
+		return versions
+	}
+
+	result := make([]*model.EnterpriseLanguageVersion, 0, len(versions))
+	seen := make(map[string]*model.EnterpriseLanguageVersion, len(versions))
+	for _, version := range versions {
+		if version == nil {
+			continue
+		}
+		version.BuildStrategy = normalizeLongVersionBuildStrategy(version.BuildStrategy)
+		key := buildLongVersionDedupKey(version.Lang, version.Version, version.BuildStrategy)
+		if existing, ok := seen[key]; ok {
+			mergeListedLanguageVersion(existing, version)
+			continue
+		}
+		seen[key] = version
+		result = append(result, version)
+	}
+	return result
+}
+
+func buildLongVersionDedupKey(lang, version, buildStrategy string) string {
+	return lang + "\x00" + version + "\x00" + normalizeLongVersionBuildStrategy(buildStrategy)
+}
+
+func mergeListedLanguageVersion(target, source *model.EnterpriseLanguageVersion) {
+	if source.FirstChoice {
+		target.FirstChoice = true
+	}
+	if source.Show {
+		target.Show = true
+	}
+	if source.System {
+		target.System = true
+	}
+	if source.IsAllowed {
+		target.IsAllowed = true
+	}
+	if target.EventID == "" && source.EventID != "" {
+		target.EventID = source.EventID
+	}
+	if target.FileName == "" && source.FileName != "" {
+		target.FileName = source.FileName
+	}
 }

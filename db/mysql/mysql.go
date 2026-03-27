@@ -287,6 +287,9 @@ func (m *Manager) patchTable() {
 	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
 		logrus.Errorf("backfill legacy language versions error: %s", err.Error())
 	}
+	if err := deduplicateLanguageVersions(m.db); err != nil {
+		logrus.Errorf("deduplicate enterprise_language_version rows error: %s", err.Error())
+	}
 	if err := m.patchLanguageVersionUniqueIndex(); err != nil {
 		logrus.Errorf("patch enterprise_language_version unique index error: %s", err.Error())
 	}
@@ -515,6 +518,126 @@ func buildStrategySeedVersions(lang, buildStrategy string, versions []cnbSeedVer
 		})
 	}
 	return records
+}
+
+func deduplicateLanguageVersions(db *gorm.DB) error {
+	var versions []model.EnterpriseLanguageVersion
+	query := db
+	for _, clause := range longVersionDeduplicationOrderClauses(db) {
+		query = query.Order(clause)
+	}
+	if err := query.Find(&versions).Error; err != nil {
+		return err
+	}
+	if len(versions) < 2 {
+		return nil
+	}
+
+	type keeperState struct {
+		version *model.EnterpriseLanguageVersion
+		dirty   bool
+	}
+
+	keepers := make(map[string]*keeperState, len(versions))
+	var deleteIDs []uint
+	for i := range versions {
+		version := versions[i]
+		version.BuildStrategy = normalizeSeedLongVersionBuildStrategy(version.BuildStrategy)
+		key := buildSeedLongVersionDedupKey(version.Lang, version.Version, version.BuildStrategy)
+
+		if existing, ok := keepers[key]; ok {
+			if mergeStoredLanguageVersion(existing.version, &version) {
+				existing.dirty = true
+			}
+			deleteIDs = append(deleteIDs, version.ID)
+			continue
+		}
+
+		keep := version
+		keepers[key] = &keeperState{version: &keep}
+	}
+
+	if len(deleteIDs) == 0 {
+		return nil
+	}
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	for _, keeper := range keepers {
+		if !keeper.dirty {
+			continue
+		}
+		if err := tx.Save(keeper.version).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Where("ID IN (?)", deleteIDs).Delete(&model.EnterpriseLanguageVersion{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
+}
+
+func normalizeSeedLongVersionBuildStrategy(buildStrategy string) string {
+	if buildStrategy == "" {
+		return model.LongVersionBuildStrategySlug
+	}
+	return buildStrategy
+}
+
+func longVersionDeduplicationOrderClauses(db *gorm.DB) []string {
+	scope := db.NewScope(&model.EnterpriseLanguageVersion{})
+	return []string{
+		scope.Quote("lang") + " ASC",
+		scope.Quote("version") + " ASC",
+		scope.Quote("build_strategy") + " ASC",
+		scope.Quote("first_choice") + " DESC",
+		scope.Quote("is_show") + " DESC",
+		scope.Quote("is_allowed") + " DESC",
+		scope.Quote("system") + " DESC",
+		scope.Quote("ID") + " ASC",
+	}
+}
+
+func buildSeedLongVersionDedupKey(lang, version, buildStrategy string) string {
+	return lang + "\x00" + version + "\x00" + normalizeSeedLongVersionBuildStrategy(buildStrategy)
+}
+
+func mergeStoredLanguageVersion(target, source *model.EnterpriseLanguageVersion) bool {
+	changed := false
+
+	if normalized := normalizeSeedLongVersionBuildStrategy(target.BuildStrategy); target.BuildStrategy != normalized {
+		target.BuildStrategy = normalized
+		changed = true
+	}
+	if source.FirstChoice && !target.FirstChoice {
+		target.FirstChoice = true
+		changed = true
+	}
+	if source.Show && !target.Show {
+		target.Show = true
+		changed = true
+	}
+	if source.System && !target.System {
+		target.System = true
+		changed = true
+	}
+	if source.IsAllowed && !target.IsAllowed {
+		target.IsAllowed = true
+		changed = true
+	}
+	if target.EventID == "" && source.EventID != "" {
+		target.EventID = source.EventID
+		changed = true
+	}
+	if target.FileName == "" && source.FileName != "" {
+		target.FileName = source.FileName
+		changed = true
+	}
+	return changed
 }
 
 func backfillLegacyLongVersionStrategy(db *gorm.DB) error {

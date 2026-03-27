@@ -2,8 +2,10 @@ package dao
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -23,6 +25,25 @@ func newLongVersionTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("auto migrate enterprise language version: %v", err)
 	}
 
+	return db
+}
+
+func newMySQLDialectLongVersionTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	sqlDB, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock db: %v", err)
+	}
+	db, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		sqlDB.Close()
+		t.Fatalf("open gorm mysql db: %v", err)
+	}
+	db.LogMode(false)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
 	return db
 }
 
@@ -108,6 +129,52 @@ func TestLongVersionDaoListVersionByLanguageAndStrategy(t *testing.T) {
 	}
 	if versions[0].Version != "3.11" {
 		t.Fatalf("expected visible version 3.11, got %q", versions[0].Version)
+	}
+}
+
+func TestLongVersionDaoListVersionByLanguageAndStrategyDeduplicatesHistoricalRows(t *testing.T) {
+	db := newLongVersionTestDB(t)
+	defer db.Close()
+
+	for i := 0; i < 4; i++ {
+		mustCreateVersion(t, db, &model.EnterpriseLanguageVersion{
+			Lang:          "openJDK",
+			Version:       "1.8",
+			BuildStrategy: model.LongVersionBuildStrategySlug,
+			FirstChoice:   i == 3,
+			Show:          true,
+			IsAllowed:     true,
+		})
+	}
+
+	dao := &LongVersionDaoImpl{DB: db}
+
+	versions, err := dao.ListVersionByLanguageAndStrategy("openJDK", "true", model.LongVersionBuildStrategySlug)
+	if err != nil {
+		t.Fatalf("list deduplicated versions by language and strategy: %v", err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("expected 1 deduplicated slug version, got %d", len(versions))
+	}
+	if versions[0].Version != "1.8" {
+		t.Fatalf("expected slug version 1.8, got %q", versions[0].Version)
+	}
+	if !versions[0].FirstChoice {
+		t.Fatal("expected deduplicated version to keep first_choice=true")
+	}
+}
+
+func TestLongVersionOrderClausesQuoteReservedColumnsForMySQL(t *testing.T) {
+	db := newMySQLDialectLongVersionTestDB(t)
+
+	clauses := longVersionOrderClauses(db)
+
+	joined := strings.Join(clauses, ",")
+	if strings.Contains(joined, "system DESC") && !strings.Contains(joined, "`system` DESC") {
+		t.Fatalf("expected quoted system order clause, got %q", joined)
+	}
+	if !strings.Contains(joined, "`system` DESC") {
+		t.Fatalf("expected mysql order clause to quote system column, got %q", joined)
 	}
 }
 
