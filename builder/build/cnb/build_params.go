@@ -3,7 +3,6 @@ package cnb
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder/build"
@@ -85,6 +84,14 @@ func validateSupportedBuildParams(re *build.Request) error {
 		if manager != "" {
 			re.BuildEnvs["BUILD_PYTHON_PACKAGE_MANAGER"] = manager
 		}
+		if manager == pythonPackageManagerConda {
+			solver := firstNonEmptyEnv(re.BuildEnvs, "BP_CONDA_SOLVER", "BUILD_CONDA_SOLVER")
+			if solver == "" {
+				solver = "mamba"
+			}
+			re.BuildEnvs["BP_CONDA_SOLVER"] = solver
+			re.BuildEnvs["BUILD_CONDA_SOLVER"] = solver
+		}
 		if version := strings.TrimSpace(re.BuildEnvs["BUILD_PYTHON_PACKAGE_MANAGER_VERSION"]); version != "" {
 			envName, err := pythonPackageManagerVersionEnv(manager)
 			if err != nil {
@@ -143,23 +150,7 @@ func detectPythonPackageManager(re *build.Request) (string, error) {
 	if manager != "" {
 		return manager, nil
 	}
-
-	for _, filename := range []string{"environment.yml", "environment.yaml", "conda.yml", "conda.yaml"} {
-		if fileExists(filepath.Join(re.SourceDir, filename)) {
-			return pythonPackageManagerConda, nil
-		}
-	}
-	if fileExists(filepath.Join(re.SourceDir, "Pipfile")) {
-		return pythonPackageManagerPipenv, nil
-	}
-	pyprojectPath := filepath.Join(re.SourceDir, "pyproject.toml")
-	if fileExists(pyprojectPath) {
-		body, err := os.ReadFile(pyprojectPath)
-		if err == nil && strings.Contains(string(body), "[tool.poetry]") {
-			return pythonPackageManagerPoetry, nil
-		}
-	}
-	return pythonPackageManagerPip, nil
+	return code.DetectPythonPackageManager(re.SourceDir), nil
 }
 
 func normalizePythonPackageManager(manager string) (string, error) {

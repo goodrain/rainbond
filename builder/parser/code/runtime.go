@@ -124,6 +124,11 @@ func readPHPRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 func readPythonRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 	var runtimeInfo = make(map[string]string, 1)
 	if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); !ok {
+		runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
+		if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
+			runtimeInfo["START_CMD"] = startCmd
+			runtimeInfo["START_CMD_SOURCE"] = source
+		}
 		return runtimeInfo, nil
 	}
 	body, err := os.ReadFile(path.Join(buildPath, "runtime.txt"))
@@ -139,6 +144,11 @@ func readPythonRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 		return nil, err
 	}
 	runtimeInfo["RUNTIMES"] = normalized
+	runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
+	if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
+		runtimeInfo["START_CMD"] = startCmd
+		runtimeInfo["START_CMD_SOURCE"] = source
+	}
 	return runtimeInfo, nil
 }
 
@@ -344,6 +354,11 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 
 func readPythonRuntimeInfo(buildPath string) (map[string]string, error) {
 	var runtimeInfo = make(map[string]string, 1)
+	runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
+	if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
+		runtimeInfo["START_CMD"] = startCmd
+		runtimeInfo["START_CMD_SOURCE"] = source
+	}
 	if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); !ok {
 		return runtimeInfo, nil
 	}

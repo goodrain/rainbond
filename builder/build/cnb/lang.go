@@ -54,7 +54,7 @@ func getLanguageConfig(re *build.Request) LanguageConfig {
 }
 
 func ensureProcfile(re *build.Request) error {
-	procfile := re.BuildEnvs["BUILD_PROCFILE"]
+	procfile := firstNonEmptyEnv(re.BuildEnvs, "BUILD_PROCFILE", "BUILD_AUTO_PROCFILE")
 	if procfile == "" {
 		return nil
 	}

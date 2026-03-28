@@ -1,6 +1,8 @@
 package cnb
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/goodrain/rainbond/builder/build"
@@ -90,6 +92,47 @@ func TestValidateSupportedBuildParamsDetectsPythonManager(t *testing.T) {
 	}
 	if got := re.BuildEnvs["BP_PIPENV_VERSION"]; got != "2024.4.1" {
 		t.Fatalf("expected BP_PIPENV_VERSION to be synthesized, got %q", got)
+	}
+}
+
+func TestValidateSupportedBuildParamsDetectsPythonManagerFromFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Pipfile"), []byte("[packages]\nflask='*'\n"), 0644); err != nil {
+		t.Fatalf("write Pipfile: %v", err)
+	}
+	re := &build.Request{
+		Lang:          code.Python,
+		BuildStrategy: "cnb",
+		SourceDir:     dir,
+		BuildEnvs:     map[string]string{},
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BUILD_PYTHON_PACKAGE_MANAGER"]; got != "pipenv" {
+		t.Fatalf("expected auto-detected package manager pipenv, got %q", got)
+	}
+}
+
+func TestValidateSupportedBuildParamsDefaultsCondaSolver(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "environment.yml"), []byte("name: demo\n"), 0644); err != nil {
+		t.Fatalf("write environment.yml: %v", err)
+	}
+	re := &build.Request{
+		Lang:          code.Python,
+		BuildStrategy: "cnb",
+		SourceDir:     dir,
+		BuildEnvs:     map[string]string{},
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BUILD_PYTHON_PACKAGE_MANAGER"]; got != "conda" {
+		t.Fatalf("expected auto-detected package manager conda, got %q", got)
+	}
+	if got := re.BuildEnvs["BP_CONDA_SOLVER"]; got != "mamba" {
+		t.Fatalf("expected default BP_CONDA_SOLVER=mamba, got %q", got)
 	}
 }
 
