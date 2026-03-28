@@ -123,27 +123,6 @@ func readPHPRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 
 func readPythonRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 	var runtimeInfo = make(map[string]string, 1)
-	if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); !ok {
-		runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
-		if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
-			runtimeInfo["START_CMD"] = startCmd
-			runtimeInfo["START_CMD_SOURCE"] = source
-		}
-		return runtimeInfo, nil
-	}
-	body, err := os.ReadFile(path.Join(buildPath, "runtime.txt"))
-	if err != nil {
-		return runtimeInfo, nil
-	}
-	version := strings.TrimSpace(string(body))
-	if version == "" {
-		return runtimeInfo, nil
-	}
-	normalized, err := normalizePythonRuntimeVersion(version)
-	if err != nil {
-		return nil, err
-	}
-	runtimeInfo["RUNTIMES"] = normalized
 	runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
 	if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
 		runtimeInfo["START_CMD"] = startCmd

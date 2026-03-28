@@ -487,7 +487,11 @@ func cnbSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
 		{Version: "24.13.0", Default: true},
 	})...)
 	versions = append(versions, buildStrategySeedVersions("python", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "3.10", Default: false},
 		{Version: "3.11", Default: true},
+		{Version: "3.12", Default: false},
+		{Version: "3.13", Default: false},
+		{Version: "3.14", Default: false},
 	})...)
 	versions = append(versions, buildStrategySeedVersions("golang", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
 		{Version: "1.23", Default: true},

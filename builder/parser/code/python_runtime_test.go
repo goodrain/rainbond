@@ -8,9 +8,6 @@ import (
 
 func TestCheckRuntimeByStrategyPythonDetectsPackageManagerAndProcfile(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "runtime.txt"), []byte("python-3.11.9"), 0644); err != nil {
-		t.Fatalf("write runtime.txt: %v", err)
-	}
 	if err := os.WriteFile(filepath.Join(dir, "Pipfile"), []byte("[packages]\nflask='*'\n"), 0644); err != nil {
 		t.Fatalf("write Pipfile: %v", err)
 	}
@@ -22,8 +19,8 @@ func TestCheckRuntimeByStrategyPythonDetectsPackageManagerAndProcfile(t *testing
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["RUNTIMES"]; got != "3.11" {
-		t.Fatalf("expected normalized python runtime 3.11, got %q", got)
+	if _, ok := runtimeInfo["RUNTIMES"]; ok {
+		t.Fatalf("expected python cnb runtime detection to ignore runtime.txt/version files, got %q", runtimeInfo["RUNTIMES"])
 	}
 	if got := runtimeInfo["PACKAGE_TOOL"]; got != "pipenv" {
 		t.Fatalf("expected package manager pipenv, got %q", got)
@@ -38,9 +35,6 @@ func TestCheckRuntimeByStrategyPythonDetectsPackageManagerAndProcfile(t *testing
 
 func TestCheckRuntimeByStrategyPythonDetectsDjangoStartCommand(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "runtime.txt"), []byte("python-3.12.1"), 0644); err != nil {
-		t.Fatalf("write runtime.txt: %v", err)
-	}
 	if err := os.WriteFile(filepath.Join(dir, "manage.py"), []byte("print('django')"), 0644); err != nil {
 		t.Fatalf("write manage.py: %v", err)
 	}
@@ -69,9 +63,6 @@ func TestCheckRuntimeByStrategyPythonDetectsDjangoStartCommand(t *testing.T) {
 
 func TestCheckRuntimeByStrategyPythonDetectsPoetryScriptStartCommand(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "runtime.txt"), []byte("python-3.12.2"), 0644); err != nil {
-		t.Fatalf("write runtime.txt: %v", err)
-	}
 	pyproject := `[tool.poetry]
 name = "demo"
 version = "0.1.0"

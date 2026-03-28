@@ -64,7 +64,7 @@ func TestResolveExplicitVersionRejectsDisallowedVersion(t *testing.T) {
 	}
 }
 
-func TestResolveSourceDetectedVersionRejectsInsteadOfFallingBack(t *testing.T) {
+func TestResolvePythonIgnoresRuntimeTxtAndUsesPolicyDefault(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "runtime.txt"), []byte("python-3.11.9"), 0644); err != nil {
 		t.Fatalf("write runtime.txt: %v", err)
@@ -87,9 +87,11 @@ func TestResolveSourceDetectedVersionRejectsInsteadOfFallingBack(t *testing.T) {
 		},
 	}
 
-	err := applyVersionPolicy(re)
-	if err == nil {
-		t.Fatal("expected disallowed source detected version to fail")
+	if err := applyVersionPolicy(re); err != nil {
+		t.Fatalf("applyVersionPolicy returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_CPYTHON_VERSION"]; got != "3.10" {
+		t.Fatalf("expected python cnb to ignore runtime.txt and use policy default 3.10, got %q", got)
 	}
 }
 
