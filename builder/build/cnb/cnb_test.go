@@ -1171,6 +1171,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 	t.Run("java maven fields are visible in pod annotations and envs", func(t *testing.T) {
 		var capturedPod *corev1.Pod
 		ctrl := &mockJobCtrl{
+			defaultLanguageBuildSetting: "default-maven",
 			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
 				capturedPod = job
 				go func() {
@@ -1215,6 +1216,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 			"cnb-bp-maven-additional-build-arguments": "-DskipTests",
 			"cnb-bp-maven-built-module":               "service-a",
 			"cnb-bp-maven-built-artifact":             "service-a/target/app.jar",
+			"cnb-bp-maven-settings-path":              "/platform/bindings/default-maven/settings.xml",
 		}
 		for key, wantValue := range wantAnnotations {
 			if got := capturedPod.Annotations[key]; got != wantValue {

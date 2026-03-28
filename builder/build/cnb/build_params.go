@@ -67,9 +67,14 @@ func validateSupportedBuildParams(re *build.Request) error {
 	switch re.Lang {
 	case code.JavaMaven, code.Gradle, code.JaveWar:
 		re.BuildEnvs["BUILD_RUNTIMES_MAVEN"] = defaultCNBMavenVersion
-		if normalized, err := normalizeJavaAppServer(re.BuildEnvs["BUILD_RUNTIMES_SERVER"]); err != nil {
+		server := firstNonEmptyEnv(re.BuildEnvs, "BP_JAVA_APP_SERVER", "BUILD_RUNTIMES_SERVER")
+		if server == "" && re.Lang == code.JaveWar {
+			server = "tomcat"
+		}
+		if normalized, err := normalizeJavaAppServer(server); err != nil {
 			return err
 		} else if normalized != "" {
+			re.BuildEnvs["BP_JAVA_APP_SERVER"] = normalized
 			re.BuildEnvs["BUILD_RUNTIMES_SERVER"] = normalized
 		}
 	case code.Python:

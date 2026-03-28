@@ -16,13 +16,14 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 		BuildStrategy: "cnb",
 		SourceDir:     dir,
 		BuildEnvs: map[string]string{
-			"BUILD_RUNTIMES":             "17",
-			"BUILD_MAVEN_CUSTOM_GOALS":   "clean package",
-			"BUILD_MAVEN_CUSTOM_OPTS":    "-DskipTests",
-			"BUILD_MAVEN_JAVA_OPTS":      "-Xmx1024m",
-			"BUILD_MAVEN_BUILT_MODULE":   "service-a",
-			"BUILD_MAVEN_BUILT_ARTIFACT": "service-a/target/app.jar",
-			"BUILD_PROCFILE":             "web: java $JAVA_OPTS -jar target/app.jar",
+			"BP_JVM_VERSION":                      "17",
+			"BP_JVM_TYPE":                         "JDK",
+			"BP_MAVEN_BUILD_ARGUMENTS":            "clean package",
+			"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-DskipTests",
+			"BP_MAVEN_BUILT_MODULE":               "service-a",
+			"BP_MAVEN_BUILT_ARTIFACT":             "service-a/target/app.jar",
+			"BUILD_MAVEN_JAVA_OPTS":               "-Xmx1024m",
+			"BUILD_PROCFILE":                      "web: java $JAVA_OPTS -jar target/app.jar",
 		},
 	}
 
@@ -36,6 +37,9 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 	annotations := (&Builder{}).buildPlatformAnnotations(re)
 	if annotations["cnb-bp-jvm-version"] != "17" {
 		t.Fatalf("expected cnb-bp-jvm-version=17, got %q", annotations["cnb-bp-jvm-version"])
+	}
+	if annotations["cnb-bp-jvm-type"] != "JDK" {
+		t.Fatalf("expected cnb-bp-jvm-type=JDK, got %q", annotations["cnb-bp-jvm-type"])
 	}
 	if annotations["cnb-bp-maven-build-arguments"] != "clean package" {
 		t.Fatalf("expected maven build arguments, got %q", annotations["cnb-bp-maven-build-arguments"])
@@ -91,6 +95,110 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 		if !found[name] {
 			t.Fatalf("expected %s env var for java cnb build", name)
 		}
+	}
+}
+
+func TestJavaLanguageConfigPrefersBPFieldsOverLegacyBuildFields(t *testing.T) {
+	re := &build.Request{
+		Lang:      code.JavaMaven,
+		SourceDir: t.TempDir(),
+		BuildEnvs: map[string]string{
+			"BP_JVM_VERSION":                      "21",
+			"BUILD_RUNTIMES":                      "17",
+			"BP_MAVEN_BUILD_ARGUMENTS":            "verify",
+			"BUILD_MAVEN_CUSTOM_GOALS":            "clean package",
+			"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-Pprod",
+			"BUILD_MAVEN_CUSTOM_OPTS":             "-DskipTests",
+			"BP_MAVEN_BUILT_MODULE":               "bp-module",
+			"BUILD_MAVEN_BUILT_MODULE":            "legacy-module",
+			"BP_MAVEN_BUILT_ARTIFACT":             "bp-module/target/app.jar",
+			"BUILD_MAVEN_BUILT_ARTIFACT":          "legacy-module/target/app.jar",
+		},
+	}
+
+	annotations := (&Builder{}).buildPlatformAnnotations(re)
+	if annotations["cnb-bp-jvm-version"] != "21" {
+		t.Fatalf("expected BP_JVM_VERSION to win, got %q", annotations["cnb-bp-jvm-version"])
+	}
+	if annotations["cnb-bp-maven-build-arguments"] != "verify" {
+		t.Fatalf("expected BP_MAVEN_BUILD_ARGUMENTS to win, got %q", annotations["cnb-bp-maven-build-arguments"])
+	}
+	if annotations["cnb-bp-maven-additional-build-arguments"] != "-Pprod" {
+		t.Fatalf("expected BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS to win, got %q", annotations["cnb-bp-maven-additional-build-arguments"])
+	}
+	if annotations["cnb-bp-maven-built-module"] != "bp-module" {
+		t.Fatalf("expected BP_MAVEN_BUILT_MODULE to win, got %q", annotations["cnb-bp-maven-built-module"])
+	}
+	if annotations["cnb-bp-maven-built-artifact"] != "bp-module/target/app.jar" {
+		t.Fatalf("expected BP_MAVEN_BUILT_ARTIFACT to win, got %q", annotations["cnb-bp-maven-built-artifact"])
+	}
+
+	envs := (&Builder{}).buildEnvVars(re)
+	wantEnv := map[string]string{
+		"BP_MAVEN_BUILD_ARGUMENTS":            "verify",
+		"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-Pprod",
+		"BP_MAVEN_BUILT_MODULE":               "bp-module",
+		"BP_MAVEN_BUILT_ARTIFACT":             "bp-module/target/app.jar",
+	}
+	found := map[string]string{}
+	for _, env := range envs {
+		found[env.Name] = env.Value
+	}
+	for name, want := range wantEnv {
+		if got := found[name]; got != want {
+			t.Fatalf("expected %s=%q, got %q", name, want, got)
+		}
+	}
+}
+
+func TestGradleLanguageConfigPrefersBPFieldsOverLegacyBuildFields(t *testing.T) {
+	re := &build.Request{
+		Lang:      code.Gradle,
+		SourceDir: t.TempDir(),
+		BuildEnvs: map[string]string{
+			"BP_JVM_VERSION":                          "21",
+			"BUILD_RUNTIMES":                          "17",
+			"BP_GRADLE_BUILD_ARGUMENTS":               "assemble",
+			"BUILD_GRADLE_BUILD_ARGUMENTS":            "build",
+			"BP_GRADLE_ADDITIONAL_BUILD_ARGUMENTS":    "--info",
+			"BUILD_GRADLE_ADDITIONAL_BUILD_ARGUMENTS": "--stacktrace",
+			"BP_GRADLE_BUILT_MODULE":                  "bp-service",
+			"BUILD_GRADLE_BUILT_MODULE":               "legacy-service",
+			"BP_GRADLE_BUILT_ARTIFACT":                "bp-service/build/libs/app.jar",
+			"BUILD_GRADLE_BUILT_ARTIFACT":             "legacy-service/build/libs/app.jar",
+		},
+	}
+
+	annotations := (&Builder{}).buildPlatformAnnotations(re)
+	if annotations["cnb-bp-jvm-version"] != "21" {
+		t.Fatalf("expected BP_JVM_VERSION to win, got %q", annotations["cnb-bp-jvm-version"])
+	}
+	if annotations["cnb-bp-gradle-build-arguments"] != "assemble" {
+		t.Fatalf("expected BP_GRADLE_BUILD_ARGUMENTS to win, got %q", annotations["cnb-bp-gradle-build-arguments"])
+	}
+	if annotations["cnb-bp-gradle-additional-build-arguments"] != "--info" {
+		t.Fatalf("expected BP_GRADLE_ADDITIONAL_BUILD_ARGUMENTS to win, got %q", annotations["cnb-bp-gradle-additional-build-arguments"])
+	}
+	if annotations["cnb-bp-gradle-built-module"] != "bp-service" {
+		t.Fatalf("expected BP_GRADLE_BUILT_MODULE to win, got %q", annotations["cnb-bp-gradle-built-module"])
+	}
+	if annotations["cnb-bp-gradle-built-artifact"] != "bp-service/build/libs/app.jar" {
+		t.Fatalf("expected BP_GRADLE_BUILT_ARTIFACT to win, got %q", annotations["cnb-bp-gradle-built-artifact"])
+	}
+}
+
+func TestJavaJarLanguageConfigExposesExecutableJarLocation(t *testing.T) {
+	re := &build.Request{
+		Lang:      code.JavaJar,
+		SourceDir: t.TempDir(),
+		BuildEnvs: map[string]string{
+			"BP_EXECUTABLE_JAR_LOCATION": "target/app.jar",
+		},
+	}
+
+	annotations := (&Builder{}).buildPlatformAnnotations(re)
+	if annotations["cnb-bp-executable-jar-location"] != "target/app.jar" {
+		t.Fatalf("expected executable jar location annotation, got %q", annotations["cnb-bp-executable-jar-location"])
 	}
 }
 

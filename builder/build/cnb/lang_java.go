@@ -15,24 +15,25 @@ type javaConfig struct{}
 func (j *javaConfig) BuildAnnotations(re *build.Request, annotations map[string]string) {
 	applyDependencyMirrorAnnotation(annotations)
 	setAnnotationValue(annotations, "cnb-bp-jvm-version", firstNonEmptyEnv(re.BuildEnvs, "BP_JVM_VERSION", "BUILD_RUNTIMES", "RUNTIMES"))
+	setAnnotationValue(annotations, "cnb-bp-jvm-type", firstNonEmptyEnv(re.BuildEnvs, "BP_JVM_TYPE"))
 
-	goals := strings.TrimSpace(re.BuildEnvs["BUILD_MAVEN_CUSTOM_GOALS"])
-	opts := strings.TrimSpace(re.BuildEnvs["BUILD_MAVEN_CUSTOM_OPTS"])
+	goals := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILD_ARGUMENTS", "BUILD_MAVEN_CUSTOM_GOALS")
+	opts := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", "BUILD_MAVEN_CUSTOM_OPTS")
 	setAnnotationValue(annotations, "cnb-bp-maven-build-arguments", goals)
 	setAnnotationValue(annotations, "cnb-bp-maven-additional-build-arguments", opts)
-	setAnnotationValue(annotations, "cnb-bp-maven-version", re.BuildEnvs["BUILD_RUNTIMES_MAVEN"])
+	setAnnotationValue(annotations, "cnb-bp-maven-version", firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_VERSION", "BUILD_RUNTIMES_MAVEN"))
 	builtModule, builtArtifact := resolveMavenBuiltTarget(re)
 	setAnnotationValue(annotations, "cnb-bp-maven-built-module", builtModule)
 	setAnnotationValue(annotations, "cnb-bp-maven-built-artifact", builtArtifact)
 
 	if re.Lang == code.Gradle {
-		setAnnotationValue(annotations, "cnb-bp-gradle-build-arguments", re.BuildEnvs["BUILD_GRADLE_BUILD_ARGUMENTS"])
-		setAnnotationValue(annotations, "cnb-bp-gradle-additional-build-arguments", re.BuildEnvs["BUILD_GRADLE_ADDITIONAL_BUILD_ARGUMENTS"])
-		setAnnotationValue(annotations, "cnb-bp-gradle-built-module", re.BuildEnvs["BUILD_GRADLE_BUILT_MODULE"])
-		setAnnotationValue(annotations, "cnb-bp-gradle-built-artifact", re.BuildEnvs["BUILD_GRADLE_BUILT_ARTIFACT"])
+		setAnnotationValue(annotations, "cnb-bp-gradle-build-arguments", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILD_ARGUMENTS", "BUILD_GRADLE_BUILD_ARGUMENTS"))
+		setAnnotationValue(annotations, "cnb-bp-gradle-additional-build-arguments", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_ADDITIONAL_BUILD_ARGUMENTS", "BUILD_GRADLE_ADDITIONAL_BUILD_ARGUMENTS"))
+		setAnnotationValue(annotations, "cnb-bp-gradle-built-module", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILT_MODULE", "BUILD_GRADLE_BUILT_MODULE"))
+		setAnnotationValue(annotations, "cnb-bp-gradle-built-artifact", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILT_ARTIFACT", "BUILD_GRADLE_BUILT_ARTIFACT"))
 	}
 
-	server := strings.TrimSpace(re.BuildEnvs["BUILD_RUNTIMES_SERVER"])
+	server := firstNonEmptyEnv(re.BuildEnvs, "BP_JAVA_APP_SERVER", "BUILD_RUNTIMES_SERVER")
 	if server == "" && re.Lang == code.JaveWar {
 		server = "tomcat"
 	}
@@ -42,8 +43,8 @@ func (j *javaConfig) BuildAnnotations(re *build.Request, annotations map[string]
 func (j *javaConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
 	var envs []corev1.EnvVar
 	builtModule, builtArtifact := resolveMavenBuiltTarget(re)
-	envs = appendEnvVar(envs, "BP_MAVEN_BUILD_ARGUMENTS", re.BuildEnvs["BUILD_MAVEN_CUSTOM_GOALS"])
-	envs = appendEnvVar(envs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", re.BuildEnvs["BUILD_MAVEN_CUSTOM_OPTS"])
+	envs = appendEnvVar(envs, "BP_MAVEN_BUILD_ARGUMENTS", firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILD_ARGUMENTS", "BUILD_MAVEN_CUSTOM_GOALS"))
+	envs = appendEnvVar(envs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", "BUILD_MAVEN_CUSTOM_OPTS"))
 	envs = appendEnvVar(envs, "BP_MAVEN_BUILT_MODULE", builtModule)
 	envs = appendEnvVar(envs, "BP_MAVEN_BUILT_ARTIFACT", builtArtifact)
 	envs = appendEnvVar(envs, "MAVEN_OPTS", re.BuildEnvs["BUILD_MAVEN_JAVA_OPTS"])
@@ -59,8 +60,8 @@ func (j *javaConfig) CustomOrder(re *build.Request) []orderBuildpack {
 }
 
 func resolveMavenBuiltTarget(re *build.Request) (string, string) {
-	explicitModule := strings.TrimSpace(re.BuildEnvs["BUILD_MAVEN_BUILT_MODULE"])
-	explicitArtifact := strings.TrimSpace(re.BuildEnvs["BUILD_MAVEN_BUILT_ARTIFACT"])
+	explicitModule := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILT_MODULE", "BUILD_MAVEN_BUILT_MODULE")
+	explicitArtifact := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILT_ARTIFACT", "BUILD_MAVEN_BUILT_ARTIFACT")
 	if explicitModule != "" || explicitArtifact != "" {
 		return explicitModule, explicitArtifact
 	}

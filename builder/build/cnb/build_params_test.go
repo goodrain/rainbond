@@ -12,8 +12,8 @@ func TestValidateSupportedBuildParamsPinsJavaMavenVersion(t *testing.T) {
 		Lang:          code.JavaMaven,
 		BuildStrategy: "cnb",
 		BuildEnvs: map[string]string{
-			"BUILD_RUNTIMES_MAVEN":  "4",
-			"BUILD_RUNTIMES_SERVER": "tomcat-10",
+			"BUILD_RUNTIMES_MAVEN": "4",
+			"BP_JAVA_APP_SERVER":   "tomcat-10",
 		},
 	}
 	if err := validateSupportedBuildParams(re); err != nil {
@@ -21,6 +21,9 @@ func TestValidateSupportedBuildParamsPinsJavaMavenVersion(t *testing.T) {
 	}
 	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.9.14" {
 		t.Fatalf("expected BUILD_RUNTIMES_MAVEN to be pinned to 3.9.14, got %q", got)
+	}
+	if got := re.BuildEnvs["BP_JAVA_APP_SERVER"]; got != "tomcat" {
+		t.Fatalf("expected BP_JAVA_APP_SERVER=tomcat, got %q", got)
 	}
 	if got := re.BuildEnvs["BUILD_RUNTIMES_SERVER"]; got != "tomcat" {
 		t.Fatalf("expected BUILD_RUNTIMES_SERVER=tomcat, got %q", got)
@@ -38,6 +41,20 @@ func TestValidateSupportedBuildParamsSetsDefaultJavaMavenVersion(t *testing.T) {
 	}
 	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.9.14" {
 		t.Fatalf("expected default BUILD_RUNTIMES_MAVEN=3.9.14, got %q", got)
+	}
+}
+
+func TestValidateSupportedBuildParamsDefaultsJavaWarServer(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.JaveWar,
+		BuildStrategy: "cnb",
+		BuildEnvs:     map[string]string{},
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_JAVA_APP_SERVER"]; got != "tomcat" {
+		t.Fatalf("expected default BP_JAVA_APP_SERVER=tomcat, got %q", got)
 	}
 }
 
@@ -97,6 +114,9 @@ func TestResolvePlatformBindings(t *testing.T) {
 		if len(bindings) != 1 || bindings[0].ConfigMapName != "team-maven" {
 			t.Fatalf("unexpected bindings: %+v", bindings)
 		}
+		if got := re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"]; got != "/platform/bindings/team-maven/settings.xml" {
+			t.Fatalf("expected BP_MAVEN_SETTINGS_PATH to match mounted binding path, got %q", got)
+		}
 	})
 
 	t.Run("uses default maven setting when explicit value is empty", func(t *testing.T) {
@@ -111,6 +131,9 @@ func TestResolvePlatformBindings(t *testing.T) {
 		}
 		if len(bindings) != 1 || bindings[0].ConfigMapName != "default-maven" {
 			t.Fatalf("unexpected bindings: %+v", bindings)
+		}
+		if got := re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"]; got != "/platform/bindings/default-maven/settings.xml" {
+			t.Fatalf("expected BP_MAVEN_SETTINGS_PATH to match mounted binding path, got %q", got)
 		}
 	})
 }

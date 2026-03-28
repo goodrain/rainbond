@@ -27,12 +27,13 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	cnbBuilderImage := GetCNBBuilderImageForLanguage(re.Lang)
 	cnbRunImage := GetCNBRunImageForLanguage(re.Lang)
 
-	// Compute platform annotations once
-	annotations := b.buildPlatformAnnotations(re)
 	bindings, err := b.resolvePlatformBindings(re)
 	if err != nil {
 		return err
 	}
+
+	// Compute platform annotations after bindings so derived BP_* values are included.
+	annotations := b.buildPlatformAnnotations(re)
 	for _, binding := range bindings {
 		annotations[bindingTypeAnnotationKey(binding.Name)] = binding.Type
 	}
@@ -250,6 +251,7 @@ func (b *Builder) resolvePlatformBindings(re *build.Request) ([]platformBinding,
 	if configMapName == "" {
 		return nil, nil
 	}
+	re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"] = fmt.Sprintf("/platform/bindings/%s/settings.xml", configMapName)
 
 	return []platformBinding{{
 		Name:          configMapName,
