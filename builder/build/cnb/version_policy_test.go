@@ -132,7 +132,7 @@ func TestResolveOSSFallbackVersionWithoutPolicy(t *testing.T) {
 	if err := applyVersionPolicy(re); err != nil {
 		t.Fatalf("applyVersionPolicy returned error: %v", err)
 	}
-	if got := re.BuildEnvs["BP_GO_VERSION"]; got != "1.23" {
-		t.Fatalf("expected BP_GO_VERSION=1.23, got %q", got)
+	if got := re.BuildEnvs["BP_GO_VERSION"]; got != "1.25" {
+		t.Fatalf("expected BP_GO_VERSION=1.25, got %q", got)
 	}
 }

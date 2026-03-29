@@ -1,8 +1,6 @@
 package cnb
 
 import (
-	"strings"
-
 	"github.com/goodrain/rainbond/builder/build"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -14,23 +12,23 @@ func (g *golangConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	if version := firstNonEmptyEnv(re.BuildEnvs, "BP_GO_VERSION", "BUILD_GOVERSION", "GOVERSION"); version != "" {
 		setAnnotationValue(annotations, "cnb-bp-go-version", version)
 	}
-	if targets := strings.TrimSpace(re.BuildEnvs["BUILD_GO_INSTALL_PACKAGE_SPEC"]); targets != "" {
+	if targets := firstNonEmptyEnv(re.BuildEnvs, "BP_GO_TARGETS", "BUILD_GO_INSTALL_PACKAGE_SPEC"); targets != "" {
 		setAnnotationValue(annotations, "cnb-bp-go-targets", targets)
 	}
-	setAnnotationValue(annotations, "cnb-bp-go-build-flags", re.BuildEnvs["BUILD_GO_BUILD_FLAGS"])
-	setAnnotationValue(annotations, "cnb-bp-go-build-ldflags", re.BuildEnvs["BUILD_GO_BUILD_LDFLAGS"])
-	setAnnotationValue(annotations, "cnb-bp-go-build-import-path", re.BuildEnvs["BUILD_GO_BUILD_IMPORT_PATH"])
-	setAnnotationValue(annotations, "cnb-bp-keep-files", re.BuildEnvs["BUILD_GO_KEEP_FILES"])
-	setAnnotationValue(annotations, "cnb-bp-go-work-use", re.BuildEnvs["BUILD_GO_WORK_USE"])
-	if truthyBuildEnv(re.BuildEnvs["BUILD_LIVE_RELOAD_ENABLED"]) {
+	setAnnotationValue(annotations, "cnb-bp-go-build-flags", firstNonEmptyEnv(re.BuildEnvs, "BP_GO_BUILD_FLAGS", "BUILD_GO_BUILD_FLAGS"))
+	setAnnotationValue(annotations, "cnb-bp-go-build-ldflags", firstNonEmptyEnv(re.BuildEnvs, "BP_GO_BUILD_LDFLAGS", "BUILD_GO_BUILD_LDFLAGS"))
+	setAnnotationValue(annotations, "cnb-bp-go-build-import-path", firstNonEmptyEnv(re.BuildEnvs, "BP_GO_BUILD_IMPORT_PATH", "BUILD_GO_BUILD_IMPORT_PATH"))
+	setAnnotationValue(annotations, "cnb-bp-keep-files", firstNonEmptyEnv(re.BuildEnvs, "BP_KEEP_FILES", "BUILD_GO_KEEP_FILES"))
+	setAnnotationValue(annotations, "cnb-bp-go-work-use", firstNonEmptyEnv(re.BuildEnvs, "BP_GO_WORK_USE", "BUILD_GO_WORK_USE"))
+	if truthyBuildEnv(firstNonEmptyEnv(re.BuildEnvs, "BP_LIVE_RELOAD_ENABLED", "BUILD_LIVE_RELOAD_ENABLED")) {
 		setAnnotationValue(annotations, "cnb-bp-live-reload-enabled", "true")
 	}
 }
 
 func (g *golangConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
 	var envs []corev1.EnvVar
-	envs = appendEnvVar(envs, "GOPROXY", re.BuildEnvs["BUILD_GOPROXY"])
-	envs = appendEnvVar(envs, "GOPRIVATE", re.BuildEnvs["BUILD_GOPRIVATE"])
+	envs = appendEnvVar(envs, "GOPROXY", firstNonEmptyEnv(re.BuildEnvs, "GOPROXY", "BUILD_GOPROXY"))
+	envs = appendEnvVar(envs, "GOPRIVATE", firstNonEmptyEnv(re.BuildEnvs, "GOPRIVATE", "BUILD_GOPRIVATE"))
 	return envs
 }
 

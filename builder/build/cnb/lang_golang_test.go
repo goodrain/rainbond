@@ -12,16 +12,16 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 		Lang:      code.Golang,
 		SourceDir: t.TempDir(),
 		BuildEnvs: map[string]string{
-			"BUILD_GOVERSION":               "1.23",
-			"BUILD_GOPROXY":                 "https://goproxy.cn",
-			"BUILD_GOPRIVATE":               "github.com/example/*",
-			"BUILD_GO_INSTALL_PACKAGE_SPEC": "./cmd/api",
-			"BUILD_GO_BUILD_FLAGS":          "-trimpath",
-			"BUILD_GO_BUILD_LDFLAGS":        "-s -w",
-			"BUILD_GO_BUILD_IMPORT_PATH":    "example.com/custom",
-			"BUILD_GO_KEEP_FILES":           "static/**",
-			"BUILD_GO_WORK_USE":             "auto",
-			"BUILD_LIVE_RELOAD_ENABLED":     "true",
+			"BP_GO_VERSION":           "1.25",
+			"GOPROXY":                 "https://goproxy.cn",
+			"GOPRIVATE":               "github.com/example/*",
+			"BP_GO_TARGETS":           "./cmd/api",
+			"BP_GO_BUILD_FLAGS":       "-trimpath",
+			"BP_GO_BUILD_LDFLAGS":     "-s -w",
+			"BP_GO_BUILD_IMPORT_PATH": "example.com/custom",
+			"BP_KEEP_FILES":           "static/**",
+			"BP_GO_WORK_USE":          "auto",
+			"BP_LIVE_RELOAD_ENABLED":  "true",
 		},
 	}
 
@@ -30,8 +30,8 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	}
 
 	annotations := (&Builder{}).buildPlatformAnnotations(re)
-	if annotations["cnb-bp-go-version"] != "1.23" {
-		t.Fatalf("expected cnb-bp-go-version=1.23, got %q", annotations["cnb-bp-go-version"])
+	if annotations["cnb-bp-go-version"] != "1.25" {
+		t.Fatalf("expected cnb-bp-go-version=1.25, got %q", annotations["cnb-bp-go-version"])
 	}
 	if annotations["cnb-bp-go-targets"] != "./cmd/api" {
 		t.Fatalf("expected cnb-bp-go-targets=./cmd/api, got %q", annotations["cnb-bp-go-targets"])
