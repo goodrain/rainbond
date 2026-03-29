@@ -12,6 +12,8 @@ func (g *golangConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	if version := firstNonEmptyEnv(re.BuildEnvs, "BP_GO_VERSION", "BUILD_GOVERSION", "GOVERSION"); version != "" {
 		setAnnotationValue(annotations, "cnb-bp-go-version", version)
 	}
+	setAnnotationValue(annotations, "cnb-goproxy", firstNonEmptyEnv(re.BuildEnvs, "GOPROXY", "BUILD_GOPROXY"))
+	setAnnotationValue(annotations, "cnb-goprivate", firstNonEmptyEnv(re.BuildEnvs, "GOPRIVATE", "BUILD_GOPRIVATE"))
 	if targets := firstNonEmptyEnv(re.BuildEnvs, "BP_GO_TARGETS", "BUILD_GO_INSTALL_PACKAGE_SPEC"); targets != "" {
 		setAnnotationValue(annotations, "cnb-bp-go-targets", targets)
 	}
@@ -26,10 +28,7 @@ func (g *golangConfig) BuildAnnotations(re *build.Request, annotations map[strin
 }
 
 func (g *golangConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
-	var envs []corev1.EnvVar
-	envs = appendEnvVar(envs, "GOPROXY", firstNonEmptyEnv(re.BuildEnvs, "GOPROXY", "BUILD_GOPROXY"))
-	envs = appendEnvVar(envs, "GOPRIVATE", firstNonEmptyEnv(re.BuildEnvs, "GOPRIVATE", "BUILD_GOPRIVATE"))
-	return envs
+	return nil
 }
 
 func (g *golangConfig) InjectMirrorConfig(re *build.Request) error {

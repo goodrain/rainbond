@@ -33,6 +33,12 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	if annotations["cnb-bp-go-version"] != "1.25" {
 		t.Fatalf("expected cnb-bp-go-version=1.25, got %q", annotations["cnb-bp-go-version"])
 	}
+	if annotations["cnb-goproxy"] != "https://goproxy.cn" {
+		t.Fatalf("expected cnb-goproxy=https://goproxy.cn, got %q", annotations["cnb-goproxy"])
+	}
+	if annotations["cnb-goprivate"] != "github.com/example/*" {
+		t.Fatalf("expected cnb-goprivate=github.com/example/*, got %q", annotations["cnb-goprivate"])
+	}
 	if annotations["cnb-bp-go-targets"] != "./cmd/api" {
 		t.Fatalf("expected cnb-bp-go-targets=./cmd/api, got %q", annotations["cnb-bp-go-targets"])
 	}
@@ -62,14 +68,14 @@ func TestGolangLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	foundProxy := false
 	foundPrivate := false
 	for _, env := range envs {
-		if env.Name == "GOPROXY" && env.Value == "https://goproxy.cn" {
+		if env.Name == "GOPROXY" {
 			foundProxy = true
 		}
-		if env.Name == "GOPRIVATE" && env.Value == "github.com/example/*" {
+		if env.Name == "GOPRIVATE" {
 			foundPrivate = true
 		}
 	}
-	if !foundProxy || !foundPrivate {
-		t.Fatal("expected GOPROXY and GOPRIVATE env vars for golang cnb build")
+	if foundProxy || foundPrivate {
+		t.Fatal("expected GOPROXY and GOPRIVATE to be injected via platform annotations, not container env")
 	}
 }
