@@ -230,36 +230,53 @@ func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 }
 
 func (b *Builder) resolvePlatformBindings(re *build.Request) ([]platformBinding, error) {
-	explicitName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_MAVEN_SETTING_NAME", "MAVEN_SETTING_NAME"))
-	if re.Lang != code.JavaMaven {
-		return nil, nil
-	}
 	ctx := re.Ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	configMapName := ""
-	if explicitName != "" {
-		configMapName = b.jobCtrl.GetLanguageBuildSetting(ctx, code.JavaMaven, explicitName)
-		if configMapName == "" {
-			return nil, fmt.Errorf("maven setting config %s not found", explicitName)
+	switch re.Lang {
+	case code.JavaMaven:
+		explicitName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_MAVEN_SETTING_NAME", "MAVEN_SETTING_NAME"))
+		configMapName := ""
+		if explicitName != "" {
+			configMapName = b.jobCtrl.GetLanguageBuildSetting(ctx, code.JavaMaven, explicitName)
+			if configMapName == "" {
+				return nil, fmt.Errorf("maven setting config %s not found", explicitName)
+			}
+		} else {
+			configMapName = b.jobCtrl.GetDefaultLanguageBuildSetting(ctx, code.JavaMaven)
 		}
-	} else {
-		configMapName = b.jobCtrl.GetDefaultLanguageBuildSetting(ctx, code.JavaMaven)
-	}
-	if configMapName == "" {
+		if configMapName == "" {
+			return nil, nil
+		}
+		re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"] = fmt.Sprintf("/platform/bindings/%s/settings.xml", configMapName)
+
+		return []platformBinding{{
+			Name:          configMapName,
+			Type:          "maven",
+			ConfigMapName: configMapName,
+			ConfigMapKey:  "mavensetting",
+			TargetFile:    "settings.xml",
+		}}, nil
+	case code.NetCore:
+		configMapName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_NUGET_CONFIG_NAME"))
+		if configMapName == "" {
+			return nil, nil
+		}
+		if resolved := b.jobCtrl.GetLanguageBuildSetting(ctx, code.NetCore, configMapName); resolved == "" {
+			return nil, fmt.Errorf("nuget config %s not found", configMapName)
+		}
+		return []platformBinding{{
+			Name:          configMapName,
+			Type:          "nugetconfig",
+			ConfigMapName: configMapName,
+			ConfigMapKey:  "nuget.config",
+			TargetFile:    "nuget.config",
+		}}, nil
+	default:
 		return nil, nil
 	}
-	re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"] = fmt.Sprintf("/platform/bindings/%s/settings.xml", configMapName)
-
-	return []platformBinding{{
-		Name:          configMapName,
-		Type:          "maven",
-		ConfigMapName: configMapName,
-		ConfigMapKey:  "mavensetting",
-		TargetFile:    "settings.xml",
-	}}, nil
 }
 
 // createVolumeAndMount creates volumes and volume mounts for the CNB build pod

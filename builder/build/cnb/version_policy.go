@@ -23,6 +23,7 @@ var versionPolicyRules = map[code.Lang]versionPolicyRule{
 	code.Gradle:    {policyKey: "java", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_JVM_VERSION"}, bpKey: "BP_JVM_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_JVM_VERSION"}, ossDefault: "17"},
 	code.Python:    {policyKey: "python", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_CPYTHON_VERSION"}, bpKey: "BP_CPYTHON_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_CPYTHON_VERSION"}, ossDefault: "3.11"},
 	code.Golang:    {policyKey: "golang", explicitKeys: []string{"BP_GO_VERSION", "BUILD_GOVERSION", "GOVERSION"}, bpKey: "BP_GO_VERSION", setKeys: []string{"BUILD_GOVERSION", "BP_GO_VERSION"}, ossDefault: "1.25"},
+	code.NetCore:   {policyKey: "dotnet", explicitKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, bpKey: "BP_DOTNET_FRAMEWORK_VERSION", setKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, ossDefault: "8.0"},
 	code.PHP:       {policyKey: "php", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_PHP_VERSION"}, bpKey: "BP_PHP_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_PHP_VERSION"}, ossDefault: "8.2"},
 	code.Nodejs:    {policyKey: "nodejs", explicitKeys: []string{"CNB_NODE_VERSION", "BUILD_RUNTIMES", "RUNTIMES", "BP_NODE_VERSION"}, bpKey: "BP_NODE_VERSION", setKeys: []string{"CNB_NODE_VERSION", "BP_NODE_VERSION"}, ossDefault: "24.13.0"},
 }
@@ -98,6 +99,8 @@ func detectVersionFromSource(re *build.Request) (string, error) {
 	switch re.Lang {
 	case code.Golang:
 		return strings.TrimSpace(runtimeInfo["GOVERSION"]), nil
+	case code.NetCore:
+		return strings.TrimSpace(runtimeInfo["RUNTIMES"]), nil
 	default:
 		return strings.TrimSpace(runtimeInfo["RUNTIMES"]), nil
 	}
@@ -173,6 +176,13 @@ func normalizeVersionByLanguage(lang code.Lang, version string) (string, error) 
 		parts := strings.Split(version, ".")
 		if len(parts) < 2 {
 			return "", fmt.Errorf("invalid php cnb version %q", version)
+		}
+		return strings.Join(parts[:2], "."), nil
+	case code.NetCore:
+		version = strings.TrimPrefix(strings.ToLower(version), "net")
+		parts := strings.Split(version, ".")
+		if len(parts) < 2 {
+			return "", fmt.Errorf("invalid dotnet cnb version %q", version)
 		}
 		return strings.Join(parts[:2], "."), nil
 	case code.Nodejs:

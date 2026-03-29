@@ -136,3 +136,55 @@ func TestResolveOSSFallbackVersionWithoutPolicy(t *testing.T) {
 		t.Fatalf("expected BP_GO_VERSION=1.25, got %q", got)
 	}
 }
+
+func TestResolveDotnetVersionFromSourceAndNormalization(t *testing.T) {
+	dir := t.TempDir()
+	project := `<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+</Project>`
+	if err := os.WriteFile(filepath.Join(dir, "demo.csproj"), []byte(project), 0644); err != nil {
+		t.Fatalf("write csproj: %v", err)
+	}
+
+	re := &build.Request{
+		Lang:          code.NetCore,
+		BuildStrategy: "cnb",
+		SourceDir:     dir,
+		BuildEnvs:     map[string]string{},
+		CNBVersionPolicy: &build.CNBVersionPolicy{
+			Version: 1,
+			Languages: map[string]build.CNBLanguagePolicy{
+				"dotnet": {
+					LangKey:         "dotnet",
+					AllowedVersions: []string{"8.0", "9.0", "10.0"},
+					DefaultVersion:  "8.0",
+				},
+			},
+		},
+	}
+
+	if err := applyVersionPolicy(re); err != nil {
+		t.Fatalf("applyVersionPolicy returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_DOTNET_FRAMEWORK_VERSION"]; got != "9.0" {
+		t.Fatalf("expected BP_DOTNET_FRAMEWORK_VERSION=9.0, got %q", got)
+	}
+}
+
+func TestResolveDotnetOSSFallbackVersionWithoutPolicy(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.NetCore,
+		BuildStrategy: "cnb",
+		SourceDir:     t.TempDir(),
+		BuildEnvs:     map[string]string{},
+	}
+
+	if err := applyVersionPolicy(re); err != nil {
+		t.Fatalf("applyVersionPolicy returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_DOTNET_FRAMEWORK_VERSION"]; got != "8.0" {
+		t.Fatalf("expected BP_DOTNET_FRAMEWORK_VERSION=8.0, got %q", got)
+	}
+}

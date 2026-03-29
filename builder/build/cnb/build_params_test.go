@@ -179,4 +179,32 @@ func TestResolvePlatformBindings(t *testing.T) {
 			t.Fatalf("expected BP_MAVEN_SETTINGS_PATH to match mounted binding path, got %q", got)
 		}
 	})
+
+	t.Run("uses explicit nuget config for dotnet", func(t *testing.T) {
+		ctrl := &mockJobCtrl{
+			languageBuildSettings: map[string]string{
+				"nuget-private": "nuget-private",
+			},
+		}
+		builder := newTestBuilder(ctrl)
+		re := &build.Request{
+			Lang: code.NetCore,
+			BuildEnvs: map[string]string{
+				"BUILD_NUGET_CONFIG_NAME": "nuget-private",
+			},
+		}
+		bindings, err := builder.resolvePlatformBindings(re)
+		if err != nil {
+			t.Fatalf("resolvePlatformBindings returned error: %v", err)
+		}
+		if len(bindings) != 1 || bindings[0].ConfigMapName != "nuget-private" {
+			t.Fatalf("unexpected bindings: %+v", bindings)
+		}
+		if bindings[0].Type != "nugetconfig" {
+			t.Fatalf("expected nugetconfig binding type, got %q", bindings[0].Type)
+		}
+		if bindings[0].ConfigMapKey != "nuget.config" || bindings[0].TargetFile != "nuget.config" {
+			t.Fatalf("unexpected nuget binding files: %+v", bindings[0])
+		}
+	})
 }

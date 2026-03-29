@@ -88,6 +88,8 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	foundNode := false
 	foundGoDefault := false
 	foundGoLatest := false
+	foundDotnetDefault := false
+	foundDotnetLatest := false
 	for _, version := range versions {
 		if version.BuildStrategy != model.LongVersionBuildStrategyCNB {
 			t.Fatalf("expected cnb build strategy for %s-%s, got %q", version.Lang, version.Version, version.BuildStrategy)
@@ -107,6 +109,12 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 		if version.Lang == "golang" && version.Version == "1.26" {
 			foundGoLatest = true
 		}
+		if version.Lang == "dotnet" && version.Version == "8.0" && version.FirstChoice {
+			foundDotnetDefault = true
+		}
+		if version.Lang == "dotnet" && version.Version == "10.0" {
+			foundDotnetLatest = true
+		}
 	}
 	if !foundJava {
 		t.Fatal("expected Java CNB seed version 17")
@@ -119,6 +127,12 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	}
 	if !foundGoLatest {
 		t.Fatal("expected Golang CNB seed version 1.26")
+	}
+	if !foundDotnetDefault {
+		t.Fatal("expected Dotnet CNB default seed version 8.0")
+	}
+	if !foundDotnetLatest {
+		t.Fatal("expected Dotnet CNB seed version 10.0")
 	}
 }
 

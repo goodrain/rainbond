@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -77,6 +78,11 @@ func checkRuntime(buildPath string, lang Lang, buildStrategy string) (map[string
 	case Golang:
 		if buildStrategy == "cnb" {
 			return readGolangRuntimeInfoForCNB(buildPath)
+		}
+		return nil, nil
+	case NetCore:
+		if buildStrategy == "cnb" {
+			return readDotnetRuntimeInfoForCNB(buildPath)
 		}
 		return nil, nil
 	case Nodejs:
@@ -183,6 +189,55 @@ func readGolangRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 	return runtimeInfo, nil
 }
 
+func readDotnetRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	projectFiles, err := filepath.Glob(path.Join(buildPath, "*.csproj"))
+	if err != nil || len(projectFiles) == 0 {
+		return runtimeInfo, nil
+	}
+
+	for _, projectFile := range projectFiles {
+		body, err := os.ReadFile(projectFile)
+		if err != nil {
+			continue
+		}
+		content := string(body)
+		for _, tag := range []string{"TargetFramework", "TargetFrameworks"} {
+			value := extractXMLTag(content, tag)
+			if value == "" {
+				continue
+			}
+			if tag == "TargetFrameworks" && strings.Contains(value, ";") {
+				value = strings.Split(value, ";")[0]
+			}
+			normalized, err := normalizeDotnetRuntimeVersion(value)
+			if err != nil {
+				return nil, err
+			}
+			if normalized != "" {
+				runtimeInfo["RUNTIMES"] = normalized
+				return runtimeInfo, nil
+			}
+		}
+	}
+	return runtimeInfo, nil
+}
+
+func extractXMLTag(content, tag string) string {
+	openTag := "<" + tag + ">"
+	closeTag := "</" + tag + ">"
+	start := strings.Index(content, openTag)
+	if start == -1 {
+		return ""
+	}
+	start += len(openTag)
+	end := strings.Index(content[start:], closeTag)
+	if end == -1 {
+		return ""
+	}
+	return strings.TrimSpace(content[start : start+end])
+}
+
 func readNodeRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 	var runtimeInfo = make(map[string]string, 1)
 	if ok, _ := util.FileExists(path.Join(buildPath, "package.json")); !ok {
@@ -249,6 +304,18 @@ func normalizeGolangRuntimeVersion(version string) (string, error) {
 	version = strings.TrimSpace(version)
 	if strings.HasPrefix(version, "go") {
 		version = version[2:]
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return "", ErrRuntimeNotSupport
+	}
+	return strings.Join(parts[:2], "."), nil
+}
+
+func normalizeDotnetRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(strings.ToLower(version))
+	if strings.HasPrefix(version, "net") {
+		version = strings.TrimPrefix(version, "net")
 	}
 	parts := strings.Split(version, ".")
 	if len(parts) < 2 {
