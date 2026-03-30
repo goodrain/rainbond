@@ -23,6 +23,7 @@ func TestGetHelmReleaseHandlerSingleton(t *testing.T) {
 	assert.Equal(t, h1, h2)
 }
 
+// capability_id: rainbond.helm-release.install-defaults
 func TestHelmReleaseInstallRequestNormalizeDefaults(t *testing.T) {
 	req := HelmReleaseInstallRequest{
 		RepoName:    "bitnami",
@@ -37,6 +38,7 @@ func TestHelmReleaseInstallRequestNormalizeDefaults(t *testing.T) {
 	assert.Equal(t, "nginx", req.ChartName)
 }
 
+// capability_id: rainbond.helm-release.install-validate
 func TestHelmReleaseInstallRequestValidate(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -94,6 +96,7 @@ func TestHelmReleaseInstallRequestValidate(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.helm-release.preview-source-error
 func TestWrapHelmChartPreviewSourceErrorConvertsToBadRequest(t *testing.T) {
 	err := wrapHelmChartPreviewSourceError(fmt.Errorf("locate chart oci://example.com/demo: tls: handshake failure"))
 
@@ -103,6 +106,7 @@ func TestWrapHelmChartPreviewSourceErrorConvertsToBadRequest(t *testing.T) {
 	assert.Equal(t, "locate chart oci://example.com/demo: tls: handshake failure", err.Error())
 }
 
+// capability_id: rainbond.helm-release.preview-source-error
 func TestWrapHelmChartPreviewSourceErrorPreservesBadRequest(t *testing.T) {
 	original := httputil.NewErrBadRequest(fmt.Errorf("chart_url is required"))
 
@@ -112,6 +116,7 @@ func TestWrapHelmChartPreviewSourceErrorPreservesBadRequest(t *testing.T) {
 	assert.Equal(t, original, err)
 }
 
+// capability_id: rainbond.helm-release.default-namespace
 func TestHelmReleaseNamespaceUsesTenantNamespaceWhenPresent(t *testing.T) {
 	tenant := &dbmodel.Tenants{
 		Namespace: "team-namespace",
@@ -123,6 +128,7 @@ func TestHelmReleaseNamespaceUsesTenantNamespaceWhenPresent(t *testing.T) {
 	assert.Equal(t, "team-namespace", namespace)
 }
 
+// capability_id: rainbond.helm-release.default-namespace
 func TestHelmReleaseNamespaceFallsBackToTenantUUID(t *testing.T) {
 	tenant := &dbmodel.Tenants{
 		UUID: "tenant-uuid",
@@ -133,6 +139,7 @@ func TestHelmReleaseNamespaceFallsBackToTenantUUID(t *testing.T) {
 	assert.Equal(t, "tenant-uuid", namespace)
 }
 
+// capability_id: rainbond.helm-release.resolve-namespace
 func TestResolveHelmReleaseNamespaceUsesExplicitNamespace(t *testing.T) {
 	namespace, err := GetHelmReleaseHandler().resolveNamespace("demo-team", "demo-namespace")
 
@@ -140,6 +147,8 @@ func TestResolveHelmReleaseNamespaceUsesExplicitNamespace(t *testing.T) {
 	assert.Equal(t, "demo-namespace", namespace)
 }
 
+// capability_id: rainbond.helm-release.resolve-namespace-fallback
+// capability_id: rainbond.helm-release.resolve-namespace-fallback
 func TestResolveHelmReleaseNamespaceFallsBackToTenantNamespace(t *testing.T) {
 	tenantDao := &testTenantDao{
 		tenant: &dbmodel.Tenants{
@@ -158,6 +167,7 @@ func TestResolveHelmReleaseNamespaceFallsBackToTenantNamespace(t *testing.T) {
 	assert.Equal(t, "tenant-namespace", namespace)
 }
 
+// capability_id: rainbond.helm-release.list-summary
 func TestSummarizeHelmReleaseBuildsStableDTO(t *testing.T) {
 	release := &helmrelease.Release{
 		Name:      "demo-release",
@@ -188,6 +198,7 @@ func TestSummarizeHelmReleaseBuildsStableDTO(t *testing.T) {
 	assert.Equal(t, "2026-03-20T09:30:00Z", summary.Updated)
 }
 
+// capability_id: rainbond.helm-release.detail-summary
 func TestSummarizeHelmReleaseDetailBuildsStableDTO(t *testing.T) {
 	release := &helmrelease.Release{
 		Name:      "demo-release",
@@ -228,6 +239,7 @@ func TestSummarizeHelmReleaseDetailBuildsStableDTO(t *testing.T) {
 	assert.Contains(t, summary.Values, "type: ClusterIP")
 }
 
+// capability_id: rainbond.helm-release.history-summary
 func TestSummarizeHelmReleaseHistoryBuildsStableDTO(t *testing.T) {
 	history := helmcmd.ReleaseHistory{
 		{
@@ -261,6 +273,7 @@ func TestSummarizeHelmReleaseHistoryBuildsStableDTO(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.helm-release.classify-resources
 func TestSplitHelmReleaseResourcesClassifiesKinds(t *testing.T) {
 	resources := []NsResourceInfo{
 		{Name: "web", Kind: rbdmodel.Deployment},
@@ -285,6 +298,7 @@ func TestSplitHelmReleaseResourcesClassifiesKinds(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.helm-release.match-managed-resource
 func TestIsHelmReleaseResourceMatchesManagedByAndInstanceLabels(t *testing.T) {
 	assert.True(t, isHelmReleaseResource(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
@@ -300,6 +314,7 @@ func TestIsHelmReleaseResourceMatchesManagedByAndInstanceLabels(t *testing.T) {
 	}, "demo-release"))
 }
 
+// capability_id: rainbond.helm-release.rollback-validate
 func TestHelmReleaseRollbackRequestValidate(t *testing.T) {
 	req := HelmReleaseRollbackRequest{}
 	err := req.Validate()
@@ -311,6 +326,7 @@ func TestHelmReleaseRollbackRequestValidate(t *testing.T) {
 	assert.NoError(t, req.Validate())
 }
 
+// capability_id: rainbond.helm-release.upgrade-chart-guard
 func TestValidateUpgradeChartNameRejectsMismatchByDefault(t *testing.T) {
 	currentRelease := &helmrelease.Release{
 		Chart: &helmchart.Chart{
@@ -332,6 +348,7 @@ func TestValidateUpgradeChartNameRejectsMismatchByDefault(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.helm-release.upgrade-chart-guard
 func TestValidateUpgradeChartNameAllowsMismatchWithExplicitConfirmation(t *testing.T) {
 	currentRelease := &helmrelease.Release{
 		Chart: &helmchart.Chart{

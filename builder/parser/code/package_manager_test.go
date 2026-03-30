@@ -24,6 +24,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.package-manager.detect-lockfile
 func TestDetectPackageManager_PNPM(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-pnpm-*")
 	if err != nil {
@@ -46,6 +47,7 @@ func TestDetectPackageManager_PNPM(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.detect-lockfile
 func TestDetectPackageManager_Yarn(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-yarn-*")
 	if err != nil {
@@ -68,6 +70,7 @@ func TestDetectPackageManager_Yarn(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.detect-lockfile
 func TestDetectPackageManager_NPM(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-npm-*")
 	if err != nil {
@@ -90,6 +93,7 @@ func TestDetectPackageManager_NPM(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.priority
 func TestDetectPackageManager_Priority(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-priority-*")
 	if err != nil {
@@ -109,6 +113,7 @@ func TestDetectPackageManager_Priority(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.priority
 func TestDetectPackageManager_YarnOverNPM(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-yarn-npm-*")
 	if err != nil {
@@ -127,6 +132,7 @@ func TestDetectPackageManager_YarnOverNPM(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.default-npm
 func TestDetectPackageManager_Default(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-default-*")
 	if err != nil {
@@ -142,6 +148,7 @@ func TestDetectPackageManager_Default(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.package-json-field
 func TestDetectPackageManager_PackageManagerField(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-pm-field-*")
 	if err != nil {
@@ -168,6 +175,7 @@ func TestDetectPackageManager_PackageManagerField(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.package-json-field
 func TestDetectPackageManager_PackageManagerFieldYarn(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-pm-field-yarn-*")
 	if err != nil {
@@ -193,6 +201,7 @@ func TestDetectPackageManager_PackageManagerFieldYarn(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.parse-package-manager-field
 func TestParsePackageManagerField(t *testing.T) {
 	tests := []struct {
 		input           string
@@ -230,6 +239,7 @@ func TestParsePackageManagerField(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.commands
 func TestPackageManagerInfo_GetCommands(t *testing.T) {
 	tests := []struct {
 		manager        PackageManager
@@ -257,6 +267,7 @@ func TestPackageManagerInfo_GetCommands(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.package-manager.stringer
 func TestPackageManager_String(t *testing.T) {
 	tests := []struct {
 		pm       PackageManager

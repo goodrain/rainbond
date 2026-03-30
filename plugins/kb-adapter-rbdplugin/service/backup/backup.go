@@ -70,9 +70,7 @@ func (s *Service) ReScheduleBackup(ctx context.Context, schedule model.BackupSch
 		if cluster.Spec.Backup != nil {
 			patchData = map[string]any{
 				"spec": map[string]any{
-					"backup": map[string]any{
-						"enabled": false,
-					},
+					"backup": nil,
 				},
 			}
 			needUpdate = true

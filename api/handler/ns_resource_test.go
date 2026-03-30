@@ -30,6 +30,7 @@ func (d *testTenantDao) GetTenantIDByName(name string) (*dbmodel.Tenants, error)
 	return d.tenant, d.err
 }
 
+// capability_id: rainbond.ns-resource.handler-singleton
 func TestGetNsResourceHandlerSingleton(t *testing.T) {
 	h1 := GetNsResourceHandler()
 	h2 := GetNsResourceHandler()
@@ -37,18 +38,21 @@ func TestGetNsResourceHandlerSingleton(t *testing.T) {
 	assert.Equal(t, h1, h2)
 }
 
+// capability_id: rainbond.ns-resource.mark-source
 func TestInjectSourceLabelYaml(t *testing.T) {
 	labels := map[string]string{}
 	injectSourceLabel(labels, "yaml")
 	assert.Equal(t, "yaml", labels["rainbond.io/source"])
 }
 
+// capability_id: rainbond.ns-resource.mark-source
 func TestInjectSourceLabelManual(t *testing.T) {
 	labels := map[string]string{}
 	injectSourceLabel(labels, "manual")
 	assert.Equal(t, "manual", labels["rainbond.io/source"])
 }
 
+// capability_id: rainbond.ns-resource.detect-source
 func TestDetectResourceSource(t *testing.T) {
 	tests := []struct {
 		labels   map[string]string
@@ -66,6 +70,7 @@ func TestDetectResourceSource(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.ns-resource.resolve-tenant-namespace
 func TestGetTenantNamespaceUsesNamespaceField(t *testing.T) {
 	tenantDao := &testTenantDao{
 		tenant: &dbmodel.Tenants{
@@ -83,6 +88,7 @@ func TestGetTenantNamespaceUsesNamespaceField(t *testing.T) {
 	assert.Equal(t, "tenant-namespace", ns)
 }
 
+// capability_id: rainbond.ns-resource.resolve-tenant-namespace
 func TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty(t *testing.T) {
 	tenantDao := &testTenantDao{
 		tenant: &dbmodel.Tenants{

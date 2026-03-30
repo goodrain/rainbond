@@ -363,6 +363,10 @@ func (e EndpointAddress) GetPort() int {
 		logrus.Errorf("parse address %s: %v", e.EnsureScheme(), err)
 		return 0
 	}
+	if u.Port() != "" {
+		port, _ := strconv.Atoi(u.Port())
+		return port
+	}
 	logrus.Debugf("url: %s; scheme: %s", e.EnsureScheme(), u.Scheme)
 	if u.Scheme == "https" {
 		return 443

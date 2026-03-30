@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// capability_id: rainbond.eventlog.file-store
 func TestJSONLinesFileStore(t *testing.T) {
 	// 创建临时目录
 	tmpDir := filepath.Join(os.TempDir(), "rainbond-test-eventlog")
@@ -144,6 +145,7 @@ func TestJSONLinesFileStore(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.eventlog.file-store-concurrency
 func TestFileStoreConcurrency(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "rainbond-test-concurrent")
 	defer os.RemoveAll(tmpDir)

@@ -24,6 +24,7 @@ import (
 
 const test = "Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube Kube"
 
+// capability_id: rainbond.webcli.word-wrap
 func TestWordWrapWriter(t *testing.T) {
 	testcases := map[string]struct {
 		input    string
@@ -61,6 +62,7 @@ func TestWordWrapWriter(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.webcli.max-width
 func TestMaxWidthWriter(t *testing.T) {
 	testcases := map[string]struct {
 		input    string

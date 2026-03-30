@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// capability_id: rainbond.worker.thirdcomponent.prober.manage-results-cache
 func TestCacheOperations(t *testing.T) {
-	m := NewManager(make(chan Update))
+	updates := make(chan Update, 1)
+	m := NewManager(updates)
 
 	unsetID := "unset"
 	setID := "set"
@@ -19,6 +21,13 @@ func TestCacheOperations(t *testing.T) {
 	result, found := m.Get(setID)
 	assert.True(t, result == Success, "set result")
 	assert.True(t, found, "set result found")
+	select {
+	case update := <-updates:
+		assert.Equal(t, setID, update.EndpointID)
+		assert.Equal(t, Success, update.Result)
+	default:
+		t.Fatal("expected probe cache update")
+	}
 
 	m.Remove(setID)
 	_, found = m.Get(setID)

@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
+// capability_id: rainbond.source-args.multi-language
 func TestGetArgs_MultiLanguage(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -45,6 +46,7 @@ func TestGetArgs_MultiLanguage(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.source-args.default-cnb-ports
 func TestCNBDefaultPorts_MultiLanguage(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -83,6 +85,7 @@ func TestCNBDefaultPorts_MultiLanguage(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.source-args.normalize-multi-module-lang
 func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
 	d := &SourceCodeParse{
 		ports:    make(map[int]*types.Port),

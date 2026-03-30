@@ -66,6 +66,7 @@ func newValidToken(enterpriseID string) LicenseToken {
 	}
 }
 
+// capability_id: rainbond.license.decode
 func TestDecodeLicense(t *testing.T) {
 	token := newValidToken("ent-1")
 	data, err := json.Marshal(token)
@@ -86,6 +87,7 @@ func TestDecodeLicense(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.decode
 func TestDecodeLicense_InvalidBase64(t *testing.T) {
 	_, err := DecodeLicense("not-valid-base64!!!")
 	if err == nil {
@@ -93,6 +95,7 @@ func TestDecodeLicense_InvalidBase64(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.decode
 func TestDecodeLicense_InvalidJSON(t *testing.T) {
 	encoded := base64.StdEncoding.EncodeToString([]byte("not json"))
 	_, err := DecodeLicense(encoded)
@@ -101,6 +104,7 @@ func TestDecodeLicense_InvalidJSON(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.verify-signature
 func TestVerifySignature_Valid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -111,6 +115,7 @@ func TestVerifySignature_Valid(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.verify-signature
 func TestVerifySignature_Tampered(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -122,6 +127,7 @@ func TestVerifySignature_Tampered(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.verify-signature
 func TestVerifySignature_WrongKey(t *testing.T) {
 	privKey, _ := generateTestKeyPair(t)
 	_, wrongPubKey := generateTestKeyPair(t)
@@ -133,6 +139,7 @@ func TestVerifySignature_WrongKey(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.validate-token
 func TestValidateToken_Valid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -143,6 +150,7 @@ func TestValidateToken_Valid(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.validate-token
 func TestValidateToken_EnterpriseMismatch(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -153,6 +161,7 @@ func TestValidateToken_EnterpriseMismatch(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.validate-token
 func TestValidateToken_Expired(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -164,6 +173,7 @@ func TestValidateToken_Expired(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.validate-token
 func TestValidateToken_NotYetValid(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-1")
@@ -175,6 +185,7 @@ func TestValidateToken_NotYetValid(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.plugin-allowlist
 func TestIsPluginAllowed_Wildcard(t *testing.T) {
 	token := &LicenseToken{PluginMapping: map[string]string{"any-plugin": "app-key-1"}}
 	if !IsPluginAllowed(token, "any-plugin") {
@@ -182,6 +193,7 @@ func TestIsPluginAllowed_Wildcard(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.plugin-allowlist
 func TestIsPluginAllowed_Specific(t *testing.T) {
 	token := &LicenseToken{PluginMapping: map[string]string{"plugin-a": "key-a", "plugin-b": "key-b"}}
 	if !IsPluginAllowed(token, "plugin-a") {
@@ -192,6 +204,7 @@ func TestIsPluginAllowed_Specific(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.plugin-allowlist
 func TestIsPluginAllowed_Denied(t *testing.T) {
 	token := &LicenseToken{PluginMapping: map[string]string{"plugin-a": "key-a"}}
 	if IsPluginAllowed(token, "plugin-c") {
@@ -199,6 +212,7 @@ func TestIsPluginAllowed_Denied(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.parse-public-key
 func TestParsePublicKey(t *testing.T) {
 	_, pubKey := generateTestKeyPair(t)
 	pemData := publicKeyToPEM(t, pubKey)
@@ -211,6 +225,7 @@ func TestParsePublicKey(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.parse-public-key
 func TestParsePublicKey_InvalidPEM(t *testing.T) {
 	_, err := ParsePublicKey([]byte("not a pem"))
 	if err == nil {
@@ -218,6 +233,7 @@ func TestParsePublicKey_InvalidPEM(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.round-trip
 func TestRoundTrip(t *testing.T) {
 	privKey, pubKey := generateTestKeyPair(t)
 	token := newValidToken("ent-round-trip")
@@ -257,6 +273,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.license.status-projection
 func TestTokenToStatus(t *testing.T) {
 	token := newValidToken("ent-1")
 	status := TokenToStatus(&token, true, "")

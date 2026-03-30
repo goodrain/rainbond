@@ -29,6 +29,7 @@ func newNodeDir(t *testing.T) string {
 
 // --- config.go ---
 
+// capability_id: rainbond.cnb.builder-image
 func TestGetCNBBuilderImage(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		os.Unsetenv("CNB_BUILDER_IMAGE")
@@ -45,6 +46,7 @@ func TestGetCNBBuilderImage(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.run-image
 func TestGetCNBRunImage(t *testing.T) {
 	os.Unsetenv("CNB_RUN_IMAGE")
 	if got := GetCNBRunImage(); got != DefaultCNBRunImage {
@@ -54,6 +56,7 @@ func TestGetCNBRunImage(t *testing.T) {
 
 // --- order.go ---
 
+// capability_id: rainbond.cnb.order-toml
 func TestWriteCustomOrder(t *testing.T) {
 	b := &Builder{}
 
@@ -97,6 +100,7 @@ func TestWriteCustomOrder(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.static-buildpacks
 func TestStaticBuildpacks(t *testing.T) {
 	s := &staticConfig{}
 	dir := t.TempDir() // no package.json = pure static
@@ -109,6 +113,7 @@ func TestStaticBuildpacks(t *testing.T) {
 
 // --- mirror.go ---
 
+// capability_id: rainbond.cnb.mirror-config
 func TestInjectMirrorConfig(t *testing.T) {
 	n := &nodejsConfig{}
 
@@ -153,6 +158,7 @@ func TestInjectMirrorConfig(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.config-file
 func TestInjectConfigFile(t *testing.T) {
 	t.Run("existing file not overwritten", func(t *testing.T) {
 		dir := t.TempDir()
@@ -221,6 +227,7 @@ func TestInjectConfigFile(t *testing.T) {
 
 // --- platform.go ---
 
+// capability_id: rainbond.cnb.annotation-key-encode
 func TestBpEnvToAnnotationKey(t *testing.T) {
 	tests := []struct{ input, want string }{
 		{"BP_NODE_VERSION", "cnb-bp-node-version"},
@@ -234,6 +241,7 @@ func TestBpEnvToAnnotationKey(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.annotation-key-decode
 func TestAnnotationKeyToBPEnv(t *testing.T) {
 	tests := []struct{ input, want string }{
 		{"cnb-bp-node-version", "BP_NODE_VERSION"},
@@ -247,6 +255,7 @@ func TestAnnotationKeyToBPEnv(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.platform-annotations
 func TestBuildPlatformAnnotations(t *testing.T) {
 	nodeDir := newNodeDir(t)
 
@@ -410,6 +419,7 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.platform-volume
 func TestCreatePlatformVolume(t *testing.T) {
 	b := &Builder{}
 	dir := newNodeDir(t)
@@ -429,6 +439,7 @@ func TestCreatePlatformVolume(t *testing.T) {
 
 // --- job.go ---
 
+// capability_id: rainbond.cnb.env-vars
 func TestBuildEnvVars(t *testing.T) {
 	b := &Builder{}
 
@@ -466,6 +477,7 @@ func TestBuildEnvVars(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.creator-args
 func TestBuildCreatorArgs(t *testing.T) {
 	b := &Builder{}
 
@@ -514,6 +526,7 @@ func TestBuildCreatorArgs(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.volume-mounts
 func TestCreateVolumeAndMount(t *testing.T) {
 	b := &Builder{}
 	re := &build.Request{SourceDir: "/tmp/src", CacheDir: "/tmp/cache"}
@@ -538,6 +551,7 @@ func TestCreateVolumeAndMount(t *testing.T) {
 
 // --- build.go ---
 
+// capability_id: rainbond.cnb.source-dir-permissions
 func TestSetSourceDirPermissions(t *testing.T) {
 	b := &Builder{}
 
@@ -575,6 +589,7 @@ func TestSetSourceDirPermissions(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.new-builder
 func TestNewBuilder(t *testing.T) {
 	b, err := NewBuilder()
 	if err != nil {
@@ -585,6 +600,7 @@ func TestNewBuilder(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.project-file-validation
 func TestValidateProjectFiles(t *testing.T) {
 	b := &Builder{}
 	logger := event.NewLogger("test", nil)
@@ -620,6 +636,7 @@ func TestValidateProjectFiles(t *testing.T) {
 
 // --- waitingComplete (job.go) ---
 
+// capability_id: rainbond.cnb.waiting-complete
 func TestWaitingComplete(t *testing.T) {
 	b := &Builder{}
 	logger := event.GetTestLogger()
@@ -706,6 +723,7 @@ func TestWaitingComplete(t *testing.T) {
 
 // --- createPlatformVolume edge cases ---
 
+// capability_id: rainbond.cnb.platform-volume
 func TestCreatePlatformVolumeEmpty(t *testing.T) {
 	b := &Builder{}
 	vol, mount := b.createPlatformVolume(map[string]string{})
@@ -714,6 +732,7 @@ func TestCreatePlatformVolumeEmpty(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.platform-volume
 func TestCreatePlatformVolumeNonCNBKeys(t *testing.T) {
 	b := &Builder{}
 	vol, mount := b.createPlatformVolume(map[string]string{"other-key": "val"})
@@ -724,6 +743,7 @@ func TestCreatePlatformVolumeNonCNBKeys(t *testing.T) {
 
 // --- writeCustomOrder error path ---
 
+// capability_id: rainbond.cnb.order-write-failure
 func TestWriteCustomOrderFailure(t *testing.T) {
 	b := &Builder{}
 	re := &build.Request{SourceDir: "/nonexistent/path/that/does/not/exist"}
@@ -736,6 +756,7 @@ func TestWriteCustomOrderFailure(t *testing.T) {
 
 // --- injectMirrorConfig error propagation ---
 
+// capability_id: rainbond.cnb.mirror-config-write-error
 func TestInjectMirrorConfigWriteError(t *testing.T) {
 	n := &nodejsConfig{}
 	dir := newNodeDir(t)
@@ -753,6 +774,7 @@ func TestInjectMirrorConfigWriteError(t *testing.T) {
 
 // --- setSourceDirPermissions with nonexistent dir ---
 
+// capability_id: rainbond.cnb.source-dir-permissions
 func TestSetSourceDirPermissionsNonexistent(t *testing.T) {
 	b := &Builder{}
 	err := b.setSourceDirPermissions(&build.Request{SourceDir: "/nonexistent/path"})
@@ -763,6 +785,7 @@ func TestSetSourceDirPermissionsNonexistent(t *testing.T) {
 
 // --- dependency mirror defaults to online URL ---
 
+// capability_id: rainbond.cnb.dependency-mirror
 func TestBuildPlatformAnnotationsMirrorDefault(t *testing.T) {
 	os.Unsetenv("BP_DEPENDENCY_MIRROR")
 	dir := newNodeDir(t)
@@ -772,6 +795,7 @@ func TestBuildPlatformAnnotationsMirrorDefault(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.dependency-mirror
 func TestBuildPlatformAnnotationsMirrorExplicit(t *testing.T) {
 	os.Setenv("BP_DEPENDENCY_MIRROR", "https://example.com/mirror")
 	defer os.Unsetenv("BP_DEPENDENCY_MIRROR")
@@ -782,6 +806,7 @@ func TestBuildPlatformAnnotationsMirrorExplicit(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.dependency-mirror
 func TestGetDependencyMirrorOffline(t *testing.T) {
 	os.Unsetenv("BP_DEPENDENCY_MIRROR")
 	dir := t.TempDir()
@@ -803,6 +828,7 @@ func TestGetDependencyMirrorOffline(t *testing.T) {
 
 // --- BP_ passthrough does not override explicit keys ---
 
+// capability_id: rainbond.cnb.bp-annotation-priority
 func TestBuildPlatformAnnotationsBPNoOverride(t *testing.T) {
 	dir := newNodeDir(t)
 	ann := (&Builder{}).buildPlatformAnnotations(&build.Request{
@@ -854,6 +880,7 @@ func newTestBuilder(ctrl *mockJobCtrl) *Builder {
 
 // --- stopPreBuildJob ---
 
+// capability_id: rainbond.cnb.prebuild-job-cleanup
 func TestStopPreBuildJob(t *testing.T) {
 	t.Run("deletes existing jobs", func(t *testing.T) {
 		ctrl := &mockJobCtrl{
@@ -890,6 +917,7 @@ func TestStopPreBuildJob(t *testing.T) {
 
 // --- runCNBBuildJob ---
 
+// capability_id: rainbond.cnb.build-job-execution
 func TestRunCNBBuildJob(t *testing.T) {
 	logger := event.GetTestLogger()
 
@@ -1109,6 +1137,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 
 // --- config.go: offline mode ---
 
+// capability_id: rainbond.cnb.offline-mode
 func TestIsOfflineMode(t *testing.T) {
 	t.Run("offline when marker file exists", func(t *testing.T) {
 		dir := t.TempDir()
@@ -1135,6 +1164,7 @@ func TestIsOfflineMode(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.offline-mode
 func TestGetCNBBuilderImageOffline(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -1205,6 +1235,7 @@ func TestGetCNBBuilderImageOffline(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb.offline-mode
 func TestGetCNBRunImageOffline(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -1265,6 +1296,7 @@ func TestGetCNBRunImageOffline(t *testing.T) {
 
 // --- job.go: insecure-registry for run image ---
 
+// capability_id: rainbond.cnb.creator-args-insecure-registry
 func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
 	b := &Builder{}
 
@@ -1313,4 +1345,3 @@ func TestBuildCreatorArgsInsecureRegistry(t *testing.T) {
 		}
 	})
 }
-

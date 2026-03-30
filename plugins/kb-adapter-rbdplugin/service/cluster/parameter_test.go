@@ -10,6 +10,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.parameter-constraint-merge
 func TestMergeEntriesAndConstraints(t *testing.T) {
 	tests := []struct {
 		name        string

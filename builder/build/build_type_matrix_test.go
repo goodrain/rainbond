@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/code"
 )
 
+// capability_id: rainbond.build.select-builder-by-language
 func TestGetBuildByType_SourceBuildLanguageMatrix(t *testing.T) {
 	tests := []struct {
 		name    string

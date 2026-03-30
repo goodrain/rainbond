@@ -1,19 +1,42 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
-// RAINBOND, Application Management Platform
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. For any non-GPL usage of Rainbond,
-// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
-// must be obtained first.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 package discovery
+
+import "testing"
+
+// capability_id: rainbond.source-discovery.etcd-config
+func TestNewEtcdAndFetchGuard(t *testing.T) {
+	info := &Info{
+		Type:     "etcd",
+		Servers:  []string{"http://127.0.0.1:2379"},
+		Key:      "/services/demo",
+		Username: "user",
+		Password: "pass",
+	}
+
+	d, ok := NewEtcd(info).(*etcd)
+	if !ok {
+		t.Fatal("expected *etcd")
+	}
+	if len(d.endpoints) != 1 || d.endpoints[0] != "http://127.0.0.1:2379" {
+		t.Fatalf("unexpected endpoints: %#v", d.endpoints)
+	}
+	if d.key != "/services/demo" || d.username != "user" || d.password != "pass" {
+		t.Fatalf("unexpected etcd config: %+v", d)
+	}
+
+	if _, err := d.Fetch(); err == nil {
+		t.Fatal("expected fetch guard error without client")
+	}
+}
+
+// capability_id: rainbond.source-discovery.etcd-config
+func TestNewDiscoverierAndCloseNil(t *testing.T) {
+	info := &Info{Type: "ETCD", Servers: []string{"http://127.0.0.1:2379"}}
+	if d := NewDiscoverier(info); d == nil {
+		t.Fatal("expected etcd discoverier")
+	}
+
+	d := &etcd{}
+	if err := d.Close(); err != nil {
+		t.Fatalf("expected nil-safe close, got %v", err)
+	}
+}

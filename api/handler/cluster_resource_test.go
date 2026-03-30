@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// capability_id: rainbond.cluster-resource.validate-gvr
 func TestValidateGVRParams(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -30,11 +31,13 @@ func TestValidateGVRParams(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cluster-resource.detect-subresource
 func TestContainsSlash(t *testing.T) {
 	assert.True(t, containsSlash("pods/log"))
 	assert.False(t, containsSlash("pods"))
 }
 
+// capability_id: rainbond.cluster-resource.handler-singleton
 func TestGetClusterResourceHandlerSingleton(t *testing.T) {
 	h1 := GetClusterResourceHandler()
 	h2 := GetClusterResourceHandler()

@@ -42,6 +42,13 @@ binary:
 	@ GOOS=${GOOS} bash ./release.sh binary ${WHAT}
 check:
 	./check.sh
+	python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json
+.PHONY: test-manifest-check
+test-manifest-check:
+	python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json
+.PHONY: coverage-report
+coverage-report:
+	python3 scripts/report_go_test_coverage.py
 mock:
 	@cd db && ./mock.sh && cd dao && ./mock.sh
 help: ## this help

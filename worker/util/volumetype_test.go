@@ -1,20 +1,21 @@
 package util
 
 import (
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	storagev1 "k8s.io/api/storage/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
 
+// capability_id: rainbond.worker.volume-type.from-storageclass
 func TestTransStorageClass2RBDVolumeType(t *testing.T) {
 	type args struct {
 		sc *storagev1.StorageClass
 	}
 	tests := []struct {
-		name string
-		args args
-		want *dbmodel.TenantServiceVolumeType
+		name            string
+		args            args
+		wantNameShow    string
+		wantProvisioner string
 	}{
 		{
 			name: "without_annotation",
@@ -25,6 +26,8 @@ func TestTransStorageClass2RBDVolumeType(t *testing.T) {
 				Provisioner: "aaa",
 				Parameters:  map[string]string{},
 			}},
+			wantNameShow:    "ali-disk-sc",
+			wantProvisioner: "aaa",
 		},
 		{
 			name: "with_wrong_annotation",
@@ -34,6 +37,7 @@ func TestTransStorageClass2RBDVolumeType(t *testing.T) {
 					Annotations: map[string]string{"volume_show": "123"},
 				},
 			}},
+			wantNameShow: "ali-disk-sc",
 		},
 		{
 			name: "with_annotation",
@@ -43,12 +47,27 @@ func TestTransStorageClass2RBDVolumeType(t *testing.T) {
 					Annotations: map[string]string{"rbd_volume_name": "new-volume-type"},
 				},
 			}},
+			wantNameShow: "new-volume-type",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := TransStorageClass2RBDVolumeType(tt.args.sc)
-			t.Logf("volume type is : %+v", got)
+			if got == nil {
+				t.Fatal("expected volume type, got nil")
+			}
+			if got.NameShow != tt.wantNameShow {
+				t.Fatalf("expected NameShow %q, got %q", tt.wantNameShow, got.NameShow)
+			}
+			if got.VolumeType != "ali-disk-sc" {
+				t.Fatalf("expected VolumeType ali-disk-sc, got %q", got.VolumeType)
+			}
+			if got.ReclaimPolicy != "Retain" {
+				t.Fatalf("expected ReclaimPolicy Retain, got %q", got.ReclaimPolicy)
+			}
+			if tt.wantProvisioner != "" && got.Provisioner != tt.wantProvisioner {
+				t.Fatalf("expected Provisioner %q, got %q", tt.wantProvisioner, got.Provisioner)
+			}
 		})
 	}
 }

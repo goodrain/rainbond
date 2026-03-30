@@ -382,7 +382,7 @@ func (ctrl *ProvisionController) Run(ctx context.Context) {
 	logger := logrus.WithField("WHO", "ProvisionController")
 	logger.Infof("Started provisioner controller %s!", ctrl.component)
 	<-stop
-	logger.Info("stop provisioner controller: %s", ctrl.component)
+	logger.Infof("stop provisioner controller: %s", ctrl.component)
 }
 
 func (ctrl *ProvisionController) runClaimWorker() {

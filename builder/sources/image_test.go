@@ -19,53 +19,110 @@
 package sources
 
 import (
-	"fmt"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 
-	"golang.org/x/net/context"
-
-	"github.com/docker/docker/client"
+	"github.com/docker/docker/api/types"
 )
 
+// capability_id: rainbond.source-image.parse-name
 func TestImageName(t *testing.T) {
-	imageName := []string{
-		"hub.goodrain.com/nginx:v1",
-		"hub.goodrain.cn/nginx",
-		"nginx:v2",
-		"tomcat",
+	tests := []struct {
+		input string
+		host  string
+		name  string
+		tag   string
+	}{
+		{input: "hub.goodrain.com/nginx:v1", host: "hub.goodrain.com", name: "nginx", tag: "v1"},
+		{input: "hub.goodrain.cn/nginx", host: "hub.goodrain.cn", name: "nginx", tag: "latest"},
+		{input: "nginx:v2", host: "", name: "nginx", tag: "v2"},
+		{input: "tomcat", host: "", name: "tomcat", tag: "latest"},
 	}
-	for _, i := range imageName {
-		in := ImageNameHandle(i)
-		fmt.Printf("host: %s, name: %s, tag: %s\n", in.Host, in.Name, in.Tag)
+	for _, tt := range tests {
+		got := ImageNameHandle(tt.input)
+		if got.Host != tt.host || got.Name != tt.name || got.Tag != tt.tag {
+			t.Fatalf("ImageNameHandle(%q)=%+v, want host=%q name=%q tag=%q", tt.input, got, tt.host, tt.name, tt.tag)
+		}
 	}
 }
 
+// capability_id: rainbond.source-image.parse-name-with-namespace
+func TestImageNameWithNamespace(t *testing.T) {
+	got := ImageNameWithNamespaceHandle("registry.example.com/team/demo:v1")
+	if got.Host != "registry.example.com" || got.Namespace != "team" || got.Name != "demo" || got.Tag != "v1" {
+		t.Fatalf("unexpected parsed image: %+v", got)
+	}
+
+	got = ImageNameWithNamespaceHandle("demo")
+	if got.Host != "" || got.Namespace != "" || got.Name != "demo" || got.Tag != "latest" {
+		t.Fatalf("unexpected parsed image without namespace: %+v", got)
+	}
+}
+
+// capability_id: rainbond.source-image.auth-base64-encode
+func TestEncodeAuthToBase64(t *testing.T) {
+	encoded, err := EncodeAuthToBase64(types.AuthConfig{
+		Username: "demo",
+		Password: "secret",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := base64.URLEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var auth types.AuthConfig
+	if err := json.Unmarshal(raw, &auth); err != nil {
+		t.Fatal(err)
+	}
+	if auth.Username != "demo" || auth.Password != "secret" {
+		t.Fatalf("unexpected decoded auth config: %+v", auth)
+	}
+}
+
+// capability_id: rainbond.source-image.trusted-registry-check
 func TestCheckTrustedRepositories(t *testing.T) {
+	t.Skip("requires remote registry access")
 	err := CheckTrustedRepositories("hub.goodrain.com/zengqg-test/etcd2:v2.2.0", "zengqg-test", "zengqg-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
+// capability_id: rainbond.source-image.save
 func TestImageSave(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	if err := ImageSave(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
-		t.Fatal(err)
-	}
+	t.Skip("requires local docker daemon")
+	/*
+		dc, _ := client.NewEnvClient()
+		if err := ImageSave(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
+			t.Fatal(err)
+		}
+	*/
 }
 
+// capability_id: rainbond.source-image.multi-save
 func TestMulitImageSave(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	if err := MultiImageSave(context.Background(), dc, "/tmp/testsaveimage.tar", nil,
-		"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-node:V5.3.0-cloud",
-		"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-resource-proxy:V5.3.0-cloud"); err != nil {
-		t.Fatal(err)
-	}
+	t.Skip("requires local docker daemon")
+	/*
+		dc, _ := client.NewEnvClient()
+		if err := MultiImageSave(context.Background(), dc, "/tmp/testsaveimage.tar", nil,
+			"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-node:V5.3.0-cloud",
+			"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-resource-proxy:V5.3.0-cloud"); err != nil {
+			t.Fatal(err)
+		}
+	*/
 }
 
+// capability_id: rainbond.source-image.import
 func TestImageImport(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	if err := ImageImport(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
-		t.Fatal(err)
-	}
+	t.Skip("requires local docker daemon")
+	/*
+		dc, _ := client.NewEnvClient()
+		if err := ImageImport(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
+			t.Fatal(err)
+		}
+	*/
 }

@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.opsrequest.preflight-arbitration
 func TestUniqueOpsDecide(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -330,6 +331,7 @@ func TestUniqueOpsDecide(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.preflight-arbitration
 func TestPriorityOpsDecide(t *testing.T) {
 	ctx := context.Background()
 	clusterName := "test-cluster"
@@ -490,6 +492,7 @@ func verifyCancelledOps(t *testing.T, c client.Client, opsNames []string) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.preflight-arbitration
 func TestCancelOpsDecide(t *testing.T) {
 	ctx := context.Background()
 	clusterName := "test-cluster"

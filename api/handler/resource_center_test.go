@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// capability_id: rainbond.resource-center.match-selector
 func TestLabelsMatchSelector(t *testing.T) {
 	assert.True(t, labelsMatchSelector(
 		map[string]string{"app": "demo"},
@@ -30,6 +31,7 @@ func TestLabelsMatchSelector(t *testing.T) {
 	))
 }
 
+// capability_id: rainbond.resource-center.collect-ingress-services
 func TestCollectIngressServiceNames(t *testing.T) {
 	ingress := networkingv1.Ingress{
 		Spec: networkingv1.IngressSpec{
@@ -62,6 +64,7 @@ func TestCollectIngressServiceNames(t *testing.T) {
 	assert.ElementsMatch(t, []string{"default-svc", "api-svc", "web-svc"}, collectIngressServiceNames(ingress))
 }
 
+// capability_id: rainbond.resource-center.event-summary
 func TestToResourceEventInfo(t *testing.T) {
 	lastTime := metav1.NewTime(time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC))
 	event := corev1.Event{

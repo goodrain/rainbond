@@ -10,6 +10,7 @@ import (
 )
 
 // Test AppConfigGroup Dao
+// capability_id: rainbond.app-config-group.create
 func TestAppConfigGroupDaoAddModel(t *testing.T) {
 	req := &model.ApplicationConfigGroup{
 		AppID:           "appID",
@@ -84,6 +85,7 @@ func TestAppConfigGroupDaoAddModel(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-config-group.get
 func TestAppGetConfigGroupByID(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -139,6 +141,7 @@ func TestAppGetConfigGroupByID(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-config-group.delete
 func TestDeleteConfigGroup(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
@@ -190,6 +193,7 @@ func TestDeleteConfigGroup(t *testing.T) {
 }
 
 // Test AppConfigGroup Service Dao
+// capability_id: rainbond.app-config-group.bind-component
 func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 	req := &model.ConfigGroupService{
 		AppID:           "appID",
@@ -265,6 +269,7 @@ func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-config-group.unbind-components
 func TestDeleteConfigGroupService(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
@@ -316,6 +321,7 @@ func TestDeleteConfigGroupService(t *testing.T) {
 }
 
 // Test AppConfigGroup Item Dao
+// capability_id: rainbond.app-config-group.item-create
 func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
 	req := &model.ConfigGroupItem{
 		AppID:           "appID",
@@ -392,6 +398,7 @@ func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-config-group.item-update
 func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 	req := &model.ConfigGroupItem{
 		AppID:           "appID",
@@ -450,6 +457,7 @@ func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-config-group.item-delete
 func TestDeleteConfigGroupItem(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string

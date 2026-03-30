@@ -1,34 +1,29 @@
-// RAINBOND, Application Management Platform
-// Copyright (C) 2014-2019 Goodrain Co., Ltd.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. For any non-GPL usage of Rainbond,
-// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
-// must be obtained first.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 package util
 
 import (
-	"fmt"
+	"net"
 	"testing"
 )
 
-func TestWatchAndListIP(t *testing.T) {
-	pool := NewIPPool([]string{"p2p0"})
-	if pool.Ready() {
-		fmt.Println(pool.GetHostIPs())
-		for e := range pool.GetWatchIPChan() {
-			t.Log(e)
-		}
+type fakeAddr struct{}
+
+func (fakeAddr) Network() string { return "fake" }
+func (fakeAddr) String() string  { return "fake" }
+
+// capability_id: rainbond.util.network.interface-address-filter
+func TestCheckIPAddress(t *testing.T) {
+	loopback := &net.IPNet{IP: net.ParseIP("127.0.0.1")}
+	if got := checkIPAddress(loopback); got != nil {
+		t.Fatalf("expected loopback to be filtered, got %+v", got)
+	}
+
+	normal := &net.IPNet{IP: net.ParseIP("192.168.10.20")}
+	got := checkIPAddress(normal)
+	if got == nil || !got.IP.Equal(normal.IP) {
+		t.Fatalf("expected normal ip to pass through, got %+v", got)
+	}
+
+	if got := checkIPAddress(fakeAddr{}); got != nil {
+		t.Fatalf("expected non-IP addr to be filtered, got %+v", got)
 	}
 }

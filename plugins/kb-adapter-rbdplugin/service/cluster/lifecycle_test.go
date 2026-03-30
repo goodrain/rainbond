@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestCleanupClusterOpsRequests(t *testing.T) {
 	ctx := context.Background()
 	clusterName := "test-cluster"
@@ -226,6 +227,7 @@ func TestCleanupClusterOpsRequests(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestDeleteAllOpsRequestsConcurrently(t *testing.T) {
 	ctx := context.Background()
 	clusterName := "test-cluster"
@@ -366,6 +368,7 @@ func TestDeleteAllOpsRequestsConcurrently(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestExtractSecretRefs(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -449,6 +452,7 @@ func TestExtractSecretRefs(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestClusterReferencesSecret(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -494,6 +498,7 @@ func TestClusterReferencesSecret(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestCountSecretReferences(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -561,6 +566,7 @@ func TestCountSecretReferences(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.delete-cleanup
 func TestDeleteSecretsByCluster(t *testing.T) {
 	ctx := context.Background()
 
@@ -755,6 +761,7 @@ func TestDeleteSecretsByCluster(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.create
 func TestCreateCluster(t *testing.T) {
 	tests := []struct {
 		name        string

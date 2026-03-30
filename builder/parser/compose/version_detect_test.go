@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.compose.detect-version
 func TestInferComposeVersion(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,6 +84,7 @@ services:
 	}
 }
 
+// capability_id: rainbond.compose.detect-config-file-mount
 func TestIsConfigFile(t *testing.T) {
 	tests := []struct {
 		name       string

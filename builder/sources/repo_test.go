@@ -19,14 +19,33 @@
 package sources
 
 import (
-	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
+// capability_id: rainbond.source-repo.build-info
 func TestCreateRepostoryBuildInfo(t *testing.T) {
-	info, err := CreateRepostoryBuildInfo("ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git?dir=abc", "master", "ADSASDADAD", "", "")
+	root := t.TempDir()
+	t.Setenv("SOURCE_DIR", root)
+
+	info, err := CreateRepostoryBuildInfo(
+		"ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git?dir=abc",
+		"git",
+		"master",
+		"tenant-a",
+		"service-a",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%+v \n", info)
+	if info.RepostoryURL != "ssh://git@gr5042d6.7804f67d.ali-sh-s1.goodrain.net:20905/root/private2018.git" {
+		t.Fatalf("unexpected repository url: %q", info.RepostoryURL)
+	}
+	if info.BuildPath != "abc" {
+		t.Fatalf("unexpected build path: %q", info.BuildPath)
+	}
+	if !strings.HasPrefix(info.CodeHome, filepath.Join(root, "build", "tenant-a")) {
+		t.Fatalf("unexpected code home: %q", info.CodeHome)
+	}
 }

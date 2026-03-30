@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestBase_ParseParameters(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -39,6 +40,7 @@ func TestBase_ParseParameters(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_EmptyString(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -62,6 +64,7 @@ func TestParseParameterValue_EmptyString(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_Boolean(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -85,6 +88,7 @@ func TestParseParameterValue_Boolean(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_Integer(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -109,6 +113,7 @@ func TestParseParameterValue_Integer(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_Float(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -130,6 +135,7 @@ func TestParseParameterValue_Float(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_SizeUnits(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -152,6 +158,7 @@ func TestParseParameterValue_SizeUnits(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_TimeUnits(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -174,6 +181,7 @@ func TestParseParameterValue_TimeUnits(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.coordinator.parameter-value-parse
 func TestParseParameterValue_QuotedStrings(t *testing.T) {
 	testCases := []struct {
 		input    string

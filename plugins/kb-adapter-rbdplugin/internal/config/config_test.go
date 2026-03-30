@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.kb-adapter.server-config.validate
 func TestServerConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -129,6 +130,7 @@ func TestServerConfig_Validate(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.server-config.load-from-env
 func TestLoadConfigFromEnv(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -242,6 +244,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.server-config.must-load
 func TestMustLoad(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -348,6 +351,7 @@ func TestMustLoad(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.server-config.dev-mode
 func TestInDevelopment(t *testing.T) {
 	tests := []struct {
 		name     string

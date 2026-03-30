@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
+// capability_id: rainbond.app-restore.snapshot-relationship-rewrite
 func TestModify(t *testing.T) {
 	var b = BackupAPPRestore{
 		BackupID:      "test",
@@ -75,6 +76,7 @@ func TestModify(t *testing.T) {
 	t.Log(string(re))
 }
 
+// capability_id: rainbond.app-restore.unzip-all-data
 func TestUnzipAllDataFile(t *testing.T) {
 	allDataFilePath := "/tmp/__all_data.zip"
 	allTmpDir := "/tmp/4f25c53e864744ec95d037528acaa708"
@@ -83,6 +85,7 @@ func TestUnzipAllDataFile(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.app-restore.image-registry-rewrite
 func TestGetImageName(t *testing.T) {
 	testData := []struct {
 		builderRegistryDomain string
@@ -116,5 +119,22 @@ func TestGetImageName(t *testing.T) {
 		if newImage != ts.result {
 			t.Fatalf("Except [%s], But got [%s]", ts.result, newImage)
 		}
+	}
+}
+
+// capability_id: rainbond.app-restore.service-id-lookup
+func TestGetOldServiceID(t *testing.T) {
+	restore := &BackupAPPRestore{
+		serviceChange: map[string]*Info{
+			"old-svc-a": {ServiceID: "new-svc-a"},
+			"old-svc-b": {ServiceID: "new-svc-b"},
+		},
+	}
+
+	if got := restore.getOldServiceID("new-svc-b"); got != "old-svc-b" {
+		t.Fatalf("expected old-svc-b, got %q", got)
+	}
+	if got := restore.getOldServiceID("missing"); got != "" {
+		t.Fatalf("expected empty old service id, got %q", got)
 	}
 }

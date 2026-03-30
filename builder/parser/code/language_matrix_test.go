@@ -19,6 +19,7 @@ func writeTestFiles(t *testing.T, root string, files map[string]string) {
 	}
 }
 
+// capability_id: rainbond.source-detect.language-matrix
 func TestGetLangType_SupportedSourceBuildLanguages(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -53,6 +54,7 @@ func TestGetLangType_SupportedSourceBuildLanguages(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.source-detect.nodejs-over-static
 func TestGetLangType_NodeJsWinsOverStaticWhenPackageJsonExists(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFiles(t, dir, map[string]string{
@@ -69,6 +71,7 @@ func TestGetLangType_NodeJsWinsOverStaticWhenPackageJsonExists(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.source-detect.dockerfile-subdir
 func TestGetLangType_DetectsDockerfileInSubDirectory(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFiles(t, dir, map[string]string{

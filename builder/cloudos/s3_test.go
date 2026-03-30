@@ -1,59 +1,28 @@
 package cloudos
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestS3PutObject(t *testing.T) {
-	cfg := &Config{
-		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
-		AccessKey:  "dummy",
-		SecretKey:  "dummy",
-		BucketName: "my-bucket",
-	}
-
-	cs, err := newS3(cfg)
+// capability_id: rainbond.cloud-storage.s3-driver-config
+func TestNewS3DriverKeepsConfig(t *testing.T) {
+	driver, err := newS3(&Config{
+		ProviderType: S3ProviderS3,
+		Endpoint:     "dummy-endpoint",
+		AccessKey:    "ak",
+		SecretKey:    "sk",
+		BucketName:   "bucket-a",
+	})
 	if err != nil {
-		t.Fatalf("create storage driver: %v", err)
+		t.Fatal(err)
 	}
 
-	if err := cs.PutObject("aws-sdk-go-1.25.25.zip", "/Users/abewang/Downloads/aws-sdk-go-1.25.25.zip"); err != nil {
-		t.Error(err)
+	s3obj, ok := driver.(*s3Driver)
+	if !ok {
+		t.Fatalf("expected *s3Driver, got %T", driver)
 	}
-}
-
-func TestS3GetObject(t *testing.T) {
-	cfg := &Config{
-		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
-		AccessKey:  "access_key",
-		SecretKey:  "dummy",
-		BucketName: "my-bucket",
+	if s3obj.Config.Endpoint != "dummy-endpoint" || s3obj.Config.BucketName != "bucket-a" {
+		t.Fatalf("unexpected s3 config: %+v", s3obj.Config)
 	}
-
-	cs, err := newS3(cfg)
-	if err != nil {
-		t.Fatalf("create storage driver: %v", err)
-	}
-
-	if err := cs.GetObject("goodrain-logo.png", "goodrain-logo2.png"); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestS3DeleteObject(t *testing.T) {
-	cfg := &Config{
-		Endpoint:   "9000.gr4433a2.52bli69h.0196bd.grapps.cn",
-		AccessKey:  "access_key",
-		SecretKey:  "dummy",
-		BucketName: "my-bucket",
-	}
-
-	cs, err := newS3(cfg)
-	if err != nil {
-		t.Fatalf("create storage driver: %v", err)
-	}
-
-	if err := cs.DeleteObject("goodrain-logo.png"); err != nil {
-		t.Error(err)
+	if s3obj.s3 == nil {
+		t.Fatal("expected aws s3 client to be initialized")
 	}
 }

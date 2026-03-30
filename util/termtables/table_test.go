@@ -18,6 +18,7 @@ func checkRendersTo(t *testing.T, table *Table, expected string) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-text-table
 func TestCreateTable(t *testing.T) {
 	expected := "" +
 		"+-----------+-------+\n" +
@@ -42,6 +43,7 @@ func TestCreateTable(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-style-reset
 func TestStyleResets(t *testing.T) {
 	expected := "" +
 		"+-----------+-------+\n" +
@@ -66,6 +68,7 @@ func TestStyleResets(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-with-title
 func TestTableWithHeader(t *testing.T) {
 	expected := "" +
 		"+-------------------+\n" +
@@ -93,6 +96,7 @@ func TestTableWithHeader(t *testing.T) {
 
 // TestTableWithHeaderMultipleTimes ensures that printing a table with headers
 // multiple times continues to render correctly.
+// capability_id: rainbond.util.termtables.render-text-table-repeatable
 func TestTableWithHeaderMultipleTimes(t *testing.T) {
 	expected := "" +
 		"+-------------------+\n" +
@@ -119,6 +123,7 @@ func TestTableWithHeaderMultipleTimes(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-title-width
 func TestTableTitleWidthAdjusts(t *testing.T) {
 	expected := "" +
 		"+---------------------------+\n" +
@@ -144,6 +149,7 @@ func TestTableTitleWidthAdjusts(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-header-width
 func TestTableHeaderWidthAdjusts(t *testing.T) {
 	expected := "" +
 		"+---------------+---------------------+\n" +
@@ -160,6 +166,7 @@ func TestTableHeaderWidthAdjusts(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-without-headers
 func TestTableWithNoHeaders(t *testing.T) {
 	expected := "" +
 		"+-----------+------+\n" +
@@ -179,6 +186,7 @@ func TestTableWithNoHeaders(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-unicode-widths
 func TestTableUnicodeWidths(t *testing.T) {
 	expected := "" +
 		"+-----------+------+\n" +
@@ -200,6 +208,7 @@ func TestTableUnicodeWidths(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-utf8-box
 func TestTableInUTF8(t *testing.T) {
 	expected := "" +
 		"╭───────────────────╮\n" +
@@ -228,6 +237,7 @@ func TestTableInUTF8(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-utf8-sgr
 func TestTableUnicodeUTF8AndSGR(t *testing.T) {
 	// at present, this mostly just tests that alignment still works
 	expected := "" +
@@ -269,6 +279,7 @@ func TestTableUnicodeUTF8AndSGR(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-markdown-table
 func TestTableInMarkdown(t *testing.T) {
 	expected := "" +
 		"Table: Example\n\n" +
@@ -290,6 +301,7 @@ func TestTableInMarkdown(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-title-unicode-width
 func TestTitleUnicodeWidths(t *testing.T) {
 	expected := "" +
 		"+-------+\n" +
@@ -325,6 +337,7 @@ func TestTitleUnicodeWidths(t *testing.T) {
 // right-hand column was not the same as the longest row in the left-hand column.
 // This tests that we correctly accumulate the maximum width across all rows of
 // the termtable and adjust width accordingly.
+// capability_id: rainbond.util.termtables.render-text-table-width-balance
 func TestTableWidthHandling(t *testing.T) {
 	expected := "" +
 		"+-----------------------------------------+\n" +
@@ -351,6 +364,7 @@ func TestTableWidthHandling(t *testing.T) {
 
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-width-balance-second
 func TestTableWidthHandling_SecondErrorCondition(t *testing.T) {
 	expected := "" +
 		"+----------------------------------------+\n" +
@@ -376,6 +390,7 @@ func TestTableWidthHandling_SecondErrorCondition(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-post-align
 func TestTableAlignPostsetting(t *testing.T) {
 	expected := "" +
 		"+-----------+-------+\n" +
@@ -402,6 +417,7 @@ func TestTableAlignPostsetting(t *testing.T) {
 	checkRendersTo(t, table, expected)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-missing-cells
 func TestTableMissingCells(t *testing.T) {
 	expected := "" +
 		"+----------+---------+---------+\n" +
@@ -427,6 +443,7 @@ func TestTableMissingCells(t *testing.T) {
 // anything to do with estimating a tty-style "character width" for what in
 // Unicode is a grapheme cluster.  This disabled test shows what we want
 // to support, but don't yet.
+// capability_id: rainbond.util.termtables.render-text-table-with-combining-chars
 func TestTableWithCombiningChars(t *testing.T) {
 	expected := "" +
 		"+------+---+\n" +
@@ -445,6 +462,7 @@ func TestTableWithCombiningChars(t *testing.T) {
 }
 
 // another unicode length issue
+// capability_id: rainbond.util.termtables.render-text-table-with-fullwidth-chars
 func TestTableWithFullwidthChars(t *testing.T) {
 	expected := "" +
 		"+----------+------------+\n" +
@@ -462,6 +480,7 @@ func TestTableWithFullwidthChars(t *testing.T) {
 // Tests CJK characters using examples given in issue #33. The examples may not
 // look like they line up but you can visually confirm its accuracy with a
 // fmt.Print.
+// capability_id: rainbond.util.termtables.render-text-table-cjk
 func TestCJKChars(t *testing.T) {
 	expected := "" +
 		"+-------+---------+----------+\n" +
@@ -501,6 +520,7 @@ func TestCJKChars(t *testing.T) {
 	checkRendersTo(t, table, expected2)
 }
 
+// capability_id: rainbond.util.termtables.render-text-table-append-headers
 func TestTableMultipleAddHeader(t *testing.T) {
 	expected := "" +
 		"+--------------+--------+-------+\n" +

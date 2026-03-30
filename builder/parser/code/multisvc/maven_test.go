@@ -20,11 +20,30 @@ package multi
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
+// capability_id: rainbond.maven.parse-pom
 func TestMaven_ParsePom(t *testing.T) {
-	pomPath := "./pom.xml"
+	tmpDir := t.TempDir()
+	pomPath := filepath.Join(tmpDir, "pom.xml")
+	content := `<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>demo-parent</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>rbd-api</module>
+    <module>rbd-worker</module>
+    <module>rbd-gateway</module>
+  </modules>
+</project>`
+	if err := os.WriteFile(pomPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write pom.xml: %v", err)
+	}
 	pom, err := parsePom(pomPath)
 	if err != nil {
 		t.Fatal(err)
@@ -47,20 +66,70 @@ func TestMaven_ParsePom(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.maven.list-modules
 func TestMaven_ListModules(t *testing.T) {
-	path := os.Getenv("GOPATH") + "/src/github.com/goodrain/rainbond/builder/parser/code/multisvc/"
+	root := t.TempDir()
+	rootPom := `<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>demo-parent</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>rbd-api</module>
+    <module>rbd-worker</module>
+    <module>rbd-gateway</module>
+  </modules>
+</project>`
+	if err := os.WriteFile(filepath.Join(root, "pom.xml"), []byte(rootPom), 0o644); err != nil {
+		t.Fatalf("write root pom.xml: %v", err)
+	}
+	modules := map[string]string{
+		"rbd-api": `<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-api</artifactId><version>1.0.0</version><packaging>jar</packaging></project>`,
+		"rbd-worker": `<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-worker</artifactId><version>1.0.0</version><packaging>jar</packaging></project>`,
+		"rbd-gateway": `<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-gateway</artifactId><version>1.0.0</version><packaging>war</packaging></project>`,
+	}
+	for name, content := range modules {
+		dir := filepath.Join(root, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "pom.xml"), []byte(content), 0o644); err != nil {
+			t.Fatalf("write module pom.xml: %v", err)
+		}
+	}
+
 	m := maven{}
-	res, err := m.ListModules(path)
+	res, err := m.ListModules(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(res) != 3 {
-		t.Errorf("Expected 3 for the length of mudules, but returned %d", len(res))
+		t.Fatalf("Expected 3 modules, but returned %d", len(res))
+	}
+	names := []string{res[0].Name, res[1].Name, res[2].Name}
+	expected := map[string]string{
+		"rbd-api":     "jar",
+		"rbd-worker":  "jar",
+		"rbd-gateway": "war",
 	}
 	for _, svc := range res {
-		for _, env := range svc.Envs {
-			t.Logf("Name: %s; Value: %s", env.Name, env.Value)
+		packaging, ok := expected[svc.Name]
+		if !ok {
+			t.Fatalf("unexpected module name %q in %v", svc.Name, names)
+		}
+		if svc.Packaging != packaging {
+			t.Fatalf("module %s packaging = %q, want %q", svc.Name, svc.Packaging, packaging)
+		}
+		if svc.Envs["BUILD_MAVEN_CUSTOM_GOALS"] == nil {
+			t.Fatalf("module %s missing BUILD_MAVEN_CUSTOM_GOALS", svc.Name)
+		}
+		if svc.Packaging == "war" && svc.Envs["BUILD_PROCFILE"] != nil && svc.Envs["BUILD_PROCFILE"].Value == "" {
+			t.Fatalf("module %s missing BUILD_PROCFILE value", svc.Name)
 		}
 	}
-	t.Error("test")
 }

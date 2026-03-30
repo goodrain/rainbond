@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.event-timeline
 func TestFindFailedCondition(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -92,6 +93,7 @@ func TestFindFailedCondition(t *testing.T) {
 }
 
 // TestGetClusterEvents 测试获取集群事件列表功能
+// capability_id: rainbond.kb-adapter.cluster.event-timeline
 func TestGetClusterEvents(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -773,6 +775,7 @@ func TestGetClusterEvents(t *testing.T) {
 }
 
 // TestConvertOpsRequestToEventItem 测试 OpsRequest 转换为 EventItem
+// capability_id: rainbond.kb-adapter.cluster.event-timeline
 func TestConvertOpsRequestToEventItem(t *testing.T) {
 	service := &Service{}
 	baseTime := time.Now()

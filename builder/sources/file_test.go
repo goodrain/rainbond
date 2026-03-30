@@ -19,14 +19,19 @@
 package sources
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
-
-	"github.com/goodrain/rainbond/event"
 )
 
-func TestCopyFileWithProgress(t *testing.T) {
-	logger := event.GetTestLogger()
-	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/abc/desc1.tgz", logger); err != nil {
-		t.Fatal(err)
+// capability_id: rainbond.source-repo.cache-dir
+func TestGetCodeSourceDirUsesSourceDirEnv(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("SOURCE_DIR", root)
+
+	dir := GetCodeSourceDir("https://github.com/goodrain/rainbond.git", "main", "tenant-a", "service-a")
+
+	if !strings.HasPrefix(dir, filepath.Join(root, "build", "tenant-a")) {
+		t.Fatalf("unexpected code source dir: %q", dir)
 	}
 }

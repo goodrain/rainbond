@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.associate-service-id
 func TestAssociateToKubeBlocksComponent(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -148,6 +149,7 @@ func TestAssociateToKubeBlocksComponent(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.list-pods
 func TestGetClusterPods(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -395,6 +397,7 @@ func TestGetClusterPods(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.list-pods
 func TestGetInstanceSetByCluster(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -497,6 +500,7 @@ func TestGetInstanceSetByCluster(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.list-pods
 func TestGetPodsByNames(t *testing.T) {
 	tests := []struct {
 		name          string

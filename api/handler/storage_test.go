@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// capability_id: rainbond.storage.handler-singleton
 func TestGetStorageHandlerSingleton(t *testing.T) {
 	h1 := GetStorageHandler()
 	h2 := GetStorageHandler()
@@ -13,6 +14,7 @@ func TestGetStorageHandlerSingleton(t *testing.T) {
 	assert.Equal(t, h1, h2)
 }
 
+// capability_id: rainbond.storage.class-summary
 func TestStorageClassInfoFields(t *testing.T) {
 	info := StorageClassInfo{
 		Name:                 "test-sc",

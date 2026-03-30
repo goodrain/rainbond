@@ -123,14 +123,23 @@ func (o *Repo) add(out io.Writer, name, url, username, password string) error {
 	settings.PluginsDirectory = "/foo/bar"
 	r, err := repo.NewChartRepository(&c, getter.All(settings))
 	if err != nil {
-		return err
+		if strings.HasPrefix(url, "file://") {
+			indexPath := filepath.Join(strings.TrimPrefix(url, "file://"), "index.yaml")
+			if _, statErr := os.Stat(indexPath); statErr != nil {
+				return errors.Wrapf(statErr, "looks like %q is not a valid chart repository or cannot be reached", url)
+			}
+		} else {
+			return err
+		}
 	}
 
-	if o.repoCache != "" {
+	if r != nil && o.repoCache != "" {
 		r.CachePath = o.repoCache
 	}
-	if _, err := r.DownloadIndexFile(); err != nil {
-		return errors.Wrapf(err, "looks like %q is not a valid chart repository or cannot be reached", url)
+	if r != nil {
+		if _, err := r.DownloadIndexFile(); err != nil {
+			return errors.Wrapf(err, "looks like %q is not a valid chart repository or cannot be reached", url)
+		}
 	}
 
 	f.Update(&c)

@@ -30,6 +30,7 @@ func getDirs(t *testing.T, dir string) []string {
 	return dirs
 }
 
+// capability_id: rainbond.dockerfile.reject-invalid
 func TestTestNegative(t *testing.T) {
 	for _, dir := range getDirs(t, negativeTestDir) {
 		dockerfile := filepath.Join(negativeTestDir, dir, "Dockerfile")
@@ -50,6 +51,7 @@ func TestTestNegative(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.dockerfile.parse-fixtures
 func TestTestData(t *testing.T) {
 	for _, dir := range getDirs(t, testDir) {
 		dockerfile := filepath.Join(testDir, dir, "Dockerfile")
@@ -86,6 +88,7 @@ func TestTestData(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.dockerfile.parse-words
 func TestParseWords(t *testing.T) {
 	tests := []map[string][]string{
 		{
@@ -137,6 +140,7 @@ func TestParseWords(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.dockerfile.line-info
 func TestLineInformation(t *testing.T) {
 	df, err := os.Open(testFileLineInfo)
 	if err != nil {

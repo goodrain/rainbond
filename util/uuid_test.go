@@ -18,9 +18,20 @@
 
 package util
 
-import "testing"
+import (
+	"testing"
+	"unicode"
+)
 
+// capability_id: rainbond.util.core-helpers.hash-ip-string-uuid
 func TestTimeVersion(t *testing.T) {
 	version := NewTimeVersion()
-	t.Log(version)
+	if version == "" {
+		t.Fatal("expected non-empty version")
+	}
+	for _, r := range string(version) {
+		if !unicode.IsDigit(r) {
+			t.Fatalf("expected numeric time version, got %q", version)
+		}
+	}
 }

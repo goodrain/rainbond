@@ -2,6 +2,7 @@ package code
 
 import "testing"
 
+// capability_id: rainbond.cnb-version.resolve-supported
 func TestGetCNBVersions(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -35,6 +36,7 @@ func TestGetCNBVersions(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb-version.match-language
 func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -65,6 +67,7 @@ func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb-version.extract-major
 func TestExtractMajorFromSpec(t *testing.T) {
 	tests := []struct {
 		spec string

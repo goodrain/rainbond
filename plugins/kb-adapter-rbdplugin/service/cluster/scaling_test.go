@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.scale
 func TestExpansionCluster(t *testing.T) {
 	testCases := []struct {
 		name        string

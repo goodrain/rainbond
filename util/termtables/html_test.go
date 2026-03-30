@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.util.termtables.render-html-table
 func TestCreateTableHTML(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -34,6 +35,7 @@ func TestCreateTableHTML(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-title
 func TestTableWithHeaderHTML(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -64,6 +66,7 @@ func TestTableWithHeaderHTML(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-title-width
 func TestTableTitleWidthAdjustsHTML(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -94,6 +97,7 @@ func TestTableTitleWidthAdjustsHTML(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-without-headers
 func TestTableWithNoHeadersHTML(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<tbody>\n" +
@@ -118,6 +122,7 @@ func TestTableWithNoHeadersHTML(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-unicode-widths
 func TestTableUnicodeWidthsHTML(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -145,6 +150,7 @@ func TestTableUnicodeWidthsHTML(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-alignment
 func TestTableWithAlignment(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -168,6 +174,7 @@ func TestTableWithAlignment(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-set-align
 func TestTableAfterSetAlign(t *testing.T) {
 	expected := "<table class=\"termtable\">\n" +
 		"<thead>\n" +
@@ -194,6 +201,7 @@ func TestTableAfterSetAlign(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-html-alt-title-style
 func TestTableWithAltTitleStyle(t *testing.T) {
 	expected := "" +
 		"<table class=\"termtable\">\n" +

@@ -362,7 +362,11 @@ func isConfigFile(mountPath string, volumeType string) bool {
 			if strings.Contains(mountPath, "conf.d") {
 				continue
 			}
-			// Only treat as config file if basename has an extension
+			// Paths under /etc are typically config files even without an extension.
+			if pattern == "/etc/" {
+				return true
+			}
+			// For other config paths, require a filename-like basename.
 			basename := filepath.Base(mountPath)
 			if strings.Contains(basename, ".") {
 				return true
@@ -521,4 +525,3 @@ func ensureEnvFile(dir string) {
 		logrus.Infof("created empty .env in %s", dir)
 	}
 }
-

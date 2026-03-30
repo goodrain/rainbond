@@ -231,7 +231,7 @@ func judgeMetadataVersion(metadata []byte) (string, error) {
 
 	var svcSnapshot []*RegionServiceSnapshot
 	if err := ffjson.Unmarshal(metadata, &svcSnapshot); err == nil {
-		return "", err
+		return OldMetadata, nil
 	}
 
 	return OldMetadata, nil

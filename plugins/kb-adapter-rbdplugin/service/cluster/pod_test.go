@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.pod-detail
 func TestGetPodDetail(t *testing.T) {
 	type expectation struct {
 		wantErr  error

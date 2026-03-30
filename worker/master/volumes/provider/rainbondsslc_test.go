@@ -22,17 +22,64 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/client-go/tools/clientcmd"
-
-	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
+// capability_id: rainbond.worker.volume-provider.select-node
 func TestSelectNode(t *testing.T) {
-	c, err := clientcmd.BuildConfigFromFlags("", "../../../../test/admin.kubeconfig")
-	if err != nil {
-		t.Fatal(err)
-	}
-	client, _ := kubernetes.NewForConfig(c)
+	client := fake.NewSimpleClientset(
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-a"},
+			Status: corev1.NodeStatus{
+				Allocatable: corev1.ResourceList{
+					corev1.ResourceMemory: resource.MustParse("4Gi"),
+				},
+				Addresses: []corev1.NodeAddress{{Type: corev1.NodeInternalIP, Address: "10.0.0.1"}},
+				Conditions: []corev1.NodeCondition{{Type: corev1.NodeReady, Status: corev1.ConditionTrue}},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-b"},
+			Status: corev1.NodeStatus{
+				Allocatable: corev1.ResourceList{
+					corev1.ResourceMemory: resource.MustParse("8Gi"),
+				},
+				Addresses: []corev1.NodeAddress{{Type: corev1.NodeInternalIP, Address: "10.0.0.2"}},
+				Conditions: []corev1.NodeCondition{{Type: corev1.NodeReady, Status: corev1.ConditionTrue}},
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "pod-a", Namespace: "default"},
+			Spec: corev1.PodSpec{
+				NodeName: "node-a",
+				Containers: []corev1.Container{{
+					Name: "app",
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				}},
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "pod-b", Namespace: "default"},
+			Spec: corev1.PodSpec{
+				NodeName: "node-b",
+				Containers: []corev1.Container{{
+					Name: "app",
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				}},
+			},
+		},
+	)
 	pr := &rainbondsslcProvisioner{
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: client,
@@ -41,14 +88,42 @@ func TestSelectNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(node)
+	if node == nil || node.Name != "node-b" {
+		t.Fatalf("expected node-b to be selected, got %#v", node)
+	}
 }
 
+// capability_id: rainbond.worker.volume-provider.pvc-identifiers
 func TestGetVolumeIDByPVCName(t *testing.T) {
-	t.Log(getVolumeIDByPVCName("manual17-gra02c40-0"))
-	t.Log(getVolumeIDByPVCName("manual17"))
+	tests := []struct {
+		input string
+		want  int
+	}{
+		{input: "manual17-gra02c40-0", want: 17},
+		{input: "manual17", want: 17},
+		{input: "data-sonar-gra7c815-0", want: 0},
+	}
+
+	for _, tt := range tests {
+		if got := getVolumeIDByPVCName(tt.input); got != tt.want {
+			t.Fatalf("getVolumeIDByPVCName(%q)=%d, want %d", tt.input, got, tt.want)
+		}
+	}
 }
 
+// capability_id: rainbond.worker.volume-provider.pvc-identifiers
 func TestGetPodNameByPVCName(t *testing.T) {
-	t.Log(getPodNameByPVCName("manual17-gra02c40-0"))
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "manual17-gra02c40-0", want: "gra02c40-0"},
+		{input: "manual17", want: "manual17"},
+	}
+
+	for _, tt := range tests {
+		if got := getPodNameByPVCName(tt.input); got != tt.want {
+			t.Fatalf("getPodNameByPVCName(%q)=%q, want %q", tt.input, got, tt.want)
+		}
+	}
 }

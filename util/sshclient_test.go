@@ -19,19 +19,26 @@
 package util
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 )
 
-func TestSSHClient(t *testing.T) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	client := NewSSHClient("172.16.100.105", "root", "", "/usr/bin/whoami", 22, &stdout, &stderr)
-	if err := client.Connection(); err != nil {
-		logrus.Error("init endpoint node error:", err.Error())
-		return
+// capability_id: rainbond.util.ssh.auth-method-selection
+func TestNewSSHClientSelectsAuthMethod(t *testing.T) {
+	passwordClient := NewSSHClient("127.0.0.1", "root", "secret", "whoami", 22, nil, nil)
+	if passwordClient.Method != "password" {
+		t.Fatalf("expected password auth, got %q", passwordClient.Method)
 	}
-	logrus.Info(stdout.String())
+
+	publicKeyClient := NewSSHClient("127.0.0.1", "root", "", "whoami", 22, nil, nil)
+	if publicKeyClient.Method != "publickey" {
+		t.Fatalf("expected publickey auth, got %q", publicKeyClient.Method)
+	}
+}
+
+// capability_id: rainbond.util.ssh.auth-method-selection
+func TestParseAuthMethodsRejectsInvalidMethod(t *testing.T) {
+	_, err := parseAuthMethods(&SSHClient{Method: "token"})
+	if err == nil {
+		t.Fatal("expected invalid auth method error")
+	}
 }

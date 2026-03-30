@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.connection-info
 func TestGetConnectInfo(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -178,6 +179,7 @@ func TestGetConnectInfo(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.detail-summary
 func TestGetClusterDetail(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -18,9 +18,67 @@
 
 package code
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
-func TestCheckRuntime(t *testing.T) {
-	t.Log(CheckRuntime("/tmp/php", PHP))
-	t.Log(CheckRuntime("/tmp/java", JavaJar))
+// capability_id: rainbond.runtime.static-empty
+func TestCheckRuntime_StaticReturnsEmptyRuntimeInfo(t *testing.T) {
+	dir := t.TempDir()
+
+	info, err := CheckRuntime(dir, Static)
+	if err != nil {
+		t.Fatalf("CheckRuntime() error = %v", err)
+	}
+	if len(info) != 0 {
+		t.Fatalf("expected empty runtime info, got %+v", info)
+	}
+}
+
+// capability_id: rainbond.runtime.node-defaults
+func TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson(t *testing.T) {
+	dir := t.TempDir()
+	packageJSON := []byte("{\"name\":\"demo-app\"}\n")
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), packageJSON, 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	info, err := CheckRuntime(dir, Nodejs)
+	if err != nil {
+		t.Fatalf("CheckRuntime() error = %v", err)
+	}
+	if info["RUNTIMES"] != DefaultNodeVersion {
+		t.Fatalf("RUNTIMES = %q, want %q", info["RUNTIMES"], DefaultNodeVersion)
+	}
+	if info["PACKAGE_TOOL"] != string(PackageManagerNPM) {
+		t.Fatalf("PACKAGE_TOOL = %q, want %q", info["PACKAGE_TOOL"], PackageManagerNPM)
+	}
+	if info["FRAMEWORK"] != "other-static" {
+		t.Fatalf("FRAMEWORK = %q, want %q", info["FRAMEWORK"], "other-static")
+	}
+	if info["RUNTIME_TYPE"] != "static" {
+		t.Fatalf("RUNTIME_TYPE = %q, want %q", info["RUNTIME_TYPE"], "static")
+	}
+}
+
+// capability_id: rainbond.runtime.composite-nodejs
+func TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime(t *testing.T) {
+	dir := t.TempDir()
+	packageJSON := []byte("{\"name\":\"demo-app\",\"engines\":{\"node\":\"20.10.0\"}}\n")
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), packageJSON, 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	info, err := CheckRuntime(dir, Lang("dockerfile,Node.js"))
+	if err != nil {
+		t.Fatalf("CheckRuntime() error = %v", err)
+	}
+	if info["RUNTIMES"] != "20.x" {
+		t.Fatalf("RUNTIMES = %q, want %q", info["RUNTIMES"], "20.x")
+	}
+	if info["NODE_VERSION_SOURCE"] != "engines.node" {
+		t.Fatalf("NODE_VERSION_SOURCE = %q, want %q", info["NODE_VERSION_SOURCE"], "engines.node")
+	}
 }

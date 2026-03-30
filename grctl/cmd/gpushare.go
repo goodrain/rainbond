@@ -583,7 +583,7 @@ func (n *NodeInfo) getDeivceInfo(pod v1.Pod) map[int]int {
 				id = -1
 			}
 		} else {
-			fmt.Printf("Failed to get dev id %s for pod %s in ns %s",
+			fmt.Printf("Failed to get dev id annotation for pod %s in ns %s",
 				pod.Name,
 				pod.Namespace)
 		}
