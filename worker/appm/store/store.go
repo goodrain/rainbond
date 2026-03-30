@@ -1568,7 +1568,7 @@ func appAbnormal(statuses []string) bool {
 
 func appStarting(statuses []string) bool {
 	for _, status := range statuses {
-		if status == v1.STARTING {
+		if status == v1.STARTING || status == v1.WAITING {
 			return true
 		}
 	}

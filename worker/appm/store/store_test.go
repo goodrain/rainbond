@@ -76,6 +76,13 @@ func TestGetAppStatus(t *testing.T) {
 			want: pb.AppStatus_STARTING,
 		},
 		{
+			name: "waiting",
+			statuses: map[string]string{
+				"food": v1.WAITING,
+			},
+			want: pb.AppStatus_STARTING,
+		},
+		{
 			name: "stopping",
 			statuses: map[string]string{
 				"apple":  v1.STOPPING,

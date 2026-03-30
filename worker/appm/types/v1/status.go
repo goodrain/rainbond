@@ -365,6 +365,17 @@ func hasAbnormalPods(pods []*corev1.Pod) bool {
 		if IsPodNodeLost(pod) {
 			continue
 		}
+		// Pending pods that cannot be scheduled should be treated as abnormal
+		// so both component and app status reflect the scheduling failure.
+		if pod.Status.Phase == corev1.PodPending {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodScheduled &&
+					condition.Status == corev1.ConditionFalse &&
+					condition.Reason == "Unschedulable" {
+					return true
+				}
+			}
+		}
 		// Check if pod phase is Failed
 		if pod.Status.Phase == corev1.PodFailed {
 			return true
