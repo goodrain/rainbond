@@ -188,3 +188,19 @@ func TestResolveDotnetOSSFallbackVersionWithoutPolicy(t *testing.T) {
 		t.Fatalf("expected BP_DOTNET_FRAMEWORK_VERSION=8.0, got %q", got)
 	}
 }
+
+func TestResolvePHPOssFallbackVersionWithoutPolicy(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.PHP,
+		BuildStrategy: "cnb",
+		SourceDir:     t.TempDir(),
+		BuildEnvs:     map[string]string{},
+	}
+
+	if err := applyVersionPolicy(re); err != nil {
+		t.Fatalf("applyVersionPolicy returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_PHP_VERSION"]; got != "8.4" {
+		t.Fatalf("expected BP_PHP_VERSION=8.4, got %q", got)
+	}
+}

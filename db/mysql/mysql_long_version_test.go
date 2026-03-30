@@ -90,6 +90,8 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	foundGoLatest := false
 	foundDotnetDefault := false
 	foundDotnetLatest := false
+	foundPHPDefault := false
+	foundPHPLatest := false
 	for _, version := range versions {
 		if version.BuildStrategy != model.LongVersionBuildStrategyCNB {
 			t.Fatalf("expected cnb build strategy for %s-%s, got %q", version.Lang, version.Version, version.BuildStrategy)
@@ -115,6 +117,12 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 		if version.Lang == "dotnet" && version.Version == "10.0" {
 			foundDotnetLatest = true
 		}
+		if version.Lang == "php" && version.Version == "8.4" && version.FirstChoice {
+			foundPHPDefault = true
+		}
+		if version.Lang == "php" && version.Version == "8.5" {
+			foundPHPLatest = true
+		}
 	}
 	if !foundJava {
 		t.Fatal("expected Java CNB seed version 17")
@@ -133,6 +141,12 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	}
 	if !foundDotnetLatest {
 		t.Fatal("expected Dotnet CNB seed version 10.0")
+	}
+	if !foundPHPDefault {
+		t.Fatal("expected PHP CNB default seed version 8.4")
+	}
+	if !foundPHPLatest {
+		t.Fatal("expected PHP CNB seed version 8.5")
 	}
 }
 

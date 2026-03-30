@@ -15,17 +15,17 @@ const (
 	// DefaultCNBRunImage is the default online CNB run image
 	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.50"
 	// DefaultPHPCNBBuilder is the default Jammy Full builder image for PHP CNB builds.
-	DefaultPHPCNBBuilder = "docker.io/paketobuildpacks/builder-jammy-full:latest"
+	DefaultPHPCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/builder-jammy-full:0.3.613"
 	// DefaultPHPCNBRunImage is the default Jammy Full run image for PHP CNB builds.
-	DefaultPHPCNBRunImage = "docker.io/paketobuildpacks/run-jammy-full:latest"
+	DefaultPHPCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/run-jammy-full:0.1.141"
 	// CNBLifecycleCreatorPath is the path to the lifecycle creator binary
 	CNBLifecycleCreatorPath = "/lifecycle/creator"
 
 	// Short image names for constructing internal registry references
 	cnbBuilderShortName = "ubuntu-noble-builder:0.0.72"
 	cnbRunShortName     = "ubuntu-noble-run:0.0.50"
-	phpBuilderShortName = "builder-jammy-full:latest"
-	phpRunShortName     = "run-jammy-full:latest"
+	phpBuilderShortName = "builder-jammy-full:0.3.613"
+	phpRunShortName     = "run-jammy-full:0.1.141"
 )
 
 // isOfflineMode checks whether the cluster is in offline/air-gapped mode

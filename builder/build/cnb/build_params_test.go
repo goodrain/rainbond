@@ -73,6 +73,46 @@ func TestValidateSupportedBuildParamsRejectsUnknownPHPServer(t *testing.T) {
 	}
 }
 
+func TestValidateSupportedBuildParamsDefaultsPHPServerAndComposerVersion(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.PHP,
+		BuildStrategy: "cnb",
+		BuildEnvs:     map[string]string{},
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BUILD_RUNTIMES_SERVER"]; got != "nginx" {
+		t.Fatalf("expected BUILD_RUNTIMES_SERVER=nginx, got %q", got)
+	}
+	if got := re.BuildEnvs["BP_COMPOSER_VERSION"]; got != "2.7.9" {
+		t.Fatalf("expected BP_COMPOSER_VERSION=2.7.9, got %q", got)
+	}
+	if got := re.BuildEnvs["BUILD_COMPOSER_VERSION"]; got != "2.7.9" {
+		t.Fatalf("expected BUILD_COMPOSER_VERSION=2.7.9, got %q", got)
+	}
+}
+
+func TestValidateSupportedBuildParamsSynthesizesPHPBPKeys(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.PHP,
+		BuildStrategy: "cnb",
+		BuildEnvs: map[string]string{
+			"BUILD_COMPOSER_INSTALL_OPTIONS": "--no-dev",
+			"BUILD_PHP_WEB_DIR":              "public",
+		},
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_COMPOSER_INSTALL_OPTIONS"]; got != "--no-dev" {
+		t.Fatalf("expected BP_COMPOSER_INSTALL_OPTIONS=--no-dev, got %q", got)
+	}
+	if got := re.BuildEnvs["BP_PHP_WEB_DIR"]; got != "public" {
+		t.Fatalf("expected BP_PHP_WEB_DIR=public, got %q", got)
+	}
+}
+
 func TestValidateSupportedBuildParamsDetectsPythonManager(t *testing.T) {
 	dir := t.TempDir()
 	re := &build.Request{

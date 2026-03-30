@@ -24,7 +24,7 @@ var versionPolicyRules = map[code.Lang]versionPolicyRule{
 	code.Python:    {policyKey: "python", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_CPYTHON_VERSION"}, bpKey: "BP_CPYTHON_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_CPYTHON_VERSION"}, ossDefault: "3.11"},
 	code.Golang:    {policyKey: "golang", explicitKeys: []string{"BP_GO_VERSION", "BUILD_GOVERSION", "GOVERSION"}, bpKey: "BP_GO_VERSION", setKeys: []string{"BUILD_GOVERSION", "BP_GO_VERSION"}, ossDefault: "1.25"},
 	code.NetCore:   {policyKey: "dotnet", explicitKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, bpKey: "BP_DOTNET_FRAMEWORK_VERSION", setKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, ossDefault: "8.0"},
-	code.PHP:       {policyKey: "php", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_PHP_VERSION"}, bpKey: "BP_PHP_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_PHP_VERSION"}, ossDefault: "8.2"},
+	code.PHP:       {policyKey: "php", explicitKeys: []string{"BP_PHP_VERSION", "BUILD_RUNTIMES", "RUNTIMES"}, bpKey: "BP_PHP_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_PHP_VERSION"}, ossDefault: "8.4"},
 	code.Nodejs:    {policyKey: "nodejs", explicitKeys: []string{"CNB_NODE_VERSION", "BUILD_RUNTIMES", "RUNTIMES", "BP_NODE_VERSION"}, bpKey: "BP_NODE_VERSION", setKeys: []string{"CNB_NODE_VERSION", "BP_NODE_VERSION"}, ossDefault: "24.13.0"},
 }
 

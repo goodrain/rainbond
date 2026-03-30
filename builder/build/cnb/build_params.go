@@ -12,6 +12,7 @@ import (
 
 const (
 	defaultCNBMavenVersion     = "3.9.14"
+	defaultCNBComposerVersion  = "2.7.9"
 	pythonPackageManagerPip    = "pip"
 	pythonPackageManagerPipenv = "pipenv"
 	pythonPackageManagerPoetry = "poetry"
@@ -100,10 +101,24 @@ func validateSupportedBuildParams(re *build.Request) error {
 			re.BuildEnvs[envName] = version
 		}
 	case code.PHP:
-		if normalized, err := normalizePHPServer(re.BuildEnvs["BUILD_RUNTIMES_SERVER"]); err != nil {
+		server := firstNonEmptyEnv(re.BuildEnvs, "BUILD_RUNTIMES_SERVER")
+		if server == "" {
+			server = "nginx"
+		}
+		if normalized, err := normalizePHPServer(server); err != nil {
 			return err
 		} else if normalized != "" {
 			re.BuildEnvs["BUILD_RUNTIMES_SERVER"] = normalized
+		}
+		re.BuildEnvs["BP_COMPOSER_VERSION"] = defaultCNBComposerVersion
+		re.BuildEnvs["BUILD_COMPOSER_VERSION"] = defaultCNBComposerVersion
+		if options := firstNonEmptyEnv(re.BuildEnvs, "BP_COMPOSER_INSTALL_OPTIONS", "BUILD_COMPOSER_INSTALL_OPTIONS"); options != "" {
+			re.BuildEnvs["BP_COMPOSER_INSTALL_OPTIONS"] = options
+			re.BuildEnvs["BUILD_COMPOSER_INSTALL_OPTIONS"] = options
+		}
+		if webDir := firstNonEmptyEnv(re.BuildEnvs, "BP_PHP_WEB_DIR", "BUILD_PHP_WEB_DIR"); webDir != "" {
+			re.BuildEnvs["BP_PHP_WEB_DIR"] = webDir
+			re.BuildEnvs["BUILD_PHP_WEB_DIR"] = webDir
 		}
 	}
 
