@@ -363,6 +363,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.registered-worker-dispatch",
+      "title": "Dispatch registered worker tasks without unknown warnings",
+      "title_zh": "\u5df2\u6ce8\u518c worker \u5206\u53d1\u65f6\u4e0d\u518d\u8bef\u62a5\u672a\u77e5\u4efb\u52a1",
+      "interface_type": "workflow",
+      "interface": "builder/exector.exectorManager.RunTask",
+      "code_paths": [
+        "builder/exector/exector.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/exector_test.go",
+          "selector": "TestRunTaskDoesNotWarnForRegisteredWorker"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cloud-storage.alioss-error-map",
       "title": "Convert AliOSS service errors into shared storage SDK errors",
       "title_zh": "\u5c06 AliOSS \u670d\u52a1\u9519\u8bef\u8f6c\u6362\u4e3a\u7edf\u4e00\u5b58\u50a8 SDK \u9519\u8bef",
@@ -3523,6 +3541,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.registry.manifest-exists-oci",
+      "title": "Resolve OCI image manifests during backup checks",
+      "title_zh": "\u5907\u4efd\u6821\u9a8c\u652f\u6301 OCI \u955c\u50cf\u6e05\u5355",
+      "interface_type": "workflow",
+      "interface": "builder/sources/registry.Registry.ManifestExists",
+      "code_paths": [
+        "builder/sources/registry/manifest.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/registry/manifest_test.go",
+          "selector": "TestManifestExistsAcceptsOCIManifestTypes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.resource-center.collect-ingress-services",
       "title": "Collect ingress backend service names",
       "title_zh": "\u6536\u96c6 Ingress \u540e\u7aef\u670d\u52a1\u540d",
@@ -3625,6 +3661,42 @@
         {
           "path": "builder/parser/code/runtime_test.go",
           "selector": "TestCheckRuntime_StaticReturnsEmptyRuntimeInfo"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.share.image-from-snapshot-deploy-version",
+      "title": "Share image snapshots using the requested deploy version",
+      "title_zh": "\u955c\u50cf\u5206\u4eab\u4f7f\u7528\u8bf7\u6c42\u4e2d\u7684\u5feb\u7167\u90e8\u7f72\u7248\u672c",
+      "interface_type": "workflow",
+      "interface": "api/handler/share.ServiceShareHandle.Share",
+      "code_paths": [
+        "api/handler/share/service_share.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/share/service_share_test.go",
+          "selector": "TestServiceShareUsesRequestedDeployVersionForImageShare"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.share.slug-from-snapshot-deploy-version",
+      "title": "Share slug snapshots using the requested deploy version",
+      "title_zh": "Slug \u5206\u4eab\u4f7f\u7528\u8bf7\u6c42\u4e2d\u7684\u5feb\u7167\u90e8\u7f72\u7248\u672c",
+      "interface_type": "workflow",
+      "interface": "api/handler/share.ServiceShareHandle.Share",
+      "code_paths": [
+        "api/handler/share/service_share.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/share/service_share_test.go",
+          "selector": "TestServiceShareUsesRequestedDeployVersionForSlugShare"
         }
       ],
       "test_type": "regression",
