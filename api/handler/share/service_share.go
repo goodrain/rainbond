@@ -50,7 +50,11 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 		return nil, util.CreateAPIHandleErrorFromDBError("查询应用出错", err)
 	}
 	//查询部署版本
-	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, serviceID)
+	deployVersion := service.DeployVersion
+	if ss.Body.DeployVersion != "" {
+		deployVersion = ss.Body.DeployVersion
+	}
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(deployVersion, serviceID)
 	if err != nil {
 		logrus.Error("query service deploy version error", err.Error())
 	}
@@ -59,7 +63,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 	var task client.TaskStruct
 	if version.DeliveredType == "slug" {
 		shareSlugInfo := ss.Body.SlugInfo
-		slugPath = service.CreateShareSlug(ss.Body.ServiceKey, shareSlugInfo.Namespace, ss.Body.AppVersion)
+		slugPath = fmt.Sprintf("%s/%s/%s_%s.tgz", shareSlugInfo.Namespace, ss.Body.ServiceKey, ss.Body.AppVersion, deployVersion)
 		if ss.Body.SlugInfo.FTPHost == "" {
 			slugPath = fmt.Sprintf("/grdata/build/tenant/%s", slugPath)
 		}
@@ -74,7 +78,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 		if version != nil && version.DeliveredPath != "" {
 			info["local_slug_path"] = version.DeliveredPath
 		} else {
-			info["local_slug_path"] = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", service.TenantID, service.ServiceID, service.DeployVersion)
+			info["local_slug_path"] = fmt.Sprintf("/grdata/build/tenant/%s/slug/%s/%s.tgz", service.TenantID, service.ServiceID, deployVersion)
 		}
 		task.TaskType = "share-slug"
 		task.TaskBody = info
