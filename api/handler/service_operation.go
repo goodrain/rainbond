@@ -21,18 +21,19 @@ package handler
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/pkg/component/mq"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/goodrain/rainbond/event"
 )
 
 // OperationHandler operation handler
@@ -157,8 +158,8 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 			return err
 		}
 	case model.FromKubeBlocksBuildKind:
-        // kubeblocks_component 构建不产出任何 workload，仅用于触发后续 K8s 资源部署
-        // 因此在成功派发任务后，直接将构建事件标记为完成
+		// kubeblocks_component 构建不产出任何 workload，仅用于触发后续 K8s 资源部署
+		// 因此在成功派发任务后，直接将构建事件标记为完成
 		if err := o.buildFromKubeBlocks(buildReq, service); err != nil {
 			return err
 		}
@@ -168,10 +169,10 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		if err != nil {
 			return err
 		}
-        // 直接写入“最后一步成功”日志，闭环本次构建事件，避免前端长期显示“进行中”
-        logger := event.GetManager().GetLogger(buildReq.GetEventID())
+		// 直接写入“最后一步成功”日志，闭环本次构建事件，避免前端长期显示“进行中”
+		logger := event.GetManager().GetLogger(buildReq.GetEventID())
 		defer event.GetManager().ReleaseLogger(logger)
-        logger.Info("Build success", map[string]string{"step": "last", "status": "success"})
+		logger.Info("Build success", map[string]string{"step": "last", "status": "success"})
 	default:
 		return errors.New("unsupported build kind: " + buildReq.Kind)
 	}
@@ -423,9 +424,19 @@ func (o *OperationHandler) buildFromSourceCode(r *model.ComponentBuildReq, servi
 	if r.CodeInfo.DockerfilePath != "" {
 		body["dockerfile_path"] = r.CodeInfo.DockerfilePath
 	}
+	buildStrategy := strings.TrimSpace(r.CodeInfo.BuildStrategy)
+	if buildStrategy == "" {
+		buildStrategy = strings.TrimSpace(r.CodeInfo.BuildType)
+	}
 	// 传递 build_type 到构建任务 (cnb 或 slug)
 	if r.CodeInfo.BuildType != "" {
 		body["build_type"] = r.CodeInfo.BuildType
+	}
+	if buildStrategy != "" {
+		body["build_strategy"] = buildStrategy
+	}
+	if r.CodeInfo.CNBVersionPolicy != nil {
+		body["cnb_version_policy"] = r.CodeInfo.CNBVersionPolicy
 	}
 	body["expire"] = 180
 	body["configs"] = r.Configs
@@ -469,7 +480,7 @@ func (o *OperationHandler) buildFromKubeBlocks(r *model.ComponentBuildReq, servi
 	if r.DeployVersion == "" || service.ServiceID == "" {
 		return fmt.Errorf("build from kubeblocks failure, args error")
 	}
-	
+
 	body := make(map[string]interface{})
 	body["service_id"] = service.ServiceID
 	body["deploy_version"] = r.DeployVersion

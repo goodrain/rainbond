@@ -42,6 +42,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -543,8 +544,9 @@ func (c *ClusterController) GetLangVersion(w http.ResponseWriter, r *http.Reques
 	// show：版本信息
 	language := r.URL.Query().Get("language")
 	show := r.URL.Query().Get("show")
+	buildStrategy := normalizeLongVersionBuildStrategy(r.URL.Query().Get("build_strategy"))
 	// 获取版本列表
-	versions, err := db.GetManager().LongVersionDao().ListVersionByLanguage(language, show)
+	versions, err := db.GetManager().LongVersionDao().ListVersionByLanguageAndStrategy(language, show, buildStrategy)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("update lang version failure: %v", err))
 		return
@@ -559,13 +561,19 @@ func (c *ClusterController) UpdateLangVersion(w http.ResponseWriter, r *http.Req
 		httputil.ReturnError(r, w, 400, "failed to parse parameters")
 		return
 	}
+	existing, err := getExistingLongVersion(&lang)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("get lang version failure: %v", err))
+		return
+	}
+	updatedVersion := buildLangVersionForUpdate(existing, &lang)
 	// 更新默认语言版本
-	err := db.GetManager().LongVersionDao().DefaultLangVersion(lang.Lang, lang.Version, lang.Show, lang.FirstChoice)
+	result, err := db.GetManager().LongVersionDao().DefaultLangVersion(updatedVersion.Lang, updatedVersion.Version, updatedVersion.BuildStrategy, updatedVersion.Show, updatedVersion.FirstChoice, &updatedVersion.IsAllowed)
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("update lang version failure: %v", err))
 		return
 	}
-	httputil.ReturnSuccess(r, w, "更新成功")
+	httputil.ReturnSuccess(r, w, result)
 }
 
 // CreateLangVersion -
@@ -575,29 +583,33 @@ func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Req
 		httputil.ReturnError(r, w, 400, "failed to parse parameters")
 		return
 	}
+	newVersion := buildLangVersionForCreate(&lang)
 	// 根据语言标识和版本号，获取语言版本信息。
-	_, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(lang.Lang, lang.Version)
+	existing, err := db.GetManager().LongVersionDao().GetVersionByLanguageAndVersionAndStrategy(newVersion.Lang, newVersion.Version, newVersion.BuildStrategy)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("get lang version failure: %v", err))
 		return
 	}
 	if err == gorm.ErrRecordNotFound {
 		// 创建新的语言版本记录。
-		err := db.GetManager().LongVersionDao().CreateLangVersion(lang.Lang, lang.Version, lang.EventID, lang.FileName, lang.Show)
+		created, err := db.GetManager().LongVersionDao().CreateLangVersion(newVersion.Lang, newVersion.Version, newVersion.EventID, newVersion.FileName, newVersion.BuildStrategy, newVersion.Show, newVersion.IsAllowed)
 		if err != nil {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create lang version failure: %v", err))
 			return
 		}
-		sourceDir := path.Join(LSUploadPath, lang.EventID)
-		destinationDir := path.Join(BaseUploadPath, lang.EventID)
-		err = copyDirectory(sourceDir, destinationDir)
-		if err != nil {
-			httputil.ReturnError(r, w, 400, fmt.Sprintf("rename lang version failure: %v", err))
-			return
+		if created.EventID != "" {
+			sourceDir := path.Join(LSUploadPath, created.EventID)
+			destinationDir := path.Join(BaseUploadPath, created.EventID)
+			err = copyDirectory(sourceDir, destinationDir)
+			if err != nil {
+				httputil.ReturnError(r, w, 400, fmt.Sprintf("rename lang version failure: %v", err))
+				return
+			}
 		}
-		httputil.ReturnSuccess(r, w, "创建成功")
+		httputil.ReturnSuccess(r, w, created)
 		return
 	}
+	_ = existing
 	httputil.ReturnSuccess(r, w, "exist")
 	return
 }
@@ -610,18 +622,74 @@ func (c *ClusterController) DeleteLangVersion(w http.ResponseWriter, r *http.Req
 		return
 	}
 	// 根据语言标识和版本号，删除该语言版本
-	eventID, err := db.GetManager().LongVersionDao().DeleteLangVersion(lang.Lang, lang.Version)
+	eventID, err := db.GetManager().LongVersionDao().DeleteLangVersion(lang.Lang, lang.Version, normalizeLongVersionBuildStrategyPtr(lang.BuildStrategy))
 	if err != nil {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version failure: %v", err))
 		return
 	}
 	// 删除本地文件
-	err = os.RemoveAll(path.Join(BaseUploadPath, eventID))
-	if err != nil {
-		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version pack failure: %v", err))
-		return
+	if eventID != "" {
+		err = os.RemoveAll(path.Join(BaseUploadPath, eventID))
+		if err != nil {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version pack failure: %v", err))
+			return
+		}
 	}
 	httputil.ReturnSuccess(r, w, "删除成功")
+}
+
+func getExistingLongVersion(req *model.UpdateLangVersion) (*dbmodel.EnterpriseLanguageVersion, error) {
+	if req.BuildStrategy != nil {
+		return db.GetManager().LongVersionDao().GetVersionByLanguageAndVersionAndStrategy(req.Lang, req.Version, normalizeLongVersionBuildStrategyPtr(req.BuildStrategy))
+	}
+	return db.GetManager().LongVersionDao().GetVersionByLanguageAndVersion(req.Lang, req.Version)
+}
+
+func buildLangVersionForCreate(req *model.UpdateLangVersion) *dbmodel.EnterpriseLanguageVersion {
+	return &dbmodel.EnterpriseLanguageVersion{
+		Lang:          req.Lang,
+		Version:       req.Version,
+		EventID:       req.EventID,
+		FileName:      req.FileName,
+		Show:          req.Show,
+		FirstChoice:   req.FirstChoice,
+		BuildStrategy: normalizeLongVersionBuildStrategyPtr(req.BuildStrategy),
+		IsAllowed:     normalizeLongVersionIsAllowed(req.IsAllowed, true),
+	}
+}
+
+func buildLangVersionForUpdate(existing *dbmodel.EnterpriseLanguageVersion, req *model.UpdateLangVersion) *dbmodel.EnterpriseLanguageVersion {
+	version := *existing
+	version.Show = req.Show
+	version.FirstChoice = req.FirstChoice
+	version.BuildStrategy = normalizeLongVersionBuildStrategy(version.BuildStrategy)
+	if req.BuildStrategy != nil {
+		version.BuildStrategy = normalizeLongVersionBuildStrategyPtr(req.BuildStrategy)
+	}
+	version.IsAllowed = normalizeLongVersionIsAllowed(req.IsAllowed, version.IsAllowed)
+	return &version
+}
+
+func normalizeLongVersionBuildStrategyPtr(buildStrategy *string) string {
+	if buildStrategy == nil {
+		return dbmodel.LongVersionBuildStrategySlug
+	}
+	return normalizeLongVersionBuildStrategy(*buildStrategy)
+}
+
+func normalizeLongVersionBuildStrategy(buildStrategy string) string {
+	buildStrategy = strings.TrimSpace(buildStrategy)
+	if buildStrategy == "" {
+		return dbmodel.LongVersionBuildStrategySlug
+	}
+	return buildStrategy
+}
+
+func normalizeLongVersionIsAllowed(isAllowed *bool, defaultValue bool) bool {
+	if isAllowed == nil {
+		return defaultValue
+	}
+	return *isAllowed
 }
 
 func copyFile(src, dst string) error {

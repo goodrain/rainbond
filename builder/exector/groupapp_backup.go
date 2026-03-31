@@ -333,18 +333,12 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 			logrus.Errorf("new registry client error %s", err.Error())
 			return false, err
 		}
-		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
+		exists, err := reg.ManifestExists(imageInfo.Name, imageInfo.Tag)
 		if err != nil {
 			logrus.Errorf("get image [%s] manifest info failure [%v], it could be not exist", version.DeliveredPath, err)
-			// Compatible with MediaTypeManifest
-			_, err := reg.ManifestV2(imageInfo.Name, imageInfo.Tag)
-			if err != nil {
-				logrus.Errorf("get image [%s] manifestV2 info failure [%v], it could be not exist", version.DeliveredPath, err)
-				return false, err
-			}
-			return true, nil
+			return false, err
 		}
-		return true, nil
+		return exists, nil
 	}
 	if version.DeliveredType == "slug" {
 		islugfile, err := os.Stat(version.DeliveredPath)

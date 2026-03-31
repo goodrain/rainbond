@@ -11,6 +11,7 @@ import (
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -23,16 +24,24 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
 
-	cnbBuilderImage := GetCNBBuilderImage()
-	cnbRunImage := GetCNBRunImage()
+	cnbBuilderImage := GetCNBBuilderImageForLanguage(re.Lang)
+	cnbRunImage := GetCNBRunImageForLanguage(re.Lang)
 
-	// Compute platform annotations once
+	bindings, err := b.resolvePlatformBindings(re)
+	if err != nil {
+		return err
+	}
+
+	// Compute platform annotations after bindings so derived BP_* values are included.
 	annotations := b.buildPlatformAnnotations(re)
+	for _, binding := range bindings {
+		annotations[bindingTypeAnnotationKey(binding.Name)] = binding.Type
+	}
 
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
+			Name:      name,
+			Namespace: namespace,
 			Labels: map[string]string{
 				"service":    re.ServiceID,
 				"job":        "codebuild",
@@ -96,7 +105,7 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	volumes, mounts := b.createVolumeAndMount(re, secret.Name)
 
-	platformVolume, platformMount := b.createPlatformVolume(annotations)
+	platformVolume, platformMount := b.createPlatformVolume(annotations, bindings)
 	if platformVolume != nil {
 		volumes = append(volumes, *platformVolume)
 		mounts = append(mounts, *platformMount)
@@ -109,14 +118,15 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	// Chown workspace to cnb user inside the builder image (where cnb user exists with correct UID),
 	// then exec the lifecycle creator. This ensures buildpacks can chmod generated files.
 	container := corev1.Container{
-		Name:         name,
-		Image:        cnbBuilderImage,
-		Stdin:        true,
-		StdinOnce:    true,
-		Command:      []string{"sh", "-c", `chown -R cnb:cnb /workspace && exec "$@"`, "--"},
-		Args:         append([]string{CNBLifecycleCreatorPath}, creatorArgs...),
-		Env:          b.buildEnvVars(re),
-		VolumeMounts: mounts,
+		Name:            name,
+		Image:           cnbBuilderImage,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Stdin:           true,
+		StdinOnce:       true,
+		Command:         []string{"sh", "-c", `chown -R cnb:cnb /workspace && exec "$@"`, "--"},
+		Args:            append([]string{CNBLifecycleCreatorPath}, creatorArgs...),
+		Env:             b.buildEnvVars(re),
+		VolumeMounts:    mounts,
 	}
 
 	podSpec.Containers = append(podSpec.Containers, container)
@@ -160,7 +170,7 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		logLevel = v
 	}
 
-	noCache := re.BuildEnvs["NO_CACHE"] == "True" || re.BuildEnvs["NO_CACHE"] == "true"
+	noCache := truthyBuildEnv(re.BuildEnvs["NO_CACHE"]) || truthyBuildEnv(re.BuildEnvs["BUILD_NO_CACHE"])
 
 	args := []string{
 		"-app=/workspace",
@@ -213,7 +223,60 @@ func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 		envs = append(envs, corev1.EnvVar{Name: "NO_PROXY", Value: noProxy})
 	}
 
+	lang := getLanguageConfig(re)
+	envs = append(envs, lang.BuildEnvVars(re)...)
+
 	return envs
+}
+
+func (b *Builder) resolvePlatformBindings(re *build.Request) ([]platformBinding, error) {
+	ctx := re.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	switch re.Lang {
+	case code.JavaMaven:
+		explicitName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_MAVEN_SETTING_NAME", "MAVEN_SETTING_NAME"))
+		configMapName := ""
+		if explicitName != "" {
+			configMapName = b.jobCtrl.GetLanguageBuildSetting(ctx, code.JavaMaven, explicitName)
+			if configMapName == "" {
+				return nil, fmt.Errorf("maven setting config %s not found", explicitName)
+			}
+		} else {
+			configMapName = b.jobCtrl.GetDefaultLanguageBuildSetting(ctx, code.JavaMaven)
+		}
+		if configMapName == "" {
+			return nil, nil
+		}
+		re.BuildEnvs["BP_MAVEN_SETTINGS_PATH"] = fmt.Sprintf("/platform/bindings/%s/settings.xml", configMapName)
+
+		return []platformBinding{{
+			Name:          configMapName,
+			Type:          "maven",
+			ConfigMapName: configMapName,
+			ConfigMapKey:  "mavensetting",
+			TargetFile:    "settings.xml",
+		}}, nil
+	case code.NetCore:
+		configMapName := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_NUGET_CONFIG_NAME"))
+		if configMapName == "" {
+			return nil, nil
+		}
+		if resolved := b.jobCtrl.GetLanguageBuildSetting(ctx, code.NetCore, configMapName); resolved == "" {
+			return nil, fmt.Errorf("nuget config %s not found", configMapName)
+		}
+		return []platformBinding{{
+			Name:          configMapName,
+			Type:          "nugetconfig",
+			ConfigMapName: configMapName,
+			ConfigMapKey:  "nuget.config",
+			TargetFile:    "nuget.config",
+		}}, nil
+	default:
+		return nil, nil
+	}
 }
 
 // createVolumeAndMount creates volumes and volume mounts for the CNB build pod
@@ -325,4 +388,3 @@ func stableImageTag(imageName, tag string) string {
 	}
 	return imageName + ":" + tag
 }
-

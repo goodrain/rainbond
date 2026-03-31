@@ -284,6 +284,10 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		logrus.Info("[RunTask] Received warmup task, consumer loop is active")
 		<-e.tasks // 从队列中移除
 	default:
+		if _, ok := workerCreaterList[task.TaskType]; ok {
+			go e.runTaskWithErr(e.exec, task, false)
+			return
+		}
 		logrus.Warnf("[RunTask] Unknown task type: %s, using default handler", task.TaskType)
 		go e.runTaskWithErr(e.exec, task, false)
 	}

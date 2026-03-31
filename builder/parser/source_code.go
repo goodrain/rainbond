@@ -394,7 +394,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	//check code Specification
-	spec := code.CheckCodeSpecification(buildPath, lang, csi.ServerType)
+	spec := code.CheckCodeSpecification(buildPath, lang, csi.ServerType, csi.BuildStrategy)
 	if spec.Advice != nil {
 		for k, v := range spec.Advice {
 			d.errappend(ErrorAndSolve(NegligibleError, k, v))

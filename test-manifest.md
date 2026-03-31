@@ -24,6 +24,7 @@
 | rainbond.app-restore.snapshot-relationship-rewrite | 应用恢复时重写服务依赖关系 | active | regression | builder/exector.BackupAPPRestore.modify | builder/exector/groupapp_restore_test.go::TestModify |
 | rainbond.app-restore.unzip-all-data | 在恢复时解压完整备份数据包 | active | regression | builder/exector.BackupAPPRestore | builder/exector/groupapp_restore_test.go::TestUnzipAllDataFile |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
+| rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
 | rainbond.cloud-storage.alioss-error-map | 将 AliOSS 服务错误转换为统一存储 SDK 错误 | active | regression | builder/cloudos.svcErrToS3SDKError | builder/cloudos/alioss_test.go::TestSvcErrToS3SDKError |
 | rainbond.cloud-storage.driver-factory | 将云存储配置分发到正确的驱动实现 | active | regression | builder/cloudos.New | builder/cloudos/cloudos_test.go::TestNewDispatchesProviderDrivers |
 | rainbond.cloud-storage.provider-parse | 解析云存储 provider 配置值 | active | regression | builder/cloudos.Str2S3Provider | builder/cloudos/cloudos_test.go::TestStr2S3Provider |
@@ -192,12 +193,15 @@
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
+| rainbond.registry.manifest-exists-oci | 备份校验支持 OCI 镜像清单 | active | regression | builder/sources/registry.Registry.ManifestExists | builder/sources/registry/manifest_test.go::TestManifestExistsAcceptsOCIManifestTypes |
 | rainbond.resource-center.collect-ingress-services | 收集 Ingress 后端服务名 | active | regression | api/handler.collectIngressServiceNames | api/handler/resource_center_test.go::TestCollectIngressServiceNames |
 | rainbond.resource-center.event-summary | 汇总资源事件信息 | active | regression | api/handler.toResourceEventInfo | api/handler/resource_center_test.go::TestToResourceEventInfo |
 | rainbond.resource-center.match-selector | 按选择器匹配资源标签 | active | regression | api/handler.labelsMatchSelector | api/handler/resource_center_test.go::TestLabelsMatchSelector |
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
+| rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
+| rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
 | rainbond.source-args.multi-language | 为多语言项目解析源码构建参数 | active | regression | builder/parser.SourceCodeParse.GetArgs | builder/parser/source_code_args_test.go::TestGetArgs_MultiLanguage |
 | rainbond.source-args.normalize-multi-module-lang | 规范化多模块 Java 项目的语言类型 | active | regression | builder/parser.SourceCodeParse.GetServiceInfo | builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage |
@@ -567,6 +571,16 @@
 - 业务入口: `builder/build.GetBuildByType`
 - 代码路径: `builder/build/build.go`
 - 测试路径: `builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix`
+
+### 已注册 worker 分发时不再误报未知任务
+
+- Capability ID: `rainbond.builder.registered-worker-dispatch`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.exectorManager.RunTask`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker`
 
 ### 将 AliOSS 服务错误转换为统一存储 SDK 错误
 
@@ -2248,6 +2262,16 @@
 - 代码路径: `builder/parser/code/rainbondfile.go`
 - 测试路径: `builder/parser/code/rainbondfile_test.go::TestReadRainbondFile`
 
+### 备份校验支持 OCI 镜像清单
+
+- Capability ID: `rainbond.registry.manifest-exists-oci`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources/registry.Registry.ManifestExists`
+- 代码路径: `builder/sources/registry/manifest.go`
+- 测试路径: `builder/sources/registry/manifest_test.go::TestManifestExistsAcceptsOCIManifestTypes`
+
 ### 收集 Ingress 后端服务名
 
 - Capability ID: `rainbond.resource-center.collect-ingress-services`
@@ -2307,6 +2331,26 @@
 - 业务入口: `builder/parser/code.CheckRuntime`
 - 代码路径: `builder/parser/code/runtime.go`
 - 测试路径: `builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo`
+
+### 镜像分享使用请求中的快照部署版本
+
+- Capability ID: `rainbond.share.image-from-snapshot-deploy-version`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler/share.ServiceShareHandle.Share`
+- 代码路径: `api/handler/share/service_share.go`
+- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare`
+
+### Slug 分享使用请求中的快照部署版本
+
+- Capability ID: `rainbond.share.slug-from-snapshot-deploy-version`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler/share.ServiceShareHandle.Share`
+- 代码路径: `api/handler/share/service_share.go`
+- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare`
 
 ### 为多语言项目应用默认 CNB 端口
 

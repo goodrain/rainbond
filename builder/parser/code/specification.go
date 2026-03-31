@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
-//Specification 规范
+// Specification 规范
 type Specification struct {
 	//是否符合规范
 	Conform bool
@@ -36,7 +36,7 @@ type Specification struct {
 	Advice map[string]string
 }
 
-//各类型语言规范
+// 各类型语言规范
 var specification map[Lang]func(buildPath string) Specification
 
 func init() {
@@ -47,15 +47,20 @@ func init() {
 	specification[Golang] = golangCheck
 }
 
-//CheckCodeSpecification 检查语言规范
-func CheckCodeSpecification(buildPath string, lang Lang, serverType string) Specification {
+// CheckCodeSpecification 检查语言规范
+func CheckCodeSpecification(buildPath string, lang Lang, serverType, buildStrategy string) Specification {
+	if strings.EqualFold(strings.TrimSpace(buildStrategy), "cnb") {
+		if lang == JavaJar {
+			return common()
+		}
+	}
 	switch serverType {
 	case "oss":
-		if lang == JavaJar{
+		if lang == JavaJar {
 			return common()
 		}
 	case "pkg":
-		if lang == JavaJar || lang == JaveWar{
+		if lang == JavaJar || lang == JaveWar {
 			return common()
 		}
 	}
@@ -65,8 +70,8 @@ func CheckCodeSpecification(buildPath string, lang Lang, serverType string) Spec
 	return common()
 }
 
-//必须定义Procfile文件
-//Procfile文件中定义的jar包必须存在
+// 必须定义Procfile文件
+// Procfile文件中定义的jar包必须存在
 func javaJarCheck(buildPath string) Specification {
 	procfile, spec := checkProcfile(buildPath)
 	if spec != nil {
@@ -119,7 +124,7 @@ func javaMavenCheck(buildPath string) Specification {
 	return common()
 }
 
-//checkProcfile 检查Procfile文件
+// checkProcfile 检查Procfile文件
 func checkProcfile(buildPath string) (bool, *Specification) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "Procfile")); !ok {
 		return false, nil

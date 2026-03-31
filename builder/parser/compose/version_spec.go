@@ -368,6 +368,9 @@ func isConfigFile(mountPath string, volumeType string) bool {
 			}
 			// For other config paths, require a filename-like basename.
 			basename := filepath.Base(mountPath)
+			if strings.HasPrefix(mountPath, "/etc/") {
+				return true
+			}
 			if strings.Contains(basename, ".") {
 				return true
 			}
