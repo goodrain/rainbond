@@ -140,15 +140,22 @@ func (k *AppGrayRelease) TableName() string {
 }
 
 // EnterpriseLanguageVersion language model
+const (
+	LongVersionBuildStrategySlug = "slug"
+	LongVersionBuildStrategyCNB  = "cnb"
+)
+
 type EnterpriseLanguageVersion struct {
 	Model
-	Lang        string `gorm:"column:lang;uniqueIndex:idx_lang_version" json:"lang"`
-	Version     string `gorm:"column:version;uniqueIndex:idx_lang_version" json:"version"`
-	FirstChoice bool   `gorm:"column:first_choice" json:"first_choice"`
-	EventID     string `gorm:"column:event_id" json:"event_id"`
-	FileName    string `gorm:"column:file_name" json:"file_name"`
-	System      bool   `gorm:"column:system" json:"system"`
-	Show        bool   `gorm:"column:is_show" json:"show"`
+	Lang          string `gorm:"column:lang;uniqueIndex:idx_lang_version" json:"lang"`
+	Version       string `gorm:"column:version;uniqueIndex:idx_lang_version" json:"version"`
+	BuildStrategy string `gorm:"column:build_strategy;size:32" json:"build_strategy"`
+	FirstChoice   bool   `gorm:"column:first_choice" json:"first_choice"`
+	EventID       string `gorm:"column:event_id" json:"event_id"`
+	FileName      string `gorm:"column:file_name" json:"file_name"`
+	System        bool   `gorm:"column:system" json:"system"`
+	Show          bool   `gorm:"column:is_show" json:"show"`
+	IsAllowed     bool   `gorm:"column:is_allowed" json:"is_allowed"`
 }
 
 // TableName return tableName "k8s_resources"

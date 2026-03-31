@@ -41,6 +41,15 @@ func NewBuilder() (build.Build, error) {
 func (b *Builder) Build(re *build.Request) (*build.Response, error) {
 	re.Logger.Info("Starting CNB build", map[string]string{"step": "builder-exector"})
 
+	if err := applyVersionPolicy(re); err != nil {
+		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return nil, err
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return nil, err
+	}
+
 	b.stopPreBuildJob(re)
 
 	if err := b.validateProjectFiles(re); err != nil {

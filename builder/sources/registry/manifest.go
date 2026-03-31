@@ -42,6 +42,8 @@ func acceptedManifestMediaTypes() string {
 	}, ", ")
 }
 
+const ociImageManifestMediaType = "application/vnd.oci.image.manifest.v1+json"
+
 // Manifest -
 func (registry *Registry) Manifest(repository, reference string) (*manifestV1.SignedManifest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
@@ -103,7 +105,10 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 		return nil, err
 	}
 
-	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
+	req.Header.Set("Accept", strings.Join([]string{
+		manifestV2.MediaTypeManifest,
+		ociImageManifestMediaType,
+	}, ", "))
 	resp, err := registry.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("do request: %v", err)
@@ -168,7 +173,10 @@ func (registry *Registry) ManifestDigestV2(repository, reference string) (digest
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
+	req.Header.Set("Accept", strings.Join([]string{
+		manifestV2.MediaTypeManifest,
+		ociImageManifestMediaType,
+	}, ", "))
 
 	resp, err := registry.Client.Do(req)
 	if err != nil {

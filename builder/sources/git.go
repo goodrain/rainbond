@@ -90,6 +90,7 @@ type CodeSourceInfo struct {
 	Branch         string                  `json:"branch"`
 	User           string                  `json:"user"`
 	Password       string                  `json:"password"`
+	BuildStrategy  string                  `json:"build_strategy"`
 	Configs        map[string]gjson.Result `json:"configs"`
 	DockerfilePath string                  `json:"dockerfile_path"` // Dockerfile路径，用于指定子目录中的Dockerfile
 	//避免项目之间冲突，代码缓存目录提高到租户
@@ -237,7 +238,7 @@ Loop:
 
 		// Handle "repository already exists" error - this can occur during concurrent operations
 		if strings.Contains(errLower, "repository already exists") ||
-		   strings.Contains(err.Error(), "repository already exists") {
+			strings.Contains(err.Error(), "repository already exists") {
 			logrus.Warnf("Repository already exists at %s, attempting to remove and retry clone", sourceDir)
 			// Remove the existing directory
 			if reerr := os.RemoveAll(sourceDir); reerr != nil {
@@ -273,11 +274,11 @@ Loop:
 
 		// 1. Network errors - check first as they are most common infrastructure issues
 		if strings.Contains(errLower, "dial tcp") ||
-		   strings.Contains(errLower, "connection refused") ||
-		   strings.Contains(errLower, "no route to host") ||
-		   strings.Contains(errLower, "network is unreachable") ||
-		   strings.Contains(errLower, "i/o timeout") ||
-		   strings.Contains(errLower, "connection timed out") {
+			strings.Contains(errLower, "connection refused") ||
+			strings.Contains(errLower, "no route to host") ||
+			strings.Contains(errLower, "network is unreachable") ||
+			strings.Contains(errLower, "i/o timeout") ||
+			strings.Contains(errLower, "connection timed out") {
 			errMsg := fmt.Sprintf("网络连接失败：%s", err.Error())
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
@@ -343,10 +344,10 @@ Loop:
 
 		// 4. Authentication required (401) - clear authentication needed
 		if err == transport.ErrAuthenticationRequired ||
-		   strings.Contains(errLower, "authentication required") ||
-		   strings.Contains(errLower, "unauthorized") ||
-		   strings.Contains(errLower, "401 unauthorized") ||
-		   strings.Contains(errLower, "401") {
+			strings.Contains(errLower, "authentication required") ||
+			strings.Contains(errLower, "unauthorized") ||
+			strings.Contains(errLower, "401 unauthorized") ||
+			strings.Contains(errLower, "401") {
 			logrus.Errorf("[Auth Detection] URL: %s, IsAuthRequiredType: %v, ContainsAuthReq: %v, ContainsUnauth: %v, Contains401: %v, FullError: %s",
 				csi.RepositoryURL,
 				err == transport.ErrAuthenticationRequired,
@@ -363,8 +364,8 @@ Loop:
 
 		// 5. Authorization failed (403) - credentials provided but insufficient permissions
 		if err == transport.ErrAuthorizationFailed ||
-		   strings.Contains(errLower, "403 forbidden") ||
-		   strings.Contains(errLower, "403") {
+			strings.Contains(errLower, "403 forbidden") ||
+			strings.Contains(errLower, "403") {
 			errMsg := "访问权限不足，请检查提供的凭证是否有访问该仓库的权限"
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
@@ -374,8 +375,8 @@ Loop:
 
 		// 6. Invalid credentials
 		if strings.Contains(errLower, "invalid username or password") ||
-		   strings.Contains(errLower, "authentication failed") ||
-		   strings.Contains(errLower, "incorrect username or password") {
+			strings.Contains(errLower, "authentication failed") ||
+			strings.Contains(errLower, "incorrect username or password") {
 			errMsg := "用户名或密码错误，请检查访问凭证"
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
@@ -417,7 +418,7 @@ Loop:
 
 		// 10. DNS resolution errors
 		if strings.Contains(errLower, "no such host") ||
-		   strings.Contains(errLower, "lookup") && strings.Contains(errLower, "no such host") {
+			strings.Contains(errLower, "lookup") && strings.Contains(errLower, "no such host") {
 			errMsg := fmt.Sprintf("DNS 解析失败，无法解析域名：%s", err.Error())
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})

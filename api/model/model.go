@@ -1745,6 +1745,14 @@ type BuildCodeInfo struct {
 	// in: body
 	// required: false
 	BuildType string `json:"build_type"`
+	// 构建策略: cnb / slug / dockerfile
+	// in: body
+	// required: false
+	BuildStrategy string `json:"build_strategy"`
+	// 企业版 CNB 版本策略快照
+	// in: body
+	// required: false
+	CNBVersionPolicy map[string]interface{} `json:"cnb_version_policy"`
 }
 
 // BuildSlugInfo -
@@ -2387,12 +2395,14 @@ type UploadChartValueYaml struct {
 
 // UpdateLangVersion -
 type UpdateLangVersion struct {
-	Lang        string `json:"lang"`
-	Version     string `json:"version"`
-	EventID     string `json:"event_id"`
-	FileName    string `json:"file_name"`
-	Show        bool   `json:"show"`
-	FirstChoice bool   `json:"first_choice"`
+	Lang          string  `json:"lang"`
+	Version       string  `json:"version"`
+	EventID       string  `json:"event_id"`
+	FileName      string  `json:"file_name"`
+	Show          bool    `json:"show"`
+	FirstChoice   bool    `json:"first_choice"`
+	BuildStrategy *string `json:"build_strategy,omitempty"`
+	IsAllowed     *bool   `json:"is_allowed,omitempty"`
 }
 
 // OverScore -
