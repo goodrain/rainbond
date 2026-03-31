@@ -201,6 +201,9 @@ func python(homepath string) Lang {
 	if ok, _ := util.FileExists(path.Join(homepath, "Pipfile")); ok {
 		return Python
 	}
+	if ok, _ := util.FileExists(path.Join(homepath, "pyproject.toml")); ok {
+		return Python
+	}
 	return NO
 }
 func ruby(homepath string) Lang {
