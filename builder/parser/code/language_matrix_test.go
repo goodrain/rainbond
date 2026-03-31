@@ -31,6 +31,7 @@ func TestGetLangType_SupportedSourceBuildLanguages(t *testing.T) {
 		{name: "java-war", files: map[string]string{"demo.war": ""}, want: JaveWar},
 		{name: "java-jar", files: map[string]string{"demo.jar": ""}, want: JavaJar},
 		{name: "python", files: map[string]string{"requirements.txt": "flask==3.0.0\n"}, want: Python},
+		{name: "python-pyproject", files: map[string]string{"pyproject.toml": "[project]\nname = \"demo\"\nversion = \"0.1.0\"\ndependencies = [\"Django==6.0.3\"]\n"}, want: Python},
 		{name: "php", files: map[string]string{"composer.json": "{}\n"}, want: PHP},
 		{name: "go", files: map[string]string{"go.mod": "module example.com/demo\n\ngo 1.20\n"}, want: Golang},
 		{name: "nodejs", files: map[string]string{"package.json": "{\"name\":\"demo\"}\n"}, want: Nodejs},
