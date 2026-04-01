@@ -525,6 +525,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb-version.golang-order-and-default",
+      "title": "Keep Go CNB versions ordered with the latest default",
+      "title_zh": "\u4fdd\u6301 Go CNB \u7248\u672c\u987a\u5e8f\u5e76\u5c06\u6700\u65b0\u7248\u672c\u8bbe\u4e3a\u9ed8\u8ba4",
+      "interface_type": "workflow",
+      "interface": "builder/parser/code.GetCNBVersions",
+      "code_paths": [
+        "builder/parser/code/cnb_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/cnb_versions_test.go",
+          "selector": "TestGetCNBVersionsGoOrderingAndDefault"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb-version.match-language",
       "title": "Match CNB version for composite language",
       "title_zh": "\u4e3a\u590d\u5408\u8bed\u8a00\u5339\u914d CNB \u7248\u672c",
@@ -537,6 +555,42 @@
         {
           "path": "builder/parser/code/cnb_versions_test.go",
           "selector": "TestMatchCNBVersion_CompositeLanguage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb-version.match-golang",
+      "title": "Normalize and match Go CNB version specs",
+      "title_zh": "\u5f52\u4e00\u5316\u5e76\u5339\u914d Go CNB \u7248\u672c\u8868\u8fbe\u5f0f",
+      "interface_type": "workflow",
+      "interface": "builder/parser/code.MatchCNBVersion",
+      "code_paths": [
+        "builder/parser/code/cnb_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/cnb_versions_test.go",
+          "selector": "TestMatchCNBVersion_Golang"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb-version.python-order-and-default",
+      "title": "Keep Python CNB versions ordered with the latest default",
+      "title_zh": "\u4fdd\u6301 Python CNB \u7248\u672c\u987a\u5e8f\u5e76\u5c06\u6700\u65b0\u7248\u672c\u8bbe\u4e3a\u9ed8\u8ba4",
+      "interface_type": "workflow",
+      "interface": "builder/parser/code.GetCNBVersions",
+      "code_paths": [
+        "builder/parser/code/cnb_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/cnb_versions_test.go",
+          "selector": "TestGetCNBVersionsPythonOrderingAndDefault"
         }
       ],
       "test_type": "regression",
@@ -4039,6 +4093,42 @@
         {
           "path": "builder/sources/repo_test.go",
           "selector": "TestCreateRepostoryBuildInfo"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-repo.temp-build-info",
+      "title": "Create isolated temporary repository workspaces for source tasks",
+      "title_zh": "\u4e3a\u6e90\u7801\u4efb\u52a1\u521b\u5efa\u72ec\u7acb\u7684\u4e34\u65f6\u4ed3\u5e93\u5de5\u4f5c\u76ee\u5f55",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfo"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-repo.temp-build-info-pkg",
+      "title": "Keep package build sources on their original path when creating temp workspace info",
+      "title_zh": "\u4e3a pkg \u6784\u5efa\u521b\u5efa\u4e34\u65f6\u5de5\u4f5c\u76ee\u5f55\u4fe1\u606f\u65f6\u4fdd\u6301\u539f\u59cb\u8def\u5f84",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfoForPkg"
         }
       ],
       "test_type": "regression",

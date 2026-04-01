@@ -32,6 +32,12 @@ var cnbJavaVersions = []CNBVersion{
 	{Version: "25", Default: false},
 }
 
+// cnbGolangVersions defines the supported Go major.minor versions for CNB builds.
+var cnbGolangVersions = []CNBVersion{
+	{Version: "1.24", Default: false},
+	{Version: "1.25", Default: true},
+}
+
 // cnbPythonVersions defines the supported Python major.minor versions for CNB builds.
 var cnbPythonVersions = []CNBVersion{
 	{Version: "3.10", Default: false},
@@ -51,6 +57,8 @@ func GetCNBVersions(lang string) []CNBVersion {
 			return cnbNodeVersions
 		case "java", "openjdk", "java-maven", "java-war", "java-jar", "gradle", "java-gradle", "javagradle":
 			return cnbJavaVersions
+		case "go", "golang":
+			return cnbGolangVersions
 		case "python":
 			return cnbPythonVersions
 		}
@@ -125,6 +133,9 @@ func normalizeCNBVersionSpec(lang, spec string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(lang)) {
 	case "python":
 		normalized, err := normalizePythonRuntimeVersion(trimVersionSpecPrefixes(spec))
+		return normalized, err == nil
+	case "go", "golang":
+		normalized, err := normalizeGolangRuntimeVersion(trimVersionSpecPrefixes(spec))
 		return normalized, err == nil
 	default:
 		return "", false

@@ -66,12 +66,8 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 	if err := getLanguageConfig(re).InjectMirrorConfig(re); err != nil {
 		t.Fatalf("InjectMirrorConfig returned error: %v", err)
 	}
-	content, err := os.ReadFile(filepath.Join(dir, "Procfile"))
-	if err != nil {
-		t.Fatalf("read Procfile: %v", err)
-	}
-	if string(content) != "web: java $JAVA_OPTS -jar target/app.jar\n" {
-		t.Fatalf("unexpected Procfile content %q", string(content))
+	if _, err := os.Stat(filepath.Join(dir, "Procfile")); !os.IsNotExist(err) {
+		t.Fatalf("expected CNB java config to avoid writing source Procfile, got err=%v", err)
 	}
 
 	envs := (&Builder{}).buildEnvVars(re)

@@ -33,7 +33,9 @@
 | rainbond.cluster-resource.handler-singleton | 复用集群资源处理器单例 | active | unit | api/handler.GetClusterResourceHandler | api/handler/cluster_resource_test.go::TestGetClusterResourceHandlerSingleton |
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
+| rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
 | rainbond.cnb-version.match-language | 为复合语言匹配 CNB 版本 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_CompositeLanguage |
+| rainbond.cnb-version.match-golang | 归一化并匹配 Go CNB 版本表达式 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang |
 | rainbond.cnb-version.resolve-supported | 按语言解析支持的 CNB 版本 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersions |
 | rainbond.cnb.annotation-key-decode | 将 CNB 注解键解码为 BP 环境变量名 | active | regression | builder/build/cnb.annotationKeyToBPEnv | builder/build/cnb/cnb_test.go::TestAnnotationKeyToBPEnv |
 | rainbond.cnb.annotation-key-encode | 将 BP 环境变量名编码为 CNB 注解键 | active | regression | builder/build/cnb.bpEnvToAnnotationKey | builder/build/cnb/cnb_test.go::TestBpEnvToAnnotationKey |
@@ -662,6 +664,16 @@
 - 代码路径: `builder/parser/code/cnb_versions.go`
 - 测试路径: `builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec`
 
+### 保持 Go CNB 版本顺序并将最新版本设为默认
+
+- Capability ID: `rainbond.cnb-version.golang-order-and-default`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser/code.GetCNBVersions`
+- 代码路径: `builder/parser/code/cnb_versions.go`
+- 测试路径: `builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault`
+
 ### 为复合语言匹配 CNB 版本
 
 - Capability ID: `rainbond.cnb-version.match-language`
@@ -671,6 +683,16 @@
 - 业务入口: `builder/parser/code.MatchCNBVersion`
 - 代码路径: `builder/parser/code/cnb_versions.go`
 - 测试路径: `builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_CompositeLanguage`
+
+### 归一化并匹配 Go CNB 版本表达式
+
+- Capability ID: `rainbond.cnb-version.match-golang`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser/code.MatchCNBVersion`
+- 代码路径: `builder/parser/code/cnb_versions.go`
+- 测试路径: `builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang`
 
 ### 按语言解析支持的 CNB 版本
 

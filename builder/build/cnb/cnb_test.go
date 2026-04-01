@@ -1047,6 +1047,105 @@ func TestRunCNBBuildJob(t *testing.T) {
 		}
 	})
 
+	t.Run("procfile build env is injected through binding and cleaned up", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		var createdConfigMap *corev1.ConfigMap
+		var deletedConfigMapNames []string
+		b := &Builder{
+			jobCtrl: ctrl,
+			createAuthSecret: func(re *build.Request) (corev1.Secret, error) {
+				return corev1.Secret{}, nil
+			},
+			deleteAuthSecret: func(re *build.Request, name string) {},
+			prepareBuildKit: func(ctx context.Context, kubeClient kubernetes.Interface, namespace, cmName, imageDomain string) error {
+				return nil
+			},
+			createConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+				createdConfigMap = cm.DeepCopy()
+				if createdConfigMap.Name == "" {
+					createdConfigMap.Name = createdConfigMap.GenerateName + "abc123"
+				}
+				return createdConfigMap, nil
+			},
+			deleteConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace, name string) error {
+				deletedConfigMapNames = append(deletedConfigMapNames, name)
+				return nil
+			},
+		}
+		re := &build.Request{
+			ServiceID:     "svc1",
+			DeployVersion: "v1",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     t.TempDir(),
+			CacheDir:      "/tmp/cache",
+			BuildEnvs: map[string]string{
+				"BUILD_AUTO_PROCFILE":  "web: python manage.py runserver 0.0.0.0:$PORT",
+				"START_COMMAND_SOURCE": "auto-detected",
+			},
+			Logger: logger,
+		}
+
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+
+		var bindingName string
+		foundBindingProjection := false
+		for _, vol := range capturedPod.Spec.Volumes {
+			if vol.Name != "platform" || vol.Projected == nil {
+				continue
+			}
+			for _, source := range vol.Projected.Sources {
+				if source.ConfigMap == nil || len(source.ConfigMap.Items) != 1 {
+					continue
+				}
+				item := source.ConfigMap.Items[0]
+				if !strings.HasSuffix(item.Path, "/Procfile") {
+					continue
+				}
+				foundBindingProjection = true
+				bindingName = source.ConfigMap.Name
+				wantPath := "bindings/" + bindingName + "/Procfile"
+				if item.Path != wantPath {
+					t.Fatalf("procfile binding path = %q, want %q", item.Path, wantPath)
+				}
+			}
+		}
+		if !foundBindingProjection {
+			t.Fatal("expected Procfile binding projection in CNB platform volume")
+		}
+		if got := capturedPod.Annotations[bindingTypeAnnotationKey(bindingName)]; got != "Procfile" {
+			t.Fatalf("binding annotation = %q, want Procfile", got)
+		}
+		if createdConfigMap == nil {
+			t.Fatal("expected temporary Procfile ConfigMap to be created")
+		}
+		if createdConfigMap.Data["Procfile"] != "web: python manage.py runserver 0.0.0.0:$PORT\n" {
+			t.Fatalf("created Procfile content = %q, want %q", createdConfigMap.Data["Procfile"], "web: python manage.py runserver 0.0.0.0:$PORT\n")
+		}
+		if createdConfigMap.Name != bindingName {
+			t.Fatalf("created ConfigMap name = %q, want %q", createdConfigMap.Name, bindingName)
+		}
+		if len(deletedConfigMapNames) != 1 || deletedConfigMapNames[0] != bindingName {
+			t.Fatalf("expected temporary Procfile ConfigMap cleanup for %q, got %v", bindingName, deletedConfigMapNames)
+		}
+	})
+
 	t.Run("CNB_START_SCRIPT in pod annotations and downward API", func(t *testing.T) {
 		var capturedPod *corev1.Pod
 		ctrl := &mockJobCtrl{
