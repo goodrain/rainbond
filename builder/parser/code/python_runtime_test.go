@@ -53,7 +53,7 @@ func TestCheckRuntimeByStrategyPythonDetectsDjangoStartCommand(t *testing.T) {
 	if got := runtimeInfo["PACKAGE_TOOL"]; got != "pip" {
 		t.Fatalf("expected default package manager pip, got %q", got)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: python manage.py runserver 0.0.0.0:$PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: python manage.py runserver 0.0.0.0:$_PORT" {
 		t.Fatalf("expected django start command, got %q", got)
 	}
 	if got := runtimeInfo["START_CMD_SOURCE"]; got != "auto-detected" {
