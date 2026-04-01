@@ -41,7 +41,7 @@ require (
 	github.com/goodrain/rainbond-oam v0.0.0-20221115150510-dd668a6d6765
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/gorilla/websocket v1.5.3
-	github.com/gosuri/uitable v0.0.4
+	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/jinzhu/gorm v1.9.16
 	github.com/json-iterator/go v1.1.12
@@ -323,7 +323,7 @@ replace (
 	github.com/envoyproxy/go-control-plane => github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/go-git/go-git => github.com/go-git/go-git/v5 v5.16.0
 	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
-	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20241120151145-067f8a6d718a
+	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20260401060407-6fb558084c9e
 	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.17
 	github.com/mitchellh/osext => github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/myesui/uuid => github.com/google/uuid v1.3.0

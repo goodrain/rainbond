@@ -54,9 +54,6 @@ func (c *NsResourceController) GetNsResource(w http.ResponseWriter, r *http.Requ
 // CreateNsResource creates a resource in the tenant namespace from the request body
 func (c *NsResourceController) CreateNsResource(w http.ResponseWriter, r *http.Request) {
 	tenantName := chi.URLParam(r, "tenant_name")
-	group := r.URL.Query().Get("group")
-	version := r.URL.Query().Get("version")
-	resource := r.URL.Query().Get("resource")
 	source := r.URL.Query().Get("source")
 	if source == "" {
 		source = "manual"
@@ -66,12 +63,12 @@ func (c *NsResourceController) CreateNsResource(w http.ResponseWriter, r *http.R
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	obj, err := handler.GetNsResourceHandler().CreateNsResource(tenantName, group, version, resource, source, body)
+	result, statusCode, err := handler.GetNsResourceHandler().CreateNsResource(tenantName, source, body)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, obj)
+	httputil.ReturnNoFomart(r, w, statusCode, buildNsResourceCreatePayload(statusCode, result))
 }
 
 // UpdateNsResource updates a namespaced resource from request body
@@ -111,4 +108,15 @@ func (c *NsResourceController) DeleteNsResource(w http.ResponseWriter, r *http.R
 // GetNsResourceController returns a new NsResourceController
 func GetNsResourceController() *NsResourceController {
 	return &NsResourceController{}
+}
+
+func buildNsResourceCreatePayload(statusCode int, result *handler.NsResourceCreateResponse) map[string]interface{} {
+	return map[string]interface{}{
+		"code":     statusCode,
+		"msg":      result.Message,
+		"msg_show": result.Message,
+		"data": map[string]interface{}{
+			"bean": result,
+		},
+	}
 }
