@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8smeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -44,8 +47,49 @@ type NsResourceInfo struct {
 	VolumeName    string               `json:"volume_name,omitempty"`
 }
 
+// NsResourceCreateSummary is the aggregated create result summary.
+type NsResourceCreateSummary struct {
+	Total          int  `json:"total"`
+	SuccessCount   int  `json:"success_count"`
+	FailureCount   int  `json:"failure_count"`
+	PartialSuccess bool `json:"partial_success"`
+}
+
+// NsResourceCreateResult is the per-document create result.
+type NsResourceCreateResult struct {
+	Index         int    `json:"index"`
+	APIVersion    string `json:"api_version"`
+	Kind          string `json:"kind"`
+	Name          string `json:"name"`
+	Namespace     string `json:"namespace"`
+	ResourceScope string `json:"resource_scope"`
+	Success       bool   `json:"success"`
+	Message       string `json:"message"`
+}
+
+// NsResourceCreateResponse is the batch create response.
+type NsResourceCreateResponse struct {
+	Message string                   `json:"message"`
+	Summary NsResourceCreateSummary  `json:"summary"`
+	Results []NsResourceCreateResult `json:"results"`
+}
+
 // NsResourceHandler handles namespace-scoped K8s resource operations
 type NsResourceHandler struct{}
+
+var nsResourceRESTMapper = func() k8smeta.RESTMapper {
+	if k8s.Default() == nil {
+		return nil
+	}
+	return k8s.Default().Mapper
+}
+
+var nsResourceDynamicClient = func() dynamic.Interface {
+	if k8s.Default() == nil {
+		return nil
+	}
+	return k8s.Default().DynamicClient
+}
 
 // ListNsResourceTypes returns all namespace-scoped resource types from the cluster
 func (h *NsResourceHandler) ListNsResourceTypes() ([]ResourceTypeInfo, error) {
@@ -109,32 +153,48 @@ func (h *NsResourceHandler) GetNsResource(tenantName, group, version, resource, 
 	return k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
 }
 
-// CreateNsResource creates a resource in the tenant namespace from YAML body, injecting source label
-func (h *NsResourceHandler) CreateNsResource(tenantName, group, version, resource, source string, yamlBody []byte) (*unstructured.Unstructured, error) {
-	if err := validateGVRParams(group, version, resource); err != nil {
-		return nil, err
-	}
+// CreateNsResource creates resources from YAML body, resolving the actual target GVR from each document.
+func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody []byte) (*NsResourceCreateResponse, int, error) {
 	if source != "yaml" && source != "manual" {
 		source = "manual"
 	}
 	ns, err := h.getTenantNamespace(tenantName)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	obj := &unstructured.Unstructured{}
-	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
-	if err := decoder.Decode(obj); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %v", err)
+
+	documents, err := decodeNsResourceDocuments(yamlBody)
+	if err != nil {
+		return nil, 0, err
 	}
-	labels := obj.GetLabels()
-	if labels == nil {
-		labels = map[string]string{}
+
+	mapper := nsResourceRESTMapper()
+	if mapper == nil {
+		return nil, 0, fmt.Errorf("kubernetes rest mapper is not initialized")
 	}
-	injectSourceLabel(labels, source)
-	obj.SetLabels(labels)
-	obj.SetNamespace(ns)
-	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	return k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Create(context.Background(), obj, metav1.CreateOptions{})
+	dynamicClient := nsResourceDynamicClient()
+	if dynamicClient == nil {
+		return nil, 0, fmt.Errorf("kubernetes dynamic client is not initialized")
+	}
+
+	response := &NsResourceCreateResponse{
+		Results: make([]NsResourceCreateResult, 0, len(documents)),
+	}
+
+	for i, obj := range documents {
+		result := NsResourceCreateResult{
+			Index:      i + 1,
+			APIVersion: obj.GetAPIVersion(),
+			Kind:       obj.GetKind(),
+			Name:       obj.GetName(),
+		}
+		h.createSingleNsResource(dynamicClient, mapper, ns, source, obj, &result)
+		response.Results = append(response.Results, result)
+	}
+
+	response.Summary = buildNsResourceCreateSummary(response.Results)
+	response.Message = buildNsResourceCreateMessage(response.Summary)
+	return response, nsResourceCreateStatusCode(response.Summary), nil
 }
 
 // UpdateNsResource updates a resource in the tenant namespace from YAML body
@@ -200,6 +260,133 @@ func (h *NsResourceHandler) getTenantNamespace(tenantName string) (string, error
 
 func injectSourceLabel(labels map[string]string, source string) {
 	labels["rainbond.io/source"] = source
+}
+
+func decodeNsResourceDocuments(yamlBody []byte) ([]*unstructured.Unstructured, error) {
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlBody), 4096)
+	documents := make([]*unstructured.Unstructured, 0)
+	for {
+		obj := &unstructured.Unstructured{}
+		if err := decoder.Decode(obj); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
+		}
+		if len(obj.Object) == 0 {
+			continue
+		}
+		documents = append(documents, obj)
+	}
+	if len(documents) == 0 {
+		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: no resource documents found"))
+	}
+	return documents, nil
+}
+
+func (h *NsResourceHandler) createSingleNsResource(dynamicClient dynamic.Interface, mapper k8smeta.RESTMapper, teamNamespace, source string, obj *unstructured.Unstructured, result *NsResourceCreateResult) {
+	mapping, err := resolveNsResourceMapping(mapper, obj)
+	if err != nil {
+		result.Message = err.Error()
+		return
+	}
+
+	namespaceableClient := dynamicClient.Resource(mapping.Resource)
+	resourceClient := dynamic.ResourceInterface(namespaceableClient)
+	if mapping.Scope.Name() == k8smeta.RESTScopeNameNamespace {
+		namespace := obj.GetNamespace()
+		if namespace == "" {
+			namespace = teamNamespace
+		}
+		obj.SetNamespace(namespace)
+		result.Namespace = namespace
+		result.ResourceScope = "namespaced"
+		resourceClient = namespaceableClient.Namespace(namespace)
+	} else {
+		obj.SetNamespace("")
+		result.Namespace = ""
+		result.ResourceScope = "cluster"
+	}
+
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	injectSourceLabel(labels, source)
+	obj.SetLabels(labels)
+
+	created, err := resourceClient.Create(context.Background(), obj, metav1.CreateOptions{})
+	if err != nil {
+		result.Message = err.Error()
+		return
+	}
+	result.Success = true
+	result.Name = created.GetName()
+	result.APIVersion = created.GetAPIVersion()
+	result.Kind = created.GetKind()
+	result.Namespace = created.GetNamespace()
+	if result.ResourceScope == "" {
+		if created.GetNamespace() == "" {
+			result.ResourceScope = "cluster"
+		} else {
+			result.ResourceScope = "namespaced"
+		}
+	}
+	result.Message = "created"
+}
+
+func resolveNsResourceMapping(mapper k8smeta.RESTMapper, obj *unstructured.Unstructured) (*k8smeta.RESTMapping, error) {
+	if mapper == nil {
+		return nil, fmt.Errorf("kubernetes rest mapper is not initialized")
+	}
+	gvk := obj.GroupVersionKind()
+	if gvk.Kind == "" || gvk.Version == "" {
+		return nil, fmt.Errorf("resource kind and apiVersion are required")
+	}
+	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, err
+	}
+	return mapping, nil
+}
+
+func buildNsResourceCreateSummary(results []NsResourceCreateResult) NsResourceCreateSummary {
+	summary := NsResourceCreateSummary{Total: len(results)}
+	for _, result := range results {
+		if result.Success {
+			summary.SuccessCount++
+			continue
+		}
+		summary.FailureCount++
+	}
+	summary.PartialSuccess = summary.SuccessCount > 0 && summary.FailureCount > 0
+	return summary
+}
+
+func buildNsResourceCreateMessage(summary NsResourceCreateSummary) string {
+	switch {
+	case summary.Total == 0:
+		return "未解析到可创建的资源"
+	case summary.FailureCount == 0:
+		return fmt.Sprintf("共创建 %d 个资源，全部成功", summary.Total)
+	case summary.SuccessCount == 0:
+		return fmt.Sprintf("共创建 %d 个资源，全部失败", summary.Total)
+	default:
+		return fmt.Sprintf("共创建 %d 个资源，%d 个成功，%d 个失败", summary.Total, summary.SuccessCount, summary.FailureCount)
+	}
+}
+
+func nsResourceCreateStatusCode(summary NsResourceCreateSummary) int {
+	switch {
+	case summary.Total == 0:
+		return 400
+	case summary.FailureCount == 0:
+		return 200
+	case summary.SuccessCount == 0:
+		return 400
+	default:
+		return 207
+	}
 }
 
 func detectResourceSource(labels map[string]string) string {
