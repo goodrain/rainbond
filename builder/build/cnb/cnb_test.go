@@ -472,6 +472,29 @@ func TestCreatePlatformVolumeWithBinding(t *testing.T) {
 	}
 }
 
+func TestBindingTypeAnnotationKeyShortensLongBindingNames(t *testing.T) {
+	bindingName := "06c421b8d22d718065929cfdea86b232-20260401205923-procfile-9mcpf"
+	got := bindingTypeAnnotationKey(bindingName)
+	if len(got) > 63 {
+		t.Fatalf("annotation key length = %d, want <= 63: %q", len(got), got)
+	}
+	if !strings.HasPrefix(got, "cnb-binding-") {
+		t.Fatalf("annotation key %q missing prefix", got)
+	}
+	if !strings.HasSuffix(got, "-type") {
+		t.Fatalf("annotation key %q missing suffix", got)
+	}
+	if got == "cnb-binding-"+bindingName+"-type" {
+		t.Fatalf("expected long binding name to be shortened, got %q", got)
+	}
+	if again := bindingTypeAnnotationKey(bindingName); again != got {
+		t.Fatalf("annotation key should be deterministic: got %q, again %q", got, again)
+	}
+	if other := bindingTypeAnnotationKey(bindingName + "-other"); other == got {
+		t.Fatalf("different binding names should not share annotation key: %q", other)
+	}
+}
+
 // --- job.go ---
 
 // capability_id: rainbond.cnb.env-vars
@@ -1090,7 +1113,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 			SourceDir:     t.TempDir(),
 			CacheDir:      "/tmp/cache",
 			BuildEnvs: map[string]string{
-				"BUILD_AUTO_PROCFILE":  "web: python manage.py runserver 0.0.0.0:$PORT",
+				"BUILD_AUTO_PROCFILE":  "web: python manage.py runserver 0.0.0.0:$_PORT",
 				"START_COMMAND_SOURCE": "auto-detected",
 			},
 			Logger: logger,
@@ -1135,14 +1158,112 @@ func TestRunCNBBuildJob(t *testing.T) {
 		if createdConfigMap == nil {
 			t.Fatal("expected temporary Procfile ConfigMap to be created")
 		}
-		if createdConfigMap.Data["Procfile"] != "web: python manage.py runserver 0.0.0.0:$PORT\n" {
-			t.Fatalf("created Procfile content = %q, want %q", createdConfigMap.Data["Procfile"], "web: python manage.py runserver 0.0.0.0:$PORT\n")
+		if createdConfigMap.Data["Procfile"] != "web: python manage.py runserver 0.0.0.0:$_PORT\n" {
+			t.Fatalf("created Procfile content = %q, want %q", createdConfigMap.Data["Procfile"], "web: python manage.py runserver 0.0.0.0:$_PORT\n")
 		}
 		if createdConfigMap.Name != bindingName {
 			t.Fatalf("created ConfigMap name = %q, want %q", createdConfigMap.Name, bindingName)
 		}
 		if len(deletedConfigMapNames) != 1 || deletedConfigMapNames[0] != bindingName {
 			t.Fatalf("expected temporary Procfile ConfigMap cleanup for %q, got %v", bindingName, deletedConfigMapNames)
+		}
+	})
+
+	t.Run("long procfile binding names keep annotation keys within kubernetes limits", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		var createdConfigMap *corev1.ConfigMap
+		b := &Builder{
+			jobCtrl: ctrl,
+			createAuthSecret: func(re *build.Request) (corev1.Secret, error) {
+				return corev1.Secret{}, nil
+			},
+			deleteAuthSecret: func(re *build.Request, name string) {},
+			prepareBuildKit: func(ctx context.Context, kubeClient kubernetes.Interface, namespace, cmName, imageDomain string) error {
+				return nil
+			},
+			createConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+				createdConfigMap = cm.DeepCopy()
+				createdConfigMap.Name = cm.GenerateName + "9mcpf"
+				return createdConfigMap, nil
+			},
+			deleteConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace, name string) error {
+				return nil
+			},
+		}
+		re := &build.Request{
+			ServiceID:     "06c421b8d22d718065929cfdea86b232",
+			DeployVersion: "20260401205923",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     t.TempDir(),
+			CacheDir:      "/tmp/cache",
+			BuildEnvs: map[string]string{
+				"BUILD_AUTO_PROCFILE": "web: python manage.py runserver 0.0.0.0:$_PORT",
+			},
+			Logger: logger,
+		}
+
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+		if createdConfigMap == nil {
+			t.Fatal("expected temporary Procfile ConfigMap to be created")
+		}
+
+		annotationKey := bindingTypeAnnotationKey(createdConfigMap.Name)
+		if len(annotationKey) > 63 {
+			t.Fatalf("annotation key length = %d, want <= 63: %q", len(annotationKey), annotationKey)
+		}
+		if got := capturedPod.Annotations[annotationKey]; got != "Procfile" {
+			t.Fatalf("binding annotation = %q, want Procfile", got)
+		}
+
+		foundPlatformMount := false
+		foundBindingFieldRef := false
+		wantFieldPath := "metadata.annotations['" + annotationKey + "']"
+		for _, mount := range capturedPod.Spec.Containers[0].VolumeMounts {
+			if mount.Name == "platform" && mount.MountPath == "/platform" {
+				foundPlatformMount = true
+			}
+		}
+		for _, vol := range capturedPod.Spec.Volumes {
+			if vol.Name != "platform" || vol.Projected == nil {
+				continue
+			}
+			for _, source := range vol.Projected.Sources {
+				if source.DownwardAPI == nil {
+					continue
+				}
+				for _, item := range source.DownwardAPI.Items {
+					if item.Path != "bindings/"+createdConfigMap.Name+"/type" {
+						continue
+					}
+					foundBindingFieldRef = true
+					if item.FieldRef == nil || item.FieldRef.FieldPath != wantFieldPath {
+						t.Fatalf("binding type fieldRef = %+v, want %q", item.FieldRef, wantFieldPath)
+					}
+				}
+			}
+		}
+		if !foundPlatformMount {
+			t.Fatal("expected platform volume mount to be present")
+		}
+		if !foundBindingFieldRef {
+			t.Fatal("expected binding type DownwardAPI item for long Procfile binding")
 		}
 	})
 

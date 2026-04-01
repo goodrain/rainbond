@@ -70,7 +70,7 @@ func DetectPythonStartCommand(buildPath, packageManager string) (string, string)
 	}
 
 	if fileExists(filepath.Join(buildPath, "manage.py")) {
-		return "web: python manage.py runserver 0.0.0.0:$PORT", PythonStartSourceAutoDetected
+		return "web: python manage.py runserver 0.0.0.0:$_PORT", PythonStartSourceAutoDetected
 	}
 
 	if pythonManifestContainsDependency(buildPath, "pyramid") {

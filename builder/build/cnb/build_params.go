@@ -1,6 +1,7 @@
 package cnb
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"os"
 	"strings"
@@ -17,6 +18,10 @@ const (
 	pythonPackageManagerPipenv = "pipenv"
 	pythonPackageManagerPoetry = "poetry"
 	pythonPackageManagerConda  = "conda"
+	bindingTypeKeyPrefix       = "cnb-binding-"
+	bindingTypeKeySuffix       = "-type"
+	k8sNamePartMaxLength       = 63
+	bindingTypeHashHexLength   = 8
 )
 
 type platformBinding struct {
@@ -202,7 +207,7 @@ func fileExists(path string) bool {
 func bindingTypeAnnotationKey(bindingName string) string {
 	bindingName = strings.ToLower(strings.TrimSpace(bindingName))
 	if bindingName == "" {
-		return "cnb-binding-type"
+		return bindingTypeKeyPrefix + strings.TrimPrefix(bindingTypeKeySuffix, "-")
 	}
 	var normalized strings.Builder
 	for _, r := range bindingName {
@@ -217,5 +222,27 @@ func bindingTypeAnnotationKey(bindingName string) string {
 			normalized.WriteRune('-')
 		}
 	}
-	return "cnb-binding-" + normalized.String() + "-type"
+	namePart := strings.Trim(normalized.String(), "-")
+	if namePart == "" {
+		return bindingTypeKeyPrefix + strings.TrimPrefix(bindingTypeKeySuffix, "-")
+	}
+
+	maxNamePartLength := k8sNamePartMaxLength - len(bindingTypeKeyPrefix) - len(bindingTypeKeySuffix)
+	if len(namePart) > maxNamePartLength {
+		sum := sha1.Sum([]byte(namePart))
+		hashSuffix := fmt.Sprintf("%x", sum[:bindingTypeHashHexLength/2])
+		prefixLength := maxNamePartLength - len(hashSuffix) - 1
+		if prefixLength < 1 {
+			namePart = hashSuffix[:maxNamePartLength]
+		} else {
+			prefix := strings.TrimRight(namePart[:prefixLength], "-")
+			if prefix == "" {
+				namePart = hashSuffix[:maxNamePartLength]
+			} else {
+				namePart = prefix + "-" + hashSuffix
+			}
+		}
+	}
+
+	return bindingTypeKeyPrefix + namePart + bindingTypeKeySuffix
 }
