@@ -86,8 +86,10 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 
 	foundJava := false
 	foundNode := false
+	foundPythonDefault := false
+	foundGoStable := false
 	foundGoDefault := false
-	foundGoLatest := false
+	foundRetiredGo := false
 	foundDotnetDefault := false
 	foundDotnetLatest := false
 	foundPHPDefault := false
@@ -105,11 +107,17 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 		if version.Lang == "node" && version.Version == "24.13.0" {
 			foundNode = true
 		}
+		if version.Lang == "python" && version.Version == "3.14" && version.FirstChoice {
+			foundPythonDefault = true
+		}
+		if version.Lang == "golang" && version.Version == "1.24" {
+			foundGoStable = true
+		}
 		if version.Lang == "golang" && version.Version == "1.25" && version.FirstChoice {
 			foundGoDefault = true
 		}
 		if version.Lang == "golang" && version.Version == "1.26" {
-			foundGoLatest = true
+			foundRetiredGo = true
 		}
 		if version.Lang == "dotnet" && version.Version == "8.0" && version.FirstChoice {
 			foundDotnetDefault = true
@@ -130,11 +138,17 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	if !foundNode {
 		t.Fatal("expected Node CNB seed version 24.13.0")
 	}
+	if !foundPythonDefault {
+		t.Fatal("expected Python CNB default seed version 3.14")
+	}
+	if !foundGoStable {
+		t.Fatal("expected Golang CNB seed version 1.24")
+	}
 	if !foundGoDefault {
 		t.Fatal("expected Golang CNB default seed version 1.25")
 	}
-	if !foundGoLatest {
-		t.Fatal("expected Golang CNB seed version 1.26")
+	if foundRetiredGo {
+		t.Fatal("expected Golang CNB seed version 1.26 to be retired")
 	}
 	if !foundDotnetDefault {
 		t.Fatal("expected Dotnet CNB default seed version 8.0")
@@ -200,6 +214,115 @@ func TestLongVersionBackfillLegacyStrategy(t *testing.T) {
 	}
 	if gotCNB.IsAllowed {
 		t.Fatal("expected non-legacy cnb version to keep is_allowed=false")
+	}
+}
+
+func TestUpdateLanguageVersionsDisablesRetiredCNBGolangSeedVersions(t *testing.T) {
+	db := newLongVersionPatchTestDB(t)
+	defer db.Close()
+
+	rows := []*model.EnterpriseLanguageVersion{
+		{
+			Lang:          "golang",
+			Version:       "1.23",
+			BuildStrategy: model.LongVersionBuildStrategyCNB,
+			FirstChoice:   false,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+		},
+		{
+			Lang:          "golang",
+			Version:       "1.25",
+			BuildStrategy: model.LongVersionBuildStrategyCNB,
+			FirstChoice:   true,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+		},
+		{
+			Lang:          "golang",
+			Version:       "1.26",
+			BuildStrategy: model.LongVersionBuildStrategyCNB,
+			FirstChoice:   false,
+			Show:          true,
+			System:        true,
+			IsAllowed:     true,
+		},
+		{
+			Lang:          "golang",
+			Version:       "1.26",
+			BuildStrategy: model.LongVersionBuildStrategyCNB,
+			FirstChoice:   false,
+			Show:          true,
+			System:        false,
+			IsAllowed:     true,
+		},
+	}
+	for _, row := range rows {
+		if err := db.Create(row).Error; err != nil {
+			t.Fatalf("create language version %s-%s: %v", row.Lang, row.Version, err)
+		}
+	}
+
+	manager := &Manager{
+		db:     db,
+		config: config.Config{DBType: "sqlite"},
+	}
+	manager.updateLanguageVersions()
+
+	var retiredSystem model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ? AND build_strategy = ? AND system = ?", "golang", "1.26", model.LongVersionBuildStrategyCNB, true).
+		First(&retiredSystem).Error; err != nil {
+		t.Fatalf("query retired system cnb version: %v", err)
+	}
+	if retiredSystem.Show {
+		t.Fatal("expected retired system go 1.26 cnb version to be hidden")
+	}
+	if retiredSystem.IsAllowed {
+		t.Fatal("expected retired system go 1.26 cnb version to be disallowed")
+	}
+	if retiredSystem.FirstChoice {
+		t.Fatal("expected retired system go 1.26 cnb version to lose default flag")
+	}
+
+	var retiredLegacy model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ? AND build_strategy = ? AND system = ?", "golang", "1.23", model.LongVersionBuildStrategyCNB, true).
+		First(&retiredLegacy).Error; err != nil {
+		t.Fatalf("query retired legacy cnb version: %v", err)
+	}
+	if retiredLegacy.Show {
+		t.Fatal("expected retired system go 1.23 cnb version to be hidden")
+	}
+	if retiredLegacy.IsAllowed {
+		t.Fatal("expected retired system go 1.23 cnb version to be disallowed")
+	}
+
+	var keptDefault model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ? AND build_strategy = ? AND system = ?", "golang", "1.25", model.LongVersionBuildStrategyCNB, true).
+		First(&keptDefault).Error; err != nil {
+		t.Fatalf("query kept default cnb version: %v", err)
+	}
+	if !keptDefault.Show || !keptDefault.IsAllowed || !keptDefault.FirstChoice {
+		t.Fatal("expected current default go 1.25 cnb version to remain visible, allowed, and default")
+	}
+
+	var keptStable model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ? AND build_strategy = ?", "golang", "1.24", model.LongVersionBuildStrategyCNB).
+		First(&keptStable).Error; err != nil {
+		t.Fatalf("query newly seeded go 1.24 cnb version: %v", err)
+	}
+	if !keptStable.Show || !keptStable.IsAllowed {
+		t.Fatal("expected current go 1.24 cnb version to be visible and allowed")
+	}
+
+	var customRetired model.EnterpriseLanguageVersion
+	if err := db.Where("lang = ? AND version = ? AND build_strategy = ? AND system = ?", "golang", "1.26", model.LongVersionBuildStrategyCNB, false).
+		First(&customRetired).Error; err != nil {
+		t.Fatalf("query custom cnb version: %v", err)
+	}
+	if !customRetired.Show || !customRetired.IsAllowed {
+		t.Fatal("expected non-system cnb version to remain unchanged")
 	}
 }
 

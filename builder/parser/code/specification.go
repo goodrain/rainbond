@@ -50,7 +50,7 @@ func init() {
 // CheckCodeSpecification 检查语言规范
 func CheckCodeSpecification(buildPath string, lang Lang, serverType, buildStrategy string) Specification {
 	if strings.EqualFold(strings.TrimSpace(buildStrategy), "cnb") {
-		if lang == JavaJar {
+		if lang == JavaJar || lang == PHP {
 			return common()
 		}
 	}

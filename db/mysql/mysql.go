@@ -364,6 +364,7 @@ func (m *Manager) initLanguageVersion() {
 
 func (m *Manager) updateLanguageVersions() {
 	versions := allSeedLanguageVersions()
+	cnbVersions := cnbSeedLanguageVersions()
 
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
@@ -394,6 +395,9 @@ func (m *Manager) updateLanguageVersions() {
 				}
 			}
 		}
+		if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
+			logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
+		}
 		return
 	}
 
@@ -411,6 +415,9 @@ func (m *Manager) updateLanguageVersions() {
 		} else {
 			logrus.Info("successfully updated language versions")
 		}
+	}
+	if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
+		logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
 	}
 }
 
@@ -488,14 +495,14 @@ func cnbSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
 	})...)
 	versions = append(versions, buildStrategySeedVersions("python", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
 		{Version: "3.10", Default: false},
-		{Version: "3.11", Default: true},
+		{Version: "3.11", Default: false},
 		{Version: "3.12", Default: false},
 		{Version: "3.13", Default: false},
-		{Version: "3.14", Default: false},
+		{Version: "3.14", Default: true},
 	})...)
 	versions = append(versions, buildStrategySeedVersions("golang", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "1.24", Default: false},
 		{Version: "1.25", Default: true},
-		{Version: "1.26", Default: false},
 	})...)
 	versions = append(versions, buildStrategySeedVersions("dotnet", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
 		{Version: "8.0", Default: true},
@@ -591,6 +598,39 @@ func deduplicateLanguageVersions(db *gorm.DB) error {
 		return err
 	}
 	return tx.Commit().Error
+}
+
+func retireMissingSystemCNBVersions(db *gorm.DB, seedVersions []*model.EnterpriseLanguageVersion) error {
+	activeVersions := make(map[string]struct{}, len(seedVersions))
+	for _, version := range seedVersions {
+		if version == nil {
+			continue
+		}
+		activeVersions[buildSeedLongVersionDedupKey(version.Lang, version.Version, model.LongVersionBuildStrategyCNB)] = struct{}{}
+	}
+
+	var stored []model.EnterpriseLanguageVersion
+	if err := db.Where("build_strategy = ? AND system = ?", model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
+		return err
+	}
+
+	for i := range stored {
+		version := stored[i]
+		key := buildSeedLongVersionDedupKey(version.Lang, version.Version, model.LongVersionBuildStrategyCNB)
+		if _, ok := activeVersions[key]; ok {
+			continue
+		}
+		if !version.Show && !version.IsAllowed && !version.FirstChoice {
+			continue
+		}
+		version.Show = false
+		version.IsAllowed = false
+		version.FirstChoice = false
+		if err := db.Save(&version).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func normalizeSeedLongVersionBuildStrategy(buildStrategy string) string {

@@ -55,6 +55,9 @@ type slugBuild struct {
 func (s *slugBuild) Build(re *Request) (*Response, error) {
 	re.Logger.Info(util.Translation("Start compiling the source code"), map[string]string{"step": "build-exector"})
 	s.tgzDir = re.TGZDir
+	normalizedReq := *re
+	normalizedReq.BuildEnvs = expandBuildEnvsForSlugBuild(re.BuildEnvs)
+	re = &normalizedReq
 	s.re = re
 	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
@@ -99,6 +102,34 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	}
 	return res, nil
 }
+
+func expandBuildEnvsForSlugBuild(envs map[string]string) map[string]string {
+	if envs == nil {
+		return nil
+	}
+	expanded := make(map[string]string, len(envs)+8)
+	for key, value := range envs {
+		expanded[key] = value
+	}
+	legacyAliases := map[string]string{
+		"BUILD_NO_CACHE":        "NO_CACHE",
+		"BUILD_PROCFILE":        "PROCFILE",
+		"BUILD_RUNTIMES":        "RUNTIMES",
+		"BUILD_RUNTIMES_MAVEN":  "RUNTIMES_MAVEN",
+		"BUILD_RUNTIMES_SERVER": "RUNTIMES_SERVER",
+		"BUILD_GOVERSION":       "GOVERSION",
+	}
+	for buildKey, legacyKey := range legacyAliases {
+		if _, exists := expanded[legacyKey]; exists {
+			continue
+		}
+		if value, ok := expanded[buildKey]; ok && strings.TrimSpace(value) != "" {
+			expanded[legacyKey] = value
+		}
+	}
+	return expanded
+}
+
 func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[string]string) error {
 	runDockerfile := `
 	 FROM %s
@@ -380,7 +411,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				}
 			}
 		}
-		if k == "NO_CACHE" && v == "True" {
+		if k == "NO_CACHE" && strings.EqualFold(strings.TrimSpace(v), "true") {
 			buildNoCache = true
 		}
 	}

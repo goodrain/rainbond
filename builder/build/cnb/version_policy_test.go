@@ -137,6 +137,25 @@ func TestResolveOSSFallbackVersionWithoutPolicy(t *testing.T) {
 	}
 }
 
+func TestResolvePythonOSSFallbackVersionWithoutPolicy(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.Python,
+		BuildStrategy: "cnb",
+		SourceDir:     t.TempDir(),
+		BuildEnvs:     map[string]string{},
+	}
+
+	if err := applyVersionPolicy(re); err != nil {
+		t.Fatalf("applyVersionPolicy returned error: %v", err)
+	}
+	if got := re.BuildEnvs["BP_CPYTHON_VERSION"]; got != "3.14" {
+		t.Fatalf("expected BP_CPYTHON_VERSION=3.14, got %q", got)
+	}
+	if got := re.BuildEnvs["BUILD_RUNTIMES"]; got != "3.14" {
+		t.Fatalf("expected BUILD_RUNTIMES=3.14, got %q", got)
+	}
+}
+
 func TestResolveDotnetVersionFromSourceAndNormalization(t *testing.T) {
 	dir := t.TempDir()
 	project := `<Project Sdk="Microsoft.NET.Sdk.Web">
