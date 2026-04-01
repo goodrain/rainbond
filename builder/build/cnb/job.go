@@ -32,25 +32,6 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 		return err
 	}
 
-	// Compute platform annotations after bindings so derived BP_* values are included.
-	annotations := b.buildPlatformAnnotations(re)
-	for _, binding := range bindings {
-		annotations[bindingTypeAnnotationKey(binding.Name)] = binding.Type
-	}
-
-	job := corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"service":    re.ServiceID,
-				"job":        "codebuild",
-				"build-type": "cnb",
-			},
-			Annotations: annotations,
-		},
-	}
-
 	podSpec := corev1.PodSpec{
 		RestartPolicy: corev1.RestartPolicyNever,
 	}
@@ -101,6 +82,36 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 	err = b.prepareBuildKit(ctx, re.KubeClient, re.RbdNamespace, buildKitTomlCMName, imageDomain)
 	if err != nil {
 		return err
+	}
+
+	procfileBinding, cleanupProcfileBinding, err := b.createProcfileBinding(ctx, re, name)
+	if err != nil {
+		return err
+	}
+	if cleanupProcfileBinding != nil {
+		defer cleanupProcfileBinding()
+	}
+	if procfileBinding != nil {
+		bindings = append(bindings, *procfileBinding)
+	}
+
+	// Compute platform annotations after bindings so derived BP_* values are included.
+	annotations := b.buildPlatformAnnotations(re)
+	for _, binding := range bindings {
+		annotations[bindingTypeAnnotationKey(binding.Name)] = binding.Type
+	}
+
+	job := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"service":    re.ServiceID,
+				"job":        "codebuild",
+				"build-type": "cnb",
+			},
+			Annotations: annotations,
+		},
 	}
 
 	volumes, mounts := b.createVolumeAndMount(re, secret.Name)
@@ -279,6 +290,54 @@ func (b *Builder) resolvePlatformBindings(re *build.Request) ([]platformBinding,
 	}
 }
 
+func (b *Builder) createProcfileBinding(ctx context.Context, re *build.Request, jobName string) (*platformBinding, func(), error) {
+	procfile, _ := resolveProcfileBindingContent(re)
+	if strings.TrimSpace(procfile) == "" {
+		return nil, nil, nil
+	}
+
+	if b.createConfigMap == nil || b.deleteConfigMap == nil {
+		return nil, nil, fmt.Errorf("procfile binding handlers are not configured")
+	}
+	if re.KubeClient == nil && b.createConfigMap == nil {
+		return nil, nil, fmt.Errorf("kube client is required for procfile binding")
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: fmt.Sprintf("%s-procfile-", strings.ToLower(jobName)),
+			Namespace:    re.RbdNamespace,
+			Labels: map[string]string{
+				"service":    re.ServiceID,
+				"job":        "codebuild",
+				"build-type": "cnb",
+			},
+		},
+		Data: map[string]string{
+			"Procfile": normalizeProcfileBindingContent(procfile),
+		},
+	}
+
+	createdConfigMap, err := b.createConfigMap(ctx, re.KubeClient, re.RbdNamespace, configMap)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cleanup := func() {
+		if err := b.deleteConfigMap(ctx, re.KubeClient, re.RbdNamespace, createdConfigMap.Name); err != nil {
+			logrus.Warnf("delete procfile binding configmap %s failed: %v", createdConfigMap.Name, err)
+		}
+	}
+
+	return &platformBinding{
+		Name:          createdConfigMap.Name,
+		Type:          "Procfile",
+		ConfigMapName: createdConfigMap.Name,
+		ConfigMapKey:  "Procfile",
+		TargetFile:    "Procfile",
+	}, cleanup, nil
+}
+
 // createVolumeAndMount creates volumes and volume mounts for the CNB build pod
 func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]corev1.Volume, []corev1.VolumeMount) {
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -330,6 +389,36 @@ func (b *Builder) createVolumeAndMount(re *build.Request, secretName string) ([]
 	}
 
 	return volumes, volumeMounts
+}
+
+func resolveProcfileBindingContent(re *build.Request) (string, string) {
+	if procfile := re.BuildEnvs["BUILD_PROCFILE"]; strings.TrimSpace(procfile) != "" {
+		source := strings.TrimSpace(re.BuildEnvs["START_COMMAND_SOURCE"])
+		if source == "" {
+			source = "procfile"
+		}
+		return procfile, source
+	}
+	if procfile := re.BuildEnvs["BUILD_AUTO_PROCFILE"]; strings.TrimSpace(procfile) != "" {
+		source := strings.TrimSpace(re.BuildEnvs["START_COMMAND_SOURCE"])
+		if source == "" {
+			source = "auto-detected"
+		}
+		return procfile, source
+	}
+	if re.SourceDir == "" {
+		return "", ""
+	}
+	body, err := os.ReadFile(filepath.Join(re.SourceDir, "Procfile"))
+	if err != nil || strings.TrimSpace(string(body)) == "" {
+		return "", ""
+	}
+	return string(body), "procfile"
+}
+
+func normalizeProcfileBindingContent(procfile string) string {
+	procfile = strings.TrimRight(procfile, "\r\n")
+	return procfile + "\n"
 }
 
 // waitingComplete waits for the build job to complete

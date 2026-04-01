@@ -20,7 +20,9 @@ package sources
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -119,5 +121,28 @@ func CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, Servic
 	}
 	rbi.CodeHome = GetCodeSourceDir(repoURL, branch, tenantID, ServiceID)
 	logrus.Infof("cache code dir is %s for service %s", rbi.CodeHome, ServiceID)
+	return rbi, nil
+}
+
+// CreateTempRepostoryBuildInfo creates an isolated workspace under the tenant source root.
+// It keeps repository metadata unchanged while avoiding concurrent tasks sharing the same code directory.
+func CreateTempRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, ServiceID string) (*RepostoryBuildInfo, error) {
+	rbi, err := CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID, ServiceID)
+	if err != nil || repoType == "pkg" {
+		return rbi, err
+	}
+
+	parentDir := filepath.Dir(rbi.CodeHome)
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return nil, err
+	}
+
+	tempDir, err := os.MkdirTemp(parentDir, filepath.Base(rbi.CodeHome)+"-")
+	if err != nil {
+		return nil, err
+	}
+
+	rbi.CodeHome = tempDir
+	logrus.Infof("temp code dir is %s for service %s", rbi.CodeHome, ServiceID)
 	return rbi, nil
 }

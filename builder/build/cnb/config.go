@@ -13,7 +13,7 @@ const (
 	// DefaultCNBBuilder is the default online CNB builder image
 	DefaultCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-builder:0.0.98"
 	// DefaultCNBRunImage is the default online CNB run image
-	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.50"
+	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.73"
 	// DefaultPHPCNBBuilder is the default Jammy Full builder image for PHP CNB builds.
 	DefaultPHPCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/builder-jammy-full:0.3.613"
 	// DefaultPHPCNBRunImage is the default Jammy Full run image for PHP CNB builds.
@@ -22,8 +22,8 @@ const (
 	CNBLifecycleCreatorPath = "/lifecycle/creator"
 
 	// Short image names for constructing internal registry references
-	cnbBuilderShortName = "ubuntu-noble-builder:0.0.72"
-	cnbRunShortName     = "ubuntu-noble-run:0.0.50"
+	cnbBuilderShortName = "ubuntu-noble-builder:0.0.98"
+	cnbRunShortName     = "ubuntu-noble-run:0.0.73"
 	phpBuilderShortName = "builder-jammy-full:0.3.613"
 	phpRunShortName     = "run-jammy-full:0.1.141"
 )

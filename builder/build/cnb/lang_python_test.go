@@ -67,12 +67,8 @@ func TestPythonLanguageConfigAnnotationsAndEnv(t *testing.T) {
 	if err := getLanguageConfig(re).InjectMirrorConfig(re); err != nil {
 		t.Fatalf("InjectMirrorConfig returned error: %v", err)
 	}
-	content, err := os.ReadFile(filepath.Join(dir, "Procfile"))
-	if err != nil {
-		t.Fatalf("read Procfile: %v", err)
-	}
-	if string(content) != "web: gunicorn app:app --bind 0.0.0.0:$PORT\n" {
-		t.Fatalf("unexpected Procfile content %q", string(content))
+	if _, err := os.Stat(filepath.Join(dir, "Procfile")); !os.IsNotExist(err) {
+		t.Fatalf("expected CNB python config to avoid writing source Procfile, got err=%v", err)
 	}
 
 	envs := (&Builder{}).buildEnvVars(re)
@@ -113,11 +109,7 @@ func TestPythonLanguageConfigUsesAutoProcfileWhenUserOverrideMissing(t *testing.
 	if err := getLanguageConfig(re).InjectMirrorConfig(re); err != nil {
 		t.Fatalf("InjectMirrorConfig returned error: %v", err)
 	}
-	content, err := os.ReadFile(filepath.Join(dir, "Procfile"))
-	if err != nil {
-		t.Fatalf("read Procfile: %v", err)
-	}
-	if string(content) != "web: uvicorn main:app --host 0.0.0.0 --port $PORT\n" {
-		t.Fatalf("unexpected Procfile content %q", string(content))
+	if _, err := os.Stat(filepath.Join(dir, "Procfile")); !os.IsNotExist(err) {
+		t.Fatalf("expected CNB python config to avoid writing auto-detected Procfile to source, got err=%v", err)
 	}
 }

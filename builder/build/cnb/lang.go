@@ -1,9 +1,6 @@
 package cnb
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	corev1 "k8s.io/api/core/v1"
@@ -54,9 +51,5 @@ func getLanguageConfig(re *build.Request) LanguageConfig {
 }
 
 func ensureProcfile(re *build.Request) error {
-	procfile := firstNonEmptyEnv(re.BuildEnvs, "BUILD_PROCFILE", "BUILD_AUTO_PROCFILE")
-	if procfile == "" {
-		return nil
-	}
-	return os.WriteFile(filepath.Join(re.SourceDir, "Procfile"), []byte(procfile+"\n"), 0644)
+	return nil
 }

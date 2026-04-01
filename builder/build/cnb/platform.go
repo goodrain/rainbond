@@ -36,13 +36,12 @@ func addDebugAnnotations(re *build.Request, annotations map[string]string) {
 	if lang := cnbDebugLanguage(re); lang != "" {
 		annotations["rainbond.io/cnb-language"] = lang
 	}
-	if procfile := strings.TrimSpace(firstNonEmptyEnv(re.BuildEnvs, "BUILD_PROCFILE", "BUILD_AUTO_PROCFILE")); procfile != "" {
-		source := strings.TrimSpace(re.BuildEnvs["START_COMMAND_SOURCE"])
+	if procfile, source := resolveProcfileBindingContent(re); strings.TrimSpace(procfile) != "" {
 		if source == "" {
 			source = "procfile"
 		}
 		annotations["rainbond.io/cnb-start-command-source"] = source
-		annotations["rainbond.io/cnb-start-command-hint"] = procfile
+		annotations["rainbond.io/cnb-start-command-hint"] = strings.TrimSpace(procfile)
 		return
 	}
 	if startScript := strings.TrimSpace(re.BuildEnvs["CNB_START_SCRIPT"]); startScript != "" {

@@ -16,7 +16,10 @@ func TestGetCNBVersions(t *testing.T) {
 		{"nodejs returns versions", "nodejs", len(cnbNodeVersions)},
 		{"java returns versions", "java", len(cnbJavaVersions)},
 		{"java-maven returns versions", "java-maven", len(cnbJavaVersions)},
+		{"go returns versions", "go", len(cnbGolangVersions)},
+		{"golang returns versions", "golang", len(cnbGolangVersions)},
 		{"python returns versions", "python", len(cnbPythonVersions)},
+		{"Go returns versions", "Go", len(cnbGolangVersions)},
 		{"Node.js returns versions", "Node.js", len(cnbNodeVersions)},
 		{"node returns versions", "node", len(cnbNodeVersions)},
 		{"NODEJS returns versions (case-insensitive)", "NODEJS", len(cnbNodeVersions)},
@@ -58,6 +61,19 @@ func TestGetCNBVersionsPythonOrderingAndDefault(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cnb-version.golang-order-and-default
+func TestGetCNBVersionsGoOrderingAndDefault(t *testing.T) {
+	want := []CNBVersion{
+		{Version: "1.24", Default: false},
+		{Version: "1.25", Default: true},
+	}
+
+	got := GetCNBVersions("go")
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("GetCNBVersions(%q) = %#v, want %#v", "go", got, want)
+	}
+}
+
 // capability_id: rainbond.cnb-version.match-language
 func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 	tests := []struct {
@@ -83,6 +99,30 @@ func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 		// Unsupported language returns empty
 		{"dockerfile alone returns empty", "dockerfile", "20", ""},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MatchCNBVersion(tt.lang, tt.versionSpec)
+			if got != tt.want {
+				t.Errorf("MatchCNBVersion(%q, %q) = %q, want %q", tt.lang, tt.versionSpec, got, tt.want)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.cnb-version.match-golang
+func TestMatchCNBVersion_Golang(t *testing.T) {
+	tests := []struct {
+		name        string
+		lang        string
+		versionSpec string
+		want        string
+	}{
+		{"go empty spec returns default", "go", "", "1.25"},
+		{"go exact version", "go", "1.24", "1.24"},
+		{"Go patch version normalizes to major.minor", "Go", "1.24.7", "1.24"},
+		{"golang toolchain version normalizes to major.minor", "golang", "go1.25.3", "1.25"},
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := MatchCNBVersion(tt.lang, tt.versionSpec)
