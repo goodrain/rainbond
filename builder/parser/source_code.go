@@ -64,9 +64,10 @@ type SourceCodeParse struct {
 	Dependencies bool `json:"dependencies"`
 	Procfile     bool `json:"procfile"`
 
-	isMulti     bool
-	services    []*types.Service
-	runtimeInfo *types.RuntimeInfo // structured detection results
+	isMulti       bool
+	services      []*types.Service
+	runtimeInfo   *types.RuntimeInfo // structured detection results
+	buildStrategy string
 }
 
 // CreateSourceCodeParse create parser
@@ -100,6 +101,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if csi.Branch == "" {
 		csi.Branch = "master"
 	}
+	d.buildStrategy = csi.BuildStrategy
 	if csi.RepositoryURL == "" {
 		d.logger.Error("Git项目仓库地址不能为空", map[string]string{"step": "parse"})
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
@@ -420,18 +422,12 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			Value: "https://goproxy.cn",
 		}
 	}
-	runtimeInfo, err := code.CheckRuntime(buildPath, lang)
+	runtimeInfo, err := code.CheckRuntimeByStrategy(buildPath, lang, csi.BuildStrategy)
 	if err != nil && err == code.ErrRuntimeNotSupport {
 		d.errappend(ErrorAndSolve(FatalError, "代码选择的运行时版本不支持", "请参考文档查看平台各语言支持的Runtime版本"))
 		return d.errors
 	}
-	// Set BUILD_* environment variables for the actual build process
-	for k, v := range runtimeInfo {
-		d.envs["BUILD_"+k] = &types.Env{
-			Name:  "BUILD_" + k,
-			Value: v,
-		}
-	}
+	applyRuntimeBuildEnvs(d.envs, runtimeInfo, csi.BuildStrategy)
 	// Build structured RuntimeInfo for API response
 	d.runtimeInfo = d.buildRuntimeInfo(runtimeInfo, lang)
 
@@ -638,14 +634,39 @@ func (d *SourceCodeParse) GetImage() Image {
 }
 
 // GetArgs 启动参数
-// Nodejs/Static 走 CNB 构建，镜像自带 entrypoint，不需要 slug runner 的 ["start", "web"] 参数。
-// 多语言场景（如 "dockerfile,Node.js"）同样适用。
+// CNB 构建镜像自带 launcher/entrypoint，不需要 slug runner 的 ["start", "web"] 参数。
+// 非 CNB 构建保持历史行为；多语言场景（如 "dockerfile,Node.js"）同样适用。
 func (d *SourceCodeParse) GetArgs() []string {
+	if strings.EqualFold(strings.TrimSpace(d.buildStrategy), "cnb") {
+		return nil
+	}
 	lang := string(d.Lang)
 	if strings.Contains(lang, string(code.Nodejs)) || strings.Contains(lang, string(code.Static)) {
 		return nil
 	}
 	return d.args
+}
+
+func applyRuntimeBuildEnvs(envs map[string]*types.Env, runtimeInfo map[string]string, buildStrategy string) {
+	isCNB := strings.EqualFold(strings.TrimSpace(buildStrategy), "cnb")
+	for k, v := range runtimeInfo {
+		if v == "" {
+			continue
+		}
+		envName := "BUILD_" + k
+		if isCNB {
+			switch k {
+			case "START_CMD":
+				envName = "BUILD_AUTO_PROCFILE"
+			case "START_CMD_SOURCE":
+				envName = "START_COMMAND_SOURCE"
+			}
+		}
+		envs[envName] = &types.Env{
+			Name:  envName,
+			Value: v,
+		}
+	}
 }
 
 // GetMemory 获取内存
