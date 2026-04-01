@@ -97,6 +97,10 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				Value: item.MavenCustomGoals,
 			},
 			{
+				Name:  "BUILD_MAVEN_BUILT_MODULE",
+				Value: item.Name,
+			},
+			{
 				Name:  "BUILD_MAVEN_BUILT_ARTIFACT",
 				Value: item.BuiltArtifact,
 			},

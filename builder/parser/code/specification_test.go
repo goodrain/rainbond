@@ -44,3 +44,30 @@ func TestCheckCodeSpecificationJavaWarHasNoProcfileRequirement(t *testing.T) {
 		t.Fatalf("expected java-war cnb build to pass existing specification, got %#v", spec.Noconform)
 	}
 }
+
+func TestCheckCodeSpecificationPHPCNBSkipsComposerLockRequirement(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte(`{"require":{"php":"^8.4"}}`), 0644); err != nil {
+		t.Fatalf("write composer.json: %v", err)
+	}
+
+	spec := CheckCodeSpecification(dir, PHP, "git", "cnb")
+	if !spec.Conform {
+		t.Fatalf("expected php cnb build to skip composer.lock requirement, got %#v", spec.Noconform)
+	}
+}
+
+func TestCheckCodeSpecificationPHPSlugStillRequiresComposerLock(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte(`{"require":{"php":"^8.4"}}`), 0644); err != nil {
+		t.Fatalf("write composer.json: %v", err)
+	}
+
+	spec := CheckCodeSpecification(dir, PHP, "git", "slug")
+	if spec.Conform {
+		t.Fatal("expected php slug build to keep composer.lock requirement")
+	}
+	if _, ok := spec.Noconform["识别为PHP语言，代码目录未发现composer.lock文件"]; !ok {
+		t.Fatalf("expected composer.lock missing error, got %#v", spec.Noconform)
+	}
+}

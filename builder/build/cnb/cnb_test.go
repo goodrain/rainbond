@@ -1274,6 +1274,61 @@ func TestRunCNBBuildJob(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("java maven derives built module from built artifact in pod", func(t *testing.T) {
+		var capturedPod *corev1.Pod
+		ctrl := &mockJobCtrl{
+			defaultLanguageBuildSetting: "default-maven",
+			execJobFn: func(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+				capturedPod = job
+				go func() {
+					result.In() <- "complete"
+					result.In() <- "logcomplete"
+				}()
+				return nil
+			},
+		}
+		b := newTestBuilder(ctrl)
+		re := &build.Request{
+			ServiceID:     "svc1",
+			DeployVersion: "v1",
+			RbdNamespace:  "ns",
+			Arch:          "amd64",
+			SourceDir:     t.TempDir(),
+			CacheDir:      "/tmp/cache",
+			Lang:          code.JavaMaven,
+			BuildEnvs: map[string]string{
+				"BUILD_MAVEN_BUILT_ARTIFACT": "ruoyi-admin/target/ruoyi-admin.jar",
+			},
+			Logger: logger,
+		}
+
+		err := b.runCNBBuildJob(re, "img:v1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if capturedPod == nil {
+			t.Fatal("pod was not captured")
+		}
+
+		if got := capturedPod.Annotations["cnb-bp-maven-built-module"]; got != "ruoyi-admin" {
+			t.Fatalf("annotation cnb-bp-maven-built-module = %q, want %q", got, "ruoyi-admin")
+		}
+		if got := capturedPod.Annotations["cnb-bp-maven-built-artifact"]; got != "ruoyi-admin/target/ruoyi-admin.jar" {
+			t.Fatalf("annotation cnb-bp-maven-built-artifact = %q, want %q", got, "ruoyi-admin/target/ruoyi-admin.jar")
+		}
+
+		foundEnv := map[string]string{}
+		for _, env := range capturedPod.Spec.Containers[0].Env {
+			foundEnv[env.Name] = env.Value
+		}
+		if got := foundEnv["BP_MAVEN_BUILT_MODULE"]; got != "ruoyi-admin" {
+			t.Fatalf("env BP_MAVEN_BUILT_MODULE = %q, want %q", got, "ruoyi-admin")
+		}
+		if got := foundEnv["BP_MAVEN_BUILT_ARTIFACT"]; got != "ruoyi-admin/target/ruoyi-admin.jar" {
+			t.Fatalf("env BP_MAVEN_BUILT_ARTIFACT = %q, want %q", got, "ruoyi-admin/target/ruoyi-admin.jar")
+		}
+	})
 }
 
 // --- config.go: offline mode ---
