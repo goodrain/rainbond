@@ -1,6 +1,9 @@
 package code
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // capability_id: rainbond.cnb-version.resolve-supported
 func TestGetCNBVersions(t *testing.T) {
@@ -13,16 +16,17 @@ func TestGetCNBVersions(t *testing.T) {
 		{"nodejs returns versions", "nodejs", len(cnbNodeVersions)},
 		{"java returns versions", "java", len(cnbJavaVersions)},
 		{"java-maven returns versions", "java-maven", len(cnbJavaVersions)},
+		{"python returns versions", "python", len(cnbPythonVersions)},
 		{"Node.js returns versions", "Node.js", len(cnbNodeVersions)},
 		{"node returns versions", "node", len(cnbNodeVersions)},
 		{"NODEJS returns versions (case-insensitive)", "NODEJS", len(cnbNodeVersions)},
-		{"python returns empty", "python", 0},
 		{"dockerfile returns empty", "dockerfile", 0},
 		{"empty string returns empty", "", 0},
 		// Composite languages (comma-separated)
 		{"dockerfile,Node.js returns versions", "dockerfile,Node.js", len(cnbNodeVersions)},
 		{"Node.js,dockerfile returns versions", "Node.js,dockerfile", len(cnbNodeVersions)},
 		{"dockerfile,nodejs returns versions", "dockerfile,nodejs", len(cnbNodeVersions)},
+		{"dockerfile,python returns versions", "dockerfile,python", len(cnbPythonVersions)},
 		{"dockerfile,static returns empty", "dockerfile,static", 0},
 		{"Dockerfile,Node.js (mixed case)", "Dockerfile,Node.js", len(cnbNodeVersions)},
 		// Whitespace around parts
@@ -35,6 +39,22 @@ func TestGetCNBVersions(t *testing.T) {
 				t.Errorf("GetCNBVersions(%q) returned %d versions, want %d", tt.lang, len(got), tt.wantCount)
 			}
 		})
+	}
+}
+
+// capability_id: rainbond.cnb-version.python-order-and-default
+func TestGetCNBVersionsPythonOrderingAndDefault(t *testing.T) {
+	want := []CNBVersion{
+		{Version: "3.10", Default: false},
+		{Version: "3.11", Default: false},
+		{Version: "3.12", Default: false},
+		{Version: "3.13", Default: false},
+		{Version: "3.14", Default: true},
+	}
+
+	got := GetCNBVersions("python")
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("GetCNBVersions(%q) = %#v, want %#v", "python", got, want)
 	}
 }
 
@@ -57,8 +77,10 @@ func TestMatchCNBVersion_CompositeLanguage(t *testing.T) {
 		{"Node.js with >=22", "Node.js", ">=22", "22.22.0"},
 		{"java with exact major 17", "java", "17", "17"},
 		{"java-maven empty spec returns default", "java-maven", "", "17"},
+		{"python with exact version", "python", "3.11", "3.11"},
+		{"python with fuzzy 3.12.x", "python", "3.12.x", "3.12"},
+		{"python empty spec returns default", "python", "", "3.14"},
 		// Unsupported language returns empty
-		{"python returns empty", "python", "3.11", ""},
 		{"dockerfile alone returns empty", "dockerfile", "20", ""},
 	}
 	for _, tt := range tests {

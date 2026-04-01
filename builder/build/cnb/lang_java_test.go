@@ -283,6 +283,36 @@ func TestJavaLanguageConfigSkipsAmbiguousMavenModules(t *testing.T) {
 	}
 }
 
+func TestJavaLanguageConfigDerivesModuleFromBuiltArtifact(t *testing.T) {
+	re := &build.Request{
+		Lang:      code.JavaMaven,
+		SourceDir: t.TempDir(),
+		BuildEnvs: map[string]string{
+			"BUILD_MAVEN_BUILT_ARTIFACT": "ruoyi-admin/target/ruoyi-admin.jar",
+		},
+	}
+
+	annotations := (&Builder{}).buildPlatformAnnotations(re)
+	if annotations["cnb-bp-maven-built-module"] != "ruoyi-admin" {
+		t.Fatalf("expected derived maven module ruoyi-admin, got %q", annotations["cnb-bp-maven-built-module"])
+	}
+	if annotations["cnb-bp-maven-built-artifact"] != "ruoyi-admin/target/ruoyi-admin.jar" {
+		t.Fatalf("expected built artifact annotation to remain set, got %q", annotations["cnb-bp-maven-built-artifact"])
+	}
+
+	envs := (&Builder{}).buildEnvVars(re)
+	found := map[string]string{}
+	for _, env := range envs {
+		found[env.Name] = env.Value
+	}
+	if found["BP_MAVEN_BUILT_MODULE"] != "ruoyi-admin" {
+		t.Fatalf("expected derived BP_MAVEN_BUILT_MODULE ruoyi-admin, got %q", found["BP_MAVEN_BUILT_MODULE"])
+	}
+	if found["BP_MAVEN_BUILT_ARTIFACT"] != "ruoyi-admin/target/ruoyi-admin.jar" {
+		t.Fatalf("expected BP_MAVEN_BUILT_ARTIFACT to remain set, got %q", found["BP_MAVEN_BUILT_ARTIFACT"])
+	}
+}
+
 func TestGradleLanguageConfigAnnotations(t *testing.T) {
 	re := &build.Request{
 		Lang:      code.Gradle,

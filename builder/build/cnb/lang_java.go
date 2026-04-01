@@ -1,6 +1,7 @@
 package cnb
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -62,6 +63,9 @@ func (j *javaConfig) CustomOrder(re *build.Request) []orderBuildpack {
 func resolveMavenBuiltTarget(re *build.Request) (string, string) {
 	explicitModule := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILT_MODULE", "BUILD_MAVEN_BUILT_MODULE")
 	explicitArtifact := firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_BUILT_ARTIFACT", "BUILD_MAVEN_BUILT_ARTIFACT")
+	if explicitModule == "" && explicitArtifact != "" {
+		explicitModule = deriveMavenBuiltModule(explicitArtifact)
+	}
 	if explicitModule != "" || explicitArtifact != "" {
 		return explicitModule, explicitArtifact
 	}
@@ -86,4 +90,27 @@ func resolveMavenBuiltTarget(re *build.Request) (string, string) {
 		builtArtifact = services[0].Envs["BUILD_MAVEN_BUILT_ARTIFACT"].Value
 	}
 	return moduleName, strings.TrimSpace(builtArtifact)
+}
+
+func deriveMavenBuiltModule(artifact string) string {
+	artifact = strings.TrimSpace(strings.ReplaceAll(artifact, "\\", "/"))
+	if artifact == "" {
+		return ""
+	}
+	artifact = path.Clean(artifact)
+	if artifact == "." || artifact == "/" {
+		return ""
+	}
+	parts := strings.Split(artifact, "/")
+	for idx, part := range parts {
+		if part != "target" || idx == 0 {
+			continue
+		}
+		module := path.Clean(strings.Join(parts[:idx], "/"))
+		if module == "." || module == "/" {
+			return ""
+		}
+		return module
+	}
+	return ""
 }

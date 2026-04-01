@@ -128,6 +128,19 @@ func TestMaven_ListModules(t *testing.T) {
 		if svc.Envs["BUILD_MAVEN_CUSTOM_GOALS"] == nil {
 			t.Fatalf("module %s missing BUILD_MAVEN_CUSTOM_GOALS", svc.Name)
 		}
+		if svc.Envs["BUILD_MAVEN_BUILT_MODULE"] == nil {
+			t.Fatalf("module %s missing BUILD_MAVEN_BUILT_MODULE", svc.Name)
+		}
+		if svc.Envs["BUILD_MAVEN_BUILT_MODULE"].Value != svc.Name {
+			t.Fatalf("module %s BUILD_MAVEN_BUILT_MODULE = %q, want %q", svc.Name, svc.Envs["BUILD_MAVEN_BUILT_MODULE"].Value, svc.Name)
+		}
+		if svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"] == nil {
+			t.Fatalf("module %s missing BUILD_MAVEN_BUILT_ARTIFACT", svc.Name)
+		}
+		wantArtifact := svc.Name + "/target/" + svc.Name + "-*." + packaging
+		if got := svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"].Value; got != wantArtifact {
+			t.Fatalf("module %s BUILD_MAVEN_BUILT_ARTIFACT = %q, want %q", svc.Name, got, wantArtifact)
+		}
 		if svc.Packaging == "war" && svc.Envs["BUILD_PROCFILE"] != nil && svc.Envs["BUILD_PROCFILE"].Value == "" {
 			t.Fatalf("module %s missing BUILD_PROCFILE value", svc.Name)
 		}

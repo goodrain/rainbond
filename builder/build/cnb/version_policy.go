@@ -21,7 +21,7 @@ var versionPolicyRules = map[code.Lang]versionPolicyRule{
 	code.JaveWar:   {policyKey: "java", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_JVM_VERSION"}, bpKey: "BP_JVM_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_JVM_VERSION"}, ossDefault: "17"},
 	code.JavaJar:   {policyKey: "java", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_JVM_VERSION"}, bpKey: "BP_JVM_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_JVM_VERSION"}, ossDefault: "17"},
 	code.Gradle:    {policyKey: "java", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_JVM_VERSION"}, bpKey: "BP_JVM_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_JVM_VERSION"}, ossDefault: "17"},
-	code.Python:    {policyKey: "python", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_CPYTHON_VERSION"}, bpKey: "BP_CPYTHON_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_CPYTHON_VERSION"}, ossDefault: "3.11"},
+	code.Python:    {policyKey: "python", explicitKeys: []string{"BUILD_RUNTIMES", "RUNTIMES", "BP_CPYTHON_VERSION"}, bpKey: "BP_CPYTHON_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_CPYTHON_VERSION"}, ossDefault: "3.14"},
 	code.Golang:    {policyKey: "golang", explicitKeys: []string{"BP_GO_VERSION", "BUILD_GOVERSION", "GOVERSION"}, bpKey: "BP_GO_VERSION", setKeys: []string{"BUILD_GOVERSION", "BP_GO_VERSION"}, ossDefault: "1.25"},
 	code.NetCore:   {policyKey: "dotnet", explicitKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, bpKey: "BP_DOTNET_FRAMEWORK_VERSION", setKeys: []string{"BP_DOTNET_FRAMEWORK_VERSION"}, ossDefault: "8.0"},
 	code.PHP:       {policyKey: "php", explicitKeys: []string{"BP_PHP_VERSION", "BUILD_RUNTIMES", "RUNTIMES"}, bpKey: "BP_PHP_VERSION", setKeys: []string{"BUILD_RUNTIMES", "BP_PHP_VERSION"}, ossDefault: "8.4"},
