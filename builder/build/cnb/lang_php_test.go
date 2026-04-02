@@ -63,6 +63,24 @@ func TestPHPLanguageConfigAnnotations(t *testing.T) {
 	}
 }
 
+func TestPHPLanguageConfigDisablesHTTPSRedirectByDefault(t *testing.T) {
+	re := &build.Request{
+		Lang:          code.PHP,
+		BuildStrategy: "cnb",
+		SourceDir:     t.TempDir(),
+		BuildEnvs:     map[string]string{},
+	}
+
+	if err := validateSupportedBuildParams(re); err != nil {
+		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
+	}
+
+	annotations := (&Builder{}).buildPlatformAnnotations(re)
+	if got := annotations["cnb-bp-php-enable-https-redirect"]; got != "false" {
+		t.Fatalf("expected cnb-bp-php-enable-https-redirect=false, got %q", got)
+	}
+}
+
 func TestPHPBuilderRouting(t *testing.T) {
 	if got := GetCNBBuilderImageForLanguage(code.PHP); got == DefaultCNBBuilder {
 		t.Fatalf("expected php builder image to differ from noble default, got %q", got)
