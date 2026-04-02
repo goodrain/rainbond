@@ -125,6 +125,12 @@ func validateSupportedBuildParams(re *build.Request) error {
 			re.BuildEnvs["BP_PHP_WEB_DIR"] = webDir
 			re.BuildEnvs["BUILD_PHP_WEB_DIR"] = webDir
 		}
+		redirect := firstNonEmptyEnv(re.BuildEnvs, "BP_PHP_ENABLE_HTTPS_REDIRECT", "BUILD_PHP_ENABLE_HTTPS_REDIRECT")
+		if redirect == "" {
+			redirect = "false"
+		}
+		re.BuildEnvs["BP_PHP_ENABLE_HTTPS_REDIRECT"] = redirect
+		re.BuildEnvs["BUILD_PHP_ENABLE_HTTPS_REDIRECT"] = redirect
 	}
 
 	return nil
