@@ -769,16 +769,6 @@ func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request)
 	return
 }
 
-// ListCNBVersions returns the supported CNB build versions for a given language.
-func (c *ClusterController) ListCNBVersions(w http.ResponseWriter, r *http.Request) {
-	lang := r.URL.Query().Get("lang")
-	if lang == "" {
-		lang = "nodejs"
-	}
-	versions := code.GetCNBVersions(lang)
-	httputil.ReturnSuccess(r, w, versions)
-}
-
 // ListCNBFrameworks returns the supported CNB build frameworks for a given language.
 func (c *ClusterController) ListCNBFrameworks(w http.ResponseWriter, r *http.Request) {
 	lang := r.URL.Query().Get("lang")

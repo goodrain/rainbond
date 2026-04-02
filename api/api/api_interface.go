@@ -60,7 +60,6 @@ type ClusterInterface interface {
 	UpdateLangVersion(w http.ResponseWriter, r *http.Request)
 	CreateLangVersion(w http.ResponseWriter, r *http.Request)
 	DeleteLangVersion(w http.ResponseWriter, r *http.Request)
-	ListCNBVersions(w http.ResponseWriter, r *http.Request)
 	ListCNBFrameworks(w http.ResponseWriter, r *http.Request)
 	Upgrade(w http.ResponseWriter, r *http.Request)
 	ListUpgradeStatus(w http.ResponseWriter, r *http.Request)
