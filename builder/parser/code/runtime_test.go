@@ -63,6 +63,51 @@ func TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson(t *testing.
 	}
 }
 
+// capability_id: rainbond.runtime.node-cnb-framework-detection
+func TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines(t *testing.T) {
+	dir := t.TempDir()
+	packageJSON := []byte(`{
+		"name": "demo-next-app",
+		"dependencies": {
+			"next": "14.2.3",
+			"react": "18.2.0"
+		}
+	}` + "\n")
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), packageJSON, 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	info, err := CheckRuntimeByStrategy(dir, Nodejs, "cnb")
+	if err != nil {
+		t.Fatalf("CheckRuntimeByStrategy() error = %v", err)
+	}
+
+	if info["RUNTIMES"] != MatchCNBVersion("nodejs", "") {
+		t.Fatalf("RUNTIMES = %q, want %q", info["RUNTIMES"], MatchCNBVersion("nodejs", ""))
+	}
+	if info["PACKAGE_TOOL"] != string(PackageManagerNPM) {
+		t.Fatalf("PACKAGE_TOOL = %q, want %q", info["PACKAGE_TOOL"], PackageManagerNPM)
+	}
+	if info["FRAMEWORK"] != "nextjs" {
+		t.Fatalf("FRAMEWORK = %q, want %q", info["FRAMEWORK"], "nextjs")
+	}
+	if info["FRAMEWORK_DISPLAY_NAME"] != "Next.js" {
+		t.Fatalf("FRAMEWORK_DISPLAY_NAME = %q, want %q", info["FRAMEWORK_DISPLAY_NAME"], "Next.js")
+	}
+	if info["RUNTIME_TYPE"] != "dynamic" {
+		t.Fatalf("RUNTIME_TYPE = %q, want %q", info["RUNTIME_TYPE"], "dynamic")
+	}
+	if info["OUTPUT_DIR"] != ".next" {
+		t.Fatalf("OUTPUT_DIR = %q, want %q", info["OUTPUT_DIR"], ".next")
+	}
+	if info["BUILD_CMD"] != "build" {
+		t.Fatalf("BUILD_CMD = %q, want %q", info["BUILD_CMD"], "build")
+	}
+	if info["START_CMD"] != "start" {
+		t.Fatalf("START_CMD = %q, want %q", info["START_CMD"], "start")
+	}
+}
+
 // capability_id: rainbond.runtime.composite-nodejs
 func TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime(t *testing.T) {
 	dir := t.TempDir()

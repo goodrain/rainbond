@@ -251,25 +251,28 @@ func readNodeRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
 	if err != nil {
 		return runtimeInfo, nil
 	}
-	if json.Get("engines") == nil {
-		return runtimeInfo, nil
+	if json.Get("engines") != nil {
+		if v := json.Get("engines").Get("node"); v != nil {
+			nodeVersion, _ := v.String()
+			nodeVersion = strings.TrimSpace(nodeVersion)
+			if nodeVersion != "" {
+				if !strings.ContainsAny(nodeVersion, "0123456789") {
+					return nil, ErrRuntimeNotSupport
+				}
+				runtimeInfo["RUNTIMES"] = MatchCNBVersion("nodejs", nodeVersion)
+				runtimeInfo["NODE_VERSION_ORIGINAL"] = nodeVersion
+				runtimeInfo["NODE_VERSION_SOURCE"] = "engines.node"
+			}
+		}
 	}
-	v := json.Get("engines").Get("node")
-	if v == nil {
-		return runtimeInfo, nil
+	if runtimeInfo["RUNTIMES"] == "" {
+		runtimeInfo["RUNTIMES"] = MatchCNBVersion("nodejs", "")
+		runtimeInfo["NODE_VERSION_SOURCE"] = "default"
 	}
-	nodeVersion, _ := v.String()
-	nodeVersion = strings.TrimSpace(nodeVersion)
-	if nodeVersion == "" {
-		return runtimeInfo, nil
-	}
-	if !strings.ContainsAny(nodeVersion, "0123456789") {
-		return nil, ErrRuntimeNotSupport
-	}
-	runtimeInfo["RUNTIMES"] = MatchCNBVersion("nodejs", nodeVersion)
 	if runtimeInfo["RUNTIMES"] == "" {
 		return nil, ErrRuntimeNotSupport
 	}
+	populateNodeRuntimeMetadata(buildPath, runtimeInfo)
 	return runtimeInfo, nil
 }
 
@@ -497,6 +500,12 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 		runtimeInfo["NODE_VERSION_SOURCE"] = "default"
 	}
 
+	populateNodeRuntimeMetadata(buildPath, runtimeInfo)
+
+	return runtimeInfo, nil
+}
+
+func populateNodeRuntimeMetadata(buildPath string, runtimeInfo map[string]string) {
 	// Detect package manager (replaces hardcoded npm)
 	pmInfo := DetectPackageManager(buildPath)
 	runtimeInfo["PACKAGE_TOOL"] = string(pmInfo.Manager)
@@ -537,8 +546,6 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	configFiles := DetectConfigFiles(buildPath)
 	runtimeInfo["HAS_NPMRC"] = boolToString(configFiles.HasNpmrc)
 	runtimeInfo["HAS_YARNRC"] = boolToString(configFiles.HasYarnrc)
-
-	return runtimeInfo, nil
 }
 
 // boolToString converts a boolean to "true" or "false" string
