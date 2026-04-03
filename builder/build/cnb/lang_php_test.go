@@ -12,7 +12,7 @@ func TestPHPLanguageConfigAnnotations(t *testing.T) {
 		Lang:      code.PHP,
 		SourceDir: t.TempDir(),
 		BuildEnvs: map[string]string{
-			"BP_PHP_VERSION":              "8.4",
+			"BP_PHP_VERSION":              "8.3",
 			"BUILD_RUNTIMES_SERVER":       "nginx",
 			"BP_COMPOSER_VERSION":         "2.7.9",
 			"BP_COMPOSER_INSTALL_OPTIONS": "--no-dev",
@@ -28,8 +28,8 @@ func TestPHPLanguageConfigAnnotations(t *testing.T) {
 	}
 
 	annotations := (&Builder{}).buildPlatformAnnotations(re)
-	if annotations["cnb-bp-php-version"] != "8.4" {
-		t.Fatalf("expected cnb-bp-php-version=8.4, got %q", annotations["cnb-bp-php-version"])
+	if annotations["cnb-bp-php-version"] != "8.3" {
+		t.Fatalf("expected cnb-bp-php-version=8.3, got %q", annotations["cnb-bp-php-version"])
 	}
 	if annotations["cnb-bp-php-server"] != "nginx" {
 		t.Fatalf("expected cnb-bp-php-server=nginx, got %q", annotations["cnb-bp-php-server"])

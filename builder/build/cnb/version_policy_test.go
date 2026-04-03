@@ -219,7 +219,7 @@ func TestResolvePHPOssFallbackVersionWithoutPolicy(t *testing.T) {
 	if err := applyVersionPolicy(re); err != nil {
 		t.Fatalf("applyVersionPolicy returned error: %v", err)
 	}
-	if got := re.BuildEnvs["BP_PHP_VERSION"]; got != "8.4" {
-		t.Fatalf("expected BP_PHP_VERSION=8.4, got %q", got)
+	if got := re.BuildEnvs["BP_PHP_VERSION"]; got != "8.3" {
+		t.Fatalf("expected BP_PHP_VERSION=8.3, got %q", got)
 	}
 }
