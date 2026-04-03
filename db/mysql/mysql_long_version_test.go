@@ -93,7 +93,8 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 	foundDotnetDefault := false
 	foundDotnetLatest := false
 	foundPHPDefault := false
-	foundPHPLatest := false
+	foundPHPStable := false
+	foundUnsupportedPHP := false
 	for _, version := range versions {
 		if version.BuildStrategy != model.LongVersionBuildStrategyCNB {
 			t.Fatalf("expected cnb build strategy for %s-%s, got %q", version.Lang, version.Version, version.BuildStrategy)
@@ -125,11 +126,14 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 		if version.Lang == "dotnet" && version.Version == "10.0" {
 			foundDotnetLatest = true
 		}
-		if version.Lang == "php" && version.Version == "8.4" && version.FirstChoice {
+		if version.Lang == "php" && version.Version == "8.3" && version.FirstChoice {
 			foundPHPDefault = true
 		}
-		if version.Lang == "php" && version.Version == "8.5" {
-			foundPHPLatest = true
+		if version.Lang == "php" && version.Version == "8.2" {
+			foundPHPStable = true
+		}
+		if version.Lang == "php" && (version.Version == "8.4" || version.Version == "8.5") {
+			foundUnsupportedPHP = true
 		}
 	}
 	if !foundJava {
@@ -157,10 +161,13 @@ func TestCNBSeedVersionsUseCNBStrategy(t *testing.T) {
 		t.Fatal("expected Dotnet CNB seed version 10.0")
 	}
 	if !foundPHPDefault {
-		t.Fatal("expected PHP CNB default seed version 8.4")
+		t.Fatal("expected PHP CNB default seed version 8.3")
 	}
-	if !foundPHPLatest {
-		t.Fatal("expected PHP CNB seed version 8.5")
+	if !foundPHPStable {
+		t.Fatal("expected PHP CNB seed version 8.2")
+	}
+	if foundUnsupportedPHP {
+		t.Fatal("expected unsupported PHP CNB seed versions 8.4/8.5 to be removed")
 	}
 }
 
