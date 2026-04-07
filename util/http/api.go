@@ -55,6 +55,11 @@ func (e ErrBadRequest) Error() string {
 	return e.err.Error()
 }
 
+// NewErrBadRequest wraps an error as a 400 Bad Request response error.
+func NewErrBadRequest(err error) ErrBadRequest {
+	return ErrBadRequest{err: err}
+}
+
 // Result represents a response for restful api.
 type Result struct {
 	Code int    `json:"code"`

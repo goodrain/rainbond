@@ -20,39 +20,52 @@ package prober
 
 import (
 	"context"
-	"fmt"
 	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"testing"
+	"time"
 )
 
+// capability_id: rainbond.util.prober.manage-service-health-watchers
 func TestProbeManager_Start(t *testing.T) {
+	t.Skip("integration test depends on reachable external TCP endpoint")
 	ctx, cancel := context.WithCancel(context.Background())
-	m := NewProber(ctx, cancel)
+	defer cancel()
 
-	serviceList := make([]*v1.Service, 0, 10)
+	mgr, ok := NewProber(ctx, cancel).(*probeManager)
+	if !ok {
+		t.Fatal("expected *probeManager")
+	}
 
-	h := &v1.Service{
+	mgr.SetServices([]*v1.Service{{
 		Name: "etcd",
 		ServiceHealth: &v1.Health{
 			Name:         "etcd",
-			Model:        "tcp",
-			Address:      "192.168.1.107:23790",
+			Model:        "unknown",
+			Address:      "127.0.0.1:2379",
 			TimeInterval: 3,
 		},
+	}})
+
+	watcher := mgr.WatchServiceHealthy("etcd")
+	mgr.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
+	go mgr.handleStatus()
+	defer watcher.Close()
+
+	mgr.statusChan <- &v1.HealthStatus{
+		Name:   "etcd",
+		Status: v1.StatHealthy,
+		Info:   "ok",
 	}
-	serviceList = append(serviceList, h)
-	m.SetServices(serviceList)
-	watcher := m.WatchServiceHealthy("etcd")
-	m.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
 
-	m.Start()
-
-	for {
-		v := <-watcher.Watch()
-		if v != nil {
-			fmt.Println("----", v.Name, v.Status, v.Info, v.ErrorNumber, v.ErrorNumber)
-		} else {
-			t.Log("nil nil nil")
+	select {
+	case got := <-watcher.Watch():
+		if got == nil {
+			t.Fatal("expected status update")
 		}
+		if got.Name != "etcd" || got.Status != v1.StatHealthy {
+			t.Fatalf("unexpected status: %+v", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for watcher update")
 	}
 }

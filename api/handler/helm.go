@@ -174,50 +174,76 @@ func (h *HelmAction) GetYamlByChart(chartPath, namespace, name, version string, 
 	return helmAppYaml, nil
 }
 
-// GetUploadChartInformation -
-func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmChartInformation, error) {
+func prepareUploadChartPath(eventID string) (string, error) {
 	basePath := path.Join("/grdata/package_build/temp/events", eventID)
 	files, err := filepath.Glob(path.Join(basePath, "*"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if len(files) == 0 {
 		err = storage.Default().StorageCli.DownloadDirToDir(basePath, basePath)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		files, err = filepath.Glob(path.Join(basePath, "*"))
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 	if len(files) != 1 {
-		return nil, fmt.Errorf("number of files is incorrect, make sure there is only one compressed package")
+		return "", fmt.Errorf("number of files is incorrect, make sure there is only one compressed package")
 	}
 	if strings.HasSuffix(files[0], ".tgz") {
 		err = rutil.UnTar(files[0], basePath, true)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		err = os.RemoveAll(files[0])
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 	files, err = filepath.Glob(path.Join(basePath, "*"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if len(files) != 1 {
-		return nil, fmt.Errorf("number of files is incorrect, make sure there is only one dir")
+		return "", fmt.Errorf("number of files is incorrect, make sure there is only one dir")
 	}
 	chartPath := files[0]
 	s, err := os.Stat(chartPath)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if !s.IsDir() {
-		return nil, fmt.Errorf("upload file not is tgz")
+		return "", fmt.Errorf("upload file not is tgz")
+	}
+	return chartPath, nil
+}
+
+// GetUploadChartPathAndVersion returns the prepared upload chart path and metadata version.
+func GetUploadChartPathAndVersion(eventID string) (string, string, error) {
+	chartPath, err := prepareUploadChartPath(eventID)
+	if err != nil {
+		return "", "", err
+	}
+	chartLoaded, err := loader.Load(chartPath)
+	if err != nil {
+		logrus.Errorf("load upload helm chart failure: %v", err)
+		return "", "", errors.Wrap(err, "load upload helm chart failure")
+	}
+	version := ""
+	if chartLoaded != nil && chartLoaded.Metadata != nil {
+		version = chartLoaded.Metadata.Version
+	}
+	return chartPath, version, nil
+}
+
+// GetUploadChartInformation -
+func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmChartInformation, error) {
+	chartPath, version, err := GetUploadChartPathAndVersion(eventID)
+	if err != nil {
+		return nil, err
 	}
 	chart, err := loader.Load(chartPath)
 	if err != nil {
@@ -228,7 +254,7 @@ func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmC
 	if chart != nil && chart.Metadata != nil {
 		chartInformation = append(chartInformation, apimodel.HelmChartInformation{
 			Name:     chart.Metadata.Name,
-			Version:  chart.Metadata.Version,
+			Version:  version,
 			Keywords: chart.Metadata.Keywords,
 			Pic:      chart.Metadata.Icon,
 			Abstract: chart.Metadata.Description,
@@ -239,16 +265,17 @@ func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmC
 
 // CheckUploadChart -
 func (h *HelmAction) CheckUploadChart(name, version, namespace, eventID string) error {
-	basePath := path.Join("/grdata/package_build/temp/events", eventID)
-	files, err := filepath.Glob(path.Join(basePath, "*"))
+	chartPath, chartVersion, err := GetUploadChartPathAndVersion(eventID)
 	if err != nil {
 		return err
+	}
+	if version == "" {
+		version = chartVersion
 	}
 	helmCmd, err := helm.NewHelm(namespace, repoFile, repoCache)
 	if err != nil {
 		return err
 	}
-	chartPath := files[0]
 	_, err = helmCmd.Install(chartPath, name, "", version, []string{})
 	if err != nil {
 		return err
@@ -258,16 +285,17 @@ func (h *HelmAction) CheckUploadChart(name, version, namespace, eventID string) 
 
 // GetUploadChartResource -
 func (h *HelmAction) GetUploadChartResource(name, version, namespace, eventID string, overrides []string) (interface{}, error) {
-	basePath := path.Join("/grdata/package_build/temp/events", eventID)
-	files, err := filepath.Glob(path.Join(basePath, "*"))
+	chartPath, chartVersion, err := GetUploadChartPathAndVersion(eventID)
 	if err != nil {
 		return nil, err
+	}
+	if version == "" {
+		version = chartVersion
 	}
 	helmCmd, err := helm.NewHelm(namespace, repoFile, repoCache)
 	if err != nil {
 		return nil, err
 	}
-	chartPath := files[0]
 	release, err := helmCmd.Install(chartPath, name, "", version, overrides)
 	if err != nil {
 		return nil, err
@@ -279,17 +307,16 @@ func (h *HelmAction) GetUploadChartResource(name, version, namespace, eventID st
 
 // GetUploadChartValue -
 func (h *HelmAction) GetUploadChartValue(eventID string) (*apimodel.UploadChartValueYaml, error) {
-	basePath := path.Join("/grdata/package_build/temp/events", eventID)
-	files, err := filepath.Glob(path.Join(basePath, "*"))
+	chartPath, _, err := GetUploadChartPathAndVersion(eventID)
 	if err != nil {
 		return nil, err
 	}
-	valuePath := path.Join(files[0], "values.yaml")
+	valuePath := path.Join(chartPath, "values.yaml")
 	valueYaml, err := os.ReadFile(valuePath)
 	if err != nil {
 		return nil, err
 	}
-	readmePath := path.Join(files[0], "README.md")
+	readmePath := path.Join(chartPath, "README.md")
 	readmeYaml, err := os.ReadFile(readmePath)
 	if err != nil {
 		return &apimodel.UploadChartValueYaml{

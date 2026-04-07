@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 )
 
+// capability_id: rainbond.compose.config-volume-file-content
 func TestVolumeFileContent(t *testing.T) {
 	// Test that FileContent is set to empty string for config files
 	volume := &types.Volume{

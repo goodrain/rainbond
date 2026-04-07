@@ -305,7 +305,6 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
 	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
 	r.Delete("/langVersion", controller.GetManager().DeleteLangVersion)
-	r.Get("/cnb/versions", controller.GetManager().ListCNBVersions)
 	r.Get("/cnb/frameworks", controller.GetManager().ListCNBFrameworks)
 	r.Post("/over_score", controller.GetManager().SetOverScore)
 	r.Get("/kubeblocks/supported-databases", controller.GetManager().GetSupportedDatabases)
@@ -326,6 +325,21 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().GetClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/parameters", controller.GetManager().ChangeClusterParameters)
 	r.Post("/kubeblocks/clusters/{service_id}/restores", controller.GetManager().RestoreClusterFromBackup)
+	// StorageClasses
+	r.Get("/storageclasses", controller.GetStorageController().ListStorageClasses)
+	r.Post("/storageclasses", controller.GetStorageController().CreateStorageClass)
+	r.Delete("/storageclasses/{name}", controller.GetStorageController().DeleteStorageClass)
+	// PersistentVolumes
+	r.Get("/persistentvolumes", controller.GetStorageController().ListPersistentVolumes)
+	r.Post("/persistentvolumes", controller.GetStorageController().CreatePersistentVolume)
+	r.Delete("/persistentvolumes/{name}", controller.GetStorageController().DeletePersistentVolume)
+	// Platform Resources (cluster-scoped generic)
+	r.Get("/platform-resources/types", controller.GetClusterResourceController().ListResourceTypes)
+	r.Get("/platform-resources", controller.GetClusterResourceController().ListResources)
+	r.Post("/platform-resources", controller.GetClusterResourceController().CreateResource)
+	r.Get("/platform-resources/{name}", controller.GetClusterResourceController().GetResource)
+	r.Put("/platform-resources/{name}", controller.GetClusterResourceController().UpdateResource)
+	r.Delete("/platform-resources/{name}", controller.GetClusterResourceController().DeleteResource)
 	return r
 }
 
@@ -441,6 +455,28 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/registry/auth", controller.GetManager().RegistryAuthSecret)
 	r.Put("/registry/auth", controller.GetManager().RegistryAuthSecret)
 	r.Delete("/registry/auth", controller.GetManager().RegistryAuthSecret)
+
+	// Helm releases (direct cluster install)
+	r.Get("/helm/releases", controller.GetHelmReleaseController().ListReleases)
+	r.Post("/helm/releases", controller.GetHelmReleaseController().InstallRelease)
+	r.Post("/helm/chart-preview", controller.GetHelmReleaseController().PreviewChart)
+	r.Get("/helm/releases/{release_name}", controller.GetHelmReleaseController().GetReleaseDetail)
+	r.Get("/helm/releases/{release_name}/history", controller.GetHelmReleaseController().GetReleaseHistory)
+	r.Put("/helm/releases/{release_name}", controller.GetHelmReleaseController().UpgradeRelease)
+	r.Post("/helm/releases/{release_name}/rollback", controller.GetHelmReleaseController().RollbackRelease)
+	r.Delete("/helm/releases/{release_name}", controller.GetHelmReleaseController().UninstallRelease)
+
+	// Namespace-scoped resources
+	r.Get("/ns-resource-types", controller.GetNsResourceController().ListNsResourceTypes)
+	r.Get("/ns-resources", controller.GetNsResourceController().ListNsResources)
+	r.Post("/ns-resources", controller.GetNsResourceController().CreateNsResource)
+	r.Get("/ns-resources/{name}", controller.GetNsResourceController().GetNsResource)
+	r.Put("/ns-resources/{name}", controller.GetNsResourceController().UpdateNsResource)
+	r.Delete("/ns-resources/{name}", controller.GetNsResourceController().DeleteNsResource)
+	r.Get("/resource-center/workloads/{resource}/{name}", controller.GetResourceCenterController().GetWorkloadDetail)
+	r.Get("/resource-center/pods/{pod_name}", controller.GetResourceCenterController().GetPodDetail)
+	r.Get("/resource-center/events", controller.GetResourceCenterController().ListEvents)
+	r.Get("/resource-center/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 
 	return r
 }

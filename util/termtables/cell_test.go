@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.util.termtables.render-text-table
 func TestCellRenderString(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, "foobar", nil)
@@ -16,6 +17,7 @@ func TestCellRenderString(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-bool-cell
 func TestCellRenderBool(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, true, nil)
@@ -26,6 +28,7 @@ func TestCellRenderBool(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-integer-cell
 func TestCellRenderInteger(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, 12345, nil)
@@ -36,6 +39,7 @@ func TestCellRenderInteger(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-float-cell
 func TestCellRenderFloat(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, 12.345, nil)
@@ -46,6 +50,7 @@ func TestCellRenderFloat(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-cell-padding
 func TestCellRenderPadding(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{PaddingLeft: 3, PaddingRight: 4}, cellWidths: map[int]int{}}
 
@@ -65,6 +70,7 @@ func (f *foo) String() string {
 	return f.v
 }
 
+// capability_id: rainbond.util.termtables.render-stringer-cell
 func TestCellRenderStringerStruct(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, &foo{v: "bar"}, nil)
@@ -77,6 +83,7 @@ func TestCellRenderStringerStruct(t *testing.T) {
 
 type fooString string
 
+// capability_id: rainbond.util.termtables.render-generic-cell
 func TestCellRenderGeneric(t *testing.T) {
 	style := &renderStyle{TableStyle: TableStyle{}, cellWidths: map[int]int{}}
 	cell := createCell(0, fooString("baz"), nil)
@@ -87,6 +94,7 @@ func TestCellRenderGeneric(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.strip-color-codes
 func TestFilterColorCodes(t *testing.T) {
 	tests := []struct {
 		in  string

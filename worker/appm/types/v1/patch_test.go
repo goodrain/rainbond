@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 )
 
+// capability_id: rainbond.worker.appm.patch.statefulset-modified-configuration
 func TestGetStatefulsetModifiedConfiguration(t *testing.T) {
 	var replicas int32 = 1
 	var replicasnew int32 = 2

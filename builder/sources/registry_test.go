@@ -1,41 +1,26 @@
-// RAINBOND, Application Management Platform
-// Copyright (C) 2014-2019 Goodrain Co., Ltd.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. For any non-GPL usage of Rainbond,
-// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
-// must be obtained first.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 package sources
 
-import "testing"
+import (
+	"testing"
 
-func TestPublicImageExist(t *testing.T) {
-	exist, err := ImageExist("barnett/nextcloud-runtime:0.2", "", "")
-	if err != nil {
-		t.Fail()
-	}
-	if exist {
-		t.Log("image exist")
-	}
-}
+	"github.com/docker/distribution/reference"
+)
 
-func TestPrivateImageExist(t *testing.T) {
-	exist, err := ImageExist("harbor.smartqi.cn:80/library/nginx:1.11", "admin", "Harbor12345")
+// capability_id: rainbond.source-image.tag-from-ref
+func TestGetTagFromNamedRef(t *testing.T) {
+	named, err := reference.ParseNormalizedNamed("nginx:1.25")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exist {
-		t.Log("image exist")
+	if got := GetTagFromNamedRef(named); got != "1.25" {
+		t.Fatalf("expected tag 1.25, got %q", got)
+	}
+
+	untagged, err := reference.ParseNormalizedNamed("nginx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := GetTagFromNamedRef(untagged); got != "latest" {
+		t.Fatalf("expected tag latest, got %q", got)
 	}
 }

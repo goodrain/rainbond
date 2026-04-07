@@ -12,6 +12,8 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -25,6 +27,8 @@ type Builder struct {
 	createAuthSecret func(*build.Request) (corev1.Secret, error)
 	deleteAuthSecret func(*build.Request, string)
 	prepareBuildKit  func(ctx context.Context, kubeClient kubernetes.Interface, namespace, cmName, imageDomain string) error
+	createConfigMap  func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, cm *corev1.ConfigMap) (*corev1.ConfigMap, error)
+	deleteConfigMap  func(ctx context.Context, kubeClient kubernetes.Interface, namespace, name string) error
 }
 
 // NewBuilder creates a new CNB builder
@@ -34,12 +38,31 @@ func NewBuilder() (build.Build, error) {
 		createAuthSecret: build.CreateAuthSecret,
 		deleteAuthSecret: build.DeleteAuthSecret,
 		prepareBuildKit:  sources.PrepareBuildKitTomlCM,
+		createConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+			return kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
+		},
+		deleteConfigMap: func(ctx context.Context, kubeClient kubernetes.Interface, namespace, name string) error {
+			err := kubeClient.CoreV1().ConfigMaps(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		},
 	}, nil
 }
 
 // Build executes the CNB build process
 func (b *Builder) Build(re *build.Request) (*build.Response, error) {
 	re.Logger.Info("Starting CNB build", map[string]string{"step": "builder-exector"})
+
+	if err := applyVersionPolicy(re); err != nil {
+		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return nil, err
+	}
+	if err := validateSupportedBuildParams(re); err != nil {
+		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+		return nil, err
+	}
 
 	b.stopPreBuildJob(re)
 

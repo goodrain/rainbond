@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateLifecycleOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -101,6 +102,7 @@ func TestCreateLifecycleOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateBackupOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -189,6 +191,7 @@ func TestCreateBackupOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateHorizontalScalingOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -319,6 +322,7 @@ func TestCreateHorizontalScalingOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateVerticalScalingOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -455,6 +459,7 @@ func TestCreateVerticalScalingOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateVolumeExpansionOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -591,6 +596,7 @@ func TestCreateVolumeExpansionOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateParameterChangeOpsRequest(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -716,6 +722,7 @@ func TestCreateParameterChangeOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.create-supported-ops
 func TestCreateRestoreOpsRequest(t *testing.T) {
 	restoredNamePrefix := func(original string) string {
 		if strings.Contains(original, "-restore-") {
@@ -822,6 +829,7 @@ func TestCreateRestoreOpsRequest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.blocking-ops-management
 func TestGetAllNonFinalOpsRequests(t *testing.T) {
 	ctx := context.Background()
 
@@ -941,6 +949,7 @@ func TestGetAllNonFinalOpsRequests(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.opsrequest.blocking-ops-management
 func TestCleanupBlockingOps(t *testing.T) {
 	ctx := context.Background()
 

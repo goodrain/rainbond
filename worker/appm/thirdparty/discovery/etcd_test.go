@@ -1,59 +1,57 @@
-// RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
-
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version. For any non-GPL usage of Rainbond,
-// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
-// must be obtained first.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 package discovery
 
 import (
-	"fmt"
+	"testing"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
-	"testing"
-	"time"
 )
 
-func TestEtcd_Watch(t *testing.T) {
+// capability_id: rainbond.worker.appm.discovery.etcd-config
+func TestNewEtcdAndFetchGuard(t *testing.T) {
 	cfg := &model.ThirdPartySvcDiscoveryCfg{
-		Type:    model.DiscorveryTypeEtcd.String(),
-		Servers: "http://127.0.0.1:2379",
-		Key:     "/foobar/eps",
+		Type:      model.DiscorveryTypeEtcd.String(),
+		ServiceID: "svc-1",
+		Servers:   "http://127.0.0.1:2379,http://127.0.0.1:2380",
+		Key:       "/foobar/eps",
+		Username:  "user",
+		Password:  "pass",
 	}
-	updateCh := channels.NewRingChannel(1024)
+	updateCh := channels.NewRingChannel(8)
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	go func() {
-		for {
-			select {
-			case event := <-updateCh.Out():
-				fmt.Printf("%+v", event)
-			case <-stopCh:
-				break
-			}
-		}
-	}()
-
-	etcd := NewEtcd(cfg, updateCh, stopCh)
-	if err := etcd.Connect(); err != nil {
-		t.Fatalf("error connecting etcd: %v", err)
+	d, ok := NewEtcd(cfg, updateCh, stopCh).(*etcd)
+	if !ok {
+		t.Fatal("expected *etcd")
 	}
-	defer etcd.Close()
+	if len(d.endpoints) != 2 || d.endpoints[0] != "http://127.0.0.1:2379" || d.endpoints[1] != "http://127.0.0.1:2380" {
+		t.Fatalf("unexpected endpoints: %#v", d.endpoints)
+	}
+	if d.sid != "svc-1" || d.key != "/foobar/eps" || d.username != "user" || d.password != "pass" {
+		t.Fatalf("unexpected config: %+v", d)
+	}
+	if _, err := d.Fetch(); err == nil {
+		t.Fatal("expected fetch guard error without client")
+	}
+}
 
-	etcd.Watch()
+// capability_id: rainbond.worker.appm.discovery.etcd-config
+func TestNewDiscoverierAndCloseNil(t *testing.T) {
+	cfg := &model.ThirdPartySvcDiscoveryCfg{
+		Type: model.DiscorveryTypeEtcd.String(),
+	}
+	updateCh := channels.NewRingChannel(8)
+	stopCh := make(chan struct{})
+	defer close(stopCh)
 
-	time.Sleep(10 * time.Second)
+	discoverier, err := NewDiscoverier(cfg, updateCh, stopCh)
+	if err != nil || discoverier == nil {
+		t.Fatalf("expected discoverier, err=%v", err)
+	}
+
+	d := &etcd{}
+	if err := d.Close(); err != nil {
+		t.Fatalf("expected nil-safe close, got %v", err)
+	}
 }

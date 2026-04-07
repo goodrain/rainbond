@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.gateway.allocate-lb-port
 func TestSelectAvailablePort(t *testing.T) {
 	// 设置环境变量
 	os.Setenv("MIN_LB_PORT", "30000")

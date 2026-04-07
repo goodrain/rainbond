@@ -19,7 +19,38 @@ package util
 
 import "testing"
 
+// capability_id: rainbond.util.core-helpers.string-contains
+func TestStringArrayContains(t *testing.T) {
+	if !StringArrayContains([]string{"a", "b", "c"}, "b") {
+		t.Fatal("expected list to contain b")
+	}
+	if StringArrayContains([]string{"a", "b", "c"}, "z") {
+		t.Fatal("did not expect list to contain z")
+	}
+	if StringArrayContains(nil, "a") {
+		t.Fatal("did not expect nil list to contain anything")
+	}
+}
+
+// capability_id: rainbond.util.core-helpers.hash-ip-string-uuid
 func TestReverse(t *testing.T) {
-	t.Log(Reverse([]string{"1", "2", "3"}))
-	t.Log(Reverse([]string{"1", "2", "3", "4"}))
+	tests := []struct {
+		input []string
+		want  []string
+	}{
+		{input: []string{"1", "2", "3"}, want: []string{"3", "2", "1"}},
+		{input: []string{"1", "2", "3", "4"}, want: []string{"4", "3", "2", "1"}},
+	}
+
+	for _, tt := range tests {
+		got := Reverse(tt.input)
+		if len(got) != len(tt.want) {
+			t.Fatalf("unexpected result length: got %d want %d", len(got), len(tt.want))
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Fatalf("Reverse(%v)=%v, want %v", tt.input, got, tt.want)
+			}
+		}
+	}
 }

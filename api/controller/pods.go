@@ -146,6 +146,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 	// Get container name from query parameter
 	container := r.URL.Query().Get("container")
+	logrus.Infof("resource center pod logs request path=%s namespace=%s pod=%s container=%s lines=%d", r.URL.String(), namespace, podName, container, lines)
 
 	// Get pod to check how many containers it has
 	pod, err := k8s.Default().Clientset.CoreV1().Pods(namespace).Get(r.Context(), podName, metav1.GetOptions{})
@@ -236,6 +237,11 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 					logChan <- logLine
 				}
 			}
+			if err := scanner.Err(); err != nil {
+				logrus.Errorf("Error scanning log stream for container %s in pod %s/%s: %v", cName, namespace, podName, err)
+			} else {
+				logrus.Infof("Log stream ended for container %s in pod %s/%s", cName, namespace, podName)
+			}
 		}(containerName)
 	}
 
@@ -291,6 +297,11 @@ func streamContainerLogs(w http.ResponseWriter, r *http.Request, podName, namesp
 				logrus.Errorf("Error writing to response: %v", err)
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		logrus.Errorf("Error scanning single-container log stream for pod %s/%s container %s: %v", namespace, podName, container, err)
+	} else {
+		logrus.Infof("Single-container log stream ended for pod %s/%s container %s", namespace, podName, container)
 	}
 }
 

@@ -19,6 +19,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"os"
 	"strconv"
 	"sync"
@@ -46,6 +47,11 @@ type Manager struct {
 	config  config.Config
 	initOne sync.Once
 	models  []model.Interface
+}
+
+type cnbSeedVersion struct {
+	Version string
+	Default bool
 }
 
 // CreateManager create manager
@@ -278,22 +284,14 @@ func (m *Manager) CheckTable() {
 
 func (m *Manager) patchTable() {
 	count := -1
-	switch m.config.DBType {
-	case "mysql":
-		// 兼容低版本 MySQL：先查询是否已存在索引，再创建，避免使用不兼容的 IF NOT EXISTS
-		var indexCount int
-		row := m.db.Raw("SELECT COUNT(1) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
-		if err := row.Scan(&indexCount); err != nil {
-			logrus.Errorf("query index exists error: %s", err.Error())
-		} else if indexCount == 0 {
-			if err := m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version);").Error; err != nil {
-				logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
-			}
-		}
-	case "sqlite":
-		if err := m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version);").Error; err != nil {
-			logrus.Errorf("add unique index for enterprise_language_version error: %s", err.Error())
-		}
+	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
+		logrus.Errorf("backfill legacy language versions error: %s", err.Error())
+	}
+	if err := deduplicateLanguageVersions(m.db); err != nil {
+		logrus.Errorf("deduplicate enterprise_language_version rows error: %s", err.Error())
+	}
+	if err := m.patchLanguageVersionUniqueIndex(); err != nil {
+		logrus.Errorf("patch enterprise_language_version unique index error: %s", err.Error())
 	}
 	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
 	if count == 0 {
@@ -345,17 +343,7 @@ func (m *Manager) patchTable() {
 }
 
 func (m *Manager) initLanguageVersion() {
-	var versions []*model.EnterpriseLanguageVersion
-	versions = append(versions, GolangInitVersion...)
-	versions = append(versions, NodeInitVersion...)
-	versions = append(versions, WebCompilerInitVersion...)
-	versions = append(versions, OpenJDKInitVersion...)
-	versions = append(versions, MavenInitVersion...)
-	versions = append(versions, PythonInitVersion...)
-	versions = append(versions, NetRuntimeInitVersion...)
-	versions = append(versions, NetCompilerInitVersion...)
-	versions = append(versions, PHPInitVersion...)
-	versions = append(versions, WebRuntimeInitVersion...)
+	versions := allSeedLanguageVersions()
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, version := range versions {
@@ -375,24 +363,15 @@ func (m *Manager) initLanguageVersion() {
 }
 
 func (m *Manager) updateLanguageVersions() {
-	var versions []*model.EnterpriseLanguageVersion
-	versions = append(versions, GolangInitVersion...)
-	versions = append(versions, NodeInitVersion...)
-	versions = append(versions, WebCompilerInitVersion...)
-	versions = append(versions, OpenJDKInitVersion...)
-	versions = append(versions, MavenInitVersion...)
-	versions = append(versions, PythonInitVersion...)
-	versions = append(versions, NetRuntimeInitVersion...)
-	versions = append(versions, NetCompilerInitVersion...)
-	versions = append(versions, PHPInitVersion...)
-	versions = append(versions, WebRuntimeInitVersion...)
+	versions := allSeedLanguageVersions()
+	cnbVersions := cnbSeedLanguageVersions()
 
 	dbType := m.db.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, version := range versions {
 			// Check if the version exists
 			var existing model.EnterpriseLanguageVersion
-			if err := m.db.Where("lang = ? AND version = ?", version.Lang, version.Version).First(&existing).Error; err != nil {
+			if err := m.db.Where("lang = ? AND version = ? AND build_strategy = ?", version.Lang, version.Version, version.BuildStrategy).First(&existing).Error; err != nil {
 				if gorm.IsRecordNotFoundError(err) {
 					// Version doesn't exist, create it
 					if err := m.db.Create(version).Error; err != nil {
@@ -408,11 +387,16 @@ func (m *Manager) updateLanguageVersions() {
 					existing.FileName = version.FileName
 					existing.Show = version.Show
 					existing.System = version.System
+					existing.BuildStrategy = version.BuildStrategy
+					existing.IsAllowed = version.IsAllowed
 					if err := m.db.Save(&existing).Error; err != nil {
 						logrus.Errorf("update language version %s-%s error: %v", version.Lang, version.Version, err)
 					}
 				}
 			}
+		}
+		if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
+			logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
 		}
 		return
 	}
@@ -432,6 +416,289 @@ func (m *Manager) updateLanguageVersions() {
 			logrus.Info("successfully updated language versions")
 		}
 	}
+	if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
+		logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
+	}
+}
+
+func (m *Manager) patchLanguageVersionUniqueIndex() error {
+	switch m.config.DBType {
+	case "mysql":
+		var columns sql.NullString
+		row := m.db.Raw("SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
+		if err := row.Scan(&columns); err != nil {
+			return err
+		}
+		if columns.Valid && columns.String == "lang,version,build_strategy" {
+			return nil
+		}
+		if columns.Valid && columns.String != "" {
+			if err := m.db.Exec("alter table enterprise_language_version drop index lang_version_unique;").Error; err != nil {
+				return err
+			}
+		}
+		return m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version, build_strategy);").Error
+	case "sqlite":
+		if err := m.db.Exec("DROP INDEX IF EXISTS lang_version_unique;").Error; err != nil {
+			return err
+		}
+		return m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version, build_strategy);").Error
+	default:
+		return nil
+	}
+}
+
+func applySeedLongVersionDefaults(versions []*model.EnterpriseLanguageVersion) {
+	for _, version := range versions {
+		if version == nil {
+			continue
+		}
+		version.BuildStrategy = model.LongVersionBuildStrategySlug
+		version.IsAllowed = true
+	}
+}
+
+func slugSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, GolangInitVersion...)
+	versions = append(versions, NodeInitVersion...)
+	versions = append(versions, WebCompilerInitVersion...)
+	versions = append(versions, OpenJDKInitVersion...)
+	versions = append(versions, MavenInitVersion...)
+	versions = append(versions, PythonInitVersion...)
+	versions = append(versions, NetRuntimeInitVersion...)
+	versions = append(versions, NetCompilerInitVersion...)
+	versions = append(versions, PHPInitVersion...)
+	versions = append(versions, WebRuntimeInitVersion...)
+	applySeedLongVersionDefaults(versions)
+	return versions
+}
+
+func cnbSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	var versions []*model.EnterpriseLanguageVersion
+	versions = append(versions, buildStrategySeedVersions("openJDK", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "8", Default: false},
+		{Version: "11", Default: false},
+		{Version: "17", Default: true},
+		{Version: "21", Default: false},
+		{Version: "25", Default: false},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("node", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "18.20.7", Default: false},
+		{Version: "18.20.8", Default: false},
+		{Version: "20.19.6", Default: false},
+		{Version: "20.20.0", Default: false},
+		{Version: "22.21.1", Default: false},
+		{Version: "22.22.0", Default: false},
+		{Version: "24.12.0", Default: false},
+		{Version: "24.13.0", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("python", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "3.10", Default: false},
+		{Version: "3.11", Default: false},
+		{Version: "3.12", Default: false},
+		{Version: "3.13", Default: false},
+		{Version: "3.14", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("golang", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "1.24", Default: false},
+		{Version: "1.25", Default: true},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("dotnet", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "8.0", Default: true},
+		{Version: "9.0", Default: false},
+		{Version: "10.0", Default: false},
+	})...)
+	versions = append(versions, buildStrategySeedVersions("php", model.LongVersionBuildStrategyCNB, []cnbSeedVersion{
+		{Version: "8.1", Default: false},
+		{Version: "8.2", Default: false},
+		{Version: "8.3", Default: true},
+	})...)
+	return versions
+}
+
+func allSeedLanguageVersions() []*model.EnterpriseLanguageVersion {
+	versions := slugSeedLanguageVersions()
+	versions = append(versions, cnbSeedLanguageVersions()...)
+	return versions
+}
+
+func buildStrategySeedVersions(lang, buildStrategy string, versions []cnbSeedVersion) []*model.EnterpriseLanguageVersion {
+	var records []*model.EnterpriseLanguageVersion
+	for _, version := range versions {
+		records = append(records, &model.EnterpriseLanguageVersion{
+			Lang:          lang,
+			Version:       version.Version,
+			BuildStrategy: buildStrategy,
+			FirstChoice:   version.Default,
+			System:        true,
+			Show:          true,
+			IsAllowed:     true,
+		})
+	}
+	return records
+}
+
+func deduplicateLanguageVersions(db *gorm.DB) error {
+	var versions []model.EnterpriseLanguageVersion
+	query := db
+	for _, clause := range longVersionDeduplicationOrderClauses(db) {
+		query = query.Order(clause)
+	}
+	if err := query.Find(&versions).Error; err != nil {
+		return err
+	}
+	if len(versions) < 2 {
+		return nil
+	}
+
+	type keeperState struct {
+		version *model.EnterpriseLanguageVersion
+		dirty   bool
+	}
+
+	keepers := make(map[string]*keeperState, len(versions))
+	var deleteIDs []uint
+	for i := range versions {
+		version := versions[i]
+		version.BuildStrategy = normalizeSeedLongVersionBuildStrategy(version.BuildStrategy)
+		key := buildSeedLongVersionDedupKey(version.Lang, version.Version, version.BuildStrategy)
+
+		if existing, ok := keepers[key]; ok {
+			if mergeStoredLanguageVersion(existing.version, &version) {
+				existing.dirty = true
+			}
+			deleteIDs = append(deleteIDs, version.ID)
+			continue
+		}
+
+		keep := version
+		keepers[key] = &keeperState{version: &keep}
+	}
+
+	if len(deleteIDs) == 0 {
+		return nil
+	}
+
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	for _, keeper := range keepers {
+		if !keeper.dirty {
+			continue
+		}
+		if err := tx.Save(keeper.version).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Where("ID IN (?)", deleteIDs).Delete(&model.EnterpriseLanguageVersion{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
+}
+
+func retireMissingSystemCNBVersions(db *gorm.DB, seedVersions []*model.EnterpriseLanguageVersion) error {
+	activeVersions := make(map[string]struct{}, len(seedVersions))
+	for _, version := range seedVersions {
+		if version == nil {
+			continue
+		}
+		activeVersions[buildSeedLongVersionDedupKey(version.Lang, version.Version, model.LongVersionBuildStrategyCNB)] = struct{}{}
+	}
+
+	var stored []model.EnterpriseLanguageVersion
+	if err := db.Where("build_strategy = ? AND system = ?", model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
+		return err
+	}
+
+	for i := range stored {
+		version := stored[i]
+		key := buildSeedLongVersionDedupKey(version.Lang, version.Version, model.LongVersionBuildStrategyCNB)
+		if _, ok := activeVersions[key]; ok {
+			continue
+		}
+		if !version.Show && !version.IsAllowed && !version.FirstChoice {
+			continue
+		}
+		version.Show = false
+		version.IsAllowed = false
+		version.FirstChoice = false
+		if err := db.Save(&version).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeSeedLongVersionBuildStrategy(buildStrategy string) string {
+	if buildStrategy == "" {
+		return model.LongVersionBuildStrategySlug
+	}
+	return buildStrategy
+}
+
+func longVersionDeduplicationOrderClauses(db *gorm.DB) []string {
+	scope := db.NewScope(&model.EnterpriseLanguageVersion{})
+	return []string{
+		scope.Quote("lang") + " ASC",
+		scope.Quote("version") + " ASC",
+		scope.Quote("build_strategy") + " ASC",
+		scope.Quote("first_choice") + " DESC",
+		scope.Quote("is_show") + " DESC",
+		scope.Quote("is_allowed") + " DESC",
+		scope.Quote("system") + " DESC",
+		scope.Quote("ID") + " ASC",
+	}
+}
+
+func buildSeedLongVersionDedupKey(lang, version, buildStrategy string) string {
+	return lang + "\x00" + version + "\x00" + normalizeSeedLongVersionBuildStrategy(buildStrategy)
+}
+
+func mergeStoredLanguageVersion(target, source *model.EnterpriseLanguageVersion) bool {
+	changed := false
+
+	if normalized := normalizeSeedLongVersionBuildStrategy(target.BuildStrategy); target.BuildStrategy != normalized {
+		target.BuildStrategy = normalized
+		changed = true
+	}
+	if source.FirstChoice && !target.FirstChoice {
+		target.FirstChoice = true
+		changed = true
+	}
+	if source.Show && !target.Show {
+		target.Show = true
+		changed = true
+	}
+	if source.System && !target.System {
+		target.System = true
+		changed = true
+	}
+	if source.IsAllowed && !target.IsAllowed {
+		target.IsAllowed = true
+		changed = true
+	}
+	if target.EventID == "" && source.EventID != "" {
+		target.EventID = source.EventID
+		changed = true
+	}
+	if target.FileName == "" && source.FileName != "" {
+		target.FileName = source.FileName
+		changed = true
+	}
+	return changed
+}
+
+func backfillLegacyLongVersionStrategy(db *gorm.DB) error {
+	return db.Model(&model.EnterpriseLanguageVersion{}).
+		Where("build_strategy IS NULL OR build_strategy = ''").
+		Updates(map[string]interface{}{
+			"build_strategy": model.LongVersionBuildStrategySlug,
+			"is_allowed":     true,
+		}).Error
 }
 
 // GolangInitVersion -

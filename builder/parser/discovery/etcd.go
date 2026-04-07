@@ -96,7 +96,7 @@ func (e *etcd) Fetch() ([]*Endpoint, error) {
 
 // Close shuts down the client's etcd connections.
 func (e *etcd) Close() error {
-	if e.cli != nil {
+	if e.cli == nil {
 		return nil
 	}
 	return e.cli.Close()

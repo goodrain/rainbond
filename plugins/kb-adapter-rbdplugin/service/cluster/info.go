@@ -116,7 +116,7 @@ func (s *Service) GetClusterDetail(ctx context.Context, rbd model.RBDService) (*
 		Resource: resourceInfo,
 	}
 
-	if cluster.Spec.Backup == nil || cluster.Spec.Backup.Enabled == nil || !*cluster.Spec.Backup.Enabled {
+	if cluster.Spec.Backup == nil || (cluster.Spec.Backup.Enabled != nil && !*cluster.Spec.Backup.Enabled) {
 		log.Debug("get cluster detail",
 			log.Any("detail", detail),
 		)

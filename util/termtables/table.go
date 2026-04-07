@@ -137,7 +137,8 @@ func init() {
 
 // CreateTable creates an empty Table using defaults for style.
 func CreateTable() *Table {
-	t := &Table{elements: []Element{}, Style: DefaultStyle}
+	style := *DefaultStyle
+	t := &Table{elements: []Element{}, Style: &style}
 	if outputsEnabled.UTF8 {
 		t.Style.setUtfBoxStyle()
 	}

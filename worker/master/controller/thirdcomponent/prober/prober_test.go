@@ -15,6 +15,7 @@ import (
 	"k8s.io/kubernetes/pkg/probe"
 )
 
+// capability_id: rainbond.worker.thirdcomponent.prober.execute-endpoint-probe
 func TestHTTPHeaders(t *testing.T) {
 	testCases := []struct {
 		input  []v1alpha1.HTTPHeader
@@ -42,6 +43,7 @@ func TestHTTPHeaders(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.worker.thirdcomponent.prober.execute-endpoint-probe
 func TestProbe(t *testing.T) {
 	httpProbe := &v1alpha1.Probe{
 		Handler: v1alpha1.Handler{
@@ -103,6 +105,7 @@ func TestProbe(t *testing.T) {
 		_ = test
 
 		prober := &prober{
+			logger:   newProber(&record.FakeRecorder{}).logger,
 			recorder: &record.FakeRecorder{},
 		}
 		thirdComponent := &v1alpha1.ThirdComponent{

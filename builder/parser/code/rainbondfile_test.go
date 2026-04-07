@@ -19,13 +19,53 @@
 package code
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
+// capability_id: rainbond.rainbondfile.read-project-root
 func TestReadRainbondFile(t *testing.T) {
 	rbdfile, err := ReadRainbondFile("./")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(rbdfile)
+}
+
+// capability_id: rainbond.rainbondfile.missing
+func TestReadRainbondFile_ReturnsNotFoundWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := ReadRainbondFile(dir)
+
+	if err != ErrRainbondFileNotFound {
+		t.Fatalf("expected ErrRainbondFileNotFound, got %v", err)
+	}
+}
+
+// capability_id: rainbond.rainbondfile.parse
+func TestReadRainbondFile_ParsesYamlConfig(t *testing.T) {
+	dir := t.TempDir()
+	content := []byte("language: Node.js\nbuildpath: web\ncmd: npm start\nports:\n- port: 80\n  protocol: http\n")
+	if err := os.WriteFile(filepath.Join(dir, "rainbondfile"), content, 0o644); err != nil {
+		t.Fatalf("write rainbondfile: %v", err)
+	}
+
+	rbdfile, err := ReadRainbondFile(dir)
+	if err != nil {
+		t.Fatalf("ReadRainbondFile() error = %v", err)
+	}
+	if rbdfile.Language != "Node.js" {
+		t.Fatalf("Language = %q, want %q", rbdfile.Language, "Node.js")
+	}
+	if rbdfile.BuildPath != "web" {
+		t.Fatalf("BuildPath = %q, want %q", rbdfile.BuildPath, "web")
+	}
+	if rbdfile.Cmd != "npm start" {
+		t.Fatalf("Cmd = %q, want %q", rbdfile.Cmd, "npm start")
+	}
+	if len(rbdfile.Ports) != 1 || rbdfile.Ports[0].Port != 80 || rbdfile.Ports[0].Protocol != "http" {
+		t.Fatalf("Ports parsed incorrectly: %+v", rbdfile.Ports)
+	}
 }

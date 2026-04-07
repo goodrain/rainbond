@@ -18,10 +18,42 @@
 
 package util
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
+// capability_id: rainbond.util.core-helpers.hash-ip-string-uuid
 func TestCreateFileHash(t *testing.T) {
-	if err := CreateFileHash("/tmp/hashtest", "/tmp/hashtest.md5"); err != nil {
+	root := t.TempDir()
+	source := filepath.Join(root, "hashtest")
+	target := filepath.Join(root, "hashtest.md5")
+
+	if err := os.WriteFile(source, []byte("rainbond-hash-test"), 0644); err != nil {
 		t.Fatal(err)
+	}
+
+	if err := CreateFileHash(source, target); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(content) == 0 {
+		t.Fatal("expected md5 file content")
+	}
+}
+
+// capability_id: rainbond.util.core-helpers.hash-string
+func TestCreateHashString(t *testing.T) {
+	hash, err := CreateHashString("rainbond")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash != "b4db463c7a30007ad5c6e5b42440893d" {
+		t.Fatalf("unexpected hash: %q", hash)
 	}
 }

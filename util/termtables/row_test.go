@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.util.termtables.render-text-table
 func TestBasicRowRender(t *testing.T) {
 	row := CreateRow([]interface{}{"foo", "bar"})
 	style := &renderStyle{TableStyle: TableStyle{BorderX: "-", BorderY: "|", BorderI: "+",
@@ -17,6 +18,7 @@ func TestBasicRowRender(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.util.termtables.render-row-width-padding
 func TestRowRenderWidthBasedPadding(t *testing.T) {
 	row := CreateRow([]interface{}{"foo", "bar"})
 	style := &renderStyle{TableStyle: TableStyle{BorderX: "-", BorderY: "|", BorderI: "+",

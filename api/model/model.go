@@ -746,6 +746,10 @@ type AddTenantStruct struct {
 		Token       string `json:"token" validate:"token"`
 		LimitMemory int    `json:"limit_memory" validate:"limit_memory"`
 		Namespace   string `json:"namespace" validate:"namespace"`
+		// whether to bind an existing namespace instead of creating a new one
+		// in: body
+		// required: false
+		BindExistingNamespace bool `json:"bind_existing_namespace"`
 	}
 }
 
@@ -1136,11 +1140,11 @@ type ServiceCheckStruct struct {
 		// docker-compose: compose全文
 		// in: body
 		// required: true
-		SourceBody string `json:"source_body"`
-		Namespace  string `json:"namespace"`
-		TenantID   string
-		Username   string `json:"username"`
-		Password   string `json:"password"`
+		SourceBody      string `json:"source_body"`
+		Namespace       string `json:"namespace"`
+		TenantID        string
+		Username        string `json:"username"`
+		Password        string `json:"password"`
 		EventID         string `json:"event_id"`
 		ComposeFilePath string `json:"compose_file_path"`
 	}
@@ -1649,12 +1653,13 @@ type ServiceShare struct {
 	Body struct {
 		//in: body
 		//应用分享Key
-		ServiceKey string `json:"service_key" validate:"service_key|required"`
-		AppVersion string `json:"app_version" validate:"app_version|required"`
-		EventID    string `json:"event_id"`
-		ShareUser  string `json:"share_user"`
-		ShareScope string `json:"share_scope"`
-		ImageInfo  struct {
+		ServiceKey    string `json:"service_key" validate:"service_key|required"`
+		AppVersion    string `json:"app_version" validate:"app_version|required"`
+		DeployVersion string `json:"deploy_version,omitempty"`
+		EventID       string `json:"event_id"`
+		ShareUser     string `json:"share_user"`
+		ShareScope    string `json:"share_scope"`
+		ImageInfo     struct {
 			HubURL      string `json:"hub_url"`
 			HubUser     string `json:"hub_user"`
 			HubPassword string `json:"hub_password"`
@@ -1740,6 +1745,14 @@ type BuildCodeInfo struct {
 	// in: body
 	// required: false
 	BuildType string `json:"build_type"`
+	// 构建策略: cnb / slug / dockerfile
+	// in: body
+	// required: false
+	BuildStrategy string `json:"build_strategy"`
+	// 企业版 CNB 版本策略快照
+	// in: body
+	// required: false
+	CNBVersionPolicy map[string]interface{} `json:"cnb_version_policy"`
 }
 
 // BuildSlugInfo -
@@ -2382,12 +2395,14 @@ type UploadChartValueYaml struct {
 
 // UpdateLangVersion -
 type UpdateLangVersion struct {
-	Lang        string `json:"lang"`
-	Version     string `json:"version"`
-	EventID     string `json:"event_id"`
-	FileName    string `json:"file_name"`
-	Show        bool   `json:"show"`
-	FirstChoice bool   `json:"first_choice"`
+	Lang          string  `json:"lang"`
+	Version       string  `json:"version"`
+	EventID       string  `json:"event_id"`
+	FileName      string  `json:"file_name"`
+	Show          bool    `json:"show"`
+	FirstChoice   bool    `json:"first_choice"`
+	BuildStrategy *string `json:"build_strategy,omitempty"`
+	IsAllowed     *bool   `json:"is_allowed,omitempty"`
 }
 
 // OverScore -

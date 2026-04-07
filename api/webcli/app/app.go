@@ -53,7 +53,7 @@ var ExecuteCommandFailed float64
 type App struct {
 	upgrader   *websocket.Upgrader
 	restClient *restclient.RESTClient
-	coreClient *kubernetes.Clientset
+	coreClient kubernetes.Interface
 	config     *restclient.Config
 }
 

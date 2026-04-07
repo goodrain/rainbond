@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.backup-repo.list-ready
 func TestListAvailableBackupRepos(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -94,6 +95,7 @@ func TestListAvailableBackupRepos(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster-backup.schedule-reconcile
 func TestReScheduleBackup(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -374,6 +376,7 @@ func getClusterByServiceID(t *testing.T, c client.Client, serviceID string) *app
 	return &cluster
 }
 
+// capability_id: rainbond.kb-adapter.cluster-backup.list
 func TestListBackups(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -486,6 +489,7 @@ func TestListBackups(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster-backup.delete
 func TestDeleteBackups(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -700,6 +704,7 @@ func TestDeleteBackups(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster-backup.delete-guard
 func TestCanDeleteBackup(t *testing.T) {
 	tests := []struct {
 		name          string

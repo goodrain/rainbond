@@ -20,13 +20,25 @@ package util
 
 import "testing"
 
+// capability_id: rainbond.util.core-helpers.hash-ip-string-uuid
 func TestCheckIP(t *testing.T) {
-	t.Logf("ip %s %t", "1829.123", CheckIP("1829.123"))
-	t.Logf("ip %s %t", "1829.123.1", CheckIP("1829.123.1"))
-	t.Logf("ip %s %t", "1829.123.2.1", CheckIP("1829.123.2.1"))
-	t.Logf("ip %s %t", "y.123", CheckIP("y.123"))
-	t.Logf("ip %s %t", "0.0.0.0", CheckIP("0.0.0.0"))
-	t.Logf("ip %s %t", "127.0.0.1", CheckIP("127.0.0.1"))
-	t.Logf("ip %s %t", "localhost", CheckIP("localhost"))
-	t.Logf("ip %s %t", "192.168.0.1", CheckIP("192.168.0.1"))
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{input: "1829.123", want: false},
+		{input: "1829.123.1", want: false},
+		{input: "1829.123.2.1", want: false},
+		{input: "y.123", want: false},
+		{input: "0.0.0.0", want: false},
+		{input: "127.0.0.1", want: false},
+		{input: "localhost", want: false},
+		{input: "192.168.0.1", want: true},
+	}
+
+	for _, tt := range tests {
+		if got := CheckIP(tt.input); got != tt.want {
+			t.Fatalf("CheckIP(%q)=%v, want %v", tt.input, got, tt.want)
+		}
+	}
 }

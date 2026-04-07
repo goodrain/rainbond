@@ -16,16 +16,17 @@ var invalidJSONArraysOfStrings = []string{
 }
 
 var validJSONArraysOfStrings = map[string][]string{
-	`[]`:           {},
-	`[""]`:         {""},
-	`["a"]`:        {"a"},
-	`["a","b"]`:    {"a", "b"},
-	`[ "a", "b" ]`: {"a", "b"},
-	`[	"a",	"b"	]`: {"a", "b"},
+	`[]`:             {},
+	`[""]`:           {""},
+	`["a"]`:          {"a"},
+	`["a","b"]`:      {"a", "b"},
+	`[ "a", "b" ]`:   {"a", "b"},
+	`[	"a",	"b"	]`:   {"a", "b"},
 	`	[	"a",	"b"	]	`: {"a", "b"},
 	`["abc 123", "♥", "☃", "\" \\ \/ \b \f \n \r \t \u0000"]`: {"abc 123", "♥", "☃", "\" \\ / \b \f \n \r \t \u0000"},
 }
 
+// capability_id: rainbond.dockerfile.parse-json-array
 func TestJSONArraysOfStrings(t *testing.T) {
 	for json, expected := range validJSONArraysOfStrings {
 		d := Directive{}

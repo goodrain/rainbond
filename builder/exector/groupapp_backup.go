@@ -231,7 +231,7 @@ func judgeMetadataVersion(metadata []byte) (string, error) {
 
 	var svcSnapshot []*RegionServiceSnapshot
 	if err := ffjson.Unmarshal(metadata, &svcSnapshot); err == nil {
-		return "", err
+		return OldMetadata, nil
 	}
 
 	return OldMetadata, nil
@@ -333,21 +333,12 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 			logrus.Errorf("new registry client error %s", err.Error())
 			return false, err
 		}
-		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
+		exists, err := reg.ManifestExists(imageInfo.Name, imageInfo.Tag)
 		if err != nil {
 			logrus.Errorf("get image [%s] manifest info failure [%v], it could be not exist", version.DeliveredPath, err)
-			// Compatible with MediaTypeManifest
-			_, err := reg.ManifestV2(imageInfo.Name, imageInfo.Tag)
-			if err != nil {
-				logrus.Errorf("get image [%s] manifestV2 info failure [%v], trying manifest digest check", version.DeliveredPath, err)
-				if _, digestErr := reg.ManifestDigestV2(imageInfo.Name, imageInfo.Tag); digestErr != nil {
-					logrus.Errorf("get image [%s] manifest digest info failure [%v], it could be not exist", version.DeliveredPath, digestErr)
-					return false, digestErr
-				}
-			}
-			return true, nil
+			return false, err
 		}
-		return true, nil
+		return exists, nil
 	}
 	if version.DeliveredType == "slug" {
 		islugfile, err := os.Stat(version.DeliveredPath)

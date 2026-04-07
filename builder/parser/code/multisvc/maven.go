@@ -76,7 +76,7 @@ type module struct {
 	MavenCustomGoals string
 	MavenJavaOpts    string
 	Packaging        string
-	Procfile         string
+	BuiltArtifact    string
 }
 
 // ListModules lists all maven modules from pom.xml
@@ -97,8 +97,12 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				Value: item.MavenCustomGoals,
 			},
 			{
-				Name:  "BUILD_PROCFILE",
-				Value: item.Procfile,
+				Name:  "BUILD_MAVEN_BUILT_MODULE",
+				Value: item.Name,
+			},
+			{
+				Name:  "BUILD_MAVEN_BUILT_ARTIFACT",
+				Value: item.BuiltArtifact,
 			},
 		}
 		mo := &types.Service{
@@ -147,12 +151,8 @@ func listModules(prefix, topPref, finalName string) ([]*module, error) {
 			}(),
 			MavenCustomOpts:  fmt.Sprintf("-DskipTests"),
 			MavenCustomGoals: fmt.Sprintf("clean dependency:list install -pl %s -am", name),
-			Procfile: func() string {
-				if pom.Packaging == "war" {
-					return fmt.Sprintf("web: java $JAVA_OPTS -jar /opt/webapp-runner.jar "+
-						"--port $PORT %s/target/%s", name, filename)
-				}
-				return fmt.Sprintf("web: java $JAVA_OPTS -jar %s/target/%s", name, filename)
+			BuiltArtifact: func() string {
+				return fmt.Sprintf("%s/target/%s", name, filename)
 			}(),
 		}
 		return []*module{mo}, nil

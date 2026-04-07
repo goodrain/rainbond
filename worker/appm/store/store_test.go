@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// capability_id: rainbond.worker.appm.store.aggregate-app-status
 func TestGetAppStatus(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -75,6 +76,13 @@ func TestGetAppStatus(t *testing.T) {
 			want: pb.AppStatus_STARTING,
 		},
 		{
+			name: "waiting",
+			statuses: map[string]string{
+				"food": v1.WAITING,
+			},
+			want: pb.AppStatus_STARTING,
+		},
+		{
 			name: "stopping",
 			statuses: map[string]string{
 				"apple":  v1.STOPPING,
@@ -111,11 +119,13 @@ func TestGetAppStatus(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret
 func TestNsEventHandlerProvidesAddFunc(t *testing.T) {
 	handler := (&appRuntimeStore{}).nsEventHandler()
 	assert.NotNil(t, handler.AddFunc, "namespace add events should trigger image pull secret sync")
 }
 
+// capability_id: rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret
 func TestNsEventHandlerSyncsManagedNamespacesOnAddAndUpdate(t *testing.T) {
 	var synced []string
 	store := &appRuntimeStore{
@@ -139,6 +149,7 @@ func TestNsEventHandlerSyncsManagedNamespacesOnAddAndUpdate(t *testing.T) {
 	assert.Equal(t, []string{"test", "test"}, synced)
 }
 
+// capability_id: rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret
 func TestNsEventHandlerSkipsNamespacesThatShouldNotSync(t *testing.T) {
 	var synced []string
 	store := &appRuntimeStore{

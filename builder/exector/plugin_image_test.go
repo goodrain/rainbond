@@ -17,3 +17,78 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package exector
+
+import (
+	"testing"
+
+	"github.com/goodrain/rainbond/builder"
+	buildmodel "github.com/goodrain/rainbond/builder/model"
+	"github.com/goodrain/rainbond/event"
+)
+
+// capability_id: rainbond.plugin-build.image-tag
+func TestCreatePluginImageTag(t *testing.T) {
+	origDomain := builder.REGISTRYDOMAIN
+	builder.REGISTRYDOMAIN = "goodrain.me"
+	defer func() {
+		builder.REGISTRYDOMAIN = origDomain
+	}()
+
+	tests := []struct {
+		image    string
+		pluginID string
+		version  string
+		want     string
+	}{
+		{
+			image:    "busybox:1.36",
+			pluginID: "plugin-a",
+			version:  "v1",
+			want:     "goodrain.me/plugin_busybox_plugin-a:1.36_v1",
+		},
+		{
+			image:    "repo.example.com/custom/plugin-demo:2.0",
+			pluginID: "plugin-b",
+			version:  "v2",
+			want:     "goodrain.me/plugin-demo:plugin-b_v2",
+		},
+		{
+			image:    "plugin-runner",
+			pluginID: "plugin-c",
+			version:  "v3",
+			want:     "goodrain.me/plugin-runner:plugin-c_v3",
+		},
+	}
+
+	for _, tt := range tests {
+		if got := createPluginImageTag(tt.image, tt.pluginID, tt.version); got != tt.want {
+			t.Fatalf("createPluginImageTag(%q, %q, %q)=%q, want %q", tt.image, tt.pluginID, tt.version, got, tt.want)
+		}
+	}
+}
+
+// capability_id: rainbond.plugin-build.image-input-validate
+func TestPluginImageRunRejectsEmptyImageURL(t *testing.T) {
+	manager := &exectorManager{}
+	err := manager.run(&buildmodel.BuildPluginTaskBody{
+		ImageURL:      "   ",
+		PluginID:      "plugin-a",
+		DeployVersion: "v1",
+	}, event.GetTestLogger())
+	if err == nil {
+		t.Fatal("expected empty image URL validation error")
+	}
+}
+
+// capability_id: rainbond.plugin-build.image-input-validate
+func TestPluginImageRunRejectsInvalidImageReference(t *testing.T) {
+	manager := &exectorManager{}
+	err := manager.run(&buildmodel.BuildPluginTaskBody{
+		ImageURL:      "%%%invalid%%%image",
+		PluginID:      "plugin-a",
+		DeployVersion: "v1",
+	}, event.GetTestLogger())
+	if err == nil {
+		t.Fatal("expected invalid image reference error")
+	}
+}

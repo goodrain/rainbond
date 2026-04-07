@@ -19,10 +19,44 @@
 package exector
 
 import (
-	"path"
+	"reflect"
 	"testing"
 )
 
-func TestPath(t *testing.T) {
-	t.Log(path.Ext("/grdata/app/import/69f31ed1b03d4f84bd8be2fc92c6eb01/物联网-1.0.zip"))
+// capability_id: rainbond.app-import.package-name-normalize
+func TestBuildFromLinuxFileName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "", want: ""},
+		{input: "nginx--latest", want: "nginx:latest"},
+		{input: "/tmp/cache/demo--v1", want: "demo:v1"},
+		{input: "  nginx--latest  ", want: "nginx:latest"},
+	}
+
+	for _, tt := range tests {
+		if got := buildFromLinuxFileName(tt.input); got != tt.want {
+			t.Fatalf("buildFromLinuxFileName(%q)=%q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+// capability_id: rainbond.app-import.status-serialization
+func TestAppStatusMapRoundTrip(t *testing.T) {
+	input := "app-a:importing,app-b:success"
+	got := str2map(input)
+	want := map[string]string{
+		"app-a": "importing",
+		"app-b": "success",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("str2map(%q)=%v, want %v", input, got, want)
+	}
+
+	serialized := map2str(want)
+	roundTrip := str2map(serialized)
+	if !reflect.DeepEqual(roundTrip, want) {
+		t.Fatalf("round trip mismatch: got %v, want %v", roundTrip, want)
+	}
 }

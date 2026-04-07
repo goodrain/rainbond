@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 )
 
+// capability_id: rainbond.compose.parse-warnings
 func TestDockerComposeParseWithWarnings(t *testing.T) {
 	// Read test compose file
 	content, err := ioutil.ReadFile("compose/testdata/compose-with-warnings.yml")
@@ -72,6 +73,7 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
+// capability_id: rainbond.compose.yaml-anchor-support
 func TestDockerComposeParseWithYAMLAnchors(t *testing.T) {
 	// Test compose file with YAML anchors and aliases
 	// Using version 2 to avoid cache directory requirement (v3+ requires /cache directory)

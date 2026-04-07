@@ -248,6 +248,9 @@ func (a *AppService) GetServiceStatus() string {
 	if a.deployment != nil {
 		// All pods ready and version matches
 		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) && a.UpgradeComlete() {
+			if hasCurrentVersionUnreadyPods(a.pods, a.DeployVersion) {
+				return WAITING
+			}
 			return RUNNING
 		}
 
@@ -289,6 +292,9 @@ func (a *AppService) GetServiceStatus() string {
 	if a.statefulset != nil {
 		// All pods ready and version matches
 		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) && a.UpgradeComlete() {
+			if hasCurrentVersionUnreadyPods(a.pods, a.DeployVersion) {
+				return WAITING
+			}
 			return RUNNING
 		}
 
@@ -365,6 +371,17 @@ func hasAbnormalPods(pods []*corev1.Pod) bool {
 		if IsPodNodeLost(pod) {
 			continue
 		}
+		// Pending pods that cannot be scheduled should be treated as abnormal
+		// so both component and app status reflect the scheduling failure.
+		if pod.Status.Phase == corev1.PodPending {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodScheduled &&
+					condition.Status == corev1.ConditionFalse &&
+					condition.Reason == "Unschedulable" {
+					return true
+				}
+			}
+		}
 		// Check if pod phase is Failed
 		if pod.Status.Phase == corev1.PodFailed {
 			return true
@@ -377,6 +394,33 @@ func hasAbnormalPods(pods []*corev1.Pod) bool {
 			if con.LastTerminationState.Terminated != nil && con.LastTerminationState.Terminated.ExitCode != 0 {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func hasCurrentVersionUnreadyPods(pods []*corev1.Pod, deployVersion string) bool {
+	if deployVersion == "" || len(pods) == 0 {
+		return false
+	}
+	for _, pod := range pods {
+		if pod == nil || pod.DeletionTimestamp != nil || IsPodNodeLost(pod) {
+			continue
+		}
+		if pod.Labels["version"] != deployVersion {
+			continue
+		}
+		if !isPodReady(pod) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
 		}
 	}
 	return false

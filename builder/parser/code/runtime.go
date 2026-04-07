@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -37,22 +38,53 @@ var ErrRuntimeNotSupport = fmt.Errorf("runtime version not support")
 
 // CheckRuntime CheckRuntime
 func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
+	return checkRuntime(buildPath, lang, "")
+}
+
+// CheckRuntimeByStrategy checks runtime information under a specific build strategy.
+func CheckRuntimeByStrategy(buildPath string, lang Lang, buildStrategy string) (map[string]string, error) {
+	return checkRuntime(buildPath, lang, buildStrategy)
+}
+
+func checkRuntime(buildPath string, lang Lang, buildStrategy string) (map[string]string, error) {
 	// Handle combined language types (e.g., "Node.js,static")
 	langStr := string(lang)
 
 	// Check for Node.js related languages first
 	// Note: NodeJSStatic is deprecated, all Node.js projects use Nodejs type now
 	if strings.Contains(langStr, string(Nodejs)) {
+		if buildStrategy == "cnb" {
+			return readNodeRuntimeInfoForCNB(buildPath)
+		}
 		return readNodeRuntimeInfo(buildPath)
 	}
 
 	switch lang {
 	case PHP:
+		if buildStrategy == "cnb" {
+			return readPHPRuntimeInfoForCNB(buildPath)
+		}
 		return readPHPRuntimeInfo(buildPath)
 	case Python:
+		if buildStrategy == "cnb" {
+			return readPythonRuntimeInfoForCNB(buildPath)
+		}
 		return readPythonRuntimeInfo(buildPath)
 	case JavaMaven, JaveWar, JavaJar:
+		if buildStrategy == "cnb" {
+			return readJavaRuntimeInfoForCNB(buildPath)
+		}
 		return readJavaRuntimeInfo(buildPath)
+	case Golang:
+		if buildStrategy == "cnb" {
+			return readGolangRuntimeInfoForCNB(buildPath)
+		}
+		return nil, nil
+	case NetCore:
+		if buildStrategy == "cnb" {
+			return readDotnetRuntimeInfoForCNB(buildPath)
+		}
+		return nil, nil
 	case Nodejs:
 		return readNodeRuntimeInfo(buildPath)
 	case Static:
@@ -60,6 +92,254 @@ func CheckRuntime(buildPath string, lang Lang) (map[string]string, error) {
 	default:
 		return nil, nil
 	}
+}
+
+func readPHPRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	if ok, _ := util.FileExists(path.Join(buildPath, "composer.json")); !ok {
+		return runtimeInfo, nil
+	}
+	body, err := os.ReadFile(path.Join(buildPath, "composer.json"))
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	if json.Get("require") == nil {
+		return runtimeInfo, nil
+	}
+	phpVersion := json.Get("require").Get("php")
+	if phpVersion == nil {
+		return runtimeInfo, nil
+	}
+	version, _ := phpVersion.String()
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return runtimeInfo, nil
+	}
+	normalized, err := normalizePHPRuntimeVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	runtimeInfo["RUNTIMES"] = normalized
+	return runtimeInfo, nil
+}
+
+func readPythonRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
+	if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
+		runtimeInfo["START_CMD"] = startCmd
+		runtimeInfo["START_CMD_SOURCE"] = source
+	}
+	return runtimeInfo, nil
+}
+
+func readJavaRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	ok, err := util.FileExists(path.Join(buildPath, "system.properties"))
+	if !ok || err != nil {
+		return runtimeInfo, nil
+	}
+	cmd := fmt.Sprintf(`grep -i "java.runtime.version" %s | grep  -E -o "[0-9]+(.[0-9]+)?(.[0-9]+)?"`, path.Join(buildPath, "system.properties"))
+	runtime, err := util.CmdExec(cmd)
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	runtime = strings.TrimSpace(runtime)
+	if runtime == "" {
+		return runtimeInfo, nil
+	}
+	normalized, err := normalizeJavaRuntimeVersion(runtime)
+	if err != nil {
+		return nil, err
+	}
+	runtimeInfo["RUNTIMES"] = normalized
+	return runtimeInfo, nil
+}
+
+func readGolangRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	body, err := os.ReadFile(path.Join(buildPath, "go.mod"))
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	lines := strings.Split(string(body), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "go ") {
+			normalized, err := normalizeGolangRuntimeVersion(strings.TrimSpace(strings.TrimPrefix(line, "go ")))
+			if err != nil {
+				return nil, err
+			}
+			runtimeInfo["GOVERSION"] = normalized
+			return runtimeInfo, nil
+		}
+		if strings.HasPrefix(line, "toolchain ") {
+			normalized, err := normalizeGolangRuntimeVersion(strings.TrimSpace(strings.TrimPrefix(line, "toolchain ")))
+			if err != nil {
+				return nil, err
+			}
+			runtimeInfo["GOVERSION"] = normalized
+			return runtimeInfo, nil
+		}
+	}
+	return runtimeInfo, nil
+}
+
+func readDotnetRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	projectFiles, err := filepath.Glob(path.Join(buildPath, "*.csproj"))
+	if err != nil || len(projectFiles) == 0 {
+		return runtimeInfo, nil
+	}
+
+	for _, projectFile := range projectFiles {
+		body, err := os.ReadFile(projectFile)
+		if err != nil {
+			continue
+		}
+		content := string(body)
+		for _, tag := range []string{"TargetFramework", "TargetFrameworks"} {
+			value := extractXMLTag(content, tag)
+			if value == "" {
+				continue
+			}
+			if tag == "TargetFrameworks" && strings.Contains(value, ";") {
+				value = strings.Split(value, ";")[0]
+			}
+			normalized, err := normalizeDotnetRuntimeVersion(value)
+			if err != nil {
+				return nil, err
+			}
+			if normalized != "" {
+				runtimeInfo["RUNTIMES"] = normalized
+				return runtimeInfo, nil
+			}
+		}
+	}
+	return runtimeInfo, nil
+}
+
+func extractXMLTag(content, tag string) string {
+	openTag := "<" + tag + ">"
+	closeTag := "</" + tag + ">"
+	start := strings.Index(content, openTag)
+	if start == -1 {
+		return ""
+	}
+	start += len(openTag)
+	end := strings.Index(content[start:], closeTag)
+	if end == -1 {
+		return ""
+	}
+	return strings.TrimSpace(content[start : start+end])
+}
+
+func readNodeRuntimeInfoForCNB(buildPath string) (map[string]string, error) {
+	var runtimeInfo = make(map[string]string, 1)
+	if ok, _ := util.FileExists(path.Join(buildPath, "package.json")); !ok {
+		return runtimeInfo, nil
+	}
+	body, err := os.ReadFile(path.Join(buildPath, "package.json"))
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return runtimeInfo, nil
+	}
+	if json.Get("engines") != nil {
+		if v := json.Get("engines").Get("node"); v != nil {
+			nodeVersion, _ := v.String()
+			nodeVersion = strings.TrimSpace(nodeVersion)
+			if nodeVersion != "" {
+				if !strings.ContainsAny(nodeVersion, "0123456789") {
+					return nil, ErrRuntimeNotSupport
+				}
+				runtimeInfo["RUNTIMES"] = MatchCNBVersion("nodejs", nodeVersion)
+				runtimeInfo["NODE_VERSION_ORIGINAL"] = nodeVersion
+				runtimeInfo["NODE_VERSION_SOURCE"] = "engines.node"
+			}
+		}
+	}
+	if runtimeInfo["RUNTIMES"] == "" {
+		runtimeInfo["RUNTIMES"] = MatchCNBVersion("nodejs", "")
+		runtimeInfo["NODE_VERSION_SOURCE"] = "default"
+	}
+	if runtimeInfo["RUNTIMES"] == "" {
+		return nil, ErrRuntimeNotSupport
+	}
+	populateNodeRuntimeMetadata(buildPath, runtimeInfo)
+	return runtimeInfo, nil
+}
+
+func normalizeJavaRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return "", ErrRuntimeNotSupport
+	}
+	if strings.HasPrefix(version, "1.") {
+		version = version[2:]
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 1 || parts[0] == "" {
+		return "", ErrRuntimeNotSupport
+	}
+	return parts[0], nil
+}
+
+func normalizePythonRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(version)
+	if strings.HasPrefix(version, "python-") {
+		version = version[len("python-"):]
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return "", ErrRuntimeNotSupport
+	}
+	return strings.Join(parts[:2], "."), nil
+}
+
+func normalizeGolangRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(version)
+	if strings.HasPrefix(version, "go") {
+		version = version[2:]
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return "", ErrRuntimeNotSupport
+	}
+	return strings.Join(parts[:2], "."), nil
+}
+
+func normalizeDotnetRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(strings.ToLower(version))
+	if strings.HasPrefix(version, "net") {
+		version = strings.TrimPrefix(version, "net")
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return "", ErrRuntimeNotSupport
+	}
+	return strings.Join(parts[:2], "."), nil
+}
+
+func normalizePHPRuntimeVersion(version string) (string, error) {
+	version = strings.TrimSpace(version)
+	for _, prefix := range []string{">=", "<=", ">", "<", "^", "~", "="} {
+		if strings.HasPrefix(version, prefix) {
+			version = strings.TrimSpace(strings.TrimPrefix(version, prefix))
+			break
+		}
+	}
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return "", ErrRuntimeNotSupport
+	}
+	return strings.Join(parts[:2], "."), nil
 }
 
 func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
@@ -123,6 +403,11 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 
 func readPythonRuntimeInfo(buildPath string) (map[string]string, error) {
 	var runtimeInfo = make(map[string]string, 1)
+	runtimeInfo["PACKAGE_TOOL"] = DetectPythonPackageManager(buildPath)
+	if startCmd, source := DetectPythonStartCommand(buildPath, runtimeInfo["PACKAGE_TOOL"]); startCmd != "" {
+		runtimeInfo["START_CMD"] = startCmd
+		runtimeInfo["START_CMD_SOURCE"] = source
+	}
 	if ok, _ := util.FileExists(path.Join(buildPath, "runtime.txt")); !ok {
 		return runtimeInfo, nil
 	}
@@ -215,6 +500,12 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 		runtimeInfo["NODE_VERSION_SOURCE"] = "default"
 	}
 
+	populateNodeRuntimeMetadata(buildPath, runtimeInfo)
+
+	return runtimeInfo, nil
+}
+
+func populateNodeRuntimeMetadata(buildPath string, runtimeInfo map[string]string) {
 	// Detect package manager (replaces hardcoded npm)
 	pmInfo := DetectPackageManager(buildPath)
 	runtimeInfo["PACKAGE_TOOL"] = string(pmInfo.Manager)
@@ -255,8 +546,6 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	configFiles := DetectConfigFiles(buildPath)
 	runtimeInfo["HAS_NPMRC"] = boolToString(configFiles.HasNpmrc)
 	runtimeInfo["HAS_YARNRC"] = boolToString(configFiles.HasYarnrc)
-
-	return runtimeInfo, nil
 }
 
 // boolToString converts a boolean to "true" or "false" string

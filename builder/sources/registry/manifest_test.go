@@ -9,43 +9,45 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
-func TestManifestDigestV2AcceptsOCIManifest(t *testing.T) {
-	const expectedDigest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+// capability_id: rainbond.registry.manifest-exists-oci
+func TestManifestExistsAcceptsOCIManifestTypes(t *testing.T) {
+	var acceptHeader string
 	reg := &Registry{
-		URL: "http://registry.example.com",
-		Client: &http.Client{
-			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.Method != http.MethodHead {
-					t.Fatalf("expected HEAD request, got %s", r.Method)
-				}
-				accept := r.Header.Get("Accept")
-				if !strings.Contains(accept, "application/vnd.docker.distribution.manifest.v2+json") {
-					t.Fatalf("expected schema2 manifest in Accept header, got %q", accept)
-				}
-				if !strings.Contains(accept, "application/vnd.oci.image.manifest.v1+json") {
-					t.Fatalf("expected OCI manifest in Accept header, got %q", accept)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header: http.Header{
-						"Docker-Content-Digest": []string{expectedDigest},
-					},
-					Body: ioutil.NopCloser(strings.NewReader("")),
-				}, nil
-			}),
-		},
+		URL: "https://registry.example.com",
+		Client: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path != "/v2/demo/manifests/v1" {
+				t.Fatalf("unexpected request path %q", r.URL.Path)
+			}
+			acceptHeader = r.Header.Get("Accept")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		})},
 		Logf: Quiet,
 	}
 
-	digest, err := reg.ManifestDigestV2("rainbond/app", "latest")
+	exists, err := reg.ManifestExists("demo", "v1")
 	if err != nil {
-		t.Fatalf("expected OCI manifest to be accepted, got error: %v", err)
+		t.Fatalf("expected manifest existence check to succeed, got error: %v", err)
 	}
-	if digest.String() != expectedDigest {
-		t.Fatalf("expected digest %s, got %s", expectedDigest, digest.String())
+	if !exists {
+		t.Fatal("expected manifest to exist")
+	}
+
+	for _, want := range []string{
+		"application/vnd.docker.distribution.manifest.v2+json",
+		"application/vnd.oci.image.manifest.v1+json",
+		"application/vnd.docker.distribution.manifest.list.v2+json",
+		"application/vnd.oci.image.index.v1+json",
+	} {
+		if !strings.Contains(acceptHeader, want) {
+			t.Fatalf("expected Accept header to contain %q, got %q", want, acceptHeader)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.source-detect.hidden-dockerfiles
 func TestFindDockerfilesInHiddenDirs(t *testing.T) {
 	// 创建临时测试目录
 	tmpDir, err := os.MkdirTemp("", "dockerfile-test-*")
@@ -56,6 +57,7 @@ func TestFindDockerfilesInHiddenDirs(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.source-detect.ignore-excluded-dirs
 func TestFindDockerfilesIgnoreSpecificDirs(t *testing.T) {
 	// 创建临时测试目录
 	tmpDir, err := os.MkdirTemp("", "dockerfile-test-*")

@@ -59,6 +59,12 @@ const (
 	OfficialPluginLabel = "plugin.rainbond.io/name"
 )
 
+// NamespaceInfo holds name and creation timestamp of a namespace
+type NamespaceInfo struct {
+	Name              string `json:"name"`
+	CreationTimestamp string `json:"creation_timestamp"`
+}
+
 // ClusterHandler -
 type ClusterHandler interface {
 	GetClusterInfo(ctx context.Context) (*model.ClusterResource, error)
@@ -69,6 +75,7 @@ type ClusterHandler interface {
 	MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError)
 	BatchGetGateway(ctx context.Context) ([]*model.GatewayResource, *util.APIHandleError)
 	GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError)
+	GetNamespaceDetail(ctx context.Context, content string) ([]NamespaceInfo, *util.APIHandleError)
 	GetNamespaceSource(ctx context.Context, content string, namespace string) (map[string]model.LabelResource, *util.APIHandleError)
 	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
 	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
@@ -537,23 +544,51 @@ func (c *clusterAction) BatchGetGateway(ctx context.Context) ([]*model.GatewayRe
 	return gatewayList, nil
 }
 
+// isExcludedNamespace reports whether ns should be excluded from namespace listings.
+// When content == "unmanaged", also excludes Rainbond-managed namespaces.
+func isExcludedNamespace(ns corev1.Namespace, content string) bool {
+	if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace) {
+		return true
+	}
+	if labelValue, ok := ns.Labels[constants.ResourceManagedByLabel]; ok && labelValue == "rainbond" && content == "unmanaged" {
+		return true
+	}
+	return false
+}
+
 // GetNamespace Get namespace of the current cluster
 func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError) {
 	namespaceList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace:%v", err)}
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace: %w", err)}
 	}
 	namespaces := new([]string)
 	for _, ns := range namespaceList.Items {
-		if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace) {
-			continue
-		}
-		if labelValue, isRBDNamespace := ns.Labels[constants.ResourceManagedByLabel]; isRBDNamespace && labelValue == "rainbond" && content == "unmanaged" {
+		if isExcludedNamespace(ns, content) {
 			continue
 		}
 		*namespaces = append(*namespaces, ns.Name)
 	}
 	return *namespaces, nil
+}
+
+// GetNamespaceDetail Get unmanaged namespaces with creation timestamp
+func (c *clusterAction) GetNamespaceDetail(ctx context.Context, content string) ([]NamespaceInfo, *util.APIHandleError) {
+	namespaceList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace: %w", err)}
+	}
+	result := make([]NamespaceInfo, 0)
+	for _, ns := range namespaceList.Items {
+		if isExcludedNamespace(ns, content) {
+			continue
+		}
+		result = append(result, NamespaceInfo{
+			Name:              ns.Name,
+			CreationTimestamp: ns.CreationTimestamp.UTC().Format(time.RFC3339),
+		})
+	}
+	return result, nil
 }
 
 // MergeMap map去重合并

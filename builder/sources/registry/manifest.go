@@ -32,6 +32,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func acceptedManifestMediaTypes() string {
+	return strings.Join([]string{
+		manifestV1.MediaTypeManifest,
+		manifestV2.MediaTypeManifest,
+		"application/vnd.docker.distribution.manifest.list.v2+json",
+		"application/vnd.oci.image.manifest.v1+json",
+		"application/vnd.oci.image.index.v1+json",
+	}, ", ")
+}
+
 const ociImageManifestMediaType = "application/vnd.oci.image.manifest.v1+json"
 
 // Manifest -
@@ -63,6 +73,26 @@ func (registry *Registry) Manifest(repository, reference string) (*manifestV1.Si
 	}
 
 	return signedManifest, nil
+}
+
+// ManifestExists checks whether a manifest can be resolved with Docker or OCI media types.
+func (registry *Registry) ManifestExists(repository, reference string) (bool, error) {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	registry.Logf("registry.manifest.exists url=%s repository=%s reference=%s", url, repository, reference)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Accept", acceptedManifestMediaTypes())
+	resp, err := registry.Client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	return true, nil
 }
 
 // ManifestV2 -

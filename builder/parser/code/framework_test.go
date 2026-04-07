@@ -24,6 +24,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.framework-detect.nextjs
 func TestDetectFramework_NextJS(t *testing.T) {
 	// Create temp directory
 	tmpDir, err := os.MkdirTemp("", "test-nextjs-*")
@@ -72,6 +73,7 @@ func TestDetectFramework_NextJS(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nextjs-no-config
 func TestDetectFramework_NextJS_NoConfigFile(t *testing.T) {
 	// Next.js project with only package.json, no next.config.* file
 	// Should still be detected as dynamic (SSR)
@@ -108,6 +110,7 @@ func TestDetectFramework_NextJS_NoConfigFile(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nextjs-static-export
 func TestDetectFramework_NextJS_StaticExport(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nextjs-static-*")
 	if err != nil {
@@ -155,6 +158,7 @@ export default nextConfig`
 	}
 }
 
+// capability_id: rainbond.framework-detect.nextjs-ssr
 func TestDetectFramework_NextJS_SSR(t *testing.T) {
 	// NextJS without output: 'export' should remain dynamic
 	tmpDir, err := os.MkdirTemp("", "test-nextjs-ssr-*")
@@ -195,6 +199,7 @@ module.exports = nextConfig`
 	}
 }
 
+// capability_id: rainbond.framework-detect.nuxt
 func TestDetectFramework_Nuxt(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nuxt-*")
 	if err != nil {
@@ -229,6 +234,7 @@ func TestDetectFramework_Nuxt(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nuxt-static-target
 func TestDetectFramework_Nuxt_StaticTarget(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nuxt-static-*")
 	if err != nil {
@@ -272,6 +278,7 @@ func TestDetectFramework_Nuxt_StaticTarget(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nuxt3-ssr-false
 func TestDetectFramework_Nuxt3_SSRFalse(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nuxt3-spa-*")
 	if err != nil {
@@ -309,6 +316,7 @@ func TestDetectFramework_Nuxt3_SSRFalse(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nuxt3-static
 func TestDetectFramework_Nuxt3_NitroStatic(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nuxt3-nitro-static-*")
 	if err != nil {
@@ -350,6 +358,7 @@ func TestDetectFramework_Nuxt3_NitroStatic(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.vite
 func TestDetectFramework_Vite(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-vite-*")
 	if err != nil {
@@ -387,6 +396,7 @@ func TestDetectFramework_Vite(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.cra
 func TestDetectFramework_CRA(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-cra-*")
 	if err != nil {
@@ -420,6 +430,7 @@ func TestDetectFramework_CRA(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.angular-spa
 func TestDetectFramework_Angular_SPA(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-angular-spa-*")
 	if err != nil {
@@ -453,6 +464,7 @@ func TestDetectFramework_Angular_SPA(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.angular-ssr
 func TestDetectFramework_Angular_SSR(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-angular-ssr-*")
 	if err != nil {
@@ -485,6 +497,7 @@ func TestDetectFramework_Angular_SSR(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.express
 func TestDetectFramework_Express(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-express-*")
 	if err != nil {
@@ -515,6 +528,7 @@ func TestDetectFramework_Express(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.nestjs
 func TestDetectFramework_NestJS(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-nestjs-*")
 	if err != nil {
@@ -549,6 +563,7 @@ func TestDetectFramework_NestJS(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.no-package-json
 func TestDetectFramework_NoPackageJSON(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-no-pkg-*")
 	if err != nil {
@@ -562,6 +577,7 @@ func TestDetectFramework_NoPackageJSON(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.no-framework
 func TestDetectFramework_NoFramework(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-no-framework-*")
 	if err != nil {
@@ -585,6 +601,7 @@ func TestDetectFramework_NoFramework(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.version-normalization
 func TestCleanVersion(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -609,6 +626,7 @@ func TestCleanVersion(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.supported-list
 func TestGetSupportedFrameworks(t *testing.T) {
 	frameworks := GetSupportedFrameworks("nodejs")
 	expectedCount := len(frameworkDetectors) + len(extraNodeFrameworks)
@@ -630,6 +648,7 @@ func TestGetSupportedFrameworks(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.framework-detect.display-name
 func TestGetDisplayName(t *testing.T) {
 	tests := []struct {
 		input    string

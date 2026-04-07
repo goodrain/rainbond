@@ -2,6 +2,7 @@ package multi
 
 import "testing"
 
+// capability_id: rainbond.multisvc.select-java-maven
 func TestNewMultiServiceI_SupportsCompositeJavaMaven(t *testing.T) {
 	tests := []struct {
 		name string
@@ -22,6 +23,7 @@ func TestNewMultiServiceI_SupportsCompositeJavaMaven(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.multisvc.ignore-non-java
 func TestNewMultiServiceI_IgnoresLanguagesWithoutJavaMaven(t *testing.T) {
 	for _, lang := range []string{"dockerfile", "Node.js", "dockerfile,Node.js"} {
 		t.Run(lang, func(t *testing.T) {

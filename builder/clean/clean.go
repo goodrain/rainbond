@@ -189,7 +189,7 @@ func (t *Manager) Stop() error {
 }
 
 // PodExecCmd registry garbage-collect
-func (t *Manager) PodExecCmd(config *rest.Config, clientset *kubernetes.Clientset, podName string, cmd []string) (stdout bytes.Buffer, stderr bytes.Buffer, err error) {
+func (t *Manager) PodExecCmd(config *rest.Config, clientset kubernetes.Interface, podName string, cmd []string) (stdout bytes.Buffer, stderr bytes.Buffer, err error) {
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{"name": podName}}
 	listOptions := metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),

@@ -24,6 +24,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.config-files.detect
 func TestDetectConfigFiles_Npmrc(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-npmrc-*")
 	if err != nil {
@@ -50,6 +51,7 @@ func TestDetectConfigFiles_Npmrc(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.detect
 func TestDetectConfigFiles_YarnrcClassic(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-yarnrc-*")
 	if err != nil {
@@ -74,6 +76,7 @@ func TestDetectConfigFiles_YarnrcClassic(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.detect
 func TestDetectConfigFiles_YarnrcYml(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-yarnrc-yml-*")
 	if err != nil {
@@ -97,6 +100,7 @@ npmRegistryServer: "https://registry.npmmirror.com"`
 	}
 }
 
+// capability_id: rainbond.config-files.detect
 func TestDetectConfigFiles_Multiple(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-multi-config-*")
 	if err != nil {
@@ -117,6 +121,7 @@ func TestDetectConfigFiles_Multiple(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.detect
 func TestDetectConfigFiles_None(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-no-config-*")
 	if err != nil {
@@ -137,6 +142,7 @@ func TestDetectConfigFiles_None(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.read-npmrc
 func TestConfigFiles_GetNpmrcContent(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-npmrc-content-*")
 	if err != nil {
@@ -160,6 +166,7 @@ func TestConfigFiles_GetNpmrcContent(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.read-yarnrc
 func TestConfigFiles_GetYarnrcContent(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-yarnrc-content-*")
 	if err != nil {
@@ -183,6 +190,7 @@ func TestConfigFiles_GetYarnrcContent(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.has-any
 func TestConfigFiles_HasAnyConfigFile(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -204,6 +212,7 @@ func TestConfigFiles_HasAnyConfigFile(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.config-files.resolve-relevant-file
 func TestConfigFiles_GetRelevantConfigFile(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-relevant-config-*")
 	if err != nil {

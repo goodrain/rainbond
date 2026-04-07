@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// capability_id: rainbond.kb-adapter.cluster.restore-from-backup
 func TestRestoreFromBackup(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -79,6 +80,7 @@ func TestRestoreFromBackup(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.restore-from-backup
 func TestWaitForRestoredCluster(t *testing.T) {
 	testCases := []struct {
 		name              string
@@ -223,6 +225,7 @@ func TestWaitForRestoredCluster(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.restore-from-backup
 func TestHandleFailedRestoreOps(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -288,6 +291,7 @@ func TestHandleFailedRestoreOps(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.kb-adapter.cluster.restore-from-backup
 func TestCleanupOpsRequest(t *testing.T) {
 	testCases := []struct {
 		name        string

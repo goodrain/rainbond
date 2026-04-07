@@ -1,12 +1,14 @@
 package apigateway
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	apisixclientv2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned/typed/config/v2"
 	v13 "github.com/cert-manager/cert-manager/pkg/apis/acme/v1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v12 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
@@ -936,14 +938,22 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 
 	// 解析请求参数
 	RouteName := r.URL.Query().Get("route_name")
+	regionAppID := r.URL.Query().Get("region_app_id")
+	domains := parseCertManagerDomains(r.URL.Query().Get("domains"))
 
-	// 验证路由名称
-	if RouteName == "" {
-		httputil.ReturnError(r, w, 400, "route_name is required")
+	// 验证请求参数
+	if RouteName == "" && len(domains) == 0 {
+		httputil.ReturnError(r, w, 400, "route_name or domains is required")
+		return
+	}
+	if len(domains) > 0 && regionAppID == "" {
+		httputil.ReturnError(r, w, 400, "region_app_id is required")
 		return
 	}
 
-	RouteName = removeLeadingDigits(RouteName)
+	if RouteName != "" {
+		RouteName = removeLeadingDigits(RouteName)
+	}
 
 	// 删除 Certificate 资源
 	scheme := runtime.NewScheme()
@@ -953,6 +963,22 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Errorf("failed to create k8s client: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create k8s client: %v", err))
+		return
+	}
+
+	c := k8s.Default().ApiSixClient.ApisixV2()
+	if len(domains) > 0 {
+		if err = deleteCertificatesByDomains(r.Context(), k8sClient, c, tenant.Namespace, regionAppID, domains); err != nil {
+			logrus.Errorf("delete certificate by domains error: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("delete certificate by domains error: %v", err))
+			return
+		}
+		if err = clearCertManagerLabelsByDomains(r.Context(), c, tenant.Namespace, domains); err != nil {
+			logrus.Errorf("clear route cert-manager labels error: %v", err)
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("clear route cert-manager labels error: %v", err))
+			return
+		}
+		httputil.ReturnSuccess(r, w, nil)
 		return
 	}
 
@@ -971,7 +997,6 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 删除 ApisixTls 资源
-	c := k8s.Default().ApiSixClient.ApisixV2()
 	err = c.ApisixTlses(tenant.Namespace).Delete(r.Context(), RouteName, v1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logrus.Errorf("delete apisix tls error: %v", err)
@@ -1021,6 +1046,112 @@ func extractBaseName(challengeName string) string {
 	// 移除最后三个部分（数字后缀）
 	return strings.Join(parts[:len(parts)-3], "-")
 }
+
+func parseCertManagerDomains(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	domains := make([]string, 0, len(parts))
+	for _, part := range parts {
+		domain := strings.TrimSpace(part)
+		if domain == "" {
+			continue
+		}
+		domains = append(domains, domain)
+	}
+	return domains
+}
+
+func hasMatchingCertManagerDomain(certDomains []string, routeDomains []string) bool {
+	for _, certDomain := range certDomains {
+		for _, routeDomain := range routeDomains {
+			if certManagerDomainsConflict(certDomain, routeDomain) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func certManagerDomainsConflict(domain1, domain2 string) bool {
+	if domain1 == domain2 {
+		return true
+	}
+	if strings.HasPrefix(domain1, "*.") {
+		if strings.HasSuffix(domain2, domain1[2:]) {
+			return true
+		}
+	}
+	if strings.HasPrefix(domain2, "*.") {
+		if strings.HasSuffix(domain1, domain2[2:]) {
+			return true
+		}
+	}
+	return false
+}
+
+func routeMatchesCertManagerDomains(route *v2.ApisixRoute, domains []string) bool {
+	if route == nil || len(domains) == 0 {
+		return false
+	}
+	for _, httpRoute := range route.Spec.HTTP {
+		if hasMatchingCertManagerDomain(httpRoute.Match.Hosts, domains) {
+			return true
+		}
+	}
+	return false
+}
+
+func deleteCertificatesByDomains(ctx context.Context, k8sClient client.Client, c versionedApisixV2, namespace, regionAppID string, domains []string) error {
+	selector, _ := labels.Parse(labels.FormatLabels(map[string]string{
+		"app_id": regionAppID,
+	}))
+	certList := &cmapi.CertificateList{}
+	if err := k8sClient.List(ctx, certList, &client.ListOptions{
+		Namespace:     namespace,
+		LabelSelector: selector,
+	}); err != nil {
+		return err
+	}
+
+	for i := range certList.Items {
+		cert := &certList.Items[i]
+		if !hasMatchingCertManagerDomain(cert.Spec.DNSNames, domains) {
+			continue
+		}
+		if err := k8sClient.Delete(ctx, cert); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+		if err := c.ApisixTlses(namespace).Delete(ctx, cert.Name, v1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func clearCertManagerLabelsByDomains(ctx context.Context, c versionedApisixV2, namespace string, domains []string) error {
+	routeList, err := c.ApisixRoutes(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for i := range routeList.Items {
+		route := &routeList.Items[i]
+		if !routeMatchesCertManagerDomains(route, domains) || route.Labels == nil {
+			continue
+		}
+		if _, ok := route.Labels["cert-manager-enabled"]; !ok {
+			continue
+		}
+		delete(route.Labels, "cert-manager-enabled")
+		if _, err := c.ApisixRoutes(namespace).Update(ctx, route, v1.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type versionedApisixV2 = apisixclientv2.ApisixV2Interface
 
 // 新增：label key 合法化函数
 func sanitizeLabelKey(key string) string {

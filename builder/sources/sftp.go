@@ -46,6 +46,15 @@ type SFTPClient struct {
 	sftpClient *sftp.Client
 }
 
+func parseSFTPPort(port string) int {
+	if len(port) != 0 {
+		if parsed, err := strconv.Atoi(port); err == nil {
+			return parsed
+		}
+	}
+	return 21
+}
+
 // NewSFTPClient NewSFTPClient
 func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
 	fb := &SFTPClient{
@@ -53,15 +62,7 @@ func NewSFTPClient(username, password, host, port string) (*SFTPClient, error) {
 		PassWord: password,
 		Host:     host,
 	}
-	if len(port) != 0 {
-		var err error
-		fb.Port, err = strconv.Atoi(port)
-		if err != nil {
-			fb.Port = 21
-		}
-	} else {
-		fb.Port = 21
-	}
+	fb.Port = parseSFTPPort(port)
 	var auths []ssh.AuthMethod
 	if aconn, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
 		auths = append(auths, ssh.PublicKeysCallback(agent.NewClient(aconn).Signers))

@@ -1,14 +1,13 @@
 package conversion
 
 import (
-	"context"
 	"testing"
 
 	"github.com/goodrain/rainbond/db/model"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/assert"
 )
 
+// capability_id: rainbond.worker.appm.autoscaler.build-hpa-spec
 func TestCreateMetricSpec(t *testing.T) {
 	metric := &model.TenantServiceAutoscalerRuleMetrics{
 		MetricsType:       "resource_metrics",
@@ -18,10 +17,19 @@ func TestCreateMetricSpec(t *testing.T) {
 	}
 
 	metricSpec := createResourceMetrics(metric)
-	t.Logf("%#v", metricSpec)
+	assert.Equal(t, "Resource", string(metricSpec.Type))
+	if assert.NotNil(t, metricSpec.Resource) {
+		assert.Equal(t, "memory", string(metricSpec.Resource.Name))
+		assert.Equal(t, "AverageValue", string(metricSpec.Resource.Target.Type))
+		if assert.NotNil(t, metricSpec.Resource.Target.AverageValue) {
+			assert.Equal(t, "60Mi", metricSpec.Resource.Target.AverageValue.String())
+		}
+	}
 }
 
+// capability_id: rainbond.worker.appm.autoscaler.build-hpa-spec
 func TestNewHPA(t *testing.T) {
+	t.Skip("integration test depends on local kubeconfig and live cluster")
 	rule := &model.TenantServiceAutoscalerRules{
 		RuleID:      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		ServiceID:   "45197f4936cf45efa2ac4831ce42025a",
@@ -48,13 +56,20 @@ func TestNewHPA(t *testing.T) {
 
 	hpa := newHPA(namespace, kind, name, nil, rule, metrics)
 
-	clientset, err := k8sutil.NewClientset("/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("error creating k8s clientset: %s", err.Error())
-	}
-
-	_, err = clientset.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(context.Background(), hpa, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("create hpa: %v", err)
+	if assert.NotNil(t, hpa) {
+		assert.Equal(t, rule.RuleID, hpa.Name)
+		assert.Equal(t, namespace, hpa.Namespace)
+		assert.Equal(t, kind, hpa.Spec.ScaleTargetRef.Kind)
+		assert.Equal(t, name, hpa.Spec.ScaleTargetRef.Name)
+		if assert.NotNil(t, hpa.Spec.MinReplicas) {
+			assert.Equal(t, int32(1), *hpa.Spec.MinReplicas)
+		}
+		assert.Equal(t, int32(10), hpa.Spec.MaxReplicas)
+		if assert.Len(t, hpa.Spec.Metrics, 2) {
+			assert.Equal(t, "cpu", string(hpa.Spec.Metrics[0].Resource.Name))
+			assert.Equal(t, "Utilization", string(hpa.Spec.Metrics[0].Resource.Target.Type))
+			assert.Equal(t, "memory", string(hpa.Spec.Metrics[1].Resource.Name))
+			assert.Equal(t, "AverageValue", string(hpa.Spec.Metrics[1].Resource.Target.Type))
+		}
 	}
 }

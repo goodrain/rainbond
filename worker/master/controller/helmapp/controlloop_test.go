@@ -73,9 +73,10 @@ var _ = Describe("ControlLoop", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Describe("Reconcile", func() {
-		Context("HelmApp created", func() {
-			It("should fulfill default values", func() {
+		Describe("Reconcile", func() {
+			Context("HelmApp created", func() {
+				// capability_id: rainbond.worker.helmapp.reconcile-default-values
+				It("should fulfill default values", func() {
 				watch, err := rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Watch(context.Background(), metav1.ListOptions{
 					LabelSelector: "app=phpmyadmin",
 					Watch:         true,
@@ -105,7 +106,8 @@ var _ = Describe("ControlLoop", func() {
 				}
 			})
 
-			It("should start detecting", func() {
+				// capability_id: rainbond.worker.helmapp.reconcile-start-detecting
+				It("should start detecting", func() {
 				newHelmApp, err := rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Get(context.Background(), helmApp.Name, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 
@@ -139,7 +141,8 @@ var _ = Describe("ControlLoop", func() {
 				}
 			})
 
-			It("should start configuring", func() {
+				// capability_id: rainbond.worker.helmapp.reconcile-configuring-phase
+				It("should start configuring", func() {
 				By("wait until phase become configuring")
 				err := waitUntilConfiguring(helmApp)
 				Expect(err).NotTo(HaveOccurred())
@@ -147,6 +150,7 @@ var _ = Describe("ControlLoop", func() {
 		})
 
 		Context("Install HelmApp", func() {
+			// capability_id: rainbond.worker.helmapp.install-and-deploy
 			It("should ok", func() {
 				err := waitUntilConfiguring(helmApp)
 				Expect(err).NotTo(HaveOccurred())

@@ -24,6 +24,7 @@ import (
 	"testing"
 )
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_Empty(t *testing.T) {
 	info := ResolveNodeVersion("")
 	if info.Resolved != DefaultNodeVersion {
@@ -34,6 +35,7 @@ func TestResolveNodeVersion_Empty(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_Wildcard(t *testing.T) {
 	tests := []string{"*", "latest"}
 	for _, v := range tests {
@@ -44,6 +46,7 @@ func TestResolveNodeVersion_Wildcard(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_GreaterThanOrEqual(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -66,6 +69,7 @@ func TestResolveNodeVersion_GreaterThanOrEqual(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_Caret(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -88,6 +92,7 @@ func TestResolveNodeVersion_Caret(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_Tilde(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -106,6 +111,7 @@ func TestResolveNodeVersion_Tilde(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_XNotation(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -130,6 +136,7 @@ func TestResolveNodeVersion_XNotation(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_MajorOnly(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -149,6 +156,7 @@ func TestResolveNodeVersion_MajorOnly(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-spec
 func TestResolveNodeVersion_ExactVersion(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -176,6 +184,7 @@ func TestResolveNodeVersion_ExactVersion(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.fallback-supported-range
 func TestResolveNodeVersion_UnsupportedVersion(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -195,6 +204,7 @@ func TestResolveNodeVersion_UnsupportedVersion(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.resolve-range
 func TestResolveNodeVersion_Range(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -218,6 +228,7 @@ func TestResolveNodeVersion_Range(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.normalize-v-prefix
 func TestResolveNodeVersion_WithVPrefix(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -235,6 +246,7 @@ func TestResolveNodeVersion_WithVPrefix(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.display-info
 func TestCleanVersionSpec(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -258,6 +270,7 @@ func TestCleanVersionSpec(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.display-info
 func TestExtractMajorVersion(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -280,6 +293,7 @@ func TestExtractMajorVersion(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.display-info
 func TestExtractMinorPatch(t *testing.T) {
 	tests := []struct {
 		input         string
@@ -303,6 +317,7 @@ func TestExtractMinorPatch(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.display-info
 func TestNodeVersionInfo_IsLTS(t *testing.T) {
 	tests := []struct {
 		major    int
@@ -323,6 +338,7 @@ func TestNodeVersionInfo_IsLTS(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.display-info
 func TestNodeVersionInfo_GetNodeVersionDisplay(t *testing.T) {
 	tests := []struct {
 		info     NodeVersionInfo
@@ -341,6 +357,7 @@ func TestNodeVersionInfo_GetNodeVersionDisplay(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.parse-package-json
 func TestParseNodeVersionFromPackageJSON(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-node-version-*")
 	if err != nil {
@@ -372,6 +389,7 @@ func TestParseNodeVersionFromPackageJSON(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.parse-package-json
 func TestParseNodeVersionFromPackageJSON_NoEngines(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-node-version-no-engines-*")
 	if err != nil {
@@ -397,6 +415,7 @@ func TestParseNodeVersionFromPackageJSON_NoEngines(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.node-version.parse-package-json
 func TestParseNodeVersionFromPackageJSON_NoPackageJSON(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-node-version-no-pkg-*")
 	if err != nil {
