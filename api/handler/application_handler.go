@@ -593,7 +593,7 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 		if _, ok := set[port.ServiceID]; !ok {
 			return bcode.NewBadRequest(fmt.Sprintf("port(%s) is not belong to app(%s)", port.ServiceID, appID))
 		}
-		k8sServiceNames = append(k8sServiceNames, port.ServiceID)
+		k8sServiceNames = append(k8sServiceNames, port.K8sServiceName)
 		key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)] = port
 	}
 
@@ -604,7 +604,7 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 	}
 	for _, port := range servicesPorts {
 		// check if the port is as same as the one in request
-		if svc, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok && port.ServiceID != svc.ServiceID {
+		if svc, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok || port.ServiceID != svc.ServiceID {
 			logrus.Errorf("kubernetes service name(%s) already exists", port.K8sServiceName)
 			return bcode.ErrK8sServiceNameExists
 		}
