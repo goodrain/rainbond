@@ -124,7 +124,7 @@ func (b *Builder) validateProjectFiles(re *build.Request) error {
 
 // setSourceDirPermissions removes .git and sets permissions for CNB build
 func (b *Builder) setSourceDirPermissions(re *build.Request) error {
-	if re.BuildEnvs["KEEP_GIT"] != "true" {
+	if !truthyBuildEnv(firstNonEmptyEnv(re.BuildEnvs, "KEEP_GIT", "BUILD_KEEP_GIT")) {
 		gitDir := filepath.Join(re.SourceDir, ".git")
 		if _, err := os.Stat(gitDir); err == nil {
 			if err := os.RemoveAll(gitDir); err != nil {
