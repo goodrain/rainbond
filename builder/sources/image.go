@@ -46,6 +46,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker/config"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
@@ -250,7 +251,7 @@ func ImageTag(containerdClient *containerd.Client, source, target string, logger
 		return err
 	}
 	targetImage := targetNamed.String()
-	logrus.Infof(fmt.Sprintf("change image tag：%s -> %s", srcImage, targetImage))
+	logrus.Infof("change image tag：%s -> %s", srcImage, targetImage)
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageService := containerdClient.ImageService()
@@ -492,7 +493,7 @@ func CheckTrustedRepositories(image, user, pass string) error {
 }
 
 // EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+func EncodeAuthToBase64(authConfig registry.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", err

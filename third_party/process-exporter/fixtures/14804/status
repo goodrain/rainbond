@@ -1,0 +1,48 @@
+Name:	process-exporte
+State:	S (sleeping)
+Tgid:	14804
+Ngid:	0
+Pid:	14804
+PPid:	10884
+TracerPid:	0
+Uid:	1000	1000	1000	1000
+Gid:	1000	1000	1000	1000
+FDSize:	256
+Groups:	4 24 27 30 46 110 111 127 1000 
+NStgid:	14804
+NSpid:	14804
+NSpgid:	14804
+NSsid:	10884
+VmPeak:	   16772 kB
+VmSize:	   16772 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    7876 kB
+VmRSS:	    7876 kB
+VmData:	    9956 kB
+VmStk:	     132 kB
+VmExe:	    3692 kB
+VmLib:	       0 kB
+VmPTE:	      48 kB
+VmPMD:	      20 kB
+VmSwap:	      10 kB
+HugetlbPages:	       0 kB
+Threads:	7
+SigQ:	0/31421
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000000000000
+SigCgt:	fffffffe7fc1feff
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000003fffffffff
+CapAmb:	0000000000000000
+Seccomp:	0
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	00000000,00000001
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	72
+nonvoluntary_ctxt_switches:	6

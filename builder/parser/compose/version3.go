@@ -20,20 +20,15 @@ package compose
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"strings"
 
-	libcomposeyaml "github.com/docker/libcompose/yaml"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/docker/cli/cli/compose/loader"
 	"github.com/docker/cli/cli/compose/types"
 
 	"os"
-
-	"github.com/goodrain/rainbond/util"
 )
 
 // converts os.Environ() ([]string) to map[string]string
@@ -55,24 +50,25 @@ func buildEnvironment() (map[string]string, error) {
 // The purpose of this is not to deploy, but to be able to parse
 // v3 of Docker Compose into a suitable format. In this case, whatever is returned
 // by docker/cli's ServiceConfig
-func parseV3(bodys [][]byte) (ComposeObject, error) {
+func parseV3(bodys [][]byte, workDir string) (ComposeObject, error) {
 
 	// In order to get V3 parsing to work, we have to go through some preliminary steps
 	// for us to hack up github.com/docker/cli in order to correctly convert to a ComposeObject
-	cacheName := uuid.New().String()
-	if err := util.CheckAndCreateDir("/cache/docker-compose/" + cacheName); err != nil {
-		return ComposeObject{}, fmt.Errorf("create cache docker compose file dir error:%s", err.Error())
-	}
-	var files []string
-	for i, body := range bodys {
-		filename := fmt.Sprintf("/cache/docker-compose/%s/%d-docker-compose.yml", cacheName, i)
-		if err := ioutil.WriteFile(filename, body, 0755); err != nil {
-			return ComposeObject{}, fmt.Errorf("write cache docker compose file error:%s", err.Error())
+	workingDir := workDir
+	cleanup := func() {}
+	if workingDir == "" {
+		var err error
+		workingDir, cleanup, err = createComposeCacheDir()
+		if err != nil {
+			return ComposeObject{}, fmt.Errorf("create cache docker compose file dir error:%s", err.Error())
 		}
-		files = append(files, filename)
+		defer cleanup()
 	}
-	// Gather the working directory
-	workingDir := "/cache/docker-compose/" + cacheName
+
+	files, err := writeComposeBodies(workingDir, bodys)
+	if err != nil {
+		return ComposeObject{}, fmt.Errorf("write cache docker compose file error:%s", err.Error())
+	}
 
 	// Parse the Compose File
 	parsedComposeFile, err := loader.ParseYAML(bodys[0])
@@ -220,8 +216,8 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 			// memory:
 			// TODO: Refactor yaml.MemStringorInt in go to int64
 			// Since Deploy.Resources.Limits does not initialize, we must check type Resources before continuing
-			serviceConfig.MemLimit = libcomposeyaml.MemStringorInt(composeServiceConfig.Deploy.Resources.Limits.MemoryBytes)
-			serviceConfig.MemReservation = libcomposeyaml.MemStringorInt(composeServiceConfig.Deploy.Resources.Reservations.MemoryBytes)
+			serviceConfig.MemLimit = MemStringorInt(composeServiceConfig.Deploy.Resources.Limits.MemoryBytes)
+			serviceConfig.MemReservation = MemStringorInt(composeServiceConfig.Deploy.Resources.Reservations.MemoryBytes)
 
 			// cpu:
 			// convert to k8s format, for example: 0.5 = 500m
@@ -386,4 +382,3 @@ func checkV3UnsupportedFields(config *types.Config, report *FieldSupportReport) 
 		}
 	}
 }
-

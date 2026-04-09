@@ -159,15 +159,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
 	podtmpSpec := corev1.PodTemplateSpec{}
 	if as.GetVirtualMachine() != nil {
-		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
-		network := []kubevirtv1.Network{
-			{
-				Name: "default",
-				NetworkSource: kubevirtv1.NetworkSource{
-					Pod: &kubevirtv1.PodNetwork{},
-				},
-			},
+		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet)
+		if err != nil {
+			return fmt.Errorf("create vm runtime config failure: %v", err)
 		}
+		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		volumes := dv.GetVMVolume()
 		volumes = append([]kubevirtv1.Volume{
 			{
@@ -180,7 +176,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				},
 			},
 		}, volumes...)
+		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
+		disks = append(disks, vmRuntime.Disks...)
 		bootOrder := uint(len(disks) + 1)
 		disks = append(disks, []kubevirtv1.Disk{{
 			BootOrder: &bootOrder,
@@ -208,16 +206,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 					},
 					Machine: &kubevirtv1.Machine{Type: "q35"},
 					Devices: kubevirtv1.Devices{
-						Disks: disks,
-						Interfaces: []kubevirtv1.Interface{
-							{
-								Name:  "default",
-								Model: "virtio",
-								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-									Masquerade: &kubevirtv1.InterfaceMasquerade{},
-								},
-							},
-						},
+						Disks:       disks,
+						Interfaces:  vmRuntime.Interfaces,
+						GPUs:        vmRuntime.GPUs,
+						HostDevices: vmRuntime.HostDevices,
 					},
 				},
 				NodeSelector:   nodeSelector,
@@ -239,7 +231,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 					}
 					return ""
 				}(),
-				Networks:  network,
+				Networks:  vmRuntime.Networks,
 				DNSPolicy: corev1.DNSPolicy(dnsPolicy),
 			},
 		}

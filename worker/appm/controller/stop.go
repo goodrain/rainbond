@@ -48,8 +48,8 @@ type stopController struct {
 func (s *stopController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
+		wait.Add(1)
 		go func(service v1.AppService) {
-			wait.Add(1)
 			defer wait.Done()
 			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
@@ -169,7 +169,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, &metav1.DeleteOptions{})
+		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete vm failure:%s", err.Error())
 		}
