@@ -645,6 +645,28 @@ func TestSetSourceDirPermissions(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+
+	t.Run("keeps .git when BUILD_KEEP_GIT is true", func(t *testing.T) {
+		dir := t.TempDir()
+		gitDir := filepath.Join(dir, ".git")
+		if err := os.Mkdir(gitDir, 0755); err != nil {
+			t.Fatalf("create .git dir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "config"), []byte("test"), 0644); err != nil {
+			t.Fatalf("write .git config: %v", err)
+		}
+
+		err := b.setSourceDirPermissions(&build.Request{
+			SourceDir: dir,
+			BuildEnvs: map[string]string{"BUILD_KEEP_GIT": "true"},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := os.Stat(gitDir); err != nil {
+			t.Fatalf(".git should be kept when BUILD_KEEP_GIT=true, got %v", err)
+		}
+	})
 }
 
 // capability_id: rainbond.cnb.new-builder
