@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // capability_id: rainbond.source-image.parse-name
@@ -125,4 +126,24 @@ func TestImageImport(t *testing.T) {
 			t.Fatal(err)
 		}
 	*/
+}
+
+// capability_id: rainbond.source-image.vm-build-host-taint-toleration
+func TestNewBuildKitPodSpecAddsTolerationForHostScheduling(t *testing.T) {
+	hostAliases := []corev1.HostAlias{{IP: "10.0.0.2", Hostnames: []string{"registry.local"}}}
+
+	podSpec := newBuildKitPodSpec("amd64", "node-1", hostAliases)
+
+	if podSpec.NodeSelector["kubernetes.io/hostname"] != "node-1" {
+		t.Fatalf("expected node selector for host scheduling, got %#v", podSpec.NodeSelector)
+	}
+	if len(podSpec.Tolerations) != 1 || podSpec.Tolerations[0].Operator != corev1.TolerationOpExists {
+		t.Fatalf("expected broad host taint toleration, got %#v", podSpec.Tolerations)
+	}
+	if podSpec.Affinity == nil || podSpec.Affinity.NodeAffinity == nil {
+		t.Fatal("expected node affinity to be preserved")
+	}
+	if len(podSpec.HostAliases) != 1 || podSpec.HostAliases[0].IP != "10.0.0.2" {
+		t.Fatalf("expected host aliases to be preserved, got %#v", podSpec.HostAliases)
+	}
 }

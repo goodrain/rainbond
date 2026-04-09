@@ -545,31 +545,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 			},
 		},
 	}
-	podSpec := corev1.PodSpec{
-		RestartPolicy: corev1.RestartPolicyOnFailure,
-		Affinity: &corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/arch",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{arch},
-							},
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{os.Getenv("HOST_IP")},
-							},
-						},
-					},
-					},
-				},
-			},
-		},
-		HostAliases: getHostAlias(kubeClient),
-	}
+	podSpec := newBuildKitPodSpec(arch, os.Getenv("HOST_IP"), getHostAlias(kubeClient))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	imageDomain, buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
@@ -650,6 +626,44 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		return err
 	}
 	return nil
+}
+
+func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{hostIP},
+							},
+						},
+					}},
+				},
+			},
+		},
+		HostAliases: hostAliases,
+	}
+	if hostIP != "" {
+		podSpec.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": hostIP,
+		}
+		podSpec.Tolerations = []corev1.Toleration{
+			{
+				Operator: corev1.TolerationOpExists,
+			},
+		}
+	}
+	return podSpec
 }
 
 // ImageInspectWithRaw get image inspect
