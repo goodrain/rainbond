@@ -1,6 +1,11 @@
 package exector
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/goodrain/rainbond/event"
+)
 
 // capability_id: rainbond.service-check.completion-log-summary
 func TestServiceCheckCompletionLogSummary(t *testing.T) {
@@ -32,4 +37,17 @@ func TestServiceCheckCompletionLogSummary(t *testing.T) {
 			}
 		})
 	}
+}
+
+// capability_id: rainbond.service-check.eventlog-progress
+func TestLogServiceCheckProgressMirrorsMessageToEventLogger(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := event.NewMockLogger(ctrl)
+	expectedInfo := map[string]string{"step": "service_check", "status": "running"}
+
+	logger.EXPECT().Info("开始检查服务，类型: vm-run", expectedInfo)
+
+	logServiceCheckProgress(logger, "开始检查服务，类型: %s", "vm-run")
 }
