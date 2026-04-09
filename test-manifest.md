@@ -34,8 +34,9 @@
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
 | rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
-| rainbond.cnb-version.match-language | 为复合语言匹配 CNB 版本 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_CompositeLanguage |
 | rainbond.cnb-version.match-golang | 归一化并匹配 Go CNB 版本表达式 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang |
+| rainbond.cnb-version.match-language | 为复合语言匹配 CNB 版本 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_CompositeLanguage |
+| rainbond.cnb-version.python-order-and-default | 保持 Python CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsPythonOrderingAndDefault |
 | rainbond.cnb-version.resolve-supported | 按语言解析支持的 CNB 版本 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersions |
 | rainbond.cnb.annotation-key-decode | 将 CNB 注解键解码为 BP 环境变量名 | active | regression | builder/build/cnb.annotationKeyToBPEnv | builder/build/cnb/cnb_test.go::TestAnnotationKeyToBPEnv |
 | rainbond.cnb.annotation-key-encode | 将 BP 环境变量名编码为 CNB 注解键 | active | regression | builder/build/cnb.bpEnvToAnnotationKey | builder/build/cnb/cnb_test.go::TestBpEnvToAnnotationKey |
@@ -202,6 +203,7 @@
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
+| rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
@@ -230,6 +232,8 @@
 | rainbond.source-repo.pull | 拉取 Git 源码仓库 | active | integration | builder/sources.GitPull | builder/sources/git_test.go::TestGitPull |
 | rainbond.source-repo.pull-or-clone | 拉取或克隆 Git 源码仓库 | active | integration | builder/sources.GitCloneOrPull | builder/sources/git_test.go::TestGitPullOrClone |
 | rainbond.source-repo.show-url | 从仓库展示地址中去除凭据 | active | regression | builder/sources.getShowURL | builder/sources/git_test.go::TestGetShowURL |
+| rainbond.source-repo.temp-build-info | 为源码任务创建独立的临时仓库工作目录 | active | regression | builder/sources.CreateTempRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfo |
+| rainbond.source-repo.temp-build-info-pkg | 为 pkg 构建创建临时工作目录信息时保持原始路径 | active | regression | builder/sources.CreateTempRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfoForPkg |
 | rainbond.source-sftp.close-safe | 安全关闭零值 SFTP 客户端 | active | regression | builder/sources.SFTPClient.Close | builder/sources/sftp_test.go::TestSFTPClientCloseZeroValue |
 | rainbond.source-sftp.port-parse | 解析 SFTP 端口并提供合理默认值 | active | regression | builder/sources.parseSFTPPort | builder/sources/sftp_test.go::TestParseSFTPPort |
 | rainbond.source-svn.branch-path | 解析 SVN 分支标签与 trunk 的目标路径 | active | regression | builder/sources.getBranchPath | builder/sources/svn_test.go::TestGetBranchPath |
@@ -320,6 +324,8 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
+| rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
 | rainbond.watch.etcd-event-parse | 将 etcd watch 事件解析为内部事件结构 | active | regression | util/watch.parseEvent | util/watch/watch_test.go::TestParseEvent |
@@ -674,6 +680,16 @@
 - 代码路径: `builder/parser/code/cnb_versions.go`
 - 测试路径: `builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault`
 
+### 归一化并匹配 Go CNB 版本表达式
+
+- Capability ID: `rainbond.cnb-version.match-golang`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser/code.MatchCNBVersion`
+- 代码路径: `builder/parser/code/cnb_versions.go`
+- 测试路径: `builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang`
+
 ### 为复合语言匹配 CNB 版本
 
 - Capability ID: `rainbond.cnb-version.match-language`
@@ -684,15 +700,15 @@
 - 代码路径: `builder/parser/code/cnb_versions.go`
 - 测试路径: `builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_CompositeLanguage`
 
-### 归一化并匹配 Go CNB 版本表达式
+### 保持 Python CNB 版本顺序并将最新版本设为默认
 
-- Capability ID: `rainbond.cnb-version.match-golang`
+- Capability ID: `rainbond.cnb-version.python-order-and-default`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
-- 业务入口: `builder/parser/code.MatchCNBVersion`
+- 业务入口: `builder/parser/code.GetCNBVersions`
 - 代码路径: `builder/parser/code/cnb_versions.go`
-- 测试路径: `builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang`
+- 测试路径: `builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsPythonOrderingAndDefault`
 
 ### 按语言解析支持的 CNB 版本
 
@@ -2354,6 +2370,16 @@
 - 代码路径: `builder/parser/code/runtime.go`
 - 测试路径: `builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo`
 
+### 服务检测完成摘要日志反映真实检测状态
+
+- Capability ID: `rainbond.service-check.completion-log-summary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/exector.serviceCheckCompletionLogSummary`
+- 代码路径: `builder/exector/service_check.go`
+- 测试路径: `builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary`
+
 ### 镜像分享使用请求中的快照部署版本
 
 - Capability ID: `rainbond.share.image-from-snapshot-deploy-version`
@@ -2633,6 +2659,26 @@
 - 业务入口: `builder/sources.getShowURL`
 - 代码路径: `builder/sources/git.go`
 - 测试路径: `builder/sources/git_test.go::TestGetShowURL`
+
+### 为源码任务创建独立的临时仓库工作目录
+
+- Capability ID: `rainbond.source-repo.temp-build-info`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.CreateTempRepostoryBuildInfo`
+- 代码路径: `builder/sources/repo.go`
+- 测试路径: `builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfo`
+
+### 为 pkg 构建创建临时工作目录信息时保持原始路径
+
+- Capability ID: `rainbond.source-repo.temp-build-info-pkg`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.CreateTempRepostoryBuildInfo`
+- 代码路径: `builder/sources/repo.go`
+- 测试路径: `builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfoForPkg`
 
 ### 安全关闭零值 SFTP 客户端
 
@@ -3533,6 +3579,26 @@
 - 业务入口: `util.detectZipStructure`
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
+
+### vm-run 远程包探测优先使用 HEAD
+
+- Capability ID: `rainbond.vm-run.remote-package-probe`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`
+- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe`
+
+### vm-run 远程包探测在 HEAD 失败时回退 Range GET
+
+- Capability ID: `rainbond.vm-run.remote-package-probe-range-fallback`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`
+- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet`
 
 ### 将 watch 后端错误分发到内部错误通道
 

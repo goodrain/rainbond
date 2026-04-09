@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/db"
 	"runtime/debug"
+	"strings"
 
 	"github.com/ghodss/yaml"
 
@@ -188,6 +189,14 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		logrus.Errorf("put servicecheck k %s into db error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	logrus.Infof("check service by type: %s  success", input.SourceType)
+	logrus.Info(serviceCheckCompletionLogSummary(input.SourceType, sr.CheckStatus))
 	logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
+}
+
+func serviceCheckCompletionLogSummary(sourceType, checkStatus string) string {
+	status := strings.ToLower(strings.TrimSpace(checkStatus))
+	if status == "" {
+		status = "unknown"
+	}
+	return fmt.Sprintf("check service by type: %s completed with check status: %s", sourceType, status)
 }
