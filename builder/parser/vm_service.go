@@ -19,6 +19,7 @@
 package parser
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -69,23 +70,13 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 		}
 		fileExt = path.Ext(fileInfoList[0].Name())
 	} else {
-		req, err := http.NewRequest("GET", t.sourceBody, nil)
+		rsp, err := t.probeRemotePackage()
 		if err != nil {
-			logrus.Errorf("创建 HTTP 请求失败 %v: %v", t.sourceBody, err)
-			t.errappend(Errorf(FatalError, "create http request failed"))
-			return t.errors
-		}
-
-		req.Header.Add("User-Agent", "RainbondBuilder/1.0")
-		req.Header.Add("Accept", "application/json")
-
-		rsp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			logrus.Errorf("HTTP GET 请求失败 %v: %v", t.sourceBody, err)
+			logrus.Errorf("HTTP 探测请求失败 %v: %v", t.sourceBody, err)
 			t.errappend(Errorf(FatalError, "http get failure"))
 			return t.errors
 		}
-		if rsp.StatusCode != http.StatusOK {
+		if rsp.StatusCode < http.StatusOK || rsp.StatusCode >= http.StatusMultipleChoices {
 			logrus.Errorf("url %v cannot be accessed", t.sourceBody)
 			t.logger.Error("镜像下载地址不可用", map[string]string{"step": "parse"})
 			t.errappend(Errorf(FatalError, "url address cannot be accessed"))
@@ -125,4 +116,38 @@ func (t *VMServiceParse) GetImage() Image {
 
 func (t *VMServiceParse) errappend(pe ParseError) {
 	t.errors = append(t.errors, pe)
+}
+
+func (t *VMServiceParse) probeRemotePackage() (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodHead, t.sourceBody, nil)
+	if err != nil {
+		logrus.Errorf("创建 HTTP HEAD 请求失败 %v: %v", t.sourceBody, err)
+		return nil, fmt.Errorf("create head request failed: %w", err)
+	}
+
+	addProbeHeaders(req)
+	rsp, err := http.DefaultClient.Do(req)
+	if err == nil && rsp.StatusCode >= http.StatusOK && rsp.StatusCode < http.StatusMultipleChoices {
+		return rsp, nil
+	}
+	if err == nil {
+		if closeErr := rsp.Body.Close(); closeErr != nil {
+			logrus.Errorf("关闭 HEAD 响应体失败: %v", closeErr)
+		}
+	}
+
+	req, err = http.NewRequest(http.MethodGet, t.sourceBody, nil)
+	if err != nil {
+		logrus.Errorf("创建 HTTP GET 请求失败 %v: %v", t.sourceBody, err)
+		return nil, fmt.Errorf("create get request failed: %w", err)
+	}
+
+	addProbeHeaders(req)
+	req.Header.Set("Range", "bytes=0-0")
+	return http.DefaultClient.Do(req)
+}
+
+func addProbeHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "RainbondBuilder/1.0")
+	req.Header.Set("Accept", "*/*")
 }
