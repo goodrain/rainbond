@@ -138,7 +138,7 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode, storageClassName)},
 			StorageClassName: &storageClassName,
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resourceStorage,
 				},

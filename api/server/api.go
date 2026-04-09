@@ -38,7 +38,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
+	_ "k8s.io/component-base/metrics/prometheus/version"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -247,7 +247,6 @@ func (m *Manager) KuberntesDashboardAPI(w http.ResponseWriter, r *http.Request) 
 
 // Metric prometheus metric
 func (m *Manager) Metric() {
-	prometheus.MustRegister(version.NewCollector("rbd_api"))
 	exporter := metric.NewExporter()
 	m.exporter = exporter
 	prometheus.MustRegister(exporter)

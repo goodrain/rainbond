@@ -477,6 +477,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/resource-center/pods/{pod_name}", controller.GetResourceCenterController().GetPodDetail)
 	r.Get("/resource-center/events", controller.GetResourceCenterController().ListEvents)
 	r.Get("/resource-center/pods/{pod_name}/logs", controller.GetManager().PodLogs)
+	r.Get("/vm/capabilities", controller.GetVMCapabilityController().GetCapabilities)
 
 	return r
 }

@@ -402,7 +402,7 @@ func (s *ServiceAction) StartStopService(sss *apimodel.StartStopStruct) error {
 
 // PauseUNPauseService -
 func (s *ServiceAction) PauseUNPauseService(serviceID string, pauseORunpause string) error {
-	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), &metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
+	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
 	if err != nil {
 		return err
 	}
@@ -1472,7 +1472,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 					tx.Rollback()
 					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", containerPort, err)
 				}
-				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", containerPort, pluginPort.PluginPort))
+				logrus.Debugf("outer, delete plugin port %d->%d", containerPort, pluginPort.PluginPort)
 			OUTERCLOSEPASS:
 			}
 			if err := tx.Commit().Error; err != nil {
@@ -1595,7 +1595,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					tx.Rollback()
 					return fmt.Errorf("inner, delete plugin mapping port %d error:(%s)", port, err)
 				}
-				logrus.Debugf(fmt.Sprintf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort))
+				logrus.Debugf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort)
 			INNERCLOSEPASS:
 			}
 		} else {

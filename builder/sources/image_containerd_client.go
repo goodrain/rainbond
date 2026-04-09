@@ -453,7 +453,7 @@ func (c *containerdImageCliImpl) ImageTag(source, target string, logger event.Lo
 		return err
 	}
 	targetImage := targetNamed.String()
-	logrus.Infof(fmt.Sprintf("change image tag：%s -> %s", srcImage, targetImage))
+	logrus.Infof("change image tag：%s -> %s", srcImage, targetImage)
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageService := c.client.ImageService()
@@ -776,7 +776,7 @@ func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger 
 		ProgressMessage: barFormat,
 		ID:              status.Ref,
 	}
-	printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
+	printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
 }
 
 // GetImageMetadata 轻量级获取镜像元数据（不下载镜像层）

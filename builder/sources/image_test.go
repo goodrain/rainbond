@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // capability_id: rainbond.source-image.parse-name
@@ -62,7 +62,7 @@ func TestImageNameWithNamespace(t *testing.T) {
 
 // capability_id: rainbond.source-image.auth-base64-encode
 func TestEncodeAuthToBase64(t *testing.T) {
-	encoded, err := EncodeAuthToBase64(types.AuthConfig{
+	encoded, err := EncodeAuthToBase64(registry.AuthConfig{
 		Username: "demo",
 		Password: "secret",
 	})
@@ -74,7 +74,7 @@ func TestEncodeAuthToBase64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var auth types.AuthConfig
+	var auth registry.AuthConfig
 	if err := json.Unmarshal(raw, &auth); err != nil {
 		t.Fatal(err)
 	}

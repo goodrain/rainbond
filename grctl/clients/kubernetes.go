@@ -82,7 +82,7 @@ func InitClient(kubeconfig string) error {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
 	}
-	mapper, err := apiutil.NewDynamicRESTMapper(config, apiutil.WithLazyDiscovery)
+	mapper, err := apiutil.NewDynamicRESTMapper(config, nil)
 	if err != nil {
 		return fmt.Errorf("NewDynamicRESTMapper failure %+v", err)
 	}
@@ -95,7 +95,7 @@ func InitClient(kubeconfig string) error {
 }
 
 func K8SClientInitClient(k8sClient kubernetes.Interface, config *rest.Config) error {
-	mapper, err := apiutil.NewDynamicRESTMapper(config, apiutil.WithLazyDiscovery)
+	mapper, err := apiutil.NewDynamicRESTMapper(config, nil)
 	if err != nil {
 		return fmt.Errorf("NewDynamicRESTMapper failure %+v", err)
 	}

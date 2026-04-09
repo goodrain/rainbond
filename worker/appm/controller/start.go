@@ -142,7 +142,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm)
+		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
 		if err != nil {
 			s.logWorkloadCreateError(app, "VirtualMachine", err)
 			return fmt.Errorf("create vm failure:%s;", err.Error())

@@ -105,7 +105,7 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := db.GetManager().NotificationEventDao().GetNotificationEventByTime(startTime, endTime)
 	if err != nil {
-		logrus.Errorf(err.Error())
+		logrus.Error(err)
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -117,7 +117,7 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 				v.TenantName = ""
 				continue
 			} else {
-				logrus.Errorf(err.Error())
+				logrus.Error(err)
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}
@@ -129,7 +129,7 @@ func GetNotificationEvents(w http.ResponseWriter, r *http.Request) {
 				v.TenantName = ""
 				continue
 			} else {
-				logrus.Errorf(err.Error())
+				logrus.Error(err)
 				httputil.ReturnError(r, w, 500, err.Error())
 				return
 			}

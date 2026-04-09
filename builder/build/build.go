@@ -34,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 )
 
 func init() {
@@ -226,8 +226,8 @@ func CreateImageName(serviceID, deployversion string) string {
 }
 
 // GetTenantRegistryAuthSecrets GetTenantRegistryAuthSecrets
-func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kubernetes.Interface) map[string]types.AuthConfig {
-	auths := make(map[string]types.AuthConfig)
+func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kubernetes.Interface) map[string]registry.AuthConfig {
+	auths := make(map[string]registry.AuthConfig)
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
 	if err != nil {
 		return auths
@@ -240,7 +240,7 @@ func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kub
 			d := string(secret.Data["Domain"])
 			u := string(secret.Data["Username"])
 			p := string(secret.Data["Password"])
-			auths[d] = types.AuthConfig{
+			auths[d] = registry.AuthConfig{
 				Username: u,
 				Password: p,
 				Auth:     base64.StdEncoding.EncodeToString([]byte(u + ":" + p)),

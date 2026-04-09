@@ -484,7 +484,7 @@ func (t *TenantStruct) FileManageService(w http.ResponseWriter, r *http.Request)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	fileInfos, err := handler.GetServiceManager().FileManageInfo(serviceID, podName, tarPath, namespace)
 	if err != nil {
-		logrus.Errorf(fmt.Sprintf("%v get file  manage %v failure: %v", serviceID, tarPath, err))
+		logrus.Errorf("%v get file  manage %v failure: %v", serviceID, tarPath, err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("%v get file  manage %v failure: %v", serviceID, tarPath, err))
 		return
 	}
