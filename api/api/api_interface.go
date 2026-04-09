@@ -161,6 +161,8 @@ type TenantInterfaceWithV1 interface {
 	BuildService(w http.ResponseWriter, r *http.Request)
 	PauseService(w http.ResponseWriter, r *http.Request)
 	UNPauseService(w http.ResponseWriter, r *http.Request)
+	StartVMExport(w http.ResponseWriter, r *http.Request)
+	GetVMExportStatus(w http.ResponseWriter, r *http.Request)
 	FileManageService(w http.ResponseWriter, r *http.Request)
 	DeployService(w http.ResponseWriter, r *http.Request)
 	UpgradeService(w http.ResponseWriter, r *http.Request)

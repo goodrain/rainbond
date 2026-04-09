@@ -39,6 +39,8 @@ type ServiceHandler interface {
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
+	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
+	GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error
