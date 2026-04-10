@@ -4373,6 +4373,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.s3-lifecycle-skip-logs",
+      "title": "Suppress info logs when S3 lifecycle is already configured",
+      "title_zh": "S3 \u751f\u547d\u5468\u671f\u5df2\u914d\u7f6e\u65f6\u4e0d\u518d\u8f93\u51fa info \u65e5\u5fd7",
+      "interface_type": "package_function",
+      "interface": "pkg/component/storage.(*S3Storage).ensureBucketLifecycle",
+      "code_paths": [
+        "pkg/component/storage/s3_storage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/s3_storage_test.go",
+          "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.third-component.endpoint-address-construct",
       "title": "Construct validated third-component endpoint addresses",
       "title_zh": "\u6784\u9020\u5e76\u6821\u9a8c\u7b2c\u4e09\u65b9\u7ec4\u4ef6\u7aef\u70b9\u5730\u5740",
