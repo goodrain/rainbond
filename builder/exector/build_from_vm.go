@@ -5,6 +5,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -97,7 +98,10 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 
 // RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
-	if strings.HasPrefix(v.VMImageSource, "/grdata") {
+	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
+		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
+			return err
+		}
 		defer os.RemoveAll(v.VMImageSource)
 		return v.vmBuild(v.VMImageSource)
 	}

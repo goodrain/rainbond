@@ -20,12 +20,12 @@ package parser
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/event"
 	"github.com/sirupsen/logrus"
@@ -55,8 +55,8 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 		return []ParseError{}
 	}
 	var fileExt string
-	if strings.HasPrefix(t.sourceBody, "/grdata") {
-		fileInfoList, err := ioutil.ReadDir(t.sourceBody)
+	if sourceutil.IsLocalPackageSource(t.sourceBody) {
+		fileInfoList, err := sourceutil.ReadLocalPackageDir(t.sourceBody)
 		if err != nil {
 			logrus.Errorf("read package path %v failure: %v", t.sourceBody, err)
 			t.errappend(Errorf(FatalError, "http get failure"))

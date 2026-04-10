@@ -5928,6 +5928,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-run.local-package-storage-download",
+      "title": "VM local package source falls back to storage download",
+      "title_zh": "vm-run \u672c\u5730\u5305\u6e90\u5728\u76ee\u5f55\u7f3a\u5931\u65f6\u56de\u9000 storage \u4e0b\u8f7d",
+      "interface_type": "package_function",
+      "interface": "builder/sourceutil.ReadLocalPackageDir",
+      "code_paths": [
+        "builder/sourceutil/local_package.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/local_package_test.go",
+          "selector": "TestReadLocalPackageDirFallsBackToStorageDownload"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.remote-package-probe",
       "title": "VM remote package probe prefers HEAD",
       "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
