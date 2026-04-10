@@ -335,6 +335,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 
 	//set to deployment or statefulset job or cronjob
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
+	if vm := as.GetVirtualMachine(); vm != nil {
+		vm.Spec.DataVolumeTemplates = dv.GetVMDataVolumeTemplates()
+	}
 	return nil
 }
 
