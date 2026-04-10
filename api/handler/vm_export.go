@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -31,17 +32,21 @@ type VMExportRequest struct {
 	Name           string `json:"name"`
 	Description    string `json:"description"`
 	ExportAllDisks bool   `json:"export_all_disks"`
+	SourceKind     string `json:"source_kind,omitempty"`
+	SnapshotName   string `json:"snapshot_name,omitempty"`
 }
 
 type VMExportDisk struct {
 	DiskKey      string `json:"disk_key"`
 	DiskName     string `json:"disk_name"`
 	DiskRole     string `json:"disk_role"`
+	BootOrder    uint   `json:"boot_order,omitempty"`
 	PVCName      string `json:"pvc_name"`
 	PVCNamespace string `json:"pvc_namespace"`
 	ExportName   string `json:"export_name,omitempty"`
 	Status       string `json:"status,omitempty"`
 	DownloadURL  string `json:"download_url,omitempty"`
+	Message      string `json:"message,omitempty"`
 }
 
 type VMExportStatus struct {
@@ -53,14 +58,16 @@ type VMExportStatus struct {
 }
 
 func (s *ServiceAction) StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error) {
-	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{
-		LabelSelector: "service_id=" + serviceID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(vmis.Items) > 0 {
-		return nil, ErrServiceNotClosed
+	if vmExportRequiresClosedVM(req) {
+		vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{
+			LabelSelector: "service_id=" + serviceID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(vmis.Items) > 0 {
+			return nil, ErrServiceNotClosed
+		}
 	}
 
 	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
@@ -118,13 +125,19 @@ func BuildVMExportStatus(dynamicClient dynamic.Interface, serviceID, exportID st
 			DiskKey:      labels["vm_export_disk_key"],
 			DiskRole:     labels["vm_export_disk_role"],
 			ExportName:   item.GetName(),
+			DiskName:     item.GetAnnotations()["vm_export_disk_name"],
+			BootOrder:    parseVMExportUint(item.GetAnnotations()["vm_export_boot_order"]),
 			Status:       normalizeVMExportPhase(getNestedString(item.Object, "status", "phase")),
 			PVCName:      getNestedString(item.Object, "spec", "source", "pvc", "name"),
 			PVCNamespace: getNestedString(item.Object, "spec", "source", "pvc", "namespace"),
 			DownloadURL:  extractVMExportURL(item.Object),
+			Message:      extractVMExportMessage(item.Object),
 		}
 		if disk.DiskKey == "" {
 			disk.DiskKey = item.GetName()
+		}
+		if disk.DiskName == "" {
+			disk.DiskName = disk.DiskKey
 		}
 		if disk.DiskRole == "" {
 			disk.DiskRole = "data"
@@ -138,6 +151,9 @@ func BuildVMExportStatus(dynamicClient dynamic.Interface, serviceID, exportID st
 		iRank := vmExportDiskRoleRank(disks[i].DiskRole)
 		jRank := vmExportDiskRoleRank(disks[j].DiskRole)
 		if iRank == jRank {
+			if disks[i].BootOrder != 0 && disks[j].BootOrder != 0 && disks[i].BootOrder != disks[j].BootOrder {
+				return disks[i].BootOrder < disks[j].BootOrder
+			}
 			return disks[i].DiskKey < disks[j].DiskKey
 		}
 		return iRank < jRank
@@ -168,6 +184,7 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 			DiskKey:      volume.Name,
 			DiskName:     volume.Name,
 			DiskRole:     "data",
+			BootOrder:    bootOrderMap[volume.Name],
 			PVCName:      volume.PersistentVolumeClaim.ClaimName,
 			PVCNamespace: vm.Namespace,
 		})
@@ -225,6 +242,10 @@ func createVMDataExports(dynamicClient dynamic.Interface, exportID, serviceID st
 						"vm_export_id":        exportID,
 						"vm_export_disk_key":  disk.DiskKey,
 						"vm_export_disk_role": disk.DiskRole,
+					},
+					"annotations": map[string]interface{}{
+						"vm_export_disk_name":  disk.DiskName,
+						"vm_export_boot_order": fmt.Sprintf("%d", disk.BootOrder),
 					},
 				},
 				"spec": map[string]interface{}{
@@ -330,10 +351,47 @@ func getNestedString(obj map[string]interface{}, fields ...string) string {
 	return value
 }
 
+func extractVMExportMessage(obj map[string]interface{}) string {
+	conditions, found, err := unstructured.NestedSlice(obj, "status", "conditions")
+	if err == nil && found {
+		for _, value := range conditions {
+			item, ok := value.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if message, _, _ := unstructured.NestedString(item, "message"); message != "" {
+				return message
+			}
+		}
+	}
+	if message, _, _ := unstructured.NestedString(obj, "status", "message"); message != "" {
+		return message
+	}
+	return ""
+}
+
 func marshalVMExportStatus(status *VMExportStatus) string {
 	if status == nil {
 		return ""
 	}
 	data, _ := json.Marshal(status)
 	return string(data)
+}
+
+func vmExportRequiresClosedVM(req *VMExportRequest) bool {
+	if req == nil {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(req.SourceKind), "snapshot") && strings.TrimSpace(req.SnapshotName) != "" {
+		return false
+	}
+	return true
+}
+
+func parseVMExportUint(value string) uint {
+	parsed, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint(parsed)
 }

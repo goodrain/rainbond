@@ -1,6 +1,10 @@
 package conversion
 
-import "testing"
+import (
+	"testing"
+
+	kubevirtv1 "kubevirt.io/api/core/v1"
+)
 
 func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(nil)
@@ -113,5 +117,62 @@ func TestBuildVMHostDevices(t *testing.T) {
 	}
 	if cfg.HostDevices[1].Name != "usb-1" || cfg.HostDevices[1].DeviceName != "kubevirt.io/usb-b" {
 		t.Fatalf("unexpected second host device: %#v", cfg.HostDevices[1])
+	}
+}
+
+func TestBuildVMDiskLayoutParsesJSON(t *testing.T) {
+	layout, err := buildVMDiskLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"rootdisk","disk_role":"root","order_index":0,"boot":true},{"disk_key":"data-1","disk_role":"data","order_index":1,"boot":false}]`,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(layout) != 2 {
+		t.Fatalf("expected 2 layout items, got %d", len(layout))
+	}
+	if layout[0].DiskRole != "root" || layout[1].DiskRole != "data" {
+		t.Fatalf("unexpected layout order: %#v", layout)
+	}
+}
+
+func TestBuildVMDiskLayoutRejectsInvalidJSON(t *testing.T) {
+	_, err := buildVMDiskLayout(map[string]string{
+		"vm_disk_layout": `{"invalid":true}`,
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid vm_disk_layout json")
+	}
+}
+
+func TestApplyVMDiskLayoutAssignsRootAndDataBootOrders(t *testing.T) {
+	dataDisks := []kubevirtv1.Disk{
+		{
+			Name: "manual1",
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+		{
+			Name: "manual2",
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+
+	applied, rootBootOrder, err := applyVMDiskLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"rootdisk","disk_role":"root","order_index":0,"boot":true},{"disk_key":"data-1","disk_role":"data","order_index":1,"boot":false},{"disk_key":"data-2","disk_role":"data","order_index":2,"boot":false}]`,
+	}, dataDisks)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if rootBootOrder == nil || *rootBootOrder != 1 {
+		t.Fatalf("expected root boot order 1, got %#v", rootBootOrder)
+	}
+	if applied[0].BootOrder == nil || *applied[0].BootOrder != 2 {
+		t.Fatalf("expected first data disk boot order 2, got %#v", applied[0].BootOrder)
+	}
+	if applied[1].BootOrder == nil || *applied[1].BootOrder != 3 {
+		t.Fatalf("expected second data disk boot order 3, got %#v", applied[1].BootOrder)
 	}
 }

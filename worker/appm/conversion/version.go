@@ -178,8 +178,15 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}, volumes...)
 		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
+		disks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
+		if err != nil {
+			return fmt.Errorf("create vm disk layout failure: %v", err)
+		}
 		disks = append(disks, vmRuntime.Disks...)
 		bootOrder := uint(len(disks) + 1)
+		if rootBootOrder != nil {
+			bootOrder = *rootBootOrder
+		}
 		disks = append(disks, []kubevirtv1.Disk{{
 			BootOrder: &bootOrder,
 			DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{

@@ -31,6 +31,10 @@ func (c *VMExportController) StartVMExport(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if reqBody.SourceKind == "snapshot" && reqBody.SnapshotName == "" {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "snapshot_name is required for snapshot exports")
+		return
+	}
 	start := c.startExport
 	if start == nil {
 		start = handler.GetServiceManager().StartVMExport

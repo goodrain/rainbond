@@ -62,8 +62,10 @@ func TestDiscoverVMExportDisks(t *testing.T) {
 	disks := discoverVMExportDisks(vm)
 	if assert.Len(t, disks, 2) {
 		assert.Equal(t, "root", disks[0].DiskRole)
+		assert.Equal(t, uint(1), disks[0].BootOrder)
 		assert.Equal(t, "rootdisk-pvc", disks[0].PVCName)
 		assert.Equal(t, "data", disks[1].DiskRole)
+		assert.Equal(t, uint(2), disks[1].BootOrder)
 		assert.Equal(t, "datadisk-pvc", disks[1].PVCName)
 	}
 }
@@ -133,8 +135,8 @@ func TestCreateVMDataExports(t *testing.T) {
 		},
 	}
 	disks := []VMExportDisk{
-		{DiskKey: "rootdisk", DiskRole: "root", PVCName: "rootdisk-pvc", PVCNamespace: "demo-ns"},
-		{DiskKey: "datadisk", DiskRole: "data", PVCName: "datadisk-pvc", PVCNamespace: "demo-ns"},
+		{DiskKey: "rootdisk", DiskName: "rootdisk", DiskRole: "root", BootOrder: 1, PVCName: "rootdisk-pvc", PVCNamespace: "demo-ns"},
+		{DiskKey: "datadisk", DiskName: "datadisk", DiskRole: "data", BootOrder: 2, PVCName: "datadisk-pvc", PVCNamespace: "demo-ns"},
 	}
 
 	err := createVMDataExports(client, "evt-1", "service-1", vm, disks)
@@ -152,6 +154,8 @@ func TestCreateVMDataExports(t *testing.T) {
 		assert.Equal(t, "evt-1", rootDisk.GetLabels()["vm_export_id"])
 		pvcName, _, _ := unstructured.NestedString(rootDisk.Object, "spec", "source", "pvc", "name")
 		assert.Equal(t, "rootdisk-pvc", pvcName)
+		assert.Equal(t, "1", rootDisk.GetAnnotations()["vm_export_boot_order"])
+		assert.Equal(t, "rootdisk", rootDisk.GetAnnotations()["vm_export_disk_name"])
 	}
 }
 
@@ -172,6 +176,10 @@ func TestBuildVMExportStatus(t *testing.T) {
 						"vm_export_id":        "evt-1",
 						"vm_export_disk_key":  "rootdisk",
 						"vm_export_disk_role": "root",
+					},
+					"annotations": map[string]interface{}{
+						"vm_export_boot_order": "1",
+						"vm_export_disk_name":  "rootdisk",
 					},
 				},
 				"spec": map[string]interface{}{
@@ -207,6 +215,10 @@ func TestBuildVMExportStatus(t *testing.T) {
 						"vm_export_disk_key":  "datadisk",
 						"vm_export_disk_role": "data",
 					},
+					"annotations": map[string]interface{}{
+						"vm_export_boot_order": "2",
+						"vm_export_disk_name":  "datadisk",
+					},
 				},
 				"spec": map[string]interface{}{
 					"source": map[string]interface{}{
@@ -218,6 +230,11 @@ func TestBuildVMExportStatus(t *testing.T) {
 				},
 				"status": map[string]interface{}{
 					"phase": "Pending",
+					"conditions": []interface{}{
+						map[string]interface{}{
+							"message": "waiting for export pod",
+						},
+					},
 				},
 			},
 		},
@@ -227,10 +244,21 @@ func TestBuildVMExportStatus(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "exporting", status.Status)
 	if assert.Len(t, status.Disks, 2) {
+		assert.Equal(t, uint(1), status.Disks[0].BootOrder)
+		assert.Equal(t, "rootdisk", status.Disks[0].DiskName)
 		assert.Equal(t, "https://download/rootdisk", status.Disks[0].DownloadURL)
 		assert.Equal(t, "ready", status.Disks[0].Status)
+		assert.Equal(t, uint(2), status.Disks[1].BootOrder)
+		assert.Equal(t, "waiting for export pod", status.Disks[1].Message)
 		assert.Equal(t, "exporting", status.Disks[1].Status)
 	}
+}
+
+func TestVMExportRequiresClosedVM(t *testing.T) {
+	assert.True(t, vmExportRequiresClosedVM(nil))
+	assert.True(t, vmExportRequiresClosedVM(&VMExportRequest{}))
+	assert.True(t, vmExportRequiresClosedVM(&VMExportRequest{SourceKind: "vm"}))
+	assert.False(t, vmExportRequiresClosedVM(&VMExportRequest{SourceKind: "snapshot", SnapshotName: "snap-1"}))
 }
 
 func corePersistentVolumeClaimSource(name string) corev1.PersistentVolumeClaimVolumeSource {

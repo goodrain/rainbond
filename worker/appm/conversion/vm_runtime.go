@@ -3,6 +3,7 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -16,6 +17,7 @@ const (
 	vmGPUResourcesKey  = "vm_gpu_resources"
 	vmUSBEnabledKey    = "vm_usb_enabled"
 	vmUSBResourcesKey  = "vm_usb_resources"
+	vmDiskLayoutKey    = "vm_disk_layout"
 	vmNetworkModeFixed = "fixed"
 
 	vmPrimaryNetworkName   = "default"
@@ -30,6 +32,14 @@ type vmRuntimeConfig struct {
 	Disks       []kubevirtv1.Disk
 	GPUs        []kubevirtv1.GPU
 	HostDevices []kubevirtv1.HostDevice
+}
+
+type vmDiskLayoutItem struct {
+	DiskKey    string `json:"disk_key"`
+	DiskName   string `json:"disk_name"`
+	DiskRole   string `json:"disk_role"`
+	OrderIndex int    `json:"order_index"`
+	Boot       bool   `json:"boot"`
 }
 
 func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, error) {
@@ -187,4 +197,61 @@ func normalizeExtensionItems(items []string) []string {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized
+}
+
+func buildVMDiskLayout(extensionSet map[string]string) ([]vmDiskLayoutItem, error) {
+	raw := strings.TrimSpace(extensionSet[vmDiskLayoutKey])
+	if raw == "" {
+		return nil, nil
+	}
+	var layout []vmDiskLayoutItem
+	if err := json.Unmarshal([]byte(raw), &layout); err != nil {
+		return nil, fmt.Errorf("invalid vm_disk_layout: %w", err)
+	}
+	sort.SliceStable(layout, func(i, j int) bool {
+		if layout[i].OrderIndex == layout[j].OrderIndex {
+			if layout[i].DiskRole == layout[j].DiskRole {
+				return layout[i].DiskKey < layout[j].DiskKey
+			}
+			return layout[i].DiskRole == "root"
+		}
+		return layout[i].OrderIndex < layout[j].OrderIndex
+	})
+	return layout, nil
+}
+
+func applyVMDiskLayout(extensionSet map[string]string, dataDisks []kubevirtv1.Disk) ([]kubevirtv1.Disk, *uint, error) {
+	layout, err := buildVMDiskLayout(extensionSet)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(layout) == 0 {
+		return dataDisks, nil, nil
+	}
+
+	applied := make([]kubevirtv1.Disk, len(dataDisks))
+	copy(applied, dataDisks)
+
+	var rootBootOrder *uint
+	dataBootOrders := make([]uint, 0)
+	bootOrder := uint(1)
+	for _, item := range layout {
+		if item.DiskRole == "root" {
+			order := bootOrder
+			rootBootOrder = &order
+		} else {
+			dataBootOrders = append(dataBootOrders, bootOrder)
+		}
+		bootOrder++
+	}
+
+	for i := range applied {
+		if i >= len(dataBootOrders) {
+			break
+		}
+		order := dataBootOrders[i]
+		applied[i].BootOrder = &order
+	}
+
+	return applied, rootBootOrder, nil
 }

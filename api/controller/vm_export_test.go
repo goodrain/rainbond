@@ -46,6 +46,49 @@ func TestVMExportControllerStartVMExport(t *testing.T) {
 	}
 }
 
+func TestVMExportControllerStartVMExportSnapshotSource(t *testing.T) {
+	controller := &VMExportController{
+		startExport: func(serviceID, exportID string, req *handler.VMExportRequest) (*handler.VMExportStatus, error) {
+			if req.SourceKind != "snapshot" {
+				t.Fatalf("expected snapshot source, got %#v", req)
+			}
+			if req.SnapshotName != "snap-1" {
+				t.Fatalf("expected snapshot name, got %#v", req)
+			}
+			return &handler.VMExportStatus{
+				ExportID: exportID,
+				Status:   "exporting",
+			}, nil
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/v2/tenants/demo/services/demo/vm-exports", bytes.NewBufferString(`{"name":"snapshot-1","source_kind":"snapshot","snapshot_name":"snap-1"}`))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("event"), &dbmodel.ServiceEvent{EventID: "evt-1"}))
+	recorder := httptest.NewRecorder()
+
+	controller.StartVMExport(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
+func TestVMExportControllerStartVMExportSnapshotSourceRequiresName(t *testing.T) {
+	controller := &VMExportController{}
+
+	req := httptest.NewRequest(http.MethodPost, "/v2/tenants/demo/services/demo/vm-exports", bytes.NewBufferString(`{"name":"snapshot-1","source_kind":"snapshot"}`))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("event"), &dbmodel.ServiceEvent{EventID: "evt-1"}))
+	recorder := httptest.NewRecorder()
+
+	controller.StartVMExport(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+}
+
 func TestVMExportControllerStartVMExportClosedGuard(t *testing.T) {
 	controller := &VMExportController{
 		startExport: func(serviceID, exportID string, req *handler.VMExportRequest) (*handler.VMExportStatus, error) {
