@@ -1,11 +1,14 @@
 package conversion
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
@@ -13,6 +16,8 @@ const (
 	vmNetworkModeKey   = "vm_network_mode"
 	vmNetworkNameKey   = "vm_network_name"
 	vmFixedIPKey       = "vm_fixed_ip"
+	vmOSFamilyKey      = "vm_os_family"
+	vmOSNameKey        = "vm_os_name"
 	vmGPUEnabledKey    = "vm_gpu_enabled"
 	vmGPUResourcesKey  = "vm_gpu_resources"
 	vmUSBEnabledKey    = "vm_usb_enabled"
@@ -23,6 +28,7 @@ const (
 	vmPrimaryNetworkName   = "default"
 	vmCloudInitVolumeName  = "cloudinitnetwork"
 	vmCloudInitAddressName = "eth0"
+	vmSysprepVolumeName    = "sysprepnetwork"
 )
 
 type vmRuntimeConfig struct {
@@ -30,6 +36,7 @@ type vmRuntimeConfig struct {
 	Interfaces  []kubevirtv1.Interface
 	Volumes     []kubevirtv1.Volume
 	Disks       []kubevirtv1.Disk
+	ConfigMaps  []*corev1.ConfigMap
 	GPUs        []kubevirtv1.GPU
 	HostDevices []kubevirtv1.HostDevice
 }
@@ -98,6 +105,35 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 			},
 		},
 	}
+	if resolveVMOSFamily(extensionSet) == "windows" {
+		configMapName := buildVMSysprepConfigMapName(networkName, fixedIP)
+		cfg.ConfigMaps = append(cfg.ConfigMaps, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: configMapName,
+			},
+			Data: map[string]string{
+				"autounattend.xml": buildVMSysprepUnattendXML(fixedIP),
+				"unattend.xml":     buildVMSysprepUnattendXML(fixedIP),
+			},
+		})
+		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
+			Name: vmSysprepVolumeName,
+			VolumeSource: kubevirtv1.VolumeSource{
+				Sysprep: &kubevirtv1.SysprepSource{
+					ConfigMap: &corev1.LocalObjectReference{Name: configMapName},
+				},
+			},
+		})
+		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
+			Name: vmSysprepVolumeName,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+		return cfg, nil
+	}
 	cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
 		Name: vmCloudInitVolumeName,
 		VolumeSource: kubevirtv1.VolumeSource{
@@ -159,6 +195,56 @@ func buildVMFixedIPNetworkData(fixedIP string) string {
 		vmCloudInitAddressName,
 		fixedIP,
 	)
+}
+
+func resolveVMOSFamily(extensionSet map[string]string) string {
+	explicit := strings.ToLower(strings.TrimSpace(extensionSet[vmOSFamilyKey]))
+	switch explicit {
+	case "windows", "linux":
+		return explicit
+	}
+	if strings.Contains(strings.ToLower(strings.TrimSpace(extensionSet[vmOSNameKey])), "windows") {
+		return "windows"
+	}
+	return "linux"
+}
+
+func buildVMSysprepConfigMapName(networkName, fixedIP string) string {
+	sum := sha1.Sum([]byte(strings.TrimSpace(networkName) + "|" + strings.TrimSpace(fixedIP)))
+	return fmt.Sprintf("vm-sysprep-%x", sum[:6])
+}
+
+func buildVMSysprepUnattendXML(fixedIP string) string {
+	address, prefixLength := splitVMFixedIPCIDR(fixedIP)
+	command := fmt.Sprintf(
+		`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$adapter = Get-NetAdapter | Where-Object {$_.Status -ne 'Disabled'} | Sort-Object ifIndex | Select-Object -First 1 -ExpandProperty Name; if ($adapter) { Set-NetIPInterface -InterfaceAlias $adapter -AddressFamily IPv4 -Dhcp Disabled -ErrorAction SilentlyContinue; Get-NetIPAddress -InterfaceAlias $adapter -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue; New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -Type Unicast -ErrorAction Stop }"`,
+		address,
+		prefixLength,
+	)
+	return fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Description>Configure static IPv4</Description>
+          <Path>%s</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
+  </settings>
+</unattend>
+`, command)
+}
+
+func splitVMFixedIPCIDR(fixedIP string) (string, string) {
+	parts := strings.SplitN(strings.TrimSpace(fixedIP), "/", 2)
+	address := parts[0]
+	if len(parts) == 2 && parts[1] != "" {
+		return address, parts[1]
+	}
+	return address, "24"
 }
 
 func extensionEnabled(value string) bool {

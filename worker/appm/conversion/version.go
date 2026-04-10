@@ -163,6 +163,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
 		}
+		for _, configMap := range vmRuntime.ConfigMaps {
+			as.SetConfigMap(configMap)
+		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		volumes := dv.GetVMVolume()
 		volumes = append([]kubevirtv1.Volume{

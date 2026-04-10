@@ -72,6 +72,57 @@ func TestBuildVMRuntimeConfigFixedNetwork(t *testing.T) {
 	}
 }
 
+func TestBuildVMRuntimeConfigFixedWindowsNetworkUsesSysprep(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_network_mode": "fixed",
+		"vm_network_name": "rbd-plugins/bridge-test",
+		"vm_fixed_ip":     "172.16.20.230/24",
+		"vm_os_family":    "windows",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Networks) != 1 || cfg.Networks[0].Multus == nil {
+		t.Fatalf("expected multus network for windows fixed ip")
+	}
+	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected bridge interface for windows fixed ip")
+	}
+	if len(cfg.ConfigMaps) != 1 {
+		t.Fatalf("expected 1 sysprep configmap, got %d", len(cfg.ConfigMaps))
+	}
+	if cfg.ConfigMaps[0].Data["autounattend.xml"] == "" {
+		t.Fatalf("expected sysprep autounattend.xml payload")
+	}
+	if len(cfg.Volumes) != 1 {
+		t.Fatalf("expected 1 sysprep volume, got %d", len(cfg.Volumes))
+	}
+	if cfg.Volumes[0].Sysprep == nil || cfg.Volumes[0].Sysprep.ConfigMap == nil {
+		t.Fatalf("expected sysprep configmap volume")
+	}
+	if len(cfg.Disks) != 1 || cfg.Disks[0].CDRom == nil {
+		t.Fatalf("expected sysprep disk to be attached as cdrom")
+	}
+	if cfg.Volumes[0].CloudInitNoCloud != nil {
+		t.Fatalf("did not expect linux cloud-init volume for windows fixed ip")
+	}
+}
+
+func TestBuildVMRuntimeConfigFixedWindowsNetworkFallsBackToOSName(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_network_mode": "fixed",
+		"vm_network_name": "rbd-plugins/bridge-test",
+		"vm_fixed_ip":     "172.16.20.231/24",
+		"vm_os_name":      "Windows Server 2022",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Volumes) != 1 || cfg.Volumes[0].Sysprep == nil {
+		t.Fatalf("expected sysprep volume when falling back to os_name")
+	}
+}
+
 func TestBuildVMRuntimeConfigRequiresNetworkForFixedIP(t *testing.T) {
 	_, err := buildVMRuntimeConfig(map[string]string{
 		"vm_network_mode": "fixed",
