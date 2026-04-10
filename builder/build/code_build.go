@@ -112,12 +112,30 @@ func expandBuildEnvsForSlugBuild(envs map[string]string) map[string]string {
 		expanded[key] = value
 	}
 	legacyAliases := map[string]string{
-		"BUILD_NO_CACHE":        "NO_CACHE",
-		"BUILD_PROCFILE":        "PROCFILE",
-		"BUILD_RUNTIMES":        "RUNTIMES",
-		"BUILD_RUNTIMES_MAVEN":  "RUNTIMES_MAVEN",
-		"BUILD_RUNTIMES_SERVER": "RUNTIMES_SERVER",
-		"BUILD_GOVERSION":       "GOVERSION",
+		"BUILD_NO_CACHE":                "NO_CACHE",
+		"BUILD_ENABLE_ORACLEJDK":        "ENABLE_ORACLEJDK",
+		"BUILD_ORACLEJDK_URL":           "ORACLEJDK_URL",
+		"BUILD_MAVEN_SETTING_NAME":      "MAVEN_SETTING_NAME",
+		"BUILD_MAVEN_CUSTOM_OPTS":       "MAVEN_CUSTOM_OPTS",
+		"BUILD_MAVEN_CUSTOM_GOALS":      "MAVEN_CUSTOM_GOALS",
+		"BUILD_MAVEN_JAVA_OPTS":         "MAVEN_JAVA_OPTS",
+		"BUILD_MAVEN_MIRROR_DISABLE":    "MAVEN_MIRROR_DISABLE",
+		"BUILD_MAVEN_MIRROR_OF":         "MAVEN_MIRROR_OF",
+		"BUILD_MAVEN_MIRROR_URL":        "MAVEN_MIRROR_URL",
+		"BUILD_GOPROXY":                 "GOPROXY",
+		"BUILD_GOPRIVATE":               "GOPRIVATE",
+		"BUILD_GO_INSTALL_PACKAGE_SPEC": "GO_INSTALL_PACKAGE_SPEC",
+		"BUILD_PIP_INDEX_URL":           "PIP_INDEX_URL",
+		"BUILD_NODE_ENV":                "NODE_ENV",
+		"BUILD_NODE_MODULES_CACHE":      "NODE_MODULES_CACHE",
+		"BUILD_NODE_BUILD_CMD":          "NODE_BUILD_CMD",
+		"BUILD_NPM_REGISTRY":            "NPM_REGISTRY",
+		"BUILD_YARN_REGISTRY":           "YARN_REGISTRY",
+		"BUILD_PROCFILE":                "PROCFILE",
+		"BUILD_RUNTIMES":                "RUNTIMES",
+		"BUILD_RUNTIMES_MAVEN":          "RUNTIMES_MAVEN",
+		"BUILD_RUNTIMES_SERVER":         "RUNTIMES_SERVER",
+		"BUILD_GOVERSION":               "GOVERSION",
 	}
 	for buildKey, legacyKey := range legacyAliases {
 		if _, exists := expanded[legacyKey]; exists {
