@@ -1,6 +1,7 @@
 package conversion
 
 import (
+	"strings"
 	"testing"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -93,6 +94,15 @@ func TestBuildVMRuntimeConfigFixedWindowsNetworkUsesSysprep(t *testing.T) {
 	}
 	if cfg.ConfigMaps[0].Data["autounattend.xml"] == "" {
 		t.Fatalf("expected sysprep autounattend.xml payload")
+	}
+	if cfg.ConfigMaps[0].Data[vmSysprepScriptName] == "" {
+		t.Fatalf("expected sysprep network script payload")
+	}
+	if !strings.Contains(cfg.ConfigMaps[0].Data["unattend.xml"], vmSysprepScriptName) {
+		t.Fatalf("expected unattend.xml to reference %s", vmSysprepScriptName)
+	}
+	if strings.Contains(cfg.ConfigMaps[0].Data["unattend.xml"], "New-NetIPAddress") {
+		t.Fatalf("expected unattend.xml to keep a short command only")
 	}
 	if len(cfg.Volumes) != 1 {
 		t.Fatalf("expected 1 sysprep volume, got %d", len(cfg.Volumes))

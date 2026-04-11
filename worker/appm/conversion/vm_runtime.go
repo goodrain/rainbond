@@ -31,6 +31,7 @@ const (
 	vmCloudInitVolumeName  = "cloudinitnetwork"
 	vmCloudInitAddressName = "eth0"
 	vmSysprepVolumeName    = "sysprepnetwork"
+	vmSysprepScriptName    = "set-static-ip.ps1"
 )
 
 type vmRuntimeConfig struct {
@@ -114,8 +115,9 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 				Name: configMapName,
 			},
 			Data: map[string]string{
-				"autounattend.xml": buildVMSysprepUnattendXML(fixedIP),
-				"unattend.xml":     buildVMSysprepUnattendXML(fixedIP),
+				"autounattend.xml":  buildVMSysprepUnattendXML(vmSysprepScriptName),
+				"unattend.xml":      buildVMSysprepUnattendXML(vmSysprepScriptName),
+				vmSysprepScriptName: buildVMSysprepNetworkScript(fixedIP),
 			},
 		})
 		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
@@ -241,12 +243,10 @@ func buildVMSysprepConfigMapName(networkName, fixedIP string) string {
 	return fmt.Sprintf("vm-sysprep-%x", sum[:6])
 }
 
-func buildVMSysprepUnattendXML(fixedIP string) string {
-	address, prefixLength := splitVMFixedIPCIDR(fixedIP)
+func buildVMSysprepUnattendXML(scriptName string) string {
 	command := fmt.Sprintf(
-		`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$adapter = Get-NetAdapter | Where-Object {$_.Status -ne 'Disabled'} | Sort-Object ifIndex | Select-Object -First 1 -ExpandProperty Name; if ($adapter) { Set-NetIPInterface -InterfaceAlias $adapter -AddressFamily IPv4 -Dhcp Disabled -ErrorAction SilentlyContinue; Get-NetIPAddress -InterfaceAlias $adapter -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue; New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -Type Unicast -ErrorAction Stop }"`,
-		address,
-		prefixLength,
+		`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File D:\%s`,
+		scriptName,
 	)
 	return fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
@@ -263,6 +263,17 @@ func buildVMSysprepUnattendXML(fixedIP string) string {
   </settings>
 </unattend>
 `, command)
+}
+
+func buildVMSysprepNetworkScript(fixedIP string) string {
+	address, prefixLength := splitVMFixedIPCIDR(fixedIP)
+	return fmt.Sprintf(`$adapter = Get-NetAdapter | Where-Object {$_.Status -ne 'Disabled'} | Sort-Object ifIndex | Select-Object -First 1 -ExpandProperty Name
+if ($adapter) {
+  Set-NetIPInterface -InterfaceAlias $adapter -AddressFamily IPv4 -Dhcp Disabled -ErrorAction SilentlyContinue
+  Get-NetIPAddress -InterfaceAlias $adapter -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
+  New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -Type Unicast -ErrorAction Stop
+}
+`, address, prefixLength)
 }
 
 func splitVMFixedIPCIDR(fixedIP string) (string, string) {
