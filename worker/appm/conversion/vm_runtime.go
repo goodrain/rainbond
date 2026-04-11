@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ const (
 	vmOSNameKey        = "vm_os_name"
 	vmGPUEnabledKey    = "vm_gpu_enabled"
 	vmGPUResourcesKey  = "vm_gpu_resources"
+	vmGPUCountKey      = "vm_gpu_count"
 	vmUSBEnabledKey    = "vm_usb_enabled"
 	vmUSBResourcesKey  = "vm_usb_resources"
 	vmDiskLayoutKey    = "vm_disk_layout"
@@ -161,6 +163,7 @@ func buildVMGPUDevices(extensionSet map[string]string) []kubevirtv1.GPU {
 	if len(resourceNames) == 0 {
 		return nil
 	}
+	resourceNames = expandVMGPUResourceNames(resourceNames, extensionSet[vmGPUCountKey])
 	devices := make([]kubevirtv1.GPU, 0, len(resourceNames))
 	for i, resourceName := range resourceNames {
 		devices = append(devices, kubevirtv1.GPU{
@@ -187,6 +190,30 @@ func buildVMHostDevices(extensionSet map[string]string) []kubevirtv1.HostDevice 
 		})
 	}
 	return devices
+}
+
+func expandVMGPUResourceNames(resourceNames []string, countValue string) []string {
+	gpuCount := parsePositiveInt(countValue)
+	if gpuCount <= 1 || len(resourceNames) != 1 {
+		return resourceNames
+	}
+	expanded := make([]string, 0, gpuCount)
+	for i := 0; i < gpuCount; i++ {
+		expanded = append(expanded, resourceNames[0])
+	}
+	return expanded
+}
+
+func parsePositiveInt(value string) int {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return 0
+	}
+	count, err := strconv.Atoi(trimmed)
+	if err != nil || count < 1 {
+		return 0
+	}
+	return count
 }
 
 func buildVMFixedIPNetworkData(fixedIP string) string {

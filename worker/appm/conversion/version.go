@@ -1360,6 +1360,12 @@ func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error
 		"vm_fixed_ip",
 		"vm_os_family",
 		"vm_os_name",
+		"vm_gpu_enabled",
+		"vm_gpu_resources",
+		"vm_gpu_count",
+		"vm_usb_enabled",
+		"vm_usb_resources",
+		"vm_disk_layout",
 	}
 	for _, name := range vmAttrNames {
 		attr, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, name)
