@@ -1343,7 +1343,7 @@ func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]s
 			podIP = resolveVMFixedPodIPAnnotationValue(as.ExtensionSet)
 		}
 		if podIP != "" {
-			logrus.Infof("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, podIP)
+			logrus.Debugf("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, podIP)
 			annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", podIP)
 		}
 	}

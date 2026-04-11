@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type stopController struct {
@@ -62,21 +63,21 @@ func (s *stopController) Begin() {
 			} else {
 				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 				err = db.GetManager().ServiceEventDao().DelAllAbnormalEvent(service.ServiceID, []string{
-				"INITIATING",
-				"CrashLoopBackOff",
-				"Unschedulable",
-				"ReadinessUnhealthy",
-				"LivenessRestart",
-				"StartupProbeFailure",
-				"LivenessProbeFailed",
-				"ReadinessProbeFailed",
-				"HealthCheckPassed",
-				"ContainerExitError",
-				"ImagePullBackOff",
-				"CreateContainerConfigError",
-				"OOMKilled",
-				"Evicted",
-			})
+					"INITIATING",
+					"CrashLoopBackOff",
+					"Unschedulable",
+					"ReadinessUnhealthy",
+					"LivenessRestart",
+					"StartupProbeFailure",
+					"LivenessProbeFailed",
+					"ReadinessProbeFailed",
+					"HealthCheckPassed",
+					"ContainerExitError",
+					"ImagePullBackOff",
+					"CreateContainerConfigError",
+					"OOMKilled",
+					"Evicted",
+				})
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Error("delete abnormal event error: ", err)
 				}
@@ -154,6 +155,9 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	// for custom component
 	if len(app.GetManifests()) > 0 {
 		for _, manifest := range app.GetManifests() {
+			if !shouldDeleteManifestWithRuntimeClient(manifest) {
+				continue
+			}
 			if err := s.manager.runtimeClient.Delete(s.ctx, manifest); err != nil && !errors.IsNotFound(err) {
 				logrus.Errorf("delete custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
 			}
@@ -306,4 +310,11 @@ func (s *stopController) deleteBetaIngress(namespace, ingressName string, zero i
 		return fmt.Errorf("delete ingress failure:%s", err.Error())
 	}
 	return nil
+}
+
+func shouldDeleteManifestWithRuntimeClient(manifest *unstructured.Unstructured) bool {
+	if manifest == nil {
+		return false
+	}
+	return manifest.GetKind() != "VirtualMachine"
 }
