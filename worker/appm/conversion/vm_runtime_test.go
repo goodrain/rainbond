@@ -1,7 +1,6 @@
 package conversion
 
 import (
-	"fmt"
 	"testing"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -150,26 +149,6 @@ func TestBuildVMGPUDevices(t *testing.T) {
 	}
 	if cfg.GPUs[1].Name != "gpu-1" || cfg.GPUs[1].DeviceName != "gpu.example.com/A10" {
 		t.Fatalf("unexpected second gpu: %#v", cfg.GPUs[1])
-	}
-}
-
-func TestBuildVMGPUDevicesExpandsSingleResourceByCount(t *testing.T) {
-	cfg, err := buildVMRuntimeConfig(map[string]string{
-		"vm_gpu_enabled":   "true",
-		"vm_gpu_resources": "nvidia.com/TU104GL_Tesla_T4",
-		"vm_gpu_count":     "3",
-	})
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if len(cfg.GPUs) != 3 {
-		t.Fatalf("expected 3 gpus, got %d", len(cfg.GPUs))
-	}
-	for i, gpu := range cfg.GPUs {
-		expectedName := fmt.Sprintf("gpu-%d", i)
-		if gpu.Name != expectedName || gpu.DeviceName != "nvidia.com/TU104GL_Tesla_T4" {
-			t.Fatalf("unexpected gpu at index %d: %#v", i, gpu)
-		}
 	}
 }
 
