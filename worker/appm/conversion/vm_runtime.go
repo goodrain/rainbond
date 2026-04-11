@@ -32,6 +32,7 @@ const (
 	vmCloudInitAddressName = "eth0"
 	vmSysprepVolumeName    = "sysprepnetwork"
 	vmSysprepScriptName    = "set-static-ip.ps1"
+	vmSysprepTemplateVer   = "v2"
 )
 
 type vmRuntimeConfig struct {
@@ -109,15 +110,17 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		},
 	}
 	if resolveVMOSFamily(extensionSet) == "windows" {
-		configMapName := buildVMSysprepConfigMapName(networkName, fixedIP)
+		unattendXML := buildVMSysprepUnattendXML(vmSysprepScriptName)
+		networkScript := buildVMSysprepNetworkScript(fixedIP)
+		configMapName := buildVMSysprepConfigMapName(networkName, fixedIP, unattendXML, networkScript)
 		cfg.ConfigMaps = append(cfg.ConfigMaps, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: configMapName,
 			},
 			Data: map[string]string{
-				"autounattend.xml":  buildVMSysprepUnattendXML(vmSysprepScriptName),
-				"unattend.xml":      buildVMSysprepUnattendXML(vmSysprepScriptName),
-				vmSysprepScriptName: buildVMSysprepNetworkScript(fixedIP),
+				"autounattend.xml":  unattendXML,
+				"unattend.xml":      unattendXML,
+				vmSysprepScriptName: networkScript,
 			},
 		})
 		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
@@ -238,8 +241,12 @@ func resolveVMOSFamily(extensionSet map[string]string) string {
 	return "linux"
 }
 
-func buildVMSysprepConfigMapName(networkName, fixedIP string) string {
-	sum := sha1.Sum([]byte(strings.TrimSpace(networkName) + "|" + strings.TrimSpace(fixedIP)))
+func buildVMSysprepConfigMapName(networkName, fixedIP string, payloads ...string) string {
+	builder := strings.TrimSpace(networkName) + "|" + strings.TrimSpace(fixedIP) + "|" + vmSysprepTemplateVer
+	for _, payload := range payloads {
+		builder += "|" + payload
+	}
+	sum := sha1.Sum([]byte(builder))
 	return fmt.Sprintf("vm-sysprep-%x", sum[:6])
 }
 
