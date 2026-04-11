@@ -2457,6 +2457,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.k8s.scheme-registers-kubevirt-vm",
+      "title": "K8s scheme registers KubeVirt VirtualMachine",
+      "title_zh": "K8s scheme registers KubeVirt VirtualMachine",
+      "interface_type": "package_function",
+      "interface": "pkg/component/k8s.init",
+      "code_paths": [
+        "pkg/component/k8s/k8sComponent.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/k8s/k8sComponent_test.go",
+          "selector": "TestSchemeRegistersKubeVirtVirtualMachine"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.kb-adapter.backup-repo.list-ready",
       "title": "List ready backup repositories for kb-adapter",
       "title_zh": "\u5217\u51fa kb-adapter \u53ef\u7528\u7684\u5907\u4efd\u4ed3\u5e93",
