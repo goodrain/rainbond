@@ -143,6 +143,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			return fmt.Errorf("get volumeclaimtemplate failure: %v", err)
 		}
 	}
+	if as.GetVirtualMachine() != nil {
+		if err := hydrateVMRuntimeExtensionSet(as, dbmanager); err != nil {
+			return fmt.Errorf("hydrate vm runtime extension set failure: %v", err)
+		}
+	}
 	annotations, err := createPodAnnotations(as, dbmanager)
 	if err != nil {
 		return fmt.Errorf("get annotation failure: %v", err)
@@ -159,9 +164,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
 	podtmpSpec := corev1.PodTemplateSpec{}
 	if as.GetVirtualMachine() != nil {
-		if err := hydrateVMRuntimeExtensionSet(as, dbmanager); err != nil {
-			return fmt.Errorf("hydrate vm runtime extension set failure: %v", err)
-		}
 		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
@@ -1335,9 +1337,15 @@ func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]s
 	if as.Replicas <= 1 {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
-	if as.Replicas == 1 && as.ExtensionSet["pod_ip"] != "" {
-		logrus.Infof("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, as.ExtensionSet["pod_ip"])
-		annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", as.ExtensionSet["pod_ip"])
+	if as.Replicas == 1 {
+		podIP := strings.TrimSpace(as.ExtensionSet["pod_ip"])
+		if podIP == "" {
+			podIP = resolveVMFixedPodIPAnnotationValue(as.ExtensionSet)
+		}
+		if podIP != "" {
+			logrus.Infof("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, podIP)
+			annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", podIP)
+		}
 	}
 	return annotations, nil
 }
@@ -1358,6 +1366,8 @@ func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error
 		"vm_network_mode",
 		"vm_network_name",
 		"vm_fixed_ip",
+		"vm_gateway",
+		"vm_dns_servers",
 		"vm_os_family",
 		"vm_os_name",
 		"vm_gpu_enabled",

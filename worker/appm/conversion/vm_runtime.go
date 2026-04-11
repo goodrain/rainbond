@@ -82,17 +82,26 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		return cfg, nil
 	}
 
-	networkName := strings.TrimSpace(extensionSet[vmNetworkNameKey])
-	if networkName == "" {
-		return vmRuntimeConfig{}, fmt.Errorf("fixed vm network mode requires vm_network_name")
-	}
 	fixedIP := strings.TrimSpace(extensionSet[vmFixedIPKey])
 	if fixedIP == "" {
 		return vmRuntimeConfig{}, fmt.Errorf("fixed vm network mode requires vm_fixed_ip")
 	}
 	gateway := strings.TrimSpace(extensionSet[vmGatewayKey])
 	dnsServers := parseExtensionList(extensionSet[vmDNSServersKey])
+	cfg.Interfaces = []kubevirtv1.Interface{
+		{
+			Name:  vmPrimaryNetworkName,
+			Model: "virtio",
+			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+				Bridge: &kubevirtv1.InterfaceBridge{},
+			},
+		},
+	}
+	if useVMFixedPodNetwork(extensionSet) {
+		return cfg, nil
+	}
 
+	networkName := strings.TrimSpace(extensionSet[vmNetworkNameKey])
 	cfg.Networks = []kubevirtv1.Network{
 		{
 			Name: vmPrimaryNetworkName,
@@ -101,15 +110,6 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 					NetworkName: networkName,
 					Default:     true,
 				},
-			},
-		},
-	}
-	cfg.Interfaces = []kubevirtv1.Interface{
-		{
-			Name:  vmPrimaryNetworkName,
-			Model: "virtio",
-			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-				Bridge: &kubevirtv1.InterfaceBridge{},
 			},
 		},
 	}
@@ -162,6 +162,23 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		},
 	})
 	return cfg, nil
+}
+
+func useVMFixedPodNetwork(extensionSet map[string]string) bool {
+	return strings.EqualFold(strings.TrimSpace(extensionSet[vmNetworkModeKey]), vmNetworkModeFixed) &&
+		strings.TrimSpace(extensionSet[vmNetworkNameKey]) == ""
+}
+
+func resolveVMFixedPodIPAnnotationValue(extensionSet map[string]string) string {
+	if !useVMFixedPodNetwork(extensionSet) {
+		return ""
+	}
+	fixedIP := strings.TrimSpace(extensionSet[vmFixedIPKey])
+	if fixedIP == "" {
+		return ""
+	}
+	ip, _, _ := strings.Cut(fixedIP, "/")
+	return strings.TrimSpace(ip)
 }
 
 func buildVMGPUDevices(extensionSet map[string]string) []kubevirtv1.GPU {

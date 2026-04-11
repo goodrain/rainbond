@@ -47,7 +47,7 @@ type VMCapability struct {
 func BuildVMCapabilities(dynamicClient dynamic.Interface) (*VMCapability, error) {
 	capabilities := &VMCapability{
 		ChunkUploadSupported: true,
-		NetworkModes:         []string{"random"},
+		NetworkModes:         []string{"random", "fixed"},
 	}
 	if dynamicClient == nil {
 		return capabilities, nil
@@ -58,7 +58,6 @@ func BuildVMCapabilities(dynamicClient dynamic.Interface) (*VMCapability, error)
 		return nil, err
 	}
 	if len(networks) > 0 {
-		capabilities.NetworkModes = append(capabilities.NetworkModes, "fixed")
 		capabilities.Networks = networks
 	}
 

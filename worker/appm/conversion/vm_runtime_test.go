@@ -149,13 +149,55 @@ func TestBuildVMRuntimeConfigFixedWindowsNetworkFallsBackToOSName(t *testing.T) 
 	}
 }
 
-func TestBuildVMRuntimeConfigRequiresNetworkForFixedIP(t *testing.T) {
-	_, err := buildVMRuntimeConfig(map[string]string{
+func TestBuildVMRuntimeConfigFixedPodNetwork(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_network_mode": "fixed",
 		"vm_fixed_ip":     "10.250.250.10/24",
 	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Networks) != 1 || cfg.Networks[0].Pod == nil {
+		t.Fatalf("expected pod network fallback, got %#v", cfg.Networks)
+	}
+	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected bridge interface for pod fixed ip")
+	}
+	if len(cfg.Volumes) != 0 {
+		t.Fatalf("expected no guest network volume for pod fixed ip, got %d", len(cfg.Volumes))
+	}
+	if len(cfg.Disks) != 0 {
+		t.Fatalf("expected no guest network disk for pod fixed ip, got %d", len(cfg.Disks))
+	}
+}
+
+func TestBuildVMRuntimeConfigRequiresFixedIP(t *testing.T) {
+	_, err := buildVMRuntimeConfig(map[string]string{
+		"vm_network_mode": "fixed",
+	})
 	if err == nil {
-		t.Fatal("expected error when fixed network name is missing")
+		t.Fatal("expected error when fixed ip is missing")
+	}
+}
+
+func TestResolveVMFixedPodIPAnnotationValue(t *testing.T) {
+	got := resolveVMFixedPodIPAnnotationValue(map[string]string{
+		"vm_network_mode": "fixed",
+		"vm_fixed_ip":     "10.42.124.90/24",
+	})
+	if got != "10.42.124.90" {
+		t.Fatalf("expected normalized pod ip, got %q", got)
+	}
+}
+
+func TestResolveVMFixedPodIPAnnotationValueIgnoresNetworkedFixedIP(t *testing.T) {
+	got := resolveVMFixedPodIPAnnotationValue(map[string]string{
+		"vm_network_mode": "fixed",
+		"vm_network_name": "default/bridge-net",
+		"vm_fixed_ip":     "10.42.124.90/24",
+	})
+	if got != "" {
+		t.Fatalf("expected no pod ip annotation for multus fixed network, got %q", got)
 	}
 }
 

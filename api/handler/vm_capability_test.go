@@ -78,7 +78,7 @@ func TestBuildVMCapabilitiesWithoutOptionalResources(t *testing.T) {
 	})
 	capabilities, err := BuildVMCapabilities(client)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"random"}, capabilities.NetworkModes)
+	assert.Equal(t, []string{"random", "fixed"}, capabilities.NetworkModes)
 	assert.False(t, capabilities.GPUSupported)
 	assert.False(t, capabilities.USBSupported)
 	assert.Empty(t, capabilities.Networks)
