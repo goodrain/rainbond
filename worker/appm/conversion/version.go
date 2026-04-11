@@ -159,6 +159,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
 	podtmpSpec := corev1.PodTemplateSpec{}
 	if as.GetVirtualMachine() != nil {
+		if err := hydrateVMRuntimeExtensionSet(as, dbmanager); err != nil {
+			return fmt.Errorf("hydrate vm runtime extension set failure: %v", err)
+		}
 		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
@@ -1348,6 +1351,27 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{
 		{Name: imagePullSecretName},
 	}
+}
+
+func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error {
+	vmAttrNames := []string{
+		"vm_network_mode",
+		"vm_network_name",
+		"vm_fixed_ip",
+		"vm_os_family",
+		"vm_os_name",
+	}
+	for _, name := range vmAttrNames {
+		attr, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, name)
+		if err != nil {
+			return err
+		}
+		if attr == nil || attr.AttributeValue == "" {
+			continue
+		}
+		as.ExtensionSet[name] = attr.AttributeValue
+	}
+	return nil
 }
 
 func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) ([]corev1.Toleration, error) {
