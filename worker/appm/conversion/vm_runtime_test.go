@@ -37,6 +37,8 @@ func TestBuildVMRuntimeConfigFixedNetwork(t *testing.T) {
 		"vm_network_mode": "fixed",
 		"vm_network_name": "default/bridge-test",
 		"vm_fixed_ip":     "10.250.250.10/24",
+		"vm_gateway":      "10.250.250.1",
+		"vm_dns_servers":  "223.5.5.5,8.8.8.8",
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -65,6 +67,12 @@ func TestBuildVMRuntimeConfigFixedNetwork(t *testing.T) {
 	if got := cfg.Volumes[0].CloudInitNoCloud.NetworkData; got == "" || got == "10.250.250.10/24" {
 		t.Fatalf("expected rendered cloud-init network data, got %q", got)
 	}
+	if got := cfg.Volumes[0].CloudInitNoCloud.NetworkData; !strings.Contains(got, "gateway4: 10.250.250.1") {
+		t.Fatalf("expected gateway in cloud-init network data, got %q", got)
+	}
+	if got := cfg.Volumes[0].CloudInitNoCloud.NetworkData; !strings.Contains(got, "223.5.5.5") || !strings.Contains(got, "8.8.8.8") {
+		t.Fatalf("expected dns servers in cloud-init network data, got %q", got)
+	}
 	if len(cfg.Disks) != 1 {
 		t.Fatalf("expected 1 cloud-init disk, got %d", len(cfg.Disks))
 	}
@@ -78,6 +86,8 @@ func TestBuildVMRuntimeConfigFixedWindowsNetworkUsesSysprep(t *testing.T) {
 		"vm_network_mode": "fixed",
 		"vm_network_name": "rbd-plugins/bridge-test",
 		"vm_fixed_ip":     "172.16.20.230/24",
+		"vm_gateway":      "172.16.20.1",
+		"vm_dns_servers":  "114.114.114.114,8.8.8.8",
 		"vm_os_family":    "windows",
 	})
 	if err != nil {
@@ -97,6 +107,12 @@ func TestBuildVMRuntimeConfigFixedWindowsNetworkUsesSysprep(t *testing.T) {
 	}
 	if cfg.ConfigMaps[0].Data[vmSysprepScriptName] == "" {
 		t.Fatalf("expected sysprep network script payload")
+	}
+	if script := cfg.ConfigMaps[0].Data[vmSysprepScriptName]; !strings.Contains(script, "DefaultGateway '172.16.20.1'") {
+		t.Fatalf("expected gateway in sysprep script, got %q", script)
+	}
+	if script := cfg.ConfigMaps[0].Data[vmSysprepScriptName]; !strings.Contains(script, "114.114.114.114") || !strings.Contains(script, "8.8.8.8") {
+		t.Fatalf("expected dns servers in sysprep script, got %q", script)
 	}
 	if !strings.Contains(cfg.ConfigMaps[0].Data["unattend.xml"], vmSysprepScriptName) {
 		t.Fatalf("expected unattend.xml to reference %s", vmSysprepScriptName)

@@ -17,6 +17,8 @@ const (
 	vmNetworkModeKey   = "vm_network_mode"
 	vmNetworkNameKey   = "vm_network_name"
 	vmFixedIPKey       = "vm_fixed_ip"
+	vmGatewayKey       = "vm_gateway"
+	vmDNSServersKey    = "vm_dns_servers"
 	vmOSFamilyKey      = "vm_os_family"
 	vmOSNameKey        = "vm_os_name"
 	vmGPUEnabledKey    = "vm_gpu_enabled"
@@ -88,6 +90,8 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 	if fixedIP == "" {
 		return vmRuntimeConfig{}, fmt.Errorf("fixed vm network mode requires vm_fixed_ip")
 	}
+	gateway := strings.TrimSpace(extensionSet[vmGatewayKey])
+	dnsServers := parseExtensionList(extensionSet[vmDNSServersKey])
 
 	cfg.Networks = []kubevirtv1.Network{
 		{
@@ -111,7 +115,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 	}
 	if resolveVMOSFamily(extensionSet) == "windows" {
 		unattendXML := buildVMSysprepUnattendXML(vmSysprepScriptName)
-		networkScript := buildVMSysprepNetworkScript(fixedIP)
+		networkScript := buildVMSysprepNetworkScript(fixedIP, gateway, dnsServers)
 		configMapName := buildVMSysprepConfigMapName(networkName, fixedIP, unattendXML, networkScript)
 		cfg.ConfigMaps = append(cfg.ConfigMaps, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -145,7 +149,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		Name: vmCloudInitVolumeName,
 		VolumeSource: kubevirtv1.VolumeSource{
 			CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-				NetworkData: buildVMFixedIPNetworkData(fixedIP),
+				NetworkData: buildVMFixedIPNetworkData(fixedIP, gateway, dnsServers),
 			},
 		},
 	})
@@ -221,12 +225,25 @@ func parsePositiveInt(value string) int {
 	return count
 }
 
-func buildVMFixedIPNetworkData(fixedIP string) string {
-	return fmt.Sprintf(
-		"version: 2\nethernets:\n  %s:\n    dhcp4: false\n    addresses:\n      - %s\n",
-		vmCloudInitAddressName,
-		fixedIP,
-	)
+func buildVMFixedIPNetworkData(fixedIP, gateway string, dnsServers []string) string {
+	lines := []string{
+		"version: 2",
+		"ethernets:",
+		fmt.Sprintf("  %s:", vmCloudInitAddressName),
+		"    dhcp4: false",
+		"    addresses:",
+		fmt.Sprintf("      - %s", fixedIP),
+	}
+	if gateway != "" {
+		lines = append(lines, fmt.Sprintf("    gateway4: %s", gateway))
+	}
+	if len(dnsServers) > 0 {
+		lines = append(lines, "    nameservers:", "      addresses:")
+		for _, dnsServer := range dnsServers {
+			lines = append(lines, fmt.Sprintf("        - %s", dnsServer))
+		}
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func resolveVMOSFamily(extensionSet map[string]string) string {
@@ -272,15 +289,36 @@ func buildVMSysprepUnattendXML(scriptName string) string {
 `, command)
 }
 
-func buildVMSysprepNetworkScript(fixedIP string) string {
+func buildVMSysprepNetworkScript(fixedIP, gateway string, dnsServers []string) string {
 	address, prefixLength := splitVMFixedIPCIDR(fixedIP)
+	networkCmd := fmt.Sprintf(
+		`  New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -Type Unicast -ErrorAction Stop`,
+		address,
+		prefixLength,
+	)
+	if gateway != "" {
+		networkCmd = fmt.Sprintf(
+			`  New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -DefaultGateway '%s' -Type Unicast -ErrorAction Stop`,
+			address,
+			prefixLength,
+			gateway,
+		)
+	}
+	var dnsCmd string
+	if len(dnsServers) > 0 {
+		quoted := make([]string, 0, len(dnsServers))
+		for _, dnsServer := range dnsServers {
+			quoted = append(quoted, fmt.Sprintf("'%s'", dnsServer))
+		}
+		dnsCmd = fmt.Sprintf("\n  Set-DnsClientServerAddress -InterfaceAlias $adapter -ServerAddresses @(%s) -ErrorAction SilentlyContinue", strings.Join(quoted, ", "))
+	}
 	return fmt.Sprintf(`$adapter = Get-NetAdapter | Where-Object {$_.Status -ne 'Disabled'} | Sort-Object ifIndex | Select-Object -First 1 -ExpandProperty Name
 if ($adapter) {
   Set-NetIPInterface -InterfaceAlias $adapter -AddressFamily IPv4 -Dhcp Disabled -ErrorAction SilentlyContinue
   Get-NetIPAddress -InterfaceAlias $adapter -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
-  New-NetIPAddress -InterfaceAlias $adapter -IPAddress '%s' -PrefixLength %s -Type Unicast -ErrorAction Stop
+%s%s
 }
-`, address, prefixLength)
+`, networkCmd, dnsCmd)
 }
 
 func splitVMFixedIPCIDR(fixedIP string) (string, string) {
