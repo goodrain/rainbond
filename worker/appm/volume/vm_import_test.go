@@ -73,3 +73,74 @@ func TestBuildVMDiskImportDataVolumeTemplate(t *testing.T) {
 		t.Fatalf("unexpected storage class: %q", *template.Spec.Storage.StorageClassName)
 	}
 }
+
+func TestBuildVMVolumeSourceUsesBlankDataVolumeForDisk(t *testing.T) {
+	storageClassName := "local-path"
+	volumeMode := corev1.PersistentVolumeFilesystem
+	claim := &corev1.PersistentVolumeClaim{
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			StorageClassName: &storageClassName,
+			VolumeMode:       &volumeMode,
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("20Gi"),
+				},
+			},
+		},
+	}
+	claim.Name = "manual-root"
+
+	volume, template, manual := buildVMVolumeSource(
+		claim,
+		map[string]string{"service_id": "svc-1"},
+		map[string]string{"volume_name": "disk"},
+		"/disk",
+		nil,
+	)
+
+	if manual {
+		t.Fatal("expected vm root disk to avoid manual pvc provisioning")
+	}
+	if volume.DataVolume == nil || volume.DataVolume.Name != "manual-root" {
+		t.Fatalf("expected data volume source for root disk, got %#v", volume.VolumeSource)
+	}
+	if template == nil || template.Spec.Source == nil || template.Spec.Source.Blank == nil {
+		t.Fatalf("expected blank data volume template for root disk, got %#v", template)
+	}
+	if template.Spec.Storage == nil || template.Spec.Storage.StorageClassName == nil {
+		t.Fatal("expected storage spec on blank data volume template")
+	}
+	if *template.Spec.Storage.StorageClassName != "local-path" {
+		t.Fatalf("unexpected blank data volume storage class: %q", *template.Spec.Storage.StorageClassName)
+	}
+}
+
+func TestBuildVMVolumeSourceKeepsCDRomAsPVCWithoutImport(t *testing.T) {
+	storageClassName := "local-path"
+	claim := &corev1.PersistentVolumeClaim{
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			StorageClassName: &storageClassName,
+		},
+	}
+	claim.Name = "manual-cdrom"
+
+	volume, template, manual := buildVMVolumeSource(
+		claim,
+		map[string]string{"service_id": "svc-1"},
+		map[string]string{"volume_name": "cdrom"},
+		"/cdrom",
+		nil,
+	)
+
+	if !manual {
+		t.Fatal("expected cdrom volume without import to keep manual pvc provisioning")
+	}
+	if volume.PersistentVolumeClaim == nil || volume.PersistentVolumeClaim.ClaimName != "manual-cdrom" {
+		t.Fatalf("expected pvc-backed cdrom volume, got %#v", volume.VolumeSource)
+	}
+	if template != nil {
+		t.Fatalf("expected no data volume template for pvc-backed cdrom, got %#v", template)
+	}
+}

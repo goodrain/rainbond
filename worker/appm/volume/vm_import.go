@@ -84,6 +84,73 @@ func normalizeVMDiskImportConfigs(configs map[string]vmDiskImportConfig) map[str
 	return normalized
 }
 
+func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, volumePath string,
+	importConfig *vmDiskImportConfig) (kubevirtv1.Volume, *kubevirtv1.DataVolumeTemplateSpec, bool) {
+	if importConfig != nil {
+		template := buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, *importConfig)
+		return kubevirtv1.Volume{
+			Name: claim.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				DataVolume: &kubevirtv1.DataVolumeSource{
+					Name: claim.Name,
+				},
+			},
+		}, &template, false
+	}
+	if shouldUseVMBlankDataVolume(volumePath) {
+		template := buildVMBlankDataVolumeTemplate(claim, labels, annotations)
+		return kubevirtv1.Volume{
+			Name: claim.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				DataVolume: &kubevirtv1.DataVolumeSource{
+					Name: claim.Name,
+				},
+			},
+		}, &template, false
+	}
+	return kubevirtv1.Volume{
+		Name: claim.Name,
+		VolumeSource: kubevirtv1.VolumeSource{
+			PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
+				PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: claim.Name,
+				},
+				Hotpluggable: false,
+			},
+		},
+	}, nil, true
+}
+
+func shouldUseVMBlankDataVolume(volumePath string) bool {
+	switch volumePath {
+	case "/disk", "/lun":
+		return true
+	default:
+		return false
+	}
+}
+
+func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string) kubevirtv1.DataVolumeTemplateSpec {
+	return kubevirtv1.DataVolumeTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        claim.Name,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: cdiv1.DataVolumeSpec{
+			Source: &cdiv1.DataVolumeSource{
+				Blank: &cdiv1.DataVolumeBlankImage{},
+			},
+			Storage: &cdiv1.StorageSpec{
+				AccessModes:      claim.Spec.AccessModes,
+				Resources:        claim.Spec.Resources,
+				StorageClassName: claim.Spec.StorageClassName,
+				VolumeMode:       claim.Spec.VolumeMode,
+			},
+		},
+	}
+}
+
 func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) kubevirtv1.DataVolumeTemplateSpec {
 	return kubevirtv1.DataVolumeTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

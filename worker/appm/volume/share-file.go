@@ -70,31 +70,16 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
-		importConfig, hasImport := importConfigs[v.svm.VolumeName]
-		var vo kubevirtv1.Volume
-		if hasImport {
-			define.vmDVTemplate = append(define.vmDVTemplate, buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, importConfig))
-			vo = kubevirtv1.Volume{
-				Name: volumeMountName,
-				VolumeSource: kubevirtv1.VolumeSource{
-					DataVolume: &kubevirtv1.DataVolumeSource{
-						Name: claim.Name,
-					},
-				},
-			}
-		} else {
+		var importConfig *vmDiskImportConfig
+		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
+			importConfig = &cfg
+		}
+		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)
+		if dvTemplate != nil {
+			define.vmDVTemplate = append(define.vmDVTemplate, *dvTemplate)
+		}
+		if manualClaim {
 			v.as.SetClaimManually(claim)
-			vo = kubevirtv1.Volume{
-				Name: volumeMountName,
-				VolumeSource: kubevirtv1.VolumeSource{
-					PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
-						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: claim.Name,
-						},
-						Hotpluggable: false,
-					},
-				},
-			}
 		}
 		var dd kubevirtv1.DiskDevice
 		switch volumeMountPath {
