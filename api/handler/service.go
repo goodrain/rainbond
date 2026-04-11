@@ -878,6 +878,17 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
+	if len(sc.ComponentK8sAttributes) > 0 {
+		var batchAttrs []*dbmodel.ComponentK8sAttributes
+		for _, k8sAttr := range sc.ComponentK8sAttributes {
+			attr := k8sAttr
+			batchAttrs = append(batchAttrs, attr.DbModel(ts.TenantID, ts.ServiceID))
+		}
+		if err := db.GetManager().ComponentK8sAttributeDaoTransactions(tx).CreateOrUpdateAttributesInBatch(batchAttrs); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 	labelModel := dbmodel.TenantServiceLable{
 		ServiceID:  ts.ServiceID,
 		LabelKey:   dbmodel.LabelKeyServiceType,

@@ -367,24 +367,25 @@ type ServiceStruct struct {
 	//OSType runtime os type
 	// in: body
 	// required: false
-	OSType            string                               `json:"os_type" validate:"os_type|in:windows,linux"`
-	ServiceLabel      string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
-	NodeLabel         string                               `json:"node_label"  validate:"node_label"`
-	Operator          string                               `json:"operator"  validate:"operator"`
-	RepoURL           string                               `json:"repo_url" validate:"repo_url"`
-	DependIDs         []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
-	VolumesInfo       []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
-	DepVolumesInfo    []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
-	EnvsInfo          []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
-	PortsInfo         []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
-	Endpoints         *Endpoints                           `json:"endpoints" validate:"endpoints"`
-	AppID             string                               `json:"app_id" validate:"required"`
-	ComponentProbes   []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
-	ComponentMonitors []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
-	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
-	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
-	K8sComponentName  string                               `json:"k8s_component_name" validate:"k8s_component_name"`
-	JobStrategy       string                               `json:"job_strategy" validate:"job_strategy"`
+	OSType                 string                               `json:"os_type" validate:"os_type|in:windows,linux"`
+	ServiceLabel           string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
+	NodeLabel              string                               `json:"node_label"  validate:"node_label"`
+	Operator               string                               `json:"operator"  validate:"operator"`
+	RepoURL                string                               `json:"repo_url" validate:"repo_url"`
+	DependIDs              []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
+	VolumesInfo            []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
+	DepVolumesInfo         []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
+	EnvsInfo               []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
+	PortsInfo              []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
+	Endpoints              *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID                  string                               `json:"app_id" validate:"required"`
+	ComponentProbes        []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
+	ComponentMonitors      []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
+	HTTPRules              []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
+	TCPRules               []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
+	ComponentK8sAttributes []ComponentK8sAttribute              `json:"component_k8s_attributes"`
+	K8sComponentName       string                               `json:"k8s_component_name" validate:"k8s_component_name"`
+	JobStrategy            string                               `json:"job_strategy" validate:"job_strategy"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
