@@ -32,6 +32,24 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	}
 }
 
+func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_os_family": "windows",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Interfaces) != 1 {
+		t.Fatalf("expected 1 interface, got %d", len(cfg.Interfaces))
+	}
+	if cfg.Interfaces[0].Model != "e1000" {
+		t.Fatalf("expected windows random network to use e1000, got %q", cfg.Interfaces[0].Model)
+	}
+	if cfg.Interfaces[0].Masquerade == nil {
+		t.Fatalf("expected windows random network to keep masquerade binding")
+	}
+}
+
 func TestBuildVMRuntimeConfigFixedNetwork(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_network_mode": "fixed",
@@ -98,6 +116,9 @@ func TestBuildVMRuntimeConfigFixedWindowsNetworkUsesSysprep(t *testing.T) {
 	}
 	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
 		t.Fatalf("expected bridge interface for windows fixed ip")
+	}
+	if cfg.Interfaces[0].Model != "e1000" {
+		t.Fatalf("expected windows fixed ip to use e1000, got %q", cfg.Interfaces[0].Model)
 	}
 	if len(cfg.ConfigMaps) != 1 {
 		t.Fatalf("expected 1 sysprep configmap, got %d", len(cfg.ConfigMaps))

@@ -56,6 +56,7 @@ type vmDiskLayoutItem struct {
 }
 
 func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, error) {
+	interfaceModel := resolveVMInterfaceModel(extensionSet)
 	cfg := vmRuntimeConfig{
 		Networks: []kubevirtv1.Network{
 			{
@@ -68,7 +69,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		Interfaces: []kubevirtv1.Interface{
 			{
 				Name:  vmPrimaryNetworkName,
-				Model: "virtio",
+				Model: interfaceModel,
 				InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 					Masquerade: &kubevirtv1.InterfaceMasquerade{},
 				},
@@ -91,7 +92,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 	cfg.Interfaces = []kubevirtv1.Interface{
 		{
 			Name:  vmPrimaryNetworkName,
-			Model: "virtio",
+			Model: interfaceModel,
 			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 				Bridge: &kubevirtv1.InterfaceBridge{},
 			},
@@ -273,6 +274,13 @@ func resolveVMOSFamily(extensionSet map[string]string) string {
 		return "windows"
 	}
 	return "linux"
+}
+
+func resolveVMInterfaceModel(extensionSet map[string]string) string {
+	if resolveVMOSFamily(extensionSet) == "windows" {
+		return "e1000"
+	}
+	return "virtio"
 }
 
 func buildVMSysprepConfigMapName(networkName, fixedIP string, payloads ...string) string {
