@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -15,6 +17,7 @@ import (
 type VMExportController struct {
 	startExport     func(serviceID, exportID string, req *handler.VMExportRequest) (*handler.VMExportStatus, error)
 	getExportStatus func(serviceID, exportID string) (*handler.VMExportStatus, error)
+	setEventStatus  func(ctx context.Context, status dbmodel.EventStatus) error
 }
 
 var defaultVMExportController = &VMExportController{}
@@ -45,6 +48,14 @@ func (c *VMExportController) StartVMExport(w http.ResponseWriter, r *http.Reques
 			httputil.ReturnError(r, w, http.StatusConflict, err.Error())
 			return
 		}
+		httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	setEventStatus := c.setEventStatus
+	if setEventStatus == nil {
+		setEventStatus = db.GetManager().ServiceEventDao().SetEventStatus
+	}
+	if err := setEventStatus(r.Context(), dbmodel.EventStatusSuccess); err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
 		return
 	}

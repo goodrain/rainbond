@@ -32,6 +32,12 @@ func TestVMExportControllerStartVMExport(t *testing.T) {
 				Status:   "exporting",
 			}, nil
 		},
+		setEventStatus: func(ctx context.Context, status dbmodel.EventStatus) error {
+			if status != dbmodel.EventStatusSuccess {
+				t.Fatalf("unexpected event status %s", status)
+			}
+			return nil
+		},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/v2/tenants/demo/services/demo/vm-exports", bytes.NewBufferString(`{"name":"snapshot-1","export_all_disks":true}`))
@@ -59,6 +65,12 @@ func TestVMExportControllerStartVMExportSnapshotSource(t *testing.T) {
 				ExportID: exportID,
 				Status:   "exporting",
 			}, nil
+		},
+		setEventStatus: func(ctx context.Context, status dbmodel.EventStatus) error {
+			if status != dbmodel.EventStatusSuccess {
+				t.Fatalf("unexpected event status %s", status)
+			}
+			return nil
 		},
 	}
 
