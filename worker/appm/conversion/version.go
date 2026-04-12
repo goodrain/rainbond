@@ -204,6 +204,27 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}}...)
 
 		reource := createVMResources(as)
+		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
+			return createVMProbe(as, dbmanager, mode)
+		})
+		domainSpec := kubevirtv1.DomainSpec{
+			Resources: reource,
+			CPU: &kubevirtv1.CPU{
+				Cores: uint32(as.ContainerCPU / 1000),
+			},
+			Memory: &kubevirtv1.Memory{
+				Guest: resource.NewScaledQuantity(int64(as.ContainerMemory), resource.Mega),
+			},
+			Machine: &kubevirtv1.Machine{Type: "q35"},
+			Devices: kubevirtv1.Devices{
+				Disks:       disks,
+				Interfaces:  vmRuntime.Interfaces,
+				GPUs:        vmRuntime.GPUs,
+				HostDevices: vmRuntime.HostDevices,
+			},
+		}
+		applyVMBootMode(&domainSpec, as.ExtensionSet)
+
 		vmt = kubevirtv1.VirtualMachineInstanceTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        as.GetK8sWorkloadName() + "-vmi-spec",
@@ -211,25 +232,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				Annotations: annotations,
 			},
 			Spec: kubevirtv1.VirtualMachineInstanceSpec{
-				Domain: kubevirtv1.DomainSpec{
-					Resources: reource,
-					CPU: &kubevirtv1.CPU{
-						Cores: uint32(as.ContainerCPU / 1000),
-					},
-					Memory: &kubevirtv1.Memory{
-						Guest: resource.NewScaledQuantity(int64(as.ContainerMemory), resource.Mega),
-					},
-					Machine: &kubevirtv1.Machine{Type: "q35"},
-					Devices: kubevirtv1.Devices{
-						Disks:       disks,
-						Interfaces:  vmRuntime.Interfaces,
-						GPUs:        vmRuntime.GPUs,
-						HostDevices: vmRuntime.HostDevices,
-					},
-				},
+				Domain:         domainSpec,
 				NodeSelector:   nodeSelector,
-				ReadinessProbe: createVMProbe(as, dbmanager, "liveness"),
-				LivenessProbe:  createVMProbe(as, dbmanager, "readiness"),
+				ReadinessProbe: readinessProbe,
+				LivenessProbe:  livenessProbe,
 				Affinity:       affinity,
 				SchedulerName: func() string {
 					if name, ok := as.ExtensionSet["shcedulername"]; ok {
@@ -1010,9 +1016,9 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
 	if mode == "liveness" {
 		probe := new(corev1.Probe)
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			err := yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1021,9 +1027,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 		}
 	} else {
 		probe := new(corev1.Probe)
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			err := yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1092,10 +1098,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 
 func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevirtv1.Probe {
 	if mode == "liveness" {
-		var probe *kubevirtv1.Probe
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			probe, err := decodeVMProbeYAML([]byte(probeAttribute.AttributeValue))
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1103,10 +1108,9 @@ func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevi
 			return probe
 		}
 	} else {
-		var probe *kubevirtv1.Probe
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			probe, err := decodeVMProbeYAML([]byte(probeAttribute.AttributeValue))
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1172,6 +1176,21 @@ func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevi
 	}
 	//TODO:create default probe
 	return nil
+}
+
+func decodeVMProbeYAML(raw []byte) (*kubevirtv1.Probe, error) {
+	probe := new(kubevirtv1.Probe)
+	if err := yaml.Unmarshal(raw, probe); err != nil {
+		return nil, err
+	}
+	return probe, nil
+}
+
+func selectVMProbes(build func(mode string) *kubevirtv1.Probe) (readiness, liveness *kubevirtv1.Probe) {
+	if build == nil {
+		return nil, nil
+	}
+	return build("readiness"), build("liveness")
 }
 
 func createNodeSelector(as *v1.AppService, dbmanager db.Manager) (map[string]string, error) {
@@ -1362,7 +1381,21 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 }
 
 func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error {
-	vmAttrNames := []string{
+	for _, name := range vmRuntimeAttributeNames() {
+		attr, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, name)
+		if err != nil {
+			return err
+		}
+		if attr == nil || attr.AttributeValue == "" {
+			continue
+		}
+		as.ExtensionSet[name] = attr.AttributeValue
+	}
+	return nil
+}
+
+func vmRuntimeAttributeNames() []string {
+	return []string{
 		"vm_network_mode",
 		"vm_network_name",
 		"vm_fixed_ip",
@@ -1375,19 +1408,35 @@ func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error
 		"vm_gpu_count",
 		"vm_usb_enabled",
 		"vm_usb_resources",
+		"vm_boot_mode",
 		"vm_disk_layout",
 	}
-	for _, name := range vmAttrNames {
-		attr, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, name)
-		if err != nil {
-			return err
-		}
-		if attr == nil || attr.AttributeValue == "" {
-			continue
-		}
-		as.ExtensionSet[name] = attr.AttributeValue
+}
+
+func applyVMBootMode(domain *kubevirtv1.DomainSpec, extensionSet map[string]string) {
+	if domain == nil {
+		return
 	}
-	return nil
+	mode := strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_mode"]))
+	if mode == "" {
+		return
+	}
+	if domain.Firmware == nil {
+		domain.Firmware = &kubevirtv1.Firmware{}
+	}
+	if domain.Firmware.Bootloader == nil {
+		domain.Firmware.Bootloader = &kubevirtv1.Bootloader{}
+	}
+	switch mode {
+	case "uefi", "efi":
+		domain.Firmware.Bootloader.BIOS = nil
+		domain.Firmware.Bootloader.EFI = &kubevirtv1.EFI{
+			SecureBoot: util.Bool(false),
+		}
+	case "bios", "legacy":
+		domain.Firmware.Bootloader.EFI = nil
+		domain.Firmware.Bootloader.BIOS = &kubevirtv1.BIOS{}
+	}
 }
 
 func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) ([]corev1.Toleration, error) {
