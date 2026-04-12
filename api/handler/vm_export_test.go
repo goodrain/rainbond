@@ -1,3 +1,4 @@
+// capability_id: rainbond.vm-export.discover-datavolume-disks
 package handler
 
 import (
@@ -68,6 +69,76 @@ func TestDiscoverVMExportDisks(t *testing.T) {
 		assert.Equal(t, uint(2), disks[1].BootOrder)
 		assert.Equal(t, "datadisk-pvc", disks[1].PVCName)
 	}
+}
+
+func TestDiscoverVMExportDisksSupportsDataVolumeRootDisk(t *testing.T) {
+	vm := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Volumes: []kubevirtv1.Volume{
+						{
+							Name: "rootdisk",
+							VolumeSource: kubevirtv1.VolumeSource{
+								DataVolume: &kubevirtv1.DataVolumeSource{
+									Name: "manual-root",
+								},
+							},
+						},
+						{
+							Name: "datadisk",
+							VolumeSource: kubevirtv1.VolumeSource{
+								DataVolume: &kubevirtv1.DataVolumeSource{
+									Name: "manual-data",
+								},
+							},
+						},
+						{
+							Name: "vmimage",
+							VolumeSource: kubevirtv1.VolumeSource{
+								ContainerDisk: &kubevirtv1.ContainerDiskSource{
+									Image: "demo/rootdisk:latest",
+								},
+							},
+						},
+					},
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							Disks: []kubevirtv1.Disk{
+								{
+									Name:      "rootdisk",
+									BootOrder: uintPtr(1),
+								},
+								{
+									Name:      "vmimage",
+									BootOrder: uintPtr(2),
+								},
+								{
+									Name:      "datadisk",
+									BootOrder: uintPtr(3),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	disks := discoverVMExportDisks(vm)
+	if assert.Len(t, disks, 2) {
+		assert.Equal(t, "root", disks[0].DiskRole)
+		assert.Equal(t, uint(1), disks[0].BootOrder)
+		assert.Equal(t, "manual-root", disks[0].PVCName)
+		assert.Equal(t, "data", disks[1].DiskRole)
+		assert.Equal(t, uint(3), disks[1].BootOrder)
+		assert.Equal(t, "manual-data", disks[1].PVCName)
+	}
+	assert.True(t, hasPersistentRootDisk(disks))
 }
 
 func TestDiscoverVMExportDisksWithoutPersistentRootDisk(t *testing.T) {

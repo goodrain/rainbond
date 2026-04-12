@@ -326,6 +326,7 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
@@ -3602,6 +3603,16 @@
 - 业务入口: `util.detectZipStructure`
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
+
+### Discover DataVolume-backed VM export disks
+
+- Capability ID: `rainbond.vm-export.discover-datavolume-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `handler.discoverVMExportDisks`
+- 代码路径: `api/handler/vm_export.go`
+- 测试路径: `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk`
 
 ### vm-run 本地包源在目录缺失时回退 storage 下载
 

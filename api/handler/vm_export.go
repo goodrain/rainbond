@@ -177,7 +177,8 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 	}
 	disks := make([]VMExportDisk, 0)
 	for _, volume := range vm.Spec.Template.Spec.Volumes {
-		if volume.PersistentVolumeClaim == nil {
+		pvcName := vmExportPVCName(volume)
+		if pvcName == "" {
 			continue
 		}
 		disks = append(disks, VMExportDisk{
@@ -185,7 +186,7 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 			DiskName:     volume.Name,
 			DiskRole:     "data",
 			BootOrder:    bootOrderMap[volume.Name],
-			PVCName:      volume.PersistentVolumeClaim.ClaimName,
+			PVCName:      pvcName,
 			PVCNamespace: vm.Namespace,
 		})
 	}
@@ -214,6 +215,16 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 		}
 	}
 	return disks
+}
+
+func vmExportPVCName(volume kubevirtv1.Volume) string {
+	if volume.PersistentVolumeClaim != nil {
+		return volume.PersistentVolumeClaim.ClaimName
+	}
+	if volume.DataVolume != nil {
+		return strings.TrimSpace(volume.DataVolume.Name)
+	}
+	return ""
 }
 
 func hasPersistentRootDisk(disks []VMExportDisk) bool {
