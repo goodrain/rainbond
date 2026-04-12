@@ -101,6 +101,14 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		EventID:   sEvent.EventID,
 		TaskType:  "start",
 	}
+	if service.IsVM() {
+		if err := handler.GetServiceManager().StartOrCreateVM(startStopStruct, service.DeployVersion); err != nil {
+			httputil.ReturnError(r, w, 500, "get service info error.")
+			return
+		}
+		httputil.ReturnSuccess(r, w, sEvent)
+		return
+	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
@@ -133,9 +141,18 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
 	//save event
 	defer event.CloseManager()
+	if service.IsVM() {
+		if err := handler.GetServiceManager().StopVM(serviceID); err != nil {
+			httputil.ReturnError(r, w, 500, "get service info error.")
+			return
+		}
+		httputil.ReturnSuccess(r, w, sEvent)
+		return
+	}
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
 		ServiceID: serviceID,

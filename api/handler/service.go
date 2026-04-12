@@ -400,6 +400,57 @@ func (s *ServiceAction) StartStopService(sss *apimodel.StartStopStruct) error {
 	return nil
 }
 
+func (s *ServiceAction) StartOrCreateVM(sss *apimodel.StartStopStruct, deployVersion string) error {
+	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+			TaskType: sss.TaskType,
+			TaskBody: model.StopTaskBody{
+				TenantID:      sss.TenantID,
+				ServiceID:     sss.ServiceID,
+				DeployVersion: deployVersion,
+				EventID:       sss.EventID,
+			},
+			Topic: gclient.WorkerTopic,
+		})
+	}
+	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+		return nil
+	}
+	return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
+}
+
+func (s *ServiceAction) StopVM(serviceID string) error {
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return nil
+	}
+	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		return nil
+	}
+	return s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{})
+}
+
+func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.VirtualMachine, error) {
+	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_id=" + serviceID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(vms.Items) == 0 {
+		return nil, nil
+	}
+	vm := vms.Items[0]
+	return &vm, nil
+}
+
 // PauseUNPauseService -
 func (s *ServiceAction) PauseUNPauseService(serviceID string, pauseORunpause string) error {
 	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
@@ -3178,6 +3229,8 @@ func TransStatus(eStatus string) string {
 	case "upgrade":
 		return "升级中"
 	case "closed":
+		return "已关闭"
+	case "stopped":
 		return "已关闭"
 	case "stopping":
 		return "关闭中"

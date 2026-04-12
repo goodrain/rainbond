@@ -38,6 +38,8 @@ type ServiceHandler interface {
 	DeleteLabel(l *apimodel.LabelsStruct, serviceID string) error
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
+	StartOrCreateVM(s *apimodel.StartStopStruct, deployVersion string) error
+	StopVM(serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
 	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
