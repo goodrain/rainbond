@@ -197,7 +197,7 @@ func TestDiscoverVMExportDisksWithoutPersistentRootDisk(t *testing.T) {
 func TestCreateVMDataExports(t *testing.T) {
 	scheme := runtime.NewScheme()
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		vmDataExportGVR: "DataExportList",
+		vmDataExportGVR: "VirtualMachineExportList",
 	})
 	vm := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
@@ -223,7 +223,9 @@ func TestCreateVMDataExports(t *testing.T) {
 		rootDisk := itemsByName["evt-1-rootdisk"]
 		assert.Equal(t, "service-1", rootDisk.GetLabels()["service_id"])
 		assert.Equal(t, "evt-1", rootDisk.GetLabels()["vm_export_id"])
-		pvcName, _, _ := unstructured.NestedString(rootDisk.Object, "spec", "source", "pvc", "name")
+		kind, _, _ := unstructured.NestedString(rootDisk.Object, "spec", "source", "kind")
+		pvcName, _, _ := unstructured.NestedString(rootDisk.Object, "spec", "source", "name")
+		assert.Equal(t, "PersistentVolumeClaim", kind)
 		assert.Equal(t, "rootdisk-pvc", pvcName)
 		assert.Equal(t, "1", rootDisk.GetAnnotations()["vm_export_boot_order"])
 		assert.Equal(t, "rootdisk", rootDisk.GetAnnotations()["vm_export_disk_name"])
@@ -233,12 +235,12 @@ func TestCreateVMDataExports(t *testing.T) {
 func TestBuildVMExportStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		vmDataExportGVR: "DataExportList",
+		vmDataExportGVR: "VirtualMachineExportList",
 	},
 		&unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "cdi.kubevirt.io/v1beta1",
-				"kind":       "DataExport",
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
 				"metadata": map[string]interface{}{
 					"name":      "evt-1-rootdisk",
 					"namespace": "demo-ns",
@@ -255,18 +257,21 @@ func TestBuildVMExportStatus(t *testing.T) {
 				},
 				"spec": map[string]interface{}{
 					"source": map[string]interface{}{
-						"pvc": map[string]interface{}{
-							"name":      "rootdisk-pvc",
-							"namespace": "demo-ns",
-						},
+						"kind": "PersistentVolumeClaim",
+						"name": "rootdisk-pvc",
 					},
 				},
 				"status": map[string]interface{}{
 					"phase": "Ready",
 					"links": map[string]interface{}{
 						"external": map[string]interface{}{
-							"urls": []interface{}{
-								map[string]interface{}{"url": "https://download/rootdisk"},
+							"volumes": []interface{}{
+								map[string]interface{}{
+									"name": "rootdisk",
+									"formats": []interface{}{
+										map[string]interface{}{"format": "gzip", "url": "https://download/rootdisk"},
+									},
+								},
 							},
 						},
 					},
@@ -275,8 +280,8 @@ func TestBuildVMExportStatus(t *testing.T) {
 		},
 		&unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "cdi.kubevirt.io/v1beta1",
-				"kind":       "DataExport",
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
 				"metadata": map[string]interface{}{
 					"name":      "evt-1-datadisk",
 					"namespace": "demo-ns",
@@ -293,10 +298,8 @@ func TestBuildVMExportStatus(t *testing.T) {
 				},
 				"spec": map[string]interface{}{
 					"source": map[string]interface{}{
-						"pvc": map[string]interface{}{
-							"name":      "datadisk-pvc",
-							"namespace": "demo-ns",
-						},
+						"kind": "PersistentVolumeClaim",
+						"name": "datadisk-pvc",
 					},
 				},
 				"status": map[string]interface{}{

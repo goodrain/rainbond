@@ -19,9 +19,9 @@ import (
 
 var (
 	vmDataExportGVR = schema.GroupVersionResource{
-		Group:    "cdi.kubevirt.io",
+		Group:    "export.kubevirt.io",
 		Version:  "v1beta1",
-		Resource: "dataexports",
+		Resource: "virtualmachineexports",
 	}
 	vmExportDynamicClient = func() dynamic.Interface {
 		return k8s.Default().DynamicClient
@@ -128,8 +128,8 @@ func BuildVMExportStatus(dynamicClient dynamic.Interface, serviceID, exportID st
 			DiskName:     item.GetAnnotations()["vm_export_disk_name"],
 			BootOrder:    parseVMExportUint(item.GetAnnotations()["vm_export_boot_order"]),
 			Status:       normalizeVMExportPhase(getNestedString(item.Object, "status", "phase")),
-			PVCName:      getNestedString(item.Object, "spec", "source", "pvc", "name"),
-			PVCNamespace: getNestedString(item.Object, "spec", "source", "pvc", "namespace"),
+			PVCName:      getNestedString(item.Object, "spec", "source", "name"),
+			PVCNamespace: item.GetNamespace(),
 			DownloadURL:  extractVMExportURL(item.Object),
 			Message:      extractVMExportMessage(item.Object),
 		}
@@ -243,8 +243,8 @@ func createVMDataExports(dynamicClient dynamic.Interface, exportID, serviceID st
 	for _, disk := range disks {
 		obj := &unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "cdi.kubevirt.io/v1beta1",
-				"kind":       "DataExport",
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
 				"metadata": map[string]interface{}{
 					"name":      buildVMExportName(exportID, disk.DiskKey),
 					"namespace": vm.Namespace,
@@ -261,10 +261,8 @@ func createVMDataExports(dynamicClient dynamic.Interface, exportID, serviceID st
 				},
 				"spec": map[string]interface{}{
 					"source": map[string]interface{}{
-						"pvc": map[string]interface{}{
-							"name":      disk.PVCName,
-							"namespace": disk.PVCNamespace,
-						},
+						"kind": "PersistentVolumeClaim",
+						"name": disk.PVCName,
 					},
 				},
 			},
@@ -330,31 +328,53 @@ func vmExportDiskRoleRank(role string) int {
 }
 
 func extractVMExportURL(obj map[string]interface{}) string {
-	urls, found, err := unstructured.NestedSlice(obj, "status", "links", "external", "urls")
-	if err == nil && found {
-		for _, value := range urls {
-			item, ok := value.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if url, _, _ := unstructured.NestedString(item, "url"); url != "" {
-				return url
-			}
+	for _, fields := range [][]string{
+		{"status", "links", "external", "volumes"},
+		{"status", "links", "internal", "volumes"},
+	} {
+		volumes, found, err := unstructured.NestedSlice(obj, fields...)
+		if err != nil || !found {
+			continue
 		}
-	}
-	urls, found, err = unstructured.NestedSlice(obj, "status", "links", "internal", "urls")
-	if err == nil && found {
-		for _, value := range urls {
-			item, ok := value.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if url, _, _ := unstructured.NestedString(item, "url"); url != "" {
-				return url
-			}
+		if url := extractVMExportVolumeURL(volumes); url != "" {
+			return url
 		}
 	}
 	return ""
+}
+
+func extractVMExportVolumeURL(volumes []interface{}) string {
+	var fallback string
+	for _, volumeValue := range volumes {
+		volume, ok := volumeValue.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		formats, found, err := unstructured.NestedSlice(volume, "formats")
+		if err != nil || !found {
+			continue
+		}
+		for _, preferred := range []string{"gzip", "raw", "tar.gz", "dir"} {
+			for _, formatValue := range formats {
+				formatItem, ok := formatValue.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				formatName, _, _ := unstructured.NestedString(formatItem, "format")
+				url, _, _ := unstructured.NestedString(formatItem, "url")
+				if url == "" {
+					continue
+				}
+				if fallback == "" {
+					fallback = url
+				}
+				if strings.EqualFold(formatName, preferred) {
+					return url
+				}
+			}
+		}
+	}
+	return fallback
 }
 
 func getNestedString(obj map[string]interface{}, fields ...string) string {
