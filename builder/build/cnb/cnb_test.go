@@ -1135,8 +1135,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 			SourceDir:     t.TempDir(),
 			CacheDir:      "/tmp/cache",
 			BuildEnvs: map[string]string{
-				"BUILD_AUTO_PROCFILE":  "web: python manage.py runserver 0.0.0.0:$_PORT",
-				"START_COMMAND_SOURCE": "auto-detected",
+				"BUILD_AUTO_PROCFILE": "web: python manage.py runserver 0.0.0.0:$_PORT",
 			},
 			Logger: logger,
 		}

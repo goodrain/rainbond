@@ -116,7 +116,7 @@ dependencies = [
 	if got := runtimeInfo["PACKAGE_TOOL"]; got != "pip" {
 		t.Fatalf("expected default package manager pip, got %q", got)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: flask --app python_flask.app run --host 0.0.0.0 --port $PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: flask --app python_flask.app run --host 0.0.0.0 --port $_PORT" {
 		t.Fatalf("expected flask start command, got %q", got)
 	}
 	if got := runtimeInfo["START_CMD_SOURCE"]; got != "auto-detected" {
@@ -149,7 +149,7 @@ dependencies = [
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: uvicorn demo.main:app --host 0.0.0.0 --port $PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: uvicorn demo.main:app --host 0.0.0.0 --port $_PORT" {
 		t.Fatalf("expected uvicorn package module start command, got %q", got)
 	}
 }
@@ -172,7 +172,7 @@ func TestCheckRuntimeByStrategyPythonDetectsGunicornWsgiModuleStartCommand(t *te
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: gunicorn demo.wsgi:application --bind 0.0.0.0:$PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: gunicorn demo.wsgi:application --bind 0.0.0.0:$_PORT" {
 		t.Fatalf("expected gunicorn wsgi start command, got %q", got)
 	}
 }
@@ -195,7 +195,7 @@ func TestCheckRuntimeByStrategyPythonDetectsQuartStartCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: hypercorn --bind 0.0.0.0:$PORT chat.app:app" {
+	if got := runtimeInfo["START_CMD"]; got != "web: hypercorn --bind 0.0.0.0:$_PORT chat.app:app" {
 		t.Fatalf("expected quart hypercorn start command, got %q", got)
 	}
 }
@@ -218,7 +218,7 @@ func TestCheckRuntimeByStrategyPythonDetectsSanicStartCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: sanic demo.server:app --host=0.0.0.0 --port=$PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: sanic demo.server:app --host=0.0.0.0 --port=$_PORT" {
 		t.Fatalf("expected sanic start command, got %q", got)
 	}
 }
@@ -263,7 +263,7 @@ listen = *:%(http_port)s
 	if err != nil {
 		t.Fatalf("CheckRuntimeByStrategy returned error: %v", err)
 	}
-	if got := runtimeInfo["START_CMD"]; got != "web: pserve development.ini http_port=$PORT" {
+	if got := runtimeInfo["START_CMD"]; got != "web: pserve development.ini http_port=$_PORT" {
 		t.Fatalf("expected pyramid start command, got %q", got)
 	}
 }

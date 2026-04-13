@@ -93,8 +93,7 @@ func TestPythonLanguageConfigUsesAutoProcfileWhenUserOverrideMissing(t *testing.
 		Lang:      code.Python,
 		SourceDir: dir,
 		BuildEnvs: map[string]string{
-			"BUILD_AUTO_PROCFILE":  "web: uvicorn main:app --host 0.0.0.0 --port $PORT",
-			"START_COMMAND_SOURCE": "auto-detected",
+			"BUILD_AUTO_PROCFILE": "web: uvicorn main:app --host 0.0.0.0 --port $_PORT",
 		},
 	}
 
@@ -102,7 +101,7 @@ func TestPythonLanguageConfigUsesAutoProcfileWhenUserOverrideMissing(t *testing.
 	if annotations["rainbond.io/cnb-start-command-source"] != "auto-detected" {
 		t.Fatalf("expected auto-detected start command source, got %q", annotations["rainbond.io/cnb-start-command-source"])
 	}
-	if annotations["rainbond.io/cnb-start-command-hint"] != "web: uvicorn main:app --host 0.0.0.0 --port $PORT" {
+	if annotations["rainbond.io/cnb-start-command-hint"] != "web: uvicorn main:app --host 0.0.0.0 --port $_PORT" {
 		t.Fatalf("expected start command hint from BUILD_AUTO_PROCFILE, got %q", annotations["rainbond.io/cnb-start-command-hint"])
 	}
 
