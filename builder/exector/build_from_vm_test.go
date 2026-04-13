@@ -45,6 +45,45 @@ func TestDownloadFileUsesVMExportCert(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-run.remote-package-download-export-token
+func TestDownloadFileUsesVMExportToken(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if got := req.Header.Get("x-kubevirt-export-token"); got != "secret-token" {
+			t.Fatalf("expected export token header, got %q", got)
+		}
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET download, got %s", req.Method)
+		}
+		payload := []byte("vm")
+		w.Header().Set("Content-Length", "2")
+		_, _ = w.Write(payload)
+	}))
+	defer server.Close()
+
+	restoreDynamicClient := sourceutil.SetVMExportDynamicClientProviderForTest(func() dynamic.Interface {
+		return newFakeVMExportDynamicClientWithToken(t, server.URL+"/disk.img.gz", mustEncodePEMCertificate(t, server.Certificate()), "export-token")
+	})
+	defer restoreDynamicClient()
+	restoreSecretGetter := sourceutil.SetVMExportSecretGetterForTest(func(namespace, name string) ([]byte, error) {
+		if namespace != "default" {
+			t.Fatalf("expected default namespace, got %s", namespace)
+		}
+		if name != "export-token" {
+			t.Fatalf("expected export-token secret, got %s", name)
+		}
+		return []byte("secret-token"), nil
+	})
+	defer restoreSecretGetter()
+
+	targetDir := t.TempDir()
+	if err := downloadFile(targetDir, server.URL+"/disk.img.gz", event.GetTestLogger()); err != nil {
+		t.Fatalf("expected download to succeed with vm export token, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "disk.img.gz")); err != nil {
+		t.Fatalf("expected downloaded file to exist: %v", err)
+	}
+}
+
 func newFakeVMExportDynamicClient(t *testing.T, url, cert string) dynamic.Interface {
 	t.Helper()
 
@@ -66,6 +105,50 @@ func newFakeVMExportDynamicClient(t *testing.T, url, cert string) dynamic.Interf
 					"namespace": "default",
 				},
 				"status": map[string]interface{}{
+					"links": map[string]interface{}{
+						"internal": map[string]interface{}{
+							"cert": cert,
+							"volumes": []interface{}{
+								map[string]interface{}{
+									"name": "disk",
+									"formats": []interface{}{
+										map[string]interface{}{
+											"format": "gzip",
+											"url":    url,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+}
+
+func newFakeVMExportDynamicClientWithToken(t *testing.T, url, cert, tokenSecretRef string) dynamic.Interface {
+	t.Helper()
+
+	gvr := schema.GroupVersionResource{
+		Group:    "export.kubevirt.io",
+		Version:  "v1beta1",
+		Resource: "virtualmachineexports",
+	}
+	scheme := runtime.NewScheme()
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+		scheme,
+		map[schema.GroupVersionResource]string{gvr: "VirtualMachineExportList"},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
+				"metadata": map[string]interface{}{
+					"name":      "export-1",
+					"namespace": "default",
+				},
+				"status": map[string]interface{}{
+					"tokenSecretRef": tokenSecretRef,
 					"links": map[string]interface{}{
 						"internal": map[string]interface{}{
 							"cert": cert,
