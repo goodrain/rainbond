@@ -241,6 +241,15 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			},
 		}
 		applyVMBootMode(&domainSpec, as.ExtensionSet)
+		logrus.Infof(
+			"vm template resolved: service_id=%s service_alias=%s boot_source_format=%s boot_mode=%s disks=%s volumes=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			vmBootSourceFormat(as.ExtensionSet),
+			strings.TrimSpace(as.ExtensionSet["vm_boot_mode"]),
+			summarizeVMDisks(domainSpec.Devices.Disks),
+			summarizeVMVolumes(volumes),
+		)
 
 		vmt = kubevirtv1.VirtualMachineInstanceTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1476,6 +1485,48 @@ func resolveVMImageBootOrder(disks []kubevirtv1.Disk, rootBootOrder *uint, exten
 		bootOrder = 1
 	}
 	return disks, bootOrder
+}
+
+func summarizeVMDisks(disks []kubevirtv1.Disk) string {
+	items := make([]string, 0, len(disks))
+	for _, disk := range disks {
+		deviceType := "unknown"
+		switch {
+		case disk.DiskDevice.Disk != nil:
+			deviceType = "disk"
+		case disk.DiskDevice.CDRom != nil:
+			deviceType = "cdrom"
+		case disk.DiskDevice.LUN != nil:
+			deviceType = "lun"
+		}
+		bootOrder := ""
+		if disk.BootOrder != nil {
+			bootOrder = strconv.FormatUint(uint64(*disk.BootOrder), 10)
+		}
+		items = append(items, fmt.Sprintf("%s:%s:%s", disk.Name, deviceType, bootOrder))
+	}
+	return strings.Join(items, ",")
+}
+
+func summarizeVMVolumes(volumes []kubevirtv1.Volume) string {
+	items := make([]string, 0, len(volumes))
+	for _, volume := range volumes {
+		sourceType := "unknown"
+		switch {
+		case volume.ContainerDisk != nil:
+			sourceType = "containerDisk"
+		case volume.DataVolume != nil:
+			sourceType = "dataVolume"
+		case volume.PersistentVolumeClaim != nil:
+			sourceType = "pvc"
+		case volume.CloudInitNoCloud != nil:
+			sourceType = "cloudInit"
+		case volume.Sysprep != nil:
+			sourceType = "sysprep"
+		}
+		items = append(items, fmt.Sprintf("%s:%s", volume.Name, sourceType))
+	}
+	return strings.Join(items, ",")
 }
 
 func hasImportedVMRootDataVolume(templates []kubevirtv1.DataVolumeTemplateSpec) bool {
