@@ -6,11 +6,11 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
-func TestApplyRuntimeBuildEnvsCNBMapsStartCommandToAutoProcfile(t *testing.T) {
+func TestApplyRuntimeBuildEnvsCNBMapsStartCommandToAutoProcfileWithoutExposingSourceEnv(t *testing.T) {
 	envs := map[string]*types.Env{}
 	runtimeInfo := map[string]string{
 		"PACKAGE_TOOL":     "pip",
-		"START_CMD":        "web: flask --app python_flask.app run --host 0.0.0.0 --port $PORT",
+		"START_CMD":        "web: flask --app python_flask.app run --host 0.0.0.0 --port $_PORT",
 		"START_CMD_SOURCE": "auto-detected",
 		"RUNTIMES":         "3.14",
 	}
@@ -20,11 +20,11 @@ func TestApplyRuntimeBuildEnvsCNBMapsStartCommandToAutoProcfile(t *testing.T) {
 	if got := envs["BUILD_PACKAGE_TOOL"]; got == nil || got.Value != "pip" {
 		t.Fatalf("expected BUILD_PACKAGE_TOOL=pip, got %#v", got)
 	}
-	if got := envs["BUILD_AUTO_PROCFILE"]; got == nil || got.Value != "web: flask --app python_flask.app run --host 0.0.0.0 --port $PORT" {
+	if got := envs["BUILD_AUTO_PROCFILE"]; got == nil || got.Value != "web: flask --app python_flask.app run --host 0.0.0.0 --port $_PORT" {
 		t.Fatalf("expected BUILD_AUTO_PROCFILE to be populated, got %#v", got)
 	}
-	if got := envs["START_COMMAND_SOURCE"]; got == nil || got.Value != "auto-detected" {
-		t.Fatalf("expected START_COMMAND_SOURCE=auto-detected, got %#v", got)
+	if _, ok := envs["START_COMMAND_SOURCE"]; ok {
+		t.Fatalf("expected START_COMMAND_SOURCE to remain internal runtime metadata, got %#v", envs["START_COMMAND_SOURCE"])
 	}
 	if got := envs["BUILD_RUNTIMES"]; got == nil || got.Value != "3.14" {
 		t.Fatalf("expected BUILD_RUNTIMES=3.14, got %#v", got)

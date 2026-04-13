@@ -111,7 +111,7 @@ func DetectPythonStartCommand(buildPath, packageManager string) (string, string)
 
 	if pythonManifestContainsDependency(buildPath, "flask") {
 		if module := detectFlaskAppModule(buildPath); module != "" {
-			return fmt.Sprintf("web: flask --app %s run --host 0.0.0.0 --port $PORT", module), PythonStartSourceAutoDetected
+			return fmt.Sprintf("web: flask --app %s run --host 0.0.0.0 --port $_PORT", module), PythonStartSourceAutoDetected
 		}
 	}
 
@@ -124,7 +124,7 @@ func detectPyramidStartCommand(buildPath string) string {
 		return ""
 	}
 	if portVariable := detectPyramidPortVariable(filepath.Join(buildPath, configFile)); portVariable != "" {
-		return fmt.Sprintf("web: pserve %s %s=$PORT", configFile, portVariable)
+		return fmt.Sprintf("web: pserve %s %s=$_PORT", configFile, portVariable)
 	}
 	return fmt.Sprintf("web: pserve %s", configFile)
 }
@@ -135,7 +135,7 @@ func detectAiohttpStartCommand(buildPath string) string {
 		return fmt.Sprintf("web: python %s", script)
 	}
 	if module, factory := findPythonModuleByFunction(buildPath, preferredFiles, []string{"init_func", "create_app", "init_app", "get_app", "make_app"}, []string{"aiohttp"}); module != "" {
-		return fmt.Sprintf("web: python -m aiohttp.web -H 0.0.0.0 -P $PORT %s:%s", module, factory)
+		return fmt.Sprintf("web: python -m aiohttp.web -H 0.0.0.0 -P $_PORT %s:%s", module, factory)
 	}
 	return ""
 }
@@ -143,7 +143,7 @@ func detectAiohttpStartCommand(buildPath string) string {
 func detectQuartStartCommand(buildPath string) string {
 	preferredFiles := []string{"app.py", "main.py", "asgi.py", "application.py", "server.py", "run.py", "__init__.py"}
 	if module, symbol := findPythonModuleByAssignment(buildPath, preferredFiles, []string{"app", "application"}, []string{"quart"}); module != "" {
-		return fmt.Sprintf("web: hypercorn --bind 0.0.0.0:$PORT %s:%s", module, symbol)
+		return fmt.Sprintf("web: hypercorn --bind 0.0.0.0:$_PORT %s:%s", module, symbol)
 	}
 	return ""
 }
@@ -151,10 +151,10 @@ func detectQuartStartCommand(buildPath string) string {
 func detectSanicStartCommand(buildPath string) string {
 	preferredFiles := []string{"server.py", "app.py", "main.py", "application.py", "run.py", "__init__.py"}
 	if module, symbol := findPythonModuleByAssignment(buildPath, preferredFiles, []string{"app", "application"}, []string{"sanic"}); module != "" {
-		return fmt.Sprintf("web: sanic %s:%s --host=0.0.0.0 --port=$PORT", module, symbol)
+		return fmt.Sprintf("web: sanic %s:%s --host=0.0.0.0 --port=$_PORT", module, symbol)
 	}
 	if module, factory := findPythonModuleByFunction(buildPath, preferredFiles, []string{"create_app", "get_app", "make_app"}, []string{"sanic"}); module != "" {
-		return fmt.Sprintf("web: sanic %s:%s --factory --host=0.0.0.0 --port=$PORT", module, factory)
+		return fmt.Sprintf("web: sanic %s:%s --factory --host=0.0.0.0 --port=$_PORT", module, factory)
 	}
 	return ""
 }
@@ -162,7 +162,7 @@ func detectSanicStartCommand(buildPath string) string {
 func detectUvicornStartCommand(buildPath string) string {
 	preferredFiles := []string{"main.py", "app.py", "asgi.py", "application.py", "server.py", "run.py", "api.py", "__init__.py"}
 	if module, symbol := findPythonModuleByAssignment(buildPath, preferredFiles, []string{"app", "application", "asgi_app"}, nil); module != "" {
-		return fmt.Sprintf("web: uvicorn %s:%s --host 0.0.0.0 --port $PORT", module, symbol)
+		return fmt.Sprintf("web: uvicorn %s:%s --host 0.0.0.0 --port $_PORT", module, symbol)
 	}
 	return ""
 }
@@ -170,7 +170,7 @@ func detectUvicornStartCommand(buildPath string) string {
 func detectGunicornStartCommand(buildPath string) string {
 	preferredFiles := []string{"wsgi.py", "app.py", "main.py", "application.py", "server.py", "run.py", "api.py", "__init__.py"}
 	if module, symbol := findPythonModuleByAssignment(buildPath, preferredFiles, []string{"application", "app", "wsgi_app", "asgi_app"}, nil); module != "" {
-		return fmt.Sprintf("web: gunicorn %s:%s --bind 0.0.0.0:$PORT", module, symbol)
+		return fmt.Sprintf("web: gunicorn %s:%s --bind 0.0.0.0:$_PORT", module, symbol)
 	}
 	return ""
 }

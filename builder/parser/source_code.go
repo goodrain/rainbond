@@ -653,13 +653,14 @@ func applyRuntimeBuildEnvs(envs map[string]*types.Env, runtimeInfo map[string]st
 		if v == "" {
 			continue
 		}
+		if k == "START_CMD_SOURCE" {
+			continue
+		}
 		envName := "BUILD_" + k
 		if isCNB {
 			switch k {
 			case "START_CMD":
 				envName = "BUILD_AUTO_PROCFILE"
-			case "START_CMD_SOURCE":
-				envName = "START_COMMAND_SOURCE"
 			}
 		}
 		envs[envName] = &types.Env{
