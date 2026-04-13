@@ -60,8 +60,11 @@ var (
 )
 
 type vmExportAuthConfig struct {
-	CertPEM []byte
-	Token   []byte
+	CertPEM    []byte
+	Token      []byte
+	ExportName string
+	Namespace  string
+	Source     string
 }
 
 // SetVMExportDynamicClientProviderForTest temporarily overrides the VM export dynamic client provider.
@@ -93,6 +96,15 @@ func NewRemotePackageHTTPClient(rawURL string) *http.Client {
 	if len(authConfig.CertPEM) == 0 && len(authConfig.Token) == 0 {
 		return client
 	}
+	logrus.Infof(
+		"vm export auth matched: url=%s export=%s namespace=%s source=%s cert=%t token=%t",
+		rawURL,
+		authConfig.ExportName,
+		authConfig.Namespace,
+		authConfig.Source,
+		len(authConfig.CertPEM) > 0,
+		len(authConfig.Token) > 0,
+	)
 
 	transport, ok := cloneHTTPTransport(client.Transport)
 	if !ok {
@@ -122,6 +134,15 @@ func NewRemotePackageHTTPClient(rawURL string) *http.Client {
 			token: strings.TrimSpace(string(authConfig.Token)),
 		}
 	}
+	logrus.Infof(
+		"vm export auth injected: url=%s export=%s namespace=%s source=%s cert=%t token=%t",
+		rawURL,
+		authConfig.ExportName,
+		authConfig.Namespace,
+		authConfig.Source,
+		len(authConfig.CertPEM) > 0,
+		len(authConfig.Token) > 0,
+	)
 	return client
 }
 
@@ -177,8 +198,11 @@ func extractVMExportAuthForURL(obj map[string]interface{}, rawURL string) (vmExp
 			return vmExportAuthConfig{}, true, err
 		}
 		return vmExportAuthConfig{
-			CertPEM: certPEM,
-			Token:   token,
+			CertPEM:    certPEM,
+			Token:      token,
+			ExportName: getNestedString(obj, "metadata", "name"),
+			Namespace:  namespace,
+			Source:     fields[len(fields)-1],
 		}, true, nil
 	}
 	return vmExportAuthConfig{}, false, nil
@@ -229,6 +253,11 @@ func extractVMExportTokenSecretRef(obj map[string]interface{}) string {
 	}
 	tokenSecretRef, _, _ := unstructured.NestedString(obj, "spec", "tokenSecretRef")
 	return tokenSecretRef
+}
+
+func getNestedString(obj map[string]interface{}, fields ...string) string {
+	value, _, _ := unstructured.NestedString(obj, fields...)
+	return value
 }
 
 type vmExportTokenRoundTripper struct {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -86,8 +87,18 @@ func normalizeVMDiskImportConfigs(configs map[string]vmDiskImportConfig) map[str
 
 func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, volumePath string,
 	importConfig *vmDiskImportConfig) (kubevirtv1.Volume, *kubevirtv1.DataVolumeTemplateSpec, bool) {
+	serviceID := labels["service_id"]
 	if importConfig != nil {
 		template := buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, *importConfig)
+		logrus.Infof(
+			"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=http-import image_url=%s format=%s",
+			serviceID,
+			claim.Name,
+			annotations["volume_name"],
+			volumePath,
+			importConfig.ImageURL,
+			importConfig.Format,
+		)
 		return kubevirtv1.Volume{
 			Name: claim.Name,
 			VolumeSource: kubevirtv1.VolumeSource{
@@ -99,6 +110,13 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 	}
 	if shouldUseVMBlankDataVolume(volumePath) {
 		template := buildVMBlankDataVolumeTemplate(claim, labels, annotations)
+		logrus.Infof(
+			"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=blank-datavolume",
+			serviceID,
+			claim.Name,
+			annotations["volume_name"],
+			volumePath,
+		)
 		return kubevirtv1.Volume{
 			Name: claim.Name,
 			VolumeSource: kubevirtv1.VolumeSource{
@@ -108,6 +126,13 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 			},
 		}, &template, false
 	}
+	logrus.Infof(
+		"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=manual-pvc",
+		serviceID,
+		claim.Name,
+		annotations["volume_name"],
+		volumePath,
+	)
 	return kubevirtv1.Volume{
 		Name: claim.Name,
 		VolumeSource: kubevirtv1.VolumeSource{

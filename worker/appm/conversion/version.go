@@ -212,12 +212,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		disks = append(disks, vmRuntime.Disks...)
 		if attachVMImage {
-			bootOrder := uint(len(disks) + 1)
-			if rootBootOrder != nil {
-				bootOrder = *rootBootOrder
-			} else if useVMImageAsRootDisk {
-				bootOrder = 1
-			}
+			disks, bootOrder := resolveVMImageBootOrder(disks, rootBootOrder, as.ExtensionSet, useVMImageAsRootDisk)
 			disks = append(disks, []kubevirtv1.Disk{{
 				BootOrder:  &bootOrder,
 				DiskDevice: vmImageDiskDevice(as.ExtensionSet),
@@ -1458,6 +1453,29 @@ func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
 			Bus: kubevirtv1.DiskBusSATA,
 		},
 	}
+}
+
+func resolveVMImageBootOrder(disks []kubevirtv1.Disk, rootBootOrder *uint, extensionSet map[string]string, useVMImageAsRootDisk bool) ([]kubevirtv1.Disk, uint) {
+	if vmBootSourceUsesCDRom(extensionSet) {
+		updated := make([]kubevirtv1.Disk, len(disks))
+		copy(updated, disks)
+		for i := range updated {
+			if updated[i].BootOrder == nil {
+				continue
+			}
+			order := *updated[i].BootOrder + 1
+			updated[i].BootOrder = &order
+		}
+		return updated, 1
+	}
+
+	bootOrder := uint(len(disks) + 1)
+	if rootBootOrder != nil {
+		bootOrder = *rootBootOrder
+	} else if useVMImageAsRootDisk {
+		bootOrder = 1
+	}
+	return disks, bootOrder
 }
 
 func hasImportedVMRootDataVolume(templates []kubevirtv1.DataVolumeTemplateSpec) bool {

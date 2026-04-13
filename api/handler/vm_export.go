@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -94,6 +95,17 @@ func (s *ServiceAction) StartVMExport(serviceID, exportID string, req *VMExportR
 	for i := range disks {
 		disks[i].ExportName = buildVMExportName(exportID, disks[i].DiskKey)
 		disks[i].Status = "exporting"
+		logrus.Infof(
+			"vm export created: service_id=%s export_id=%s vm=%s disk_key=%s disk_role=%s pvc=%s/%s boot_order=%d",
+			serviceID,
+			exportID,
+			vm.Name,
+			disks[i].DiskKey,
+			disks[i].DiskRole,
+			disks[i].PVCNamespace,
+			disks[i].PVCName,
+			disks[i].BootOrder,
+		)
 	}
 	return &VMExportStatus{
 		ExportID: exportID,
@@ -142,6 +154,20 @@ func BuildVMExportStatus(dynamicClient dynamic.Interface, serviceID, exportID st
 		if disk.DiskRole == "" {
 			disk.DiskRole = "data"
 		}
+		authSource, hasCert, hasToken := extractVMExportAuthSummary(item.Object)
+		logrus.Infof(
+			"vm export status: service_id=%s export_id=%s export_name=%s disk_key=%s disk_role=%s status=%s download_url=%s auth_source=%s cert=%t token=%t",
+			serviceID,
+			exportID,
+			disk.ExportName,
+			disk.DiskKey,
+			disk.DiskRole,
+			disk.Status,
+			disk.DownloadURL,
+			authSource,
+			hasCert,
+			hasToken,
+		)
 		disks = append(disks, disk)
 	}
 	if len(disks) == 0 {
@@ -399,6 +425,37 @@ func extractVMExportMessage(obj map[string]interface{}) string {
 		return message
 	}
 	return ""
+}
+
+func extractVMExportAuthSummary(obj map[string]interface{}) (string, bool, bool) {
+	for _, candidate := range []struct {
+		source string
+		fields []string
+	}{
+		{source: "internal", fields: []string{"status", "links", "internal"}},
+		{source: "external", fields: []string{"status", "links", "external"}},
+	} {
+		link, found, err := unstructured.NestedMap(obj, candidate.fields...)
+		if err != nil || !found {
+			continue
+		}
+		volumes, found, err := unstructured.NestedSlice(link, "volumes")
+		if err != nil || !found || len(volumes) == 0 {
+			continue
+		}
+		cert, _, _ := unstructured.NestedString(link, "cert")
+		tokenSecretRef := extractVMExportTokenSecretRef(obj)
+		return candidate.source, strings.TrimSpace(cert) != "", strings.TrimSpace(tokenSecretRef) != ""
+	}
+	return "", false, false
+}
+
+func extractVMExportTokenSecretRef(obj map[string]interface{}) string {
+	if tokenSecretRef, _, _ := unstructured.NestedString(obj, "status", "tokenSecretRef"); strings.TrimSpace(tokenSecretRef) != "" {
+		return tokenSecretRef
+	}
+	tokenSecretRef, _, _ := unstructured.NestedString(obj, "spec", "tokenSecretRef")
+	return tokenSecretRef
 }
 
 func marshalVMExportStatus(status *VMExportStatus) string {

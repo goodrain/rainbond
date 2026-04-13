@@ -105,6 +105,53 @@ func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
 	}
 }
 
+func TestResolveVMImageBootOrderPromotesISOInstallerAheadOfBlankRootDisk(t *testing.T) {
+	rootBoot := uint(1)
+	disks := []kubevirtv1.Disk{
+		{
+			Name:      "manual-root",
+			BootOrder: &rootBoot,
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+
+	updated, vmImageBoot := resolveVMImageBootOrder(disks, nil, map[string]string{
+		"vm_boot_source_format": "iso",
+	}, false)
+
+	if vmImageBoot != 1 {
+		t.Fatalf("expected installer media boot order 1, got %d", vmImageBoot)
+	}
+	if updated[0].BootOrder == nil || *updated[0].BootOrder != 2 {
+		t.Fatalf("expected blank root disk boot order to shift to 2, got %#v", updated[0].BootOrder)
+	}
+}
+
+func TestResolveVMImageBootOrderKeepsQCOWRootOrder(t *testing.T) {
+	rootBoot := uint(1)
+	disks := []kubevirtv1.Disk{
+		{
+			Name: "manual-root",
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+
+	updated, vmImageBoot := resolveVMImageBootOrder(disks, &rootBoot, map[string]string{
+		"vm_boot_source_format": "qcow2",
+	}, true)
+
+	if vmImageBoot != 1 {
+		t.Fatalf("expected qcow root disk boot order 1, got %d", vmImageBoot)
+	}
+	if updated[0].BootOrder != nil {
+		t.Fatalf("did not expect existing disks to be rewritten for qcow boot, got %#v", updated[0].BootOrder)
+	}
+}
+
 func TestHasImportedVMRootDataVolumeDetectsHTTPRoot(t *testing.T) {
 	templates := []kubevirtv1.DataVolumeTemplateSpec{
 		{

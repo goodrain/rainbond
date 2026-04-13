@@ -73,6 +73,13 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 	if len(fileInfoList) != 1 {
 		return fmt.Errorf("%v file len is not 1", sourcePath)
 	}
+	logrus.Infof(
+		"vm runtime image build context: service_id=%s event_id=%s source_path=%s file=%s",
+		v.ServiceID,
+		v.EventID,
+		sourcePath,
+		fileInfoList[0].Name(),
+	)
 	envs["VM_PATH"] = path.Join("./", fileInfoList[0].Name())
 	dockerfile := util.ParseVariable(vmDockerfileTmpl, envs)
 
@@ -99,6 +106,7 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 // RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
 	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
+		logrus.Infof("vm build uses local package source: service_id=%s event_id=%s source=%s", v.ServiceID, v.EventID, v.VMImageSource)
 		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
 			return err
 		}
@@ -106,6 +114,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 		return v.vmBuild(v.VMImageSource)
 	}
 	vmImageSource := fmt.Sprintf("/grdata/package_build/temp/events/%v", v.ServiceID)
+	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
 	err := downloadFile(vmImageSource, v.VMImageSource, v.Logger)
 	if err != nil {
 		return err
@@ -133,6 +142,7 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	defer func() {
 		_ = rsp.Body.Close()
 	}()
+	logrus.Infof("vm source download response: url=%s status=%d content_length=%d", url, rsp.StatusCode, rsp.ContentLength)
 	baseURL := filepath.Base(url)
 	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)
