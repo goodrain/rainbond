@@ -5,8 +5,8 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
@@ -116,7 +116,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 
 func downloadFile(downPath, url string, Logger event.Logger) error {
 	// 创建一个 HTTP client 和 request
-	client := &http.Client{}
+	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

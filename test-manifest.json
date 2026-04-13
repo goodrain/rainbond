@@ -6000,6 +6000,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-run.remote-package-download-export-cert",
+      "title": "Use VM export cert for remote package download",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u4e0b\u8f7d\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u8bc1\u4e66",
+      "interface_type": "package_function",
+      "interface": "builder/exector.downloadFile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go",
+        "builder/sourceutil/vm_export_tls.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileUsesVMExportCert"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.remote-package-probe",
       "title": "VM remote package probe prefers HEAD",
       "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
@@ -6012,6 +6031,25 @@
         {
           "path": "builder/parser/vm_service_test.go",
           "selector": "TestVMServiceParseRemoteURLPrefersHeadProbe"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.remote-package-probe-export-cert",
+      "title": "Use VM export cert for remote package probe",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u8bc1\u4e66",
+      "interface_type": "package_function",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go",
+        "builder/sourceutil/vm_export_tls.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_test.go",
+          "selector": "TestVMServiceParseRemoteURLUsesVMExportCert"
         }
       ],
       "test_type": "regression",

@@ -25,8 +25,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/event"
 	"github.com/sirupsen/logrus"
 )
@@ -126,7 +126,7 @@ func (t *VMServiceParse) probeRemotePackage() (*http.Response, error) {
 	}
 
 	addProbeHeaders(req)
-	rsp, err := http.DefaultClient.Do(req)
+	rsp, err := sourceutil.NewRemotePackageHTTPClient(t.sourceBody).Do(req)
 	if err == nil && rsp.StatusCode >= http.StatusOK && rsp.StatusCode < http.StatusMultipleChoices {
 		return rsp, nil
 	}
@@ -144,7 +144,7 @@ func (t *VMServiceParse) probeRemotePackage() (*http.Response, error) {
 
 	addProbeHeaders(req)
 	req.Header.Set("Range", "bytes=0-0")
-	return http.DefaultClient.Do(req)
+	return sourceutil.NewRemotePackageHTTPClient(t.sourceBody).Do(req)
 }
 
 func addProbeHeaders(req *http.Request) {

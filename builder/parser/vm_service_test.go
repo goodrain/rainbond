@@ -1,12 +1,22 @@
 package parser
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/event"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 // capability_id: rainbond.vm-run.remote-package-probe
@@ -66,6 +76,28 @@ func TestVMServiceParseRemoteURLFallsBackToRangeGet(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-run.remote-package-probe-export-cert
+func TestVMServiceParseRemoteURLUsesVMExportCert(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodHead {
+			t.Fatalf("expected HEAD probe, got %s", req.Method)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	restoreDynamicClient := sourceutil.SetVMExportDynamicClientProviderForTest(func() dynamic.Interface {
+		return newFakeVMExportDynamicClient(t, server.URL+"/disk.img.gz", mustEncodePEMCertificate(t, server.Certificate()))
+	})
+	defer restoreDynamicClient()
+
+	parser := CreateVMServiceParse(server.URL+"/disk.img.gz", event.GetTestLogger())
+
+	if errors := parser.Parse(); len(errors) != 0 {
+		t.Fatalf("expected no parse errors, got %#v", errors)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -80,4 +112,60 @@ func withDefaultClient(t *testing.T, transport http.RoundTripper) {
 	t.Cleanup(func() {
 		http.DefaultClient = originalClient
 	})
+}
+
+func newFakeVMExportDynamicClient(t *testing.T, url, cert string) dynamic.Interface {
+	t.Helper()
+
+	gvr := schema.GroupVersionResource{
+		Group:    "export.kubevirt.io",
+		Version:  "v1beta1",
+		Resource: "virtualmachineexports",
+	}
+	scheme := runtime.NewScheme()
+	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+		scheme,
+		map[schema.GroupVersionResource]string{gvr: "VirtualMachineExportList"},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
+				"metadata": map[string]interface{}{
+					"name":      "export-1",
+					"namespace": "default",
+				},
+				"status": map[string]interface{}{
+					"links": map[string]interface{}{
+						"internal": map[string]interface{}{
+							"cert": cert,
+							"volumes": []interface{}{
+								map[string]interface{}{
+									"name": "disk",
+									"formats": []interface{}{
+										map[string]interface{}{
+											"format": "gzip",
+											"url":    url,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+}
+
+func mustEncodePEMCertificate(t *testing.T, cert *x509.Certificate) string {
+	t.Helper()
+
+	if cert == nil {
+		t.Fatal("expected tls certificate")
+	}
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	if len(pemBytes) == 0 {
+		t.Fatal("expected pem certificate bytes")
+	}
+	return base64.StdEncoding.EncodeToString(pemBytes)
 }
