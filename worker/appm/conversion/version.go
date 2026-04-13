@@ -163,6 +163,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	var terminationGracePeriodSeconds int64 = 10
 	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
 	podtmpSpec := corev1.PodTemplateSpec{}
+	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
 		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet)
 		if err != nil {
@@ -173,35 +174,56 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		volumes := dv.GetVMVolume()
-		volumes = append([]kubevirtv1.Volume{
-			{
-				Name: "vmimage",
-				VolumeSource: kubevirtv1.VolumeSource{
-					ContainerDisk: &kubevirtv1.ContainerDiskSource{
-						Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
-						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+		attachVMImage := !hasImportedVMRootDataVolume(vmDataVolumeTemplates)
+		useVMImageAsRootDisk := attachVMImage && !vmBootSourceUsesCDRom(as.ExtensionSet)
+		rootBlankDataVolumeName := ""
+		if useVMImageAsRootDisk {
+			rootBlankDataVolumeName = vmRootBlankDataVolumeName(vmDataVolumeTemplates)
+		}
+		if useVMImageAsRootDisk {
+			if rootBlankDataVolumeName != "" {
+				volumes = filterVMVolumesByName(volumes, rootBlankDataVolumeName)
+				vmDataVolumeTemplates = filterVMDataVolumeTemplatesByName(vmDataVolumeTemplates, rootBlankDataVolumeName)
+			}
+		}
+		if attachVMImage {
+			volumes = append([]kubevirtv1.Volume{
+				{
+					Name: "vmimage",
+					VolumeSource: kubevirtv1.VolumeSource{
+						ContainerDisk: &kubevirtv1.ContainerDiskSource{
+							Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
+							ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+						},
 					},
 				},
-			},
-		}, volumes...)
+			}, volumes...)
+		}
 		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
+		if useVMImageAsRootDisk {
+			if rootBlankDataVolumeName != "" {
+				disks = filterVMDisksByName(disks, rootBlankDataVolumeName)
+			}
+		}
 		disks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
 		if err != nil {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = append(disks, vmRuntime.Disks...)
-		bootOrder := uint(len(disks) + 1)
-		if rootBootOrder != nil {
-			bootOrder = *rootBootOrder
+		if attachVMImage {
+			bootOrder := uint(len(disks) + 1)
+			if rootBootOrder != nil {
+				bootOrder = *rootBootOrder
+			} else if useVMImageAsRootDisk {
+				bootOrder = 1
+			}
+			disks = append(disks, []kubevirtv1.Disk{{
+				BootOrder:  &bootOrder,
+				DiskDevice: vmImageDiskDevice(as.ExtensionSet),
+				Name:       "vmimage",
+			}}...)
 		}
-		disks = append(disks, []kubevirtv1.Disk{{
-			BootOrder: &bootOrder,
-			DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{
-				Bus: kubevirtv1.DiskBusSATA,
-			}},
-			Name: "vmimage",
-		}}...)
 
 		reource := createVMResources(as)
 		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
@@ -350,7 +372,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	//set to deployment or statefulset job or cronjob
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
 	if vm := as.GetVirtualMachine(); vm != nil {
-		vm.Spec.DataVolumeTemplates = dv.GetVMDataVolumeTemplates()
+		vm.Spec.DataVolumeTemplates = vmDataVolumeTemplates
 	}
 	return nil
 }
@@ -1409,8 +1431,99 @@ func vmRuntimeAttributeNames() []string {
 		"vm_usb_enabled",
 		"vm_usb_resources",
 		"vm_boot_mode",
+		"vm_boot_source_format",
 		"vm_disk_layout",
 	}
+}
+
+func vmBootSourceFormat(extensionSet map[string]string) string {
+	return strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_source_format"]))
+}
+
+func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
+	format := vmBootSourceFormat(extensionSet)
+	return format == "" || format == "iso"
+}
+
+func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
+	if vmBootSourceUsesCDRom(extensionSet) {
+		return kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		}
+	}
+	return kubevirtv1.DiskDevice{
+		Disk: &kubevirtv1.DiskTarget{
+			Bus: kubevirtv1.DiskBusSATA,
+		},
+	}
+}
+
+func hasImportedVMRootDataVolume(templates []kubevirtv1.DataVolumeTemplateSpec) bool {
+	for _, template := range templates {
+		if strings.TrimSpace(template.Annotations["volume_name"]) != "disk" {
+			continue
+		}
+		if template.Spec.Source != nil && template.Spec.Source.Blank == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func vmRootBlankDataVolumeName(templates []kubevirtv1.DataVolumeTemplateSpec) string {
+	for _, template := range templates {
+		if strings.TrimSpace(template.Annotations["volume_name"]) != "disk" {
+			continue
+		}
+		if template.Spec.Source != nil && template.Spec.Source.Blank != nil {
+			return template.Name
+		}
+	}
+	return ""
+}
+
+func filterVMDataVolumeTemplatesByName(templates []kubevirtv1.DataVolumeTemplateSpec, name string) []kubevirtv1.DataVolumeTemplateSpec {
+	if name == "" {
+		return templates
+	}
+	filtered := make([]kubevirtv1.DataVolumeTemplateSpec, 0, len(templates))
+	for _, template := range templates {
+		if template.Name == name {
+			continue
+		}
+		filtered = append(filtered, template)
+	}
+	return filtered
+}
+
+func filterVMVolumesByName(volumes []kubevirtv1.Volume, name string) []kubevirtv1.Volume {
+	if name == "" {
+		return volumes
+	}
+	filtered := make([]kubevirtv1.Volume, 0, len(volumes))
+	for _, volume := range volumes {
+		if volume.Name == name {
+			continue
+		}
+		filtered = append(filtered, volume)
+	}
+	return filtered
+}
+
+func filterVMDisksByName(disks []kubevirtv1.Disk, name string) []kubevirtv1.Disk {
+	if name == "" {
+		return disks
+	}
+	filtered := make([]kubevirtv1.Disk, 0, len(disks))
+	for _, disk := range disks {
+		if disk.Name == name {
+			continue
+		}
+		filtered = append(filtered, disk)
+	}
+	return filtered
 }
 
 func applyVMBootMode(domain *kubevirtv1.DomainSpec, extensionSet map[string]string) {

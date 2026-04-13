@@ -3,7 +3,9 @@ package conversion
 import (
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
 func TestSelectVMProbesReturnsReadinessBeforeLiveness(t *testing.T) {
@@ -39,15 +41,19 @@ func TestDecodeVMProbeYAMLParsesProbePayload(t *testing.T) {
 
 func TestVMRuntimeAttributeNamesIncludesBootMode(t *testing.T) {
 	names := vmRuntimeAttributeNames()
-	found := false
+	found := map[string]bool{
+		"vm_boot_mode":          false,
+		"vm_boot_source_format": false,
+	}
 	for _, name := range names {
-		if name == "vm_boot_mode" {
-			found = true
-			break
+		if _, ok := found[name]; ok {
+			found[name] = true
 		}
 	}
-	if !found {
-		t.Fatalf("expected vm_boot_mode in runtime attribute names, got %#v", names)
+	for name, ok := range found {
+		if !ok {
+			t.Fatalf("expected %s in runtime attribute names, got %#v", name, names)
+		}
 	}
 }
 
@@ -74,5 +80,67 @@ func TestApplyVMBootModeSetsBIOSFirmware(t *testing.T) {
 	}
 	if domain.Firmware.Bootloader.EFI != nil {
 		t.Fatalf("did not expect EFI bootloader when boot mode is bios, got %#v", domain.Firmware.Bootloader)
+	}
+}
+
+func TestVMImageDiskDeviceUsesCDRomForISO(t *testing.T) {
+	device := vmImageDiskDevice(map[string]string{"vm_boot_source_format": "iso"})
+
+	if device.CDRom == nil {
+		t.Fatalf("expected vmimage to be attached as cdrom, got %#v", device)
+	}
+	if device.Disk != nil {
+		t.Fatalf("did not expect disk target for iso boot media, got %#v", device)
+	}
+}
+
+func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
+	device := vmImageDiskDevice(map[string]string{"vm_boot_source_format": "qcow2"})
+
+	if device.Disk == nil {
+		t.Fatalf("expected vmimage to be attached as disk, got %#v", device)
+	}
+	if device.CDRom != nil {
+		t.Fatalf("did not expect cdrom target for qcow2 boot media, got %#v", device)
+	}
+}
+
+func TestHasImportedVMRootDataVolumeDetectsHTTPRoot(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					HTTP: &cdiv1.DataVolumeSourceHTTP{URL: "https://download/root.qcow2"},
+				},
+			},
+		},
+	}
+
+	if !hasImportedVMRootDataVolume(templates) {
+		t.Fatalf("expected imported root data volume to be detected")
+	}
+}
+
+func TestVMRootBlankDataVolumeNameReturnsRootBlankTemplate(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+
+	if got := vmRootBlankDataVolumeName(templates); got != "manual-root" {
+		t.Fatalf("expected blank root template manual-root, got %q", got)
 	}
 }
