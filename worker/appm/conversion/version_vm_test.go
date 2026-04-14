@@ -152,6 +152,39 @@ func TestResolveVMImageBootOrderKeepsQCOWRootOrder(t *testing.T) {
 	}
 }
 
+func TestAttachVMImageDiskAddsInstallerMediaForISO(t *testing.T) {
+	rootBoot := uint(1)
+	disks := []kubevirtv1.Disk{
+		{
+			Name:      "manual-root",
+			BootOrder: &rootBoot,
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+
+	updated := attachVMImageDisk(disks, nil, map[string]string{
+		"vm_boot_source_format": "iso",
+	}, false)
+
+	if len(updated) != 2 {
+		t.Fatalf("expected installer media and root disk, got %#v", updated)
+	}
+	if updated[0].Name != "manual-root" || updated[0].BootOrder == nil || *updated[0].BootOrder != 2 {
+		t.Fatalf("expected root disk boot order to shift to 2, got %#v", updated[0])
+	}
+	if updated[1].Name != "vmimage" {
+		t.Fatalf("expected vmimage disk to be appended, got %#v", updated[1])
+	}
+	if updated[1].DiskDevice.CDRom == nil {
+		t.Fatalf("expected vmimage to be attached as cdrom, got %#v", updated[1].DiskDevice)
+	}
+	if updated[1].BootOrder == nil || *updated[1].BootOrder != 1 {
+		t.Fatalf("expected vmimage boot order 1, got %#v", updated[1].BootOrder)
+	}
+}
+
 func TestHasImportedVMRootDataVolumeDetectsHTTPRoot(t *testing.T) {
 	templates := []kubevirtv1.DataVolumeTemplateSpec{
 		{

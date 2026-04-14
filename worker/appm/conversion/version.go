@@ -223,12 +223,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		disks = append(disks, vmRuntime.Disks...)
 		if attachVMImage {
-			disks, bootOrder := resolveVMImageBootOrder(disks, rootBootOrder, as.ExtensionSet, useVMImageAsRootDisk)
-			disks = append(disks, []kubevirtv1.Disk{{
-				BootOrder:  &bootOrder,
-				DiskDevice: vmImageDiskDevice(as.ExtensionSet),
-				Name:       "vmimage",
-			}}...)
+			disks = attachVMImageDisk(disks, rootBootOrder, as.ExtensionSet, useVMImageAsRootDisk)
 		}
 		logrus.Infof(
 			"vm template assemble result: service_id=%s service_alias=%s boot_source_format=%s root_blank_dv=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
@@ -1506,6 +1501,15 @@ func resolveVMImageBootOrder(disks []kubevirtv1.Disk, rootBootOrder *uint, exten
 		bootOrder = 1
 	}
 	return disks, bootOrder
+}
+
+func attachVMImageDisk(disks []kubevirtv1.Disk, rootBootOrder *uint, extensionSet map[string]string, useVMImageAsRootDisk bool) []kubevirtv1.Disk {
+	updated, bootOrder := resolveVMImageBootOrder(disks, rootBootOrder, extensionSet, useVMImageAsRootDisk)
+	return append(updated, kubevirtv1.Disk{
+		BootOrder:  &bootOrder,
+		DiskDevice: vmImageDiskDevice(extensionSet),
+		Name:       "vmimage",
+	})
 }
 
 func summarizeVMDisks(disks []kubevirtv1.Disk) string {
