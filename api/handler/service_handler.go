@@ -44,6 +44,8 @@ type ServiceHandler interface {
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
 	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
 	GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error)
+	PersistVMExport(serviceID, exportID string, req *VMExportPersistRequest) (*VMExportPersistStatus, error)
+	BuildVMAssetRestorePlan(req *VMAssetRestorePlanRequest) (*VMAssetRestorePlan, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error

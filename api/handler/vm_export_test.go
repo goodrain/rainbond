@@ -1,4 +1,6 @@
 // capability_id: rainbond.vm-export.discover-datavolume-disks
+// capability_id: rainbond.vm-export.machine-manifest-build
+// capability_id: rainbond.vm-export.restore-plan-all-disks
 package handler
 
 import (
@@ -333,6 +335,118 @@ func TestVMExportRequiresClosedVM(t *testing.T) {
 	assert.True(t, vmExportRequiresClosedVM(&VMExportRequest{}))
 	assert.True(t, vmExportRequiresClosedVM(&VMExportRequest{SourceKind: "vm"}))
 	assert.False(t, vmExportRequiresClosedVM(&VMExportRequest{SourceKind: "snapshot", SnapshotName: "snap-1"}))
+}
+
+func TestBuildVMMachineManifestIncludesAllPersistedDisks(t *testing.T) {
+	status := &VMExportStatus{
+		ExportID: "evt-1",
+		Status:   "ready",
+		Disks: []VMExportDisk{
+			{
+				DiskKey:     "rootdisk",
+				DiskName:    "rootdisk",
+				DiskRole:    "root",
+				BootOrder:   1,
+				PVCName:     "manual-root",
+				DownloadURL: "https://download/rootdisk.qcow2",
+			},
+			{
+				DiskKey:     "data-1",
+				DiskName:    "data-1",
+				DiskRole:    "data",
+				BootOrder:   2,
+				PVCName:     "manual-data",
+				DownloadURL: "https://download/data-1.qcow2",
+			},
+		},
+	}
+	uploaded := map[string]VMExportUploadedDisk{
+		"rootdisk": {
+			DiskKey:    "rootdisk",
+			ObjectKey:  "vm-export/tenant-a/asset-101/rootdisk.qcow2",
+			ObjectURI:  "s3://vm-assets/vm-export/tenant-a/asset-101/rootdisk.qcow2",
+			SizeBytes:  40 << 30,
+			Format:     "qcow2",
+			StorageURL: "https://minio.example/vm-assets/rootdisk.qcow2",
+		},
+		"data-1": {
+			DiskKey:    "data-1",
+			ObjectKey:  "vm-export/tenant-a/asset-101/data-1.qcow2",
+			ObjectURI:  "s3://vm-assets/vm-export/tenant-a/asset-101/data-1.qcow2",
+			SizeBytes:  200 << 30,
+			Format:     "qcow2",
+			StorageURL: "https://minio.example/vm-assets/data-1.qcow2",
+		},
+	}
+
+	manifest, rootObjectURI, err := buildVMMachineManifest("amd64", "uefi", status, uploaded)
+	assert.NoError(t, err)
+	assert.Equal(t, "s3://vm-assets/vm-export/tenant-a/asset-101/rootdisk.qcow2", rootObjectURI)
+	if assert.NotNil(t, manifest) {
+		assert.Equal(t, "v1", manifest.Version)
+		assert.Equal(t, "amd64", manifest.Arch)
+		assert.Equal(t, "uefi", manifest.BootMode)
+		assert.Equal(t, "rootdisk", manifest.RootDiskKey)
+		if assert.Len(t, manifest.Disks, 2) {
+			assert.Equal(t, "root", manifest.Disks[0].DiskRole)
+			assert.Equal(t, "vm-export/tenant-a/asset-101/rootdisk.qcow2", manifest.Disks[0].ObjectKey)
+			assert.Equal(t, int64(40<<30), manifest.Disks[0].SizeBytes)
+			assert.Equal(t, "data", manifest.Disks[1].DiskRole)
+			assert.Equal(t, "vm-export/tenant-a/asset-101/data-1.qcow2", manifest.Disks[1].ObjectKey)
+			assert.Equal(t, int64(200<<30), manifest.Disks[1].SizeBytes)
+		}
+	}
+}
+
+func TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports(t *testing.T) {
+	manifest := &VMMachineManifest{
+		Version:     "v1",
+		Arch:        "amd64",
+		BootMode:    "uefi",
+		RootDiskKey: "rootdisk",
+		Disks: []VMMachineManifestDisk{
+			{
+				DiskKey:   "rootdisk",
+				DiskName:  "rootdisk",
+				DiskRole:  "root",
+				BootOrder: 1,
+				ObjectKey: "vm-export/tenant-a/asset-101/rootdisk.qcow2",
+				ObjectURI: "s3://vm-assets/vm-export/tenant-a/asset-101/rootdisk.qcow2",
+				Format:    "qcow2",
+				SizeBytes: 40 << 30,
+			},
+			{
+				DiskKey:   "data-1",
+				DiskName:  "data-1",
+				DiskRole:  "data",
+				BootOrder: 2,
+				ObjectKey: "vm-export/tenant-a/asset-101/data-1.qcow2",
+				ObjectURI: "s3://vm-assets/vm-export/tenant-a/asset-101/data-1.qcow2",
+				Format:    "qcow2",
+				SizeBytes: 200 << 30,
+			},
+		},
+	}
+
+	plan, err := buildVMAssetRestorePlan(manifest, func(objectKey string) (string, error) {
+		return "https://signed.example/" + objectKey, nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "disk", plan.BootSourceFormat)
+	if assert.Len(t, plan.DiskImports, 2) {
+		assert.Equal(t, "disk", plan.DiskImports[0].VolumeName)
+		assert.Equal(t, "rootdisk", plan.DiskImports[0].DiskKey)
+		assert.Equal(t, "https://signed.example/vm-export/tenant-a/asset-101/rootdisk.qcow2", plan.DiskImports[0].ImageURL)
+		assert.Equal(t, "data-1", plan.DiskImports[1].VolumeName)
+		assert.Equal(t, "data-1", plan.DiskImports[1].DiskKey)
+		assert.Equal(t, "https://signed.example/vm-export/tenant-a/asset-101/data-1.qcow2", plan.DiskImports[1].ImageURL)
+	}
+	if assert.Len(t, plan.DiskLayout, 2) {
+		assert.Equal(t, "root", plan.DiskLayout[0].DiskRole)
+		assert.True(t, plan.DiskLayout[0].Boot)
+		assert.Equal(t, "data", plan.DiskLayout[1].DiskRole)
+		assert.False(t, plan.DiskLayout[1].Boot)
+	}
 }
 
 func corePersistentVolumeClaimSource(name string) corev1.PersistentVolumeClaimVolumeSource {

@@ -5982,6 +5982,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-export.machine-manifest-build",
+      "title": "Build machine manifest from persisted vm export disks",
+      "title_zh": "\u4ece\u6301\u4e45\u5316\u5bfc\u51fa\u78c1\u76d8\u751f\u6210\u6574\u673a\u6e05\u5355",
+      "interface_type": "package_function",
+      "interface": "handler.buildVMMachineManifest",
+      "code_paths": [
+        "api/handler/vm_export.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestBuildVMMachineManifestIncludesAllPersistedDisks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-export.restore-plan-all-disks",
+      "title": "Build restore plan for root and data disks",
+      "title_zh": "\u4e3a\u7cfb\u7edf\u76d8\u548c\u6570\u636e\u76d8\u751f\u6210\u6062\u590d\u8ba1\u5212",
+      "interface_type": "package_function",
+      "interface": "handler.buildVMAssetRestorePlan",
+      "code_paths": [
+        "api/handler/vm_export.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.local-package-storage-download",
       "title": "VM local package source falls back to storage download",
       "title_zh": "vm-run \u672c\u5730\u5305\u6e90\u5728\u76ee\u5f55\u7f3a\u5931\u65f6\u56de\u9000 storage \u4e0b\u8f7d",

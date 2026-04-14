@@ -58,6 +58,80 @@ type VMExportStatus struct {
 	Disks    []VMExportDisk `json:"disks"`
 }
 
+type VMExportUploadedDisk struct {
+	DiskKey    string `json:"disk_key"`
+	ObjectKey  string `json:"object_key"`
+	ObjectURI  string `json:"object_uri"`
+	StorageURL string `json:"storage_url,omitempty"`
+	Format     string `json:"format,omitempty"`
+	SizeBytes  int64  `json:"size_bytes,omitempty"`
+	Checksum   string `json:"checksum,omitempty"`
+}
+
+type VMMachineManifestDisk struct {
+	DiskKey   string `json:"disk_key"`
+	DiskName  string `json:"disk_name"`
+	DiskRole  string `json:"disk_role"`
+	BootOrder uint   `json:"boot_order,omitempty"`
+	ObjectKey string `json:"object_key"`
+	ObjectURI string `json:"object_uri,omitempty"`
+	Format    string `json:"format,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+}
+
+type VMMachineManifest struct {
+	Version     string                  `json:"version"`
+	Arch        string                  `json:"arch,omitempty"`
+	BootMode    string                  `json:"boot_mode,omitempty"`
+	RootDiskKey string                  `json:"root_disk_key"`
+	Disks       []VMMachineManifestDisk `json:"disks"`
+}
+
+type VMExportPersistRequest struct {
+	AssetID   int64  `json:"asset_id"`
+	AssetName string `json:"asset_name,omitempty"`
+}
+
+type VMExportPersistStatus struct {
+	ExportID        string             `json:"export_id"`
+	Status          string             `json:"status"`
+	StorageBackend  string             `json:"storage_backend,omitempty"`
+	StorageBucket   string             `json:"storage_bucket,omitempty"`
+	StoragePrefix   string             `json:"storage_prefix,omitempty"`
+	RootObjectURI   string             `json:"root_object_uri,omitempty"`
+	MachineManifest *VMMachineManifest `json:"machine_manifest,omitempty"`
+}
+
+type VMAssetRestorePlanRequest struct {
+	Manifest *VMMachineManifest `json:"manifest"`
+}
+
+type VMAssetRestoreDiskImport struct {
+	VolumeName string `json:"volume_name"`
+	DiskKey    string `json:"disk_key"`
+	DiskName   string `json:"disk_name"`
+	ImageURL   string `json:"image_url"`
+	SourceURI  string `json:"source_uri,omitempty"`
+	Format     string `json:"format,omitempty"`
+	Checksum   string `json:"checksum,omitempty"`
+}
+
+type VMAssetRestoreDiskLayoutItem struct {
+	DiskKey    string `json:"disk_key"`
+	DiskName   string `json:"disk_name"`
+	DiskRole   string `json:"disk_role"`
+	BootOrder  uint   `json:"boot_order,omitempty"`
+	OrderIndex int    `json:"order_index,omitempty"`
+	Boot       bool   `json:"boot"`
+}
+
+type VMAssetRestorePlan struct {
+	BootSourceFormat string                         `json:"boot_source_format"`
+	DiskImports      []VMAssetRestoreDiskImport     `json:"disk_imports"`
+	DiskLayout       []VMAssetRestoreDiskLayoutItem `json:"disk_layout"`
+}
+
 func (s *ServiceAction) StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error) {
 	if vmExportRequiresClosedVM(req) {
 		vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{
@@ -464,6 +538,132 @@ func marshalVMExportStatus(status *VMExportStatus) string {
 	}
 	data, _ := json.Marshal(status)
 	return string(data)
+}
+
+func buildVMMachineManifest(arch, bootMode string, status *VMExportStatus, uploaded map[string]VMExportUploadedDisk) (*VMMachineManifest, string, error) {
+	if status == nil {
+		return nil, "", fmt.Errorf("vm export status is required")
+	}
+	if len(status.Disks) == 0 {
+		return nil, "", fmt.Errorf("vm export disks are required")
+	}
+	if len(uploaded) == 0 {
+		return nil, "", fmt.Errorf("uploaded disk metadata is required")
+	}
+	disks := make([]VMMachineManifestDisk, 0, len(status.Disks))
+	rootObjectURI := ""
+	rootDiskKey := ""
+	for _, disk := range status.Disks {
+		meta, ok := uploaded[disk.DiskKey]
+		if !ok {
+			return nil, "", fmt.Errorf("uploaded metadata missing for disk %s", disk.DiskKey)
+		}
+		disks = append(disks, VMMachineManifestDisk{
+			DiskKey:   disk.DiskKey,
+			DiskName:  firstNonEmptyString(disk.DiskName, disk.DiskKey),
+			DiskRole:  firstNonEmptyString(disk.DiskRole, "data"),
+			BootOrder: disk.BootOrder,
+			ObjectKey: meta.ObjectKey,
+			ObjectURI: meta.ObjectURI,
+			Format:    meta.Format,
+			SizeBytes: meta.SizeBytes,
+			Checksum:  meta.Checksum,
+		})
+		if strings.EqualFold(disk.DiskRole, "root") {
+			rootObjectURI = meta.ObjectURI
+			rootDiskKey = disk.DiskKey
+		}
+	}
+	sort.Slice(disks, func(i, j int) bool {
+		iRank := vmExportDiskRoleRank(disks[i].DiskRole)
+		jRank := vmExportDiskRoleRank(disks[j].DiskRole)
+		if iRank == jRank {
+			if disks[i].BootOrder != 0 && disks[j].BootOrder != 0 && disks[i].BootOrder != disks[j].BootOrder {
+				return disks[i].BootOrder < disks[j].BootOrder
+			}
+			return disks[i].DiskKey < disks[j].DiskKey
+		}
+		return iRank < jRank
+	})
+	if rootDiskKey == "" {
+		return nil, "", fmt.Errorf("root disk metadata is required")
+	}
+	return &VMMachineManifest{
+		Version:     "v1",
+		Arch:        strings.TrimSpace(arch),
+		BootMode:    strings.TrimSpace(bootMode),
+		RootDiskKey: rootDiskKey,
+		Disks:       disks,
+	}, rootObjectURI, nil
+}
+
+func buildVMAssetRestorePlan(manifest *VMMachineManifest, signer func(objectKey string) (string, error)) (*VMAssetRestorePlan, error) {
+	if manifest == nil {
+		return nil, fmt.Errorf("machine manifest is required")
+	}
+	if len(manifest.Disks) == 0 {
+		return nil, fmt.Errorf("machine manifest disks are required")
+	}
+	if signer == nil {
+		return nil, fmt.Errorf("restore url signer is required")
+	}
+	imports := make([]VMAssetRestoreDiskImport, 0, len(manifest.Disks))
+	layout := make([]VMAssetRestoreDiskLayoutItem, 0, len(manifest.Disks))
+	sorted := make([]VMMachineManifestDisk, len(manifest.Disks))
+	copy(sorted, manifest.Disks)
+	sort.Slice(sorted, func(i, j int) bool {
+		iRank := vmExportDiskRoleRank(sorted[i].DiskRole)
+		jRank := vmExportDiskRoleRank(sorted[j].DiskRole)
+		if iRank == jRank {
+			if sorted[i].BootOrder != 0 && sorted[j].BootOrder != 0 && sorted[i].BootOrder != sorted[j].BootOrder {
+				return sorted[i].BootOrder < sorted[j].BootOrder
+			}
+			return sorted[i].DiskKey < sorted[j].DiskKey
+		}
+		return iRank < jRank
+	})
+	for index, disk := range sorted {
+		signedURL, err := signer(disk.ObjectKey)
+		if err != nil {
+			return nil, err
+		}
+		volumeName := disk.DiskKey
+		if strings.EqualFold(disk.DiskRole, "root") {
+			volumeName = "disk"
+		}
+		imports = append(imports, VMAssetRestoreDiskImport{
+			VolumeName: volumeName,
+			DiskKey:    firstNonEmptyString(disk.DiskKey, volumeName),
+			DiskName:   firstNonEmptyString(disk.DiskName, disk.DiskKey, volumeName),
+			ImageURL:   signedURL,
+			SourceURI:  firstNonEmptyString(disk.ObjectURI, disk.ObjectKey),
+			Format:     disk.Format,
+			Checksum:   disk.Checksum,
+		})
+		layout = append(layout, VMAssetRestoreDiskLayoutItem{
+			DiskKey:    firstNonEmptyString(disk.DiskKey, volumeName),
+			DiskName:   firstNonEmptyString(disk.DiskName, disk.DiskKey, volumeName),
+			DiskRole:   firstNonEmptyString(disk.DiskRole, "data"),
+			BootOrder:  disk.BootOrder,
+			OrderIndex: index,
+			Boot:       strings.EqualFold(disk.DiskRole, "root") || disk.BootOrder == 1 || disk.DiskKey == manifest.RootDiskKey,
+		})
+	}
+	return &VMAssetRestorePlan{
+		BootSourceFormat: "disk",
+		DiskImports:      imports,
+		DiskLayout:       layout,
+	}, nil
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func vmExportRequiresClosedVM(req *VMExportRequest) bool {

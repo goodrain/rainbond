@@ -17,6 +17,8 @@ import (
 type VMExportController struct {
 	startExport     func(serviceID, exportID string, req *handler.VMExportRequest) (*handler.VMExportStatus, error)
 	getExportStatus func(serviceID, exportID string) (*handler.VMExportStatus, error)
+	persistExport   func(serviceID, exportID string, req *handler.VMExportPersistRequest) (*handler.VMExportPersistStatus, error)
+	restorePlan     func(req *handler.VMAssetRestorePlanRequest) (*handler.VMAssetRestorePlan, error)
 	setEventStatus  func(ctx context.Context, status dbmodel.EventStatus) error
 }
 
@@ -77,10 +79,56 @@ func (c *VMExportController) GetVMExportStatus(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, status)
 }
 
+func (c *VMExportController) PersistVMExport(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	exportID := chi.URLParam(r, "export_id")
+	var reqBody handler.VMExportPersistRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	persist := c.persistExport
+	if persist == nil {
+		persist = handler.GetServiceManager().PersistVMExport
+	}
+	status, err := persist(serviceID, exportID, &reqBody)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, status)
+}
+
+func (c *VMExportController) BuildVMAssetRestorePlan(w http.ResponseWriter, r *http.Request) {
+	var reqBody handler.VMAssetRestorePlanRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	build := c.restorePlan
+	if build == nil {
+		build = handler.GetServiceManager().BuildVMAssetRestorePlan
+	}
+	plan, err := build(&reqBody)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, plan)
+}
+
 func (t *TenantStruct) StartVMExport(w http.ResponseWriter, r *http.Request) {
 	GetVMExportController().StartVMExport(w, r)
 }
 
 func (t *TenantStruct) GetVMExportStatus(w http.ResponseWriter, r *http.Request) {
 	GetVMExportController().GetVMExportStatus(w, r)
+}
+
+func (t *TenantStruct) PersistVMExport(w http.ResponseWriter, r *http.Request) {
+	GetVMExportController().PersistVMExport(w, r)
+}
+
+func (t *TenantStruct) BuildVMAssetRestorePlan(w http.ResponseWriter, r *http.Request) {
+	GetVMExportController().BuildVMAssetRestorePlan(w, r)
 }

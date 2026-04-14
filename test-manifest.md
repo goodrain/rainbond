@@ -327,6 +327,8 @@
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
 | rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk |
+| rainbond.vm-export.machine-manifest-build | 从持久化导出磁盘生成整机清单 | active | regression | handler.buildVMMachineManifest | api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks |
+| rainbond.vm-export.restore-plan-all-disks | 为系统盘和数据盘生成恢复计划 | active | regression | handler.buildVMAssetRestorePlan | api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-download-export-cert | vm-run 远程包下载使用导出链接证书 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -3615,6 +3617,26 @@
 - 业务入口: `handler.discoverVMExportDisks`
 - 代码路径: `api/handler/vm_export.go`
 - 测试路径: `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk`
+
+### 从持久化导出磁盘生成整机清单
+
+- Capability ID: `rainbond.vm-export.machine-manifest-build`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler`
+- 业务入口: `handler.buildVMMachineManifest`
+- 代码路径: `api/handler/vm_export.go`
+- 测试路径: `api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks`
+
+### 为系统盘和数据盘生成恢复计划
+
+- Capability ID: `rainbond.vm-export.restore-plan-all-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler`
+- 业务入口: `handler.buildVMAssetRestorePlan`
+- 代码路径: `api/handler/vm_export.go`
+- 测试路径: `api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports`
 
 ### vm-run 本地包源在目录缺失时回退 storage 下载
 
