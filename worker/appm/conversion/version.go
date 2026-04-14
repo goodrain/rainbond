@@ -1531,7 +1531,7 @@ func appendISOInstallerDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kube
 	if rootBootOrder != nil && len(disks) == 0 {
 		bootOrder = *rootBootOrder
 	}
-	return append(updated, kubevirtv1.Disk{
+	installerDisk := kubevirtv1.Disk{
 		BootOrder: &bootOrder,
 		DiskDevice: kubevirtv1.DiskDevice{
 			CDRom: &kubevirtv1.CDRomTarget{
@@ -1539,7 +1539,8 @@ func appendISOInstallerDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kube
 			},
 		},
 		Name: "vmimage",
-	})
+	}
+	return append([]kubevirtv1.Disk{installerDisk}, updated...)
 }
 
 func appendVMImageRootDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
