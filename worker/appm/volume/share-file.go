@@ -110,6 +110,23 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		}
 		define.vmDisk = append(define.vmDisk, dk)
 		define.vmVolume = append(define.vmVolume, vo)
+		logrus.Infof(
+			"vm volume appended: service_id=%s service_alias=%s source_volume=%s claim=%s mount_path=%s import=%t manual_claim=%t disk_name=%s boot_order=%d device=disk:%t,lun:%t,cdrom:%t current_vm_disks=%d current_vm_volumes=%d",
+			v.as.ServiceID,
+			v.as.ServiceAlias,
+			v.svm.VolumeName,
+			claim.Name,
+			volumeMountPath,
+			importConfig != nil,
+			manualClaim,
+			dk.Name,
+			bootOrder,
+			dk.DiskDevice.Disk != nil,
+			dk.DiskDevice.LUN != nil,
+			dk.DiskDevice.CDRom != nil,
+			len(define.vmDisk),
+			len(define.vmVolume),
+		)
 	} else {
 		for _, m := range define.volumeMounts {
 			if m.MountPath == volumeMountPath { // TODO move to prepare

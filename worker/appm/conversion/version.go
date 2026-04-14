@@ -177,6 +177,17 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		attachVMImage := !hasImportedVMRootDataVolume(vmDataVolumeTemplates)
 		useVMImageAsRootDisk := attachVMImage && !vmBootSourceUsesCDRom(as.ExtensionSet)
 		rootBlankDataVolumeName := ""
+		logrus.Infof(
+			"vm template assemble flags: service_id=%s service_alias=%s boot_source_format=%s attach_vmimage=%t use_vmimage_as_root=%t initial_disks=%s initial_volumes=%s data_volume_templates=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			vmBootSourceFormat(as.ExtensionSet),
+			attachVMImage,
+			useVMImageAsRootDisk,
+			summarizeVMDisks(dv.GetVMDisk()),
+			summarizeVMVolumes(dv.GetVMVolume()),
+			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
+		)
 		if useVMImageAsRootDisk {
 			rootBlankDataVolumeName = vmRootBlankDataVolumeName(vmDataVolumeTemplates)
 		}
@@ -219,6 +230,16 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				Name:       "vmimage",
 			}}...)
 		}
+		logrus.Infof(
+			"vm template assemble result: service_id=%s service_alias=%s boot_source_format=%s root_blank_dv=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			vmBootSourceFormat(as.ExtensionSet),
+			rootBlankDataVolumeName,
+			summarizeVMDisks(disks),
+			summarizeVMVolumes(volumes),
+			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
+		)
 
 		reource := createVMResources(as)
 		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
@@ -1525,6 +1546,29 @@ func summarizeVMVolumes(volumes []kubevirtv1.Volume) string {
 			sourceType = "sysprep"
 		}
 		items = append(items, fmt.Sprintf("%s:%s", volume.Name, sourceType))
+	}
+	return strings.Join(items, ",")
+}
+
+func summarizeVMDataVolumeTemplates(templates []kubevirtv1.DataVolumeTemplateSpec) string {
+	items := make([]string, 0, len(templates))
+	for _, template := range templates {
+		sourceType := "unknown"
+		switch {
+		case template.Spec.Source == nil:
+			sourceType = "nil"
+		case template.Spec.Source.Blank != nil:
+			sourceType = "blank"
+		case template.Spec.Source.HTTP != nil:
+			sourceType = "http"
+		case template.Spec.Source.Registry != nil:
+			sourceType = "registry"
+		case template.Spec.Source.PVC != nil:
+			sourceType = "pvc"
+		case template.Spec.Source.S3 != nil:
+			sourceType = "s3"
+		}
+		items = append(items, fmt.Sprintf("%s:%s:%s", template.Name, strings.TrimSpace(template.Annotations["volume_name"]), sourceType))
 	}
 	return strings.Join(items, ",")
 }
