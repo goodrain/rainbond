@@ -173,44 +173,46 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			as.SetConfigMap(configMap)
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
-		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
-		runtimeImage := fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName)
-		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName := prepareVMImageBootVolumes(
-			bootPath,
-			runtimeImage,
-			dv.GetVMVolume(),
-			vmDataVolumeTemplates,
-		)
+		if format := vmBootSourceFormat(as.ExtensionSet); format != "" && format != "iso" {
+			logrus.Warningf(
+				"vm boot source format %q is temporarily forced to iso installer path: service_id=%s service_alias=%s",
+				format,
+				as.ServiceID,
+				as.ServiceAlias,
+			)
+		}
+		volumes := dv.GetVMVolume()
+		volumes = append([]kubevirtv1.Volume{
+			{
+				Name: "vmimage",
+				VolumeSource: kubevirtv1.VolumeSource{
+					ContainerDisk: &kubevirtv1.ContainerDiskSource{
+						Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
+						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+					},
+				},
+			},
+		}, volumes...)
 		logrus.Infof(
-			"vm template assemble flags: service_id=%s service_alias=%s boot_source_format=%s boot_path=%s initial_disks=%s initial_volumes=%s data_volume_templates=%s",
+			"vm template assemble flags: service_id=%s service_alias=%s initial_disks=%s initial_volumes=%s data_volume_templates=%s",
 			as.ServiceID,
 			as.ServiceAlias,
-			vmBootSourceFormat(as.ExtensionSet),
-			bootPath,
 			summarizeVMDisks(dv.GetVMDisk()),
 			summarizeVMVolumes(dv.GetVMVolume()),
 			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
 		)
 		volumes = append(volumes, vmRuntime.Volumes...)
-		disks := prepareVMImageBootDisks(bootPath, dv.GetVMDisk(), rootBlankDataVolumeName)
-		disks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
+		disks := dv.GetVMDisk()
+		disks, _, err := applyVMDiskLayout(as.ExtensionSet, disks)
 		if err != nil {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = append(disks, vmRuntime.Disks...)
-		switch bootPath {
-		case vmBootPathISOInstaller:
-			disks = appendISOInstallerDisk(disks, rootBootOrder)
-		case vmBootPathVMImageRootDisk:
-			disks = appendVMImageRootDisk(disks, rootBootOrder)
-		}
+		disks = appendISOInstallerDisk(disks, nil)
 		logrus.Infof(
-			"vm template assemble result: service_id=%s service_alias=%s boot_source_format=%s boot_path=%s root_blank_dv=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
+			"vm template assemble result: service_id=%s service_alias=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
 			as.ServiceID,
 			as.ServiceAlias,
-			vmBootSourceFormat(as.ExtensionSet),
-			bootPath,
-			rootBlankDataVolumeName,
 			summarizeVMDisks(disks),
 			summarizeVMVolumes(volumes),
 			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
@@ -238,10 +240,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		applyVMBootMode(&domainSpec, as.ExtensionSet)
 		logrus.Infof(
-			"vm template resolved: service_id=%s service_alias=%s boot_source_format=%s boot_mode=%s disks=%s volumes=%s",
+			"vm template resolved: service_id=%s service_alias=%s boot_mode=%s disks=%s volumes=%s",
 			as.ServiceID,
 			as.ServiceAlias,
-			vmBootSourceFormat(as.ExtensionSet),
 			strings.TrimSpace(as.ExtensionSet["vm_boot_mode"]),
 			summarizeVMDisks(domainSpec.Devices.Disks),
 			summarizeVMVolumes(volumes),
