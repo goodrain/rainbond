@@ -610,7 +610,7 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 	labels["app.kubernetes.io/part-of"] = "shell-tool"
 	shellPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("shell-%v-", regionName),
+			GenerateName: buildShellPodGenerateName(regionName),
 			Namespace:    c.namespace,
 			Labels:       labels,
 		},
@@ -639,6 +639,10 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 		return nil, err
 	}
 	return pod, nil
+}
+
+func buildShellPodGenerateName(regionName string) string {
+	return fmt.Sprintf("shell-%s-", strings.ToLower(regionName))
 }
 
 // DeleteShellPod -
