@@ -6018,6 +6018,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-run.build-media-paths",
+      "title": "Split VM runtime image build templates for ISO and disk sources",
+      "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
+      "interface_type": "package_function",
+      "interface": "builder/exector.renderVMDockerfile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestResolveVMBuildMediaDistinguishesISOAndDiskImages"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.local-package-storage-download",
       "title": "VM local package source falls back to storage download",
       "title_zh": "vm-run \u672c\u5730\u5305\u6e90\u5728\u76ee\u5f55\u7f3a\u5931\u65f6\u56de\u9000 storage \u4e0b\u8f7d",
@@ -6536,6 +6554,24 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestNsEventHandlerProvidesAddFunc"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-boot-media-paths",
+      "title": "Separate ISO and QCOW2 VM boot media assembly paths",
+      "title_zh": "\u62c6\u5206 ISO \u4e0e QCOW2 \u7684 VM \u542f\u52a8\u4ecb\u8d28\u7ec4\u88c5\u8def\u5f84",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.TenantServiceVersion",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank"
         }
       ],
       "test_type": "regression",

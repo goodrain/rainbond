@@ -22,9 +22,21 @@ import (
 	"strings"
 )
 
-var vmDockerfileTmpl = `
+type vmBuildMedia string
+
+const (
+	vmBuildMediaISO  vmBuildMedia = "iso"
+	vmBuildMediaDisk vmBuildMedia = "disk"
+)
+
+var vmISODockerfileTmpl = `
 FROM scratch
-ADD ${VM_PATH} /disk/
+COPY --chown=107:107 ${VM_PATH} /disk/
+`
+
+var vmDiskDockerfileTmpl = `
+FROM scratch
+ADD --chown=107:107 ${VM_PATH} /disk/
 `
 
 // VMBuildItem -
@@ -65,7 +77,6 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 }
 
 func (v *VMBuildItem) vmBuild(sourcePath string) error {
-	envs := make(map[string]string)
 	fileInfoList, err := ioutil.ReadDir(sourcePath)
 	if err != nil {
 		return err
@@ -80,8 +91,10 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		sourcePath,
 		fileInfoList[0].Name(),
 	)
-	envs["VM_PATH"] = path.Join("./", fileInfoList[0].Name())
-	dockerfile := util.ParseVariable(vmDockerfileTmpl, envs)
+	dockerfile, err := renderVMDockerfile(fileInfoList[0].Name())
+	if err != nil {
+		return err
+	}
 
 	dfpath := path.Join(sourcePath, "Dockerfile")
 	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
@@ -101,6 +114,42 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
 	}
 	return nil
+}
+
+func renderVMDockerfile(fileName string) (string, error) {
+	media, err := resolveVMBuildMedia(fileName)
+	if err != nil {
+		return "", err
+	}
+	envs := map[string]string{
+		"VM_PATH": path.Join("./", fileName),
+	}
+	switch media {
+	case vmBuildMediaISO:
+		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), nil
+	case vmBuildMediaDisk:
+		return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
+	default:
+		return "", fmt.Errorf("unsupported vm build media %q", media)
+	}
+}
+
+func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
+	name := strings.ToLower(strings.TrimSpace(fileName))
+	for _, suffix := range []string{".gz", ".xz"} {
+		if strings.HasSuffix(name, suffix) {
+			name = strings.TrimSuffix(name, suffix)
+			break
+		}
+	}
+	switch {
+	case strings.HasSuffix(name, ".iso"):
+		return vmBuildMediaISO, nil
+	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".tar"):
+		return vmBuildMediaDisk, nil
+	default:
+		return "", fmt.Errorf("unsupported vm image format for %q", fileName)
+	}
 }
 
 // RunVMBuild -

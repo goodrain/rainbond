@@ -105,7 +105,155 @@ func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
 	}
 }
 
-func TestResolveVMImageBootOrderPromotesISOInstallerAheadOfBlankRootDisk(t *testing.T) {
+// capability_id: rainbond.worker.appm.vm-boot-media-paths
+func TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+
+	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "iso"}, templates); got != vmBootPathISOInstaller {
+		t.Fatalf("expected iso installer boot path, got %q", got)
+	}
+}
+
+func TestResolveVMBootPathUsesVMImageRootDiskForQCOW2WithoutImportedRoot(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+
+	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, templates); got != vmBootPathVMImageRootDisk {
+		t.Fatalf("expected qcow2 root-disk boot path, got %q", got)
+	}
+}
+
+func TestResolveVMBootPathUsesImportedRootDiskWhenDataVolumeAlreadyImported(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					HTTP: &cdiv1.DataVolumeSourceHTTP{URL: "https://download/root.qcow2"},
+				},
+			},
+		},
+	}
+
+	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, templates); got != vmBootPathImportedRootDisk {
+		t.Fatalf("expected imported root-disk boot path, got %q", got)
+	}
+}
+
+func TestPrepareVMImageBootVolumesForISOInstallerKeepsBlankRootDiskAndPrependsVMImage(t *testing.T) {
+	volumes := []kubevirtv1.Volume{
+		{Name: "manual-root", VolumeSource: kubevirtv1.VolumeSource{DataVolume: &kubevirtv1.DataVolumeSource{Name: "manual-root"}}},
+	}
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+
+	preparedVolumes, preparedTemplates, rootBlankName := prepareVMImageBootVolumes(
+		vmBootPathISOInstaller,
+		"goodrain.me/default:test",
+		volumes,
+		templates,
+	)
+
+	if rootBlankName != "" {
+		t.Fatalf("did not expect iso installer path to remove blank root disk, got %q", rootBlankName)
+	}
+	if len(preparedVolumes) != 2 || preparedVolumes[0].Name != "vmimage" || preparedVolumes[1].Name != "manual-root" {
+		t.Fatalf("expected vmimage volume to be prepended without dropping root disk, got %#v", preparedVolumes)
+	}
+	if preparedVolumes[0].ContainerDisk == nil || preparedVolumes[0].ContainerDisk.Image != "goodrain.me/default:test" {
+		t.Fatalf("expected vmimage containerDisk to use runtime image, got %#v", preparedVolumes[0])
+	}
+	if len(preparedTemplates) != 1 || preparedTemplates[0].Name != "manual-root" {
+		t.Fatalf("expected iso installer path to keep blank root datavolume template, got %#v", preparedTemplates)
+	}
+}
+
+func TestPrepareVMImageBootVolumesForVMImageRootDiskDropsBlankRootDisk(t *testing.T) {
+	volumes := []kubevirtv1.Volume{
+		{Name: "manual-root", VolumeSource: kubevirtv1.VolumeSource{DataVolume: &kubevirtv1.DataVolumeSource{Name: "manual-root"}}},
+		{Name: "data-1", VolumeSource: kubevirtv1.VolumeSource{DataVolume: &kubevirtv1.DataVolumeSource{Name: "data-1"}}},
+	}
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "data-1",
+				Annotations: map[string]string{"volume_name": "data-1"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+
+	preparedVolumes, preparedTemplates, rootBlankName := prepareVMImageBootVolumes(
+		vmBootPathVMImageRootDisk,
+		"goodrain.me/default:test",
+		volumes,
+		templates,
+	)
+
+	if rootBlankName != "manual-root" {
+		t.Fatalf("expected qcow2 path to drop root blank datavolume manual-root, got %q", rootBlankName)
+	}
+	if len(preparedVolumes) != 2 || preparedVolumes[0].Name != "vmimage" || preparedVolumes[1].Name != "data-1" {
+		t.Fatalf("expected qcow2 path to prepend vmimage and drop blank root disk volume, got %#v", preparedVolumes)
+	}
+	if len(preparedTemplates) != 1 || preparedTemplates[0].Name != "data-1" {
+		t.Fatalf("expected qcow2 path to drop blank root datavolume template, got %#v", preparedTemplates)
+	}
+}
+
+func TestAttachISOInstallerDiskPreservesExistingBootOrderAssignments(t *testing.T) {
 	rootBoot := uint(1)
 	disks := []kubevirtv1.Disk{
 		{
@@ -117,71 +265,46 @@ func TestResolveVMImageBootOrderPromotesISOInstallerAheadOfBlankRootDisk(t *test
 		},
 	}
 
-	updated, vmImageBoot := resolveVMImageBootOrder(disks, nil, map[string]string{
-		"vm_boot_source_format": "iso",
-	}, false)
-
-	if vmImageBoot != 1 {
-		t.Fatalf("expected installer media boot order 1, got %d", vmImageBoot)
-	}
-	if updated[0].BootOrder == nil || *updated[0].BootOrder != 2 {
-		t.Fatalf("expected blank root disk boot order to shift to 2, got %#v", updated[0].BootOrder)
-	}
-}
-
-func TestResolveVMImageBootOrderKeepsQCOWRootOrder(t *testing.T) {
-	rootBoot := uint(1)
-	disks := []kubevirtv1.Disk{
-		{
-			Name: "manual-root",
-			DiskDevice: kubevirtv1.DiskDevice{
-				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
-			},
-		},
-	}
-
-	updated, vmImageBoot := resolveVMImageBootOrder(disks, &rootBoot, map[string]string{
-		"vm_boot_source_format": "qcow2",
-	}, true)
-
-	if vmImageBoot != 1 {
-		t.Fatalf("expected qcow root disk boot order 1, got %d", vmImageBoot)
-	}
-	if updated[0].BootOrder != nil {
-		t.Fatalf("did not expect existing disks to be rewritten for qcow boot, got %#v", updated[0].BootOrder)
-	}
-}
-
-func TestAttachVMImageDiskAddsInstallerMediaForISO(t *testing.T) {
-	rootBoot := uint(1)
-	disks := []kubevirtv1.Disk{
-		{
-			Name:      "manual-root",
-			BootOrder: &rootBoot,
-			DiskDevice: kubevirtv1.DiskDevice{
-				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
-			},
-		},
-	}
-
-	updated := attachVMImageDisk(disks, nil, map[string]string{
-		"vm_boot_source_format": "iso",
-	}, false)
+	updated := appendISOInstallerDisk(disks, nil)
 
 	if len(updated) != 2 {
 		t.Fatalf("expected installer media and root disk, got %#v", updated)
 	}
-	if updated[0].Name != "manual-root" || updated[0].BootOrder == nil || *updated[0].BootOrder != 2 {
-		t.Fatalf("expected root disk boot order to shift to 2, got %#v", updated[0])
+	if updated[0].Name != "manual-root" || updated[0].BootOrder == nil || *updated[0].BootOrder != 1 {
+		t.Fatalf("expected iso installer path to preserve existing root disk boot order, got %#v", updated[0])
 	}
-	if updated[1].Name != "vmimage" {
-		t.Fatalf("expected vmimage disk to be appended, got %#v", updated[1])
+	if updated[1].Name != "vmimage" || updated[1].DiskDevice.CDRom == nil {
+		t.Fatalf("expected vmimage to be appended as cdrom, got %#v", updated[1])
 	}
-	if updated[1].DiskDevice.CDRom == nil {
-		t.Fatalf("expected vmimage to be attached as cdrom, got %#v", updated[1].DiskDevice)
+	if updated[1].BootOrder == nil || *updated[1].BootOrder != 2 {
+		t.Fatalf("expected vmimage to be appended after existing bootable disk, got %#v", updated[1].BootOrder)
+	}
+}
+
+func TestAttachVMImageRootDiskUsesRootBootOrderForQCOW2Path(t *testing.T) {
+	rootBoot := uint(1)
+	disks := []kubevirtv1.Disk{
+		{
+			Name: "data-1",
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+
+	updated := appendVMImageRootDisk(disks, &rootBoot)
+
+	if len(updated) != 2 {
+		t.Fatalf("expected vmimage root disk to be appended, got %#v", updated)
+	}
+	if updated[1].Name != "vmimage" || updated[1].DiskDevice.Disk == nil {
+		t.Fatalf("expected vmimage to be appended as disk, got %#v", updated[1])
 	}
 	if updated[1].BootOrder == nil || *updated[1].BootOrder != 1 {
-		t.Fatalf("expected vmimage boot order 1, got %#v", updated[1].BootOrder)
+		t.Fatalf("expected qcow2 root disk path to use boot order 1, got %#v", updated[1].BootOrder)
+	}
+	if updated[0].BootOrder != nil {
+		t.Fatalf("did not expect qcow2 path to rewrite unrelated data disk boot order, got %#v", updated[0].BootOrder)
 	}
 }
 

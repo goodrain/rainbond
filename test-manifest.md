@@ -329,6 +329,7 @@
 | rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk |
 | rainbond.vm-export.machine-manifest-build | 从持久化导出磁盘生成整机清单 | active | regression | handler.buildVMMachineManifest | api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks |
 | rainbond.vm-export.restore-plan-all-disks | 为系统盘和数据盘生成恢复计划 | active | regression | handler.buildVMAssetRestorePlan | api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports |
+| rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-download-export-cert | vm-run 远程包下载使用导出链接证书 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -358,6 +359,7 @@
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
+| rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
 | rainbond.worker.helmapp.condition-query | 按类型查询 HelmApp 条件及其真值状态 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.GetCondition | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionQuery |
@@ -3623,7 +3625,7 @@
 - Capability ID: `rainbond.vm-export.machine-manifest-build`
 - 状态: `active`
 - 测试类型: `regression`
-- 接口类型: `handler`
+- 接口类型: `package_function`
 - 业务入口: `handler.buildVMMachineManifest`
 - 代码路径: `api/handler/vm_export.go`
 - 测试路径: `api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks`
@@ -3633,10 +3635,20 @@
 - Capability ID: `rainbond.vm-export.restore-plan-all-disks`
 - 状态: `active`
 - 测试类型: `regression`
-- 接口类型: `handler`
+- 接口类型: `package_function`
 - 业务入口: `handler.buildVMAssetRestorePlan`
 - 代码路径: `api/handler/vm_export.go`
 - 测试路径: `api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports`
+
+### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
+
+- Capability ID: `rainbond.vm-run.build-media-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/exector.renderVMDockerfile`
+- 代码路径: `builder/exector/build_from_vm.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages`
 
 ### vm-run 本地包源在目录缺失时回退 storage 下载
 
@@ -3927,6 +3939,16 @@
 - 业务入口: `worker/appm/store.appRuntimeStore.nsEventHandler`
 - 代码路径: `worker/appm/store/store.go`
 - 测试路径: `worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc`
+
+### 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径
+
+- Capability ID: `rainbond.worker.appm.vm-boot-media-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.TenantServiceVersion`
+- 代码路径: `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank`
 
 ### 根据仓库名与模板名拼装 Helm chart 引用
 

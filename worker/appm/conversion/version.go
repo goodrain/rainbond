@@ -173,63 +173,43 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			as.SetConfigMap(configMap)
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
-		volumes := dv.GetVMVolume()
-		attachVMImage := !hasImportedVMRootDataVolume(vmDataVolumeTemplates)
-		useVMImageAsRootDisk := attachVMImage && !vmBootSourceUsesCDRom(as.ExtensionSet)
-		rootBlankDataVolumeName := ""
+		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
+		runtimeImage := fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName)
+		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName := prepareVMImageBootVolumes(
+			bootPath,
+			runtimeImage,
+			dv.GetVMVolume(),
+			vmDataVolumeTemplates,
+		)
 		logrus.Infof(
-			"vm template assemble flags: service_id=%s service_alias=%s boot_source_format=%s attach_vmimage=%t use_vmimage_as_root=%t initial_disks=%s initial_volumes=%s data_volume_templates=%s",
+			"vm template assemble flags: service_id=%s service_alias=%s boot_source_format=%s boot_path=%s initial_disks=%s initial_volumes=%s data_volume_templates=%s",
 			as.ServiceID,
 			as.ServiceAlias,
 			vmBootSourceFormat(as.ExtensionSet),
-			attachVMImage,
-			useVMImageAsRootDisk,
+			bootPath,
 			summarizeVMDisks(dv.GetVMDisk()),
 			summarizeVMVolumes(dv.GetVMVolume()),
 			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
 		)
-		if useVMImageAsRootDisk {
-			rootBlankDataVolumeName = vmRootBlankDataVolumeName(vmDataVolumeTemplates)
-		}
-		if useVMImageAsRootDisk {
-			if rootBlankDataVolumeName != "" {
-				volumes = filterVMVolumesByName(volumes, rootBlankDataVolumeName)
-				vmDataVolumeTemplates = filterVMDataVolumeTemplatesByName(vmDataVolumeTemplates, rootBlankDataVolumeName)
-			}
-		}
-		if attachVMImage {
-			volumes = append([]kubevirtv1.Volume{
-				{
-					Name: "vmimage",
-					VolumeSource: kubevirtv1.VolumeSource{
-						ContainerDisk: &kubevirtv1.ContainerDiskSource{
-							Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
-							ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
-						},
-					},
-				},
-			}, volumes...)
-		}
 		volumes = append(volumes, vmRuntime.Volumes...)
-		disks := dv.GetVMDisk()
-		if useVMImageAsRootDisk {
-			if rootBlankDataVolumeName != "" {
-				disks = filterVMDisksByName(disks, rootBlankDataVolumeName)
-			}
-		}
+		disks := prepareVMImageBootDisks(bootPath, dv.GetVMDisk(), rootBlankDataVolumeName)
 		disks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
 		if err != nil {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = append(disks, vmRuntime.Disks...)
-		if attachVMImage {
-			disks = attachVMImageDisk(disks, rootBootOrder, as.ExtensionSet, useVMImageAsRootDisk)
+		switch bootPath {
+		case vmBootPathISOInstaller:
+			disks = appendISOInstallerDisk(disks, rootBootOrder)
+		case vmBootPathVMImageRootDisk:
+			disks = appendVMImageRootDisk(disks, rootBootOrder)
 		}
 		logrus.Infof(
-			"vm template assemble result: service_id=%s service_alias=%s boot_source_format=%s root_blank_dv=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
+			"vm template assemble result: service_id=%s service_alias=%s boot_source_format=%s boot_path=%s root_blank_dv=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
 			as.ServiceID,
 			as.ServiceAlias,
 			vmBootSourceFormat(as.ExtensionSet),
+			bootPath,
 			rootBlankDataVolumeName,
 			summarizeVMDisks(disks),
 			summarizeVMVolumes(volumes),
@@ -1465,6 +1445,24 @@ func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
 	return format == "" || format == "iso"
 }
 
+type vmBootPath string
+
+const (
+	vmBootPathISOInstaller     vmBootPath = "iso-installer"
+	vmBootPathVMImageRootDisk  vmBootPath = "vmimage-rootdisk"
+	vmBootPathImportedRootDisk vmBootPath = "imported-rootdisk"
+)
+
+func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.DataVolumeTemplateSpec) vmBootPath {
+	if hasImportedVMRootDataVolume(templates) {
+		return vmBootPathImportedRootDisk
+	}
+	if vmBootSourceUsesCDRom(extensionSet) {
+		return vmBootPathISOInstaller
+	}
+	return vmBootPathVMImageRootDisk
+}
+
 func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
 	if vmBootSourceUsesCDRom(extensionSet) {
 		return kubevirtv1.DiskDevice{
@@ -1480,35 +1478,75 @@ func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
 	}
 }
 
-func resolveVMImageBootOrder(disks []kubevirtv1.Disk, rootBootOrder *uint, extensionSet map[string]string, useVMImageAsRootDisk bool) ([]kubevirtv1.Disk, uint) {
-	if vmBootSourceUsesCDRom(extensionSet) {
-		updated := make([]kubevirtv1.Disk, len(disks))
-		copy(updated, disks)
-		for i := range updated {
-			if updated[i].BootOrder == nil {
-				continue
-			}
-			order := *updated[i].BootOrder + 1
-			updated[i].BootOrder = &order
-		}
-		return updated, 1
+func prepareVMImageBootVolumes(path vmBootPath, image string, volumes []kubevirtv1.Volume,
+	templates []kubevirtv1.DataVolumeTemplateSpec) ([]kubevirtv1.Volume, []kubevirtv1.DataVolumeTemplateSpec, string) {
+	preparedVolumes := append([]kubevirtv1.Volume(nil), volumes...)
+	preparedTemplates := append([]kubevirtv1.DataVolumeTemplateSpec(nil), templates...)
+	rootBlankDataVolumeName := ""
+
+	switch path {
+	case vmBootPathISOInstaller, vmBootPathVMImageRootDisk:
+		preparedVolumes = append([]kubevirtv1.Volume{{
+			Name: "vmimage",
+			VolumeSource: kubevirtv1.VolumeSource{
+				ContainerDisk: &kubevirtv1.ContainerDiskSource{
+					Image:           image,
+					ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+				},
+			},
+		}}, preparedVolumes...)
 	}
 
+	if path == vmBootPathVMImageRootDisk {
+		rootBlankDataVolumeName = vmRootBlankDataVolumeName(preparedTemplates)
+		if rootBlankDataVolumeName != "" {
+			preparedVolumes = filterVMVolumesByName(preparedVolumes, rootBlankDataVolumeName)
+			preparedTemplates = filterVMDataVolumeTemplatesByName(preparedTemplates, rootBlankDataVolumeName)
+		}
+	}
+
+	return preparedVolumes, preparedTemplates, rootBlankDataVolumeName
+}
+
+func prepareVMImageBootDisks(path vmBootPath, disks []kubevirtv1.Disk, rootBlankDataVolumeName string) []kubevirtv1.Disk {
+	preparedDisks := append([]kubevirtv1.Disk(nil), disks...)
+	if path == vmBootPathVMImageRootDisk && rootBlankDataVolumeName != "" {
+		return filterVMDisksByName(preparedDisks, rootBlankDataVolumeName)
+	}
+	return preparedDisks
+}
+
+func appendISOInstallerDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
 	bootOrder := uint(len(disks) + 1)
 	if rootBootOrder != nil {
 		bootOrder = *rootBootOrder
-	} else if useVMImageAsRootDisk {
-		bootOrder = 1
 	}
-	return disks, bootOrder
+	updated := append([]kubevirtv1.Disk(nil), disks...)
+	return append(updated, kubevirtv1.Disk{
+		BootOrder: &bootOrder,
+		DiskDevice: kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		},
+		Name: "vmimage",
+	})
 }
 
-func attachVMImageDisk(disks []kubevirtv1.Disk, rootBootOrder *uint, extensionSet map[string]string, useVMImageAsRootDisk bool) []kubevirtv1.Disk {
-	updated, bootOrder := resolveVMImageBootOrder(disks, rootBootOrder, extensionSet, useVMImageAsRootDisk)
+func appendVMImageRootDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
+	bootOrder := uint(1)
+	if rootBootOrder != nil {
+		bootOrder = *rootBootOrder
+	}
+	updated := append([]kubevirtv1.Disk(nil), disks...)
 	return append(updated, kubevirtv1.Disk{
-		BootOrder:  &bootOrder,
-		DiskDevice: vmImageDiskDevice(extensionSet),
-		Name:       "vmimage",
+		BootOrder: &bootOrder,
+		DiskDevice: kubevirtv1.DiskDevice{
+			Disk: &kubevirtv1.DiskTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		},
+		Name: "vmimage",
 	})
 }
 
