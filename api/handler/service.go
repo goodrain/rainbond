@@ -423,6 +423,22 @@ func (s *ServiceAction) StartOrCreateVM(sss *apimodel.StartStopStruct, deployVer
 	return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
 }
 
+func (s *ServiceAction) RestartVM(sss *apimodel.StartStopStruct, deployVersion string) error {
+	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		startReq := *sss
+		startReq.TaskType = "start"
+		return s.StartOrCreateVM(&startReq, deployVersion)
+	}
+	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
+	}
+	return s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{})
+}
+
 func (s *ServiceAction) StopVM(serviceID string) error {
 	vm, err := s.getVirtualMachineByServiceID(serviceID)
 	if err != nil {
@@ -1715,6 +1731,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 
 // VolumnVar var volumn
 func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError {
+	dbm := s.getDBManager()
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -1734,7 +1751,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			//本地文件存储
 			case dbmodel.LocalVolumeType.String():
-				serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeByID(tsv.ServiceID)
+				serviceInfo, err := dbm.TenantServiceDao().GetServiceTypeByID(tsv.ServiceID)
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
@@ -1749,14 +1766,14 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		}
 		util.SetVolumeDefaultValue(tsv)
 		// begin transaction
-		tx := db.GetManager().Begin()
+		tx := dbm.Begin()
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
 				tx.Rollback()
 			}
 		}()
-		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
+		if err := dbm.TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
 		}
@@ -1766,7 +1783,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				VolumeName:  tsv.VolumeName,
 				FileContent: fileContent,
 			}
-			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+			if err := dbm.TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
 			}
@@ -1776,9 +1793,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
+		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
+		}
 	case "delete":
 		// begin transaction
-		tx := db.GetManager().Begin()
+		tx := dbm.Begin()
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
@@ -1786,13 +1806,13 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			}
 		}()
 		if tsv.VolumeName != "" {
-			volume, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
+			volume, err := dbm.TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
 			if err != nil {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("find volume", err)
 			}
 
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
@@ -1813,12 +1833,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.ServiceID, tsv.VolumeName); err != nil {
+		if err := dbm.TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.ServiceID, tsv.VolumeName); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error deleting config files", err)
 		}
@@ -1827,44 +1847,51 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
+		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
+		}
 	}
 	return nil
 }
 
 // UpdVolume updates service volume.
 func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error {
-	tx := db.GetManager().Begin()
+	dbm := s.getDBManager()
+	tx := dbm.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
 			tx.Rollback()
 		}
 	}()
-	v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	v, err := dbm.TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	v.VolumePath = req.VolumePath
 	v.Mode = req.Mode
-	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+	if err := dbm.TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
 		tx.Rollback()
 		return err
 	}
 	if req.VolumeType == "config-file" {
-		configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
+		configfile, err := dbm.TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 		configfile.FileContent = req.FileContent
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
+		if err := dbm.TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
-	tx.Commit()
-	return nil
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return s.syncVirtualMachineSpecForService(sid)
 }
 
 // GetVolumes 获取应用全部存储

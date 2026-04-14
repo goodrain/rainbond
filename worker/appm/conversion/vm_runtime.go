@@ -219,6 +219,10 @@ func buildVMHostDevices(extensionSet map[string]string) []kubevirtv1.HostDevice 
 	return devices
 }
 
+func BuildVMAccelerationDevices(extensionSet map[string]string) ([]kubevirtv1.GPU, []kubevirtv1.HostDevice) {
+	return buildVMGPUDevices(extensionSet), buildVMHostDevices(extensionSet)
+}
+
 func expandVMGPUResourceNames(resourceNames []string, countValue string) []string {
 	gpuCount := parsePositiveInt(countValue)
 	if gpuCount <= 1 || len(resourceNames) != 1 {

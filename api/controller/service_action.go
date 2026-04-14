@@ -229,6 +229,15 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if service.IsVM() {
+		if err := handler.GetServiceManager().RestartVM(startStopStruct, service.DeployVersion); err != nil {
+			httputil.ReturnError(r, w, 500, "get service info error.")
+			return
+		}
+		httputil.ReturnSuccess(r, w, sEvent)
+		return
+	}
+
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return

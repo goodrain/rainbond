@@ -39,6 +39,7 @@ type ServiceHandler interface {
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
 	StartOrCreateVM(s *apimodel.StartStopStruct, deployVersion string) error
+	RestartVM(s *apimodel.StartStopStruct, deployVersion string) error
 	StopVM(serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
