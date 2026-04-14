@@ -203,10 +203,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		)
 		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
-		disks, _, err := applyVMDiskLayout(as.ExtensionSet, disks)
+		layoutDisks, _, err := applyVMDiskLayout(as.ExtensionSet, disks)
 		if err != nil {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
+		disks = layoutDisks
 		disks = append(disks, vmRuntime.Disks...)
 		disks = appendISOInstallerDisk(disks, nil)
 		logrus.Infof(
