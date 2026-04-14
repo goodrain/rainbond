@@ -1517,11 +1517,18 @@ func prepareVMImageBootDisks(path vmBootPath, disks []kubevirtv1.Disk, rootBlank
 }
 
 func appendISOInstallerDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
-	bootOrder := uint(len(disks) + 1)
-	if rootBootOrder != nil {
+	updated := append([]kubevirtv1.Disk(nil), disks...)
+	for i := range updated {
+		if updated[i].BootOrder == nil {
+			continue
+		}
+		order := *updated[i].BootOrder + 1
+		updated[i].BootOrder = &order
+	}
+	bootOrder := uint(1)
+	if rootBootOrder != nil && len(disks) == 0 {
 		bootOrder = *rootBootOrder
 	}
-	updated := append([]kubevirtv1.Disk(nil), disks...)
 	return append(updated, kubevirtv1.Disk{
 		BootOrder: &bootOrder,
 		DiskDevice: kubevirtv1.DiskDevice{

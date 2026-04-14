@@ -253,7 +253,7 @@ func TestPrepareVMImageBootVolumesForVMImageRootDiskDropsBlankRootDisk(t *testin
 	}
 }
 
-func TestAttachISOInstallerDiskPreservesExistingBootOrderAssignments(t *testing.T) {
+func TestAttachISOInstallerDiskPromotesInstallerAheadOfBlankRootDisk(t *testing.T) {
 	rootBoot := uint(1)
 	disks := []kubevirtv1.Disk{
 		{
@@ -270,14 +270,14 @@ func TestAttachISOInstallerDiskPreservesExistingBootOrderAssignments(t *testing.
 	if len(updated) != 2 {
 		t.Fatalf("expected installer media and root disk, got %#v", updated)
 	}
-	if updated[0].Name != "manual-root" || updated[0].BootOrder == nil || *updated[0].BootOrder != 1 {
-		t.Fatalf("expected iso installer path to preserve existing root disk boot order, got %#v", updated[0])
+	if updated[0].Name != "manual-root" || updated[0].BootOrder == nil || *updated[0].BootOrder != 2 {
+		t.Fatalf("expected iso installer path to shift root disk boot order to 2, got %#v", updated[0])
 	}
 	if updated[1].Name != "vmimage" || updated[1].DiskDevice.CDRom == nil {
 		t.Fatalf("expected vmimage to be appended as cdrom, got %#v", updated[1])
 	}
-	if updated[1].BootOrder == nil || *updated[1].BootOrder != 2 {
-		t.Fatalf("expected vmimage to be appended after existing bootable disk, got %#v", updated[1].BootOrder)
+	if updated[1].BootOrder == nil || *updated[1].BootOrder != 1 {
+		t.Fatalf("expected vmimage installer media to take boot order 1, got %#v", updated[1].BootOrder)
 	}
 }
 
