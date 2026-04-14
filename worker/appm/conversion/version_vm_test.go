@@ -83,6 +83,26 @@ func TestApplyVMBootModeSetsBIOSFirmware(t *testing.T) {
 	}
 }
 
+func TestApplyVMBootModeForPathSkipsEFIForISOInstaller(t *testing.T) {
+	domain := &kubevirtv1.DomainSpec{}
+
+	applyVMBootModeForPath(domain, map[string]string{"vm_boot_mode": "uefi"}, vmBootPathISOInstaller)
+
+	if domain.Firmware != nil {
+		t.Fatalf("did not expect installer path to force firmware bootloader, got %#v", domain.Firmware)
+	}
+}
+
+func TestApplyVMBootModeForPathKeepsUEFIForRootDiskPath(t *testing.T) {
+	domain := &kubevirtv1.DomainSpec{}
+
+	applyVMBootModeForPath(domain, map[string]string{"vm_boot_mode": "uefi"}, vmBootPathVMImageRootDisk)
+
+	if domain.Firmware == nil || domain.Firmware.Bootloader == nil || domain.Firmware.Bootloader.EFI == nil {
+		t.Fatalf("expected root disk path to keep EFI firmware, got %#v", domain.Firmware)
+	}
+}
+
 func TestVMImageDiskDeviceUsesCDRomForISO(t *testing.T) {
 	device := vmImageDiskDevice(map[string]string{"vm_boot_source_format": "iso"})
 

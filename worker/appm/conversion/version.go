@@ -181,6 +181,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				as.ServiceAlias,
 			)
 		}
+		bootPath := vmBootPathISOInstaller
 		volumes := dv.GetVMVolume()
 		volumes = append([]kubevirtv1.Volume{
 			{
@@ -239,11 +240,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				HostDevices: vmRuntime.HostDevices,
 			},
 		}
-		applyVMBootMode(&domainSpec, as.ExtensionSet)
+		applyVMBootModeForPath(&domainSpec, as.ExtensionSet, bootPath)
 		logrus.Infof(
-			"vm template resolved: service_id=%s service_alias=%s boot_mode=%s disks=%s volumes=%s",
+			"vm template resolved: service_id=%s service_alias=%s boot_path=%s boot_mode=%s disks=%s volumes=%s",
 			as.ServiceID,
 			as.ServiceAlias,
+			bootPath,
 			strings.TrimSpace(as.ExtensionSet["vm_boot_mode"]),
 			summarizeVMDisks(domainSpec.Devices.Disks),
 			summarizeVMVolumes(volumes),
@@ -1715,6 +1717,13 @@ func applyVMBootMode(domain *kubevirtv1.DomainSpec, extensionSet map[string]stri
 		domain.Firmware.Bootloader.EFI = nil
 		domain.Firmware.Bootloader.BIOS = &kubevirtv1.BIOS{}
 	}
+}
+
+func applyVMBootModeForPath(domain *kubevirtv1.DomainSpec, extensionSet map[string]string, path vmBootPath) {
+	if path == vmBootPathISOInstaller {
+		return
+	}
+	applyVMBootMode(domain, extensionSet)
 }
 
 func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) ([]corev1.Toleration, error) {
