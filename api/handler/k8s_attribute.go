@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -153,6 +154,16 @@ var vmRuntimeDeviceAttributeNames = []string{
 	"vm_usb_resources",
 }
 
+var vmRuntimeSpecAttributeNames = []string{
+	"vm_network_mode",
+	"vm_network_name",
+	"vm_fixed_ip",
+	"vm_gateway",
+	"vm_dns_servers",
+	"vm_os_family",
+	"vm_os_name",
+}
+
 func (s *ServiceAction) getDBManager() db.Manager {
 	if s.dbmanager != nil {
 		return s.dbmanager
@@ -169,11 +180,24 @@ func isVMRuntimeDeviceAttribute(name string) bool {
 	return false
 }
 
+func isVMRuntimeSpecAttribute(name string) bool {
+	for _, candidate := range vmRuntimeSpecAttributeNames {
+		if name == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *ServiceAction) syncVMRuntimeDevicesForAttribute(componentID, name string) error {
-	if !isVMRuntimeDeviceAttribute(name) {
+	switch {
+	case isVMRuntimeDeviceAttribute(name):
+		return s.syncVMRuntimeDevices(componentID)
+	case isVMRuntimeSpecAttribute(name):
+		return s.syncVirtualMachineSpecForService(componentID)
+	default:
 		return nil
 	}
-	return s.syncVMRuntimeDevices(componentID)
 }
 
 func (s *ServiceAction) syncVMRuntimeDevices(componentID string) error {
@@ -255,11 +279,41 @@ func (s *ServiceAction) syncVirtualMachineSpecForService(serviceID string) error
 	if err != nil || existingVM == nil {
 		return err
 	}
+	extensionSet, err := s.loadVMRuntimeSpecExtensionSet(serviceID)
+	if err != nil {
+		return err
+	}
+	if shouldDeferVirtualMachineSpecSync(extensionSet) {
+		return nil
+	}
 	desiredVM, err := s.buildDesiredVirtualMachine(serviceID)
 	if err != nil || desiredVM == nil {
 		return err
 	}
 	return s.syncVirtualMachineSpec(existingVM, desiredVM)
+}
+
+func (s *ServiceAction) loadVMRuntimeSpecExtensionSet(componentID string) (map[string]string, error) {
+	extensionSet := make(map[string]string, len(vmRuntimeSpecAttributeNames))
+	dao := s.getDBManager().ComponentK8sAttributeDao()
+	for _, name := range vmRuntimeSpecAttributeNames {
+		attr, err := dao.GetByComponentIDAndName(componentID, name)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				continue
+			}
+			return nil, err
+		}
+		if attr != nil && attr.AttributeValue != "" {
+			extensionSet[name] = attr.AttributeValue
+		}
+	}
+	return extensionSet, nil
+}
+
+func shouldDeferVirtualMachineSpecSync(extensionSet map[string]string) bool {
+	return strings.EqualFold(strings.TrimSpace(extensionSet["vm_network_mode"]), "fixed") &&
+		strings.TrimSpace(extensionSet["vm_fixed_ip"]) == ""
 }
 
 func (s *ServiceAction) buildDesiredVirtualMachine(serviceID string) (*kubevirtv1.VirtualMachine, error) {
