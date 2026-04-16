@@ -3,8 +3,14 @@ package volume
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
 
 func TestParseVMDiskImportConfigs(t *testing.T) {
@@ -71,6 +77,77 @@ func TestBuildVMDiskImportDataVolumeTemplate(t *testing.T) {
 	}
 	if *template.Spec.Storage.StorageClassName != "local-path" {
 		t.Fatalf("unexpected storage class: %q", *template.Spec.Storage.StorageClassName)
+	}
+}
+
+func TestResolveVMExportHTTPImportConfigMap(t *testing.T) {
+	restoreDynamicClient := sourceutil.SetVMExportDynamicClientProviderForTest(func() dynamic.Interface {
+		gvr := schema.GroupVersionResource{
+			Group:    "export.kubevirt.io",
+			Version:  "v1beta1",
+			Resource: "virtualmachineexports",
+		}
+		scheme := runtime.NewScheme()
+		return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+			scheme,
+			map[schema.GroupVersionResource]string{gvr: "VirtualMachineExportList"},
+			&unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "export.kubevirt.io/v1beta1",
+					"kind":       "VirtualMachineExport",
+					"metadata": map[string]interface{}{
+						"name":      "virt-export-demo",
+						"namespace": "default",
+					},
+					"spec": map[string]interface{}{
+						"tokenSecretRef": "export-token",
+					},
+					"status": map[string]interface{}{
+						"links": map[string]interface{}{
+							"internal": map[string]interface{}{
+								"cert": "-----BEGIN CERTIFICATE-----\nCERTDATA\n-----END CERTIFICATE-----",
+								"volumes": []interface{}{
+									map[string]interface{}{
+										"name": "disk",
+										"formats": []interface{}{
+											map[string]interface{}{
+												"format": "gzip",
+												"url":    "https://virt-export-demo.default.svc/volumes/manual30/disk.img.gz",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		)
+	})
+	defer restoreDynamicClient()
+	restoreSecretGetter := sourceutil.SetVMExportSecretGetterForTest(func(namespace, name string) ([]byte, error) {
+		if namespace != "default" || name != "export-token" {
+			t.Fatalf("unexpected secret lookup: %s/%s", namespace, name)
+		}
+		return []byte("secret-token"), nil
+	})
+	defer restoreSecretGetter()
+
+	configMap, extraHeaders, err := resolveVMExportHTTPImportConfigMap(
+		"manual64",
+		"https://virt-export-demo.default.svc/volumes/manual30/disk.img.gz",
+	)
+	if err != nil {
+		t.Fatalf("expected vm export auth resolution to succeed: %v", err)
+	}
+	if configMap == nil || configMap.Name != "manual64-vmexport-ca" {
+		t.Fatalf("expected cert configmap, got %#v", configMap)
+	}
+	if configMap.Data["ca.crt"] == "" {
+		t.Fatalf("expected ca.crt data, got %#v", configMap.Data)
+	}
+	if len(extraHeaders) != 1 || extraHeaders[0] != "x-kubevirt-export-token:secret-token" {
+		t.Fatalf("unexpected extra headers: %#v", extraHeaders)
 	}
 }
 

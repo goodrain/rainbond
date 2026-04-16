@@ -72,6 +72,19 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.as.SetClaim(claim)
 		var importConfig *vmDiskImportConfig
 		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
+			authConfigMap, extraHeaders, err := resolveVMExportHTTPImportConfigMap(claim.Name, cfg.ImageURL)
+			if err != nil {
+				return err
+			}
+			cfg.CertConfigMap = ""
+			cfg.ExtraHeaders = nil
+			if authConfigMap != nil {
+				cfg.CertConfigMap = authConfigMap.Name
+				v.as.SetConfigMap(authConfigMap)
+			}
+			if len(extraHeaders) > 0 {
+				cfg.ExtraHeaders = extraHeaders
+			}
 			importConfig = &cfg
 		}
 		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)

@@ -24,7 +24,7 @@ var (
 		Version:  "v1beta1",
 		Resource: "virtualmachineexports",
 	}
-	vmExportTokenHeader = "x-kubevirt-export-token"
+	vmExportTokenHeader           = "x-kubevirt-export-token"
 	vmExportDynamicClientProvider = func() dynamic.Interface {
 		component := k8s.Default()
 		if component == nil || component.DynamicClient == nil {
@@ -60,6 +60,14 @@ var (
 )
 
 type vmExportAuthConfig struct {
+	CertPEM    []byte
+	Token      []byte
+	ExportName string
+	Namespace  string
+	Source     string
+}
+
+type VMExportAuthConfig struct {
 	CertPEM    []byte
 	Token      []byte
 	ExportName string
@@ -144,6 +152,20 @@ func NewRemotePackageHTTPClient(rawURL string) *http.Client {
 		len(authConfig.Token) > 0,
 	)
 	return client
+}
+
+func LookupVMExportAuthConfigByURL(rawURL string) (VMExportAuthConfig, error) {
+	authConfig, err := lookupVMExportAuthByURL(rawURL)
+	if err != nil {
+		return VMExportAuthConfig{}, err
+	}
+	return VMExportAuthConfig{
+		CertPEM:    authConfig.CertPEM,
+		Token:      authConfig.Token,
+		ExportName: authConfig.ExportName,
+		Namespace:  authConfig.Namespace,
+		Source:     authConfig.Source,
+	}, nil
 }
 
 func lookupVMExportAuthByURL(rawURL string) (vmExportAuthConfig, error) {

@@ -3,7 +3,9 @@ package volume
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
@@ -14,13 +16,15 @@ import (
 )
 
 type vmDiskImportConfig struct {
-	VolumeName string `json:"volume_name"`
-	DiskKey    string `json:"disk_key"`
-	DiskName   string `json:"disk_name"`
-	ImageURL   string `json:"image_url"`
-	SourceURI  string `json:"source_uri"`
-	Format     string `json:"format"`
-	Checksum   string `json:"checksum"`
+	VolumeName    string   `json:"volume_name"`
+	DiskKey       string   `json:"disk_key"`
+	DiskName      string   `json:"disk_name"`
+	ImageURL      string   `json:"image_url"`
+	SourceURI     string   `json:"source_uri"`
+	Format        string   `json:"format"`
+	Checksum      string   `json:"checksum"`
+	CertConfigMap string   `json:"-"`
+	ExtraHeaders  []string `json:"-"`
 }
 
 func loadVMDiskImportConfigs(serviceID string, dbmanager db.Manager) (map[string]vmDiskImportConfig, error) {
@@ -186,7 +190,9 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 		Spec: cdiv1.DataVolumeSpec{
 			Source: &cdiv1.DataVolumeSource{
 				HTTP: &cdiv1.DataVolumeSourceHTTP{
-					URL: cfg.ImageURL,
+					URL:           cfg.ImageURL,
+					CertConfigMap: cfg.CertConfigMap,
+					ExtraHeaders:  cfg.ExtraHeaders,
 				},
 			},
 			Storage: &cdiv1.StorageSpec{
@@ -197,4 +203,27 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			},
 		},
 	}
+}
+
+func resolveVMExportHTTPImportConfigMap(claimName, imageURL string) (*corev1.ConfigMap, []string, error) {
+	authConfig, err := sourceutil.LookupVMExportAuthConfigByURL(imageURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	var configMap *corev1.ConfigMap
+	if len(authConfig.CertPEM) > 0 {
+		configMap = &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-vmexport-ca", claimName),
+			},
+			Data: map[string]string{
+				"ca.crt": string(authConfig.CertPEM),
+			},
+		}
+	}
+	extraHeaders := []string{}
+	if token := strings.TrimSpace(string(authConfig.Token)); token != "" {
+		extraHeaders = append(extraHeaders, fmt.Sprintf("x-kubevirt-export-token:%s", token))
+	}
+	return configMap, extraHeaders, nil
 }
