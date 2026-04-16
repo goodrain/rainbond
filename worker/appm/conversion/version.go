@@ -173,27 +173,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			as.SetConfigMap(configMap)
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
-		if format := vmBootSourceFormat(as.ExtensionSet); format != "" && format != "iso" {
-			logrus.Warningf(
-				"vm boot source format %q is temporarily forced to iso installer path: service_id=%s service_alias=%s",
-				format,
-				as.ServiceID,
-				as.ServiceAlias,
-			)
-		}
-		bootPath := vmBootPathISOInstaller
+		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
 		volumes := dv.GetVMVolume()
-		volumes = append([]kubevirtv1.Volume{
-			{
-				Name: "vmimage",
-				VolumeSource: kubevirtv1.VolumeSource{
-					ContainerDisk: &kubevirtv1.ContainerDiskSource{
-						Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
-						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
-					},
-				},
-			},
-		}, volumes...)
+		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName := prepareVMImageBootVolumes(
+			bootPath,
+			fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
+			volumes,
+			vmDataVolumeTemplates,
+		)
 		logrus.Infof(
 			"vm template assemble flags: service_id=%s service_alias=%s initial_disks=%s initial_volumes=%s data_volume_templates=%s",
 			as.ServiceID,
@@ -204,13 +191,19 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		)
 		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
-		layoutDisks, _, err := applyVMDiskLayout(as.ExtensionSet, disks)
+		layoutDisks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
 		if err != nil {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = layoutDisks
+		disks = prepareVMImageBootDisks(bootPath, disks, rootBlankDataVolumeName)
 		disks = append(disks, vmRuntime.Disks...)
-		disks = appendISOInstallerDisk(disks, nil)
+		switch bootPath {
+		case vmBootPathISOInstaller:
+			disks = appendISOInstallerDisk(disks, rootBootOrder)
+		case vmBootPathVMImageRootDisk:
+			disks = appendVMImageRootDisk(disks, rootBootOrder)
+		}
 		logrus.Infof(
 			"vm template assemble result: service_id=%s service_alias=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
 			as.ServiceID,

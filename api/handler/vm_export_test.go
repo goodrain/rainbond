@@ -143,6 +143,84 @@ func TestDiscoverVMExportDisksSupportsDataVolumeRootDisk(t *testing.T) {
 	assert.True(t, hasPersistentRootDisk(disks))
 }
 
+func TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume(t *testing.T) {
+	vm := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			DataVolumeTemplates: []kubevirtv1.DataVolumeTemplateSpec{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "manual-root",
+						Annotations: map[string]string{"volume_name": "disk"},
+					},
+				},
+			},
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Volumes: []kubevirtv1.Volume{
+						{
+							Name: "vmimage",
+							VolumeSource: kubevirtv1.VolumeSource{
+								ContainerDisk: &kubevirtv1.ContainerDiskSource{
+									Image: "demo/installer:latest",
+								},
+							},
+						},
+						{
+							Name: "rootdisk",
+							VolumeSource: kubevirtv1.VolumeSource{
+								DataVolume: &kubevirtv1.DataVolumeSource{
+									Name: "manual-root",
+								},
+							},
+						},
+						{
+							Name: "datadisk",
+							VolumeSource: kubevirtv1.VolumeSource{
+								PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
+									PersistentVolumeClaimVolumeSource: corePersistentVolumeClaimSource("datadisk-pvc"),
+								},
+							},
+						},
+					},
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							Disks: []kubevirtv1.Disk{
+								{
+									Name:      "vmimage",
+									BootOrder: uintPtr(1),
+								},
+								{
+									Name:      "rootdisk",
+									BootOrder: uintPtr(2),
+								},
+								{
+									Name:      "datadisk",
+									BootOrder: uintPtr(3),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	disks := discoverVMExportDisks(vm)
+	if assert.Len(t, disks, 2) {
+		assert.Equal(t, "root", disks[0].DiskRole)
+		assert.Equal(t, uint(2), disks[0].BootOrder)
+		assert.Equal(t, "manual-root", disks[0].PVCName)
+		assert.Equal(t, "data", disks[1].DiskRole)
+		assert.Equal(t, uint(3), disks[1].BootOrder)
+		assert.Equal(t, "datadisk-pvc", disks[1].PVCName)
+	}
+	assert.True(t, hasPersistentRootDisk(disks))
+}
+
 func TestDiscoverVMExportDisksWithoutPersistentRootDisk(t *testing.T) {
 	vm := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{

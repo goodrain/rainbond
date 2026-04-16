@@ -5976,6 +5976,10 @@
         {
           "path": "api/handler/vm_export_test.go",
           "selector": "TestDiscoverVMExportDisksSupportsDataVolumeRootDisk"
+        },
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume"
         }
       ],
       "test_type": "regression",

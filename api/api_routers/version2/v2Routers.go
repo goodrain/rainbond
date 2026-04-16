@@ -479,7 +479,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/resource-center/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 	r.Get("/vm/capabilities", controller.GetVMCapabilityController().GetCapabilities)
 	r.Post("/vm-assets/restore-plan", controller.GetVMExportController().BuildVMAssetRestorePlan)
-
 	return r
 }
 

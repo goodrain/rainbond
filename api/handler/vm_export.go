@@ -302,6 +302,15 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 		return disks[i].DiskKey < disks[j].DiskKey
 	})
 	if len(disks) > 0 {
+		rootDiskKey := discoverVMExportRootDiskKey(vm)
+		if rootDiskKey != "" {
+			for i := range disks {
+				if disks[i].DiskKey == rootDiskKey {
+					disks[i].DiskRole = "root"
+					return disks
+				}
+			}
+		}
 		for _, disk := range vm.Spec.Template.Spec.Domain.Devices.Disks {
 			if disk.BootOrder != nil && *disk.BootOrder == 1 {
 				for i := range disks {
@@ -315,6 +324,34 @@ func discoverVMExportDisks(vm *kubevirtv1.VirtualMachine) []VMExportDisk {
 		}
 	}
 	return disks
+}
+
+func discoverVMExportRootDiskKey(vm *kubevirtv1.VirtualMachine) string {
+	rootDataVolumeName := vmExportRootDataVolumeName(vm)
+	if rootDataVolumeName == "" || vm.Spec.Template == nil {
+		return ""
+	}
+	for _, volume := range vm.Spec.Template.Spec.Volumes {
+		if volume.DataVolume == nil {
+			continue
+		}
+		if strings.TrimSpace(volume.DataVolume.Name) == rootDataVolumeName {
+			return volume.Name
+		}
+	}
+	return ""
+}
+
+func vmExportRootDataVolumeName(vm *kubevirtv1.VirtualMachine) string {
+	if vm == nil {
+		return ""
+	}
+	for _, template := range vm.Spec.DataVolumeTemplates {
+		if strings.TrimSpace(template.Annotations["volume_name"]) == "disk" {
+			return template.Name
+		}
+	}
+	return ""
 }
 
 func vmExportPVCName(volume kubevirtv1.Volume) string {
