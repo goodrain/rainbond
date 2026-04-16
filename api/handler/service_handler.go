@@ -44,6 +44,7 @@ type ServiceHandler interface {
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
 	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
+	DeleteVMExport(serviceID, exportID string) error
 	GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error)
 	PersistVMExport(serviceID, exportID string, req *VMExportPersistRequest) (*VMExportPersistStatus, error)
 	BuildVMAssetRestorePlan(req *VMAssetRestorePlanRequest) (*VMAssetRestorePlan, error)

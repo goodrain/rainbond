@@ -219,8 +219,18 @@ func deleteVMExportResources(dynamicClient dynamic.Interface, serviceID, exportI
 	if dynamicClient == nil {
 		return fmt.Errorf("dynamic client is nil")
 	}
-	selector := fmt.Sprintf("service_id=%s,vm_export_id=%s", serviceID, exportID)
-	return dynamicClient.Resource(vmDataExportGVR).Namespace(metav1.NamespaceAll).DeleteCollection(context.Background(), metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: selector,
-	})
+	list, err := dynamicClient.Resource(vmDataExportGVR).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, item := range list.Items {
+		labels := item.GetLabels()
+		if labels["service_id"] != serviceID || labels["vm_export_id"] != exportID {
+			continue
+		}
+		if err := dynamicClient.Resource(vmDataExportGVR).Namespace(item.GetNamespace()).Delete(context.Background(), item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

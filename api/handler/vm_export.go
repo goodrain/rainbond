@@ -10,6 +10,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -48,6 +49,7 @@ type VMExportDisk struct {
 	Status       string `json:"status,omitempty"`
 	DownloadURL  string `json:"download_url,omitempty"`
 	Message      string `json:"message,omitempty"`
+	SizeBytes    int64  `json:"size_bytes,omitempty"`
 }
 
 type VMExportStatus struct {
@@ -189,8 +191,36 @@ func (s *ServiceAction) StartVMExport(serviceID, exportID string, req *VMExportR
 	}, nil
 }
 
+func (s *ServiceAction) DeleteVMExport(serviceID, exportID string) error {
+	return deleteVMExportResources(vmExportDynamicClient(), serviceID, exportID)
+}
+
 func (s *ServiceAction) GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error) {
-	return BuildVMExportStatus(vmExportDynamicClient(), serviceID, exportID)
+	status, err := BuildVMExportStatus(vmExportDynamicClient(), serviceID, exportID)
+	if err != nil {
+		return nil, err
+	}
+	s.enrichVMExportDiskSizes(status)
+	return status, nil
+}
+
+func (s *ServiceAction) enrichVMExportDiskSizes(status *VMExportStatus) {
+	if s == nil || s.kubeClient == nil || status == nil {
+		return
+	}
+	for i := range status.Disks {
+		disk := &status.Disks[i]
+		if disk.PVCNamespace == "" || disk.PVCName == "" {
+			continue
+		}
+		pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(disk.PVCNamespace).Get(context.Background(), disk.PVCName, metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+		if quantity, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			disk.SizeBytes = quantity.Value()
+		}
+	}
 }
 
 func BuildVMExportStatus(dynamicClient dynamic.Interface, serviceID, exportID string) (*VMExportStatus, error) {

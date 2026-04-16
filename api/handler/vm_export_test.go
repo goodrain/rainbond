@@ -408,6 +408,65 @@ func TestBuildVMExportStatus(t *testing.T) {
 	}
 }
 
+func TestDeleteVMExportResources(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
+		vmDataExportGVR: "VirtualMachineExportList",
+	},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
+				"metadata": map[string]interface{}{
+					"name":      "service-1-rootdisk",
+					"namespace": "default",
+					"labels": map[string]interface{}{
+						"service_id":          "service-1",
+						"vm_export_id":        "service-1",
+						"vm_export_disk_key":  "rootdisk",
+						"vm_export_disk_role": "root",
+					},
+				},
+			},
+		},
+		&unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "export.kubevirt.io/v1beta1",
+				"kind":       "VirtualMachineExport",
+				"metadata": map[string]interface{}{
+					"name":      "service-2-rootdisk",
+					"namespace": "default",
+					"labels": map[string]interface{}{
+						"service_id":          "service-2",
+						"vm_export_id":        "service-2",
+						"vm_export_disk_key":  "rootdisk",
+						"vm_export_disk_role": "root",
+					},
+				},
+			},
+		},
+	)
+
+	err := deleteVMExportResources(client, "service-1", "service-1")
+	assert.NoError(t, err)
+
+	list, err := client.Resource(vmDataExportGVR).Namespace("default").List(t.Context(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	if assert.Len(t, list.Items, 1) {
+		assert.Equal(t, "service-2-rootdisk", list.Items[0].GetName())
+	}
+}
+
+func TestDeleteVMExportResourcesIgnoresMissingExport(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
+		vmDataExportGVR: "VirtualMachineExportList",
+	})
+
+	err := deleteVMExportResources(client, "service-1", "service-1")
+	assert.NoError(t, err)
+}
+
 func TestVMExportRequiresClosedVM(t *testing.T) {
 	assert.True(t, vmExportRequiresClosedVM(nil))
 	assert.True(t, vmExportRequiresClosedVM(&VMExportRequest{}))

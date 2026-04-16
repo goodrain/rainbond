@@ -21,7 +21,7 @@ func TestVMExportControllerStartVMExport(t *testing.T) {
 			if serviceID != "service-1" {
 				t.Fatalf("unexpected service id %s", serviceID)
 			}
-			if exportID != "evt-1" {
+			if exportID != "service-1" {
 				t.Fatalf("unexpected export id %s", exportID)
 			}
 			if req.Name != "snapshot-1" {
@@ -154,6 +154,54 @@ func TestVMExportControllerGetVMExportStatus(t *testing.T) {
 	}
 	if _, ok := body["bean"]; !ok {
 		t.Fatalf("expected bean in response, got %s", recorder.Body.String())
+	}
+}
+
+func TestVMExportControllerDeleteVMExport(t *testing.T) {
+	controller := &VMExportController{
+		deleteExport: func(serviceID, exportID string) error {
+			if serviceID != "service-1" {
+				t.Fatalf("unexpected service id %s", serviceID)
+			}
+			if exportID != "service-1" {
+				t.Fatalf("unexpected export id %s", exportID)
+			}
+			return nil
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/v2/tenants/demo/services/demo/vm-exports/service-1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("export_id", "service-1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	recorder := httptest.NewRecorder()
+
+	controller.DeleteVMExport(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+}
+
+func TestVMExportControllerDeleteVMExportError(t *testing.T) {
+	controller := &VMExportController{
+		deleteExport: func(serviceID, exportID string) error {
+			return errors.New("boom")
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/v2/tenants/demo/services/demo/vm-exports/service-1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("export_id", "service-1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	recorder := httptest.NewRecorder()
+
+	controller.DeleteVMExport(recorder, req)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", recorder.Code)
 	}
 }
 

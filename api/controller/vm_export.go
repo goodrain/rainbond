@@ -16,6 +16,7 @@ import (
 
 type VMExportController struct {
 	startExport     func(serviceID, exportID string, req *handler.VMExportRequest) (*handler.VMExportStatus, error)
+	deleteExport    func(serviceID, exportID string) error
 	getExportStatus func(serviceID, exportID string) (*handler.VMExportStatus, error)
 	persistExport   func(serviceID, exportID string, req *handler.VMExportPersistRequest) (*handler.VMExportPersistStatus, error)
 	restorePlan     func(req *handler.VMAssetRestorePlanRequest) (*handler.VMAssetRestorePlan, error)
@@ -30,7 +31,6 @@ func GetVMExportController() *VMExportController {
 
 func (c *VMExportController) StartVMExport(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
 	var reqBody handler.VMExportRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		httputil.ReturnError(r, w, http.StatusBadRequest, "invalid request body")
@@ -44,7 +44,7 @@ func (c *VMExportController) StartVMExport(w http.ResponseWriter, r *http.Reques
 	if start == nil {
 		start = handler.GetServiceManager().StartVMExport
 	}
-	status, err := start(serviceID, sEvent.EventID, &reqBody)
+	status, err := start(serviceID, serviceID, &reqBody)
 	if err != nil {
 		if errors.Is(err, handler.ErrServiceNotClosed) {
 			httputil.ReturnError(r, w, http.StatusConflict, err.Error())
@@ -62,6 +62,20 @@ func (c *VMExportController) StartVMExport(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	httputil.ReturnSuccess(r, w, status)
+}
+
+func (c *VMExportController) DeleteVMExport(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	exportID := chi.URLParam(r, "export_id")
+	deleteExport := c.deleteExport
+	if deleteExport == nil {
+		deleteExport = handler.GetServiceManager().DeleteVMExport
+	}
+	if err := deleteExport(serviceID, exportID); err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, map[string]string{"export_id": exportID})
 }
 
 func (c *VMExportController) GetVMExportStatus(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +137,10 @@ func (t *TenantStruct) StartVMExport(w http.ResponseWriter, r *http.Request) {
 
 func (t *TenantStruct) GetVMExportStatus(w http.ResponseWriter, r *http.Request) {
 	GetVMExportController().GetVMExportStatus(w, r)
+}
+
+func (t *TenantStruct) DeleteVMExport(w http.ResponseWriter, r *http.Request) {
+	GetVMExportController().DeleteVMExport(w, r)
 }
 
 func (t *TenantStruct) PersistVMExport(w http.ResponseWriter, r *http.Request) {
