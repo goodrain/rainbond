@@ -170,6 +170,24 @@ func parseSourceBuildStrategy(in []byte) string {
 	return strings.TrimSpace(gjson.GetBytes(in, "build_type").String())
 }
 
+func firstNonEmptyBuildEnv(envs map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := envs[key]; ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func sourceBuildMode(envs map[string]string) string {
+	return strings.ToUpper(firstNonEmptyBuildEnv(envs, "MODE", "BUILD_MODE"))
+}
+
+func sourceBuildNoCacheEnabled(envs map[string]string) bool {
+	value := strings.ToLower(firstNonEmptyBuildEnv(envs, "NO_CACHE", "BUILD_NO_CACHE"))
+	return value == "true"
+}
+
 func parseCNBVersionPolicy(in []byte) *build.CNBVersionPolicy {
 	raw := gjson.GetBytes(in, "cnb_version_policy").Raw
 	if raw == "" || raw == "null" {
@@ -420,7 +438,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	codeBuild, err := build.GetBuildByType(code.Lang(i.Lang), buildType)
 	// Handle Node.js projects with DOCKERFILE mode
 	// Check for Node.js language (including combined types like "Node.js,static")
-	if strings.Contains(i.Lang, string(code.Nodejs)) && i.BuildEnvs["MODE"] == "DOCKERFILE" {
+	if strings.Contains(i.Lang, string(code.Nodejs)) && sourceBuildMode(i.BuildEnvs) == "DOCKERFILE" {
 		codeBuild, err = build.GetBuild(code.NodeJSDockerfile)
 	}
 	if err != nil {
@@ -504,7 +522,7 @@ func (i *SourceCodeBuildItem) prepare() error {
 	if err := util.CheckAndCreateDir(i.RepoInfo.GetCodeHome()); err != nil {
 		return err
 	}
-	if _, ok := i.BuildEnvs["NO_CACHE"]; ok {
+	if sourceBuildNoCacheEnabled(i.BuildEnvs) {
 		if err := os.RemoveAll(i.CacheDir); err != nil {
 			logrus.Error("remove cache dir error", err.Error())
 		}

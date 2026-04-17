@@ -126,10 +126,13 @@ func expandBuildEnvsForSlugBuild(envs map[string]string) map[string]string {
 		"BUILD_GOPRIVATE":               "GOPRIVATE",
 		"BUILD_GO_INSTALL_PACKAGE_SPEC": "GO_INSTALL_PACKAGE_SPEC",
 		"BUILD_PIP_INDEX_URL":           "PIP_INDEX_URL",
+		"BUILD_PACKAGE_TOOL":            "PACKAGE_TOOL",
 		"BUILD_NODE_ENV":                "NODE_ENV",
 		"BUILD_NODE_MODULES_CACHE":      "NODE_MODULES_CACHE",
 		"BUILD_NODE_BUILD_CMD":          "NODE_BUILD_CMD",
+		"BUILD_NPMRC_CONTENT":           "NPMRC_CONTENT",
 		"BUILD_NPM_REGISTRY":            "NPM_REGISTRY",
+		"BUILD_YARNRC_CONTENT":          "YARNRC_CONTENT",
 		"BUILD_YARN_REGISTRY":           "YARN_REGISTRY",
 		"BUILD_PROCFILE":                "PROCFILE",
 		"BUILD_RUNTIMES":                "RUNTIMES",
@@ -138,14 +141,31 @@ func expandBuildEnvsForSlugBuild(envs map[string]string) map[string]string {
 		"BUILD_GOVERSION":               "GOVERSION",
 	}
 	for buildKey, legacyKey := range legacyAliases {
-		if _, exists := expanded[legacyKey]; exists {
+		if value, exists := expanded[legacyKey]; exists && strings.TrimSpace(value) != "" {
 			continue
 		}
 		if value, ok := expanded[buildKey]; ok && strings.TrimSpace(value) != "" {
 			expanded[legacyKey] = value
 		}
 	}
+	backfillLegacyAlias(expanded, "DIST_DIR", "BUILD_DIST_DIR", "BUILD_OUTPUT_DIR")
+	backfillLegacyAlias(expanded, "NODE_BUILD_CMD", "BUILD_NODE_BUILD_CMD", "BUILD_BUILD_CMD")
 	return expanded
+}
+
+func backfillLegacyAlias(envs map[string]string, legacyKey string, buildKeys ...string) {
+	if envs == nil {
+		return
+	}
+	if value, exists := envs[legacyKey]; exists && strings.TrimSpace(value) != "" {
+		return
+	}
+	for _, buildKey := range buildKeys {
+		if value, ok := envs[buildKey]; ok && strings.TrimSpace(value) != "" {
+			envs[legacyKey] = value
+			return
+		}
+	}
 }
 
 func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[string]string) error {
