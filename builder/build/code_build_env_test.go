@@ -125,3 +125,64 @@ func TestExpandBuildEnvsForSlugBuildDoesNotOverrideExistingLegacyAliases(t *test
 		t.Fatalf("expected explicit PROCFILE to win, got %q", got["PROCFILE"])
 	}
 }
+
+func TestExpandBuildEnvsForSlugBuildBackfillsBlankLegacyAliases(t *testing.T) {
+	envs := map[string]string{
+		"BUILD_GOPROXY":                 "https://goproxy.cn",
+		"BUILD_GOPRIVATE":               "github.com/acme/*",
+		"BUILD_GO_INSTALL_PACKAGE_SPEC": "./cmd/demo",
+		"GOPROXY":                       "",
+		"GOPRIVATE":                     "",
+		"GO_INSTALL_PACKAGE_SPEC":       "",
+	}
+
+	got := expandBuildEnvsForSlugBuild(envs)
+
+	if got["GOPROXY"] != envs["BUILD_GOPROXY"] {
+		t.Fatalf("expected blank GOPROXY alias to be backfilled, got %q", got["GOPROXY"])
+	}
+	if got["GOPRIVATE"] != envs["BUILD_GOPRIVATE"] {
+		t.Fatalf("expected blank GOPRIVATE alias to be backfilled, got %q", got["GOPRIVATE"])
+	}
+	if got["GO_INSTALL_PACKAGE_SPEC"] != envs["BUILD_GO_INSTALL_PACKAGE_SPEC"] {
+		t.Fatalf("expected blank GO_INSTALL_PACKAGE_SPEC alias to be backfilled, got %q", got["GO_INSTALL_PACKAGE_SPEC"])
+	}
+}
+
+func TestExpandBuildEnvsForSlugBuildAddsNodeCompatibilityAliases(t *testing.T) {
+	envs := map[string]string{
+		"BUILD_PACKAGE_TOOL": "pnpm",
+		"BUILD_OUTPUT_DIR":   "build",
+		"BUILD_BUILD_CMD":    "pnpm run build",
+	}
+
+	got := expandBuildEnvsForSlugBuild(envs)
+
+	if got["PACKAGE_TOOL"] != "pnpm" {
+		t.Fatalf("expected PACKAGE_TOOL alias to be synthesized, got %q", got["PACKAGE_TOOL"])
+	}
+	if got["DIST_DIR"] != "build" {
+		t.Fatalf("expected DIST_DIR alias to be synthesized from BUILD_OUTPUT_DIR, got %q", got["DIST_DIR"])
+	}
+	if got["NODE_BUILD_CMD"] != "pnpm run build" {
+		t.Fatalf("expected NODE_BUILD_CMD alias to be synthesized from BUILD_BUILD_CMD, got %q", got["NODE_BUILD_CMD"])
+	}
+}
+
+func TestExpandBuildEnvsForSlugBuildPrefersExplicitNodeCompatAliases(t *testing.T) {
+	envs := map[string]string{
+		"BUILD_DIST_DIR":      "public",
+		"BUILD_OUTPUT_DIR":    "build",
+		"BUILD_NODE_BUILD_CMD": "npm run build",
+		"BUILD_BUILD_CMD":     "pnpm run build",
+	}
+
+	got := expandBuildEnvsForSlugBuild(envs)
+
+	if got["DIST_DIR"] != "public" {
+		t.Fatalf("expected BUILD_DIST_DIR to win for DIST_DIR, got %q", got["DIST_DIR"])
+	}
+	if got["NODE_BUILD_CMD"] != "npm run build" {
+		t.Fatalf("expected BUILD_NODE_BUILD_CMD to win for NODE_BUILD_CMD, got %q", got["NODE_BUILD_CMD"])
+	}
+}
