@@ -159,6 +159,15 @@ func LookupVMExportAuthConfigByURL(rawURL string) (VMExportAuthConfig, error) {
 	if err != nil {
 		return VMExportAuthConfig{}, err
 	}
+	logrus.Infof(
+		"vm export auth lookup result: url=%s export=%s namespace=%s source=%s cert=%t token=%t",
+		rawURL,
+		authConfig.ExportName,
+		authConfig.Namespace,
+		authConfig.Source,
+		len(authConfig.CertPEM) > 0,
+		len(authConfig.Token) > 0,
+	)
 	return VMExportAuthConfig{
 		CertPEM:    authConfig.CertPEM,
 		Token:      authConfig.Token,
@@ -192,6 +201,7 @@ func lookupVMExportAuthByURL(rawURL string) (vmExportAuthConfig, error) {
 			return authConfig, nil
 		}
 	}
+	logrus.Warningf("vm export auth lookup missed: url=%s", rawURL)
 	return vmExportAuthConfig{}, nil
 }
 

@@ -85,6 +85,16 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			if len(extraHeaders) > 0 {
 				cfg.ExtraHeaders = extraHeaders
 			}
+			logrus.Infof(
+				"vm import config prepared: service_id=%s service_alias=%s claim=%s volume_name=%s image_url=%s cert_configmap=%s extra_headers=%d",
+				v.as.ServiceID,
+				v.as.ServiceAlias,
+				claim.Name,
+				v.svm.VolumeName,
+				cfg.ImageURL,
+				cfg.CertConfigMap,
+				len(cfg.ExtraHeaders),
+			)
 			importConfig = &cfg
 		}
 		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)

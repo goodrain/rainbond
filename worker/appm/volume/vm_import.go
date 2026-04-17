@@ -181,6 +181,15 @@ func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels,
 }
 
 func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) kubevirtv1.DataVolumeTemplateSpec {
+	logrus.Infof(
+		"vm disk import template build: claim=%s service_id=%s volume_name=%s image_url=%s cert_configmap=%s extra_headers=%d",
+		claim.Name,
+		labels["service_id"],
+		annotations["volume_name"],
+		cfg.ImageURL,
+		cfg.CertConfigMap,
+		len(cfg.ExtraHeaders),
+	)
 	return kubevirtv1.DataVolumeTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        claim.Name,
@@ -225,5 +234,14 @@ func resolveVMExportHTTPImportConfigMap(claimName, imageURL string) (*corev1.Con
 	if token := strings.TrimSpace(string(authConfig.Token)); token != "" {
 		extraHeaders = append(extraHeaders, fmt.Sprintf("x-kubevirt-export-token:%s", token))
 	}
+	logrus.Infof(
+		"vm export http import auth resolved: claim=%s url=%s export=%s namespace=%s cert=%t token=%t",
+		claimName,
+		imageURL,
+		authConfig.ExportName,
+		authConfig.Namespace,
+		configMap != nil,
+		len(extraHeaders) > 0,
+	)
 	return configMap, extraHeaders, nil
 }
