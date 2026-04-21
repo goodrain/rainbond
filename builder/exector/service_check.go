@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/db"
 	"runtime/debug"
+	"strings"
 
 	"github.com/ghodss/yaml"
 
@@ -100,7 +101,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		}
 	}()
 	logger.Info("Start component deploy source check.", map[string]string{"step": "starting"})
-	logrus.Infof("开始检查服务，类型: %s", input.SourceType)
+	logServiceCheckProgress(logger, "开始检查服务，类型: %s", input.SourceType)
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
@@ -147,9 +148,9 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		logrus.Errorf("不支持的服务类型: %s", input.SourceType)
 		return
 	}
-	logrus.Infof("开始解析服务配置，类型: %s", input.SourceType)
+	logServiceCheckProgress(logger, "开始解析服务配置，类型: %s", input.SourceType)
 	errList := pr.Parse()
-	logrus.Infof("服务配置解析完成，类型: %s, 错误数: %d", input.SourceType, len(errList))
+	logServiceCheckProgress(logger, "服务配置解析完成，类型: %s, 错误数: %d", input.SourceType, len(errList))
 	for i, err := range errList {
 		if err.SolveAdvice == "" && input.SourceType == "vm-run" {
 			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
@@ -188,6 +189,23 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		logrus.Errorf("put servicecheck k %s into db error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	logrus.Infof("check service by type: %s  success", input.SourceType)
+	logrus.Info(serviceCheckCompletionLogSummary(input.SourceType, sr.CheckStatus))
 	logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
+}
+
+func serviceCheckCompletionLogSummary(sourceType, checkStatus string) string {
+	status := strings.ToLower(strings.TrimSpace(checkStatus))
+	if status == "" {
+		status = "unknown"
+	}
+	return fmt.Sprintf("check service by type: %s completed with check status: %s", sourceType, status)
+}
+
+func logServiceCheckProgress(logger event.Logger, format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	logrus.Info(message)
+	if logger == nil {
+		return
+	}
+	logger.Info(message, map[string]string{"step": "service_check", "status": "running"})
 }

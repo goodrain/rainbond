@@ -1,4 +1,4 @@
-FROM rainbond/golang:1.23-alpine AS compile
+FROM golang:1.25-alpine AS compile
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY
@@ -30,4 +30,3 @@ WORKDIR /run
 
 ENTRYPOINT ["/run/entrypoint.sh"]
 CMD ["decoupling_probe"]
-

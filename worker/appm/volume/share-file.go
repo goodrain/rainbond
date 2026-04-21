@@ -59,6 +59,10 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.generateVolumeSubPath(define, vm)
 		define.volumeMounts = append(define.volumeMounts, *vm)
 	} else if v.as.GetVirtualMachine() != nil {
+		importConfigs, err := loadVMDiskImportConfigs(v.as.ServiceID, v.dbmanager)
+		if err != nil {
+			return err
+		}
 		labels := v.as.GetCommonLabels(map[string]string{
 			"volume_name": volumeMountName,
 			"stateless":   "",
@@ -66,17 +70,39 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
-		v.as.SetClaimManually(claim)
-		vo := kubevirtv1.Volume{
-			Name: volumeMountName,
-			VolumeSource: kubevirtv1.VolumeSource{
-				PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
-					PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: claim.Name,
-					},
-					Hotpluggable: false,
-				},
-			},
+		var importConfig *vmDiskImportConfig
+		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
+			authConfigMap, extraHeaders, err := resolveVMExportHTTPImportConfigMap(claim.Name, cfg.ImageURL)
+			if err != nil {
+				return err
+			}
+			cfg.CertConfigMap = ""
+			cfg.ExtraHeaders = nil
+			if authConfigMap != nil {
+				cfg.CertConfigMap = authConfigMap.Name
+				v.as.SetConfigMap(authConfigMap)
+			}
+			if len(extraHeaders) > 0 {
+				cfg.ExtraHeaders = extraHeaders
+			}
+			logrus.Infof(
+				"vm import config prepared: service_id=%s service_alias=%s claim=%s volume_name=%s image_url=%s cert_configmap=%s extra_headers=%d",
+				v.as.ServiceID,
+				v.as.ServiceAlias,
+				claim.Name,
+				v.svm.VolumeName,
+				cfg.ImageURL,
+				cfg.CertConfigMap,
+				len(cfg.ExtraHeaders),
+			)
+			importConfig = &cfg
+		}
+		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)
+		if dvTemplate != nil {
+			define.vmDVTemplate = append(define.vmDVTemplate, *dvTemplate)
+		}
+		if manualClaim {
+			v.as.SetClaimManually(claim)
 		}
 		var dd kubevirtv1.DiskDevice
 		switch volumeMountPath {
@@ -107,6 +133,23 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		}
 		define.vmDisk = append(define.vmDisk, dk)
 		define.vmVolume = append(define.vmVolume, vo)
+		logrus.Infof(
+			"vm volume appended: service_id=%s service_alias=%s source_volume=%s claim=%s mount_path=%s import=%t manual_claim=%t disk_name=%s boot_order=%d device=disk:%t,lun:%t,cdrom:%t current_vm_disks=%d current_vm_volumes=%d",
+			v.as.ServiceID,
+			v.as.ServiceAlias,
+			v.svm.VolumeName,
+			claim.Name,
+			volumeMountPath,
+			importConfig != nil,
+			manualClaim,
+			dk.Name,
+			bootOrder,
+			dk.DiskDevice.Disk != nil,
+			dk.DiskDevice.LUN != nil,
+			dk.DiskDevice.CDRom != nil,
+			len(define.vmDisk),
+			len(define.vmVolume),
+		)
 	} else {
 		for _, m := range define.volumeMounts {
 			if m.MountPath == volumeMountPath { // TODO move to prepare

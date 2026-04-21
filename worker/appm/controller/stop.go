@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type stopController struct {
@@ -48,8 +49,8 @@ type stopController struct {
 func (s *stopController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
+		wait.Add(1)
 		go func(service v1.AppService) {
-			wait.Add(1)
 			defer wait.Done()
 			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
@@ -62,21 +63,21 @@ func (s *stopController) Begin() {
 			} else {
 				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 				err = db.GetManager().ServiceEventDao().DelAllAbnormalEvent(service.ServiceID, []string{
-				"INITIATING",
-				"CrashLoopBackOff",
-				"Unschedulable",
-				"ReadinessUnhealthy",
-				"LivenessRestart",
-				"StartupProbeFailure",
-				"LivenessProbeFailed",
-				"ReadinessProbeFailed",
-				"HealthCheckPassed",
-				"ContainerExitError",
-				"ImagePullBackOff",
-				"CreateContainerConfigError",
-				"OOMKilled",
-				"Evicted",
-			})
+					"INITIATING",
+					"CrashLoopBackOff",
+					"Unschedulable",
+					"ReadinessUnhealthy",
+					"LivenessRestart",
+					"StartupProbeFailure",
+					"LivenessProbeFailed",
+					"ReadinessProbeFailed",
+					"HealthCheckPassed",
+					"ContainerExitError",
+					"ImagePullBackOff",
+					"CreateContainerConfigError",
+					"OOMKilled",
+					"Evicted",
+				})
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Error("delete abnormal event error: ", err)
 				}
@@ -154,6 +155,9 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	// for custom component
 	if len(app.GetManifests()) > 0 {
 		for _, manifest := range app.GetManifests() {
+			if !shouldDeleteManifestWithRuntimeClient(manifest) {
+				continue
+			}
 			if err := s.manager.runtimeClient.Delete(s.ctx, manifest); err != nil && !errors.IsNotFound(err) {
 				logrus.Errorf("delete custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
 			}
@@ -169,7 +173,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, &metav1.DeleteOptions{})
+		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete vm failure:%s", err.Error())
 		}
@@ -306,4 +310,11 @@ func (s *stopController) deleteBetaIngress(namespace, ingressName string, zero i
 		return fmt.Errorf("delete ingress failure:%s", err.Error())
 	}
 	return nil
+}
+
+func shouldDeleteManifestWithRuntimeClient(manifest *unstructured.Unstructured) bool {
+	if manifest == nil {
+		return false
+	}
+	return manifest.GetKind() != "VirtualMachine"
 }

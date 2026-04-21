@@ -6,6 +6,7 @@ import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
@@ -21,9 +22,21 @@ import (
 	"strings"
 )
 
-var vmDockerfileTmpl = `
+type vmBuildMedia string
+
+const (
+	vmBuildMediaISO  vmBuildMedia = "iso"
+	vmBuildMediaDisk vmBuildMedia = "disk"
+)
+
+var vmISODockerfileTmpl = `
 FROM scratch
-ADD ${VM_PATH} /disk/
+COPY --chown=107:107 ${VM_PATH} /disk/
+`
+
+var vmDiskDockerfileTmpl = `
+FROM scratch
+ADD --chown=107:107 ${VM_PATH} /disk/
 `
 
 // VMBuildItem -
@@ -64,7 +77,6 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 }
 
 func (v *VMBuildItem) vmBuild(sourcePath string) error {
-	envs := make(map[string]string)
 	fileInfoList, err := ioutil.ReadDir(sourcePath)
 	if err != nil {
 		return err
@@ -72,8 +84,17 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 	if len(fileInfoList) != 1 {
 		return fmt.Errorf("%v file len is not 1", sourcePath)
 	}
-	envs["VM_PATH"] = path.Join("./", fileInfoList[0].Name())
-	dockerfile := util.ParseVariable(vmDockerfileTmpl, envs)
+	logrus.Infof(
+		"vm runtime image build context: service_id=%s event_id=%s source_path=%s file=%s",
+		v.ServiceID,
+		v.EventID,
+		sourcePath,
+		fileInfoList[0].Name(),
+	)
+	dockerfile, err := renderVMDockerfile(fileInfoList[0].Name())
+	if err != nil {
+		return err
+	}
 
 	dfpath := path.Join(sourcePath, "Dockerfile")
 	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
@@ -95,13 +116,54 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 	return nil
 }
 
+func renderVMDockerfile(fileName string) (string, error) {
+	media, err := resolveVMBuildMedia(fileName)
+	if err != nil {
+		return "", err
+	}
+	envs := map[string]string{
+		"VM_PATH": path.Join("./", fileName),
+	}
+	switch media {
+	case vmBuildMediaISO:
+		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), nil
+	case vmBuildMediaDisk:
+		return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
+	default:
+		return "", fmt.Errorf("unsupported vm build media %q", media)
+	}
+}
+
+func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
+	name := strings.ToLower(strings.TrimSpace(fileName))
+	for _, suffix := range []string{".gz", ".xz"} {
+		if strings.HasSuffix(name, suffix) {
+			name = strings.TrimSuffix(name, suffix)
+			break
+		}
+	}
+	switch {
+	case strings.HasSuffix(name, ".iso"):
+		return vmBuildMediaISO, nil
+	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".tar"):
+		return vmBuildMediaDisk, nil
+	default:
+		return "", fmt.Errorf("unsupported vm image format for %q", fileName)
+	}
+}
+
 // RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
-	if strings.HasPrefix(v.VMImageSource, "/grdata") {
+	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
+		logrus.Infof("vm build uses local package source: service_id=%s event_id=%s source=%s", v.ServiceID, v.EventID, v.VMImageSource)
+		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
+			return err
+		}
 		defer os.RemoveAll(v.VMImageSource)
 		return v.vmBuild(v.VMImageSource)
 	}
 	vmImageSource := fmt.Sprintf("/grdata/package_build/temp/events/%v", v.ServiceID)
+	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
 	err := downloadFile(vmImageSource, v.VMImageSource, v.Logger)
 	if err != nil {
 		return err
@@ -112,7 +174,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 
 func downloadFile(downPath, url string, Logger event.Logger) error {
 	// 创建一个 HTTP client 和 request
-	client := &http.Client{}
+	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -129,6 +191,7 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	defer func() {
 		_ = rsp.Body.Close()
 	}()
+	logrus.Infof("vm source download response: url=%s status=%d content_length=%d", url, rsp.StatusCode, rsp.ContentLength)
 	baseURL := filepath.Base(url)
 	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)

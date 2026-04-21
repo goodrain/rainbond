@@ -545,7 +545,9 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	if v.VMImageSource != "" {
 		err := v.RunVMBuild()
 		if err != nil {
-			logrus.Errorf("failure")
+			logrus.Errorf("build from vm error: %v", err)
+			v.Logger.Error(err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			return
 		}
 	}
 	var configs = make(map[string]string, len(v.Configs))

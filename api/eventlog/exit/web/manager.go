@@ -35,9 +35,8 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
+	_ "k8s.io/component-base/metrics/prometheus/version"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -545,7 +544,6 @@ func (s *SocketServer) receiveEventMessage(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *SocketServer) prometheus(r *chi.Mux) {
-	prometheus.MustRegister(version.NewCollector("event_log"))
 	r.Handle(s.conf.PrometheusMetricPath, promhttp.Handler())
 }
 

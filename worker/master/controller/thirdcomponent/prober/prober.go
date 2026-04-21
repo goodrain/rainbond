@@ -11,17 +11,14 @@ import (
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/probe"
-	httpprobe "k8s.io/kubernetes/pkg/probe/http"
-	tcpprobe "k8s.io/kubernetes/pkg/probe/tcp"
 )
 
 const maxProbeRetries = 3
 
 // Prober helps to check the readiness of a endpoint.
 type prober struct {
-	http httpprobe.Prober
-	tcp  tcpprobe.Prober
+	http httpRuntimeProber
+	tcp  tcpRuntimeProber
 
 	logger   *logrus.Entry
 	recorder record.EventRecorder
@@ -32,8 +29,8 @@ func newProber(
 	recorder record.EventRecorder) *prober {
 	return &prober{
 		logger:   logrus.WithField("WHO", "Thirdcomponent Prober"),
-		http:     httpprobe.New(true),
-		tcp:      tcpprobe.New(),
+		http:     newHTTPRuntimeProber(true),
+		tcp:      newTCPRuntimeProber(),
 		recorder: recorder,
 	}
 }
@@ -48,12 +45,12 @@ func (pb *prober) probe(thirdComponent *v1alpha1.ThirdComponent, endpointStatus 
 	}
 
 	result, output, err := pb.runProbeWithRetries(probeSpec, thirdComponent, endpointStatus, endpointID, maxProbeRetries)
-	if err != nil || (result != probe.Success) {
+	if err != nil || (result != runtimeProbeResultSuccess) {
 		// Probe failed in one way or another.
 		if err != nil {
 			pb.logger.Infof("probe for %q errored: %v", endpointID, err)
 			pb.recordContainerEvent(thirdComponent, v1.EventTypeWarning, "EndpointUnhealthy", "probe errored: %v", err)
-		} else { // result != probe.Success
+		} else {
 			pb.logger.Debugf("probe for %q failed (%v): %s", endpointID, result, output)
 			pb.recordContainerEvent(thirdComponent, v1.EventTypeWarning, "EndpointUnhealthy", "probe failed: %s", output)
 		}
@@ -64,9 +61,9 @@ func (pb *prober) probe(thirdComponent *v1alpha1.ThirdComponent, endpointStatus 
 
 // runProbeWithRetries tries to probe the container in a finite loop, it returns the last result
 // if it never succeeds.
-func (pb *prober) runProbeWithRetries(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComponent, endpointStatus *v1alpha1.ThirdComponentEndpointStatus, endpointID string, retries int) (probe.Result, string, error) {
+func (pb *prober) runProbeWithRetries(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComponent, endpointStatus *v1alpha1.ThirdComponentEndpointStatus, endpointID string, retries int) (probeResult, string, error) {
 	var err error
-	var result probe.Result
+	var result probeResult
 	var output string
 	for i := 0; i < retries; i++ {
 		result, output, err = pb.runProbe(p, thirdComponent, endpointStatus, endpointID)
@@ -77,13 +74,13 @@ func (pb *prober) runProbeWithRetries(p *v1alpha1.Probe, thirdComponent *v1alpha
 	return result, output, err
 }
 
-func (pb *prober) runProbe(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComponent, endpointStatus *v1alpha1.ThirdComponentEndpointStatus, endpointID string) (probe.Result, string, error) {
+func (pb *prober) runProbe(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComponent, endpointStatus *v1alpha1.ThirdComponentEndpointStatus, endpointID string) (probeResult, string, error) {
 	timeout := time.Duration(p.TimeoutSeconds) * time.Second
 
 	if p.HTTPGet != nil {
 		u, err := url.Parse(endpointStatus.Address.EnsureScheme())
 		if err != nil {
-			return probe.Unknown, "", err
+			return runtimeProbeResultUnknown, "", err
 		}
 		headers := buildHeader(p.HTTPGet.HTTPHeaders)
 		return pb.http.Probe(u, headers, timeout)
@@ -94,7 +91,7 @@ func (pb *prober) runProbe(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComp
 	}
 
 	pb.logger.Warningf("Failed to find probe builder for endpoint address: %v", endpointID)
-	return probe.Unknown, "", fmt.Errorf("missing probe handler for %s/%s", thirdComponent.Namespace, thirdComponent.Name)
+	return runtimeProbeResultUnknown, "", fmt.Errorf("missing probe handler for %s/%s", thirdComponent.Namespace, thirdComponent.Name)
 }
 
 // recordContainerEvent should be used by the prober for all endpoints related events.

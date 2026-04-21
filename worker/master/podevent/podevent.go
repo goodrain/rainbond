@@ -223,7 +223,7 @@ func (p *PodEvent) Handle() {
 			// Monitoring window: 0 seconds to 30 minutes after startup
 			// Immediate detection for scheduling failures, extended monitoring for runtime issues
 			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
-			logrus.Infof("Received pod event: %s/%s, age: %.1fs, phase: %s",
+			logrus.Debugf("Received pod event: %s/%s, age: %.1fs, phase: %s",
 				pod.Namespace, pod.Name, podAge.Seconds(), pod.Status.Phase)
 
 			if podAge < 30*time.Minute {
@@ -232,7 +232,7 @@ func (p *PodEvent) Handle() {
 				// Detect probe health issues (Readiness/Liveness/Startup)
 				p.detectProbeIssues(pod)
 			} else {
-				logrus.Infof("Pod %s/%s outside monitoring window (age: %.1fs)",
+				logrus.Debugf("Pod %s/%s outside monitoring window (age: %.1fs)",
 					pod.Namespace, pod.Name, podAge.Seconds())
 			}
 		case <-ticker.C:
