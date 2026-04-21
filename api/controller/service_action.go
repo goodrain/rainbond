@@ -506,9 +506,10 @@ func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) FileManageService(w http.ResponseWriter, r *http.Request) {
 	tarPath := r.FormValue("path")
 	podName := r.FormValue("pod_name")
+	containerName := r.FormValue("container_name")
 	namespace := r.FormValue("namespace")
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	fileInfos, err := handler.GetServiceManager().FileManageInfo(serviceID, podName, tarPath, namespace)
+	fileInfos, err := handler.GetServiceManager().FileManageInfo(serviceID, podName, tarPath, containerName, namespace)
 	if err != nil {
 		logrus.Errorf("%v get file  manage %v failure: %v", serviceID, tarPath, err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("%v get file  manage %v failure: %v", serviceID, tarPath, err))

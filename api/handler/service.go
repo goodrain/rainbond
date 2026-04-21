@@ -3281,7 +3281,7 @@ func TransStatus(eStatus string) string {
 	return ""
 }
 
-func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error) {
+func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
 
 	// 获取服务信息
@@ -3289,10 +3289,12 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 	if err != nil {
 		return nil, err
 	}
-	containerName := service.K8sComponentName
+	if containerName == "" {
+		containerName = service.K8sComponentName
+	}
 
 	// 执行 shell 命令 `ls -p -1`，列出指定路径下的文件和目录
-	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-p", "-1", tarPath})
+	output, err := s.executeCommand(podName, namespace, containerName, buildFileManageListCommand(tarPath))
 	if err != nil {
 		return nil, err
 	}
@@ -3322,6 +3324,29 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 	return fileInfos, nil
 }
 
+func buildFileManageListCommand(tarPath string) []string {
+	return []string{"ls", "-1", "-p", "--", tarPath}
+}
+
+func wrapFileManageExecError(action string, command []string, stderr string, execErr error) error {
+	if execErr == nil {
+		return nil
+	}
+
+	commandText := strings.Join(command, " ")
+	stderr = strings.TrimSpace(stderr)
+	switch {
+	case commandText != "" && stderr != "":
+		return fmt.Errorf("%s failed (command: %s, stderr: %s): %w", action, commandText, stderr, execErr)
+	case commandText != "":
+		return fmt.Errorf("%s failed (command: %s): %w", action, commandText, execErr)
+	case stderr != "":
+		return fmt.Errorf("%s failed (stderr: %s): %w", action, stderr, execErr)
+	default:
+		return fmt.Errorf("%s failed: %w", action, execErr)
+	}
+}
+
 func (s *ServiceAction) executeCommand(podName, namespace, containerName string, command []string) (string, error) {
 	req := s.kubeClient.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -3348,7 +3373,7 @@ func (s *ServiceAction) executeCommand(podName, namespace, containerName string,
 		Stderr: &stderr,
 	})
 	if err != nil {
-		return "", err
+		return "", wrapFileManageExecError("exec command", command, stderr.String(), err)
 	}
 	// 返回输出结果
 	return strings.TrimSpace(stdout.String()), nil
