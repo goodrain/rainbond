@@ -36,61 +36,21 @@ import (
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"kubevirt.io/client-go/kubecli"
 )
 
 // GarbageCollector -
 type GarbageCollector struct {
-	clientset      kubernetes.Interface
-	kubevirtClient kubecli.KubevirtClient
-	dynamicClient  dynamic.Interface
+	clientset kubernetes.Interface
 }
 
 // NewGarbageCollector -
 func NewGarbageCollector() *GarbageCollector {
 	gcr := &GarbageCollector{
-		clientset:      k8s.Default().Clientset,
-		kubevirtClient: k8s.Default().KubevirtCli,
-		dynamicClient:  k8s.Default().DynamicClient,
+		clientset: k8s.Default().Clientset,
 	}
 	return gcr
 }
-
-var (
-	vmDataVolumeGVR = schema.GroupVersionResource{
-		Group:    "cdi.kubevirt.io",
-		Version:  "v1beta1",
-		Resource: "datavolumes",
-	}
-	vmDataExportGVR = schema.GroupVersionResource{
-		Group:    "cdi.kubevirt.io",
-		Version:  "v1beta1",
-		Resource: "dataexports",
-	}
-	vmSnapshotGVR = schema.GroupVersionResource{
-		Group:    "snapshot.kubevirt.io",
-		Version:  "v1beta1",
-		Resource: "virtualmachinesnapshots",
-	}
-	vmRestoreGVR = schema.GroupVersionResource{
-		Group:    "snapshot.kubevirt.io",
-		Version:  "v1beta1",
-		Resource: "virtualmachinerestores",
-	}
-	vmExportGVR = schema.GroupVersionResource{
-		Group:    "export.kubevirt.io",
-		Version:  "v1beta1",
-		Resource: "virtualmachineexports",
-	}
-	serviceMonitorGVR = schema.GroupVersionResource{
-		Group:    "monitoring.coreos.com",
-		Version:  "v1",
-		Resource: "servicemonitors",
-	}
-)
 
 // DelLogFile deletes persistent data related to the service based on serviceID.
 func (g *GarbageCollector) DelLogFile(serviceGCReq model.ServiceGCTaskBody) {
@@ -190,7 +150,6 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTaskBody) {
 	deleteOpts := metav1.DeleteOptions{}
 	listOpts := g.listOptionsServiceID(serviceGCReq.ServiceID)
-	vmListOpts := g.listOptionsOnlyServiceID(serviceGCReq.ServiceID)
 	namespace := serviceGCReq.TenantID
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(serviceGCReq.TenantID)
 	if err != nil {
@@ -248,29 +207,6 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.CoreV1().Endpoints(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete endpoints(%s): %v", serviceGCReq.ServiceID, err)
 	}
-	if g.kubevirtClient != nil {
-		if err := g.kubevirtClient.VirtualMachineInstance(namespace).DeleteCollection(context.Background(), deleteOpts, vmListOpts); err != nil {
-			logrus.Warningf("[DelKubernetesObjects] delete vm instances(%s): %v", serviceGCReq.ServiceID, err)
-		}
-		if err := g.kubevirtClient.VirtualMachine(namespace).DeleteCollection(context.Background(), deleteOpts, vmListOpts); err != nil {
-			logrus.Warningf("[DelKubernetesObjects] delete virtual machines(%s): %v", serviceGCReq.ServiceID, err)
-		}
-		if err := g.kubevirtClient.VirtualMachineSnapshot(namespace).DeleteCollection(context.Background(), deleteOpts, vmListOpts); err != nil {
-			logrus.Warningf("[DelKubernetesObjects] delete vm snapshots(%s): %v", serviceGCReq.ServiceID, err)
-		}
-		if err := g.kubevirtClient.VirtualMachineRestore(namespace).DeleteCollection(context.Background(), deleteOpts, vmListOpts); err != nil {
-			logrus.Warningf("[DelKubernetesObjects] delete vm restores(%s): %v", serviceGCReq.ServiceID, err)
-		}
-		if err := g.kubevirtClient.VirtualMachineExport(namespace).DeleteCollection(context.Background(), deleteOpts, vmListOpts); err != nil {
-			logrus.Warningf("[DelKubernetesObjects] delete vm exports(%s): %v", serviceGCReq.ServiceID, err)
-		}
-	}
-	g.deleteDynamicCollection(namespace, vmDataVolumeGVR, deleteOpts, vmListOpts, "data volumes", serviceGCReq.ServiceID)
-	g.deleteDynamicCollection(namespace, vmDataExportGVR, deleteOpts, vmListOpts, "data exports", serviceGCReq.ServiceID)
-	g.deleteDynamicCollection(namespace, vmSnapshotGVR, deleteOpts, vmListOpts, "vm snapshots", serviceGCReq.ServiceID)
-	g.deleteDynamicCollection(namespace, vmRestoreGVR, deleteOpts, vmListOpts, "vm restores", serviceGCReq.ServiceID)
-	g.deleteDynamicCollection(namespace, vmExportGVR, deleteOpts, vmListOpts, "vm export crs", serviceGCReq.ServiceID)
-	g.deleteDynamicCollection(namespace, serviceMonitorGVR, deleteOpts, vmListOpts, "service monitors", serviceGCReq.ServiceID)
 }
 
 // listOptionsServiceID -
@@ -281,25 +217,6 @@ func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOpt
 	}}
 	return metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	}
-}
-
-func (g *GarbageCollector) listOptionsOnlyServiceID(serviceID string) metav1.ListOptions {
-	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{
-		"service_id": serviceID,
-	}}
-	return metav1.ListOptions{
-		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	}
-}
-
-func (g *GarbageCollector) deleteDynamicCollection(namespace string, gvr schema.GroupVersionResource, deleteOpts metav1.DeleteOptions,
-	listOpts metav1.ListOptions, resourceDesc, serviceID string) {
-	if g.dynamicClient == nil {
-		return
-	}
-	if err := g.dynamicClient.Resource(gvr).Namespace(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
-		logrus.Warningf("[DelKubernetesObjects] delete %s(%s): %v", resourceDesc, serviceID, err)
 	}
 }
 

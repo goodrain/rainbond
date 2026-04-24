@@ -169,9 +169,6 @@ func (a *AppService) GetServiceStatus() string {
 	if a == nil {
 		return CLOSED
 	}
-	if a.virtualmachine != nil && a.virtualmachine.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
-		return CLOSED
-	}
 	if a.IsClosed() {
 		return CLOSED
 	}

@@ -125,7 +125,7 @@ func (c *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 func (c *ClusterController) BatchGetGateway(w http.ResponseWriter, r *http.Request) {
 	ns, err := handler.GetClusterHandler().BatchGetGateway(r.Context())
 	if err != nil {
-		logrus.Error(err)
+		logrus.Errorf(err.Error())
 		err.Handle(r, w)
 		return
 	}

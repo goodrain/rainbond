@@ -7,7 +7,6 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/docker/distribution/reference"
 	dtypes "github.com/docker/docker/api/types"
-	regtypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/filters"
 	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
@@ -81,7 +80,7 @@ func (d *dockerImageCliImpl) ImagePull(image string, username, password string, 
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
 	var pullipo = dtypes.ImagePullOptions{}
 	if username != "" && password != "" {
-		auth, err := EncodeAuthToBase64(regtypes.AuthConfig{Username: username, Password: password})
+		auth, err := EncodeAuthToBase64(dtypes.AuthConfig{Username: username, Password: password})
 		if err != nil {
 			logrus.Errorf("make auth base63 push image error: %s", err.Error())
 			printLog(logger, "error", fmt.Sprintf("Failed to generate a Token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -132,7 +131,7 @@ func (d *dockerImageCliImpl) ImagePull(image string, username, password string, 
 			logrus.Debugf("error pulling image: %v", jm.Error)
 			return nil, jm.Error
 		}
-		printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
+		printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
 		logrus.Debug(jm.JSONString())
 	}
 	printLog(logger, "debug", "Get the image information and its raw representation", map[string]string{"step": "progress"})
@@ -280,7 +279,7 @@ func (d *dockerImageCliImpl) ImagePush(image, user, pass string, logger event.Lo
 		return err
 	}
 	var opts dtypes.ImagePushOptions
-	pushauth, err := EncodeAuthToBase64(regtypes.AuthConfig{
+	pushauth, err := EncodeAuthToBase64(dtypes.AuthConfig{
 		Username:      user,
 		Password:      pass,
 		ServerAddress: reference.Domain(ref),
@@ -331,7 +330,7 @@ func (d *dockerImageCliImpl) ImagePush(image, user, pass string, logger event.Lo
 
 // ImageTag change docker image tag
 func (d *dockerImageCliImpl) ImageTag(source, target string, logger event.Logger, timeout int) error {
-	logrus.Debugf("change image tag：%s -> %s", source, target)
+	logrus.Debugf(fmt.Sprintf("change image tag：%s -> %s", source, target))
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()

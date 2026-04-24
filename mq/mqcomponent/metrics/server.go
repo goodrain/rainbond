@@ -12,8 +12,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/gogo"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
-	_ "k8s.io/component-base/metrics/prometheus/version"
 )
 
 // Server 要做一些监控或者指标收集
@@ -36,6 +36,7 @@ func New() *Server {
 
 // StartCancel -
 func (s *Server) StartCancel(ctx context.Context, cancel context.CancelFunc) error {
+	prometheus.MustRegister(version.NewCollector("acp_mq"))
 	prometheus.MustRegister(monitor.NewExporter(mqclient.Default().ActionMQ()))
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

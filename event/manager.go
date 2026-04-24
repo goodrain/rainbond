@@ -168,7 +168,7 @@ func (m *manager) GC() {
 		}
 		if len(needRelease) > 0 {
 			for _, event := range needRelease {
-				logrus.Debugf("start auto release event logger. %s", event)
+				logrus.Infof("start auto release event logger. %s", event)
 				delete(m.loggers, event)
 			}
 		}

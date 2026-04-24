@@ -265,7 +265,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 			buf.WriteString("Pending(Allocated)\t")
 		}
 		buf.WriteString("\n")
-		fmt.Fprint(w, buf.String())
+		fmt.Fprintf(w, buf.String())
 
 		var buffer bytes.Buffer
 		exists := map[types.UID]bool{}
@@ -300,7 +300,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 		if prtLineLen == 0 {
 			prtLineLen = buffer.Len() + 10
 		}
-		fmt.Fprint(w, buffer.String())
+		fmt.Fprintf(w, buffer.String())
 
 		var gpuUsageInNode float64 = 0
 		if totalGPUMemInNode > 0 {
@@ -316,7 +316,7 @@ func displayDetails(nodeInfos []*NodeInfo) {
 			prtLine.WriteString("-")
 		}
 		prtLine.WriteString("\n")
-		fmt.Fprint(w, prtLine.String())
+		fmt.Fprintf(w, prtLine.String())
 		totalGPUMemInCluster += int64(totalGPUMemInNode)
 		usedGPUMemInCluster += int64(usedGPUMemInNode)
 	}
@@ -358,7 +358,7 @@ func displaySummary(nodeInfos []*NodeInfo) {
 	}
 	buffer.WriteString(fmt.Sprintf("GPU Memory(%s)\n", memoryUnit))
 
-	fmt.Fprint(w, buffer.String())
+	fmt.Fprintf(w, buffer.String())
 	for _, nodeInfo := range nodeInfos {
 		address := "unknown"
 		if len(nodeInfo.node.Status.Addresses) > 0 {
@@ -403,7 +403,7 @@ func displaySummary(nodeInfos []*NodeInfo) {
 		}
 
 		buf.WriteString(fmt.Sprintf("%s\n", nodeGPUMemInfo))
-		fmt.Fprint(w, buf.String())
+		fmt.Fprintf(w, buf.String())
 
 		if prtLineLen == 0 {
 			prtLineLen = buf.Len() + 20
