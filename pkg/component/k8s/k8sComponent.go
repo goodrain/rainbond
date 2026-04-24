@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
@@ -70,7 +69,6 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(rainbondv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(rainbondscheme.AddToScheme(scheme))
-	utilruntime.Must(kubevirtv1.AddToScheme(scheme))
 }
 
 var defaultK8sComponent *Component

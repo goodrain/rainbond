@@ -103,7 +103,7 @@ func (d *dockerClientImpl) WatchContainers(ctx context.Context, cchan chan Conta
 			if !ok {
 				return fmt.Errorf("event chan is closed")
 			}
-			if event.Type == events.ContainerEventType && checkEventAction(string(event.Action)) {
+			if event.Type == events.ContainerEventType && checkEventAction(event.Action) {
 				container, err := d.InspectContainer(event.ID)
 				if err != nil {
 					if !strings.Contains(err.Error(), "No such container") {
@@ -111,7 +111,7 @@ func (d *dockerClientImpl) WatchContainers(ctx context.Context, cchan chan Conta
 					}
 					break
 				}
-				CacheContainer(cchan, ContainerEvent{Action: string(event.Action), Container: container})
+				CacheContainer(cchan, ContainerEvent{Action: event.Action, Container: container})
 			}
 		}
 	}

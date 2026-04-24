@@ -543,24 +543,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.cnb-version.match-golang",
-      "title": "Normalize and match Go CNB version specs",
-      "title_zh": "\u5f52\u4e00\u5316\u5e76\u5339\u914d Go CNB \u7248\u672c\u8868\u8fbe\u5f0f",
-      "interface_type": "workflow",
-      "interface": "builder/parser/code.MatchCNBVersion",
-      "code_paths": [
-        "builder/parser/code/cnb_versions.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/code/cnb_versions_test.go",
-          "selector": "TestMatchCNBVersion_Golang"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.cnb-version.match-language",
       "title": "Match CNB version for composite language",
       "title_zh": "\u4e3a\u590d\u5408\u8bed\u8a00\u5339\u914d CNB \u7248\u672c",
@@ -573,6 +555,24 @@
         {
           "path": "builder/parser/code/cnb_versions_test.go",
           "selector": "TestMatchCNBVersion_CompositeLanguage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb-version.match-golang",
+      "title": "Normalize and match Go CNB version specs",
+      "title_zh": "\u5f52\u4e00\u5316\u5e76\u5339\u914d Go CNB \u7248\u672c\u8868\u8fbe\u5f0f",
+      "interface_type": "workflow",
+      "interface": "builder/parser/code.MatchCNBVersion",
+      "code_paths": [
+        "builder/parser/code/cnb_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/cnb_versions_test.go",
+          "selector": "TestMatchCNBVersion_Golang"
         }
       ],
       "test_type": "regression",
@@ -2457,24 +2457,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.k8s.scheme-registers-kubevirt-vm",
-      "title": "K8s scheme registers KubeVirt VirtualMachine",
-      "title_zh": "K8s scheme registers KubeVirt VirtualMachine",
-      "interface_type": "package_function",
-      "interface": "pkg/component/k8s.init",
-      "code_paths": [
-        "pkg/component/k8s/k8sComponent.go"
-      ],
-      "tests": [
-        {
-          "path": "pkg/component/k8s/k8sComponent_test.go",
-          "selector": "TestSchemeRegistersKubeVirtVirtualMachine"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.kb-adapter.backup-repo.list-ready",
       "title": "List ready backup repositories for kb-adapter",
       "title_zh": "\u5217\u51fa kb-adapter \u53ef\u7528\u7684\u5907\u4efd\u4ed3\u5e93",
@@ -3739,24 +3721,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.service-check.completion-log-summary",
-      "title": "Service check completion log reflects check status",
-      "title_zh": "\u670d\u52a1\u68c0\u6d4b\u5b8c\u6210\u6458\u8981\u65e5\u5fd7\u53cd\u6620\u771f\u5b9e\u68c0\u6d4b\u72b6\u6001",
-      "interface_type": "other",
-      "interface": "builder/exector.serviceCheckCompletionLogSummary",
-      "code_paths": [
-        "builder/exector/service_check.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/exector/service_check_test.go",
-          "selector": "TestServiceCheckCompletionLogSummary"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.share.image-from-snapshot-deploy-version",
       "title": "Share image snapshots using the requested deploy version",
       "title_zh": "\u955c\u50cf\u5206\u4eab\u4f7f\u7528\u8bf7\u6c42\u4e2d\u7684\u5feb\u7167\u90e8\u7f72\u7248\u672c",
@@ -4135,6 +4099,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.temp-build-info",
+      "title": "Create isolated temporary repository workspaces for source tasks",
+      "title_zh": "\u4e3a\u6e90\u7801\u4efb\u52a1\u521b\u5efa\u72ec\u7acb\u7684\u4e34\u65f6\u4ed3\u5e93\u5de5\u4f5c\u76ee\u5f55",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfo"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-repo.temp-build-info-pkg",
+      "title": "Keep package build sources on their original path when creating temp workspace info",
+      "title_zh": "\u4e3a pkg \u6784\u5efa\u521b\u5efa\u4e34\u65f6\u5de5\u4f5c\u76ee\u5f55\u4fe1\u606f\u65f6\u4fdd\u6301\u539f\u59cb\u8def\u5f84",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfoForPkg"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-repo.cache-dir",
       "title": "Resolve repository source cache directory from repo branch tenant and service",
       "title_zh": "\u6839\u636e\u4ed3\u5e93\u5206\u652f\u79df\u6237\u4e0e\u670d\u52a1\u89e3\u6790\u6e90\u7801\u7f13\u5b58\u76ee\u5f55",
@@ -4265,42 +4265,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.source-repo.temp-build-info",
-      "title": "Create isolated temporary repository workspaces for source tasks",
-      "title_zh": "\u4e3a\u6e90\u7801\u4efb\u52a1\u521b\u5efa\u72ec\u7acb\u7684\u4e34\u65f6\u4ed3\u5e93\u5de5\u4f5c\u76ee\u5f55",
-      "interface_type": "workflow",
-      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
-      "code_paths": [
-        "builder/sources/repo.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/repo_test.go",
-          "selector": "TestCreateTempRepostoryBuildInfo"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.source-repo.temp-build-info-pkg",
-      "title": "Keep package build sources on their original path when creating temp workspace info",
-      "title_zh": "\u4e3a pkg \u6784\u5efa\u521b\u5efa\u4e34\u65f6\u5de5\u4f5c\u76ee\u5f55\u4fe1\u606f\u65f6\u4fdd\u6301\u539f\u59cb\u8def\u5f84",
-      "interface_type": "workflow",
-      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
-      "code_paths": [
-        "builder/sources/repo.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/repo_test.go",
-          "selector": "TestCreateTempRepostoryBuildInfoForPkg"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.source-sftp.close-safe",
       "title": "Close zero-value SFTP clients safely",
       "title_zh": "\u5b89\u5168\u5173\u95ed\u96f6\u503c SFTP \u5ba2\u6237\u7aef",
@@ -4388,24 +4352,6 @@
         }
       ],
       "test_type": "unit",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.storage.s3-lifecycle-skip-logs",
-      "title": "Suppress info logs when S3 lifecycle is already configured",
-      "title_zh": "S3 \u751f\u547d\u5468\u671f\u5df2\u914d\u7f6e\u65f6\u4e0d\u518d\u8f93\u51fa info \u65e5\u5fd7",
-      "interface_type": "package_function",
-      "interface": "pkg/component/storage.(*S3Storage).ensureBucketLifecycle",
-      "code_paths": [
-        "pkg/component/storage/s3_storage.go"
-      ],
-      "tests": [
-        {
-          "path": "pkg/component/storage/s3_storage_test.go",
-          "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
-        }
-      ],
-      "test_type": "regression",
       "status": "active"
     },
     {
@@ -5964,174 +5910,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-export.discover-datavolume-disks",
-      "title": "Discover DataVolume-backed VM export disks",
-      "title_zh": "Discover DataVolume-backed VM export disks",
-      "interface_type": "package_function",
-      "interface": "handler.discoverVMExportDisks",
-      "code_paths": [
-        "api/handler/vm_export.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/vm_export_test.go",
-          "selector": "TestDiscoverVMExportDisksSupportsDataVolumeRootDisk"
-        },
-        {
-          "path": "api/handler/vm_export_test.go",
-          "selector": "TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-export.machine-manifest-build",
-      "title": "Build machine manifest from persisted vm export disks",
-      "title_zh": "\u4ece\u6301\u4e45\u5316\u5bfc\u51fa\u78c1\u76d8\u751f\u6210\u6574\u673a\u6e05\u5355",
-      "interface_type": "package_function",
-      "interface": "handler.buildVMMachineManifest",
-      "code_paths": [
-        "api/handler/vm_export.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/vm_export_test.go",
-          "selector": "TestBuildVMMachineManifestIncludesAllPersistedDisks"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-export.restore-plan-all-disks",
-      "title": "Build restore plan for root and data disks",
-      "title_zh": "\u4e3a\u7cfb\u7edf\u76d8\u548c\u6570\u636e\u76d8\u751f\u6210\u6062\u590d\u8ba1\u5212",
-      "interface_type": "package_function",
-      "interface": "handler.buildVMAssetRestorePlan",
-      "code_paths": [
-        "api/handler/vm_export.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/vm_export_test.go",
-          "selector": "TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.build-media-paths",
-      "title": "Split VM runtime image build templates for ISO and disk sources",
-      "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
-      "interface_type": "package_function",
-      "interface": "builder/exector.renderVMDockerfile",
-      "code_paths": [
-        "builder/exector/build_from_vm.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestResolveVMBuildMediaDistinguishesISOAndDiskImages"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.local-package-storage-download",
-      "title": "VM local package source falls back to storage download",
-      "title_zh": "vm-run \u672c\u5730\u5305\u6e90\u5728\u76ee\u5f55\u7f3a\u5931\u65f6\u56de\u9000 storage \u4e0b\u8f7d",
-      "interface_type": "package_function",
-      "interface": "builder/sourceutil.ReadLocalPackageDir",
-      "code_paths": [
-        "builder/sourceutil/local_package.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sourceutil/local_package_test.go",
-          "selector": "TestReadLocalPackageDirFallsBackToStorageDownload"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.remote-package-download-export-cert",
-      "title": "Use VM export cert for remote package download",
-      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u4e0b\u8f7d\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u8bc1\u4e66",
-      "interface_type": "package_function",
-      "interface": "builder/exector.downloadFile",
-      "code_paths": [
-        "builder/exector/build_from_vm.go",
-        "builder/sourceutil/vm_export_tls.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestDownloadFileUsesVMExportCert"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.remote-package-probe",
-      "title": "VM remote package probe prefers HEAD",
-      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
-      "interface_type": "other",
-      "interface": "builder/parser.VMServiceParse.Parse",
-      "code_paths": [
-        "builder/parser/vm_service.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/vm_service_test.go",
-          "selector": "TestVMServiceParseRemoteURLPrefersHeadProbe"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.remote-package-probe-export-cert",
-      "title": "Use VM export cert for remote package probe",
-      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u8bc1\u4e66",
-      "interface_type": "package_function",
-      "interface": "builder/parser.VMServiceParse.Parse",
-      "code_paths": [
-        "builder/parser/vm_service.go",
-        "builder/sourceutil/vm_export_tls.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/vm_service_test.go",
-          "selector": "TestVMServiceParseRemoteURLUsesVMExportCert"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-run.remote-package-probe-range-fallback",
-      "title": "VM remote package probe falls back to range GET",
-      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u5728 HEAD \u5931\u8d25\u65f6\u56de\u9000 Range GET",
-      "interface_type": "other",
-      "interface": "builder/parser.VMServiceParse.Parse",
-      "code_paths": [
-        "builder/parser/vm_service.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/vm_service_test.go",
-          "selector": "TestVMServiceParseRemoteURLFallsBackToRangeGet"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.watch.error-dispatch",
       "title": "Dispatch watch backend errors onto the internal error channel",
       "title_zh": "\u5c06 watch \u540e\u7aef\u9519\u8bef\u5206\u53d1\u5230\u5185\u90e8\u9519\u8bef\u901a\u9053",
@@ -6558,24 +6336,6 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestNsEventHandlerProvidesAddFunc"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.worker.appm.vm-boot-media-paths",
-      "title": "Separate ISO and QCOW2 VM boot media assembly paths",
-      "title_zh": "\u62c6\u5206 ISO \u4e0e QCOW2 \u7684 VM \u542f\u52a8\u4ecb\u8d28\u7ec4\u88c5\u8def\u5f84",
-      "interface_type": "workflow",
-      "interface": "worker/appm/conversion.TenantServiceVersion",
-      "code_paths": [
-        "worker/appm/conversion/version.go"
-      ],
-      "tests": [
-        {
-          "path": "worker/appm/conversion/version_vm_test.go",
-          "selector": "TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank"
         }
       ],
       "test_type": "regression",

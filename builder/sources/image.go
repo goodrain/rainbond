@@ -46,7 +46,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker/config"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
@@ -251,7 +250,7 @@ func ImageTag(containerdClient *containerd.Client, source, target string, logger
 		return err
 	}
 	targetImage := targetNamed.String()
-	logrus.Infof("change image tag：%s -> %s", srcImage, targetImage)
+	logrus.Infof(fmt.Sprintf("change image tag：%s -> %s", srcImage, targetImage))
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageService := containerdClient.ImageService()
@@ -493,7 +492,7 @@ func CheckTrustedRepositories(image, user, pass string) error {
 }
 
 // EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func EncodeAuthToBase64(authConfig registry.AuthConfig) (string, error) {
+func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", err
@@ -545,7 +544,31 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 			},
 		},
 	}
-	podSpec := newBuildKitPodSpec(arch, os.Getenv("HOST_IP"), getHostAlias(kubeClient))
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{os.Getenv("HOST_IP")},
+							},
+						},
+					},
+					},
+				},
+			},
+		},
+		HostAliases: getHostAlias(kubeClient),
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	imageDomain, buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
@@ -626,44 +649,6 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		return err
 	}
 	return nil
-}
-
-func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {
-	podSpec := corev1.PodSpec{
-		RestartPolicy: corev1.RestartPolicyOnFailure,
-		Affinity: &corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/arch",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{arch},
-							},
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{hostIP},
-							},
-						},
-					}},
-				},
-			},
-		},
-		HostAliases: hostAliases,
-	}
-	if hostIP != "" {
-		podSpec.NodeSelector = map[string]string{
-			"kubernetes.io/hostname": hostIP,
-		}
-		podSpec.Tolerations = []corev1.Toleration{
-			{
-				Operator: corev1.TolerationOpExists,
-			},
-		}
-	}
-	return podSpec
 }
 
 // ImageInspectWithRaw get image inspect

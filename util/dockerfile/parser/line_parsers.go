@@ -154,7 +154,7 @@ func parseNameVal(rest string, key string, d *Directive) (*Node, map[string]bool
 		strs := tokenWhitespace.Split(rest, 2)
 
 		if len(strs) < 2 {
-			return nil, nil, fmt.Errorf("%s must have two arguments", key)
+			return nil, nil, fmt.Errorf(key + " must have two arguments")
 		}
 
 		node.Value = strs[0]

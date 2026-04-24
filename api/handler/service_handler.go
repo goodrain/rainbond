@@ -38,16 +38,7 @@ type ServiceHandler interface {
 	DeleteLabel(l *apimodel.LabelsStruct, serviceID string) error
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
-	StartOrCreateVM(s *apimodel.StartStopStruct, deployVersion string) error
-	RestartVM(s *apimodel.StartStopStruct, deployVersion string) error
-	StopVM(serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
-	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
-	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
-	DeleteVMExport(serviceID, exportID string) error
-	GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error)
-	PersistVMExport(serviceID, exportID string, req *VMExportPersistRequest) (*VMExportPersistStatus, error)
-	BuildVMAssetRestorePlan(req *VMAssetRestorePlanRequest) (*VMAssetRestorePlan, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error

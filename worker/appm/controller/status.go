@@ -214,7 +214,7 @@ func checkWorkloadFailureReason(client kubernetes.Interface, a *v1.AppService, l
 					if cond.Type == "ReplicaFailure" && cond.Status == corev1.ConditionTrue {
 						errMsg := translateReplicaSetFailure(cond.Reason, cond.Message)
 						logger.Error(errMsg, map[string]string{"step": "appruntime", "status": "failure"})
-						return fmt.Errorf("%s", errMsg)
+						return fmt.Errorf(errMsg)
 					}
 				}
 			}
@@ -240,7 +240,7 @@ func checkWorkloadFailureReason(client kubernetes.Interface, a *v1.AppService, l
 			if cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Reason == "Unschedulable" {
 				errMsg := translateK8sEvent("FailedScheduling", cond.Message)
 				logger.Error(errMsg, map[string]string{"step": "appruntime", "status": "failure"})
-				return fmt.Errorf("%s", errMsg)
+				return fmt.Errorf(errMsg)
 			}
 		}
 	}
@@ -262,7 +262,7 @@ func checkDeploymentEvents(ctx context.Context, client kubernetes.Interface, nam
 			errMsg := translateK8sEvent(event.Reason, event.Message)
 			logger.Error(fmt.Sprintf("Deployment event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
 			if isFailureEvent(event.Reason) {
-				return fmt.Errorf("%s", errMsg)
+				return fmt.Errorf(errMsg)
 			}
 		}
 	}
@@ -283,7 +283,7 @@ func checkReplicaSetEvents(ctx context.Context, client kubernetes.Interface, nam
 			errMsg := translateK8sEvent(event.Reason, event.Message)
 			logger.Error(fmt.Sprintf("ReplicaSet event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
 			if isFailureEvent(event.Reason) {
-				return fmt.Errorf("%s", errMsg)
+				return fmt.Errorf(errMsg)
 			}
 		}
 	}
@@ -304,7 +304,7 @@ func checkStatefulSetEvents(ctx context.Context, client kubernetes.Interface, na
 			errMsg := translateK8sEvent(event.Reason, event.Message)
 			logger.Error(fmt.Sprintf("StatefulSet event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
 			if isFailureEvent(event.Reason) {
-				return fmt.Errorf("%s", errMsg)
+				return fmt.Errorf(errMsg)
 			}
 		}
 	}
@@ -325,7 +325,7 @@ func checkPodEvents(ctx context.Context, client kubernetes.Interface, namespace,
 			errMsg := translateK8sEvent(event.Reason, event.Message)
 			logger.Error(fmt.Sprintf("Pod event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
 			if isFailureEvent(event.Reason) {
-				return fmt.Errorf("%s", errMsg)
+				return fmt.Errorf(errMsg)
 			}
 		}
 	}

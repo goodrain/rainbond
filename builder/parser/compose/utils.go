@@ -94,7 +94,7 @@ func handleServiceType(ServiceType string) (string, error) {
 	case "loadbalancer":
 		return "LoadBalancer", nil
 	default:
-		return "", fmt.Errorf("Unknown value %s, supported values are 'NodePort, ClusterIP or LoadBalancer'", ServiceType)
+		return "", fmt.Errorf("Unknown value " + ServiceType + " , supported values are 'NodePort, ClusterIP or LoadBalancer'")
 	}
 }
 

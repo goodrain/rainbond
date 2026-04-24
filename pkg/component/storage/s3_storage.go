@@ -191,11 +191,11 @@ func (s3s *S3Storage) ensureBucketExists(bucketName string) error {
 
 // ensureBucketLifecycle 检查并配置桶的生命周期策略
 func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool) error {
-	logrus.Debugf("[Lifecycle] ensureBucketLifecycle called for bucket: %s, bucketExists: %v", bucketName, bucketExists)
+	logrus.Infof("[Lifecycle] ensureBucketLifecycle called for bucket: %s, bucketExists: %v", bucketName, bucketExists)
 
 	// 如果桶已存在，先检查是否已有生命周期策略
 	if bucketExists {
-		logrus.Debugf("[Lifecycle] Bucket exists, checking existing lifecycle configuration for: %s", bucketName)
+		logrus.Infof("[Lifecycle] Bucket exists, checking existing lifecycle configuration for: %s", bucketName)
 		existingConfig, err := s3s.s3Client.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
 			Bucket: aws.String(bucketName),
 		})
@@ -203,7 +203,7 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 		if err != nil {
 			logrus.Warnf("[Lifecycle] Failed to get existing lifecycle config for %s: %v (will attempt to create new one)", bucketName, err)
 		} else if existingConfig != nil && len(existingConfig.Rules) > 0 {
-			logrus.Debugf("[Lifecycle] Found existing lifecycle rules for %s: %d rules", bucketName, len(existingConfig.Rules))
+			logrus.Infof("[Lifecycle] Found existing lifecycle rules for %s: %d rules", bucketName, len(existingConfig.Rules))
 			// 检查是否已有我们的规则（通过 Rule ID 判断）
 			hasOurRules := false
 			for _, rule := range existingConfig.Rules {
@@ -217,28 +217,28 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 						*rule.ID == "delete-build-tenant-7d" ||
 						*rule.ID == "abort-incomplete-multipart-1d" {
 						hasOurRules = true
-						logrus.Debugf("[Lifecycle] Found existing lifecycle rule: %s", *rule.ID)
+						logrus.Infof("[Lifecycle] Found our rule: %s, skipping lifecycle configuration", *rule.ID)
 						break
 					}
 				}
 			}
 
 			if hasOurRules {
-				logrus.Debugf("[Lifecycle] Bucket %s already has lifecycle policy configured, skipping", bucketName)
+				logrus.Infof("[Lifecycle] Bucket %s already has our lifecycle policy configured, skipping", bucketName)
 				return nil
 			}
-			logrus.Debugf("[Lifecycle] No matching lifecycle rules found for %s, will create new lifecycle policy", bucketName)
+			logrus.Infof("[Lifecycle] No matching rules found, will create new lifecycle policy")
 		} else {
-			logrus.Debugf("[Lifecycle] No existing lifecycle rules found for %s", bucketName)
+			logrus.Infof("[Lifecycle] No existing lifecycle rules found for %s", bucketName)
 		}
 		// 如果获取失败或没有规则，继续配置
 	} else {
-		logrus.Debugf("[Lifecycle] Bucket is new, will create lifecycle policy")
+		logrus.Infof("[Lifecycle] Bucket is new, will create lifecycle policy")
 	}
 
 	// 配置生命周期策略（使用 Filter 格式以兼容 MinIO）
 	// 注意：MinIO 要求每个规则必须有 Expiration，且空 Prefix 需要特殊处理
-	logrus.Debugf("[Lifecycle] Creating lifecycle configuration input for bucket: %s", bucketName)
+	logrus.Infof("[Lifecycle] Creating lifecycle configuration input for bucket: %s", bucketName)
 
 	// 先测试一个最简单的规则，验证 MinIO 能接受
 	testSimpleRule := false
@@ -363,7 +363,7 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 		},
 	}
 
-	logrus.Debugf("[Lifecycle] Prepared %d lifecycle rules, calling PutBucketLifecycleConfiguration for bucket: %s",
+	logrus.Infof("[Lifecycle] Prepared %d lifecycle rules, calling PutBucketLifecycleConfiguration for bucket: %s",
 		len(input.LifecycleConfiguration.Rules), bucketName)
 
 	for i, rule := range input.LifecycleConfiguration.Rules {
@@ -381,7 +381,7 @@ func (s3s *S3Storage) ensureBucketLifecycle(bucketName string, bucketExists bool
 		return fmt.Errorf("failed to configure bucket lifecycle: %w", err)
 	}
 
-	logrus.Debugf("[Lifecycle] PutBucketLifecycleConfiguration response: %+v", resp)
+	logrus.Infof("[Lifecycle] PutBucketLifecycleConfiguration response: %+v", resp)
 	logrus.Infof("[Lifecycle] Successfully configured lifecycle policy for bucket: %s", bucketName)
 	return nil
 }

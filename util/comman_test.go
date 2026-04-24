@@ -42,7 +42,7 @@ func TestOpenOrCreateFile(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.array-deduplicate
-func TestDeweightLegacy(t *testing.T) {
+func TestDeweight(t *testing.T) {
 	data := []string{"asd", "asd", "12", "12"}
 	Deweight(&data)
 	if len(data) != 2 || data[0] != "asd" || data[1] != "12" {
@@ -52,7 +52,7 @@ func TestDeweightLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-size-walk
-func TestGetDirSizeLegacy(t *testing.T) {
+func TestGetDirSize(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte(strings.Repeat("a", 1024)), 0644); err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestGetDirSizeLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-size-shell
-func TestGetDirSizeByCmdLegacy(t *testing.T) {
+func TestGetDirSizeByCmd(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte(strings.Repeat("a", 2048)), 0644); err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestGetDirSizeByCmdLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.zip-archive
-func TestZipLegacy(t *testing.T) {
+func TestZip(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "cache")
 	target := filepath.Join(root, "cache.zip")
@@ -103,7 +103,7 @@ func TestZipLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.version-timestamp
-func TestCreateVersionByTimeLegacy(t *testing.T) {
+func TestCreateVersionByTime(t *testing.T) {
 	if re := CreateVersionByTime(); re != "" {
 		if len(re) != 14 {
 			t.Fatalf("expected 14-digit version, got %q", re)
@@ -120,7 +120,7 @@ func TestCreateVersionByTimeLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-list-depth
-func TestGetDirListLegacy(t *testing.T) {
+func TestGetDirList(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "a", "b"), 0755); err != nil {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestDetectZipStructure(t *testing.T) {
 }
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
-func TestMergeDirLegacy(t *testing.T) {
+func TestMergeDir(t *testing.T) {
 	root := t.TempDir()
 	fromDir := filepath.Join(root, "from")
 	toDir := filepath.Join(root, "to")
@@ -225,7 +225,7 @@ func TestMergeDirLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.host-id-generate
-func TestCreateHostIDLegacy(t *testing.T) {
+func TestCreateHostID(t *testing.T) {
 	uid, err := CreateHostID()
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func TestCreateHostIDLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.current-dir-path
-func TestGetCurrentDirLegacy(t *testing.T) {
+func TestGetCurrentDir(t *testing.T) {
 	if dir := GetCurrentDir(); dir == "" || !filepath.IsAbs(dir) {
 		t.Fatalf("expected absolute current dir, got %q", dir)
 	}
@@ -245,7 +245,7 @@ func TestGetCurrentDirLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.file-copy
-func TestCopyFileLegacy(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "source.txt")
 	target := filepath.Join(root, "target.txt")
@@ -266,7 +266,7 @@ func TestCopyFileLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.template-variable-parse
-func TestParseVariableLegacy(t *testing.T) {
+func TestParseVariable(t *testing.T) {
 	configs := make(map[string]string, 0)
 	result := ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", configs)
 	if result != "sadaaaadasdaaa aaa ASDASD aaa" {
@@ -284,7 +284,7 @@ func TestParseVariableLegacy(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.time-format-rfc3339
-func TestTimeFormatLegacy(t *testing.T) {
+func TestTimeFormat(t *testing.T) {
 	tt := "2019-08-24 11:11:30.165753932 +0800 CST m=+55557.682499470"
 	timeF, err := time.Parse(time.RFC3339, strings.Replace(tt[0:19]+"+08:00", " ", "T", 1))
 	if err != nil {
@@ -361,7 +361,7 @@ func TestIsEndWithNumber(t *testing.T) {
 	}
 }
 
-func TestOpenOrCreateFileLegacyPath(t *testing.T) {
+func TestOpenOrCreateFile(t *testing.T) {
 	file, err := OpenOrCreateFile("./test.log")
 	if err != nil {
 		t.Fatal(err)
@@ -492,3 +492,4 @@ func TestTimeFormat(t *testing.T) {
 	}
 	t.Log(timeF.Format(time.RFC3339))
 }
+

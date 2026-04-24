@@ -138,7 +138,7 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode, storageClassName)},
 			StorageClassName: &storageClassName,
-			Resources: corev1.VolumeResourceRequirements{
+			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resourceStorage,
 				},
@@ -176,7 +176,6 @@ type Define struct {
 	volumes      []corev1.Volume
 	vmVolume     []kubevirtv1.Volume
 	vmDisk       []kubevirtv1.Disk
-	vmDVTemplate []kubevirtv1.DataVolumeTemplateSpec
 }
 
 // GetVolumes get define volumes
@@ -192,11 +191,6 @@ func (v *Define) GetVMVolume() []kubevirtv1.Volume {
 // GetVMDisk get define vm devices
 func (v *Define) GetVMDisk() []kubevirtv1.Disk {
 	return v.vmDisk
-}
-
-// GetVMDataVolumeTemplates get vm data volume templates.
-func (v *Define) GetVMDataVolumeTemplates() []kubevirtv1.DataVolumeTemplateSpec {
-	return v.vmDVTemplate
 }
 
 // GetVolumeMounts get define volume mounts
