@@ -2,7 +2,7 @@
   <img src="https://static.goodrain.com/logo/logo-long.png" width="56%" alt="Rainbond Logo" />
 
   <p>
-    <a href="./README.md">中文</a>
+    <a href="./README-zh.md">中文</a>
   </p>
 
   <p>

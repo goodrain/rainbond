@@ -2,7 +2,7 @@
   <img src="https://static.goodrain.com/logo/logo-long.png" width="56%" alt="Rainbond Logo" />
 
   <p>
-    <a href="./README-en.md">English</a>
+    <a href="./README.md">English</a>
   </p>
 
   <p>
