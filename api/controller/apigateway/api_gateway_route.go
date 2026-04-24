@@ -1075,20 +1075,7 @@ func hasMatchingCertManagerDomain(certDomains []string, routeDomains []string) b
 }
 
 func certManagerDomainsConflict(domain1, domain2 string) bool {
-	if domain1 == domain2 {
-		return true
-	}
-	if strings.HasPrefix(domain1, "*.") {
-		if strings.HasSuffix(domain2, domain1[2:]) {
-			return true
-		}
-	}
-	if strings.HasPrefix(domain2, "*.") {
-		if strings.HasSuffix(domain1, domain2[2:]) {
-			return true
-		}
-	}
-	return false
+	return domain1 == domain2
 }
 
 func routeMatchesCertManagerDomains(route *v2.ApisixRoute, domains []string) bool {
