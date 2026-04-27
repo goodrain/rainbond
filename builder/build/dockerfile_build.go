@@ -219,9 +219,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
-	for _, ha := range re.HostAlias {
-		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
-	}
+	podSpec.HostAliases = append(podSpec.HostAliases, NormalizeHostAliases(re.HostAlias)...)
 	job.Spec = podSpec
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)

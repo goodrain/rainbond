@@ -549,9 +549,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		logrus.Infof("set maven setting config %s success", mavenSettingName)
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
-	for _, ha := range re.HostAlias {
-		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
-	}
+	podSpec.HostAliases = append(podSpec.HostAliases, NormalizeHostAliases(re.HostAlias)...)
 
 	job.Spec = podSpec
 	s.setImagePullSecretsForPod(&job)
