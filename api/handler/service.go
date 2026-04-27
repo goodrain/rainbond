@@ -1784,6 +1784,9 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		return err
 	}
 	v.VolumePath = req.VolumePath
+	if req.VolumeCapacity != nil {
+		v.VolumeCapacity = *req.VolumeCapacity
+	}
 	v.Mode = req.Mode
 	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
 		tx.Rollback()
