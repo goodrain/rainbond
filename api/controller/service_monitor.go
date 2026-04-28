@@ -83,6 +83,7 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 
 // UploadPackage upload package
 func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
 	case "POST":
@@ -107,25 +108,9 @@ func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 503, "Failed to save file: "+err.Error())
 		}
 		logrus.Debug("successful write file to: ", fileName)
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
-		}
-		w.Header().Add("Access-Control-Allow-Origin", origin)
-		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header,X-TEAM-NAME,X-REGION-NAME")
 		httputil.ReturnSuccess(r, w, nil)
 
 	case "OPTIONS":
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
-		}
-		w.Header().Add("Access-Control-Allow-Origin", origin)
-		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-		w.Header().Add("Access-Control-Allow-Credentials", "true")
-		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header,X-TEAM-NAME,X-REGION-NAME")
 		httputil.ReturnSuccess(r, w, nil)
 	}
 }
