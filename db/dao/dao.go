@@ -328,6 +328,7 @@ type TenantServiceEnvVarDao interface {
 	Dao
 	DelDao
 	//service_id__in=sids, scope__in=("outer", "both")
+	UpdateModelByAttrName(env *model.TenantServiceEnvVar, oldAttrName string) error
 	GetDependServiceEnvs(serviceIDs []string, scopes []string) ([]*model.TenantServiceEnvVar, error)
 	GetServiceEnvs(serviceID string, scopes []string) ([]*model.TenantServiceEnvVar, error)
 	GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error)

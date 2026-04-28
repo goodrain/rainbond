@@ -51,7 +51,7 @@ type ServiceHandler interface {
 	GetTenantRes(uuid string) (*apimodel.TenantResource, error)
 	CodeCheck(c *apimodel.CheckCodeStruct) error
 	ServiceDepend(action string, ds *apimodel.DependService) error
-	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
+	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar, oldAttrNames ...string) error
 	PortVar(action string, tenantID, serviceID string, vp *apimodel.ServicePorts, oldPort int) error
 	CreatePorts(tenantID, serviceID string, vps *apimodel.ServicePorts) error
 	PortOuter(tenantName, serviceID string, containerPort int, servicePort *apimodel.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
