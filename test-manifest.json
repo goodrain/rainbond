@@ -6417,6 +6417,27 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
+      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePort"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.appm.discovery.etcd-config",
       "title": "Configure appm etcd discovery and guard fetch without client",
       "title_zh": "\u914d\u7f6e appm \u7684 etcd \u53d1\u73b0\u5668\u5e76\u5728\u65e0\u5ba2\u6237\u7aef\u65f6\u4fdd\u62a4\u6293\u53d6\u903b\u8f91",
