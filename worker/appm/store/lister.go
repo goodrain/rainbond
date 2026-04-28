@@ -32,8 +32,9 @@ import (
 	storagev1 "k8s.io/client-go/listers/storage/v1"
 )
 
-//Lister kube-api client cache
+// Lister kube-api client cache
 type Lister struct {
+	Namespace                    corev1.NamespaceLister
 	Ingress                      networkingv1.IngressLister
 	BetaIngress                  betav1.IngressLister
 	Service                      corev1.ServiceLister

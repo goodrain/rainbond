@@ -26,6 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 // capability_id: rainbond.worker.appm.store.aggregate-app-status
@@ -175,4 +177,42 @@ func TestNsEventHandlerSkipsNamespacesThatShouldNotSync(t *testing.T) {
 	handler.UpdateFunc(nil, terminating)
 
 	assert.Empty(t, synced)
+}
+
+// capability_id: rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret
+func TestSyncAllNamespaceImagePullSecretsResyncsManagedNamespacesAfterReady(t *testing.T) {
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	_ = indexer.Add(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "default",
+			Labels: map[string]string{"app.kubernetes.io/managed-by": "rainbond"},
+		},
+		Status: corev1.NamespaceStatus{Phase: corev1.NamespaceActive},
+	})
+	_ = indexer.Add(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "external"},
+		Status:     corev1.NamespaceStatus{Phase: corev1.NamespaceActive},
+	})
+	_ = indexer.Add(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "terminating",
+			Labels: map[string]string{"app.kubernetes.io/managed-by": "rainbond"},
+		},
+		Status: corev1.NamespaceStatus{Phase: corev1.NamespaceTerminating},
+	})
+
+	var synced []string
+	store := &appRuntimeStore{
+		listers: &Lister{
+			Namespace: corelisters.NewNamespaceLister(indexer),
+		},
+		syncImagePullSecret: func(namespace string) error {
+			synced = append(synced, namespace)
+			return nil
+		},
+	}
+
+	store.syncAllNamespaceImagePullSecrets()
+
+	assert.Equal(t, []string{"default"}, synced)
 }

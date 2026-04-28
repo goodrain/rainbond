@@ -195,6 +195,7 @@ func NewStore(dbmanager db.Manager) Storer {
 		informers.WithNamespace(corev1.NamespaceAll))
 
 	store.informers.Namespace = infFactory.Core().V1().Namespaces().Informer()
+	store.listers.Namespace = infFactory.Core().V1().Namespaces().Lister()
 
 	store.informers.Deployment = infFactory.Apps().V1().Deployments().Informer()
 	store.listers.Deployment = infFactory.Apps().V1().Deployments().Lister()
@@ -360,6 +361,7 @@ func (a *appRuntimeStore) Start() error {
 	go a.clean()
 	for !a.Ready() {
 	}
+	a.syncAllNamespaceImagePullSecrets()
 	// init core componentdefinition
 	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.k8sClient.RainbondClient)
 	go func() {
@@ -1880,6 +1882,20 @@ func (a *appRuntimeStore) syncNamespaceImagePullSecret(ns *corev1.Namespace) {
 
 	if err := syncFn(ns.Name); err != nil {
 		logrus.Errorf("create or update imagepullsecret: %v", err)
+	}
+}
+
+func (a *appRuntimeStore) syncAllNamespaceImagePullSecrets() {
+	if a.listers == nil || a.listers.Namespace == nil {
+		return
+	}
+	namespaces, err := a.listers.Namespace.List(labels.Everything())
+	if err != nil {
+		logrus.Errorf("list namespaces for imagepullsecret sync: %v", err)
+		return
+	}
+	for _, ns := range namespaces {
+		a.syncNamespaceImagePullSecret(ns)
 	}
 }
 
