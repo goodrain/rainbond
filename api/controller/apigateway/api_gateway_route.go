@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
@@ -399,9 +401,26 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
-	var resp []corev1.ServicePort
+	var resp []apimodel.TCPRouteServicePort
 	for _, v := range list.Items {
-		resp = append(resp, v.Spec.Ports[0])
+		if len(v.Spec.Ports) == 0 {
+			continue
+		}
+		servicePort := v.Spec.Ports[0]
+		item := apimodel.TCPRouteServicePort{
+			ServicePort:   servicePort,
+			ServiceName:   v.Name,
+			ServiceAlias:  v.Labels["service_alias"],
+			ServiceID:     v.Labels["service_id"],
+			AppID:         v.Labels["app_id"],
+			ContainerPort: servicePort.Port,
+		}
+		if portLabel := v.Labels["port"]; portLabel != "" {
+			if containerPort, err := strconv.Atoi(portLabel); err == nil {
+				item.ContainerPort = int32(containerPort)
+			}
+		}
+		resp = append(resp, item)
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }

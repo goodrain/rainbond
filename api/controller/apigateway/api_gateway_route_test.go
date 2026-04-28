@@ -77,6 +77,16 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 	codecs := serializer.NewCodecFactory(scheme)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/namespaces/default/services" {
+			serviceList := corev1.ServiceList{}
+			for _, service := range services {
+				serviceList.Items = append(serviceList.Items, *service)
+			}
+			if err := json.NewEncoder(w).Encode(&serviceList); err != nil {
+				t.Fatalf("encode service list: %v", err)
+			}
+			return
+		}
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/default/services/") {
 			name := strings.TrimPrefix(r.URL.Path, "/api/v1/namespaces/default/services/")
 			if service, ok := services[name]; ok {
@@ -293,5 +303,96 @@ func TestCreateTCPRouteUsesRainbondServiceAliasFromBackendServiceLabels(t *testi
 	}
 	if got := ruleDao.added.ServiceID; got != serviceID {
 		t.Fatalf("expected TCP rule service_id %q, got %q", serviceID, got)
+	}
+}
+
+func TestGetTCPRouteIncludesServiceMetadata(t *testing.T) {
+	const (
+		namespace    = "default"
+		appID        = "4d0f77e042f94ae2a77552fe7b595faf"
+		serviceID    = "7de1e7b94ccf418eac0cc0de61447979"
+		serviceAlias = "gr447979"
+		serviceName  = "gr447979-30003"
+		nodePort     = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"app_id":        appID,
+					"service_id":    serviceID,
+					"service_alias": serviceAlias,
+					"port":          "80",
+					"tcp":           "true",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       serviceName,
+					Protocol:   corev1.ProtocolTCP,
+					Port:       80,
+					TargetPort: intstr.FromInt(80),
+					NodePort:   nodePort,
+				}},
+				Selector: map[string]string{"service_alias": serviceAlias},
+				Type:     corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	req := httptest.NewRequest(http.MethodGet, "/?appID="+appID, nil)
+	ctx := context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.GetTCPRoute(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		List []struct {
+			Name          string `json:"name"`
+			Port          int32  `json:"port"`
+			NodePort      int32  `json:"nodePort"`
+			ServiceName   string `json:"service_name"`
+			ServiceAlias  string `json:"service_alias"`
+			ServiceID     string `json:"service_id"`
+			AppID         string `json:"app_id"`
+			ContainerPort int32  `json:"container_port"`
+		} `json:"list"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.List) != 1 {
+		t.Fatalf("expected one route, got %#v", resp.List)
+	}
+	got := resp.List[0]
+	if got.Name != serviceName || got.Port != 80 || got.NodePort != nodePort {
+		t.Fatalf("unexpected service port fields: %#v", got)
+	}
+	if got.ServiceName != serviceName {
+		t.Fatalf("expected service_name %q, got %q", serviceName, got.ServiceName)
+	}
+	if got.ServiceAlias != serviceAlias {
+		t.Fatalf("expected service_alias %q, got %q", serviceAlias, got.ServiceAlias)
+	}
+	if got.ServiceID != serviceID {
+		t.Fatalf("expected service_id %q, got %q", serviceID, got.ServiceID)
+	}
+	if got.AppID != appID {
+		t.Fatalf("expected app_id %q, got %q", appID, got.AppID)
+	}
+	if got.ContainerPort != 80 {
+		t.Fatalf("expected container_port 80, got %d", got.ContainerPort)
 	}
 }
