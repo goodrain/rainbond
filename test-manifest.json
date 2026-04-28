@@ -1919,6 +1919,23 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.reassign-conflicting-imported-tcp-port",
+      "title": "Reassign imported TCP ports that conflict with existing NodePorts",
+      "interface_type": "package_function",
+      "interface": "api/handler.reassignConflictingTCPRulePorts",
+      "code_paths": [
+        "api/handler/gateway_action.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestReassignConflictingTCPRulePorts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.helm-release.app-version-format",
       "title": "Format Helm application versions for history output",
       "title_zh": "\u4e3a Helm \u5386\u53f2\u8f93\u51fa\u683c\u5f0f\u5316\u5e94\u7528\u7248\u672c\u53f7",

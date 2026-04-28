@@ -3,6 +3,8 @@ package handler
 import (
 	"os"
 	"testing"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 // capability_id: rainbond.gateway.allocate-lb-port
@@ -55,5 +57,37 @@ func TestSelectAvailablePort(t *testing.T) {
 				t.Errorf("selectAvailablePort(%v) = %d, expected %d", tt.used, result, tt.expected)
 			}
 		})
+	}
+}
+
+// capability_id: rainbond.gateway.reassign-conflicting-imported-tcp-port
+func TestReassignConflictingTCPRulePorts(t *testing.T) {
+	t.Setenv("MIN_LB_PORT", "30000")
+	t.Setenv("MAX_LB_PORT", "30010")
+
+	existing := []*dbmodel.TCPRule{
+		{
+			ServiceID: "source-service",
+			IP:        "0.0.0.0",
+			Port:      30000,
+		},
+	}
+	incoming := []*dbmodel.TCPRule{
+		{
+			UUID:          "imported-rule",
+			ServiceID:     "installed-service",
+			ContainerPort: 8080,
+			IP:            "0.0.0.0",
+			Port:          30000,
+		},
+	}
+
+	err := reassignConflictingTCPRulePorts(existing, incoming)
+
+	if err != nil {
+		t.Fatalf("reassignConflictingTCPRulePorts returned error: %v", err)
+	}
+	if incoming[0].Port != 30001 {
+		t.Fatalf("incoming TCP rule port = %d, expected 30001", incoming[0].Port)
 	}
 }

@@ -1304,6 +1304,43 @@ func selectAvailablePort(used []int) int {
 	return 0
 }
 
+func reassignConflictingTCPRulePorts(existingRules, incomingRules []*model.TCPRule) error {
+	usedPorts := make(map[int]struct{}, len(existingRules)+len(incomingRules))
+	for _, rule := range existingRules {
+		if rule == nil || rule.Port <= 0 {
+			continue
+		}
+		usedPorts[rule.Port] = struct{}{}
+	}
+
+	for _, rule := range incomingRules {
+		if rule == nil {
+			continue
+		}
+		if _, exists := usedPorts[rule.Port]; rule.Port <= 0 || exists {
+			originalPort := rule.Port
+			nextPort := selectAvailablePortFromSet(usedPorts)
+			if nextPort == 0 {
+				return fmt.Errorf("no more lb port can be used for service %s", rule.ServiceID)
+			}
+			rule.Port = nextPort
+			if originalPort > 0 {
+				logrus.Infof("tcp rule port %d for service %s is already used, reassign to %d", originalPort, rule.ServiceID, nextPort)
+			}
+		}
+		usedPorts[rule.Port] = struct{}{}
+	}
+	return nil
+}
+
+func selectAvailablePortFromSet(usedPorts map[int]struct{}) int {
+	used := make([]int, 0, len(usedPorts))
+	for port := range usedPorts {
+		used = append(used, port)
+	}
+	return selectAvailablePort(used)
+}
+
 // TCPIPPortExists returns if the port exists
 func (g *GatewayAction) TCPIPPortExists(host string, port int) bool {
 	roles, _ := db.GetManager().TCPRuleDao().GetUsedPortsByIP(host)
@@ -1695,7 +1732,17 @@ func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Compone
 			tcpRules = append(tcpRules, tcpRule.DbModel(component.ComponentBase.ComponentID))
 		}
 	}
+	if len(tcpRules) == 0 {
+		return nil
+	}
 	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	existingTCPRules, err := db.GetManager().TCPRuleDaoTransactions(tx).GetUsedPortsByIP("0.0.0.0")
+	if err != nil {
+		return err
+	}
+	if err := reassignConflictingTCPRulePorts(existingTCPRules, tcpRules); err != nil {
 		return err
 	}
 	return db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules)
