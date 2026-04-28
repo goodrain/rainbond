@@ -22,10 +22,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/storage"
-	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -39,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/util"
 	"github.com/melbahja/got"
 	"github.com/pquerna/ffjson/ffjson"
@@ -81,6 +81,82 @@ func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 		image:   ParseImageName(builder.RUNNERIMAGENAME),
 		args:    []string{"start", "web"},
 	}
+}
+
+func selectPackageArchive(dir string) (string, string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", "", err
+	}
+
+	var selectedPath string
+	var selectedExt string
+	var selectedName string
+	var selectedModTime int64
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext, ok := packageArchiveExt(entry.Name())
+		if !ok {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return "", "", err
+		}
+		modTime := info.ModTime().UnixNano()
+		if selectedPath == "" || modTime > selectedModTime || (modTime == selectedModTime && entry.Name() > selectedName) {
+			selectedPath = filepath.Join(dir, entry.Name())
+			selectedExt = ext
+			selectedName = entry.Name()
+			selectedModTime = modTime
+		}
+	}
+	return selectedPath, selectedExt, nil
+}
+
+func packageArchiveExt(name string) (string, bool) {
+	lowerName := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(lowerName, ".tar.gz"):
+		return ".tar.gz", true
+	case strings.HasSuffix(lowerName, ".tgz"):
+		return ".tgz", true
+	case strings.HasSuffix(lowerName, ".gz"):
+		return ".gz", true
+	case strings.HasSuffix(lowerName, ".tar"):
+		return ".tar", true
+	case strings.HasSuffix(lowerName, ".zip"):
+		return ".zip", true
+	default:
+		return "", false
+	}
+}
+
+func cleanPackageExtractDir(dir, archivePath string) error {
+	archiveAbs, err := filepath.Abs(archivePath)
+	if err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		entryPath := filepath.Join(dir, entry.Name())
+		entryAbs, err := filepath.Abs(entryPath)
+		if err != nil {
+			return err
+		}
+		if entryAbs == archiveAbs {
+			continue
+		}
+		if err := os.RemoveAll(entryPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Parse 获取代码 解析代码 检验代码
@@ -270,11 +346,19 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			logrus.Errorf("download dir to dir failure: %v", err)
 		}
 
-		fileList, _ := ioutil.ReadDir(buildInfo.GetCodeHome())
-		var ext, filePath string
-		if len(fileList) > 0 {
-			filePath = path.Join(buildInfo.GetCodeHome(), fileList[0].Name())
-			ext = path.Ext(fileList[0].Name())
+		filePath, ext, err := selectPackageArchive(buildInfo.GetCodeHome())
+		if err != nil {
+			logrus.Errorf("read package archive failure %s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, "文件读取失败", "请确认上传文件是否存在"))
+			return d.errors
+		}
+		if filePath == "" {
+			return d.errors
+		}
+		if err := cleanPackageExtractDir(buildInfo.GetCodeHome(), filePath); err != nil {
+			logrus.Errorf("clean package extract dir failure %s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, "文件解压目录清理失败", "请重新上传文件后重试"))
+			return d.errors
 		}
 		switch ext {
 		case ".tar":
@@ -282,7 +366,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tar规范文件"))
 			}
-		case ".tgz", ".gz":
+		case ".tar.gz", ".tgz", ".gz":
 			if err := util.UnTar(filePath, buildInfo.GetCodeHome(), true); err != nil {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
@@ -293,7 +377,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
 			}
 		}
-		return ParseErrorList{}
+		return d.errors
 	}
 	ossFunc := func() ParseErrorList {
 		g := got.NewWithContext(context.Background())
