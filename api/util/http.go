@@ -23,7 +23,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"strings"
 
 	"github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"k8s.io/api/core/v1"
