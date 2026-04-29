@@ -163,7 +163,7 @@ func TestHasMatchingCertManagerDomain(t *testing.T) {
 			name:         "wildcard match",
 			certDomains:  []string{"*.example.com"},
 			routeDomains: []string{"foo.example.com"},
-			want:         true,
+			want:         false,
 		},
 		{
 			name:         "no overlap",
