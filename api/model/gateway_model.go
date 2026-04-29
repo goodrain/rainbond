@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // AddHTTPRuleStruct is used to add http rule, certificate and rule extensions
@@ -59,6 +60,16 @@ type GatewayHTTPRouteConcise struct {
 	AppID            string   `json:"app_id"`
 	GatewayName      string   `json:"gateway_class_name"`
 	GatewayNamespace string   `json:"gateway_class_namespace"`
+}
+
+// TCPRouteServicePort includes the Kubernetes ServicePort plus Rainbond service metadata.
+type TCPRouteServicePort struct {
+	corev1.ServicePort `json:",inline"`
+	ServiceName        string `json:"service_name"`
+	ServiceAlias       string `json:"service_alias"`
+	ServiceID          string `json:"service_id"`
+	AppID              string `json:"app_id"`
+	ContainerPort      int32  `json:"container_port"`
 }
 
 // GatewayHTTPRouteStruct -

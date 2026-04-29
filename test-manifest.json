@@ -345,6 +345,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.application.check-port-k8s-service-name-duplicate",
+      "title": "Reject duplicate Kubernetes service names across app ports",
+      "title_zh": "\u6821\u9a8c\u5e94\u7528\u7aef\u53e3 Kubernetes Service \u540d\u79f0\u91cd\u590d",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ApplicationAction.checkPorts",
+      "code_paths": [
+        "api/handler/application_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/application_handler_test.go",
+          "selector": "TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.build.select-builder-by-language",
       "title": "Select builder implementation by source language and build type",
       "title_zh": "\u6309\u6e90\u7801\u8bed\u8a00\u548c\u6784\u5efa\u7c7b\u578b\u9009\u62e9\u6784\u5efa\u5668",
@@ -1087,6 +1105,42 @@
         {
           "path": "builder/build/cnb/cnb_test.go",
           "selector": "TestWaitingComplete"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-update-persists-capacity",
+      "title": "Persist component volume capacity updates",
+      "title_zh": "\u6301\u4e45\u5316\u7ec4\u4ef6\u5b58\u50a8\u5bb9\u91cf\u66f4\u65b0",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumeUpdatesVolumeCapacity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-update-preserves-capacity",
+      "title": "Preserve volume capacity in update request payloads",
+      "title_zh": "\u7ec4\u4ef6\u5b58\u50a8\u66f4\u65b0\u8bf7\u6c42\u4fdd\u7559\u5bb9\u91cf\u5b57\u6bb5",
+      "interface_type": "other",
+      "interface": "api/model.UpdVolumeReq",
+      "code_paths": [
+        "api/model/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "api/model/volume_test.go",
+          "selector": "TestUpdVolumeReqPreservesVolumeCapacityFromJSON"
         }
       ],
       "test_type": "regression",
@@ -1913,6 +1967,23 @@
         {
           "path": "api/handler/gateway_action_test.go",
           "selector": "TestSelectAvailablePort"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.reassign-conflicting-imported-tcp-port",
+      "title": "Reassign imported TCP ports that conflict with existing NodePorts",
+      "interface_type": "package_function",
+      "interface": "api/handler.reassignConflictingTCPRulePorts",
+      "code_paths": [
+        "api/handler/gateway_action.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestReassignConflictingTCPRulePorts"
         }
       ],
       "test_type": "regression",
@@ -3265,6 +3336,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.ns-resource.batch-create",
+      "title": "Create namespace resources from multi-document YAML",
+      "title_zh": "\u6279\u91cf\u521b\u5efa\u547d\u540d\u7a7a\u95f4\u8d44\u6e90",
+      "interface_type": "handler_method",
+      "interface": "api/handler.NsResourceHandler.CreateNsResource",
+      "code_paths": [
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/ns_resource_test.go",
+          "selector": "TestCreateNsResourceBatchAggregatesPartialSuccess"
+        },
+        {
+          "path": "api/handler/ns_resource_test.go",
+          "selector": "TestCreateNsResourceBatchPreservesExplicitNamespace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ns-resource.detect-source",
       "title": "Detect namespace resource source",
       "title_zh": "\u8bc6\u522b\u547d\u540d\u7a7a\u95f4\u8d44\u6e90\u6765\u6e90",
@@ -3339,6 +3432,60 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.package-build.clean-extracted-content",
+      "title": "Clean stale extracted package content before unpacking",
+      "title_zh": "\u89e3\u538b\u524d\u6e05\u7406\u65e7\u5305\u5c55\u5f00\u5185\u5bb9",
+      "interface_type": "package_function",
+      "interface": "builder/parser.cleanPackageExtractDir",
+      "code_paths": [
+        "builder/parser/source_code.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/package_archive_test.go",
+          "selector": "TestCleanPackageExtractDirKeepsSelectedArchiveOnly"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.package-build.select-archive-over-extracted-content",
+      "title": "Select uploaded package archive over extracted content",
+      "title_zh": "\u4f18\u5148\u9009\u62e9\u4e0a\u4f20\u538b\u7f29\u5305\u800c\u4e0d\u662f\u65e7\u89e3\u538b\u5185\u5bb9",
+      "interface_type": "package_function",
+      "interface": "builder/parser.selectPackageArchive",
+      "code_paths": [
+        "builder/parser/source_code.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/package_archive_test.go",
+          "selector": "TestSelectPackageArchiveSkipsExtractedDirectories"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.package-build.select-latest-archive",
+      "title": "Select latest uploaded package archive",
+      "title_zh": "\u4e8c\u6b21\u4e0a\u4f20\u65f6\u9009\u62e9\u6700\u65b0\u538b\u7f29\u5305",
+      "interface_type": "package_function",
+      "interface": "builder/parser.selectPackageArchive",
+      "code_paths": [
+        "builder/parser/source_code.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/package_archive_test.go",
+          "selector": "TestSelectPackageArchiveUsesLatestArchiveForSecondUpload"
         }
       ],
       "test_type": "regression",
@@ -3679,6 +3826,24 @@
         {
           "path": "builder/parser/code/runtime_test.go",
           "selector": "TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.runtime.node-cnb-framework-detection",
+      "title": "Detect Node.js framework metadata for CNB builds",
+      "title_zh": "CNB \u6784\u5efa\u68c0\u6d4b Node.js \u6846\u67b6\u4fe1\u606f",
+      "interface_type": "package_function",
+      "interface": "builder/parser/code.CheckRuntimeByStrategy",
+      "code_paths": [
+        "builder/parser/code/runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/runtime_test.go",
+          "selector": "TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines"
         }
       ],
       "test_type": "regression",
@@ -6246,6 +6411,27 @@
         {
           "path": "worker/appm/conversion/autoscaler_test.go",
           "selector": "TestNewHPA"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
+      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePort"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
         }
       ],
       "test_type": "regression",

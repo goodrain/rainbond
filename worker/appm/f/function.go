@@ -503,7 +503,7 @@ func UpgradeSecrets(clientset kubernetes.Interface,
 }
 
 // UpgradeClaims is used to update *corev1.PVC.
-func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new []*corev1.PersistentVolumeClaim, handleErr func(msg string, err error) error) error {
+func UpgradeClaims(clientset kubernetes.Interface, as *v1.AppService, old, new []*corev1.PersistentVolumeClaim, handleErr func(msg string, err error) error) error {
 	var oldMap = make(map[string]*corev1.PersistentVolumeClaim, len(old))
 	for i, item := range old {
 		oldMap[item.Name] = old[i]

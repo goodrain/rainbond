@@ -1103,11 +1103,33 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 // UpdateModel update env support attr_value\is_change\scope
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
-	return t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update(map[string]interface{}{
+	return t.UpdateModelByAttrName(env, env.AttrName)
+}
+
+// UpdateModelByAttrName updates an env while locating the existing row by its old attr name.
+func (t *TenantServiceEnvVarDaoImpl) UpdateModelByAttrName(env *model.TenantServiceEnvVar, oldAttrName string) error {
+	if oldAttrName == "" {
+		oldAttrName = env.AttrName
+	}
+	if oldAttrName != env.AttrName {
+		var existing model.TenantServiceEnvVar
+		if ok := t.DB.Where("service_id = ? and attr_name = ?", env.ServiceID, env.AttrName).Find(&existing).RecordNotFound(); !ok {
+			return dberr.ErrRecordAlreadyExist
+		}
+	}
+	db := t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, oldAttrName).Update(map[string]interface{}{
+		"attr_name":  env.AttrName,
 		"attr_value": env.AttrValue,
 		"is_change":  env.IsChange,
 		"scope":      env.Scope,
-	}).Error
+	})
+	if db.Error != nil {
+		return db.Error
+	}
+	if db.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // DeleteByComponentIDs -

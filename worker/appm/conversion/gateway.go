@@ -42,6 +42,7 @@ import (
 	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
 	"github.com/google/uuid"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -482,7 +483,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 		svcs, err := k8s2.Default().Clientset.CoreV1().Services(as.GetNamespace()).List(
 			context.Background(),
 			metav1.ListOptions{
-				LabelSelector: "service_alias=" + as.ServiceAlias + ",port=" + strconv.Itoa(tcpRule.Port),
+				LabelSelector: "service_alias=" + as.ServiceAlias + ",port=" + strconv.Itoa(tcpRule.ContainerPort),
 			},
 		)
 		if err != nil {
@@ -500,6 +501,11 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 				labels["outer"] = "true"
 				labels["port"] = fmt.Sprintf("%v", tcpRule.ContainerPort)
 				name := fmt.Sprintf("%v-%v", as.ServiceAlias, tcpRule.Port)
+				if err := a.reassignTCPRuleNodePort(as.GetNamespace(), name, tcpRule); err != nil {
+					logrus.Errorf("reassign tcp rule node port failure: %v", err)
+					return
+				}
+				name = fmt.Sprintf("%v-%v", as.ServiceAlias, tcpRule.Port)
 				spec := corev1.ServiceSpec{
 					Ports: []corev1.ServicePort{
 						{
@@ -529,4 +535,89 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 		}
 	}
 	return
+}
+
+func (a *AppServiceBuild) reassignTCPRuleNodePort(namespace, serviceName string, tcpRule *model.TCPRule) error {
+	if tcpRule == nil {
+		return nil
+	}
+	services, err := k8s2.Default().Clientset.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	nodePort, changed := reassignAllocatedNodePort(tcpRule.Port, namespace, serviceName, services.Items)
+	if !changed {
+		return nil
+	}
+	oldPort := tcpRule.Port
+	tcpRule.Port = nodePort
+	if err := a.dbmanager.TCPRuleDao().UpdateModel(tcpRule); err != nil {
+		tcpRule.Port = oldPort
+		return err
+	}
+	logrus.Infof("tcp rule nodePort %d for service %s is already allocated, reassign to %d", oldPort, tcpRule.ServiceID, nodePort)
+	return nil
+}
+
+func reassignAllocatedNodePort(requestedPort int, namespace, serviceName string, services []corev1.Service) (int, bool) {
+	if requestedPort <= 0 {
+		return requestedPort, false
+	}
+	usedPorts := make(map[int]struct{})
+	for _, service := range services {
+		if service.Namespace == namespace && service.Name == serviceName {
+			continue
+		}
+		for _, port := range service.Spec.Ports {
+			if port.NodePort <= 0 {
+				continue
+			}
+			usedPorts[int(port.NodePort)] = struct{}{}
+		}
+	}
+	if _, exists := usedPorts[requestedPort]; !exists {
+		return requestedPort, false
+	}
+	nodePort := selectAvailableNodePort(usedPorts)
+	if nodePort == 0 {
+		return requestedPort, false
+	}
+	return nodePort, true
+}
+
+func selectAvailableNodePort(usedPorts map[int]struct{}) int {
+	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
+	if minPort == 0 {
+		minPort = 30000
+	}
+	if maxPort == 0 {
+		maxPort = 65535
+	}
+	used := make([]int, 0, len(usedPorts))
+	for port := range usedPorts {
+		used = append(used, port)
+	}
+	sort.Ints(used)
+
+	selectedPort := minPort
+	for _, port := range used {
+		if port < minPort {
+			continue
+		}
+		if port == selectedPort {
+			selectedPort++
+			continue
+		}
+		if port > selectedPort {
+			if selectedPort <= maxPort {
+				return selectedPort
+			}
+			break
+		}
+	}
+	if selectedPort <= maxPort {
+		return selectedPort
+	}
+	return 0
 }

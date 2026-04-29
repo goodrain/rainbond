@@ -361,21 +361,22 @@ func TestIsEndWithNumber(t *testing.T) {
 	}
 }
 
-func TestOpenOrCreateFile(t *testing.T) {
-	file, err := OpenOrCreateFile("./test.log")
+func TestOpenOrCreateFileWithRelativePath(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "test.log")
+	file, err := OpenOrCreateFile(filePath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	file.Close()
 }
 
-func TestDeweight(t *testing.T) {
+func TestDeweightLegacy(t *testing.T) {
 	data := []string{"asd", "asd", "12", "12"}
 	Deweight(&data)
 	t.Log(data)
 }
 
-func TestGetDirSize(t *testing.T) {
+func TestGetDirSizeLegacy(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
 		t.Fatal(err)
@@ -385,7 +386,7 @@ func TestGetDirSize(t *testing.T) {
 	runtime.ReadMemStats(memStats)
 }
 
-func TestGetDirSizeByCmd(t *testing.T) {
+func TestGetDirSizeByCmdLegacy(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
 		t.Fatal(err)
@@ -395,7 +396,7 @@ func TestGetDirSizeByCmd(t *testing.T) {
 	runtime.ReadMemStats(memStats)
 }
 
-func TestZip(t *testing.T) {
+func TestZipLegacy(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "cache")
 	if err := os.MkdirAll(source, 0755); err != nil {
@@ -409,13 +410,13 @@ func TestZip(t *testing.T) {
 	}
 }
 
-func TestCreateVersionByTime(t *testing.T) {
+func TestCreateVersionByTimeLegacy(t *testing.T) {
 	if re := CreateVersionByTime(); re != "" {
 		t.Log(re)
 	}
 }
 
-func TestGetDirList(t *testing.T) {
+func TestGetDirListLegacy(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "sub")
 	if err := os.MkdirAll(sub, 0755); err != nil {
@@ -431,7 +432,7 @@ func TestGetDirList(t *testing.T) {
 	t.Log(list)
 }
 
-func TestMergeDir(t *testing.T) {
+func TestMergeDirLegacy(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src")
 	dst := filepath.Join(t.TempDir(), "dst")
 	if err := os.MkdirAll(src, 0755); err != nil {
@@ -449,7 +450,7 @@ func TestMergeDir(t *testing.T) {
 	}
 }
 
-func TestCreateHostID(t *testing.T) {
+func TestCreateHostIDLegacy(t *testing.T) {
 	uid, err := CreateHostID()
 	if err != nil {
 		t.Fatal(err)
@@ -457,11 +458,11 @@ func TestCreateHostID(t *testing.T) {
 	t.Log(uid)
 }
 
-func TestGetCurrentDir(t *testing.T) {
+func TestGetCurrentDirLegacy(t *testing.T) {
 	t.Log(GetCurrentDir())
 }
 
-func TestCopyFile(t *testing.T) {
+func TestCopyFileLegacy(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "test2.zip")
 	dst := filepath.Join(dir, "test4.zip")
@@ -473,7 +474,7 @@ func TestCopyFile(t *testing.T) {
 	}
 }
 
-func TestParseVariable(t *testing.T) {
+func TestParseVariableLegacy(t *testing.T) {
 	configs := make(map[string]string, 0)
 	result := ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", configs)
 	t.Log(result)
@@ -484,7 +485,7 @@ func TestParseVariable(t *testing.T) {
 	}))
 }
 
-func TestTimeFormat(t *testing.T) {
+func TestTimeFormatLegacy(t *testing.T) {
 	tt := "2019-08-24 11:11:30.165753932 +0800 CST m=+55557.682499470"
 	timeF, err := time.Parse(time.RFC3339, strings.Replace(tt[0:19]+"+08:00", " ", "T", 1))
 	if err != nil {
@@ -492,4 +493,3 @@ func TestTimeFormat(t *testing.T) {
 	}
 	t.Log(timeF.Format(time.RFC3339))
 }
-

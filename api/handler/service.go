@@ -1197,7 +1197,7 @@ func (s *ServiceAction) ServiceDepend(action string, ds *apimodel.DependService)
 }
 
 // EnvAttr env attr
-func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error {
+func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar, oldAttrNames ...string) error {
 	switch action {
 	case "add":
 		if err := db.GetManager().TenantServiceEnvVarDao().AddModel(at); err != nil {
@@ -1210,7 +1210,11 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 			return err
 		}
 	case "update":
-		if err := db.GetManager().TenantServiceEnvVarDao().UpdateModel(at); err != nil {
+		oldAttrName := at.AttrName
+		if len(oldAttrNames) > 0 && oldAttrNames[0] != "" {
+			oldAttrName = oldAttrNames[0]
+		}
+		if err := db.GetManager().TenantServiceEnvVarDao().UpdateModelByAttrName(at, oldAttrName); err != nil {
 			logrus.Errorf("update env %v error,%v", at.AttrName, err)
 			return err
 		}
@@ -1784,6 +1788,9 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		return err
 	}
 	v.VolumePath = req.VolumePath
+	if req.VolumeCapacity != nil {
+		v.VolumeCapacity = *req.VolumeCapacity
+	}
 	v.Mode = req.Mode
 	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
 		tx.Rollback()
