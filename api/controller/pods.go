@@ -20,7 +20,11 @@ package controller
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -143,10 +147,18 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		lines = 100
 	}
 	tailLines := int64(lines)
+	follow, err := parseFollow(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// Get container name from query parameter
 	container := r.URL.Query().Get("container")
-	logrus.Infof("resource center pod logs request path=%s namespace=%s pod=%s container=%s lines=%d", r.URL.String(), namespace, podName, container, lines)
+	logrus.Infof(
+		"resource center pod logs request path=%s namespace=%s pod=%s container=%s lines=%d follow=%t",
+		r.URL.String(), namespace, podName, container, lines, follow,
+	)
 
 	// Get pod to check how many containers it has
 	pod, err := k8s.Default().Clientset.CoreV1().Pods(namespace).Get(r.Context(), podName, metav1.GetOptions{})
@@ -196,7 +208,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 	// If single container, use original logic
 	if len(containers) == 1 {
-		streamContainerLogs(w, r, podName, namespace, containers[0], tailLines, flusher)
+		streamContainerLogs(w, r, podName, namespace, containers[0], tailLines, follow, flusher)
 		return
 	}
 
@@ -211,7 +223,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 	for _, containerName := range containers {
 		go func(cName string) {
 			req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
-				Follow:     true,
+				Follow:     follow,
 				Timestamps: true,
 				TailLines:  &tailLines,
 				Container:  cName,
@@ -238,6 +250,10 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 				}
 			}
 			if err := scanner.Err(); err != nil {
+				if isExpectedLogStreamClose(r.Context(), err) {
+					logrus.Infof("Log stream closed for container %s in pod %s/%s: %v", cName, namespace, podName, err)
+					return
+				}
 				logrus.Errorf("Error scanning log stream for container %s in pod %s/%s: %v", cName, namespace, podName, err)
 			} else {
 				logrus.Infof("Log stream ended for container %s in pod %s/%s", cName, namespace, podName)
@@ -266,9 +282,12 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 }
 
 // streamContainerLogs streams logs from a single container
-func streamContainerLogs(w http.ResponseWriter, r *http.Request, podName, namespace, container string, tailLines int64, flusher http.Flusher) {
+func streamContainerLogs(
+	w http.ResponseWriter, r *http.Request, podName, namespace, container string, tailLines int64, follow bool,
+	flusher http.Flusher,
+) {
 	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
-		Follow:     true,
+		Follow:     follow,
 		Timestamps: true,
 		TailLines:  &tailLines,
 		Container:  container,
@@ -299,10 +318,36 @@ func streamContainerLogs(w http.ResponseWriter, r *http.Request, podName, namesp
 		}
 	}
 	if err := scanner.Err(); err != nil {
+		if isExpectedLogStreamClose(r.Context(), err) {
+			logrus.Infof("Single-container log stream closed for pod %s/%s container %s: %v", namespace, podName, container, err)
+			return
+		}
 		logrus.Errorf("Error scanning single-container log stream for pod %s/%s container %s: %v", namespace, podName, container, err)
 	} else {
 		logrus.Infof("Single-container log stream ended for pod %s/%s container %s", namespace, podName, container)
 	}
+}
+
+func parseFollow(r *http.Request) (bool, error) {
+	followValue := r.URL.Query().Get("follow")
+	if followValue == "" {
+		return true, nil
+	}
+	follow, err := strconv.ParseBool(followValue)
+	if err != nil {
+		return false, fmt.Errorf("invalid follow value: %s", followValue)
+	}
+	return follow, nil
+}
+
+func isExpectedLogStreamClose(ctx context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return true
+	}
+	return errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)
 }
 
 // SystemPodLogs -
