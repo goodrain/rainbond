@@ -41,7 +41,42 @@ env:
   IS_MULTI_ARCH: ${{ github.event.inputs.platforms == 'linux/amd64,linux/arm64' }}
 
 jobs:
+  rainbond-unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Install native dependencies
+        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libzmq3-dev
+
+      - name: Set up Go
+        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        run: go test -mod=mod ./... -count=1
+
+      - name: Check test manifest
+        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        run: make test-manifest-check
+
+      - name: Skip unit tests
+        if: ${{ github.event.inputs.build-who != 'all' && github.event.inputs.build-who != 'region' }}
+        run: echo "Skip Rainbond Go unit tests for build-who=${{ github.event.inputs.build-who }}"
+
   rainbond-region:
+    needs: rainbond-unit-test
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
     strategy:
@@ -95,6 +130,7 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
 
   rainbond-operator:
+    needs: rainbond-unit-test
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
     strategy:
@@ -138,6 +174,7 @@ jobs:
             rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
   rainbond-ui:
+    needs: rainbond-unit-test
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
     strategy:
@@ -174,7 +211,7 @@ jobs:
   
   rainbond-allinone:
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
-    needs: [rainbond-ui]
+    needs: [rainbond-unit-test, rainbond-ui]
     environment: release-v6
     strategy:
       matrix:

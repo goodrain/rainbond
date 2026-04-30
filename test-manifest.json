@@ -3104,6 +3104,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.manual-pvc-upgrade-surfaces-update-errors",
+      "title": "Surface manual PVC update errors during app upgrade",
+      "title_zh": "\u5e94\u7528\u5347\u7ea7\u65f6\u8fd4\u56de\u624b\u52a8 PVC \u66f4\u65b0\u9519\u8bef",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.manual-pvc-upgrade-updates-existing-claim",
+      "title": "Update existing manual PVCs during app upgrade",
+      "title_zh": "\u5e94\u7528\u5347\u7ea7\u65f6\u66f4\u65b0\u5df2\u6709\u624b\u52a8 PVC",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.maven.list-modules",
       "title": "List Maven modules for multi-service build",
       "title_zh": "\u5217\u51fa Maven \u591a\u670d\u52a1\u6a21\u5757",

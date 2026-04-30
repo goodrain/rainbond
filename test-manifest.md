@@ -173,6 +173,8 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.manual-pvc-upgrade-surfaces-update-errors | 应用升级时返回手动 PVC 更新错误 | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError |
+| rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
 | rainbond.maven.parse-pom | 解析 Maven 父 pom 的模块与打包方式 | active | regression | builder/parser/code/multisvc.parsePom | builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom |
 | rainbond.multisvc.ignore-non-java | 在多服务解析器选择中忽略非 Java 语言 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_IgnoresLanguagesWithoutJavaMaven |
@@ -2075,6 +2077,26 @@
 - 业务入口: `api/util/license.VerifySignature`
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
+
+### 应用升级时返回手动 PVC 更新错误
+
+- Capability ID: `rainbond.manual-pvc-upgrade-surfaces-update-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError`
+
+### 应用升级时更新已有手动 PVC
+
+- Capability ID: `rainbond.manual-pvc-upgrade-updates-existing-claim`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim`
 
 ### 列出 Maven 多服务模块
 

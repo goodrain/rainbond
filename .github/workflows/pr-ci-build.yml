@@ -5,7 +5,31 @@ on:
     types: [opened, edited, synchronize, labeled, unlabeled]
 
 jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libzmq3-dev
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        run: go test -mod=mod ./... -count=1
+
+      - name: Check test manifest
+        run: make test-manifest-check
+
   rainbond:
+    needs: unit-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
