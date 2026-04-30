@@ -5,14 +5,38 @@ on:
     types: [opened, edited, synchronize, labeled, unlabeled]
 
 jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libzmq3-dev
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        run: go test -mod=mod ./... -count=1
+
+      - name: Check test manifest
+        run: make test-manifest-check
+
   rainbond:
+    needs: unit-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
         component: [api, chaos, worker, init-probe, mq]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -22,7 +46,7 @@ jobs:
           buildTime=$(date +%F-%H)
           git_commit=$(git log -n 1 --pretty --format=%h)
           release_desc="dev-${git_commit}-${buildTime}"
-          echo "release_desc=$release_desc" >> $GITHUB_ENV
+          echo "release_desc=${release_desc}" >> "${GITHUB_ENV}"
 
       - name: Build and push
         uses: docker/build-push-action@v6

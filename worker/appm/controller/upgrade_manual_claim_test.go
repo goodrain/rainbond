@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim(t *testing.T) 
 		t.Fatalf("upgrade manual claims: %v", err)
 	}
 
-	pvc, err := client.CoreV1().PersistentVolumeClaims("default").Get(t.Context(), "manual1", metav1.GetOptions{})
+	pvc, err := client.CoreV1().PersistentVolumeClaims("default").Get(context.Background(), "manual1", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("get pvc after upgrade: %v", err)
 	}
