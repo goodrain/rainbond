@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goodrain/rainbond/db"
@@ -10,8 +11,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamic "k8s.io/client-go/dynamic"
@@ -209,7 +210,7 @@ roleRef:
 
 	deployment, err := client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}).
 		Namespace("team-namespace").
-		Get(t.Context(), "demo-deploy", metav1.GetOptions{})
+		Get(context.Background(), "demo-deploy", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "yaml", deployment.GetLabels()["rainbond.io/source"])
 
@@ -217,7 +218,7 @@ roleRef:
 		Group:    "rbac.authorization.k8s.io",
 		Version:  "v1",
 		Resource: "clusterrolebindings",
-	}).Get(t.Context(), "demo-binding", metav1.GetOptions{})
+	}).Get(context.Background(), "demo-binding", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "yaml", clusterRoleBinding.GetLabels()["rainbond.io/source"])
 	assert.Equal(t, "", clusterRoleBinding.GetNamespace())
@@ -265,7 +266,7 @@ data:
 
 	configMap, err := client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}).
 		Namespace("custom-namespace").
-		Get(t.Context(), "explicit-config", metav1.GetOptions{})
+		Get(context.Background(), "explicit-config", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "custom-namespace", configMap.GetNamespace())
 	assert.Equal(t, "manual", configMap.GetLabels()["rainbond.io/source"])

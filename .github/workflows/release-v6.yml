@@ -88,7 +88,7 @@ jobs:
     if: github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
 
@@ -113,7 +113,7 @@ jobs:
           buildTime=$(date +%F-%H)
           git_commit=$(git log -n 1 --pretty --format=%h)
           release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
-          echo "release_desc=$release_desc" >> $GITHUB_ENV
+          echo "release_desc=${release_desc}" >> "${GITHUB_ENV}"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -141,7 +141,7 @@ jobs:
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'operator' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: goodrain/rainbond-operator
           ref: ${{ github.event.inputs.branch }}
@@ -185,7 +185,7 @@ jobs:
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: goodrain/rainbond-ui
           ref: ${{ github.event.inputs.branch }}
@@ -221,7 +221,7 @@ jobs:
     if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console' }}
     steps:
       - name: Checkout rainbond-console repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: goodrain/rainbond-console
           ref: ${{ github.event.inputs.branch }}
@@ -247,7 +247,7 @@ jobs:
           buildTime=$(date +%F-%H)
           git_commit=$(git log -n 1 --pretty --format=%h)
           release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
-          echo "release_desc=$release_desc" >> $GITHUB_ENV
+          echo "release_desc=${release_desc}" >> "${GITHUB_ENV}"
 
       - name: Build and push
         uses: docker/build-push-action@v6
