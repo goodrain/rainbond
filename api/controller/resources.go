@@ -1307,7 +1307,7 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	envD.IsChange = envM.IsChange
 	envD.Name = envM.Name
 	envD.Scope = envM.Scope
-	if err := handler.GetServiceManager().EnvAttr("update", &envD); err != nil {
+	if err := handler.GetServiceManager().EnvAttr("update", &envD, envM.OldAttrName); err != nil {
 		logrus.Errorf("update env error, %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update env error, %v", err))
 		return

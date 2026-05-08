@@ -23,6 +23,7 @@
 | rainbond.app-restore.service-id-lookup | 从恢复后的服务映射中反查原始服务 ID | active | regression | builder/exector.BackupAPPRestore.getOldServiceID | builder/exector/groupapp_restore_test.go::TestGetOldServiceID |
 | rainbond.app-restore.snapshot-relationship-rewrite | 应用恢复时重写服务依赖关系 | active | regression | builder/exector.BackupAPPRestore.modify | builder/exector/groupapp_restore_test.go::TestModify |
 | rainbond.app-restore.unzip-all-data | 在恢复时解压完整备份数据包 | active | regression | builder/exector.BackupAPPRestore | builder/exector/groupapp_restore_test.go::TestUnzipAllDataFile |
+| rainbond.application.check-port-k8s-service-name-duplicate | 校验应用端口 Kubernetes Service 名称重复 | active | regression | api/handler.ApplicationAction.checkPorts | api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
 | rainbond.cloud-storage.alioss-error-map | 将 AliOSS 服务错误转换为统一存储 SDK 错误 | active | regression | builder/cloudos.svcErrToS3SDKError | builder/cloudos/alioss_test.go::TestSvcErrToS3SDKError |
@@ -63,6 +64,8 @@
 | rainbond.cnb.static-buildpacks | 纯静态源码使用 nginx buildpack | active | regression | builder/build/cnb.staticConfig.CustomOrder | builder/build/cnb/cnb_test.go::TestStaticBuildpacks |
 | rainbond.cnb.volume-mounts | 创建 CNB 构建卷与挂载 | active | regression | builder/build/cnb.Builder.createVolumeAndMount | builder/build/cnb/cnb_test.go::TestCreateVolumeAndMount |
 | rainbond.cnb.waiting-complete | 等待 CNB 构建任务完成状态 | active | regression | builder/build/cnb.Builder.waitingComplete | builder/build/cnb/cnb_test.go::TestWaitingComplete |
+| rainbond.component.volume-update-persists-capacity | 持久化组件存储容量更新 | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity |
+| rainbond.component.volume-update-preserves-capacity | 组件存储更新请求保留容量字段 | active | regression | api/model.UpdVolumeReq | api/model/volume_test.go::TestUpdVolumeReqPreservesVolumeCapacityFromJSON |
 | rainbond.compose.config-volume-file-content | 保留配置卷文件内容字段语义 | active | regression | builder/parser/types.Volume.FileContent | builder/parser/file_content_test.go::TestVolumeFileContent |
 | rainbond.compose.detect-config-file-mount | 识别配置文件类型的挂载路径 | active | regression | builder/parser/compose.isConfigFile | builder/parser/compose/version_detect_test.go::TestIsConfigFile |
 | rainbond.compose.detect-version | 根据语法特征推断 compose 版本 | active | regression | builder/parser/compose.inferComposeVersion | builder/parser/compose/version_detect_test.go::TestInferComposeVersion |
@@ -108,6 +111,7 @@
 | rainbond.framework-detect.version-normalization | 规范化框架依赖版本号 | active | regression | builder/parser/code.cleanVersion | builder/parser/code/framework_test.go::TestCleanVersion |
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
+| rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.classify-resources | 按资源类型归类 Helm 发布资源 | active | regression | api/handler.splitHelmReleaseResources | api/handler/helm_release_test.go::TestSplitHelmReleaseResourcesClassifiesKinds |
@@ -170,6 +174,8 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.manual-pvc-upgrade-surfaces-update-errors | 应用升级时返回手动 PVC 更新错误 | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError |
+| rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
 | rainbond.maven.parse-pom | 解析 Maven 父 pom 的模块与打包方式 | active | regression | builder/parser/code/multisvc.parsePom | builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom |
 | rainbond.multisvc.ignore-non-java | 在多服务解析器选择中忽略非 Java 语言 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_IgnoresLanguagesWithoutJavaMaven |
@@ -180,10 +186,14 @@
 | rainbond.node-version.parse-package-json | 从 package.json 解析 Node 版本要求 | active | regression | builder/parser/code.ParseNodeVersionFromPackageJSON | builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoEngines<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoPackageJSON |
 | rainbond.node-version.resolve-range | 解析范围形式的 Node.js 版本约束 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Range |
 | rainbond.node-version.resolve-spec | 将 Node 版本表达式解析为支持的运行时版本 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion |
+| rainbond.ns-resource.batch-create | 批量创建命名空间资源 | active | regression | api/handler.NsResourceHandler.CreateNsResource | api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess<br>api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace |
 | rainbond.ns-resource.detect-source | 识别命名空间资源来源 | active | regression | api/handler.detectResourceSource | api/handler/ns_resource_test.go::TestDetectResourceSource |
 | rainbond.ns-resource.handler-singleton | 复用命名空间资源处理器单例 | active | unit | api/handler.GetNsResourceHandler | api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
+| rainbond.package-build.clean-extracted-content | 解压前清理旧包展开内容 | active | regression | builder/parser.cleanPackageExtractDir | builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly |
+| rainbond.package-build.select-archive-over-extracted-content | 优先选择上传压缩包而不是旧解压内容 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveSkipsExtractedDirectories |
+| rainbond.package-build.select-latest-archive | 二次上传时选择最新压缩包 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveUsesLatestArchiveForSecondUpload |
 | rainbond.package-manager.commands | 按包管理器生成安装构建启动命令 | active | regression | builder/parser/code.PackageManagerInfo | builder/parser/code/package_manager_test.go::TestPackageManagerInfo_GetCommands |
 | rainbond.package-manager.default-npm | 无锁文件时默认使用 npm | active | regression | builder/parser/code.DetectPackageManager | builder/parser/code/package_manager_test.go::TestDetectPackageManager_Default |
 | rainbond.package-manager.detect-lockfile | 通过锁文件识别包管理器 | active | regression | builder/parser/code.DetectPackageManager | builder/parser/code/package_manager_test.go::TestDetectPackageManager_PNPM<br>builder/parser/code/package_manager_test.go::TestDetectPackageManager_Yarn<br>builder/parser/code/package_manager_test.go::TestDetectPackageManager_NPM |
@@ -202,6 +212,7 @@
 | rainbond.resource-center.event-summary | 汇总资源事件信息 | active | regression | api/handler.toResourceEventInfo | api/handler/resource_center_test.go::TestToResourceEventInfo |
 | rainbond.resource-center.match-selector | 按选择器匹配资源标签 | active | regression | api/handler.labelsMatchSelector | api/handler/resource_center_test.go::TestLabelsMatchSelector |
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
+| rainbond.runtime.node-cnb-framework-detection | CNB 构建检测 Node.js 框架信息 | active | regression | builder/parser/code.CheckRuntimeByStrategy | builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
 | rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
@@ -579,6 +590,16 @@
 - 业务入口: `builder/exector.BackupAPPRestore`
 - 代码路径: `builder/exector/groupapp_restore.go`
 - 测试路径: `builder/exector/groupapp_restore_test.go::TestUnzipAllDataFile`
+
+### 校验应用端口 Kubernetes Service 名称重复
+
+- Capability ID: `rainbond.application.check-port-k8s-service-name-duplicate`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ApplicationAction.checkPorts`
+- 代码路径: `api/handler/application_handler.go`
+- 测试路径: `api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName`
 
 ### 按源码语言和构建类型选择构建器
 
@@ -979,6 +1000,26 @@
 - 业务入口: `builder/build/cnb.Builder.waitingComplete`
 - 代码路径: `builder/build/cnb/job.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestWaitingComplete`
+
+### 持久化组件存储容量更新
+
+- Capability ID: `rainbond.component.volume-update-persists-capacity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity`
+
+### 组件存储更新请求保留容量字段
+
+- Capability ID: `rainbond.component.volume-update-preserves-capacity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/model.UpdVolumeReq`
+- 代码路径: `api/model/volume.go`
+- 测试路径: `api/model/volume_test.go::TestUpdVolumeReqPreservesVolumeCapacityFromJSON`
 
 ### 保留配置卷文件内容字段语义
 
@@ -1429,6 +1470,16 @@
 - 业务入口: `api/handler.selectAvailablePort`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestSelectAvailablePort`
+
+### Reassign imported TCP ports that conflict with existing NodePorts
+
+- Capability ID: `rainbond.gateway.reassign-conflicting-imported-tcp-port`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.reassignConflictingTCPRulePorts`
+- 代码路径: `api/handler/gateway_action.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts`
 
 ### 为 Helm 历史输出格式化应用版本号
 
@@ -2050,6 +2101,26 @@
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
 
+### 应用升级时返回手动 PVC 更新错误
+
+- Capability ID: `rainbond.manual-pvc-upgrade-surfaces-update-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError`
+
+### 应用升级时更新已有手动 PVC
+
+- Capability ID: `rainbond.manual-pvc-upgrade-updates-existing-claim`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim`
+
 ### 列出 Maven 多服务模块
 
 - Capability ID: `rainbond.maven.list-modules`
@@ -2150,6 +2221,16 @@
 - 代码路径: `builder/parser/code/node_version.go`
 - 测试路径: `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion`
 
+### 批量创建命名空间资源
+
+- Capability ID: `rainbond.ns-resource.batch-create`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.NsResourceHandler.CreateNsResource`
+- 代码路径: `api/handler/ns_resource.go`
+- 测试路径: `api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess`, `api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace`
+
 ### 识别命名空间资源来源
 
 - Capability ID: `rainbond.ns-resource.detect-source`
@@ -2189,6 +2270,36 @@
 - 业务入口: `api/handler.(*NsResourceHandler).getTenantNamespace`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField`, `api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty`
+
+### 解压前清理旧包展开内容
+
+- Capability ID: `rainbond.package-build.clean-extracted-content`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/parser.cleanPackageExtractDir`
+- 代码路径: `builder/parser/source_code.go`
+- 测试路径: `builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly`
+
+### 优先选择上传压缩包而不是旧解压内容
+
+- Capability ID: `rainbond.package-build.select-archive-over-extracted-content`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/parser.selectPackageArchive`
+- 代码路径: `builder/parser/source_code.go`
+- 测试路径: `builder/parser/package_archive_test.go::TestSelectPackageArchiveSkipsExtractedDirectories`
+
+### 二次上传时选择最新压缩包
+
+- Capability ID: `rainbond.package-build.select-latest-archive`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/parser.selectPackageArchive`
+- 代码路径: `builder/parser/source_code.go`
+- 测试路径: `builder/parser/package_archive_test.go::TestSelectPackageArchiveUsesLatestArchiveForSecondUpload`
 
 ### 按包管理器生成安装构建启动命令
 
@@ -2369,6 +2480,16 @@
 - 业务入口: `builder/parser/code.CheckRuntime`
 - 代码路径: `builder/parser/code/runtime.go`
 - 测试路径: `builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime`
+
+### CNB 构建检测 Node.js 框架信息
+
+- Capability ID: `rainbond.runtime.node-cnb-framework-detection`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/parser/code.CheckRuntimeByStrategy`
+- 代码路径: `builder/parser/code/runtime.go`
+- 测试路径: `builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines`
 
 ### 从 package.json 返回默认 Node 运行时信息
 

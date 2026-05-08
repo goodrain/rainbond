@@ -16,6 +16,7 @@ type ChunkUploadController struct{}
 // InitUpload 初始化上传会话
 // POST /package_build/component/events/{eventID}/upload/init
 func (c *ChunkUploadController) InitUpload(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
 		httputil.ReturnError(r, w, 400, "eventID is required")
@@ -53,11 +54,6 @@ func (c *ChunkUploadController) InitUpload(w http.ResponseWriter, r *http.Reques
 		"uploaded_chunks": uploadedChunks,
 		"status":          session.Status,
 	}
-	origin := r.Header.Get("Origin")
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 	logrus.Infof("Initialized upload session: %s for event: %s, file: %s", session.ID, eventID, req.FileName)
 	httputil.ReturnSuccess(r, w, response)
 }
@@ -65,6 +61,7 @@ func (c *ChunkUploadController) InitUpload(w http.ResponseWriter, r *http.Reques
 // UploadChunk 上传分片
 // POST /package_build/component/events/{eventID}/upload/chunk
 func (c *ChunkUploadController) UploadChunk(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
 		httputil.ReturnError(r, w, 400, "eventID is required")
@@ -120,18 +117,13 @@ func (c *ChunkUploadController) UploadChunk(w http.ResponseWriter, r *http.Reque
 		"uploaded_chunks": status.UploadedChunks,
 		"progress":        status.Progress,
 	}
-	origin := r.Header.Get("Origin")
-
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 	httputil.ReturnSuccess(r, w, response)
 }
 
 // CompleteUpload 完成上传，合并分片
 // POST /package_build/component/events/{eventID}/upload/complete
 func (c *ChunkUploadController) CompleteUpload(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {
 		httputil.ReturnError(r, w, 400, "eventID is required")
@@ -162,18 +154,13 @@ func (c *ChunkUploadController) CompleteUpload(w http.ResponseWriter, r *http.Re
 	}
 
 	logrus.Infof("Upload completed for session: %s, file: %s", req.SessionID, filePath)
-	origin := r.Header.Get("Origin")
-
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 	httputil.ReturnSuccess(r, w, response)
 }
 
 // GetUploadStatus 查询上传状态
 // GET /package_build/component/events/{eventID}/upload/status/{sessionID}
 func (c *ChunkUploadController) GetUploadStatus(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	sessionID := strings.TrimSpace(chi.URLParam(r, "sessionID"))
 	if sessionID == "" {
 		httputil.ReturnError(r, w, 400, "sessionID is required")
@@ -187,18 +174,13 @@ func (c *ChunkUploadController) GetUploadStatus(w http.ResponseWriter, r *http.R
 		httputil.ReturnError(r, w, 404, "Session not found")
 		return
 	}
-	origin := r.Header.Get("Origin")
-
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 	httputil.ReturnSuccess(r, w, status)
 }
 
 // CancelUpload 取消上传
 // DELETE /package_build/component/events/{eventID}/upload/{sessionID}
 func (c *ChunkUploadController) CancelUpload(w http.ResponseWriter, r *http.Request) {
+	SetPackageBuildCORSHeaders(w, r)
 	sessionID := strings.TrimSpace(chi.URLParam(r, "sessionID"))
 	if sessionID == "" {
 		httputil.ReturnError(r, w, 400, "sessionID is required")
@@ -213,25 +195,11 @@ func (c *ChunkUploadController) CancelUpload(w http.ResponseWriter, r *http.Requ
 	}
 
 	logrus.Infof("Cancelled upload session: %s", sessionID)
-	origin := r.Header.Get("Origin")
-
-	w.Header().Add("Access-Control-Allow-Origin", origin)
-	w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
-	w.Header().Add("Access-Control-Allow-Credentials", "true")
-	w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
 	httputil.ReturnSuccess(r, w, map[string]string{"message": "Upload cancelled"})
 }
 
 // HandleOptions 处理 CORS 预检请求
 func (c *ChunkUploadController) HandleOptions(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	if origin == "" {
-		origin = "*"
-	}
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-	w.Header().Add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header, X_TEAM_NAME, X_REGION_NAME")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Max-Age", "3600")
+	SetPackageBuildCORSHeaders(w, r)
 	w.WriteHeader(http.StatusOK)
 }

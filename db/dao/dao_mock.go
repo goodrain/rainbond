@@ -2596,6 +2596,18 @@ func (mr *MockTenantServiceEnvVarDaoMockRecorder) UpdateModel(arg0 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).UpdateModel), arg0)
 }
 
+// UpdateModelByAttrName mocks base method
+func (m *MockTenantServiceEnvVarDao) UpdateModelByAttrName(env *model.TenantServiceEnvVar, oldAttrName string) error {
+	ret := m.ctrl.Call(m, "UpdateModelByAttrName", env, oldAttrName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModelByAttrName indicates an expected call of UpdateModelByAttrName
+func (mr *MockTenantServiceEnvVarDaoMockRecorder) UpdateModelByAttrName(env, oldAttrName interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModelByAttrName", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).UpdateModelByAttrName), env, oldAttrName)
+}
+
 // DeleteModel mocks base method
 func (m *MockTenantServiceEnvVarDao) DeleteModel(serviceID string, arg ...interface{}) error {
 	varargs := []interface{}{serviceID}

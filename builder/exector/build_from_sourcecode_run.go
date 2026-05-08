@@ -28,11 +28,13 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	utils "github.com/goodrain/rainbond/util"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/goodrain/rainbond/builder"
@@ -494,12 +496,56 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 	list, err := i.KubeClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=rbd-gateway",
 	})
-	if err == nil && len(list.Items) > 0 {
-		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"goodrain.me"}})
-		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"maven.goodrain.me"}})
-		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"lang.goodrain.me"}})
+	if err != nil || len(list.Items) == 0 {
+		return hostAliasList, err
 	}
+
+	hostIP := i.preferredGatewayHostIPv4(&list.Items[0])
+	if hostIP == "" {
+		logrus.Warnf("gateway pod %s/%s does not have a usable IPv4 host address", list.Items[0].Namespace, list.Items[0].Name)
+		return hostAliasList, nil
+	}
+	hostAliasList = append(hostAliasList, build.HostAlias{IP: hostIP, Hostnames: []string{"goodrain.me"}})
+	hostAliasList = append(hostAliasList, build.HostAlias{IP: hostIP, Hostnames: []string{"maven.goodrain.me"}})
+	hostAliasList = append(hostAliasList, build.HostAlias{IP: hostIP, Hostnames: []string{"lang.goodrain.me"}})
 	return
+}
+
+func (i *SourceCodeBuildItem) preferredGatewayHostIPv4(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	if pod.Spec.NodeName != "" {
+		node, err := i.KubeClient.CoreV1().Nodes().Get(context.Background(), pod.Spec.NodeName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Warnf("get gateway node %s error: %v", pod.Spec.NodeName, err)
+		} else if ip := firstIPv4NodeAddress(node.Status.Addresses, corev1.NodeInternalIP); ip != "" {
+			return ip
+		} else if ip := firstIPv4NodeAddress(node.Status.Addresses, corev1.NodeExternalIP); ip != "" {
+			return ip
+		}
+	}
+	return normalizeIPv4(pod.Status.HostIP)
+}
+
+func firstIPv4NodeAddress(addresses []corev1.NodeAddress, addressType corev1.NodeAddressType) string {
+	for _, address := range addresses {
+		if address.Type != addressType {
+			continue
+		}
+		if ip := normalizeIPv4(address.Address); ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
+func normalizeIPv4(raw string) string {
+	ip := net.ParseIP(strings.TrimSpace(raw))
+	if ip == nil || ip.To4() == nil {
+		return ""
+	}
+	return ip.To4().String()
 }
 
 // IsDockerfile CheckDockerfile

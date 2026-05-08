@@ -142,6 +142,14 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	}
 }
 
+func (s *upgradeController) upgradeManualClaims(oldApp *v1.AppService, newApp *v1.AppService) error {
+	handleErr := func(msg string, err error) error {
+		logrus.Warning(msg)
+		return err
+	}
+	return f.UpgradeClaims(s.manager.client, newApp, oldApp.GetClaimsManually(), newApp.GetClaimsManually(), handleErr)
+}
+
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
@@ -170,15 +178,6 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
-	// create claims
-	for _, claim := range app.GetClaimsManually() {
-		logrus.Debugf("create claim: %s", claim.Name)
-		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.GetNamespace()).Create(s.ctx, claim, metav1.CreateOptions{})
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("create claims: %v", err)
-		}
-	}
-
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(s.ctx, statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"], metav1.PatchOptions{})
 		if err != nil {
@@ -189,6 +188,9 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 
 	oldApp := s.manager.store.GetAppService(app.ServiceID)
+	if err := s.upgradeManualClaims(oldApp, &app); err != nil {
+		return fmt.Errorf("upgrade manual claims for service %s failure %w", app.ServiceAlias, err)
+	}
 	s.upgradeService(app)
 	handleErr := func(msg string, err error) error {
 		// ignore ingress and secret error

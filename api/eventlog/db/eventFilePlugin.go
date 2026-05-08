@@ -20,6 +20,7 @@ package db
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	eventutil "github.com/goodrain/rainbond/api/eventlog/util"
 	"github.com/goodrain/rainbond/pkg/component/storage"
@@ -154,27 +155,25 @@ func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unix
 
 // GetMessages GetMessages - directly reads from storage without downloading to local
 func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interface{}, error) {
+	if messages, err := m.getJSONLinesMessages(eventID, level, length); err != nil {
+		logrus.Debugf("read jsonl event log error for %s: %v", eventID, err)
+	} else if len(messages) > 0 {
+		return messages, nil
+	}
+
 	var message MessageDataList
 
 	// 构造存储路径（S3/MinIO 路径）
 	s3Path := path.Join("grdata", "logs", "eventlog", eventID+".log")
 
 	// 直接从存储读取文件流
-	fileReader, err := storage.Default().StorageCli.ReadFile(s3Path)
+	fileReader, err := m.readStorageOrLocalFile(s3Path, path.Join(m.HomePath, "eventlog", eventID+".log"))
 	if err != nil {
-		// 如果从存储读取失败，尝试从本地读取（向后兼容）
-		localPath := path.Join(m.HomePath, "eventlog", eventID+".log")
-		logrus.Debugf("Failed to read from storage, trying local path: %s, error: %v", localPath, err)
-
-		localFile, localErr := os.Open(localPath)
-		if localErr != nil {
-			if os.IsNotExist(localErr) {
-				logrus.Warnf("Event log file not found in storage or local: %s", eventID)
-				return message, nil
-			}
-			return nil, fmt.Errorf("failed to read event log from both storage and local: %w", localErr)
+		if os.IsNotExist(err) {
+			logrus.Warnf("Event log file not found in storage or local: %s", eventID)
+			return message, nil
 		}
-		fileReader = localFile
+		return nil, fmt.Errorf("failed to read event log from both storage and local: %w", err)
 	}
 	defer fileReader.Close()
 
@@ -210,6 +209,81 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 		}
 	}
 	return message, nil
+}
+
+func (m *EventFilePlugin) getJSONLinesMessages(eventID, level string, length int) (MessageDataList, error) {
+	fileReader, err := m.readStorageOrLocalFile(
+		path.Join("grdata", "logs", "eventlog", eventID+".jsonl"),
+		path.Join(m.HomePath, "eventlog", eventID+".jsonl"))
+	if err != nil {
+		return nil, err
+	}
+	defer fileReader.Close()
+
+	var messages MessageDataList
+	reader := bufio.NewReader(fileReader)
+	for {
+		line, _, err := reader.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return messages, err
+		}
+		if len(line) == 0 {
+			continue
+		}
+		var eventMessage EventLogMessage
+		if err := json.Unmarshal(line, &eventMessage); err != nil {
+			logrus.Debugf("skip invalid jsonl line for event %s: %v", eventID, err)
+			continue
+		}
+		if !checkStructuredLevel(eventMessage.Level, level) {
+			continue
+		}
+		unix := GetTimeUnix(eventMessage.Time)
+		eventTime := eventMessage.Time
+		if unix != 0 {
+			eventTime = time.Unix(unix, 0).Format(time.RFC3339)
+		}
+		messages = append(messages, MessageData{
+			Message:  eventMessage.Message,
+			Time:     eventTime,
+			Unixtime: unix,
+		})
+		if len(messages) > length && length != 0 {
+			break
+		}
+	}
+	return messages, nil
+}
+
+func (m *EventFilePlugin) readStorageOrLocalFile(storagePath, localPath string) (storage.ReadCloser, error) {
+	if storage.Default() != nil && storage.Default().StorageCli != nil {
+		fileReader, err := storage.Default().StorageCli.ReadFile(storagePath)
+		if err == nil {
+			return fileReader, nil
+		}
+		logrus.Debugf("failed to read event log from storage, trying local path %s: %v", localPath, err)
+	}
+	localFile, err := os.Open(localPath)
+	if err != nil {
+		return nil, err
+	}
+	return localFile, nil
+}
+
+func checkStructuredLevel(logLevel, queryLevel string) bool {
+	switch logLevel {
+	case "error":
+		return true
+	case "info":
+		return queryLevel != "error"
+	case "debug":
+		return queryLevel == "debug"
+	default:
+		return queryLevel != "error"
+	}
 }
 
 // CheckLevel check log level

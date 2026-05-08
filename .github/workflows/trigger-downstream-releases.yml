@@ -1,0 +1,59 @@
+name: Trigger downstream releases
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v6.7.2-release
+        required: true
+        type: string
+      rainbond_release_url:
+        description: Rainbond release URL. Leave empty to build it from the tag.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: endsWith(github.event_name == 'release' && github.event.release.tag_name || inputs.tag, '-release')
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: goodrain/rainbond-console
+            ref: main
+          - repo: goodrain/rainbond-ui
+            ref: main
+          - repo: goodrain/rainbond-operator
+            ref: main
+          - repo: goodrain/rainbond-chart
+            ref: main
+
+    steps:
+      - name: Trigger downstream release workflow
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
+          TARGET_REPO: ${{ matrix.repo }}
+          TARGET_REF: ${{ matrix.ref }}
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+          RAINBOND_RELEASE_URL: ${{ github.event_name == 'release' && github.event.release.html_url || inputs.rainbond_release_url }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$RAINBOND_RELEASE_URL" ]; then
+            RAINBOND_RELEASE_URL="https://github.com/goodrain/rainbond/releases/tag/${TAG}"
+          fi
+
+          gh workflow run auto-release-from-rainbond.yml \
+            --repo "$TARGET_REPO" \
+            --ref "$TARGET_REF" \
+            -f tag="$TAG" \
+            -f rainbond_release_url="$RAINBOND_RELEASE_URL"
+
+          echo "Triggered $TARGET_REPO for $TAG"

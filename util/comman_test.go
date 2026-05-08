@@ -362,6 +362,16 @@ func TestIsEndWithNumber(t *testing.T) {
 }
 
 func TestOpenOrCreateFileLegacyPath(t *testing.T) {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir := t.TempDir()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(currentDir)
+
 	file, err := OpenOrCreateFile("./test.log")
 	if err != nil {
 		t.Fatal(err)

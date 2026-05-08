@@ -142,14 +142,7 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	podSpec.Containers = append(podSpec.Containers, container)
 
-	// Merge hostAliases with the same IP into a single entry to avoid K8s warnings.
-	mergedAliases := make(map[string][]string)
-	for _, ha := range re.HostAlias {
-		mergedAliases[ha.IP] = append(mergedAliases[ha.IP], ha.Hostnames...)
-	}
-	for ip, hostnames := range mergedAliases {
-		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ip, Hostnames: hostnames})
-	}
+	podSpec.HostAliases = append(podSpec.HostAliases, build.NormalizeHostAliases(re.HostAlias)...)
 
 	job.Spec = podSpec
 

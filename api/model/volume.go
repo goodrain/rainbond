@@ -248,11 +248,12 @@ type V2DelVolumeDependencyStruct struct {
 
 // UpdVolumeReq is a value struct holding request for updating volume.
 type UpdVolumeReq struct {
-	VolumeName  string `json:"volume_name" validate:"required"`
-	VolumeType  string `json:"volume_type" validate:"volume_type|required"`
-	FileContent string `json:"file_content"`
-	VolumePath  string `json:"volume_path" validate:"volume_path|required"`
-	Mode        *int32 `json:"mode"`
+	VolumeName     string `json:"volume_name" validate:"required"`
+	VolumeType     string `json:"volume_type" validate:"volume_type|required"`
+	FileContent    string `json:"file_content"`
+	VolumePath     string `json:"volume_path" validate:"volume_path|required"`
+	VolumeCapacity *int64 `json:"volume_capacity"`
+	Mode           *int32 `json:"mode"`
 }
 
 // VolumeWithStatusResp volume status

@@ -59,6 +59,7 @@ func AppRoutes() chi.Router {
 // PackageBuildRoutes 本地文件上传路由
 func PackageBuildRoutes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(packageBuildCORS)
 	// 原有接口（保持向后兼容）
 	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
 	r.Options("/component/events/{eventID}", controller.GetManager().UploadPackage)
@@ -76,6 +77,17 @@ func PackageBuildRoutes() chi.Router {
 	r.Delete("/component/events/{eventID}/upload/{sessionID}", chunkController.CancelUpload)
 	r.Options("/component/events/{eventID}/upload/{sessionID}", chunkController.HandleOptions)
 	return r
+}
+
+func packageBuildCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		controller.SetPackageBuildCORSHeaders(w, r)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // FileOperateRoutes 共享存储的文件操作路由

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"github.com/goodrain/rainbond/api/util"
+	sourceregistry "github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"path"
 	"strings"
 )
@@ -12,6 +15,10 @@ func (s *ServiceAction) RegistryImageRepositories(namespace string) ([]string, *
 	var tenantRepositories []string
 	repositories, err := s.registryCli.Repositories()
 	if err != nil {
+		if isCatalogEnumerationUnsupported(err) {
+			logrus.Warnf("registry catalog enumeration is unsupported, returning empty repository list: %v", err)
+			return tenantRepositories, nil
+		}
 		logrus.Errorf("get tenant repositories failure: %v", err)
 		return nil, util.CreateAPIHandleError(500, err)
 	}
@@ -31,6 +38,20 @@ func (s *ServiceAction) RegistryImageRepositories(namespace string) ([]string, *
 	}
 
 	return tenantRepositories, nil
+}
+
+func isCatalogEnumerationUnsupported(err error) bool {
+	var statusErr *sourceregistry.HttpStatusError
+	if !errors.As(err, &statusErr) || statusErr.Response == nil {
+		return false
+	}
+
+	switch statusErr.Response.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusMethodNotAllowed:
+		return true
+	default:
+		return false
+	}
 }
 
 // RegistryImageTags -

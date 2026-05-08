@@ -1,95 +1,233 @@
 <div align="center">
-  <img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
+  <img src="https://static.goodrain.com/logo/logo-long.png" width="56%" alt="Rainbond Logo" />
 
-  [![Rainbond](https://jaywcjlove.github.io/sb/lang/english.svg)](README.md)
-  [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-  ![Rainbond version](https://img.shields.io/badge/version-V6.X-brightgreen.svg)
-  [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
+  <p>
+    <a href="./README.md">English</a>
+  </p>
 
+  <p>
+    <img src="https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square" alt="GitHub stars" />
+    <img src="https://img.shields.io/badge/version-v6.X-brightgreen.svg?style=flat-square" alt="Version" />
+    <img src="https://img.shields.io/badge/open%20source-100%25-blue?style=flat-square" alt="Open Source" />
+  </p>
 </div>
-
 <div align="center">
-  <h2>无需学习 Kubernetes 的容器平台</h2>
-  在 Kubernetes 上构建、部署、组装和管理应用，无需 K8s 专业知识，全流程图形化管理
 
-  [项目官网](https://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
+## 不用懂 Kubernetes 的开源容器平台
+
+ <p>
+    <a href="https://www.bilibili.com/video/BV1Lzo5BGEuc">
+      <img src="./docs/rainbond-video.png" width="80%" alt="Rainbond 视频介绍" />
+    </a>
+  </p>
+
+Rainbond 帮助团队在不深入学习 Kubernetes 的前提下完成应用构建、部署、升级、运维与私有化交付。  
+更适合私有化部署、离线交付、信创适配、应用市场交付和 AI 应用私有化场景。
+
+**Open-source container platform for teams that want to deploy and run applications without deeply operating Kubernetes.**
+
+[项目官网](https://www.rainbond.com?channel=github) ·
+[快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) ·
+[文档](https://www.rainbond.com/docs?channel=github) ·
+[选型中心](https://www.rainbond.com/compare?channel=github) ·
+[应用市场](https://hub.rainbond.com?channel=github)
+
 </div>
+
+---
 
 ## Rainbond 是什么
 
-Rainbond 是一款基于 Kubernetes 的云原生应用管理平台， 100% 开源，致力于将复杂的容器编排与应用管理能力转化为简单易用的开发运维体验。无需深入学习 Kubernetes 底层知识，即可通过图形化界面与标准化流程，实现应用的全生命周期管理，适用于企业快速构建云原生应用平台，降低技术门槛与落地成本。
+Rainbond 是一款 `100% 开源`、`不用懂 Kubernetes` 的开源容器平台。  
+它更偏向解决“应用交付”问题，而不是只做 Kubernetes 资源管理界面。
 
-### 亮点
+如果你的团队正在面对下面这些问题，Rainbond 更值得你看一眼：
 
-- **不用写 Dockerfile 和 Yaml:**  平台支持自动识别多种开发语言，如 Java、Python、Golang、NodeJS、Php、.NetCore 等，通过向导式流程完成构建和部署，不用写 Dockerfile 和 Yaml 即可完成构建和运行。
+- 会 Kubernetes，但应用交付还是很费劲
+- 客户环境复杂，每次上线都像重来一遍
+- 需要私有化部署、离线交付、信创适配或内网部署
+- 想做统一的应用交付入口，但不想从零开始自研平台
 
-- **模块化拼装:**  在 Rainbond 上运行的业务组件支持一键发布为可复用的应用模版，统一的组件库存储，通过业务组件积木式拼装，实现业务组件的积累和复用。
+---
 
-- **应用一键安装和升级:** 上百应用开箱即用、各类已发布的微服务应用模版，均支持一键安装和升级。
+## 你可能最关心的是哪一类问题
 
-- **丰富的可观测性:** Rainbond 提供全面的可观测性，涵盖集群监控、节点监控、应用监控、组件监控。
+| 你的目标 | 建议先看这里 |
+| --- | --- |
+| 我想先判断 Rainbond 适不适合我 | [选型中心](https://www.rainbond.com/compare?channel=github) |
+| 我想马上装起来试试 | [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) |
+| 我装完了，想跑第一个应用 | [部署你的第一个应用](https://www.rainbond.com/docs/quick-start/getting-started?channel=github) |
+| 我在做离线 / 内网 / 客户现场 / 信创 | [离线 / 信创专题](https://www.rainbond.com/offline-and-xinchuang?channel=github) |
+| 我想看能不能通过应用市场一键部署 | [Rainbond 应用市场](https://hub.rainbond.com?channel=github) |
 
-- **应用全生命周期管理:**  Serverless体验，支持应用、组件全生命周期管理和运维，如启动、停止、构建、更新、自动伸缩、网关策略管理等，无侵入微服务架构。
+---
 
-### 体验
+## Rainbond 解决什么问题
 
-1. **代码无需改动，就能变成云原生应用:**  对于新业务或已有业务，代码不需要改动就能将其容器化。不需要懂Docker 、Kubernetes等技术，就能将应用部署起来，具备云原生应用的全部特性。
+### 1. 不会 Kubernetes，也能把应用交付起来
 
-2. **普通开发者不需要学习就能实现应用运维:**  通过应用级抽象，普通开发者了解应用的相关属性就能实现应用运维，并通过插件扩展监控、性能分析、日志、安全等运维能力，应用运维不再需要专用的SRE。
+Rainbond 通过图形化界面和标准化流程，把源码、镜像、应用模板、依赖关系、访问入口、升级回滚等动作收进同一条应用链路里。
 
-3. **像安装手机App一样安装云原生应用:**  各类云原生应用以应用模版的形式存放到应用市场，当对接各种基础设施或云资源，实现应用即点即用或一键安装/升级。
+### 2. 让复杂企业环境的交付更稳
 
-4. **复杂应用一键交付客户环境:**  复杂应用发布成应用模版，当客户环境可以联网，对接客户环境一键安装运行，当客户环境不能联网，导出离线应用模版，到客户环境导入并一键安装运行。
+Rainbond 更适合：
 
-## 架构
+- 私有化部署
+- 内网环境部署
+- 离线环境交付
+- 国产化信创适配
+- x86 到 ARM 迁移验证
 
-![Rainbond-Arch](docs/arch.jpeg)
+### 3. 应用市场和模板化交付
 
-Rainbond 底层可以对接各类私有云、公有云、Kubernetes 等基础设施，在基础设施之上，支持了用户管理、多租户、多集群管理、多云迁移等，以应用为中心分配和管理资源，实现了应用级多云管理。
+Rainbond 的价值不只在于“把应用跑起来”，还在于：
 
-对于开发者而言，不需要关注底层资源和概念。Rainbond 提供了一个开箱即用的平台，支持管理应用的全生命周期，包括开发、架构、交付和运维等阶段。
+- 应用模板
+- 应用市场
+- 一键安装
+- 一键升级
+- 客户环境复制
 
-同时 Rainbond 对应用整体进行了包装和抽象，定义出了应用抽象模型。该模型包含应用运行所需的全部运行定义，与底层技术和概念隔离。开发者可以基于该模型实现能力的复用和共享，如组件一键发布、安装、升级等。
+### 4. 让应用运维和应用交付围绕“应用”展开
 
-有关 Rainbond 架构的更多详细信息，请参阅 [Rainbond设计思想](https://www.rainbond.com/docs/quick-start/architecture/design-concept)。
+它更强调：
+
+- 应用级抽象
+- 应用拓扑与依赖
+- 应用升级与回滚
+- 应用在多环境、多集群中的交付和运行
+
+---
+
+## 为什么选择 Rainbond
+
+### 低门槛，但不是低能力
+
+Rainbond 不是简单把 Kubernetes “藏起来”，而是把复杂度重新分配：
+
+- 平台和运维团队接住底层能力
+- 开发和交付团队围绕应用完成构建、部署、交付和运维
+
+### 更适合复杂企业场景
+
+很多平台更适合管集群。  
+Rainbond 更适合解决这些问题：
+
+- 应用怎么交付
+- 客户现场怎么复制
+- 离线环境怎么升级
+- AI 应用怎么私有化部署
+
+### 应用市场与标准化交付能力更强
+
+如果你真正需要的是：
+
+- 模板化交付
+- 应用市场复用
+- 离线包导出导入
+- 版本升级与回滚
+
+Rainbond 的路径会更贴近真实工作。
+
+---
+
+## 与常见平台的差异
+
+| 对比维度 | Rainbond | Rancher / KubeSphere 这类平台 |
+| --- | --- | --- |
+| 核心侧重点 | 应用交付、应用管理、模板化复用 | 集群治理、平台运维、Kubernetes 管理 |
+| 面向用户 | 开发、交付、企业 IT、平台负责人 | K8s 管理员、平台运维、集群治理团队 |
+| 最强场景 | 私有化、离线、信创、应用市场、AI 私有化 | 多集群治理、资源管理、平台统一运维 |
+| 学习曲线 | 更低，尽量少暴露 K8s 细节 | 需要更理解 K8s 与平台治理 |
+
+如果你正在选型，建议直接看：
+
+- [Rainbond vs KubeSphere](https://www.rainbond.com/compare/rainbond-vs-kubesphere?channel=github)
+- [Rainbond vs Rancher](https://www.rainbond.com/compare/rainbond-vs-rancher?channel=github)
+- [Rainbond vs Sealos](https://www.rainbond.com/compare/rainbond-vs-sealos?channel=github)
+
+---
+
+## 典型场景
+
+- **不会 Kubernetes 也能做应用交付**
+- **AI 应用私有化部署**
+- **离线 / 内网环境交付**
+- **信创环境应用管理**
+- **x86 到 ARM 迁移**
+- **企业应用市场与标准化交付**
+
+推荐继续看：
+
+- [离线 / 信创 / 国产化专题](https://www.rainbond.com/offline-and-xinchuang?channel=github)
+- [选型中心](https://www.rainbond.com/compare?channel=github)
+
+---
 
 ## 快速开始
 
-### 安装
+### 安装要求
 
-仅需执行以下命令，运行起来一个容器。即可快速体验到 Rainbond 完整功能。更多安装方式参考[安装与升级](https://www.rainbond.com/docs/quick-start/quick-install)。
+- Linux 或 macOS
+- 建议至少 2 CPU / 8GB RAM / 50GB 磁盘空间
+
+### 快速安装
+
+执行下面的命令，即可快速体验 Rainbond：
 
 ```bash
 curl -o install.sh https://get.rainbond.com && bash ./install.sh
 ```
 
-当命令执行成功后，打开浏览器，输入 `http://<IP>:7070` ，即可访问平台开始部署应用了。`<IP>`为执行脚本时你选择或者输入的 IP。
+安装完成后，在浏览器中访问：
 
-### 快速入门
+```bash
+http://<你的IP>:7070
+```
 
-请参考文档 [快速入门](https://www.rainbond.com/docs/quick-start/getting-started/?channel=github) 。
+### 下一步
 
-## 加入社群
+1. [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github)
+2. [部署你的第一个应用](https://www.rainbond.com/docs/quick-start/getting-started?channel=github)
+3. [查看应用市场](https://hub.rainbond.com?channel=github)
 
-扫码加入 Rainbond 技术交流群:
+---
 
-<img width="20%" src="docs/wechatgroup.png"/>
+## 社区与支持
+
+- [文档中心](https://www.rainbond.com/docs?channel=github)
+- [常见问题](https://www.rainbond.com/docs/faq?channel=github)
+- [社区支持](https://www.rainbond.com/docs/support?channel=github)
+- [GitHub Issues](https://github.com/goodrain/rainbond/issues)
+
+---
 
 ## 贡献
 
-我们非常欢迎你参与 Rainbond 社区关于平台使用经验、标准化应用、插件分享等领域的贡献和分享。
+如果你想参与贡献，推荐从这些入口开始：
 
-若你是正在使用 Rainbond 的用户，且对 Rainbond 有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与 Rainbond 贡献](https://www.rainbond.com/docs/contribution/code?channel=github)
+- [贡献指南](https://www.rainbond.com/docs/contribution?channel=github)
+- [Rainbond Docs](https://github.com/goodrain/rainbond-docs)
+- [提交 Issue](https://github.com/goodrain/rainbond/issues)
 
-## 子项目
+欢迎参与：
 
-当前仓库为 Rainbond 数据中心端核心服务实现代码，项目还包括以下子项目：
+- 代码贡献
+- 文档改进
+- 使用经验分享
+- 应用模板与插件分享
 
-- [Rainbond-Console](https://github.com/goodrain/rainbond-console) Rainbond 控制台服务端项目
-- [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) Rainbond 控制台前端项目
-- [Rainbond-Operator](https://github.com/goodrain/rainbond-operator) Rainbond 安装运维项目
-- [Rainbond-Builder](https://github.com/goodrain/builder) Rainbond 源码构建工具集
+---
+
+## 相关项目
+
+- [rainbond-console](https://github.com/goodrain/rainbond-console) - 控制台后端
+- [rainbond-ui](https://github.com/goodrain/rainbond-ui) - 控制台前端
+- [rainbond-operator](https://github.com/goodrain/rainbond-operator) - 安装与运维
+- [builder](https://github.com/goodrain/builder) - 源码构建工具集
+
+---
 
 ## License
 
-This repository is licensed under the [Rainbond Open Source License](LICENSE), based on Apache 2.0 with additional conditions.
+This repository is licensed under the [Rainbond Open Source License](./LICENSE), based on Apache 2.0 with additional conditions.
