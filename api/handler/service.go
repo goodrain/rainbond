@@ -80,16 +80,17 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 // ServiceAction service act
 type ServiceAction struct {
-	MQClient       gclient.MQClient
-	statusCli      *client.AppRuntimeSyncClient
-	prometheusCli  prometheus.Interface
-	rainbondClient versioned.Interface
-	kubeClient     kubernetes.Interface
-	kubevirtClient kubecli.KubevirtClient
-	dbmanager      db.Manager
-	registryCli    *registry.Registry
-	config         *rest.Config
-	apisixClient   *apisixversioned.Clientset
+	MQClient                   gclient.MQClient
+	statusCli                  *client.AppRuntimeSyncClient
+	prometheusCli              prometheus.Interface
+	rainbondClient             versioned.Interface
+	kubeClient                 kubernetes.Interface
+	kubevirtClient             kubecli.KubevirtClient
+	dbmanager                  db.Manager
+	registryCli                *registry.Registry
+	config                     *rest.Config
+	apisixClient               *apisixversioned.Clientset
+	syncVirtualMachineSpecHook func(serviceID string) error
 }
 
 type dCfg struct {
@@ -114,6 +115,13 @@ func CreateManager() *ServiceAction {
 		registryCli:    hubregistry.Default().RegistryCli,
 		config:         k8s.Default().RestConfig,
 	}
+}
+
+func (s *ServiceAction) syncVirtualMachineSpecAfterResourceUpdate(serviceID string) error {
+	if s.syncVirtualMachineSpecHook != nil {
+		return s.syncVirtualMachineSpecHook(serviceID)
+	}
+	return s.syncVirtualMachineSpecForService(serviceID)
 }
 
 // ServiceBuild service build
@@ -500,11 +508,18 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	oldMemory := service.ContainerMemory
 	oldCPU := service.ContainerCPU
 	oldGPU := service.ContainerGPU
-	var rollback = func() {
+	var rollback = func(syncVM bool) {
 		service.ContainerMemory = oldMemory
 		service.ContainerCPU = oldCPU
 		service.ContainerGPU = oldGPU
-		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
+		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+			logrus.Errorf("rollback service resources failure. %v", err)
+		}
+		if syncVM && service.IsVM() {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(service.ServiceID); err != nil {
+				logrus.Errorf("rollback vm spec sync failure. %v", err)
+			}
+		}
 	}
 	if vs.ContainerCPU != nil {
 		service.ContainerCPU = *vs.ContainerCPU
@@ -525,6 +540,13 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 		logrus.Errorf("update service memory and cpu failure. %v", err)
 		return fmt.Errorf("vertical service faliure:%s", err.Error())
 	}
+	if service.IsVM() {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(service.ServiceID); err != nil {
+			rollback(true)
+			db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
+			return fmt.Errorf("sync vm spec failure: %w", err)
+		}
+	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
 		TaskBody: vs,
@@ -532,7 +554,7 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	})
 	if err != nil {
 		// roll back service
-		rollback()
+		rollback(service.IsVM())
 		logrus.Errorf("equque mq error, %v", err)
 		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
@@ -1005,6 +1027,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	oldMemory := ts.ContainerMemory
+	oldCPU := ts.ContainerCPU
+	oldGPU := ts.ContainerGPU
 	if memory, ok := sc["container_memory"].(int); ok && memory >= 0 {
 		ts.ContainerMemory = memory
 	}
@@ -1058,10 +1083,22 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if js, ok := sc["job_strategy"].(string); ok {
 		ts.JobStrategy = js
 	}
+	resourceChanged := ts.ContainerMemory != oldMemory || ts.ContainerCPU != oldCPU || ts.ContainerGPU != oldGPU
 	//update component
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
 		return err
+	}
+	if resourceChanged && ts.IsVM() {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(ts.ServiceID); err != nil {
+			ts.ContainerMemory = oldMemory
+			ts.ContainerCPU = oldCPU
+			ts.ContainerGPU = oldGPU
+			if rollbackErr := db.GetManager().TenantServiceDao().UpdateModel(ts); rollbackErr != nil {
+				logrus.Errorf("rollback service resource update failure. %v", rollbackErr)
+			}
+			return err
+		}
 	}
 	return nil
 }
