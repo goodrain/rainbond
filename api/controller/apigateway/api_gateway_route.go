@@ -38,6 +38,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -651,13 +652,24 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logrus.Infof("Service %s not found, treating as already deleted", name)
-			httputil.ReturnSuccess(r, w, name)
+			service, err = findTCPRouteServiceByNodePort(r.Context(), k.Services(tenant.Namespace), name)
+			if err != nil {
+				logrus.Errorf("failed to find tcp route service by node port for %s: %v", name, err)
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+				return
+			}
+			if service == nil {
+				logrus.Infof("Service %s not found, treating as already deleted", name)
+				httputil.ReturnSuccess(r, w, name)
+				return
+			}
+			logrus.Infof("Service %s not found, fallback to TCP route Service %s by NodePort", name, service.Name)
+			name = service.Name
+		} else {
+			logrus.Errorf("failed to get service %s: %v", name, err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
 			return
 		}
-		logrus.Errorf("failed to get service %s: %v", name, err)
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
-		return
 	}
 
 	// Log the Service details for debugging
@@ -674,6 +686,40 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 
 	logrus.Infof("Successfully deleted TCP route Service: %s", name)
 	httputil.ReturnSuccess(r, w, name)
+}
+
+func findTCPRouteServiceByNodePort(ctx context.Context, services typedcorev1.ServiceInterface, routeName string) (*corev1.Service, error) {
+	nodePort, ok := nodePortFromTCPRouteName(routeName)
+	if !ok {
+		return nil, nil
+	}
+	list, err := services.List(ctx, v1.ListOptions{
+		LabelSelector: "tcp=true,outer=true",
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range list.Items {
+		service := &list.Items[i]
+		for _, port := range service.Spec.Ports {
+			if port.NodePort == nodePort {
+				return service.DeepCopy(), nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+func nodePortFromTCPRouteName(routeName string) (int32, bool) {
+	idx := strings.LastIndex(routeName, "-")
+	if idx == -1 || idx == len(routeName)-1 {
+		return 0, false
+	}
+	port, err := strconv.Atoi(routeName[idx+1:])
+	if err != nil {
+		return 0, false
+	}
+	return int32(port), true
 }
 
 func removeLeadingDigits(name string) string {
