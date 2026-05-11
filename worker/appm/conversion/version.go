@@ -191,19 +191,19 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		)
 		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
-		layoutDisks, rootBootOrder, err := applyVMDiskLayout(as.ExtensionSet, disks)
-		if err != nil {
-			return fmt.Errorf("create vm disk layout failure: %v", err)
-		}
-		disks = layoutDisks
 		disks = prepareVMImageBootDisks(bootPath, disks, rootBlankDataVolumeName)
 		disks = append(disks, vmRuntime.Disks...)
 		switch bootPath {
 		case vmBootPathISOInstaller:
-			disks = appendISOInstallerDisk(disks, rootBootOrder)
+			disks = appendISOInstallerDisk(disks, nil)
 		case vmBootPathVMImageRootDisk:
-			disks = appendVMImageRootDisk(disks, rootBootOrder)
+			disks = appendVMImageRootDisk(disks, nil)
 		}
+		layoutDisks, err := applyVMDiskLayout(as.ExtensionSet, disks, dv.GetVMDiskMeta(), bootPath)
+		if err != nil {
+			return fmt.Errorf("create vm disk layout failure: %v", err)
+		}
+		disks = layoutDisks
 		logrus.Infof(
 			"vm template assemble result: service_id=%s service_alias=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
 			as.ServiceID,

@@ -8,26 +8,33 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/worker/appm/volume"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 const (
-	vmNetworkModeKey   = "vm_network_mode"
-	vmNetworkNameKey   = "vm_network_name"
-	vmFixedIPKey       = "vm_fixed_ip"
-	vmGatewayKey       = "vm_gateway"
-	vmDNSServersKey    = "vm_dns_servers"
-	vmOSFamilyKey      = "vm_os_family"
-	vmOSNameKey        = "vm_os_name"
-	vmGPUEnabledKey    = "vm_gpu_enabled"
-	vmGPUResourcesKey  = "vm_gpu_resources"
-	vmGPUCountKey      = "vm_gpu_count"
-	vmUSBEnabledKey    = "vm_usb_enabled"
-	vmUSBResourcesKey  = "vm_usb_resources"
-	vmDiskLayoutKey    = "vm_disk_layout"
-	vmNetworkModeFixed = "fixed"
+	vmNetworkModeKey      = "vm_network_mode"
+	vmNetworkNameKey      = "vm_network_name"
+	vmFixedIPKey          = "vm_fixed_ip"
+	vmGatewayKey          = "vm_gateway"
+	vmDNSServersKey       = "vm_dns_servers"
+	vmOSFamilyKey         = "vm_os_family"
+	vmOSNameKey           = "vm_os_name"
+	vmGPUEnabledKey       = "vm_gpu_enabled"
+	vmGPUResourcesKey     = "vm_gpu_resources"
+	vmGPUCountKey         = "vm_gpu_count"
+	vmUSBEnabledKey       = "vm_usb_enabled"
+	vmUSBResourcesKey     = "vm_usb_resources"
+	vmDiskLayoutKey       = "vm_disk_layout"
+	vmNetworkModeFixed    = "fixed"
+	vmDiskRootKey         = "disk"
+	vmDiskInstallerKey    = "vmimage"
+	vmDiskRoleRoot        = "root"
+	vmDiskRoleData        = "data"
+	vmDiskRoleInstaller   = "installer"
+	vmDiskSourceInstaller = "installer_media"
 
 	vmPrimaryNetworkName   = "default"
 	vmCloudInitVolumeName  = "cloudinitnetwork"
@@ -51,6 +58,8 @@ type vmDiskLayoutItem struct {
 	DiskKey    string `json:"disk_key"`
 	DiskName   string `json:"disk_name"`
 	DiskRole   string `json:"disk_role"`
+	DeviceType string `json:"device_type"`
+	SourceKind string `json:"source_kind"`
 	OrderIndex int    `json:"order_index"`
 	Boot       bool   `json:"boot"`
 }
@@ -415,41 +424,134 @@ func buildVMDiskLayout(extensionSet map[string]string) ([]vmDiskLayoutItem, erro
 		}
 		return layout[i].OrderIndex < layout[j].OrderIndex
 	})
+	for i := range layout {
+		layout[i].DiskRole = strings.ToLower(strings.TrimSpace(layout[i].DiskRole))
+		layout[i].SourceKind = strings.ToLower(strings.TrimSpace(layout[i].SourceKind))
+		layout[i].DeviceType = strings.ToLower(strings.TrimSpace(layout[i].DeviceType))
+		if layout[i].DiskRole == "" {
+			if layout[i].DiskKey == vmDiskRootKey {
+				layout[i].DiskRole = vmDiskRoleRoot
+			} else {
+				layout[i].DiskRole = vmDiskRoleData
+			}
+		}
+		if layout[i].DiskRole == vmDiskRoleRoot {
+			layout[i].DiskKey = vmDiskRootKey
+		}
+		if layout[i].DiskRole == vmDiskRoleInstaller || layout[i].SourceKind == vmDiskSourceInstaller || layout[i].DiskKey == vmDiskInstallerKey {
+			layout[i].DiskKey = vmDiskInstallerKey
+			layout[i].DiskRole = vmDiskRoleInstaller
+			layout[i].SourceKind = vmDiskSourceInstaller
+		}
+	}
 	return layout, nil
 }
 
-func applyVMDiskLayout(extensionSet map[string]string, dataDisks []kubevirtv1.Disk) ([]kubevirtv1.Disk, *uint, error) {
+func applyVMDiskLayout(extensionSet map[string]string, disks []kubevirtv1.Disk, diskMeta map[string]volume.VMDiskMeta, bootPath vmBootPath) ([]kubevirtv1.Disk, error) {
 	layout, err := buildVMDiskLayout(extensionSet)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(layout) == 0 {
-		return dataDisks, nil, nil
+		return disks, nil
 	}
 
-	applied := make([]kubevirtv1.Disk, len(dataDisks))
-	copy(applied, dataDisks)
-
-	var rootBootOrder *uint
-	dataBootOrders := make([]uint, 0)
-	bootOrder := uint(1)
-	for _, item := range layout {
-		if item.DiskRole == "root" {
-			order := bootOrder
-			rootBootOrder = &order
-		} else {
-			dataBootOrders = append(dataBootOrders, bootOrder)
+	includeInstaller := shouldIncludeInstallerDisk(layout, bootPath)
+	filtered := make([]kubevirtv1.Disk, 0, len(disks))
+	for _, disk := range disks {
+		if bootPath == vmBootPathISOInstaller && isVMInstallerDisk(disk) && !includeInstaller {
+			continue
 		}
-		bootOrder++
+		filtered = append(filtered, disk)
 	}
 
-	for i := range applied {
-		if i >= len(dataBootOrders) {
+	orderedDiskNames := resolveOrderedVMDiskNames(layout, filtered, diskMeta, bootPath)
+	managedDiskNames := make(map[string]struct{}, len(orderedDiskNames))
+	for _, name := range orderedDiskNames {
+		managedDiskNames[name] = struct{}{}
+	}
+	for i := range filtered {
+		if _, ok := managedDiskNames[filtered[i].Name]; ok {
+			filtered[i].BootOrder = nil
+		}
+	}
+	for index, name := range orderedDiskNames {
+		order := uint(index + 1)
+		for i := range filtered {
+			if filtered[i].Name != name {
+				continue
+			}
+			filtered[i].BootOrder = &order
 			break
 		}
-		order := dataBootOrders[i]
-		applied[i].BootOrder = &order
 	}
+	return filtered, nil
+}
 
-	return applied, rootBootOrder, nil
+func shouldIncludeInstallerDisk(layout []vmDiskLayoutItem, bootPath vmBootPath) bool {
+	if bootPath != vmBootPathISOInstaller {
+		return false
+	}
+	for _, item := range layout {
+		if item.SourceKind == vmDiskSourceInstaller || item.DiskRole == vmDiskRoleInstaller || item.DiskKey == vmDiskInstallerKey {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveOrderedVMDiskNames(layout []vmDiskLayoutItem, disks []kubevirtv1.Disk, diskMeta map[string]volume.VMDiskMeta, bootPath vmBootPath) []string {
+	ordered := make([]string, 0, len(layout))
+	seen := make(map[string]struct{}, len(layout))
+	for _, item := range layout {
+		name, ok := resolveVMDiskNameForLayoutItem(item, diskMeta, bootPath)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		ordered = append(ordered, name)
+		seen[name] = struct{}{}
+	}
+	managedNames := make(map[string]struct{}, len(diskMeta))
+	for _, meta := range diskMeta {
+		managedNames[meta.DiskName] = struct{}{}
+	}
+	for _, disk := range disks {
+		if _, exists := seen[disk.Name]; exists {
+			continue
+		}
+		if _, managed := managedNames[disk.Name]; managed {
+			ordered = append(ordered, disk.Name)
+			seen[disk.Name] = struct{}{}
+			continue
+		}
+		if bootPath == vmBootPathVMImageRootDisk && disk.Name == vmDiskInstallerKey && disk.DiskDevice.Disk != nil {
+			ordered = append(ordered, disk.Name)
+			seen[disk.Name] = struct{}{}
+		}
+	}
+	return ordered
+}
+
+func resolveVMDiskNameForLayoutItem(item vmDiskLayoutItem, diskMeta map[string]volume.VMDiskMeta, bootPath vmBootPath) (string, bool) {
+	if item.SourceKind == vmDiskSourceInstaller || item.DiskRole == vmDiskRoleInstaller || item.DiskKey == vmDiskInstallerKey {
+		if bootPath != vmBootPathISOInstaller {
+			return "", false
+		}
+		return vmDiskInstallerKey, true
+	}
+	if item.DiskRole == vmDiskRoleRoot && bootPath == vmBootPathVMImageRootDisk {
+		return vmDiskInstallerKey, true
+	}
+	meta, ok := diskMeta[item.DiskKey]
+	if !ok || meta.DiskName == "" {
+		return "", false
+	}
+	return meta.DiskName, true
+}
+
+func isVMInstallerDisk(disk kubevirtv1.Disk) bool {
+	return disk.Name == vmDiskInstallerKey && disk.DiskDevice.CDRom != nil
 }

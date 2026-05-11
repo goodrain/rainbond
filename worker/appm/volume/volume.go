@@ -177,6 +177,16 @@ type Define struct {
 	vmVolume     []kubevirtv1.Volume
 	vmDisk       []kubevirtv1.Disk
 	vmDVTemplate []kubevirtv1.DataVolumeTemplateSpec
+	vmDiskMeta   map[string]VMDiskMeta
+}
+
+type VMDiskMeta struct {
+	DiskName   string
+	DiskKey    string
+	DeviceType string
+	SourceKind string
+	VolumePath string
+	VolumeName string
 }
 
 // GetVolumes get define volumes
@@ -197,6 +207,29 @@ func (v *Define) GetVMDisk() []kubevirtv1.Disk {
 // GetVMDataVolumeTemplates get vm data volume templates.
 func (v *Define) GetVMDataVolumeTemplates() []kubevirtv1.DataVolumeTemplateSpec {
 	return v.vmDVTemplate
+}
+
+// GetVMDiskMeta returns VM disk metadata keyed by logical disk key.
+func (v *Define) GetVMDiskMeta() map[string]VMDiskMeta {
+	if len(v.vmDiskMeta) == 0 {
+		return map[string]VMDiskMeta{}
+	}
+	meta := make(map[string]VMDiskMeta, len(v.vmDiskMeta))
+	for key, value := range v.vmDiskMeta {
+		meta[key] = value
+	}
+	return meta
+}
+
+// SetVMDiskMeta records the logical mapping for a VM disk.
+func (v *Define) SetVMDiskMeta(meta VMDiskMeta) {
+	if meta.DiskKey == "" {
+		return
+	}
+	if v.vmDiskMeta == nil {
+		v.vmDiskMeta = make(map[string]VMDiskMeta)
+	}
+	v.vmDiskMeta[meta.DiskKey] = meta
 }
 
 // GetVolumeMounts get define volume mounts

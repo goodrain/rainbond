@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goodrain/rainbond/worker/appm/volume"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
@@ -299,20 +300,57 @@ func TestApplyVMDiskLayoutAssignsRootAndDataBootOrders(t *testing.T) {
 			},
 		},
 	}
+	meta := map[string]volume.VMDiskMeta{
+		"disk":   {DiskName: "manual1", DiskKey: "disk"},
+		"data-2": {DiskName: "manual2", DiskKey: "data-2"},
+	}
 
-	applied, rootBootOrder, err := applyVMDiskLayout(map[string]string{
-		"vm_disk_layout": `[{"disk_key":"rootdisk","disk_role":"root","order_index":0,"boot":true},{"disk_key":"data-1","disk_role":"data","order_index":1,"boot":false},{"disk_key":"data-2","disk_role":"data","order_index":2,"boot":false}]`,
-	}, dataDisks)
+	applied, err := applyVMDiskLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"disk","disk_role":"root","source_kind":"volume","order_index":0,"boot":true},{"disk_key":"data-2","disk_role":"data","source_kind":"volume","order_index":1,"boot":false}]`,
+	}, dataDisks, meta, vmBootPathImportedRootDisk)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if rootBootOrder == nil || *rootBootOrder != 1 {
-		t.Fatalf("expected root boot order 1, got %#v", rootBootOrder)
+	if applied[0].BootOrder == nil || *applied[0].BootOrder != 1 {
+		t.Fatalf("expected root disk boot order 1, got %#v", applied[0].BootOrder)
 	}
-	if applied[0].BootOrder == nil || *applied[0].BootOrder != 2 {
-		t.Fatalf("expected first data disk boot order 2, got %#v", applied[0].BootOrder)
+	if applied[1].BootOrder == nil || *applied[1].BootOrder != 2 {
+		t.Fatalf("expected data disk boot order 2, got %#v", applied[1].BootOrder)
 	}
-	if applied[1].BootOrder == nil || *applied[1].BootOrder != 3 {
-		t.Fatalf("expected second data disk boot order 3, got %#v", applied[1].BootOrder)
+}
+
+func TestApplyVMDiskLayoutDropsInstallerDiskWhenLayoutRemovesIt(t *testing.T) {
+	disks := []kubevirtv1.Disk{
+		{
+			Name: "manual1",
+			DiskDevice: kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+		{
+			Name: "vmimage",
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{Bus: kubevirtv1.DiskBusSATA},
+			},
+		},
+	}
+	meta := map[string]volume.VMDiskMeta{
+		"disk": {DiskName: "manual1", DiskKey: "disk"},
+	}
+
+	applied, err := applyVMDiskLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"disk","disk_role":"root","source_kind":"volume","order_index":0,"boot":true}]`,
+	}, disks, meta, vmBootPathISOInstaller)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(applied) != 1 {
+		t.Fatalf("expected installer disk to be removed, got %#v", applied)
+	}
+	if applied[0].Name != "manual1" {
+		t.Fatalf("expected root disk to remain, got %#v", applied[0])
+	}
+	if applied[0].BootOrder == nil || *applied[0].BootOrder != 1 {
+		t.Fatalf("expected root disk boot order 1 after removing installer, got %#v", applied[0].BootOrder)
 	}
 }

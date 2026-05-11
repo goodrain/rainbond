@@ -133,6 +133,21 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		}
 		define.vmDisk = append(define.vmDisk, dk)
 		define.vmVolume = append(define.vmVolume, vo)
+		deviceType := "disk"
+		switch volumeMountPath {
+		case "/lun":
+			deviceType = "lun"
+		case "/cdrom":
+			deviceType = "cdrom"
+		}
+		define.SetVMDiskMeta(VMDiskMeta{
+			DiskName:   dk.Name,
+			DiskKey:    v.svm.VolumeName,
+			DeviceType: deviceType,
+			SourceKind: "volume",
+			VolumePath: volumeMountPath,
+			VolumeName: v.svm.VolumeName,
+		})
 		logrus.Infof(
 			"vm volume appended: service_id=%s service_alias=%s source_volume=%s claim=%s mount_path=%s import=%t manual_claim=%t disk_name=%s boot_order=%d device=disk:%t,lun:%t,cdrom:%t current_vm_disks=%d current_vm_volumes=%d",
 			v.as.ServiceID,
