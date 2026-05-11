@@ -76,7 +76,7 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 		"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-DskipTests",
 		"BP_MAVEN_BUILT_MODULE":               "service-a",
 		"BP_MAVEN_BUILT_ARTIFACT":             "service-a/target/app.jar",
-		"MAVEN_OPTS":                          "-Xmx1024m",
+		"MAVEN_OPTS":                          "-Xmx1024m -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
 	}
 	found := map[string]bool{}
 	for _, env := range envs {
@@ -91,6 +91,27 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 		if !found[name] {
 			t.Fatalf("expected %s env var for java cnb build", name)
 		}
+	}
+}
+
+func TestJavaCNBBuildEnvUsesUTF8Locale(t *testing.T) {
+	re := &build.Request{
+		Lang:      code.JavaMaven,
+		SourceDir: t.TempDir(),
+		BuildEnvs: map[string]string{},
+	}
+
+	envs := (&Builder{}).buildEnvVars(re)
+	found := map[string]string{}
+	for _, env := range envs {
+		found[env.Name] = env.Value
+	}
+
+	if got := found["LANG"]; got != "C.UTF-8" {
+		t.Fatalf("expected LANG=C.UTF-8 for CNB java builds, got %q", got)
+	}
+	if got := found["LC_ALL"]; got != "C.UTF-8" {
+		t.Fatalf("expected LC_ALL=C.UTF-8 for CNB java builds, got %q", got)
 	}
 }
 
@@ -135,6 +156,7 @@ func TestJavaLanguageConfigPrefersBPFieldsOverLegacyBuildFields(t *testing.T) {
 		"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-Pprod",
 		"BP_MAVEN_BUILT_MODULE":               "bp-module",
 		"BP_MAVEN_BUILT_ARTIFACT":             "bp-module/target/app.jar",
+		"MAVEN_OPTS":                          "-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
 	}
 	found := map[string]string{}
 	for _, env := range envs {
