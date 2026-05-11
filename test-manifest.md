@@ -216,6 +216,9 @@
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
 | rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
+| rainbond.service-check.eventlog-progress | 将服务检测进度消息同步写入事件日志 | active | regression | builder/exector.logServiceCheckProgress | builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger |
+| rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
+| rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
@@ -236,6 +239,7 @@
 | rainbond.source-image.save | 将镜像保存为归档文件 | active | integration | builder/sources.ImageSave | builder/sources/image_test.go::TestImageSave |
 | rainbond.source-image.tag-from-ref | 从规范化镜像引用中提取标签 | active | regression | builder/sources.GetTagFromNamedRef | builder/sources/registry_test.go::TestGetTagFromNamedRef |
 | rainbond.source-image.trusted-registry-check | 校验受信任的镜像仓库 | active | integration | builder/sources.CheckTrustedRepositories | builder/sources/image_test.go::TestCheckTrustedRepositories |
+| rainbond.source-image.vm-build-host-taint-toleration | 为绑定主机的 VM 构建 Pod 添加通配容忍 | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecAddsTolerationForHostScheduling |
 | rainbond.source-repo.build-info | 构建包含净化地址与构建子目录的仓库元数据 | active | regression | builder/sources.CreateRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateRepostoryBuildInfo |
 | rainbond.source-repo.cache-dir | 根据仓库分支租户与服务解析源码缓存目录 | active | regression | builder/sources.GetCodeSourceDir | builder/sources/file_test.go::TestGetCodeSourceDirUsesSourceDirEnv<br>builder/sources/git_test.go::TestGetCodeCacheDir |
 | rainbond.source-repo.clone | 克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitClone |
@@ -337,14 +341,17 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
-| rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk |
+| rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk<br>api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume |
 | rainbond.vm-export.machine-manifest-build | 从持久化导出磁盘生成整机清单 | active | regression | handler.buildVMMachineManifest | api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks |
 | rainbond.vm-export.restore-plan-all-disks | 为系统盘和数据盘生成恢复计划 | active | regression | handler.buildVMAssetRestorePlan | api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports |
+| rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-download-export-cert | vm-run 远程包下载使用导出链接证书 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert |
+| rainbond.vm-run.remote-package-download-export-token | vm-run 远程包下载使用导出链接令牌 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportToken |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-export-cert | vm-run 远程包探测使用导出链接证书 | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportCert |
+| rainbond.vm-run.remote-package-probe-export-token | vm-run 远程包探测使用导出链接令牌 | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportToken |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
@@ -367,6 +374,7 @@
 | rainbond.worker.appm.autoscaler.build-hpa-spec | 根据自动伸缩规则构建 HPA 指标与对象 | active | regression | worker/appm/conversion.newHPA | worker/appm/conversion/autoscaler_test.go::TestNewHPA |
 | rainbond.worker.appm.discovery.etcd-config | 配置 appm 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | worker/appm/thirdparty/discovery.NewEtcd | worker/appm/thirdparty/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.worker.appm.discovery.unsupported-type | 对不支持的 appm 发现后端返回错误 | active | regression | worker/appm/thirdparty/discovery.NewDiscoverier | worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
+| rainbond.worker.appm.gateway.reassign-conflicting-nodeport | Reassign worker TCP NodePorts already allocated in Kubernetes | active | regression | worker/appm/conversion.reassignAllocatedNodePort | worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort<br>worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort |
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
@@ -2521,6 +2529,36 @@
 - 代码路径: `builder/exector/service_check.go`
 - 测试路径: `builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary`
 
+### 将服务检测进度消息同步写入事件日志
+
+- Capability ID: `rainbond.service-check.eventlog-progress`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/exector.logServiceCheckProgress`
+- 代码路径: `builder/exector/service_check.go`
+- 测试路径: `builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger`
+
+### 构建带路径分隔符的安全文件管理列表命令
+
+- Capability ID: `rainbond.service.file-manage-command-safety`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/handler.buildFileManageListCommand`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_file_manage_test.go::TestBuildFileManageListCommand`
+
+### 文件管理列表失败时保留 exec 的 stderr 细节
+
+- Capability ID: `rainbond.service.file-manage-exec-error-detail`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/handler.wrapFileManageExecError`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr`
+
 ### 镜像分享使用请求中的快照部署版本
 
 - Capability ID: `rainbond.share.image-from-snapshot-deploy-version`
@@ -2720,6 +2758,16 @@
 - 业务入口: `builder/sources.CheckTrustedRepositories`
 - 代码路径: `builder/sources/image.go`
 - 测试路径: `builder/sources/image_test.go::TestCheckTrustedRepositories`
+
+### 为绑定主机的 VM 构建 Pod 添加通配容忍
+
+- Capability ID: `rainbond.source-image.vm-build-host-taint-toleration`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sources.newBuildKitPodSpec`
+- 代码路径: `builder/sources/image.go`
+- 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecAddsTolerationForHostScheduling`
 
 ### 构建包含净化地址与构建子目录的仓库元数据
 
@@ -3739,7 +3787,7 @@
 - 接口类型: `package_function`
 - 业务入口: `handler.discoverVMExportDisks`
 - 代码路径: `api/handler/vm_export.go`
-- 测试路径: `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk`
+- 测试路径: `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk`, `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume`
 
 ### 从持久化导出磁盘生成整机清单
 
@@ -3760,6 +3808,16 @@
 - 业务入口: `handler.buildVMAssetRestorePlan`
 - 代码路径: `api/handler/vm_export.go`
 - 测试路径: `api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports`
+
+### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
+
+- Capability ID: `rainbond.vm-power.start-existing-or-create`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.StartOrCreateVM`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 
@@ -3791,6 +3849,16 @@
 - 代码路径: `builder/exector/build_from_vm.go`, `builder/sourceutil/vm_export_tls.go`
 - 测试路径: `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert`
 
+### vm-run 远程包下载使用导出链接令牌
+
+- Capability ID: `rainbond.vm-run.remote-package-download-export-token`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/exector.downloadFile`
+- 代码路径: `builder/exector/build_from_vm.go`, `builder/sourceutil/vm_export_tls.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportToken`
+
 ### vm-run 远程包探测优先使用 HEAD
 
 - Capability ID: `rainbond.vm-run.remote-package-probe`
@@ -3810,6 +3878,16 @@
 - 业务入口: `builder/parser.VMServiceParse.Parse`
 - 代码路径: `builder/parser/vm_service.go`, `builder/sourceutil/vm_export_tls.go`
 - 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportCert`
+
+### vm-run 远程包探测使用导出链接令牌
+
+- Capability ID: `rainbond.vm-run.remote-package-probe-export-token`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`
+- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportToken`
 
 ### vm-run 远程包探测在 HEAD 失败时回退 Range GET
 
@@ -4030,6 +4108,16 @@
 - 业务入口: `worker/appm/thirdparty/discovery.NewDiscoverier`
 - 代码路径: `worker/appm/thirdparty/discovery/discovery.go`
 - 测试路径: `worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType`
+
+### Reassign worker TCP NodePorts already allocated in Kubernetes
+
+- Capability ID: `rainbond.worker.appm.gateway.reassign-conflicting-nodeport`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.reassignAllocatedNodePort`
+- 代码路径: `worker/appm/conversion/gateway.go`
+- 测试路径: `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort`, `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort`
 
 ### 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容
 

@@ -3958,6 +3958,60 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service-check.eventlog-progress",
+      "title": "Mirror service-check progress messages to the event logger",
+      "title_zh": "\u5c06\u670d\u52a1\u68c0\u6d4b\u8fdb\u5ea6\u6d88\u606f\u540c\u6b65\u5199\u5165\u4e8b\u4ef6\u65e5\u5fd7",
+      "interface_type": "other",
+      "interface": "builder/exector.logServiceCheckProgress",
+      "code_paths": [
+        "builder/exector/service_check.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/service_check_test.go",
+          "selector": "TestLogServiceCheckProgressMirrorsMessageToEventLogger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.file-manage-command-safety",
+      "title": "Build safe file-manage list command with path separator",
+      "title_zh": "\u6784\u5efa\u5e26\u8def\u5f84\u5206\u9694\u7b26\u7684\u5b89\u5168\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u547d\u4ee4",
+      "interface_type": "other",
+      "interface": "api/handler.buildFileManageListCommand",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_file_manage_test.go",
+          "selector": "TestBuildFileManageListCommand"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.file-manage-exec-error-detail",
+      "title": "Preserve exec stderr when file-manage listing fails",
+      "title_zh": "\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u5931\u8d25\u65f6\u4fdd\u7559 exec \u7684 stderr \u7ec6\u8282",
+      "interface_type": "other",
+      "interface": "api/handler.wrapFileManageExecError",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_file_manage_test.go",
+          "selector": "TestWrapFileManageExecErrorIncludesStderr"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.share.image-from-snapshot-deploy-version",
       "title": "Share image snapshots using the requested deploy version",
       "title_zh": "\u955c\u50cf\u5206\u4eab\u4f7f\u7528\u8bf7\u6c42\u4e2d\u7684\u5feb\u7167\u90e8\u7f72\u7248\u672c",
@@ -4315,6 +4369,24 @@
         }
       ],
       "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-image.vm-build-host-taint-toleration",
+      "title": "Add broad toleration for host-scheduled VM build pods",
+      "title_zh": "\u4e3a\u7ed1\u5b9a\u4e3b\u673a\u7684 VM \u6784\u5efa Pod \u6dfb\u52a0\u901a\u914d\u5bb9\u5fcd",
+      "interface_type": "package_function",
+      "interface": "builder/sources.newBuildKitPodSpec",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestNewBuildKitPodSpecAddsTolerationForHostScheduling"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {
@@ -6223,6 +6295,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.start-existing-or-create",
+      "title": "Start existing stopped VM before falling back to worker create flow",
+      "title_zh": "\u4f18\u5148\u542f\u52a8\u5df2\u5b58\u5728\u4e14\u5df2\u505c\u6b62\u7684\u865a\u62df\u673a\uff0c\u5426\u5219\u56de\u9000\u5230 worker \u521b\u5efa\u6d41\u7a0b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.StartOrCreateVM",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingStoppedVM"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.build-media-paths",
       "title": "Split VM runtime image build templates for ISO and disk sources",
       "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
@@ -6278,6 +6372,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-run.remote-package-download-export-token",
+      "title": "Use VM export token for remote package download",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u4e0b\u8f7d\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u4ee4\u724c",
+      "interface_type": "package_function",
+      "interface": "builder/exector.downloadFile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go",
+        "builder/sourceutil/vm_export_tls.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileUsesVMExportToken"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.remote-package-probe",
       "title": "VM remote package probe prefers HEAD",
       "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
@@ -6309,6 +6422,24 @@
         {
           "path": "builder/parser/vm_service_test.go",
           "selector": "TestVMServiceParseRemoteURLUsesVMExportCert"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.remote-package-probe-export-token",
+      "title": "Use VM export token for remote package probe",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f7f\u7528\u5bfc\u51fa\u94fe\u63a5\u4ee4\u724c",
+      "interface_type": "other",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_test.go",
+          "selector": "TestVMServiceParseRemoteURLUsesVMExportToken"
         }
       ],
       "test_type": "regression",
@@ -6675,27 +6806,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
-      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
-      "interface_type": "package_function",
-      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
-      "code_paths": [
-        "worker/appm/conversion/gateway.go"
-      ],
-      "tests": [
-        {
-          "path": "worker/appm/conversion/gateway_test.go",
-          "selector": "TestReassignAllocatedNodePort"
-        },
-        {
-          "path": "worker/appm/conversion/gateway_test.go",
-          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.worker.appm.discovery.etcd-config",
       "title": "Configure appm etcd discovery and guard fetch without client",
       "title_zh": "\u914d\u7f6e appm \u7684 etcd \u53d1\u73b0\u5668\u5e76\u5728\u65e0\u5ba2\u6237\u7aef\u65f6\u4fdd\u62a4\u6293\u53d6\u903b\u8f91",
@@ -6726,6 +6836,27 @@
         {
           "path": "worker/appm/thirdparty/discovery/discovery_unit_test.go",
           "selector": "TestNewDiscoverierUnsupportedType"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
+      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePort"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
         }
       ],
       "test_type": "regression",
@@ -7279,42 +7410,6 @@
         {
           "path": "worker/util/volumetype_test.go",
           "selector": "TestTransStorageClass2RBDVolumeType"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.service.file-manage-command-safety",
-      "title": "Build safe file-manage list command with path separator",
-      "title_zh": "\u6784\u5efa\u5e26\u8def\u5f84\u5206\u9694\u7b26\u7684\u5b89\u5168\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u547d\u4ee4",
-      "interface_type": "other",
-      "interface": "api/handler.buildFileManageListCommand",
-      "code_paths": [
-        "api/handler/service.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_file_manage_test.go",
-          "selector": "TestBuildFileManageListCommand"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.service.file-manage-exec-error-detail",
-      "title": "Preserve exec stderr when file-manage listing fails",
-      "title_zh": "\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u5931\u8d25\u65f6\u4fdd\u7559 exec \u7684 stderr \u7ec6\u8282",
-      "interface_type": "other",
-      "interface": "api/handler.wrapFileManageExecError",
-      "code_paths": [
-        "api/handler/service.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_file_manage_test.go",
-          "selector": "TestWrapFileManageExecErrorIncludesStderr"
         }
       ],
       "test_type": "regression",
