@@ -3,7 +3,6 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,8 +29,6 @@ const (
 
 	vmPrimaryNetworkName = "default"
 )
-
-var vmWindowsAliasPattern = regexp.MustCompile(`(^|[^a-z])win(?:dows)?(?:\d+|[\s._-]|$)`)
 
 type vmRuntimeConfig struct {
 	Networks    []kubevirtv1.Network
@@ -143,29 +140,42 @@ func parsePositiveInt(value string) int {
 	return count
 }
 
-func resolveVMOSFamily(extensionSet map[string]string) string {
-	if looksLikeWindowsGuestHint(extensionSet[vmOSNameKey]) {
-		return "windows"
-	}
-	return "linux"
-}
-
 func resolveVMInterfaceModel(extensionSet map[string]string) string {
-	if resolveVMOSFamily(extensionSet) == "windows" {
-		return "e1000"
+	if looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) {
+		return "virtio"
 	}
-	return "virtio"
+	return "e1000"
 }
 
-func looksLikeWindowsGuestHint(value string) bool {
+func looksLikeLinuxGuestHint(value string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {
 		return false
 	}
-	if strings.Contains(normalized, "windows") {
-		return true
+	for _, marker := range []string{
+		"linux",
+		"ubuntu",
+		"debian",
+		"centos",
+		"fedora",
+		"rhel",
+		"red hat",
+		"rocky",
+		"almalinux",
+		"opensuse",
+		"suse",
+		"oracle linux",
+		"alpine",
+		"arch",
+		"kylin",
+		"uos",
+		"anolis",
+	} {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
 	}
-	return vmWindowsAliasPattern.MatchString(normalized)
+	return false
 }
 
 func extensionEnabled(value string) bool {

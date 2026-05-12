@@ -21,6 +21,9 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	if len(cfg.Interfaces) != 1 {
 		t.Fatalf("expected 1 interface, got %d", len(cfg.Interfaces))
 	}
+	if cfg.Interfaces[0].Model != "e1000" {
+		t.Fatalf("expected unknown guest network to default to e1000, got %q", cfg.Interfaces[0].Model)
+	}
 	if cfg.Interfaces[0].Masquerade == nil {
 		t.Fatalf("expected default masquerade interface")
 	}
@@ -47,6 +50,24 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	}
 	if cfg.Interfaces[0].Masquerade == nil {
 		t.Fatalf("expected windows random network to keep masquerade binding")
+	}
+}
+
+func TestBuildVMRuntimeConfigRecognizedLinuxNameUsesVirtio(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_os_name": "Ubuntu 22.04.5 LTS",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Interfaces) != 1 {
+		t.Fatalf("expected 1 interface, got %d", len(cfg.Interfaces))
+	}
+	if cfg.Interfaces[0].Model != "virtio" {
+		t.Fatalf("expected recognized linux guest to use virtio, got %q", cfg.Interfaces[0].Model)
+	}
+	if cfg.Interfaces[0].Masquerade == nil {
+		t.Fatalf("expected recognized linux guest to keep masquerade binding")
 	}
 }
 
