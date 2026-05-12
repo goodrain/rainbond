@@ -110,7 +110,7 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 	}
 
 	if service.ContainerMemory < oldMemory {
-		return newVMLiveUpdateError(409, "vm memory live update only supports increasing memory")
+		return newVMLiveUpdateError(409, "虚拟机内存热更新仅支持扩容，不支持缩容，请停机后再修改规格。")
 	}
 	if service.ContainerMemory > oldMemory {
 		if vm.Spec.Template == nil || vm.Spec.Template.Spec.Domain.Memory == nil || vm.Spec.Template.Spec.Domain.Memory.MaxGuest == nil {

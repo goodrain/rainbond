@@ -341,6 +341,7 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
@@ -400,7 +401,7 @@
 | rainbond.worker.thirdcomponent.prober.manage-results-cache | 缓存并清理第三方组件探测结果 | active | regression | worker/master/controller/thirdcomponent/prober/results.NewManager | worker/master/controller/thirdcomponent/prober/results/results_manager_test.go::TestCacheOperations |
 | rainbond.worker.volume-provider.pvc-identifiers | 根据 PVC 名称解析 Pod 名与卷 ID | active | regression | worker/master/volumes/provider.getVolumeIDByPVCName | worker/master/volumes/provider/rainbondsslc_test.go::TestGetVolumeIDByPVCName |
 | rainbond.worker.volume-provider.select-node | 按可用内存选择存储节点 | active | integration | worker/master/volumes/provider.rainbondsslcProvisioner.selectNode | worker/master/volumes/provider/rainbondsslc_test.go::TestSelectNode |
-| rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType |
+| rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType<br>db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode |
 
 ## 详情
 
@@ -3774,6 +3775,16 @@
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
 
+### 拒绝运行中虚拟机的内存热缩容
+
+- Capability ID: `rainbond.vm-live-update.running-memory-shrink-rejected`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink`
+
 ### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
 
 - Capability ID: `rainbond.vm-power.start-existing-or-create`
@@ -4371,5 +4382,5 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `worker/util.TransStorageClass2RBDVolumeType`
-- 代码路径: `worker/util/volumetype.go`
-- 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`
+- 代码路径: `worker/util/volumetype.go`, `db/mysql/dao/volume_type.go`
+- 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`, `db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode`
