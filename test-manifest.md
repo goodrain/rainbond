@@ -346,6 +346,8 @@
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
+| rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
+| rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
 | rainbond.watch.etcd-event-parse | 将 etcd watch 事件解析为内部事件结构 | active | regression | util/watch.parseEvent | util/watch/watch_test.go::TestParseEvent |
@@ -371,7 +373,7 @@
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
-| rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank |
+| rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
 | rainbond.worker.helmapp.condition-query | 按类型查询 HelmApp 条件及其真值状态 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.GetCondition | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionQuery |
@@ -3812,7 +3814,6 @@
 - 代码路径: `builder/parser/vm_service.go`
 - 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe`
 
-
 ### vm-run 远程包探测在 HEAD 失败时回退 Range GET
 
 - Capability ID: `rainbond.vm-run.remote-package-probe-range-fallback`
@@ -3822,6 +3823,26 @@
 - 业务入口: `builder/parser.VMServiceParse.Parse`
 - 代码路径: `builder/parser/vm_service.go`
 - 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet`
+
+### 为 VM 数据卷保留所选存储类
+
+- Capability ID: `rainbond.vm-volume-selected-storage-class`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ShareFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/share-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks`
+
+### 旧版 vm-file 虚机卷继续回退到 local-path
+
+- Capability ID: `rainbond.vm-volume-vm-file-backward-compatible`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ShareFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/share-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile`
 
 ### 将 watch 后端错误分发到内部错误通道
 
@@ -4080,8 +4101,8 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `worker/appm/conversion.TenantServiceVersion`
-- 代码路径: `worker/appm/conversion/version.go`
-- 测试路径: `worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank`, `worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt`
 
 ### 根据仓库名与模板名拼装 Helm chart 引用
 

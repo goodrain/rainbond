@@ -6331,6 +6331,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-volume-selected-storage-class",
+      "title": "Preserve selected storage class for VM data volumes",
+      "title_zh": "\u4e3a VM \u6570\u636e\u5377\u4fdd\u7559\u6240\u9009\u5b58\u50a8\u7c7b",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ShareFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/share-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestNewVolumeManagerUsesSelectedStorageClassForVMDisks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-volume-vm-file-backward-compatible",
+      "title": "Keep local-path fallback for legacy vm-file VM volumes",
+      "title_zh": "\u65e7\u7248 vm-file \u865a\u673a\u5377\u7ee7\u7eed\u56de\u9000\u5230 local-path",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ShareFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/share-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.watch.error-dispatch",
       "title": "Dispatch watch backend errors onto the internal error channel",
       "title_zh": "\u5c06 watch \u540e\u7aef\u9519\u8bef\u5206\u53d1\u5230\u5185\u90e8\u9519\u8bef\u901a\u9053",
