@@ -20,6 +20,7 @@ package volume
 
 import (
 	"fmt"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -31,6 +32,19 @@ import (
 // ShareFileVolume nfs volume struct
 type ShareFileVolume struct {
 	Base
+}
+
+func (v *ShareFileVolume) vmStorageClassName() string {
+	if v.svm == nil {
+		return "local-path"
+	}
+	if v.svm.VolumeType == "" || v.svm.VolumeType == dbmodel.VMVolumeType.String() {
+		return "local-path"
+	}
+	if v.svm.VolumeType == dbmodel.ShareFileVolumeType.String() && v.as.SharedStorageClass != "" {
+		return v.as.SharedStorageClass
+	}
+	return v.svm.VolumeType
 }
 
 // CreateVolume share file volume create volume
@@ -59,16 +73,28 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.generateVolumeSubPath(define, vm)
 		define.volumeMounts = append(define.volumeMounts, *vm)
 	} else if v.as.GetVirtualMachine() != nil {
-		importConfigs, err := loadVMDiskImportConfigs(v.as.ServiceID, v.dbmanager)
-		if err != nil {
-			return err
+		importConfigs := map[string]vmDiskImportConfig{}
+		if v.dbmanager != nil {
+			var err error
+			importConfigs, err = loadVMDiskImportConfigs(v.as.ServiceID, v.dbmanager)
+			if err != nil {
+				return err
+			}
 		}
 		labels := v.as.GetCommonLabels(map[string]string{
 			"volume_name": volumeMountName,
 			"stateless":   "",
 		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
+		storageClassName := v.vmStorageClassName()
+		claim := newVolumeClaim(
+			volumeMountName,
+			path.Join(volumeMountPath, volumeMountName),
+			v.svm.AccessMode,
+			storageClassName,
+			v.svm.VolumeCapacity,
+			labels,
+			annotations)
 		v.as.SetClaim(claim)
 		var importConfig *vmDiskImportConfig
 		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {

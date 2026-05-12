@@ -66,31 +66,38 @@ func NewVolumeManager(as *v1.AppService,
 		logrus.Warn("unknown volume Type, can't create volume")
 		return nil
 	}
-	switch volumeType {
-	case dbmodel.ShareFileVolumeType.String():
+	if serviceVolume != nil && as.GetVirtualMachine() != nil &&
+		volumeType != dbmodel.ConfigFileVolumeType.String() &&
+		volumeType != dbmodel.MemoryFSVolumeType.String() &&
+		volumeType != dbmodel.LocalVolumeType.String() {
 		v = new(ShareFileVolume)
-		css := as.SharedStorageClass
-		if css != "" {
-			v = new(OtherVolume)
-		}
-	case dbmodel.ConfigFileVolumeType.String():
-		v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
-	case dbmodel.VMVolumeType.String():
-		v = new(ShareFileVolume)
-	case dbmodel.MemoryFSVolumeType.String():
-		v = new(MemoryFSVolume)
-	case dbmodel.LocalVolumeType.String():
-		v = new(LocalVolume)
-	case dbmodel.PluginStorageType.String():
-		v = new(PluginStorageVolume)
-	case dbmodel.VolcengineType.String():
-		v = new(VolcengineVolume)
-	default:
-		logrus.Warnf("other volume type[%s]", volumeType)
-		if serviceMountR != nil {
+	} else {
+		switch volumeType {
+		case dbmodel.ShareFileVolumeType.String():
 			v = new(ShareFileVolume)
-		} else {
-			v = new(OtherVolume)
+			css := as.SharedStorageClass
+			if css != "" {
+				v = new(OtherVolume)
+			}
+		case dbmodel.ConfigFileVolumeType.String():
+			v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
+		case dbmodel.VMVolumeType.String():
+			v = new(ShareFileVolume)
+		case dbmodel.MemoryFSVolumeType.String():
+			v = new(MemoryFSVolume)
+		case dbmodel.LocalVolumeType.String():
+			v = new(LocalVolume)
+		case dbmodel.PluginStorageType.String():
+			v = new(PluginStorageVolume)
+		case dbmodel.VolcengineType.String():
+			v = new(VolcengineVolume)
+		default:
+			logrus.Warnf("other volume type[%s]", volumeType)
+			if serviceMountR != nil {
+				v = new(ShareFileVolume)
+			} else {
+				v = new(OtherVolume)
+			}
 		}
 	}
 	if tsmr && volumeType != dbmodel.ConfigFileVolumeType.String() {
