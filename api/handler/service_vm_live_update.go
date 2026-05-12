@@ -116,11 +116,11 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 		if vm.Spec.Template == nil || vm.Spec.Template.Spec.Domain.Memory == nil || vm.Spec.Template.Spec.Domain.Memory.MaxGuest == nil {
 			return newVMLiveUpdateError(409, "vm maxGuest is required for memory live update")
 		}
-		targetGuest := resource.NewScaledQuantity(int64(service.ContainerMemory), resource.Mega)
+		targetGuest := buildAlignedVMMemoryQuantity(service.ContainerMemory)
 		if targetGuest.Cmp(*vm.Spec.Template.Spec.Domain.Memory.MaxGuest) > 0 {
 			return newVMLiveUpdateError(409, "vm memory live update target exceeds maxGuest")
 		}
-		if vm.Spec.Template.Spec.Domain.Memory.Guest == nil || vm.Spec.Template.Spec.Domain.Memory.Guest.Cmp(*targetGuest) != 0 {
+		if vm.Spec.Template.Spec.Domain.Memory.Guest == nil || vm.Spec.Template.Spec.Domain.Memory.Guest.Cmp(targetGuest) != 0 {
 			patchOps = append(patchOps, map[string]any{
 				"op":    "replace",
 				"path":  "/spec/template/spec/domain/memory/guest",
@@ -254,6 +254,23 @@ func vmSocketsFromMilliCPU(cpuMilli int) (uint32, error) {
 		return 0, newVMLiveUpdateError(409, "vm cpu live update requires whole CPU cores")
 	}
 	return uint32(cpuMilli / 1000), nil
+}
+
+func buildAlignedVMMemoryQuantity(memoryMB int) resource.Quantity {
+	aligned := alignVMMemoryMi(memoryMB)
+	return resource.MustParse(fmt.Sprintf("%dMi", aligned))
+}
+
+func alignVMMemoryMi(memoryMB int) int {
+	if memoryMB <= 0 {
+		return 0
+	}
+	const alignmentMi = 2
+	remainder := memoryMB % alignmentMi
+	if remainder == 0 {
+		return memoryMB
+	}
+	return memoryMB + (alignmentMi - remainder)
 }
 
 func isConditionTrue(conditions []v1.VirtualMachineInstanceCondition, conditionType v1.VirtualMachineInstanceConditionType) bool {

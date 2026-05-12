@@ -1665,12 +1665,29 @@ func buildStandardVMCPU(cpuMilli int) *kubevirtv1.CPU {
 }
 
 func buildStandardVMMemory(memoryMB int) *kubevirtv1.Memory {
-	guest := resource.NewScaledQuantity(int64(memoryMB), resource.Mega)
-	maxGuest := resource.NewScaledQuantity(int64(memoryMB*2), resource.Mega)
+	guest := buildAlignedVMMemoryQuantity(memoryMB)
+	maxGuest := buildAlignedVMMemoryQuantity(memoryMB * 2)
 	return &kubevirtv1.Memory{
-		Guest:    guest,
-		MaxGuest: maxGuest,
+		Guest:    &guest,
+		MaxGuest: &maxGuest,
 	}
+}
+
+func buildAlignedVMMemoryQuantity(memoryMB int) resource.Quantity {
+	aligned := alignVMMemoryMi(memoryMB)
+	return resource.MustParse(fmt.Sprintf("%dMi", aligned))
+}
+
+func alignVMMemoryMi(memoryMB int) int {
+	if memoryMB <= 0 {
+		return 0
+	}
+	const alignmentMi = 2
+	remainder := memoryMB % alignmentMi
+	if remainder == 0 {
+		return memoryMB
+	}
+	return memoryMB + (alignmentMi - remainder)
 }
 
 func filterVMVolumesByName(volumes []kubevirtv1.Volume, name string) []kubevirtv1.Volume {

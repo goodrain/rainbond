@@ -140,11 +140,22 @@ func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopology(t *testing.T) {
 func TestBuildStandardVMMemorySetsGuestAndMaxGuest(t *testing.T) {
 	memory := buildStandardVMMemory(8192)
 
-	if memory.Guest == nil || memory.Guest.Cmp(*resource.NewScaledQuantity(8192, resource.Mega)) != 0 {
+	if memory.Guest == nil || memory.Guest.Cmp(resource.MustParse("8192Mi")) != 0 {
 		t.Fatalf("expected guest 8Gi, got %#v", memory.Guest)
 	}
-	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(*resource.NewScaledQuantity(16384, resource.Mega)) != 0 {
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("16384Mi")) != 0 {
 		t.Fatalf("expected maxGuest 16Gi, got %#v", memory.MaxGuest)
+	}
+}
+
+func TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi(t *testing.T) {
+	memory := buildStandardVMMemory(1025)
+
+	if memory.Guest == nil || memory.Guest.Cmp(resource.MustParse("1026Mi")) != 0 {
+		t.Fatalf("expected guest memory to align to 1026Mi, got %#v", memory.Guest)
+	}
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("2050Mi")) != 0 {
+		t.Fatalf("expected maxGuest memory to align to 2050Mi, got %#v", memory.MaxGuest)
 	}
 }
 
