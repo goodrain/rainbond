@@ -12,16 +12,6 @@ import (
 )
 
 var (
-	networkAttachmentDefinitionGVR = schema.GroupVersionResource{
-		Group:    "k8s.cni.cncf.io",
-		Version:  "v1",
-		Resource: "network-attachment-definitions",
-	}
-	networkAttachmentDefinitionCompatGVR = schema.GroupVersionResource{
-		Group:    "k8s.cni.cncf.io",
-		Version:  "v1",
-		Resource: "networkattachmentdefinitions",
-	}
 	kubeVirtGVR = schema.GroupVersionResource{
 		Group:    "kubevirt.io",
 		Version:  "v1",
@@ -29,36 +19,20 @@ var (
 	}
 )
 
-type VMNetworkCapability struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
-
 type VMCapability struct {
-	ChunkUploadSupported bool                  `json:"chunk_upload_supported"`
-	GPUSupported         bool                  `json:"gpu_supported"`
-	USBSupported         bool                  `json:"usb_supported"`
-	NetworkModes         []string              `json:"network_modes"`
-	GPUResources         []string              `json:"gpu_resources"`
-	USBResources         []string              `json:"usb_resources"`
-	Networks             []VMNetworkCapability `json:"networks"`
+	ChunkUploadSupported bool     `json:"chunk_upload_supported"`
+	GPUSupported         bool     `json:"gpu_supported"`
+	USBSupported         bool     `json:"usb_supported"`
+	GPUResources         []string `json:"gpu_resources"`
+	USBResources         []string `json:"usb_resources"`
 }
 
 func BuildVMCapabilities(dynamicClient dynamic.Interface) (*VMCapability, error) {
 	capabilities := &VMCapability{
 		ChunkUploadSupported: true,
-		NetworkModes:         []string{"random", "fixed"},
 	}
 	if dynamicClient == nil {
 		return capabilities, nil
-	}
-
-	networks, err := listVMNetworks(dynamicClient)
-	if err != nil {
-		return nil, err
-	}
-	if len(networks) > 0 {
-		capabilities.Networks = networks
 	}
 
 	gpuResources, usbResources, err := listPermittedHostDeviceResources(dynamicClient)
@@ -71,36 +45,6 @@ func BuildVMCapabilities(dynamicClient dynamic.Interface) (*VMCapability, error)
 	capabilities.USBSupported = len(usbResources) > 0
 
 	return capabilities, nil
-}
-
-func listVMNetworks(dynamicClient dynamic.Interface) ([]VMNetworkCapability, error) {
-	list, err := dynamicClient.Resource(networkAttachmentDefinitionGVR).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return nil, err
-	}
-	if k8serrors.IsNotFound(err) || list == nil || len(list.Items) == 0 {
-		list, err = dynamicClient.Resource(networkAttachmentDefinitionCompatGVR).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	}
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	networks := make([]VMNetworkCapability, 0, len(list.Items))
-	for _, item := range list.Items {
-		networks = append(networks, VMNetworkCapability{
-			Name:      item.GetName(),
-			Namespace: item.GetNamespace(),
-		})
-	}
-	sort.Slice(networks, func(i, j int) bool {
-		if networks[i].Namespace == networks[j].Namespace {
-			return networks[i].Name < networks[j].Name
-		}
-		return networks[i].Namespace < networks[j].Namespace
-	})
-	return networks, nil
 }
 
 func listPermittedHostDeviceResources(dynamicClient dynamic.Interface) ([]string, []string, error) {

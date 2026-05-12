@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
-	"strings"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -155,12 +154,6 @@ var vmRuntimeDeviceAttributeNames = []string{
 }
 
 var vmRuntimeSpecAttributeNames = []string{
-	"vm_network_mode",
-	"vm_network_name",
-	"vm_fixed_ip",
-	"vm_gateway",
-	"vm_dns_servers",
-	"vm_os_family",
 	"vm_os_name",
 }
 
@@ -312,8 +305,7 @@ func (s *ServiceAction) loadVMRuntimeSpecExtensionSet(componentID string) (map[s
 }
 
 func shouldDeferVirtualMachineSpecSync(extensionSet map[string]string) bool {
-	return strings.EqualFold(strings.TrimSpace(extensionSet["vm_network_mode"]), "fixed") &&
-		strings.TrimSpace(extensionSet["vm_fixed_ip"]) == ""
+	return false
 }
 
 func (s *ServiceAction) buildDesiredVirtualMachine(serviceID string) (*kubevirtv1.VirtualMachine, error) {

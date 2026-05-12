@@ -256,7 +256,14 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 	}
 }
 
-func TestIsVMRuntimeSpecAttributeIncludesFixedIPFields(t *testing.T) {
+func TestIsVMRuntimeSpecAttributeOnlyIncludesSupportedVMFields(t *testing.T) {
+	for _, name := range []string{
+		"vm_os_name",
+	} {
+		if !isVMRuntimeSpecAttribute(name) {
+			t.Fatalf("expected %s to trigger vm spec sync", name)
+		}
+	}
 	for _, name := range []string{
 		"vm_network_mode",
 		"vm_network_name",
@@ -264,28 +271,9 @@ func TestIsVMRuntimeSpecAttributeIncludesFixedIPFields(t *testing.T) {
 		"vm_gateway",
 		"vm_dns_servers",
 	} {
-		if !isVMRuntimeSpecAttribute(name) {
-			t.Fatalf("expected %s to trigger vm spec sync", name)
+		if isVMRuntimeSpecAttribute(name) {
+			t.Fatalf("did not expect removed vm network field %s to trigger vm spec sync", name)
 		}
-	}
-}
-
-func TestShouldDeferVirtualMachineSpecSyncRequiresFixedIPForFixedMode(t *testing.T) {
-	if !shouldDeferVirtualMachineSpecSync(map[string]string{
-		"vm_network_mode": "fixed",
-	}) {
-		t.Fatal("expected fixed mode without fixed ip to defer vm spec sync")
-	}
-	if shouldDeferVirtualMachineSpecSync(map[string]string{
-		"vm_network_mode": "fixed",
-		"vm_fixed_ip":     "10.0.0.10/24",
-	}) {
-		t.Fatal("did not expect sync deferral once fixed ip is present")
-	}
-	if shouldDeferVirtualMachineSpecSync(map[string]string{
-		"vm_network_mode": "random",
-	}) {
-		t.Fatal("did not expect random mode to defer vm spec sync")
 	}
 }
 

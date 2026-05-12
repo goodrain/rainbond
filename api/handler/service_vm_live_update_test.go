@@ -192,7 +192,7 @@ func TestServiceVerticalVMStoppedFallsBackToSpecSync(t *testing.T) {
 	}
 }
 
-func TestGetVMLiveUpdateCapabilityRejectsFixedIPVM(t *testing.T) {
+func TestGetVMLiveUpdateCapabilityIgnoresRemovedNetworkFields(t *testing.T) {
 	serviceDao := &resourceSyncTenantServiceDao{
 		service: &dbmodel.TenantServices{
 			ServiceID:       "service-vm",
@@ -231,11 +231,11 @@ func TestGetVMLiveUpdateCapabilityRejectsFixedIPVM(t *testing.T) {
 	}
 
 	capability := action.GetVMLiveUpdateCapability("service-vm")
-	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
-		t.Fatalf("expected fixed ip vm to be unsupported, got %#v", capability)
+	if !capability.CPUHotUpdateSupported || !capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected removed vm network fields to no longer block hot update, got %#v", capability)
 	}
-	if capability.HotUpdateReason == "" {
-		t.Fatalf("expected fixed ip reason, got %#v", capability)
+	if capability.HotUpdateReason != "" {
+		t.Fatalf("did not expect removed vm network fields to set hot update reason, got %#v", capability)
 	}
 }
 

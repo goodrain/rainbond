@@ -1375,9 +1375,6 @@ func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]s
 	}
 	if as.Replicas == 1 {
 		podIP := strings.TrimSpace(as.ExtensionSet["pod_ip"])
-		if podIP == "" {
-			podIP = resolveVMFixedPodIPAnnotationValue(as.ExtensionSet)
-		}
 		if podIP != "" {
 			logrus.Debugf("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, podIP)
 			annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", podIP)
@@ -1413,12 +1410,6 @@ func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error
 
 func vmRuntimeAttributeNames() []string {
 	return []string{
-		"vm_network_mode",
-		"vm_network_name",
-		"vm_fixed_ip",
-		"vm_gateway",
-		"vm_dns_servers",
-		"vm_os_family",
 		"vm_os_name",
 		"vm_gpu_enabled",
 		"vm_gpu_resources",

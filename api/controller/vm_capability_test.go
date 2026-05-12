@@ -14,7 +14,6 @@ func TestVMCapabilityControllerGetCapabilities(t *testing.T) {
 		buildCapabilities: func() (*handler.VMCapability, error) {
 			return &handler.VMCapability{
 				ChunkUploadSupported: true,
-				NetworkModes:         []string{"random", "fixed"},
 			}, nil
 		},
 	}

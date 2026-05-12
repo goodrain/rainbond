@@ -185,12 +185,6 @@ func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdate
 		}
 	}
 
-	specExtensions, err := s.loadVMRuntimeSpecExtensionSetForCapability(serviceID)
-	if err == nil && strings.EqualFold(strings.TrimSpace(specExtensions["vm_network_mode"]), "fixed") {
-		capability.HotUpdateReason = "固定 IP 虚拟机暂不支持热更新，请停机后修改。"
-		return capability
-	}
-
 	capability.CPUHotUpdateSupported = true
 	capability.MemoryHotUpdateSupported = true
 	return capability
