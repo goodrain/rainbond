@@ -6790,12 +6790,17 @@
       "interface_type": "workflow",
       "interface": "worker/appm/conversion.TenantServiceVersion",
       "code_paths": [
-        "worker/appm/conversion/version.go"
+        "worker/appm/conversion/version.go",
+        "worker/appm/conversion/vm_runtime.go"
       ],
       "tests": [
         {
           "path": "worker/appm/conversion/version_vm_test.go",
           "selector": "TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt"
         }
       ],
       "test_type": "regression",

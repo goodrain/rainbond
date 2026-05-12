@@ -259,6 +259,33 @@ func TestPrepareVMImageBootVolumesForISOInstallerKeepsBlankRootDiskAndPrependsVM
 	}
 }
 
+func TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt(t *testing.T) {
+	volumes := []kubevirtv1.Volume{
+		{
+			Name: "vmimage",
+			VolumeSource: kubevirtv1.VolumeSource{
+				ContainerDisk: &kubevirtv1.ContainerDiskSource{
+					Image: "goodrain.me/default:test",
+				},
+			},
+		},
+		{Name: "manual-root", VolumeSource: kubevirtv1.VolumeSource{DataVolume: &kubevirtv1.DataVolumeSource{Name: "manual-root"}}},
+	}
+
+	updated, err := applyVMBootVolumeLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"disk","disk_role":"root","source_kind":"volume","order_index":0,"boot":true}]`,
+	}, volumes, vmBootPathISOInstaller)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(updated) != 1 {
+		t.Fatalf("expected installer volume to be removed, got %#v", updated)
+	}
+	if updated[0].Name != "manual-root" || updated[0].DataVolume == nil {
+		t.Fatalf("expected root data volume to remain, got %#v", updated[0])
+	}
+}
+
 func TestPrepareVMImageBootVolumesForVMImageRootDiskDropsBlankRootDisk(t *testing.T) {
 	volumes := []kubevirtv1.Volume{
 		{Name: "manual-root", VolumeSource: kubevirtv1.VolumeSource{DataVolume: &kubevirtv1.DataVolumeSource{Name: "manual-root"}}},

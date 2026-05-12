@@ -3,6 +3,7 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,6 +30,8 @@ const (
 
 	vmPrimaryNetworkName = "default"
 )
+
+var vmWindowsAliasPattern = regexp.MustCompile(`(^|[^a-z])win(?:dows)?(?:\d+|[\s._-]|$)`)
 
 type vmRuntimeConfig struct {
 	Networks    []kubevirtv1.Network
@@ -141,7 +144,7 @@ func parsePositiveInt(value string) int {
 }
 
 func resolveVMOSFamily(extensionSet map[string]string) string {
-	if strings.Contains(strings.ToLower(strings.TrimSpace(extensionSet[vmOSNameKey])), "windows") {
+	if looksLikeWindowsGuestHint(extensionSet[vmOSNameKey]) {
 		return "windows"
 	}
 	return "linux"
@@ -152,6 +155,17 @@ func resolveVMInterfaceModel(extensionSet map[string]string) string {
 		return "e1000"
 	}
 	return "virtio"
+}
+
+func looksLikeWindowsGuestHint(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return false
+	}
+	if strings.Contains(normalized, "windows") {
+		return true
+	}
+	return vmWindowsAliasPattern.MatchString(normalized)
 }
 
 func extensionEnabled(value string) bool {
@@ -274,6 +288,25 @@ func applyVMDiskLayout(extensionSet map[string]string, disks []kubevirtv1.Disk, 
 	return filtered, nil
 }
 
+func applyVMBootVolumeLayout(extensionSet map[string]string, volumes []kubevirtv1.Volume, bootPath vmBootPath) ([]kubevirtv1.Volume, error) {
+	layout, err := buildVMDiskLayout(extensionSet)
+	if err != nil {
+		return nil, err
+	}
+	if len(layout) == 0 || shouldIncludeInstallerDisk(layout, bootPath) {
+		return volumes, nil
+	}
+
+	filtered := make([]kubevirtv1.Volume, 0, len(volumes))
+	for _, vmVolume := range volumes {
+		if bootPath == vmBootPathISOInstaller && isVMInstallerVolume(vmVolume) {
+			continue
+		}
+		filtered = append(filtered, vmVolume)
+	}
+	return filtered, nil
+}
+
 func shouldIncludeInstallerDisk(layout []vmDiskLayoutItem, bootPath vmBootPath) bool {
 	if bootPath != vmBootPathISOInstaller {
 		return false
@@ -340,4 +373,8 @@ func resolveVMDiskNameForLayoutItem(item vmDiskLayoutItem, diskMeta map[string]v
 
 func isVMInstallerDisk(disk kubevirtv1.Disk) bool {
 	return disk.Name == vmDiskInstallerKey && disk.DiskDevice.CDRom != nil
+}
+
+func isVMInstallerVolume(vmVolume kubevirtv1.Volume) bool {
+	return vmVolume.Name == vmDiskInstallerKey && vmVolume.ContainerDisk != nil
 }
