@@ -29,8 +29,17 @@ import (
 
 var defaultcapacityValidation map[string]interface{}
 var defaultAccessMode = []string{"RWO"}
+var sharedAccessMode = []string{"RWO", "ROX", "RWX"}
 var defaultBackupPolicy = []string{"exclusive"}
 var defaultSharePolicy = []string{"exclusive"}
+var sharedProvisionerKeywords = []string{
+	"nfs",
+	"cephfs",
+	"azurefile",
+	"efs.csi.aws.com",
+	"filestore.csi.storage.gke.io",
+	"smb.csi.k8s.io",
+}
 
 func init() {
 	defaultcapacityValidation = make(map[string]interface{})
@@ -43,6 +52,7 @@ func init() {
 func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.TenantServiceVolumeType {
 	scbs, _ := json.Marshal(sc)
 	cvbs, _ := json.Marshal(defaultcapacityValidation)
+	accessModes := inferStorageClassAccessModes(sc)
 
 	volumeType := &dbmodel.TenantServiceVolumeType{
 		VolumeType:         sc.GetName(),
@@ -50,7 +60,7 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 		CapacityValidation: string(cvbs),
 		StorageClassDetail: string(scbs),
 		Provisioner:        sc.Provisioner,
-		AccessMode:         strings.Join(defaultAccessMode, ","),
+		AccessMode:         strings.Join(accessModes, ","),
 		BackupPolicy:       strings.Join(defaultBackupPolicy, ","),
 		SharePolicy:        strings.Join(defaultSharePolicy, ","),
 		Sort:               999,
@@ -66,6 +76,16 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 		}
 	}
 	return volumeType
+}
+
+func inferStorageClassAccessModes(sc *storagev1.StorageClass) []string {
+	provisioner := strings.ToLower(sc.Provisioner)
+	for _, keyword := range sharedProvisionerKeywords {
+		if strings.Contains(provisioner, keyword) {
+			return append([]string(nil), sharedAccessMode...)
+		}
+	}
+	return append([]string(nil), defaultAccessMode...)
 }
 
 // ValidateVolumeCapacity validate volume capacity

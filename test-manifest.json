@@ -6237,6 +6237,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.running-memory-shrink-rejected",
+      "title": "Reject running VM memory shrink during live update",
+      "title_zh": "\u62d2\u7edd\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u5185\u5b58\u70ed\u7f29\u5bb9",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.start-existing-or-create",
       "title": "Start existing stopped VM before falling back to worker create flow",
       "title_zh": "\u4f18\u5148\u542f\u52a8\u5df2\u5b58\u5728\u4e14\u5df2\u505c\u6b62\u7684\u865a\u62df\u673a\uff0c\u5426\u5219\u56de\u9000\u5230 worker \u521b\u5efa\u6d41\u7a0b",
@@ -7314,12 +7332,17 @@
       "interface_type": "workflow",
       "interface": "worker/util.TransStorageClass2RBDVolumeType",
       "code_paths": [
-        "worker/util/volumetype.go"
+        "worker/util/volumetype.go",
+        "db/mysql/dao/volume_type.go"
       ],
       "tests": [
         {
           "path": "worker/util/volumetype_test.go",
           "selector": "TestTransStorageClass2RBDVolumeType"
+        },
+        {
+          "path": "db/mysql/dao/volume_type_test.go",
+          "selector": "TestShouldBackfillStorageClassAccessMode"
         }
       ],
       "test_type": "regression",
