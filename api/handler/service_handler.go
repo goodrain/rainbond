@@ -43,11 +43,7 @@ type ServiceHandler interface {
 	StopVM(serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
-	StartVMExport(serviceID, exportID string, req *VMExportRequest) (*VMExportStatus, error)
-	DeleteVMExport(serviceID, exportID string) error
-	GetVMExportStatus(serviceID, exportID string) (*VMExportStatus, error)
-	PersistVMExport(serviceID, exportID string, req *VMExportPersistRequest) (*VMExportPersistStatus, error)
-	BuildVMAssetRestorePlan(req *VMAssetRestorePlanRequest) (*VMAssetRestorePlan, error)
+	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error

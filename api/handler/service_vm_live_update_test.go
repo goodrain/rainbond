@@ -1,0 +1,290 @@
+package handler
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	workermodel "github.com/goodrain/rainbond/worker/discover/model"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	v1 "kubevirt.io/api/core/v1"
+	kubecli "kubevirt.io/client-go/kubecli"
+)
+
+func TestServiceVerticalVMLiveUpdatePatchesRunningVM(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMList := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockVMPatch := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockVMIList := kubecli.NewMockVirtualMachineInstanceInterface(ctrl)
+	mockKV := kubecli.NewMockKubeVirtInterface(ctrl)
+
+	mockClient.EXPECT().VirtualMachine("").Return(mockVMList)
+	mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-vm"}).Return(&v1.VirtualMachineList{
+		Items: []v1.VirtualMachine{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+				Spec: v1.VirtualMachineSpec{
+					Template: &v1.VirtualMachineInstanceTemplateSpec{
+						Spec: v1.VirtualMachineInstanceSpec{
+							Domain: v1.DomainSpec{
+								CPU: &v1.CPU{
+									Sockets:    6,
+									Cores:      1,
+									Threads:    1,
+									MaxSockets: 8,
+								},
+								Memory: &v1.Memory{
+									Guest:    quantityPtr("12Gi"),
+									MaxGuest: quantityPtr("16Gi"),
+								},
+							},
+						},
+					},
+				},
+				Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+			},
+		},
+	}, nil)
+
+	mockClient.EXPECT().VirtualMachineInstance("").Return(mockVMIList)
+	mockVMIList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-vm"}).Return(&v1.VirtualMachineInstanceList{
+		Items: []v1.VirtualMachineInstance{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+				Status: v1.VirtualMachineInstanceStatus{
+					Phase: v1.Running,
+					Conditions: []v1.VirtualMachineInstanceCondition{
+						{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	mockClient.EXPECT().KubeVirt("").Return(mockKV)
+	mockKV.EXPECT().List(gomock.Any(), gomock.Any()).Return(&v1.KubeVirtList{
+		Items: []v1.KubeVirt{
+			{
+				Spec: v1.KubeVirtSpec{
+					WorkloadUpdateStrategy: v1.KubeVirtWorkloadUpdateStrategy{
+						WorkloadUpdateMethods: []v1.WorkloadUpdateMethod{v1.WorkloadUpdateMethodLiveMigrate},
+					},
+					Configuration: v1.KubeVirtConfiguration{
+						VMRolloutStrategy: func() *v1.VMRolloutStrategy {
+							strategy := v1.VMRolloutStrategyLiveUpdate
+							return &strategy
+						}(),
+					},
+				},
+			},
+		},
+	}, nil)
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMPatch)
+	mockVMPatch.EXPECT().Patch(gomock.Any(), "demo-vm", types.JSONPatchType, gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, _ types.PatchType, data []byte, _ metav1.PatchOptions, _ ...string) (*v1.VirtualMachine, error) {
+			payload := string(data)
+			if !strings.Contains(payload, "/spec/template/spec/domain/cpu/sockets") {
+				t.Fatalf("expected cpu sockets patch, got %s", payload)
+			}
+			return &v1.VirtualMachine{}, nil
+		},
+	)
+
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+	}
+	newCPU := 7000
+	memory := 12288
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerCPU:    &newCPU,
+		ContainerMemory: &memory,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if serviceDao.updatedService == nil || serviceDao.updatedService.ContainerCPU != 7000 {
+		t.Fatalf("expected updated cpu persisted, got %#v", serviceDao.updatedService)
+	}
+}
+
+func TestServiceVerticalVMStoppedFallsBackToSpecSync(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMList := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	mockClient.EXPECT().VirtualMachine("").Return(mockVMList)
+	mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-vm"}).Return(&v1.VirtualMachineList{
+		Items: []v1.VirtualMachine{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+				Status:     v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusStopped},
+			},
+		},
+	}, nil)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	newCPU := 5000
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerCPU:    &newCPU,
+		ContainerMemory: &newMemory,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected vm spec sync for stopped VM, got %q", syncedServiceID)
+	}
+}
+
+func TestGetVMLiveUpdateCapabilityRejectsFixedIPVM(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	action := &ServiceAction{
+		syncVirtualMachineSpecHook: func(serviceID string) error { return nil },
+	}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{"vm_network_mode": "fixed"}, nil
+	}
+	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning}}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected fixed ip vm to be unsupported, got %#v", capability)
+	}
+	if capability.HotUpdateReason == "" {
+		t.Fatalf("expected fixed ip reason, got %#v", capability)
+	}
+}
+
+func TestGetVMLiveUpdateCapabilityRejectsGPUVM(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	action := &ServiceAction{}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{"vm_gpu_enabled": "true"}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning}}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected gpu vm to be unsupported, got %#v", capability)
+	}
+	if capability.HotUpdateReason == "" {
+		t.Fatalf("expected gpu reason, got %#v", capability)
+	}
+}
+
+func quantityPtr(raw string) *resource.Quantity {
+	q := resource.MustParse(raw)
+	return &q
+}

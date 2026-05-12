@@ -217,15 +217,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
 			return createVMProbe(as, dbmanager, mode)
 		})
+		standardVMCPU := buildStandardVMCPU(as.ContainerCPU)
+		standardVMMemory := buildStandardVMMemory(as.ContainerMemory)
 		domainSpec := kubevirtv1.DomainSpec{
 			Resources: reource,
-			CPU: &kubevirtv1.CPU{
-				Cores: uint32(as.ContainerCPU / 1000),
-			},
-			Memory: &kubevirtv1.Memory{
-				Guest: resource.NewScaledQuantity(int64(as.ContainerMemory), resource.Mega),
-			},
-			Machine: &kubevirtv1.Machine{Type: "q35"},
+			CPU:       standardVMCPU,
+			Memory:    standardVMMemory,
+			Machine:   &kubevirtv1.Machine{Type: "q35"},
 			Devices: kubevirtv1.Devices{
 				Disks:       disks,
 				Interfaces:  vmRuntime.Interfaces,
@@ -1656,6 +1654,32 @@ func filterVMDataVolumeTemplatesByName(templates []kubevirtv1.DataVolumeTemplate
 		filtered = append(filtered, template)
 	}
 	return filtered
+}
+
+func buildStandardVMCPU(cpuMilli int) *kubevirtv1.CPU {
+	sockets := cpuMilli / 1000
+	if sockets < 1 {
+		sockets = 1
+	}
+	maxSockets := sockets * 2
+	if maxSockets < sockets+1 {
+		maxSockets = sockets + 1
+	}
+	return &kubevirtv1.CPU{
+		Sockets:    uint32(sockets),
+		Cores:      1,
+		Threads:    1,
+		MaxSockets: uint32(maxSockets),
+	}
+}
+
+func buildStandardVMMemory(memoryMB int) *kubevirtv1.Memory {
+	guest := resource.NewScaledQuantity(int64(memoryMB), resource.Mega)
+	maxGuest := resource.NewScaledQuantity(int64(memoryMB*2), resource.Mega)
+	return &kubevirtv1.Memory{
+		Guest:    guest,
+		MaxGuest: maxGuest,
+	}
 }
 
 func filterVMVolumesByName(volumes []kubevirtv1.Volume, name string) []kubevirtv1.Volume {

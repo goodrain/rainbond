@@ -341,17 +341,10 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
-| rainbond.vm-export.discover-datavolume-disks | Discover DataVolume-backed VM export disks | active | regression | handler.discoverVMExportDisks | api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk<br>api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume |
-| rainbond.vm-export.machine-manifest-build | 从持久化导出磁盘生成整机清单 | active | regression | handler.buildVMMachineManifest | api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks |
-| rainbond.vm-export.restore-plan-all-disks | 为系统盘和数据盘生成恢复计划 | active | regression | handler.buildVMAssetRestorePlan | api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
-| rainbond.vm-run.remote-package-download-export-cert | vm-run 远程包下载使用导出链接证书 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert |
-| rainbond.vm-run.remote-package-download-export-token | vm-run 远程包下载使用导出链接令牌 | active | regression | builder/exector.downloadFile | builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportToken |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
-| rainbond.vm-run.remote-package-probe-export-cert | vm-run 远程包探测使用导出链接证书 | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportCert |
-| rainbond.vm-run.remote-package-probe-export-token | vm-run 远程包探测使用导出链接令牌 | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportToken |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
@@ -3779,36 +3772,6 @@
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
 
-### Discover DataVolume-backed VM export disks
-
-- Capability ID: `rainbond.vm-export.discover-datavolume-disks`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `handler.discoverVMExportDisks`
-- 代码路径: `api/handler/vm_export.go`
-- 测试路径: `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsDataVolumeRootDisk`, `api/handler/vm_export_test.go::TestDiscoverVMExportDisksSupportsISOInstallerRootDataVolume`
-
-### 从持久化导出磁盘生成整机清单
-
-- Capability ID: `rainbond.vm-export.machine-manifest-build`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `handler.buildVMMachineManifest`
-- 代码路径: `api/handler/vm_export.go`
-- 测试路径: `api/handler/vm_export_test.go::TestBuildVMMachineManifestIncludesAllPersistedDisks`
-
-### 为系统盘和数据盘生成恢复计划
-
-- Capability ID: `rainbond.vm-export.restore-plan-all-disks`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `handler.buildVMAssetRestorePlan`
-- 代码路径: `api/handler/vm_export.go`
-- 测试路径: `api/handler/vm_export_test.go::TestBuildVMAssetRestorePlanIncludesRootAndDataDiskImports`
-
 ### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
 
 - Capability ID: `rainbond.vm-power.start-existing-or-create`
@@ -3839,26 +3802,6 @@
 - 代码路径: `builder/sourceutil/local_package.go`
 - 测试路径: `builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload`
 
-### vm-run 远程包下载使用导出链接证书
-
-- Capability ID: `rainbond.vm-run.remote-package-download-export-cert`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `builder/exector.downloadFile`
-- 代码路径: `builder/exector/build_from_vm.go`, `builder/sourceutil/vm_export_tls.go`
-- 测试路径: `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportCert`
-
-### vm-run 远程包下载使用导出链接令牌
-
-- Capability ID: `rainbond.vm-run.remote-package-download-export-token`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `builder/exector.downloadFile`
-- 代码路径: `builder/exector/build_from_vm.go`, `builder/sourceutil/vm_export_tls.go`
-- 测试路径: `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportToken`
-
 ### vm-run 远程包探测优先使用 HEAD
 
 - Capability ID: `rainbond.vm-run.remote-package-probe`
@@ -3869,25 +3812,6 @@
 - 代码路径: `builder/parser/vm_service.go`
 - 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe`
 
-### vm-run 远程包探测使用导出链接证书
-
-- Capability ID: `rainbond.vm-run.remote-package-probe-export-cert`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `builder/parser.VMServiceParse.Parse`
-- 代码路径: `builder/parser/vm_service.go`, `builder/sourceutil/vm_export_tls.go`
-- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportCert`
-
-### vm-run 远程包探测使用导出链接令牌
-
-- Capability ID: `rainbond.vm-run.remote-package-probe-export-token`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `other`
-- 业务入口: `builder/parser.VMServiceParse.Parse`
-- 代码路径: `builder/parser/vm_service.go`
-- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLUsesVMExportToken`
 
 ### vm-run 远程包探测在 HEAD 失败时回退 Range GET
 

@@ -3,6 +3,7 @@ package conversion
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -122,6 +123,28 @@ func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
 	}
 	if device.CDRom != nil {
 		t.Fatalf("did not expect cdrom target for qcow2 boot media, got %#v", device)
+	}
+}
+
+func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopology(t *testing.T) {
+	cpu := buildStandardVMCPU(4000)
+
+	if cpu.Sockets != 4 || cpu.Cores != 1 || cpu.Threads != 1 {
+		t.Fatalf("expected sockets=4 cores=1 threads=1, got %#v", cpu)
+	}
+	if cpu.MaxSockets != 8 {
+		t.Fatalf("expected maxSockets=8, got %d", cpu.MaxSockets)
+	}
+}
+
+func TestBuildStandardVMMemorySetsGuestAndMaxGuest(t *testing.T) {
+	memory := buildStandardVMMemory(8192)
+
+	if memory.Guest == nil || memory.Guest.Cmp(*resource.NewScaledQuantity(8192, resource.Mega)) != 0 {
+		t.Fatalf("expected guest 8Gi, got %#v", memory.Guest)
+	}
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(*resource.NewScaledQuantity(16384, resource.Mega)) != 0 {
+		t.Fatalf("expected maxGuest 16Gi, got %#v", memory.MaxGuest)
 	}
 }
 

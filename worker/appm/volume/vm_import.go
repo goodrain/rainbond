@@ -3,9 +3,7 @@ package volume
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
@@ -212,36 +210,4 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			},
 		},
 	}
-}
-
-func resolveVMExportHTTPImportConfigMap(claimName, imageURL string) (*corev1.ConfigMap, []string, error) {
-	authConfig, err := sourceutil.LookupVMExportAuthConfigByURL(imageURL)
-	if err != nil {
-		return nil, nil, err
-	}
-	var configMap *corev1.ConfigMap
-	if len(authConfig.CertPEM) > 0 {
-		configMap = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-vmexport-ca", claimName),
-			},
-			Data: map[string]string{
-				"ca.crt": string(authConfig.CertPEM),
-			},
-		}
-	}
-	extraHeaders := []string{}
-	if token := strings.TrimSpace(string(authConfig.Token)); token != "" {
-		extraHeaders = append(extraHeaders, fmt.Sprintf("x-kubevirt-export-token:%s", token))
-	}
-	logrus.Infof(
-		"vm export http import auth resolved: claim=%s url=%s export=%s namespace=%s cert=%t token=%t",
-		claimName,
-		imageURL,
-		authConfig.ExportName,
-		authConfig.Namespace,
-		configMap != nil,
-		len(extraHeaders) > 0,
-	)
-	return configMap, extraHeaders, nil
 }

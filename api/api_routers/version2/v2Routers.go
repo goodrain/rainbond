@@ -478,7 +478,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/resource-center/events", controller.GetResourceCenterController().ListEvents)
 	r.Get("/resource-center/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 	r.Get("/vm/capabilities", controller.GetVMCapabilityController().GetCapabilities)
-	r.Post("/vm-assets/restore-plan", controller.GetVMExportController().BuildVMAssetRestorePlan)
 	return r
 }
 
@@ -500,10 +499,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/pause", middleware.WrapEL(controller.GetManager().PauseService, dbmodel.TargetTypeService, "pause-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Post("/vm-snapshots", middleware.WrapEL(controller.GetManager().CreateVMSnapshot, dbmodel.TargetTypeService, "snapshot-vm", dbmodel.SYNEVENTTYPE, true))
-	r.Post("/vm-exports", middleware.WrapEL(controller.GetManager().StartVMExport, dbmodel.TargetTypeService, "export-vm", dbmodel.ASYNEVENTTYPE, true))
-	r.Get("/vm-exports/{export_id}", controller.GetManager().GetVMExportStatus)
-	r.Delete("/vm-exports/{export_id}", controller.GetVMExportController().DeleteVMExport)
-	r.Post("/vm-exports/{export_id}/persist", controller.GetVMExportController().PersistVMExport)
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE, true))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE, true))
@@ -511,6 +506,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用伸缩
 	r.Put("/vertical", middleware.WrapEL(controller.GetManager().VerticalService, dbmodel.TargetTypeService, "vertical-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, dbmodel.TargetTypeService, "horizontal-service", dbmodel.ASYNEVENTTYPE, true))
+	r.Get("/vm-live-update-capability", controller.GetManager().VMLiveUpdateCapability)
 
 	//设置应用语言(act)
 	r.Post("/language", middleware.WrapEL(controller.GetManager().SetLanguage, dbmodel.TargetTypeService, "set-language", dbmodel.SYNEVENTTYPE, false))

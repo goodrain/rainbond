@@ -80,17 +80,23 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 // ServiceAction service act
 type ServiceAction struct {
-	MQClient                   gclient.MQClient
-	statusCli                  *client.AppRuntimeSyncClient
-	prometheusCli              prometheus.Interface
-	rainbondClient             versioned.Interface
-	kubeClient                 kubernetes.Interface
-	kubevirtClient             kubecli.KubevirtClient
-	dbmanager                  db.Manager
-	registryCli                *registry.Registry
-	config                     *rest.Config
-	apisixClient               *apisixversioned.Clientset
-	syncVirtualMachineSpecHook func(serviceID string) error
+	MQClient                                 gclient.MQClient
+	statusCli                                *client.AppRuntimeSyncClient
+	prometheusCli                            prometheus.Interface
+	rainbondClient                           versioned.Interface
+	kubeClient                               kubernetes.Interface
+	kubevirtClient                           kubecli.KubevirtClient
+	dbmanager                                db.Manager
+	registryCli                              *registry.Registry
+	config                                   *rest.Config
+	apisixClient                             *apisixversioned.Clientset
+	syncVirtualMachineSpecHook               func(serviceID string) error
+	getVirtualMachineByServiceIDHook         func(serviceID string) (*v1.VirtualMachine, error)
+	getVirtualMachineInstanceByServiceIDHook func(serviceID string) (*v1.VirtualMachineInstance, error)
+	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
+	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
+	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
+	hotplugVMDataDiskHook                    func(tenantID string, volume *dbmodel.TenantServiceVolume) error
 }
 
 type dCfg struct {
@@ -428,6 +434,11 @@ func (s *ServiceAction) StartOrCreateVM(sss *apimodel.StartStopStruct, deployVer
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
 		return nil
 	}
+	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+			return err
+		}
+	}
 	return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
 }
 
@@ -442,6 +453,11 @@ func (s *ServiceAction) RestartVM(sss *apimodel.StartStopStruct, deployVersion s
 		return s.StartOrCreateVM(&startReq, deployVersion)
 	}
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+				return err
+			}
+		}
 		return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
 	}
 	return s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{})
@@ -462,6 +478,9 @@ func (s *ServiceAction) StopVM(serviceID string) error {
 }
 
 func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.VirtualMachine, error) {
+	if s != nil && s.getVirtualMachineByServiceIDHook != nil {
+		return s.getVirtualMachineByServiceIDHook(serviceID)
+	}
 	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "service_id=" + serviceID,
 	})
@@ -541,11 +560,13 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 		return fmt.Errorf("vertical service faliure:%s", err.Error())
 	}
 	if service.IsVM() {
-		if err := s.syncVirtualMachineSpecAfterResourceUpdate(service.ServiceID); err != nil {
+		if err := s.applyVMLiveUpdateIfPossible(service, oldCPU, oldMemory); err != nil {
 			rollback(true)
 			db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
-			return fmt.Errorf("sync vm spec failure: %w", err)
+			return err
 		}
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusSuccess)
+		return nil
 	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
@@ -1834,7 +1855,15 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
-		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+		serviceInfo, err := dbm.TenantServiceDao().GetServiceByID(tsv.ServiceID)
+		if err != nil {
+			return util.CreateAPIHandleErrorFromDBError("get service", err)
+		}
+		if serviceInfo != nil && serviceInfo.IsVM() {
+			if err := s.hotplugVMDataDisk(tenantID, tsv); err != nil {
+				return util.CreateAPIHandleError(500, fmt.Errorf("hotplug vm data disk: %w", err))
+			}
+		} else if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
 		}
 	case "delete":

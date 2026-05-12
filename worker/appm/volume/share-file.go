@@ -72,28 +72,13 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.as.SetClaim(claim)
 		var importConfig *vmDiskImportConfig
 		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
-			authConfigMap, extraHeaders, err := resolveVMExportHTTPImportConfigMap(claim.Name, cfg.ImageURL)
-			if err != nil {
-				return err
-			}
-			cfg.CertConfigMap = ""
-			cfg.ExtraHeaders = nil
-			if authConfigMap != nil {
-				cfg.CertConfigMap = authConfigMap.Name
-				v.as.SetConfigMap(authConfigMap)
-			}
-			if len(extraHeaders) > 0 {
-				cfg.ExtraHeaders = extraHeaders
-			}
 			logrus.Infof(
-				"vm import config prepared: service_id=%s service_alias=%s claim=%s volume_name=%s image_url=%s cert_configmap=%s extra_headers=%d",
+				"vm import config prepared: service_id=%s service_alias=%s claim=%s volume_name=%s image_url=%s",
 				v.as.ServiceID,
 				v.as.ServiceAlias,
 				claim.Name,
 				v.svm.VolumeName,
 				cfg.ImageURL,
-				cfg.CertConfigMap,
-				len(cfg.ExtraHeaders),
 			)
 			importConfig = &cfg
 		}

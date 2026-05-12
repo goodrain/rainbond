@@ -316,10 +316,20 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 		ContainerGPU:    gpuSet,
 	}
 	if err := handler.GetServiceManager().ServiceVertical(r.Context(), verticalTask); err != nil {
+		if coder, ok := err.(interface{ StatusCode() int }); ok {
+			httputil.ReturnError(r, w, coder.StatusCode(), err.Error())
+			return
+		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service vertical error. %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, sEvent)
+}
+
+func (t *TenantStruct) VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	capability := handler.GetServiceManager().GetVMLiveUpdateCapability(serviceID)
+	httputil.ReturnSuccess(r, w, capability)
 }
 
 // HorizontalService HorizontalService
