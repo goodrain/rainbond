@@ -494,6 +494,43 @@ func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.Virt
 	return &vm, nil
 }
 
+func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance) (string, bool) {
+	if vm != nil {
+		switch vm.Status.PrintableStatus {
+		case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting:
+			return "starting", true
+		case v1.VirtualMachineStatusRunning:
+			return "running", true
+		case v1.VirtualMachineStatusPaused:
+			return "paused", true
+		case v1.VirtualMachineStatusStopping:
+			return "stopping", true
+		}
+	}
+	if vmi == nil {
+		return "", false
+	}
+	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
+		return "starting", true
+	}
+	for _, condition := range vmi.Status.Conditions {
+		if condition.Type == v1.VirtualMachineInstanceDataVolumesReady && condition.Status == "False" {
+			return "starting", true
+		}
+	}
+	switch vmi.Status.Phase {
+	case v1.Pending, v1.Scheduling, v1.Scheduled, v1.VmPhaseUnset:
+		return "starting", true
+	case v1.Running:
+		return "running", true
+	case v1.Succeeded:
+		return "closed", true
+	case v1.Failed:
+		return "abnormal", true
+	}
+	return "", false
+}
+
 // PauseUNPauseService -
 func (s *ServiceAction) PauseUNPauseService(serviceID string, pauseORunpause string) error {
 	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
@@ -2142,6 +2179,20 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 	if status != "" {
 		sl.CurStatus = status
 		sl.StatusCN = TransStatus(status)
+	}
+	if services.IsVM() {
+		vm, err := s.getVirtualMachineByServiceID(serviceID)
+		if err != nil {
+			logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, err)
+		}
+		vmi, err := s.getVirtualMachineInstanceByServiceID(serviceID)
+		if err != nil {
+			logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
+		}
+		if vmStatus, ok := resolveVMTransitionStatus(vm, vmi); ok {
+			sl.CurStatus = vmStatus
+			sl.StatusCN = TransStatus(vmStatus)
+		}
 	}
 	di, err := s.statusCli.GetServiceDeployInfo(serviceID)
 	if err != nil {
