@@ -23,7 +23,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -655,64 +654,7 @@ func GetPrivateFile(tenantID string) string {
 	if home == "" {
 		home = "/root"
 	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+tenantID)); ok {
-		return path.Join(home, "/.ssh/"+tenantID)
-	}
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
-		return path.Join(home, "/.ssh/builder_rsa")
-	}
-	return path.Join(home, "/.ssh/id_rsa")
-
-}
-
-// GetPublicKey 获取公钥
-func GetPublicKey(tenantID string) string {
-	home, _ := Home()
-	if home == "" {
-		home = "/root"
-	}
-	PublicKey := tenantID + ".pub"
-	PrivateKey := tenantID
-
-	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+PublicKey)); ok {
-		body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
-		return string(body)
-	}
-	Private, Public, err := MakeSSHKeyPair()
-	if err != nil {
-		logrus.Error("MakeSSHKeyPairError:", err)
-	}
-	sshDir := path.Join(home, ".ssh")
-	// 确保目录存在
-	err = os.MkdirAll(sshDir, 0700)
-	if err != nil {
-		logrus.Errorf("Failed to create directory: %v\n", err)
-		return ""
-	}
-	PrivateKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PrivateKey))
-	if err != nil {
-		logrus.Errorf("create private key failure: %v", err)
-		return ""
-	} else {
-		_, err = PrivateKeyFile.WriteString(Private)
-		if err != nil {
-			logrus.Errorf("write private key failure: %v", err)
-			return ""
-		}
-	}
-	PublicKeyFile, err := os.Create(path.Join(home, "/.ssh/"+PublicKey))
-	if err != nil {
-		logrus.Errorf("create public key failure: %v", err)
-	} else {
-		_, err = PublicKeyFile.WriteString(Public)
-		if err != nil {
-			logrus.Errorf("write public key failure: %v", err)
-			return ""
-		}
-	}
-	body, _ := ioutil.ReadFile(path.Join(home, "/.ssh/"+PublicKey))
-	return string(body)
-
+	return getPrivateFile(context.Background(), tenantID, home, tenantSSHKeyNamespace(), defaultKubernetesClient())
 }
 
 // GenerateKey GenerateKey
