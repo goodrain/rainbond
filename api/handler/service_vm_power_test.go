@@ -15,7 +15,9 @@ import (
 	mqpb "github.com/goodrain/rainbond/mq/api/grpc/pb"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"google.golang.org/grpc"
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 )
@@ -168,6 +170,72 @@ func TestStartOrCreateVMMarksDirectStartEventFailure(t *testing.T) {
 	}
 	if len(eventDao.statuses) != 1 || eventDao.statuses[0] != dbmodel.EventStatusFailure {
 		t.Fatalf("expected failure event status update, got %#v", eventDao.statuses)
+	}
+}
+
+func TestStartOrCreateVMTreatsTransientStartConflictAsSuccessAfterRefresh(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{eventDao: eventDao})
+	defer db.SetTestManager(nil)
+
+	originalDelay := vmStartRetryDelay
+	vmStartRetryDelay = 0
+	defer func() {
+		vmStartRetryDelay = originalDelay
+	}()
+
+	gomock.InOrder(
+		mockClient.EXPECT().VirtualMachine("").Return(mockVMInterface),
+		mockVMInterface.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
+			Items: []kubevirtv1.VirtualMachine{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "demo-vm",
+						Namespace: "demo-ns",
+					},
+					Status: kubevirtv1.VirtualMachineStatus{
+						PrintableStatus: kubevirtv1.VirtualMachineStatusStopped,
+					},
+				},
+			},
+		}, nil),
+		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface),
+		mockVMInterface.EXPECT().Start(gomock.Any(), "demo-vm", gomock.Any()).Return(
+			k8sapierrors.NewConflict(schema.GroupResource{Group: "kubevirt.io", Resource: "virtualmachines"}, "demo-vm", errors.New("conflict")),
+		),
+		mockClient.EXPECT().VirtualMachine("").Return(mockVMInterface),
+		mockVMInterface.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
+			Items: []kubevirtv1.VirtualMachine{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "demo-vm",
+						Namespace: "demo-ns",
+					},
+					Status: kubevirtv1.VirtualMachineStatus{
+						PrintableStatus: kubevirtv1.VirtualMachineStatusStarting,
+					},
+				},
+			},
+		}, nil),
+	)
+
+	action := &ServiceAction{kubevirtClient: mockClient}
+	err := action.StartOrCreateVM(newVMOperationEventContext("event-1"), &apimodel.StartStopStruct{
+		TenantID:  "tenant-1",
+		ServiceID: "service-1",
+		EventID:   "event-1",
+		TaskType:  "start",
+	}, "deploy-v1")
+	if err != nil {
+		t.Fatalf("expected transient conflict to be treated as success after refresh, got %v", err)
+	}
+	if len(eventDao.statuses) != 1 || eventDao.statuses[0] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status update, got %#v", eventDao.statuses)
 	}
 }
 

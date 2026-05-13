@@ -79,6 +79,10 @@ import (
 // ErrServiceNotClosed -
 var ErrServiceNotClosed = errors.New("Service has not been closed")
 
+const vmStartRetryAttempts = 3
+
+var vmStartRetryDelay = 200 * time.Millisecond
+
 // ServiceAction service act
 type ServiceAction struct {
 	MQClient                                 gclient.MQClient
@@ -430,22 +434,60 @@ func markDirectVMOperationEvent(ctx context.Context, status dbmodel.EventStatus)
 	return nil
 }
 
+func (s *ServiceAction) enqueueVMStartTask(sss *apimodel.StartStopStruct, deployVersion string) error {
+	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "start",
+		TaskBody: model.StopTaskBody{
+			TenantID:      sss.TenantID,
+			ServiceID:     sss.ServiceID,
+			DeployVersion: deployVersion,
+			EventID:       sss.EventID,
+		},
+		Topic: gclient.WorkerTopic,
+	})
+}
+
+func isTransientVMStartError(err error) bool {
+	return err != nil && (k8sErrors.IsConflict(err) || k8sErrors.IsNotFound(err))
+}
+
+func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVersion string, vm *v1.VirtualMachine) error {
+	currentVM := vm
+	var lastErr error
+	for attempt := 0; attempt < vmStartRetryAttempts; attempt++ {
+		if attempt > 0 {
+			time.Sleep(vmStartRetryDelay)
+			refreshedVM, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+			if err != nil {
+				return err
+			}
+			currentVM = refreshedVM
+		}
+		if currentVM == nil {
+			return s.enqueueVMStartTask(sss, deployVersion)
+		}
+		if currentVM.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+			return nil
+		}
+		if err := s.kubevirtClient.VirtualMachine(currentVM.Namespace).Start(context.Background(), currentVM.Name, &v1.StartOptions{}); err != nil {
+			if !isTransientVMStartError(err) {
+				return err
+			}
+			lastErr = err
+			continue
+		}
+		return nil
+	}
+	return lastErr
+}
+
 func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
 		return err
 	}
 	if vm == nil {
-		return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-			TaskType: sss.TaskType,
-			TaskBody: model.StopTaskBody{
-				TenantID:      sss.TenantID,
-				ServiceID:     sss.ServiceID,
-				DeployVersion: deployVersion,
-				EventID:       sss.EventID,
-			},
-			Topic: gclient.WorkerTopic,
-		})
+		return s.enqueueVMStartTask(sss, deployVersion)
 	}
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
@@ -456,7 +498,7 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 			return err
 		}
 	}
-	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{}); err != nil {
+	if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
 		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
@@ -480,7 +522,7 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 				return err
 			}
 		}
-		if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{}); err != nil {
+		if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
 			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 			return err
 		}
