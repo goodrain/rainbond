@@ -422,6 +422,158 @@ func TestGetVMLiveUpdateCapabilityRejectsGPUVM(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-live-update.capability-requires-installer-media-removal
+func TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	action := &ServiceAction{}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							Devices: v1.Devices{
+								Disks: []v1.Disk{
+									{
+										Name: "vmimage",
+										DiskDevice: v1.DiskDevice{
+											CDRom: &v1.CDRomTarget{Bus: v1.DiskBusSATA},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected installer media to block live update capability, got %#v", capability)
+	}
+	if !strings.Contains(capability.HotUpdateReason, "初始化安装光盘") {
+		t.Fatalf("expected installer media reason, got %#v", capability)
+	}
+}
+
+// capability_id: rainbond.vm-live-update.installer-media-removal-required
+func TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							Devices: v1.Devices{
+								Disks: []v1.Disk{
+									{
+										Name: "vmimage",
+										DiskDevice: v1.DiskDevice{
+											CDRom: &v1.CDRomTarget{Bus: v1.DiskBusSATA},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err == nil {
+		t.Fatal("expected live update to be rejected when installer media is still attached")
+	}
+	if !strings.Contains(err.Error(), "初始化安装光盘") {
+		t.Fatalf("expected installer media rejection, got %q", err.Error())
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+	}
+	if serviceDao.service == nil || serviceDao.service.ContainerMemory != 8192 {
+		t.Fatalf("expected memory rollback to original value, got %#v", serviceDao.service)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
+		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	}
+}
+
 // capability_id: rainbond.vm-live-update.migration-target-required
 func TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode(t *testing.T) {
 	ctrl := gomock.NewController(t)

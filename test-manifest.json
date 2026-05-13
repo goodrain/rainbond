@@ -6237,6 +6237,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.capability-requires-installer-media-removal",
+      "title": "Block live update capability until installer media is removed",
+      "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVMLiveUpdateCapability",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.capability-requires-migration-target",
       "title": "Block hot update capability when no migration target node is available",
       "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
@@ -6249,6 +6267,24 @@
         {
           "path": "api/handler/service_vm_live_update_test.go",
           "selector": "TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.installer-media-removal-required",
+      "title": "Reject live update until installer media is removed",
+      "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached"
         }
       ],
       "test_type": "regression",
@@ -6303,24 +6339,6 @@
         {
           "path": "api/handler/service_vm_live_update_test.go",
           "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync",
-      "title": "Treat vm_disk_layout as a VM spec sync attribute",
-      "title_zh": "\u5c06 vm_disk_layout \u89c6\u4e3a\u89e6\u53d1 VM \u89c4\u683c\u540c\u6b65\u7684\u5c5e\u6027",
-      "interface_type": "package_function",
-      "interface": "api/handler.isVMRuntimeSpecAttribute",
-      "code_paths": [
-        "api/handler/k8s_attribute.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
-          "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
         }
       ],
       "test_type": "regression",
@@ -6445,6 +6463,24 @@
         {
           "path": "builder/parser/vm_service_test.go",
           "selector": "TestVMServiceParseRemoteURLFallsBackToRangeGet"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync",
+      "title": "Treat vm_disk_layout as a VM spec sync attribute",
+      "title_zh": "\u5c06 vm_disk_layout \u89c6\u4e3a\u89e6\u53d1 VM \u89c4\u683c\u540c\u6b65\u7684\u5c5e\u6027",
+      "interface_type": "package_function",
+      "interface": "api/handler.isVMRuntimeSpecAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
         }
       ],
       "test_type": "regression",

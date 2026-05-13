@@ -341,7 +341,9 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
+| rainbond.vm-live-update.installer-media-removal-required | 初始化安装光盘未删除时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.migration-target-required | 无可用迁移目标节点时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.running-cpu-shrink-rejected | Reject running VM CPU shrink during live update | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink |
 | rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
@@ -351,6 +353,7 @@
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
+| rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
 | rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
 | rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
@@ -3779,6 +3782,16 @@
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
 
+### 初始化安装光盘未删除时屏蔽热更新能力
+
+- Capability ID: `rainbond.vm-live-update.capability-requires-installer-media-removal`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetVMLiveUpdateCapability`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached`
+
 ### 无可用迁移目标节点时屏蔽热更新能力
 
 - Capability ID: `rainbond.vm-live-update.capability-requires-migration-target`
@@ -3788,6 +3801,16 @@
 - 业务入口: `api/handler.ServiceAction.GetVMLiveUpdateCapability`
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode`
+
+### 初始化安装光盘未删除时拒绝虚拟机热更新
+
+- Capability ID: `rainbond.vm-live-update.installer-media-removal-required`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached`
 
 ### 无可用迁移目标节点时拒绝虚拟机热更新
 
@@ -3878,6 +3901,16 @@
 - 业务入口: `builder/parser.VMServiceParse.Parse`
 - 代码路径: `builder/parser/vm_service.go`
 - 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet`
+
+### 将 vm_disk_layout 视为触发 VM 规格同步的属性
+
+- Capability ID: `rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.isVMRuntimeSpecAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
 
 ### 为 VM 数据卷保留所选存储类
 

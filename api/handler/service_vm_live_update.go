@@ -21,6 +21,8 @@ type VMLiveUpdateCapability struct {
 	HotUpdateReason          string `json:"hot_update_reason,omitempty"`
 }
 
+const vmInstallerMediaRemovalRequiredMessage = "初始化安装光盘尚未删除，请先删除后再热更新。"
+
 type statusCoder interface {
 	StatusCode() int
 }
@@ -63,6 +65,9 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
 		return s.syncVirtualMachineSpecAfterResourceUpdate(service.ServiceID)
+	}
+	if hasVMInstallerMediaAttached(vm) {
+		return newVMLiveUpdateError(409, vmInstallerMediaRemovalRequiredMessage)
 	}
 
 	vmi, err := s.getVirtualMachineInstanceByServiceID(service.ServiceID)
@@ -164,6 +169,10 @@ func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdate
 	}
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
 		capability.HotUpdateReason = "虚拟机未运行，修改配置将在下次启动后生效。"
+		return capability
+	}
+	if hasVMInstallerMediaAttached(vm) {
+		capability.HotUpdateReason = vmInstallerMediaRemovalRequiredMessage
 		return capability
 	}
 
@@ -300,6 +309,18 @@ func liveMigratableMessage(conditions []v1.VirtualMachineInstanceCondition) stri
 		}
 	}
 	return "当前虚拟机不满足 LiveMigratable 条件，暂时不能热更新。"
+}
+
+func hasVMInstallerMediaAttached(vm *v1.VirtualMachine) bool {
+	if vm == nil || vm.Spec.Template == nil {
+		return false
+	}
+	for _, disk := range vm.Spec.Template.Spec.Domain.Devices.Disks {
+		if disk.Name == "vmimage" && disk.DiskDevice.CDRom != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ServiceAction) ensureVMLiveUpdateMigrationTargetAvailable(ctx context.Context, serviceID string) error {
