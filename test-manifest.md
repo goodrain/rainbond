@@ -343,6 +343,7 @@
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
 | rainbond.vm-live-update.running-cpu-shrink-rejected | Reject running VM CPU shrink during live update | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink |
 | rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
+| rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
@@ -3795,6 +3796,16 @@
 - 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink`
+
+### 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态
+
+- Capability ID: `rainbond.vm-power.direct-ops-event-close`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler direct VM power operations`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure`, `api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess`, `api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess`
 
 ### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
 

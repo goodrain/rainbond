@@ -6273,6 +6273,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.direct-ops-event-close",
+      "title": "Close direct VM power operation events after synchronous KubeVirt actions",
+      "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
+      "interface_type": "workflow",
+      "interface": "api/handler direct VM power operations",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMMarksDirectStartEventSuccess"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMMarksDirectStartEventFailure"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestRestartVMMarksDirectRestartEventSuccess"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStopVMMarksDirectStopEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.start-existing-or-create",
       "title": "Start existing stopped VM before falling back to worker create flow",
       "title_zh": "\u4f18\u5148\u542f\u52a8\u5df2\u5b58\u5728\u4e14\u5df2\u505c\u6b62\u7684\u865a\u62df\u673a\uff0c\u5426\u5219\u56de\u9000\u5230 worker \u521b\u5efa\u6d41\u7a0b",

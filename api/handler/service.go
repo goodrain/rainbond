@@ -49,6 +49,7 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/db"
 	dberr "github.com/goodrain/rainbond/db/errors"
@@ -414,7 +415,22 @@ func (s *ServiceAction) StartStopService(sss *apimodel.StartStopStruct) error {
 	return nil
 }
 
-func (s *ServiceAction) StartOrCreateVM(sss *apimodel.StartStopStruct, deployVersion string) error {
+func markDirectVMOperationEvent(ctx context.Context, status dbmodel.EventStatus) error {
+	if ctx == nil {
+		return nil
+	}
+	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
+	if event == nil {
+		return nil
+	}
+	if err := db.GetManager().ServiceEventDao().SetEventStatus(ctx, status); err != nil {
+		logrus.Errorf("update direct vm operation event status to %s failure: %v", status, err)
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
 		return err
@@ -432,17 +448,22 @@ func (s *ServiceAction) StartOrCreateVM(sss *apimodel.StartStopStruct, deployVer
 		})
 	}
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
-		return nil
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
 	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 		if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 			return err
 		}
 	}
-	return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
+	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{}); err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 }
 
-func (s *ServiceAction) RestartVM(sss *apimodel.StartStopStruct, deployVersion string) error {
+func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
 		return err
@@ -450,31 +471,44 @@ func (s *ServiceAction) RestartVM(sss *apimodel.StartStopStruct, deployVersion s
 	if vm == nil {
 		startReq := *sss
 		startReq.TaskType = "start"
-		return s.StartOrCreateVM(&startReq, deployVersion)
+		return s.StartOrCreateVM(ctx, &startReq, deployVersion)
 	}
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
 		if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 			if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 				return err
 			}
 		}
-		return s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{})
+		if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Start(context.Background(), vm.Name, &v1.StartOptions{}); err != nil {
+			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+			return err
+		}
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
-	return s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{})
+	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{}); err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 }
 
-func (s *ServiceAction) StopVM(serviceID string) error {
+func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
 	vm, err := s.getVirtualMachineByServiceID(serviceID)
 	if err != nil {
 		return err
 	}
 	if vm == nil {
-		return nil
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
-		return nil
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
-	return s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{})
+	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{}); err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 }
 
 func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.VirtualMachine, error) {

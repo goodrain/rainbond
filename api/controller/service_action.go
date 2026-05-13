@@ -102,7 +102,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		TaskType:  "start",
 	}
 	if service.IsVM() {
-		if err := handler.GetServiceManager().StartOrCreateVM(startStopStruct, service.DeployVersion); err != nil {
+		if err := handler.GetServiceManager().StartOrCreateVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
 			httputil.ReturnError(r, w, 500, "get service info error.")
 			return
 		}
@@ -146,7 +146,7 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	//save event
 	defer event.CloseManager()
 	if service.IsVM() {
-		if err := handler.GetServiceManager().StopVM(serviceID); err != nil {
+		if err := handler.GetServiceManager().StopVM(r.Context(), serviceID); err != nil {
 			httputil.ReturnError(r, w, 500, "get service info error.")
 			return
 		}
@@ -230,7 +230,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if service.IsVM() {
-		if err := handler.GetServiceManager().RestartVM(startStopStruct, service.DeployVersion); err != nil {
+		if err := handler.GetServiceManager().RestartVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
 			httputil.ReturnError(r, w, 500, "get service info error.")
 			return
 		}
