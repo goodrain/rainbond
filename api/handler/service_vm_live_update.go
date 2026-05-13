@@ -147,7 +147,11 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 		return err
 	}
 	_, err = s.kubevirtClient.VirtualMachine(vm.Namespace).Patch(context.Background(), vm.Name, types.JSONPatchType, payload, metav1.PatchOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+	s.enqueueCompletedVMLauncherCleanup(service.ServiceID)
+	return nil
 }
 
 func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability {

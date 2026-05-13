@@ -96,6 +96,7 @@ type ServiceAction struct {
 	config                                   *rest.Config
 	apisixClient                             *apisixversioned.Clientset
 	syncVirtualMachineSpecHook               func(serviceID string) error
+	getServicePodsHook                       func(serviceID string) (*pb.ServiceAppPodList, error)
 	getVirtualMachineByServiceIDHook         func(serviceID string) (*v1.VirtualMachine, error)
 	getVirtualMachineInstanceByServiceIDHook func(serviceID string) (*v1.VirtualMachineInstance, error)
 	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
@@ -2503,10 +2504,11 @@ type K8sPodInfo struct {
 // GetPods get pods
 func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	// kubeblocks_component 的 workload 由 KubeBlocks 管理，Rainbond 不查询其 Pods
-	if svc, _ := db.GetManager().TenantServiceDao().GetServiceByID(serviceID); svc != nil && svc.IsKubeBlocksComponent() {
+	svc, _ := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if svc != nil && svc.IsKubeBlocksComponent() {
 		return &K8sPodInfos{NewPods: []*K8sPodInfo{}, OldPods: []*K8sPodInfo{}}, nil
 	}
-	pods, err := s.statusCli.GetServicePods(serviceID)
+	pods, err := s.getServicePods(serviceID)
 	if err != nil && !strings.Contains(err.Error(), server.ErrAppServiceNotFound.Error()) &&
 		!strings.Contains(err.Error(), server.ErrPodNotFound.Error()) {
 		logrus.Error("GetPodByService Error:", err)
@@ -2547,6 +2549,11 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	}
 	newpods := convpod(pods.NewPods)
 	oldpods := convpod(pods.OldPods)
+	if svc != nil && svc.IsVM() {
+		excluded := s.cleanupCompletedVMLauncherPods(serviceID)
+		newpods = filterK8sPodInfos(newpods, excluded)
+		oldpods = filterK8sPodInfos(oldpods, excluded)
+	}
 	return &K8sPodInfos{
 		NewPods: newpods,
 		OldPods: oldpods,
