@@ -83,7 +83,7 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 	patchOps := make([]map[string]any, 0, 2)
 
 	if service.ContainerCPU < oldCPU {
-		return newVMLiveUpdateError(409, "vm cpu live update only supports increasing cpu")
+		return newVMLiveUpdateError(409, "虚拟机 CPU 热更新仅支持扩容，不支持缩容，请停机后再修改规格。")
 	}
 	if service.ContainerCPU > oldCPU {
 		if vm.Spec.Template == nil || vm.Spec.Template.Spec.Domain.CPU == nil {

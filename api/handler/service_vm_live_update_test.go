@@ -192,6 +192,74 @@ func TestServiceVerticalVMStoppedFallsBackToSpecSync(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-live-update.running-cpu-shrink-rejected
+func TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	newCPU := 4000
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:    "service-vm",
+		ContainerCPU: &newCPU,
+	})
+	if err == nil {
+		t.Fatal("expected running vm cpu shrink to be rejected")
+	}
+	if err.Error() != "虚拟机 CPU 热更新仅支持扩容，不支持缩容，请停机后再修改规格。" {
+		t.Fatalf("expected localized rejection message, got %q", err.Error())
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+	}
+	if serviceDao.service == nil || serviceDao.service.ContainerCPU != 6000 {
+		t.Fatalf("expected cpu rollback to original value, got %#v", serviceDao.service)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
+		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	}
+}
+
 // capability_id: rainbond.vm-live-update.running-memory-shrink-rejected
 func TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink(t *testing.T) {
 	ctrl := gomock.NewController(t)

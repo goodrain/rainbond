@@ -6237,6 +6237,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.running-cpu-shrink-rejected",
+      "title": "Reject running VM CPU shrink during live update",
+      "title_zh": "Reject running VM CPU shrink during live update",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.running-memory-shrink-rejected",
       "title": "Reject running VM memory shrink during live update",
       "title_zh": "\u62d2\u7edd\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u5185\u5b58\u70ed\u7f29\u5bb9",
