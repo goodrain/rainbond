@@ -8,6 +8,7 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,6 +79,9 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 
 	if !s.isVMLiveUpdateClusterConfigured(context.Background()) {
 		return newVMLiveUpdateError(409, "kubevirt live update requires LiveMigrate workload updates and LiveUpdate rollout strategy")
+	}
+	if err := s.ensureVMLiveUpdateMigrationTargetAvailable(context.Background(), service.ServiceID); err != nil {
+		return err
 	}
 
 	patchOps := make([]map[string]any, 0, 2)
@@ -170,6 +174,10 @@ func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdate
 	}
 	if !isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceIsMigratable) {
 		capability.HotUpdateReason = liveMigratableMessage(vmi.Status.Conditions)
+		return capability
+	}
+	if err := s.ensureVMLiveUpdateMigrationTargetAvailable(context.Background(), serviceID); err != nil {
+		capability.HotUpdateReason = err.Error()
 		return capability
 	}
 
@@ -292,6 +300,103 @@ func liveMigratableMessage(conditions []v1.VirtualMachineInstanceCondition) stri
 		}
 	}
 	return "当前虚拟机不满足 LiveMigratable 条件，暂时不能热更新。"
+}
+
+func (s *ServiceAction) ensureVMLiveUpdateMigrationTargetAvailable(ctx context.Context, serviceID string) error {
+	if s == nil || s.kubeClient == nil || strings.TrimSpace(serviceID) == "" {
+		return nil
+	}
+	launcherPod, err := s.getVMLauncherPodForLiveUpdate(ctx, serviceID)
+	if err != nil || launcherPod == nil {
+		return err
+	}
+	if strings.TrimSpace(launcherPod.Spec.NodeName) == "" {
+		return nil
+	}
+	nodes, err := s.kubeClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		if node.Name == launcherPod.Spec.NodeName || node.Spec.Unschedulable {
+			continue
+		}
+		if !nodeMatchesVMLauncherSelector(node, launcherPod.Spec.NodeSelector) {
+			continue
+		}
+		if !podToleratesNodeTaints(launcherPod.Spec.Tolerations, node.Spec.Taints) {
+			continue
+		}
+		return nil
+	}
+	return newVMLiveUpdateError(409, "当前虚拟机没有可用的迁移目标节点，热更新依赖 LiveMigration。请至少准备一个额外节点满足 CPU/标签调度条件。")
+}
+
+func (s *ServiceAction) getVMLauncherPodForLiveUpdate(ctx context.Context, serviceID string) (*corev1.Pod, error) {
+	pods, err := s.kubeClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("service_id=%s,kubevirt.io=virt-launcher", serviceID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var fallback *corev1.Pod
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if pod.Status.Phase == corev1.PodRunning {
+			return pod, nil
+		}
+		if fallback == nil && strings.TrimSpace(pod.Spec.NodeName) != "" {
+			fallback = pod
+		}
+	}
+	return fallback, nil
+}
+
+func nodeMatchesVMLauncherSelector(node *corev1.Node, selector map[string]string) bool {
+	if node == nil {
+		return false
+	}
+	for key, value := range selector {
+		if node.Labels[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func podToleratesNodeTaints(tolerations []corev1.Toleration, taints []corev1.Taint) bool {
+	for _, taint := range taints {
+		if taint.Effect != corev1.TaintEffectNoSchedule && taint.Effect != corev1.TaintEffectNoExecute {
+			continue
+		}
+		if !toleratesTaint(tolerations, taint) {
+			return false
+		}
+	}
+	return true
+}
+
+func toleratesTaint(tolerations []corev1.Toleration, taint corev1.Taint) bool {
+	for _, toleration := range tolerations {
+		if toleration.Key != taint.Key {
+			continue
+		}
+		if toleration.Effect != "" && toleration.Effect != taint.Effect {
+			continue
+		}
+		operator := toleration.Operator
+		if operator == "" {
+			operator = corev1.TolerationOpEqual
+		}
+		if operator == corev1.TolerationOpExists {
+			return true
+		}
+		if toleration.Value == taint.Value {
+			return true
+		}
+	}
+	return false
 }
 
 func extensionEnabled(value string) bool {

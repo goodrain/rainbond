@@ -9,9 +9,11 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	v1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 )
@@ -417,6 +419,203 @@ func TestGetVMLiveUpdateCapabilityRejectsGPUVM(t *testing.T) {
 	}
 	if capability.HotUpdateReason == "" {
 		t.Fatalf("expected gpu reason, got %#v", capability)
+	}
+}
+
+// capability_id: rainbond.vm-live-update.migration-target-required
+func TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	kubeClient := kubefake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "virt-launcher-service-vm",
+				Namespace: "default",
+				Labels: map[string]string{
+					"service_id":  "service-vm",
+					"kubevirt.io": "virt-launcher",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeName: "node-a",
+				NodeSelector: map[string]string{
+					"kubevirt.io/schedulable":           "true",
+					"cpu-vendor.node.kubevirt.io/Intel": "true",
+				},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodRunning},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-a",
+				Labels: map[string]string{
+					"kubevirt.io/schedulable":           "true",
+					"cpu-vendor.node.kubevirt.io/Intel": "true",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-b",
+				Labels: map[string]string{
+					"kubevirt.io/schedulable": "true",
+				},
+			},
+		},
+	)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubeClient:     kubeClient,
+		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "default"},
+			Status:     v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err == nil {
+		t.Fatal("expected live update to be rejected without a migration target node")
+	}
+	if !strings.Contains(err.Error(), "没有可用的迁移目标节点") {
+		t.Fatalf("expected migration target rejection, got %q", err.Error())
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+	}
+	if serviceDao.service == nil || serviceDao.service.ContainerMemory != 8192 {
+		t.Fatalf("expected memory rollback to original value, got %#v", serviceDao.service)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
+		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	}
+}
+
+// capability_id: rainbond.vm-live-update.capability-requires-migration-target
+func TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	kubeClient := kubefake.NewSimpleClientset(
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "virt-launcher-service-vm",
+				Namespace: "default",
+				Labels: map[string]string{
+					"service_id":  "service-vm",
+					"kubevirt.io": "virt-launcher",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeName: "node-a",
+				NodeSelector: map[string]string{
+					"kubevirt.io/schedulable":           "true",
+					"cpu-vendor.node.kubevirt.io/Intel": "true",
+				},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodRunning},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-a",
+				Labels: map[string]string{
+					"kubevirt.io/schedulable":           "true",
+					"cpu-vendor.node.kubevirt.io/Intel": "true",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-b",
+				Labels: map[string]string{
+					"kubevirt.io/schedulable": "true",
+				},
+			},
+		},
+	)
+
+	action := &ServiceAction{
+		kubeClient: kubeClient,
+	}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "default"},
+			Status:     v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected live update capability to be blocked, got %#v", capability)
+	}
+	if !strings.Contains(capability.HotUpdateReason, "没有可用的迁移目标节点") {
+		t.Fatalf("expected migration target reason, got %#v", capability)
 	}
 }
 

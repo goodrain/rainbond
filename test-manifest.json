@@ -6237,6 +6237,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.capability-requires-migration-target",
+      "title": "Block hot update capability when no migration target node is available",
+      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVMLiveUpdateCapability",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.migration-target-required",
+      "title": "Reject live update when no migration target node is available",
+      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.running-cpu-shrink-rejected",
       "title": "Reject running VM CPU shrink during live update",
       "title_zh": "Reject running VM CPU shrink during live update",
