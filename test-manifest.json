@@ -6345,6 +6345,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.running-shrink-rejected-before-event",
+      "title": "Reject running VM shrink requests before creating vertical events",
+      "title_zh": "\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7f29\u5bb9\u5728\u521b\u5efa\u5782\u76f4\u6269\u5c55\u4e8b\u4ef6\u524d\u88ab\u62d2\u7edd",
+      "interface_type": "other",
+      "interface": "api/middleware.WrapEL",
+      "code_paths": [
+        "api/middleware/middleware.go"
+      ],
+      "tests": [
+        {
+          "path": "api/middleware/middleware_test.go",
+          "selector": "TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
       "title": "Cleanup completed virt-launcher pods after VM hot update",
       "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",

@@ -41,6 +41,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	virtv1 "kubevirt.io/api/core/v1"
 )
 
 var pool []string
@@ -359,17 +360,29 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 			}
 			// set a new body, which will simulate the same data we read
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+			var reqData map[string]interface{}
 			var targetID string
 			var ok bool
 			if targetID, ok = r.Context().Value(ctxutil.ContextKey("service_id")).(string); !ok {
-				var reqDataMap map[string]interface{}
-				if err = json.Unmarshal(body, &reqDataMap); err != nil {
+				if err = json.Unmarshal(body, &reqData); err != nil {
 					httputil.ReturnError(r, w, 400, "操作对象未指定")
 					return
 				}
 
-				if targetID, ok = reqDataMap["service_id"].(string); !ok {
+				if targetID, ok = reqData["service_id"].(string); !ok {
 					httputil.ReturnError(r, w, 400, "操作对象未指定")
+					return
+				}
+			}
+			if reqData == nil {
+				reqData = map[string]interface{}{}
+				_ = json.Unmarshal(body, &reqData)
+			}
+
+			if serviceObj != nil {
+				service := serviceObj.(*dbmodel.TenantServices)
+				if rejectMessage, reject := shouldRejectRunningVMVerticalShrink(optType, service, reqData); reject {
+					httputil.ReturnError(r, w, http.StatusConflict, rejectMessage)
 					return
 				}
 			}
@@ -383,10 +396,9 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 
 			// handle operator
 			var operator string
-			var reqData map[string]interface{}
-			if err = json.Unmarshal(body, &reqData); err == nil {
-				if operatorI := reqData["operator"]; operatorI != nil {
-					operator = operatorI.(string)
+			if operatorI := reqData["operator"]; operatorI != nil {
+				if operatorString, ok := operatorI.(string); ok {
+					operator = operatorString
 				}
 			}
 
@@ -461,6 +473,79 @@ func shouldDeferBuildEvent() bool {
 
 	logrus.Infof("Source-scan plugin active with backend: %s, deferring build event creation", plugin.Spec.BackendService)
 	return true
+}
+
+func shouldRejectRunningVMVerticalShrink(optType string, service *dbmodel.TenantServices, reqData map[string]interface{}) (string, bool) {
+	if optType != "vertical-service" || service == nil || !service.IsVM() {
+		return "", false
+	}
+
+	requestedCPU, hasCPU := intValue(reqData["container_cpu"])
+	requestedMemory, hasMemory := intValue(reqData["container_memory"])
+	if !hasCPU && !hasMemory {
+		return "", false
+	}
+
+	cpuShrink := hasCPU && requestedCPU < service.ContainerCPU
+	memoryShrink := hasMemory && requestedMemory < service.ContainerMemory
+	if !cpuShrink && !memoryShrink {
+		return "", false
+	}
+
+	isRunning, err := isServiceVMRunning(service.ServiceID)
+	if err != nil {
+		logrus.Warningf("check vm running state before vertical event failed for %s: %v", service.ServiceID, err)
+		return "", false
+	}
+	if !isRunning {
+		return "", false
+	}
+
+	if cpuShrink {
+		return "虚拟机 CPU 热更新仅支持扩容，不支持缩容，请停机后再修改规格。", true
+	}
+	return "虚拟机内存热更新仅支持扩容，不支持缩容，请停机后再修改规格。", true
+}
+
+func isServiceVMRunning(serviceID string) (bool, error) {
+	if serviceID == "" || k8s.Default() == nil || k8s.Default().KubevirtCli == nil {
+		return false, fmt.Errorf("kubevirt client is not initialized")
+	}
+
+	vms, err := k8s.Default().KubevirtCli.VirtualMachine("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_id=" + serviceID,
+	})
+	if err != nil {
+		return false, err
+	}
+	if len(vms.Items) == 0 {
+		return false, nil
+	}
+
+	return vms.Items[0].Status.PrintableStatus == virtv1.VirtualMachineStatusRunning, nil
+}
+
+func intValue(value interface{}) (int, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return int(typed), true
+	case float32:
+		return int(typed), true
+	case int:
+		return typed, true
+	case int32:
+		return int(typed), true
+	case int64:
+		return int(typed), true
+	case json.Number:
+		intValue, err := typed.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(intValue), true
+	default:
+		return 0, false
+	}
 }
 
 func debugRequestBody(r *http.Request) {
