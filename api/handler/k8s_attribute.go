@@ -155,6 +155,7 @@ var vmRuntimeDeviceAttributeNames = []string{
 
 var vmRuntimeSpecAttributeNames = []string{
 	"vm_os_name",
+	"vm_disk_layout",
 }
 
 func (s *ServiceAction) getDBManager() db.Manager {

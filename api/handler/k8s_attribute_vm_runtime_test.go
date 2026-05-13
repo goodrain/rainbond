@@ -277,6 +277,13 @@ func TestIsVMRuntimeSpecAttributeOnlyIncludesSupportedVMFields(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync
+func TestIsVMRuntimeSpecAttributeIncludesDiskLayout(t *testing.T) {
+	if !isVMRuntimeSpecAttribute("vm_disk_layout") {
+		t.Fatal("expected vm_disk_layout to trigger vm spec sync")
+	}
+}
+
 func pointerToRunStrategy(strategy kubevirtv1.VirtualMachineRunStrategy) *kubevirtv1.VirtualMachineRunStrategy {
 	return &strategy
 }

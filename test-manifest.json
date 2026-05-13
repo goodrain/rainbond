@@ -6309,6 +6309,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync",
+      "title": "Treat vm_disk_layout as a VM spec sync attribute",
+      "title_zh": "\u5c06 vm_disk_layout \u89c6\u4e3a\u89e6\u53d1 VM \u89c4\u683c\u540c\u6b65\u7684\u5c5e\u6027",
+      "interface_type": "package_function",
+      "interface": "api/handler.isVMRuntimeSpecAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.direct-ops-event-close",
       "title": "Close direct VM power operation events after synchronous KubeVirt actions",
       "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
