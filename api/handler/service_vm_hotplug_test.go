@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -8,6 +9,7 @@ import (
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	corev1 "k8s.io/api/core/v1"
 	v1 "kubevirt.io/api/core/v1"
 )
 
@@ -19,6 +21,31 @@ func TestBuildVMHotplugAddVolumeOptionsUsesSCSIBusForIndexedDiskPath(t *testing.
 	}
 	if opts.Disk.DiskDevice.Disk.Bus != v1.DiskBusSCSI {
 		t.Fatalf("expected indexed vm hotplug disk to use scsi bus, got %q", opts.Disk.DiskDevice.Disk.Bus)
+	}
+}
+
+func TestResolveVMHotplugAccessModesConvertsShorthand(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{AccessMode: "RWX"})
+
+	if !reflect.DeepEqual(modes, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}) {
+		t.Fatalf("expected RWX to convert to ReadWriteMany, got %#v", modes)
+	}
+}
+
+func TestResolveVMHotplugAccessModesKeepsExpandedValues(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{AccessMode: "ReadWriteOnce,ReadOnlyMany"})
+
+	expected := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce, corev1.ReadOnlyMany}
+	if !reflect.DeepEqual(modes, expected) {
+		t.Fatalf("expected expanded access modes to be preserved, got %#v", modes)
+	}
+}
+
+func TestResolveVMHotplugAccessModesDefaultsToReadWriteMany(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{})
+
+	if !reflect.DeepEqual(modes, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}) {
+		t.Fatalf("expected empty access mode to default to ReadWriteMany, got %#v", modes)
 	}
 }
 

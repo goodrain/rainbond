@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -86,9 +87,10 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 	}
 
 	storageQty := resource.NewScaledQuantity(volume.VolumeCapacity, resource.Mega)
-	accessMode := volume.AccessMode
-	if accessMode == "" {
-		accessMode = "ReadWriteMany"
+	accessModes := resolveVMHotplugAccessModes(volume)
+	accessModeValues := make([]any, 0, len(accessModes))
+	for _, mode := range accessModes {
+		accessModeValues = append(accessModeValues, string(mode))
 	}
 
 	obj := &unstructured.Unstructured{
@@ -113,7 +115,7 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 					"blank": map[string]any{},
 				},
 				"storage": map[string]any{
-					"accessModes": []any{accessMode},
+					"accessModes": accessModeValues,
 					"resources": map[string]any{
 						"requests": map[string]any{
 							"storage": storageQty.String(),
@@ -127,6 +129,46 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 	}
 	_, err := resourceIf.Create(context.Background(), obj, metav1.CreateOptions{})
 	return err
+}
+
+func resolveVMHotplugAccessModes(volume *dbmodel.TenantServiceVolume) []corev1.PersistentVolumeAccessMode {
+	defaultModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+	if volume == nil {
+		return defaultModes
+	}
+
+	seen := make(map[corev1.PersistentVolumeAccessMode]struct{})
+	modes := make([]corev1.PersistentVolumeAccessMode, 0, 1)
+	for _, item := range strings.Split(volume.AccessMode, ",") {
+		mode, ok := normalizeVMHotplugAccessMode(item)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[mode]; exists {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	if len(modes) == 0 {
+		return defaultModes
+	}
+	return modes
+}
+
+func normalizeVMHotplugAccessMode(mode string) (corev1.PersistentVolumeAccessMode, bool) {
+	switch strings.ToUpper(strings.TrimSpace(mode)) {
+	case "RWO", "READWRITEONCE":
+		return corev1.ReadWriteOnce, true
+	case "ROX", "READONLYMANY":
+		return corev1.ReadOnlyMany, true
+	case "RWX", "READWRITEMANY":
+		return corev1.ReadWriteMany, true
+	case "READWRITEONCEPOD":
+		return corev1.ReadWriteOncePod, true
+	default:
+		return "", false
+	}
 }
 
 func resolveVMHotplugDeviceType(volumePath string) string {
