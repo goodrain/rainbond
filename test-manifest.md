@@ -358,6 +358,8 @@
 | rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
 | rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
 | rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
+| rainbond.vm-volume.allow-shared-device-paths | 允许 VM 服务在不同数据卷间复用设备路径 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath |
+| rainbond.volume.keep-non-vm-path-uniqueness | 保持非 VM 服务卷路径唯一性校验 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
 | rainbond.watch.etcd-event-parse | 将 etcd watch 事件解析为内部事件结构 | active | regression | util/watch.parseEvent | util/watch/watch_test.go::TestParseEvent |
@@ -3849,7 +3851,7 @@
 - Capability ID: `rainbond.vm-live-update.running-shrink-rejected-before-event`
 - 状态: `active`
 - 测试类型: `regression`
-- 接口类型: `http_middleware`
+- 接口类型: `other`
 - 业务入口: `api/middleware.WrapEL`
 - 代码路径: `api/middleware/middleware.go`
 - 测试路径: `api/middleware/middleware_test.go::TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent`
@@ -3953,6 +3955,26 @@
 - 业务入口: `worker/appm/volume.ShareFileVolume.CreateVolume`
 - 代码路径: `worker/appm/volume/share-file.go`, `worker/appm/volume/volume.go`
 - 测试路径: `worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile`
+
+### 允许 VM 服务在不同数据卷间复用设备路径
+
+- Capability ID: `rainbond.vm-volume.allow-shared-device-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath`
+
+### 保持非 VM 服务卷路径唯一性校验
+
+- Capability ID: `rainbond.volume.keep-non-vm-path-uniqueness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService`
 
 ### 将 watch 后端错误分发到内部错误通道
 

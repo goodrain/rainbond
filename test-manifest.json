@@ -6561,6 +6561,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-volume.allow-shared-device-paths",
+      "title": "Allow VM services to reuse device paths across volumes",
+      "title_zh": "\u5141\u8bb8 VM \u670d\u52a1\u5728\u4e0d\u540c\u6570\u636e\u5377\u95f4\u590d\u7528\u8bbe\u5907\u8def\u5f84",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_volume_vm_test.go",
+          "selector": "TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.volume.keep-non-vm-path-uniqueness",
+      "title": "Keep duplicate path checks for non-VM service volumes",
+      "title_zh": "\u4fdd\u6301\u975e VM \u670d\u52a1\u5377\u8def\u5f84\u552f\u4e00\u6027\u6821\u9a8c",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_volume_vm_test.go",
+          "selector": "TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.watch.error-dispatch",
       "title": "Dispatch watch backend errors onto the internal error channel",
       "title_zh": "\u5c06 watch \u540e\u7aef\u9519\u8bef\u5206\u53d1\u5230\u5185\u90e8\u9519\u8bef\u901a\u9053",
