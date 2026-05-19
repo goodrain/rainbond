@@ -1671,11 +1671,23 @@ func buildStandardVMCPU(cpuMilli int) *kubevirtv1.CPU {
 
 func buildStandardVMMemory(memoryMB int) *kubevirtv1.Memory {
 	guest := buildAlignedVMMemoryQuantity(memoryMB)
-	maxGuest := buildAlignedVMMemoryQuantity(memoryMB * 2)
+	maxGuest := buildAlignedVMMemoryQuantity(maxVMMemoryHotplugHeadroomMi(memoryMB))
 	return &kubevirtv1.Memory{
 		Guest:    &guest,
 		MaxGuest: &maxGuest,
 	}
+}
+
+func maxVMMemoryHotplugHeadroomMi(memoryMB int) int {
+	const (
+		hotplugRatio       = 4
+		minHotplugMaxGuest = 64 * 1024
+	)
+	maxGuestMB := memoryMB * hotplugRatio
+	if maxGuestMB < minHotplugMaxGuest {
+		return minHotplugMaxGuest
+	}
+	return maxGuestMB
 }
 
 func buildAlignedVMMemoryQuantity(memoryMB int) resource.Quantity {

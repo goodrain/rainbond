@@ -330,6 +330,87 @@ func TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-live-update.memory-target-below-max-guest
+func TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							Memory: &v1.Memory{
+								Guest:    quantityPtr("8Gi"),
+								MaxGuest: quantityPtr("16Gi"),
+							},
+						},
+					},
+				},
+			},
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	newMemory := 16384
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err == nil {
+		t.Fatal("expected running vm memory target at maxGuest to be rejected")
+	}
+	if err.Error() != "vm memory live update target must be lower than maxGuest" {
+		t.Fatalf("expected maxGuest headroom rejection message, got %q", err.Error())
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+	}
+	if serviceDao.service == nil || serviceDao.service.ContainerMemory != 8192 {
+		t.Fatalf("expected memory rollback to original value, got %#v", serviceDao.service)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
+		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	}
+}
+
 func TestGetVMLiveUpdateCapabilityIgnoresRemovedNetworkFields(t *testing.T) {
 	serviceDao := &resourceSyncTenantServiceDao{
 		service: &dbmodel.TenantServices{

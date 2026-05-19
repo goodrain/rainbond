@@ -6291,6 +6291,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.memory-target-below-max-guest",
+      "title": "Reject memory live update targets at maxGuest",
+      "title_zh": "\u62d2\u7edd\u7b49\u4e8e maxGuest \u7684\u865a\u62df\u673a\u5185\u5b58\u70ed\u66f4\u65b0\u76ee\u6807",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.migration-target-required",
       "title": "Reject live update when no migration target node is available",
       "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
@@ -7067,6 +7085,32 @@
         {
           "path": "worker/appm/conversion/version_vm_test.go",
           "selector": "TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-memory-hotplug-headroom",
+      "title": "Default VM memory hotplug headroom",
+      "title_zh": "\u9ed8\u8ba4\u865a\u62df\u673a\u5185\u5b58\u70ed\u63d2\u62d4\u4e0a\u9650\u9884\u7559",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.buildStandardVMMemory",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemorySetsGuestAndMaxGuest"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor"
         }
       ],
       "test_type": "regression",

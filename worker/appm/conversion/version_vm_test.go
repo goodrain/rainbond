@@ -137,25 +137,39 @@ func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopology(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.worker.appm.vm-memory-hotplug-headroom
 func TestBuildStandardVMMemorySetsGuestAndMaxGuest(t *testing.T) {
 	memory := buildStandardVMMemory(8192)
 
 	if memory.Guest == nil || memory.Guest.Cmp(resource.MustParse("8192Mi")) != 0 {
 		t.Fatalf("expected guest 8Gi, got %#v", memory.Guest)
 	}
-	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("16384Mi")) != 0 {
-		t.Fatalf("expected maxGuest 16Gi, got %#v", memory.MaxGuest)
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("65536Mi")) != 0 {
+		t.Fatalf("expected maxGuest 64Gi, got %#v", memory.MaxGuest)
 	}
 }
 
+// capability_id: rainbond.worker.appm.vm-memory-hotplug-headroom
 func TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi(t *testing.T) {
 	memory := buildStandardVMMemory(1025)
 
 	if memory.Guest == nil || memory.Guest.Cmp(resource.MustParse("1026Mi")) != 0 {
 		t.Fatalf("expected guest memory to align to 1026Mi, got %#v", memory.Guest)
 	}
-	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("2050Mi")) != 0 {
-		t.Fatalf("expected maxGuest memory to align to 2050Mi, got %#v", memory.MaxGuest)
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("65536Mi")) != 0 {
+		t.Fatalf("expected maxGuest memory to use 64Gi floor, got %#v", memory.MaxGuest)
+	}
+}
+
+// capability_id: rainbond.worker.appm.vm-memory-hotplug-headroom
+func TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor(t *testing.T) {
+	memory := buildStandardVMMemory(32768)
+
+	if memory.Guest == nil || memory.Guest.Cmp(resource.MustParse("32768Mi")) != 0 {
+		t.Fatalf("expected guest 32Gi, got %#v", memory.Guest)
+	}
+	if memory.MaxGuest == nil || memory.MaxGuest.Cmp(resource.MustParse("131072Mi")) != 0 {
+		t.Fatalf("expected maxGuest 128Gi, got %#v", memory.MaxGuest)
 	}
 }
 

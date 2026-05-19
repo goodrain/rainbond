@@ -126,8 +126,8 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 			return newVMLiveUpdateError(409, "vm maxGuest is required for memory live update")
 		}
 		targetGuest := buildAlignedVMMemoryQuantity(service.ContainerMemory)
-		if targetGuest.Cmp(*vm.Spec.Template.Spec.Domain.Memory.MaxGuest) > 0 {
-			return newVMLiveUpdateError(409, "vm memory live update target exceeds maxGuest")
+		if targetGuest.Cmp(*vm.Spec.Template.Spec.Domain.Memory.MaxGuest) >= 0 {
+			return newVMLiveUpdateError(409, "vm memory live update target must be lower than maxGuest")
 		}
 		if vm.Spec.Template.Spec.Domain.Memory.Guest == nil || vm.Spec.Template.Spec.Domain.Memory.Guest.Cmp(targetGuest) != 0 {
 			patchOps = append(patchOps, map[string]any{
