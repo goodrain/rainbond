@@ -194,6 +194,95 @@ func TestServiceVerticalVMStoppedFallsBackToSpecSync(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-live-update.cpu-memory-combined-rejected
+func TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    8000,
+			ContainerMemory: 16384,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							CPU: &v1.CPU{
+								Sockets:    8,
+								Cores:      1,
+								Threads:    1,
+								MaxSockets: 16,
+							},
+							Memory: &v1.Memory{
+								Guest:    quantityPtr("16Gi"),
+								MaxGuest: quantityPtr("64Gi"),
+							},
+						},
+					},
+				},
+			},
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	newCPU := 10000
+	newMemory := 24576
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerCPU:    &newCPU,
+		ContainerMemory: &newMemory,
+	})
+	if err == nil {
+		t.Fatal("expected combined cpu and memory live update to be rejected")
+	}
+	if err.Error() != "运行中虚拟机 CPU 和内存热更新请分两次操作，不支持一次同时修改。" {
+		t.Fatalf("expected combined resource rejection message, got %q", err.Error())
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+	}
+	if serviceDao.service == nil || serviceDao.service.ContainerCPU != 8000 || serviceDao.service.ContainerMemory != 16384 {
+		t.Fatalf("expected resources rollback to original values, got %#v", serviceDao.service)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
+		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	}
+}
+
 // capability_id: rainbond.vm-live-update.running-cpu-shrink-rejected
 func TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink(t *testing.T) {
 	ctrl := gomock.NewController(t)

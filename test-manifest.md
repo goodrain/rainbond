@@ -343,6 +343,7 @@
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
+| rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
 | rainbond.vm-live-update.installer-media-removal-required | 初始化安装光盘未删除时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.memory-target-below-max-guest | 拒绝等于 maxGuest 的虚拟机内存热更新目标 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest |
 | rainbond.vm-live-update.migration-target-required | 无可用迁移目标节点时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode |
@@ -3807,6 +3808,16 @@
 - 业务入口: `api/handler.ServiceAction.GetVMLiveUpdateCapability`
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode`
+
+### 拒绝运行中虚拟机同时热更新 CPU 和内存
+
+- Capability ID: `rainbond.vm-live-update.cpu-memory-combined-rejected`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange`
 
 ### 初始化安装光盘未删除时拒绝虚拟机热更新
 

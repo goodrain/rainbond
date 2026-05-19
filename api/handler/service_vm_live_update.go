@@ -89,6 +89,10 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 		return err
 	}
 
+	if service.ContainerCPU != oldCPU && service.ContainerMemory != oldMemory {
+		return newVMLiveUpdateError(409, "运行中虚拟机 CPU 和内存热更新请分两次操作，不支持一次同时修改。")
+	}
+
 	patchOps := make([]map[string]any, 0, 2)
 
 	if service.ContainerCPU < oldCPU {

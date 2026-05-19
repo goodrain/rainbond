@@ -6273,6 +6273,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-live-update.cpu-memory-combined-rejected",
+      "title": "Reject combined CPU and memory live updates",
+      "title_zh": "\u62d2\u7edd\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u540c\u65f6\u70ed\u66f4\u65b0 CPU \u548c\u5185\u5b58",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.installer-media-removal-required",
       "title": "Reject live update until installer media is removed",
       "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
