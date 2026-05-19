@@ -116,6 +116,42 @@ func TestBuildVMVolumeSourceUsesBlankDataVolumeForDisk(t *testing.T) {
 	}
 }
 
+func TestBuildVMVolumeSourceUsesBlankDataVolumeForIndexedDiskPath(t *testing.T) {
+	storageClassName := "nfs-storage"
+	volumeMode := corev1.PersistentVolumeFilesystem
+	claim := &corev1.PersistentVolumeClaim{
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			StorageClassName: &storageClassName,
+			VolumeMode:       &volumeMode,
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("20Gi"),
+				},
+			},
+		},
+	}
+	claim.Name = "manual-data-1"
+
+	volume, template, manual := buildVMVolumeSource(
+		claim,
+		map[string]string{"service_id": "svc-1"},
+		map[string]string{"volume_name": "data-1"},
+		"/disk-1",
+		nil,
+	)
+
+	if manual {
+		t.Fatal("expected indexed vm disk path to use data volume template")
+	}
+	if volume.DataVolume == nil || volume.DataVolume.Name != "manual-data-1" {
+		t.Fatalf("expected data volume source for indexed vm disk, got %#v", volume.VolumeSource)
+	}
+	if template == nil || template.Spec.Source == nil || template.Spec.Source.Blank == nil {
+		t.Fatalf("expected blank data volume template for indexed vm disk, got %#v", template)
+	}
+}
+
 func TestBuildVMVolumeSourceKeepsCDRomAsPVCWithoutImport(t *testing.T) {
 	storageClassName := "local-path"
 	claim := &corev1.PersistentVolumeClaim{

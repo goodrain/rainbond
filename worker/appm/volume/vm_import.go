@@ -3,6 +3,7 @@ package volume
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -149,11 +150,24 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 }
 
 func shouldUseVMBlankDataVolume(volumePath string) bool {
-	switch volumePath {
-	case "/disk", "/lun":
+	switch vmVolumeDeviceType(volumePath) {
+	case "disk", "lun":
 		return true
 	default:
 		return false
+	}
+}
+
+func vmVolumeDeviceType(volumePath string) string {
+	switch {
+	case volumePath == "/disk" || strings.HasPrefix(volumePath, "/disk-"):
+		return "disk"
+	case volumePath == "/lun" || strings.HasPrefix(volumePath, "/lun-"):
+		return "lun"
+	case volumePath == "/cdrom" || strings.HasPrefix(volumePath, "/cdrom-"):
+		return "cdrom"
+	default:
+		return ""
 	}
 }
 

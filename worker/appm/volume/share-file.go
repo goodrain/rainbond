@@ -115,21 +115,22 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		if manualClaim {
 			v.as.SetClaimManually(claim)
 		}
+		deviceType := vmVolumeDeviceType(volumeMountPath)
 		var dd kubevirtv1.DiskDevice
-		switch volumeMountPath {
-		case "/disk":
+		switch deviceType {
+		case "disk":
 			dd = kubevirtv1.DiskDevice{
 				Disk: &kubevirtv1.DiskTarget{
 					Bus: kubevirtv1.DiskBusSATA,
 				},
 			}
-		case "/lun":
+		case "lun":
 			dd = kubevirtv1.DiskDevice{
 				LUN: &kubevirtv1.LunTarget{
 					Bus: kubevirtv1.DiskBusSATA,
 				},
 			}
-		case "/cdrom":
+		case "cdrom":
 			dd = kubevirtv1.DiskDevice{
 				CDRom: &kubevirtv1.CDRomTarget{
 					Bus: kubevirtv1.DiskBusSATA,
@@ -144,12 +145,8 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		}
 		define.vmDisk = append(define.vmDisk, dk)
 		define.vmVolume = append(define.vmVolume, vo)
-		deviceType := "disk"
-		switch volumeMountPath {
-		case "/lun":
-			deviceType = "lun"
-		case "/cdrom":
-			deviceType = "cdrom"
+		if deviceType == "" {
+			deviceType = "disk"
 		}
 		define.SetVMDiskMeta(VMDiskMeta{
 			DiskName:   dk.Name,

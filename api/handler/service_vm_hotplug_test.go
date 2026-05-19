@@ -8,6 +8,7 @@ import (
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	v1 "kubevirt.io/api/core/v1"
 )
 
 type hotplugVolumeTestManager struct {
@@ -121,5 +122,48 @@ func TestVolumnVarHotplugsRunningVMDataDisk(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestHotplugVMDataDiskSyncsStoppedVMForSelectedStorageClassVolume(t *testing.T) {
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	syncCalled := false
+	action := &ServiceAction{
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected service-vm sync target, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusStopped,
+			},
+		}, nil
+	}
+
+	err := action.hotplugVMDataDisk("tenant-1", &dbmodel.TenantServiceVolume{
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 20,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !syncCalled {
+		t.Fatal("expected selected storage class vm disk to sync stopped vm spec")
 	}
 }

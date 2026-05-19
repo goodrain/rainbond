@@ -112,3 +112,37 @@ func TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile(t *tes
 		t.Fatalf("expected legacy vm-file to keep local-path fallback, got %#v", claims[0].Spec.StorageClassName)
 	}
 }
+
+func TestShareFileVolumeCreateVolumeTreatsIndexedDiskPathAsDiskDevice(t *testing.T) {
+	as := newVMAppServiceForVolumeTest()
+	serviceVolume := &dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 3},
+		ServiceID:      "service-1",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		AccessMode:     "RWX",
+		VolumeCapacity: 20,
+	}
+
+	manager := NewVolumeManager(as, serviceVolume, nil, nil, nil, nil, nil, false)
+	shareVolume, ok := manager.(*ShareFileVolume)
+	if !ok {
+		t.Fatalf("expected indexed vm disk volume to use ShareFileVolume, got %T", manager)
+	}
+
+	define := &Define{as: as}
+	if err := shareVolume.CreateVolume(define); err != nil {
+		t.Fatalf("create indexed vm volume: %v", err)
+	}
+
+	if len(define.vmDisk) != 1 {
+		t.Fatalf("expected exactly one vm disk, got %d", len(define.vmDisk))
+	}
+	if define.vmDisk[0].DiskDevice.Disk == nil {
+		t.Fatalf("expected indexed vm disk path to keep disk target, got %#v", define.vmDisk[0].DiskDevice)
+	}
+	if len(define.GetVMDataVolumeTemplates()) != 1 {
+		t.Fatalf("expected indexed vm disk path to create one data volume template, got %d", len(define.GetVMDataVolumeTemplates()))
+	}
+}

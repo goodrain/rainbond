@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -28,7 +29,7 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 	if volume == nil {
 		return nil
 	}
-	if volume.VolumeType != dbmodel.VMVolumeType.String() || volume.VolumeName == "disk" {
+	if volume.VolumeName == "disk" || volume.VolumeType == dbmodel.ConfigFileVolumeType.String() {
 		return nil
 	}
 
@@ -36,12 +37,15 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 	if err != nil || service == nil || !service.IsVM() {
 		return err
 	}
+	if resolveVMHotplugDeviceType(volume.VolumePath) != "disk" {
+		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
+	}
 	vm, err := s.getVirtualMachineByServiceID(volume.ServiceID)
 	if err != nil || vm == nil {
 		return err
 	}
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
-		return s.syncVirtualMachineSpecForService(volume.ServiceID)
+		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
 	}
 	backingName := fmt.Sprintf("manual%d", volume.ID)
 	if err := ensureVMHotplugDataVolume(vm.Namespace, tenantID, volume, backingName); err != nil {
@@ -111,7 +115,7 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 							"storage": storageQty.String(),
 						},
 					},
-					"storageClassName": volume.VolumeProviderName,
+					"storageClassName": resolveVMHotplugStorageClassName(volume),
 					"volumeMode":       string(corev1.PersistentVolumeFilesystem),
 				},
 			},
@@ -119,4 +123,24 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 	}
 	_, err := resourceIf.Create(context.Background(), obj, metav1.CreateOptions{})
 	return err
+}
+
+func resolveVMHotplugDeviceType(volumePath string) string {
+	switch {
+	case volumePath == "/disk" || strings.HasPrefix(volumePath, "/disk-"):
+		return "disk"
+	case volumePath == "/lun" || strings.HasPrefix(volumePath, "/lun-"):
+		return "lun"
+	case volumePath == "/cdrom" || strings.HasPrefix(volumePath, "/cdrom-"):
+		return "cdrom"
+	default:
+		return ""
+	}
+}
+
+func resolveVMHotplugStorageClassName(volume *dbmodel.TenantServiceVolume) string {
+	if volume == nil || volume.VolumeType == "" || volume.VolumeType == dbmodel.VMVolumeType.String() {
+		return "local-path"
+	}
+	return volume.VolumeType
 }
