@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
@@ -185,7 +186,7 @@ func TestSyncVMRuntimeDeviceConfigSkipsUpdateWhenDevicesAlreadyMatch(t *testing.
 	}
 }
 
-func TestApplyVirtualMachineSpecReplacesSpecWhenChanged(t *testing.T) {
+func TestApplyVirtualMachineSpecPreservesRunStrategyWhenSyncingSpec(t *testing.T) {
 	existing := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-vm",
@@ -193,8 +194,16 @@ func TestApplyVirtualMachineSpecReplacesSpecWhenChanged(t *testing.T) {
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyHalted),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{},
+					},
+				},
+			},
 		},
 	}
+	targetMemory := resourceMustParse(t, "4Gi")
 	desired := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-vm",
@@ -202,6 +211,15 @@ func TestApplyVirtualMachineSpecReplacesSpecWhenChanged(t *testing.T) {
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{
+							Guest: &targetMemory,
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -209,8 +227,69 @@ func TestApplyVirtualMachineSpecReplacesSpecWhenChanged(t *testing.T) {
 	if !changed {
 		t.Fatal("expected virtual machine spec diff to be detected")
 	}
-	if updated.Spec.RunStrategy == nil || *updated.Spec.RunStrategy != kubevirtv1.RunStrategyAlways {
-		t.Fatalf("expected run strategy to be replaced, got %#v", updated.Spec.RunStrategy)
+	if updated.Spec.RunStrategy == nil || *updated.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
+		t.Fatalf("expected run strategy to be preserved, got %#v", updated.Spec.RunStrategy)
+	}
+	if updated.Spec.Template == nil || updated.Spec.Template.Spec.Domain.Memory == nil || updated.Spec.Template.Spec.Domain.Memory.Guest == nil {
+		t.Fatalf("expected target memory to be synced, got %#v", updated.Spec.Template)
+	}
+	if updated.Spec.Template.Spec.Domain.Memory.Guest.Cmp(targetMemory) != 0 {
+		t.Fatalf("expected target memory to be synced, got %#v", updated.Spec.Template.Spec.Domain.Memory.Guest)
+	}
+}
+
+func TestApplyVirtualMachineSpecPreservesLegacyRunningFlagWhenSyncingSpec(t *testing.T) {
+	existing := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Running: pointerToBool(false),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{},
+					},
+				},
+			},
+		},
+	}
+	targetMemory := resourceMustParse(t, "2Gi")
+	desired := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{
+							Guest: &targetMemory,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	updated, changed := applyVirtualMachineSpec(existing, desired)
+	if !changed {
+		t.Fatal("expected virtual machine spec diff to be detected")
+	}
+	if updated.Spec.Running == nil || *updated.Spec.Running {
+		t.Fatalf("expected legacy running flag to stay false, got %#v", updated.Spec.Running)
+	}
+	if updated.Spec.RunStrategy != nil {
+		t.Fatalf("expected legacy running flag sync to avoid forcing runStrategy, got %#v", updated.Spec.RunStrategy)
+	}
+	if updated.Spec.Template == nil || updated.Spec.Template.Spec.Domain.Memory == nil || updated.Spec.Template.Spec.Domain.Memory.Guest == nil {
+		t.Fatalf("expected target memory to be synced, got %#v", updated.Spec.Template)
+	}
+	if updated.Spec.Template.Spec.Domain.Memory.Guest.Cmp(targetMemory) != 0 {
+		t.Fatalf("expected target memory to be synced, got %#v", updated.Spec.Template.Spec.Domain.Memory.Guest)
 	}
 }
 
@@ -228,8 +307,16 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyHalted),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{},
+					},
+				},
+			},
 		},
 	}
+	targetMemory := resourceMustParse(t, "4Gi")
 	desired := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-vm",
@@ -237,14 +324,29 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{
+							Guest: &targetMemory,
+						},
+					},
+				},
+			},
 		},
 	}
 
 	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
 	mockVMInterface.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&kubevirtv1.VirtualMachine{}), gomock.Any()).DoAndReturn(
 		func(_ context.Context, updated *kubevirtv1.VirtualMachine, _ metav1.UpdateOptions) (*kubevirtv1.VirtualMachine, error) {
-			if updated.Spec.RunStrategy == nil || *updated.Spec.RunStrategy != kubevirtv1.RunStrategyAlways {
-				t.Fatalf("expected updated vm spec to be synced, got %#v", updated.Spec.RunStrategy)
+			if updated.Spec.RunStrategy == nil || *updated.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
+				t.Fatalf("expected updated vm run strategy to stay halted, got %#v", updated.Spec.RunStrategy)
+			}
+			if updated.Spec.Template == nil || updated.Spec.Template.Spec.Domain.Memory == nil || updated.Spec.Template.Spec.Domain.Memory.Guest == nil {
+				t.Fatalf("expected updated vm to carry memory config, got %#v", updated.Spec.Template)
+			}
+			if updated.Spec.Template.Spec.Domain.Memory.Guest.Cmp(targetMemory) != 0 {
+				t.Fatalf("expected updated vm to carry memory config, got %#v", updated.Spec.Template.Spec.Domain.Memory.Guest)
 			}
 			return updated, nil
 		},
@@ -286,4 +388,13 @@ func TestIsVMRuntimeSpecAttributeIncludesDiskLayout(t *testing.T) {
 
 func pointerToRunStrategy(strategy kubevirtv1.VirtualMachineRunStrategy) *kubevirtv1.VirtualMachineRunStrategy {
 	return &strategy
+}
+
+func pointerToBool(value bool) *bool {
+	return &value
+}
+
+func resourceMustParse(t *testing.T, value string) resource.Quantity {
+	t.Helper()
+	return resource.MustParse(value)
 }

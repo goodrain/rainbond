@@ -335,5 +335,7 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	}
 	updatedVM := existingVM.DeepCopy()
 	updatedVM.Spec = desiredVM.Spec
+	updatedVM.Spec.RunStrategy = existingVM.Spec.RunStrategy
+	updatedVM.Spec.Running = existingVM.Spec.Running
 	return updatedVM, true
 }
