@@ -3,11 +3,11 @@ package handler
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,13 +52,18 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 		return err
 	}
 
-	opts := &v1.AddVolumeOptions{
+	opts := buildVMHotplugAddVolumeOptions(backingName, volume.VolumePath)
+	return s.kubevirtClient.VirtualMachine(vm.Namespace).AddVolume(context.Background(), vm.Name, opts)
+}
+
+func buildVMHotplugAddVolumeOptions(backingName, volumePath string) *v1.AddVolumeOptions {
+	return &v1.AddVolumeOptions{
 		Name: backingName,
 		Disk: &v1.Disk{
 			Serial: backingName,
 			DiskDevice: v1.DiskDevice{
 				Disk: &v1.DiskTarget{
-					Bus: v1.DiskBusSATA,
+					Bus: appmvolume.VMVolumeDiskBus(volumePath),
 				},
 			},
 		},
@@ -68,7 +73,6 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 			},
 		},
 	}
-	return s.kubevirtClient.VirtualMachine(vm.Namespace).AddVolume(context.Background(), vm.Name, opts)
 }
 
 func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.TenantServiceVolume, backingName string) error {
@@ -126,16 +130,7 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 }
 
 func resolveVMHotplugDeviceType(volumePath string) string {
-	switch {
-	case volumePath == "/disk" || strings.HasPrefix(volumePath, "/disk-"):
-		return "disk"
-	case volumePath == "/lun" || strings.HasPrefix(volumePath, "/lun-"):
-		return "lun"
-	case volumePath == "/cdrom" || strings.HasPrefix(volumePath, "/cdrom-"):
-		return "cdrom"
-	default:
-		return ""
-	}
+	return appmvolume.VMVolumeDeviceType(volumePath)
 }
 
 func resolveVMHotplugStorageClassName(volume *dbmodel.TenantServiceVolume) string {

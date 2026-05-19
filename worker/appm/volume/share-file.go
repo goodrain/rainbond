@@ -116,27 +116,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			v.as.SetClaimManually(claim)
 		}
 		deviceType := vmVolumeDeviceType(volumeMountPath)
-		var dd kubevirtv1.DiskDevice
-		switch deviceType {
-		case "disk":
-			dd = kubevirtv1.DiskDevice{
-				Disk: &kubevirtv1.DiskTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
-		case "lun":
-			dd = kubevirtv1.DiskDevice{
-				LUN: &kubevirtv1.LunTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
-		case "cdrom":
-			dd = kubevirtv1.DiskDevice{
-				CDRom: &kubevirtv1.CDRomTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
-		}
+		dd := BuildVMDiskDevice(volumeMountPath)
 		bootOrder := uint(len(define.vmDisk) + 1)
 		dk := kubevirtv1.Disk{
 			BootOrder:  &bootOrder,

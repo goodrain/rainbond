@@ -11,6 +11,17 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 )
 
+func TestBuildVMHotplugAddVolumeOptionsUsesSCSIBusForIndexedDiskPath(t *testing.T) {
+	opts := buildVMHotplugAddVolumeOptions("manual99", "/disk-1")
+
+	if opts == nil || opts.Disk == nil || opts.Disk.DiskDevice.Disk == nil {
+		t.Fatalf("expected hotplug add volume options to create a disk target, got %#v", opts)
+	}
+	if opts.Disk.DiskDevice.Disk.Bus != v1.DiskBusSCSI {
+		t.Fatalf("expected indexed vm hotplug disk to use scsi bus, got %q", opts.Disk.DiskDevice.Disk.Bus)
+	}
+}
+
 type hotplugVolumeTestManager struct {
 	db.Manager
 	tx         *gorm.DB

@@ -78,6 +78,12 @@ func TestNewVolumeManagerUsesSelectedStorageClassForVMDisks(t *testing.T) {
 	if len(define.GetVMDataVolumeTemplates()) != 1 {
 		t.Fatalf("expected vm blank root disk to create one data volume template, got %d", len(define.GetVMDataVolumeTemplates()))
 	}
+	if len(define.vmDisk) != 1 || define.vmDisk[0].DiskDevice.Disk == nil {
+		t.Fatalf("expected root vm volume to create one disk target, got %#v", define.vmDisk)
+	}
+	if define.vmDisk[0].DiskDevice.Disk.Bus != kubevirtv1.DiskBusSATA {
+		t.Fatalf("expected root vm disk to keep sata bus, got %q", define.vmDisk[0].DiskDevice.Disk.Bus)
+	}
 }
 
 // capability_id: rainbond.vm-volume-vm-file-backward-compatible
@@ -141,6 +147,9 @@ func TestShareFileVolumeCreateVolumeTreatsIndexedDiskPathAsDiskDevice(t *testing
 	}
 	if define.vmDisk[0].DiskDevice.Disk == nil {
 		t.Fatalf("expected indexed vm disk path to keep disk target, got %#v", define.vmDisk[0].DiskDevice)
+	}
+	if define.vmDisk[0].DiskDevice.Disk.Bus != kubevirtv1.DiskBusSCSI {
+		t.Fatalf("expected indexed vm disk path to use scsi bus for hotplug-safe data disks, got %q", define.vmDisk[0].DiskDevice.Disk.Bus)
 	}
 	if len(define.GetVMDataVolumeTemplates()) != 1 {
 		t.Fatalf("expected indexed vm disk path to create one data volume template, got %d", len(define.GetVMDataVolumeTemplates()))
