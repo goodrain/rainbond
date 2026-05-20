@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
@@ -14,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/util/retry"
 	v1 "kubevirt.io/api/core/v1"
 )
 
@@ -34,7 +34,7 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 		return nil
 	}
 
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(volume.ServiceID)
+	service, err := s.getDBManager().TenantServiceDao().GetServiceByID(volume.ServiceID)
 	if err != nil || service == nil || !service.IsVM() {
 		return err
 	}
@@ -48,13 +48,13 @@ func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.Tenan
 	if vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
 		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
 	}
-	backingName := fmt.Sprintf("manual%d", volume.ID)
+	backingName := vmHotplugBackingName(volume)
 	if err := ensureVMHotplugDataVolume(vm.Namespace, tenantID, volume, backingName); err != nil {
 		return err
 	}
 
 	opts := buildVMHotplugAddVolumeOptions(backingName, volume.VolumePath)
-	return s.kubevirtClient.VirtualMachine(vm.Namespace).AddVolume(context.Background(), vm.Name, opts)
+	return s.performVMHotplugAddVolume(volume.ServiceID, opts)
 }
 
 func buildVMHotplugAddVolumeOptions(backingName, volumePath string) *v1.AddVolumeOptions {
@@ -74,6 +74,68 @@ func buildVMHotplugAddVolumeOptions(backingName, volumePath string) *v1.AddVolum
 			},
 		},
 	}
+}
+
+func buildVMHotplugRemoveVolumeOptions(backingName string) *v1.RemoveVolumeOptions {
+	return &v1.RemoveVolumeOptions{Name: backingName}
+}
+
+func vmHotplugBackingName(volume *dbmodel.TenantServiceVolume) string {
+	if volume == nil {
+		return ""
+	}
+	return fmt.Sprintf("manual%d", volume.ID)
+}
+
+func (s *ServiceAction) hotunplugVMDataDisk(volume *dbmodel.TenantServiceVolume) error {
+	if s != nil && s.hotunplugVMDataDiskHook != nil {
+		return s.hotunplugVMDataDiskHook(volume)
+	}
+	if volume == nil {
+		return nil
+	}
+	if volume.VolumeName == "disk" || volume.VolumeType == dbmodel.ConfigFileVolumeType.String() {
+		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
+	}
+
+	service, err := s.getDBManager().TenantServiceDao().GetServiceByID(volume.ServiceID)
+	if err != nil || service == nil || !service.IsVM() {
+		return err
+	}
+	if resolveVMHotplugDeviceType(volume.VolumePath) != "disk" {
+		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
+	}
+
+	opts := buildVMHotplugRemoveVolumeOptions(vmHotplugBackingName(volume))
+	return s.performVMHotplugRemoveVolume(volume.ServiceID, opts)
+}
+
+func (s *ServiceAction) performVMHotplugAddVolume(serviceID string, opts *v1.AddVolumeOptions) error {
+	return s.retryVMHotplugVolumeRequest(serviceID, func(vm *v1.VirtualMachine) error {
+		if vm == nil || vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
+			return s.syncVirtualMachineSpecAfterResourceUpdate(serviceID)
+		}
+		return s.kubevirtClient.VirtualMachine(vm.Namespace).AddVolume(context.Background(), vm.Name, opts)
+	})
+}
+
+func (s *ServiceAction) performVMHotplugRemoveVolume(serviceID string, opts *v1.RemoveVolumeOptions) error {
+	return s.retryVMHotplugVolumeRequest(serviceID, func(vm *v1.VirtualMachine) error {
+		if vm == nil || vm.Status.PrintableStatus != v1.VirtualMachineStatusRunning {
+			return s.syncVirtualMachineSpecAfterResourceUpdate(serviceID)
+		}
+		return s.kubevirtClient.VirtualMachine(vm.Namespace).RemoveVolume(context.Background(), vm.Name, opts)
+	})
+}
+
+func (s *ServiceAction) retryVMHotplugVolumeRequest(serviceID string, request func(vm *v1.VirtualMachine) error) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		vm, err := s.getVirtualMachineByServiceID(serviceID)
+		if err != nil {
+			return err
+		}
+		return request(vm)
+	})
 }
 
 func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.TenantServiceVolume, backingName string) error {

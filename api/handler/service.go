@@ -103,6 +103,7 @@ type ServiceAction struct {
 	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
 	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
 	hotplugVMDataDiskHook                    func(tenantID string, volume *dbmodel.TenantServiceVolume) error
+	hotunplugVMDataDiskHook                  func(volume *dbmodel.TenantServiceVolume) error
 }
 
 type dCfg struct {
@@ -1981,6 +1982,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
 		}
 	case "delete":
+		var deletedVolume *dbmodel.TenantServiceVolume
 		// begin transaction
 		tx := dbm.Begin()
 		defer func() {
@@ -1995,6 +1997,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("find volume", err)
 			}
+			deletedVolume = volume
 
 			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
@@ -2030,6 +2033,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
+		}
+		if deletedVolume != nil {
+			if err := s.hotunplugVMDataDisk(deletedVolume); err != nil {
+				return util.CreateAPIHandleError(500, fmt.Errorf("hotunplug vm data disk: %w", err))
+			}
+			return nil
 		}
 		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))

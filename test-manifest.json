@@ -6237,6 +6237,47 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-hotplug.add-volume-conflict-retry",
+      "title": "Retry VM hotplug add volume on conflict",
+      "title_zh": "\u70ed\u6dfb\u52a0\u865a\u62df\u673a\u78c1\u76d8\u65f6\u5728\u51b2\u7a81\u540e\u91cd\u8bd5",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.hotplugVMDataDisk",
+      "code_paths": [
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestPerformVMHotplugAddVolumeRetriesConflicts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-hotplug.remove-volume-running-vm",
+      "title": "Hot-unplug running VM data disks on delete",
+      "title_zh": "\u5220\u9664\u5b58\u50a8\u65f6\u70ed\u79fb\u9664\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u6570\u636e\u78c1\u76d8",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.VolumnVar",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestHotunplugVMDataDiskRemovesVolumeFromRunningVM"
+        },
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestVolumnVarDeleteHotunplugsRunningVMDataDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.capability-requires-installer-media-removal",
       "title": "Block live update capability until installer media is removed",
       "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
