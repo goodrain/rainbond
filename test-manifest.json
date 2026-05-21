@@ -3104,6 +3104,58 @@
       "status": "active"
     },
     {
+      "id": "rainbond.manual-pvc-upgrade-skips-unchanged-storage",
+      "title": "Skip manual PVC updates when storage request is unchanged",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/f/function.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.manual-pvc-upgrade-preserves-existing-metadata",
+      "title": "Preserve existing manual PVC metadata during app upgrade",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/f/function.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
+      "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go",
+        "worker/appm/f/function.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-surfaces-update-errors",
       "title": "Surface manual PVC update errors during app upgrade",
       "title_zh": "\u5e94\u7528\u5347\u7ea7\u65f6\u8fd4\u56de\u624b\u52a8 PVC \u66f4\u65b0\u9519\u8bef",

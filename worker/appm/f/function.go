@@ -510,9 +510,22 @@ func UpgradeClaims(clientset kubernetes.Interface, as *v1.AppService, old, new [
 	}
 	for _, n := range new {
 		if o, ok := oldMap[n.Name]; ok {
-			n.UID = o.UID
-			n.ResourceVersion = o.ResourceVersion
-			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Get(context.Background(), n.Name, metav1.GetOptions{})
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error getting claim: %+v: err: %v", n, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			if n.Spec.Resources.Requests == nil || apiequality.Semantic.DeepEqual(claim.Spec.Resources.Requests, n.Spec.Resources.Requests) {
+				as.SetClaim(claim)
+				delete(oldMap, o.Name)
+				logrus.Debugf("ServiceID: %s; skip unchanged claim: %s", as.ServiceID, claim.Name)
+				continue
+			}
+			updateClaim := claim.DeepCopy()
+			updateClaim.Spec.Resources.Requests = n.Spec.Resources.Requests.DeepCopy()
+			claim, err = clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(context.Background(), updateClaim, metav1.UpdateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error updating claim: %+v: err: %v", claim, err), err); err != nil {
 					return err
