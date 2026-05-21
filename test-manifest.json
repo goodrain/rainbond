@@ -6571,7 +6571,8 @@
       "interface": "builder/exector.BuildFromVM",
       "code_paths": [
         "api/handler/share/service_share.go",
-        "builder/exector/build_from_vm.go"
+        "builder/exector/build_from_vm.go",
+        "builder/sourceutil/remote_http_client.go"
       ],
       "tests": [
         {
@@ -6585,6 +6586,10 @@
         {
           "path": "builder/exector/share_image_test.go",
           "selector": "TestNewImageShareItemCapturesVMImageSource"
+        },
+        {
+          "path": "builder/sourceutil/remote_http_client_test.go",
+          "selector": "TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService"
         }
       ],
       "test_type": "regression",
