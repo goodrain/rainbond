@@ -3972,8 +3972,8 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `builder/exector.BuildFromVM`
-- 代码路径: `builder/exector/build_from_vm.go`
-- 测试路径: `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`
+- 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 

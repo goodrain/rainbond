@@ -6570,9 +6570,14 @@
       "interface_type": "workflow",
       "interface": "builder/exector.BuildFromVM",
       "code_paths": [
+        "api/handler/share/service_share.go",
         "builder/exector/build_from_vm.go"
       ],
       "tests": [
+        {
+          "path": "api/handler/share/service_share_test.go",
+          "selector": "TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation"
+        },
         {
           "path": "builder/exector/build_from_vm_test.go",
           "selector": "TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport"

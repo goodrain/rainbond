@@ -22,8 +22,10 @@ import (
 	"fmt"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
@@ -84,7 +86,11 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 		task.TaskBody = info
 	} else {
 		shareImageInfo := ss.Body.ImageInfo
-		shareImageName, err = version.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace, ss.Body.AppVersion)
+		if shareImageInfo.VMImageSource != "" {
+			shareImageName = createVMShareImageName(serviceID, version.BuildVersion, shareImageInfo.HubURL, shareImageInfo.Namespace)
+		} else {
+			shareImageName, err = version.CreateShareImage(shareImageInfo.HubURL, shareImageInfo.Namespace, ss.Body.AppVersion)
+		}
 		if err != nil {
 			return nil, util.CreateAPIHandleError(500, err)
 		}
@@ -115,6 +121,18 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 		return nil, util.CreateAPIHandleError(502, err)
 	}
 	return &APIResult{EventID: ss.Body.EventID, ShareID: shareID, ImageName: shareImageName, SlugPath: slugPath}, nil
+}
+
+func createVMShareImageName(serviceID, buildVersion, hubURL, namespace string) string {
+	image := dbmodel.ParseImage(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, buildVersion))
+	if hubURL != "" {
+		image.Host = hubURL
+	}
+	if namespace != "" {
+		image.Namespace = namespace
+	}
+	image.Name = fmt.Sprintf("%s:%s", serviceID, buildVersion)
+	return image.String()
 }
 
 // ShareResult 分享应用结果查询
