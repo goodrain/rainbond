@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	v1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
@@ -53,6 +54,26 @@ func TestResolveVMHotplugAccessModesDefaultsToReadWriteMany(t *testing.T) {
 
 	if !reflect.DeepEqual(modes, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}) {
 		t.Fatalf("expected empty access mode to default to ReadWriteMany, got %#v", modes)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.data-volume-capacity-gi
+func TestBuildVMHotplugDataVolumeObjectUsesGiCapacity(t *testing.T) {
+	obj := buildVMHotplugDataVolumeObject("demo-ns", "tenant-1", &dbmodel.TenantServiceVolume{
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 10,
+		AccessMode:     "RWX",
+	}, "manual99")
+
+	storage, found, err := unstructured.NestedString(obj.Object, "spec", "storage", "resources", "requests", "storage")
+	if err != nil || !found {
+		t.Fatalf("expected DataVolume storage request, found=%t err=%v obj=%#v", found, err, obj.Object)
+	}
+	if storage != "10Gi" {
+		t.Fatalf("expected 10GB vm hotplug disk to request 10Gi, got %q", storage)
 	}
 }
 

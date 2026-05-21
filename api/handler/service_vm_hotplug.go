@@ -148,14 +148,20 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 		return nil
 	}
 
-	storageQty := resource.NewScaledQuantity(volume.VolumeCapacity, resource.Mega)
+	obj := buildVMHotplugDataVolumeObject(namespace, tenantID, volume, backingName)
+	_, err := resourceIf.Create(context.Background(), obj, metav1.CreateOptions{})
+	return err
+}
+
+func buildVMHotplugDataVolumeObject(namespace, tenantID string, volume *dbmodel.TenantServiceVolume, backingName string) *unstructured.Unstructured {
+	storageQty := resource.MustParse(fmt.Sprintf("%dGi", volume.VolumeCapacity))
 	accessModes := resolveVMHotplugAccessModes(volume)
 	accessModeValues := make([]any, 0, len(accessModes))
 	for _, mode := range accessModes {
 		accessModeValues = append(accessModeValues, string(mode))
 	}
 
-	obj := &unstructured.Unstructured{
+	return &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": "cdi.kubevirt.io/v1beta1",
 			"kind":       "DataVolume",
@@ -189,8 +195,6 @@ func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.Tenan
 			},
 		},
 	}
-	_, err := resourceIf.Create(context.Background(), obj, metav1.CreateOptions{})
-	return err
 }
 
 func resolveVMHotplugAccessModes(volume *dbmodel.TenantServiceVolume) []corev1.PersistentVolumeAccessMode {

@@ -343,6 +343,7 @@
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
 | rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
+| rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
 | rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
@@ -3813,6 +3814,16 @@
 - 业务入口: `api/handler.ServiceAction.hotplugVMDataDisk`
 - 代码路径: `api/handler/service_vm_hotplug.go`
 - 测试路径: `api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts`
+
+### 使用 Gi 容量创建虚拟机热插数据卷
+
+- Capability ID: `rainbond.vm-hotplug.data-volume-capacity-gi`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.buildVMHotplugDataVolumeObject`
+- 代码路径: `api/handler/service_vm_hotplug.go`
+- 测试路径: `api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity`
 
 ### 删除存储时热移除运行中虚拟机的数据磁盘
 

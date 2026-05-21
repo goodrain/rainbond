@@ -6273,6 +6273,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-hotplug.data-volume-capacity-gi",
+      "title": "Create VM hotplug DataVolumes with Gi capacity",
+      "title_zh": "\u4f7f\u7528 Gi \u5bb9\u91cf\u521b\u5efa\u865a\u62df\u673a\u70ed\u63d2\u6570\u636e\u5377",
+      "interface_type": "package_function",
+      "interface": "api/handler.buildVMHotplugDataVolumeObject",
+      "code_paths": [
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestBuildVMHotplugDataVolumeObjectUsesGiCapacity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-hotplug.remove-volume-running-vm",
       "title": "Hot-unplug running VM data disks on delete",
       "title_zh": "\u5220\u9664\u5b58\u50a8\u65f6\u70ed\u79fb\u9664\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u6570\u636e\u78c1\u76d8",
