@@ -42,6 +42,8 @@ type ServiceHandler interface {
 	RestartVM(ctx context.Context, s *apimodel.StartStopStruct, deployVersion string) error
 	StopVM(ctx context.Context, serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
+	CreateVMExport(serviceID string, req *VMExportRequest) (*VMExportStatus, error)
+	GetVMExport(serviceID, exportName string) (*VMExportStatus, error)
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
 	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error

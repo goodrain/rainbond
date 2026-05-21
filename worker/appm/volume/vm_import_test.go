@@ -5,8 +5,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
+// capability_id: rainbond.vm-import.registry-datavolume
 func TestParseVMDiskImportConfigs(t *testing.T) {
 	raw := `{"data-1":{"image_url":"https://download/data-1.qcow2","format":"qcow2"}}`
 
@@ -27,6 +29,26 @@ func TestParseVMDiskImportConfigs(t *testing.T) {
 	}
 	if cfg.ImageURL != "https://download/data-1.qcow2" {
 		t.Fatalf("unexpected image url: %q", cfg.ImageURL)
+	}
+	if cfg.SourceType != "http" {
+		t.Fatalf("expected source type http, got %q", cfg.SourceType)
+	}
+}
+
+func TestParseVMDiskImportConfigsInfersRegistrySourceType(t *testing.T) {
+	raw := `{"disk":{"image_url":"docker://registry.example.com/team/windows-root:v1","format":"qcow2"}}`
+
+	configs, err := parseVMDiskImportConfigs(raw)
+	if err != nil {
+		t.Fatalf("expected imports to parse: %v", err)
+	}
+
+	cfg, ok := configs["disk"]
+	if !ok {
+		t.Fatalf("expected disk import config")
+	}
+	if cfg.SourceType != "registry" {
+		t.Fatalf("expected source type registry, got %q", cfg.SourceType)
 	}
 }
 
@@ -71,6 +93,72 @@ func TestBuildVMDiskImportDataVolumeTemplate(t *testing.T) {
 	}
 	if *template.Spec.Storage.StorageClassName != "local-path" {
 		t.Fatalf("unexpected storage class: %q", *template.Spec.Storage.StorageClassName)
+	}
+}
+
+func TestBuildVMRegistryImportDataVolumeTemplate(t *testing.T) {
+	storageClassName := "nfs-storage"
+	volumeMode := corev1.PersistentVolumeFilesystem
+	claim := &corev1.PersistentVolumeClaim{
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			StorageClassName: &storageClassName,
+			VolumeMode:       &volumeMode,
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("80Gi"),
+				},
+			},
+		},
+	}
+	claim.Name = "manual-root"
+
+	template := buildVMDiskImportDataVolumeTemplate(
+		claim,
+		map[string]string{"service_id": "svc-vm"},
+		map[string]string{"volume_name": "disk"},
+		vmDiskImportConfig{
+			VolumeName: "disk",
+			ImageURL:   "docker://registry.example.com/team/windows-root:v1",
+			SourceType: "registry",
+			Format:     "qcow2",
+		},
+	)
+
+	if template.Spec.Source == nil || template.Spec.Source.Registry == nil {
+		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
+	}
+	if template.Spec.Source.Registry.URL == nil || *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
+		t.Fatalf("unexpected registry import url: %#v", template.Spec.Source.Registry.URL)
+	}
+	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullPod {
+		t.Fatalf("expected registry pull method pod, got %#v", template.Spec.Source.Registry.PullMethod)
+	}
+}
+
+func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *testing.T) {
+	storageClassName := "nfs-storage"
+	claim := &corev1.PersistentVolumeClaim{}
+	claim.Name = "manual-root"
+	claim.Spec.StorageClassName = &storageClassName
+
+	template := buildVMDiskImportDataVolumeTemplate(
+		claim,
+		map[string]string{"service_id": "svc-vm"},
+		map[string]string{"volume_name": "disk"},
+		vmDiskImportConfig{
+			VolumeName: "disk",
+			ImageURL:   "registry.example.com/team/windows-root:v1",
+			SourceType: "registry",
+			Format:     "qcow2",
+		},
+	)
+
+	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
+		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
+	}
+	if *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
+		t.Fatalf("expected docker scheme to be added, got %q", *template.Spec.Source.Registry.URL)
 	}
 }
 

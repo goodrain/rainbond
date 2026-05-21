@@ -498,6 +498,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// component start
 	r.Post("/pause", middleware.WrapEL(controller.GetManager().PauseService, dbmodel.TargetTypeService, "pause-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE, true))
+	r.Post("/vm-exports", middleware.WrapEL(controller.GetManager().CreateVMExport, dbmodel.TargetTypeService, "export-vm", dbmodel.SYNEVENTTYPE, true))
+	r.Get("/vm-exports/{name}", controller.GetManager().GetVMExport)
 	r.Post("/vm-snapshots", middleware.WrapEL(controller.GetManager().CreateVMSnapshot, dbmodel.TargetTypeService, "snapshot-vm", dbmodel.SYNEVENTTYPE, true))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE, true))
 	// component stop event set to synchronous event, not wait.

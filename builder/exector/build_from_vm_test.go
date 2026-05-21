@@ -5,6 +5,7 @@ import (
 )
 
 // capability_id: rainbond.vm-run.build-media-paths
+// capability_id: rainbond.vm-publish.qcow2-image-build
 func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -53,5 +54,37 @@ func TestRenderVMDockerfileUsesDedicatedTemplatesPerMedia(t *testing.T) {
 	}
 	if diskDockerfile != "FROM scratch\nADD --chown=107:107 rootdisk.qcow2 /disk/\n" {
 		t.Fatalf("unexpected disk dockerfile: %q", diskDockerfile)
+	}
+}
+
+func TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport(t *testing.T) {
+	dockerfile, err := renderVMDockerfile("disk.img.gz")
+	if err != nil {
+		t.Fatalf("render gzip raw dockerfile: %v", err)
+	}
+	expected := "FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY disk.img.gz /work/source.img.gz\nRUN gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
+	if dockerfile != expected {
+		t.Fatalf("unexpected gzip raw dockerfile: %q", dockerfile)
+	}
+}
+
+func TestRenderVMDockerfileUsesQCOW2ConversionForRawDisk(t *testing.T) {
+	dockerfile, err := renderVMDockerfile("rootdisk.img")
+	if err != nil {
+		t.Fatalf("render raw disk dockerfile: %v", err)
+	}
+	expected := "FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY rootdisk.img /work/source.img\nRUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
+	if dockerfile != expected {
+		t.Fatalf("unexpected raw disk dockerfile: %q", dockerfile)
+	}
+}
+
+func TestVMBuildItemLocalImageNameUsesLocalRegistryPrefix(t *testing.T) {
+	item := &VMBuildItem{Image: "tenant-ns:windows-root"}
+
+	got := item.localImageName()
+
+	if got != "goodrain.me/tenant-ns:windows-root" {
+		t.Fatalf("unexpected local image name: %q", got)
 	}
 }

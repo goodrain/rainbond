@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/builder/sourceutil"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
@@ -20,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type vmBuildMedia string
@@ -29,6 +31,16 @@ const (
 	vmBuildMediaDisk vmBuildMedia = "disk"
 )
 
+type vmDiskBuildStrategy string
+
+const (
+	vmDiskBuildStrategyDirect         vmDiskBuildStrategy = "direct"
+	vmDiskBuildStrategyConvertRaw     vmDiskBuildStrategy = "convert-raw"
+	vmDiskBuildStrategyConvertRawGzip vmDiskBuildStrategy = "convert-raw-gzip"
+)
+
+const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
+
 var vmISODockerfileTmpl = `
 FROM scratch
 COPY --chown=107:107 ${VM_PATH} /disk/
@@ -37,6 +49,24 @@ COPY --chown=107:107 ${VM_PATH} /disk/
 var vmDiskDockerfileTmpl = `
 FROM scratch
 ADD --chown=107:107 ${VM_PATH} /disk/
+`
+
+var vmRawGzipToQCOW2DockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS convert
+WORKDIR /work
+COPY ${VM_PATH} /work/source.img.gz
+RUN gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz
+FROM scratch
+COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
+`
+
+var vmRawToQCOW2DockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS convert
+WORKDIR /work
+COPY ${VM_PATH} /work/source.img
+RUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img
+FROM scratch
+COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 `
 
 // VMBuildItem -
@@ -102,7 +132,7 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 	if err != nil {
 		return err
 	}
-	imageName := fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, v.Image)
+	imageName := v.localImageName()
 	err = sources.ImageBuild(v.Arch, sourcePath, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), v.ServiceID, v.DeployVersion, v.Logger, "vm-build", imageName, v.BuildKitImage, v.BuildKitArgs, v.BuildKitCache, v.kubeClient)
 	if err != nil {
 		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -110,10 +140,45 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		return err
 	}
 	v.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
+	if err := v.storeVersionInfo(imageName); err != nil {
+		logrus.Errorf("storage vm version info error: %s", err.Error())
+		return err
+	}
 	if err := v.ImageClient.ImageRemove(imageName); err != nil {
 		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
 	}
 	return nil
+}
+
+func (v *VMBuildItem) localImageName() string {
+	return fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, v.Image)
+}
+
+func (v *VMBuildItem) storeVersionInfo(imageName string) error {
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(v.DeployVersion, v.ServiceID)
+	if err != nil {
+		return err
+	}
+	version.DeliveredType = "image"
+	version.DeliveredPath = imageName
+	if version.ImageName == "" {
+		version.ImageName = v.Image
+	}
+	version.RepoURL = v.VMImageSource
+	version.FinalStatus = "success"
+	version.FinishTime = time.Now()
+	return db.GetManager().VersionInfoDao().UpdateModel(version)
+}
+
+func (v *VMBuildItem) UpdateVersionInfo(status string) error {
+	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(v.EventID)
+	if err != nil {
+		return err
+	}
+	version.FinalStatus = status
+	version.RepoURL = v.VMImageSource
+	version.FinishTime = time.Now()
+	return db.GetManager().VersionInfoDao().UpdateModel(version)
 }
 
 func renderVMDockerfile(fileName string) (string, error) {
@@ -122,15 +187,35 @@ func renderVMDockerfile(fileName string) (string, error) {
 		return "", err
 	}
 	envs := map[string]string{
-		"VM_PATH": path.Join("./", fileName),
+		"VM_PATH":         fileName,
+		"CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage),
 	}
 	switch media {
 	case vmBuildMediaISO:
 		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), nil
 	case vmBuildMediaDisk:
-		return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
+		switch resolveVMDiskBuildStrategy(fileName) {
+		case vmDiskBuildStrategyConvertRawGzip:
+			return strings.TrimPrefix(util.ParseVariable(vmRawGzipToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyConvertRaw:
+			return strings.TrimPrefix(util.ParseVariable(vmRawToQCOW2DockerfileTmpl, envs), "\n"), nil
+		default:
+			return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
+		}
 	default:
 		return "", fmt.Errorf("unsupported vm build media %q", media)
+	}
+}
+
+func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
+	name := strings.ToLower(strings.TrimSpace(fileName))
+	switch {
+	case strings.HasSuffix(name, ".img.gz"):
+		return vmDiskBuildStrategyConvertRawGzip
+	case strings.HasSuffix(name, ".img"):
+		return vmDiskBuildStrategyConvertRaw
+	default:
+		return vmDiskBuildStrategyDirect
 	}
 }
 

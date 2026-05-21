@@ -95,6 +95,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 			"tenant_name":   ss.TenantName,
 			"image_name":    shareImageName,
 			"share_id":      shareID,
+			"arch":          ss.Body.Arch,
 		}
 		if version != nil && version.DeliveredPath != "" {
 			info["local_image_name"] = version.DeliveredPath

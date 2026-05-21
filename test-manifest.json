@@ -6237,6 +6237,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-export.root-disk-url",
+      "title": "Create VMExport and expose root disk download URL",
+      "title_zh": "\u521b\u5efa VMExport \u5e76\u8fd4\u56de\u7cfb\u7edf\u76d8\u4e0b\u8f7d\u5730\u5740",
+      "interface_type": "handler_method",
+      "interface": "api/handler.VMExportHandler",
+      "code_paths": [
+        "api/handler/vm_export.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestCreateVMExport"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-hotplug.add-volume-conflict-retry",
       "title": "Retry VM hotplug add volume on conflict",
       "title_zh": "\u70ed\u6dfb\u52a0\u865a\u62df\u673a\u78c1\u76d8\u65f6\u5728\u51b2\u7a81\u540e\u91cd\u8bd5",
@@ -6272,6 +6290,24 @@
         {
           "path": "api/handler/service_vm_hotplug_test.go",
           "selector": "TestVolumnVarDeleteHotunplugsRunningVMDataDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-import.registry-datavolume",
+      "title": "Import VM root disk from registry DataVolume",
+      "title_zh": "\u901a\u8fc7 registry DataVolume \u5bfc\u5165\u865a\u62df\u673a\u7cfb\u7edf\u76d8",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.BuildVMDataVolumeTemplate",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplate"
         }
       ],
       "test_type": "regression",
@@ -6504,6 +6540,28 @@
         {
           "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-publish.qcow2-image-build",
+      "title": "Build VM publish image from exported disk as qcow2",
+      "title_zh": "\u5c06\u5bfc\u51fa\u7684\u865a\u62df\u673a\u78c1\u76d8\u6784\u5efa\u4e3a qcow2 \u53d1\u5e03\u955c\u50cf",
+      "interface_type": "workflow",
+      "interface": "builder/exector.BuildFromVM",
+      "code_paths": [
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport"
+        },
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestNewImageShareItemCapturesVMImageSource"
         }
       ],
       "test_type": "regression",

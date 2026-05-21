@@ -36,7 +36,7 @@ require (
 	github.com/golang/glog v1.2.5
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
-	github.com/goodrain/rainbond-oam v0.0.0-20260409060429-a00b9f800598
+	github.com/goodrain/rainbond-oam v0.0.0-20260521083744-80b3d3272e1e
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uitable v0.0.4 // indirect
@@ -113,6 +113,7 @@ require (
 	k8s.io/metrics v0.31.0
 	kubevirt.io/api v1.5.0
 	kubevirt.io/client-go v1.5.0
+	kubevirt.io/containerized-data-importer-api v1.60.3-0.20241105012228-50fbed985de9
 	sigs.k8s.io/gateway-api v1.1.0
 )
 
@@ -287,7 +288,6 @@ require (
 	k8s.io/helm v2.17.0+incompatible // indirect
 	k8s.io/kube-openapi v0.31.0 // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
-	kubevirt.io/containerized-data-importer-api v1.60.3-0.20241105012228-50fbed985de9 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90 // indirect
 	oras.land/oras-go v1.2.5 // indirect
 	sigs.k8s.io/kustomize/api v0.17.2 // indirect

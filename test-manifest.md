@@ -341,8 +341,10 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
+| rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
@@ -355,6 +357,7 @@
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
+| rainbond.vm-publish.qcow2-image-build | 将导出的虚拟机磁盘构建为 qcow2 发布镜像 | active | regression | builder/exector.BuildFromVM | builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -3791,6 +3794,16 @@
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
 
+### 创建 VMExport 并返回系统盘下载地址
+
+- Capability ID: `rainbond.vm-export.root-disk-url`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.VMExportHandler`
+- 代码路径: `api/handler/vm_export.go`
+- 测试路径: `api/handler/vm_export_test.go::TestCreateVMExport`
+
 ### 热添加虚拟机磁盘时在冲突后重试
 
 - Capability ID: `rainbond.vm-hotplug.add-volume-conflict-retry`
@@ -3810,6 +3823,16 @@
 - 业务入口: `api/handler.ServiceAction.VolumnVar`
 - 代码路径: `api/handler/service.go`, `api/handler/service_vm_hotplug.go`
 - 测试路径: `api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM`, `api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk`
+
+### 通过 registry DataVolume 导入虚拟机系统盘
+
+- Capability ID: `rainbond.vm-import.registry-datavolume`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.BuildVMDataVolumeTemplate`
+- 代码路径: `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate`
 
 ### 初始化安装光盘未删除时屏蔽热更新能力
 
@@ -3930,6 +3953,16 @@
 - 业务入口: `api/handler.ServiceAction.StartOrCreateVM`
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing`
+
+### 将导出的虚拟机磁盘构建为 qcow2 发布镜像
+
+- Capability ID: `rainbond.vm-publish.qcow2-image-build`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.BuildFromVM`
+- 代码路径: `builder/exector/build_from_vm.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 

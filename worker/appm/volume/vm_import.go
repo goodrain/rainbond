@@ -22,6 +22,7 @@ type vmDiskImportConfig struct {
 	SourceURI     string   `json:"source_uri"`
 	Format        string   `json:"format"`
 	Checksum      string   `json:"checksum"`
+	SourceType    string   `json:"source_type"`
 	CertConfigMap string   `json:"-"`
 	ExtraHeaders  []string `json:"-"`
 }
@@ -83,9 +84,36 @@ func normalizeVMDiskImportConfigs(configs map[string]vmDiskImportConfig) map[str
 		if cfg.DiskName == "" {
 			cfg.DiskName = volumeName
 		}
+		if cfg.SourceType == "" {
+			cfg.SourceType = inferVMDiskImportSourceType(cfg.ImageURL, cfg.SourceURI)
+		}
 		normalized[volumeName] = cfg
 	}
 	return normalized
+}
+
+func inferVMDiskImportSourceType(imageURL, sourceURI string) string {
+	for _, candidate := range []string{imageURL, sourceURI} {
+		value := strings.ToLower(strings.TrimSpace(candidate))
+		switch {
+		case strings.HasPrefix(value, "docker://"):
+			return "registry"
+		case strings.HasPrefix(value, "http://"), strings.HasPrefix(value, "https://"):
+			return "http"
+		}
+	}
+	return ""
+}
+
+func normalizeVMRegistryImportURL(imageURL string) string {
+	url := strings.TrimSpace(imageURL)
+	if url == "" {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(url), "docker://") {
+		return url
+	}
+	return "docker://" + url
 }
 
 func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, volumePath string,
@@ -93,12 +121,17 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 	serviceID := labels["service_id"]
 	if importConfig != nil {
 		template := buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, *importConfig)
+		mode := importConfig.SourceType
+		if mode == "" {
+			mode = "http-import"
+		}
 		logrus.Infof(
-			"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=http-import image_url=%s format=%s",
+			"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=%s image_url=%s format=%s",
 			serviceID,
 			claim.Name,
 			annotations["volume_name"],
 			volumePath,
+			mode,
 			importConfig.ImageURL,
 			importConfig.Format,
 		)
@@ -194,14 +227,32 @@ func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels,
 
 func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) kubevirtv1.DataVolumeTemplateSpec {
 	logrus.Infof(
-		"vm disk import template build: claim=%s service_id=%s volume_name=%s image_url=%s cert_configmap=%s extra_headers=%d",
+		"vm disk import template build: claim=%s service_id=%s volume_name=%s source_type=%s image_url=%s cert_configmap=%s extra_headers=%d",
 		claim.Name,
 		labels["service_id"],
 		annotations["volume_name"],
+		cfg.SourceType,
 		cfg.ImageURL,
 		cfg.CertConfigMap,
 		len(cfg.ExtraHeaders),
 	)
+	source := &cdiv1.DataVolumeSource{
+		HTTP: &cdiv1.DataVolumeSourceHTTP{
+			URL:           cfg.ImageURL,
+			CertConfigMap: cfg.CertConfigMap,
+			ExtraHeaders:  cfg.ExtraHeaders,
+		},
+	}
+	if cfg.SourceType == "registry" {
+		url := normalizeVMRegistryImportURL(cfg.ImageURL)
+		pullMethod := cdiv1.RegistryPullPod
+		source = &cdiv1.DataVolumeSource{
+			Registry: &cdiv1.DataVolumeSourceRegistry{
+				URL:        &url,
+				PullMethod: &pullMethod,
+			},
+		}
+	}
 	return kubevirtv1.DataVolumeTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        claim.Name,
@@ -209,13 +260,7 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			Annotations: annotations,
 		},
 		Spec: cdiv1.DataVolumeSpec{
-			Source: &cdiv1.DataVolumeSource{
-				HTTP: &cdiv1.DataVolumeSourceHTTP{
-					URL:           cfg.ImageURL,
-					CertConfigMap: cfg.CertConfigMap,
-					ExtraHeaders:  cfg.ExtraHeaders,
-				},
-			},
+			Source: source,
 			Storage: &cdiv1.StorageSpec{
 				AccessModes:      claim.Spec.AccessModes,
 				Resources:        claim.Spec.Resources,

@@ -547,6 +547,9 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 		if err != nil {
 			logrus.Errorf("build from vm error: %v", err)
 			v.Logger.Error(err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			if updateErr := v.UpdateVersionInfo("failure"); updateErr != nil {
+				logrus.Debugf("update vm version info error: %s", updateErr.Error())
+			}
 			return
 		}
 	}
@@ -758,7 +761,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 
 // imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
-	i, err := NewImageShareItem(task.TaskBody, e.imageClient)
+	i, err := NewImageShareItem(task.TaskBody, e.imageClient, e.KubeClient, e.BuildKitImage, e.BuildKitArgs, e.BuildKitCache)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})

@@ -1658,15 +1658,17 @@ type ServiceShare struct {
 		ServiceKey    string `json:"service_key" validate:"service_key|required"`
 		AppVersion    string `json:"app_version" validate:"app_version|required"`
 		DeployVersion string `json:"deploy_version,omitempty"`
+		Arch          string `json:"arch,omitempty"`
 		EventID       string `json:"event_id"`
 		ShareUser     string `json:"share_user"`
 		ShareScope    string `json:"share_scope"`
 		ImageInfo     struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty" validate:"is_trust"`
+			HubURL        string `json:"hub_url"`
+			HubUser       string `json:"hub_user"`
+			HubPassword   string `json:"hub_password"`
+			Namespace     string `json:"namespace"`
+			IsTrust       bool   `json:"is_trust,omitempty" validate:"is_trust"`
+			VMImageSource string `json:"vm_image_source,omitempty"`
 		} `json:"image_info,omitempty"`
 		SlugInfo struct {
 			Namespace   string `json:"namespace"`
