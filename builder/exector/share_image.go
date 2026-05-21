@@ -21,7 +21,6 @@ package exector
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/db"
 
 	"github.com/goodrain/rainbond/builder/sources"
@@ -94,6 +93,7 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 	if i.ShareInfo.ImageInfo.VMImageSource == "" {
 		return nil
 	}
+	buildVersion := resolveVMLocalBuildVersion(i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
 	localBuildImage := resolveVMLocalBuildImage(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
 	buildItem := &VMBuildItem{
 		Logger:        i.Logger,
@@ -101,7 +101,7 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 		VMImageSource: i.ShareInfo.ImageInfo.VMImageSource,
 		ImageClient:   i.ImageClient,
 		ServiceID:     i.ServiceID,
-		DeployVersion: resolveVMLocalBuildVersion(i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion),
+		DeployVersion: buildVersion,
 		Image:         localBuildImage,
 		BuildKitImage: i.BuildKitImage,
 		BuildKitArgs:  i.BuildKitArgs,
@@ -114,7 +114,7 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 	if err := buildItem.RunVMBuild(); err != nil {
 		return err
 	}
-	i.LocalImageName = build.CreateImageName(i.ServiceID, resolveVMLocalBuildVersion(i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion))
+	i.LocalImageName = resolveVMShareLocalImageName(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
 	return nil
 }
 
@@ -127,6 +127,10 @@ func resolveVMLocalBuildVersion(deployVersion, fallback string) string {
 
 func resolveVMLocalBuildImage(serviceID, deployVersion, fallback string) string {
 	return fmt.Sprintf("%s:%s", serviceID, resolveVMLocalBuildVersion(deployVersion, fallback))
+}
+
+func resolveVMShareLocalImageName(serviceID, deployVersion, fallback string) string {
+	return fmt.Sprintf("%s/%s", builder.REGISTRYDOMAIN, resolveVMLocalBuildImage(serviceID, deployVersion, fallback))
 }
 
 // ShareService ShareService

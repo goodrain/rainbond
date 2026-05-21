@@ -742,10 +742,10 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
 				if n < 1 {
-					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					MetricErrorTaskNum++
-					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
 			} else {
@@ -781,10 +781,10 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 		if err != nil {
 			logrus.Errorf("image share error: %s", err.Error())
 			if n < 1 {
-				i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+				i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
 				MetricErrorTaskNum++
-				i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+				i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 				status = "failure"
 			}
 		} else {

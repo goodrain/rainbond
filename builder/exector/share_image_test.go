@@ -1,6 +1,11 @@
 package exector
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/goodrain/rainbond/builder"
+)
 
 // capability_id: rainbond.vm-publish.qcow2-image-build
 func TestNewImageShareItemCapturesVMImageSource(t *testing.T) {
@@ -49,5 +54,13 @@ func TestResolveVMLocalBuildImageFallsBackToAppVersion(t *testing.T) {
 	got := resolveVMLocalBuildImage("svc-vm", "", "1.0.0")
 	if got != "svc-vm:1.0.0" {
 		t.Fatalf("expected fallback app version, got %q", got)
+	}
+}
+
+func TestResolveVMShareLocalImageNameMatchesVMBuildOutput(t *testing.T) {
+	got := resolveVMShareLocalImageName("svc-vm", "20260521230400", "1.0.0")
+	want := fmt.Sprintf("%s/svc-vm:20260521230400", builder.REGISTRYDOMAIN)
+	if got != want {
+		t.Fatalf("expected vm share to pull the image produced by vm build, got %q", got)
 	}
 }
