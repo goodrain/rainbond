@@ -7,6 +7,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,90 +49,116 @@ func (s *ServiceAction) CreateVMExport(serviceID string, req *VMExportRequest) (
 	if req == nil || strings.TrimSpace(req.Name) == "" {
 		return nil, fmt.Errorf("export name is required")
 	}
+	exportName := strings.TrimSpace(req.Name)
+	logrus.Infof("[vm-export] create request: service_id=%s export_name=%s", serviceID, exportName)
 	if s == nil || s.kubevirtClient == nil {
+		logrus.Errorf("[vm-export] create failed before lookup: service_id=%s export_name=%s error=kubevirt client is not initialized", serviceID, exportName)
 		return nil, fmt.Errorf("kubevirt client is not initialized")
 	}
 	dynamicClient := vmExportDynamicClient()
 	if dynamicClient == nil {
+		logrus.Errorf("[vm-export] create failed before lookup: service_id=%s export_name=%s error=dynamic client is not initialized", serviceID, exportName)
 		return nil, fmt.Errorf("dynamic client is not initialized")
 	}
 	if s.kubeClient == nil {
+		logrus.Errorf("[vm-export] create failed before lookup: service_id=%s export_name=%s error=kube client is not initialized", serviceID, exportName)
 		return nil, fmt.Errorf("kube client is not initialized")
 	}
 	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "service_id=" + serviceID,
 	})
 	if err != nil {
+		logrus.Errorf("[vm-export] list vm failed: service_id=%s export_name=%s error=%v", serviceID, exportName, err)
 		return nil, err
 	}
 	if len(vms.Items) == 0 {
+		logrus.Warnf("[vm-export] vm not found: service_id=%s export_name=%s", serviceID, exportName)
 		return nil, fmt.Errorf("service id is %v vm is not exist", serviceID)
 	}
 	vm := &vms.Items[0]
+	logrus.Infof("[vm-export] vm resolved: service_id=%s export_name=%s vm_namespace=%s vm_name=%s", serviceID, exportName, vm.Namespace, vm.Name)
 	sourcePVC, err := resolveVMRootPVC(vm)
 	if err != nil {
+		logrus.Errorf("[vm-export] resolve root pvc failed: service_id=%s export_name=%s vm_namespace=%s vm_name=%s error=%v", serviceID, exportName, vm.Namespace, vm.Name, err)
 		return nil, err
 	}
-	tokenSecretRef := strings.TrimSpace(req.Name) + "-token"
+	tokenSecretRef := exportName + "-token"
+	logrus.Infof("[vm-export] root pvc resolved: service_id=%s export_name=%s source_pvc=%s token_secret=%s", serviceID, exportName, sourcePVC, tokenSecretRef)
 	if err := ensureVMExportTokenSecret(s.kubeClient, vm.Namespace, tokenSecretRef); err != nil {
+		logrus.Errorf("[vm-export] ensure token secret failed: service_id=%s export_name=%s namespace=%s secret=%s error=%v", serviceID, exportName, vm.Namespace, tokenSecretRef, err)
 		return nil, err
 	}
 	resourceIf := dynamicClient.Resource(vmExportGVR).Namespace(vm.Namespace)
-	_ = resourceIf.Delete(context.Background(), strings.TrimSpace(req.Name), metav1.DeleteOptions{})
-	obj := buildVMExport(vm.Namespace, strings.TrimSpace(req.Name), strings.TrimSpace(req.Description), serviceID, sourcePVC, tokenSecretRef)
+	_ = resourceIf.Delete(context.Background(), exportName, metav1.DeleteOptions{})
+	obj := buildVMExport(vm.Namespace, exportName, strings.TrimSpace(req.Description), serviceID, sourcePVC, tokenSecretRef)
+	logrus.Infof("[vm-export] creating VirtualMachineExport: service_id=%s export_name=%s namespace=%s source_pvc=%s", serviceID, exportName, vm.Namespace, sourcePVC)
 	created, err := resourceIf.Create(context.Background(), obj, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
+			logrus.Errorf("[vm-export] create VirtualMachineExport failed: service_id=%s export_name=%s namespace=%s error=%v", serviceID, exportName, vm.Namespace, err)
 			return nil, err
 		}
-		created, err = resourceIf.Get(context.Background(), strings.TrimSpace(req.Name), metav1.GetOptions{})
+		logrus.Warnf("[vm-export] VirtualMachineExport already exists, reading existing object: service_id=%s export_name=%s namespace=%s", serviceID, exportName, vm.Namespace)
+		created, err = resourceIf.Get(context.Background(), exportName, metav1.GetOptions{})
 		if err != nil {
+			logrus.Errorf("[vm-export] get existing VirtualMachineExport failed: service_id=%s export_name=%s namespace=%s error=%v", serviceID, exportName, vm.Namespace, err)
 			return nil, err
 		}
 	}
-	return &VMExportStatus{
+	status := &VMExportStatus{
 		ExportName:     created.GetName(),
 		Namespace:      created.GetNamespace(),
 		SourcePVC:      sourcePVC,
 		TokenSecretRef: tokenSecretRef,
 		Phase:          nestedString(created.Object, "status", "phase"),
 		DownloadURL:    extractVMExportDownloadURL(created.Object),
-	}, nil
+	}
+	logrus.Infof("[vm-export] create response: service_id=%s export_name=%s namespace=%s phase=%s has_download_url=%t", serviceID, status.ExportName, status.Namespace, status.Phase, status.DownloadURL != "")
+	return status, nil
 }
 
 func (s *ServiceAction) GetVMExport(serviceID, exportName string) (*VMExportStatus, error) {
 	if strings.TrimSpace(exportName) == "" {
 		return nil, fmt.Errorf("export name is required")
 	}
+	exportName = strings.TrimSpace(exportName)
+	logrus.Infof("[vm-export] get request: service_id=%s export_name=%s", serviceID, exportName)
 	if s == nil || s.kubevirtClient == nil {
+		logrus.Errorf("[vm-export] get failed before lookup: service_id=%s export_name=%s error=kubevirt client is not initialized", serviceID, exportName)
 		return nil, fmt.Errorf("kubevirt client is not initialized")
 	}
 	dynamicClient := vmExportDynamicClient()
 	if dynamicClient == nil {
+		logrus.Errorf("[vm-export] get failed before lookup: service_id=%s export_name=%s error=dynamic client is not initialized", serviceID, exportName)
 		return nil, fmt.Errorf("dynamic client is not initialized")
 	}
 	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "service_id=" + serviceID,
 	})
 	if err != nil {
+		logrus.Errorf("[vm-export] list vm failed: service_id=%s export_name=%s error=%v", serviceID, exportName, err)
 		return nil, err
 	}
 	if len(vms.Items) == 0 {
+		logrus.Warnf("[vm-export] vm not found: service_id=%s export_name=%s", serviceID, exportName)
 		return nil, fmt.Errorf("service id is %v vm is not exist", serviceID)
 	}
 	vm := &vms.Items[0]
-	export, err := dynamicClient.Resource(vmExportGVR).Namespace(vm.Namespace).Get(context.Background(), strings.TrimSpace(exportName), metav1.GetOptions{})
+	export, err := dynamicClient.Resource(vmExportGVR).Namespace(vm.Namespace).Get(context.Background(), exportName, metav1.GetOptions{})
 	if err != nil {
+		logrus.Errorf("[vm-export] get VirtualMachineExport failed: service_id=%s export_name=%s namespace=%s error=%v", serviceID, exportName, vm.Namespace, err)
 		return nil, err
 	}
-	return &VMExportStatus{
+	status := &VMExportStatus{
 		ExportName:     export.GetName(),
 		Namespace:      export.GetNamespace(),
 		SourcePVC:      nestedString(export.Object, "spec", "source", "name"),
 		TokenSecretRef: nestedString(export.Object, "spec", "tokenSecretRef"),
 		Phase:          nestedString(export.Object, "status", "phase"),
 		DownloadURL:    extractVMExportDownloadURL(export.Object),
-	}, nil
+	}
+	logrus.Infof("[vm-export] get response: service_id=%s export_name=%s namespace=%s phase=%s has_download_url=%t", serviceID, status.ExportName, status.Namespace, status.Phase, status.DownloadURL != "")
+	return status, nil
 }
 
 func resolveVMRootPVC(vm *kubevirtv1.VirtualMachine) (string, error) {
