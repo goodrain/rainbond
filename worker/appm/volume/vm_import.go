@@ -1,6 +1,8 @@
 package volume
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -12,6 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
+)
+
+const (
+	vmDiskImportSourceTypeRegistry     = "registry"
+	vmDiskImportSourceTypeHTTPArtifact = "http-artifact"
+
+	VMArtifactImageAnnotation   = "rainbond.com/vm-artifact-image"
+	VMArtifactServiceAnnotation = "rainbond.com/vm-artifact-service"
+	VMArtifactPathAnnotation    = "rainbond.com/vm-artifact-path"
+
+	defaultVMArtifactPath = "disk.img.gz"
 )
 
 type vmDiskImportConfig struct {
@@ -97,7 +110,7 @@ func inferVMDiskImportSourceType(imageURL, sourceURI string) string {
 		value := strings.ToLower(strings.TrimSpace(candidate))
 		switch {
 		case strings.HasPrefix(value, "docker://"):
-			return "registry"
+			return vmDiskImportSourceTypeRegistry
 		case strings.HasPrefix(value, "http://"), strings.HasPrefix(value, "https://"):
 			return "http"
 		}
@@ -114,6 +127,59 @@ func normalizeVMRegistryImportURL(imageURL string) string {
 		return url
 	}
 	return "docker://" + url
+}
+
+func normalizeVMArtifactImageURL(imageURL string) string {
+	url := strings.TrimSpace(imageURL)
+	if strings.HasPrefix(strings.ToLower(url), "docker://") {
+		return strings.TrimSpace(url[len("docker://"):])
+	}
+	return url
+}
+
+func vmArtifactServiceName(claimName string) string {
+	name := sanitizeDNSLabel("vm-artifact-" + claimName)
+	if len(name) <= 63 {
+		return name
+	}
+	sum := sha1.Sum([]byte(name))
+	suffix := hex.EncodeToString(sum[:])[:8]
+	prefix := strings.Trim(name[:63-len(suffix)-1], "-")
+	if prefix == "" {
+		return suffix
+	}
+	return prefix + "-" + suffix
+}
+
+func sanitizeDNSLabel(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, item := range value {
+		isAllowed := (item >= 'a' && item <= 'z') || (item >= '0' && item <= '9')
+		if isAllowed {
+			builder.WriteRune(item)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	result := strings.Trim(builder.String(), "-")
+	if result == "" {
+		return "vm-artifact"
+	}
+	return result
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	output := make(map[string]string, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }
 
 func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, volumePath string,
@@ -243,7 +309,9 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			ExtraHeaders:  cfg.ExtraHeaders,
 		},
 	}
-	if cfg.SourceType == "registry" {
+	templateAnnotations := annotations
+	switch cfg.SourceType {
+	case vmDiskImportSourceTypeRegistry:
 		url := normalizeVMRegistryImportURL(cfg.ImageURL)
 		pullMethod := cdiv1.RegistryPullPod
 		source = &cdiv1.DataVolumeSource{
@@ -252,12 +320,24 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 				PullMethod: &pullMethod,
 			},
 		}
+	case vmDiskImportSourceTypeHTTPArtifact:
+		artifactImage := normalizeVMArtifactImageURL(cfg.ImageURL)
+		artifactService := vmArtifactServiceName(claim.Name)
+		templateAnnotations = cloneStringMap(annotations)
+		templateAnnotations[VMArtifactImageAnnotation] = artifactImage
+		templateAnnotations[VMArtifactServiceAnnotation] = artifactService
+		templateAnnotations[VMArtifactPathAnnotation] = defaultVMArtifactPath
+		source = &cdiv1.DataVolumeSource{
+			HTTP: &cdiv1.DataVolumeSourceHTTP{
+				URL: fmt.Sprintf("http://%s/%s", artifactService, defaultVMArtifactPath),
+			},
+		}
 	}
 	return kubevirtv1.DataVolumeTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        claim.Name,
 			Labels:      labels,
-			Annotations: annotations,
+			Annotations: templateAnnotations,
 		},
 		Spec: cdiv1.DataVolumeSpec{
 			Source: source,

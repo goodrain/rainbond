@@ -49,6 +49,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
 )
@@ -373,6 +374,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
 	if vm := as.GetVirtualMachine(); vm != nil {
 		vm.Spec.DataVolumeTemplates = vmDataVolumeTemplates
+		if manifests := buildVMArtifactImportManifests(as.GetNamespace(), vmDataVolumeTemplates); len(manifests) > 0 {
+			as.SetManifests(append(as.GetManifests(), manifests...))
+		}
 	}
 	return nil
 }
@@ -1397,6 +1401,125 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{
 		{Name: imagePullSecretName},
 	}
+}
+
+func buildVMArtifactImportManifests(namespace string, templates []kubevirtv1.DataVolumeTemplateSpec) []*unstructured.Unstructured {
+	var manifests []*unstructured.Unstructured
+	seen := make(map[string]struct{})
+	for _, template := range templates {
+		annotations := template.Annotations
+		image := strings.TrimSpace(annotations[volume.VMArtifactImageAnnotation])
+		serviceName := strings.TrimSpace(annotations[volume.VMArtifactServiceAnnotation])
+		if image == "" || serviceName == "" {
+			continue
+		}
+		if _, ok := seen[serviceName]; ok {
+			continue
+		}
+		seen[serviceName] = struct{}{}
+
+		labels := vmArtifactManifestLabels(template.Labels, serviceName)
+		selector := map[string]any{
+			volume.VMArtifactServiceAnnotation: serviceName,
+		}
+		manifests = append(manifests,
+			vmArtifactServiceManifest(namespace, serviceName, labels, selector),
+			vmArtifactDeploymentManifest(namespace, serviceName, image, labels, selector),
+		)
+	}
+	return manifests
+}
+
+func vmArtifactManifestLabels(base map[string]string, serviceName string) map[string]any {
+	labels := make(map[string]any, len(base)+2)
+	for key, value := range base {
+		labels[key] = value
+	}
+	labels["app"] = serviceName
+	labels[volume.VMArtifactServiceAnnotation] = serviceName
+	return labels
+}
+
+func vmArtifactServiceManifest(namespace, name string, labels, selector map[string]any) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Service",
+			"metadata": map[string]any{
+				"name":      name,
+				"namespace": namespace,
+				"labels":    labels,
+			},
+			"spec": map[string]any{
+				"type":     "ClusterIP",
+				"selector": selector,
+				"ports": []any{
+					map[string]any{
+						"name":       "http",
+						"port":       int64(80),
+						"targetPort": int64(80),
+						"protocol":   "TCP",
+					},
+				},
+			},
+		},
+	}
+}
+
+func vmArtifactDeploymentManifest(namespace, name, image string, labels, selector map[string]any) *unstructured.Unstructured {
+	podSpec := map[string]any{
+		"containers": []any{
+			map[string]any{
+				"name":            "artifact",
+				"image":           image,
+				"imagePullPolicy": "IfNotPresent",
+				"ports": []any{
+					map[string]any{
+						"name":          "http",
+						"containerPort": int64(80),
+						"protocol":      "TCP",
+					},
+				},
+			},
+		},
+	}
+	if imagePullSecrets := imagePullSecretsToAny(setImagePullSecrets()); len(imagePullSecrets) > 0 {
+		podSpec["imagePullSecrets"] = imagePullSecrets
+	}
+	return &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      name,
+				"namespace": namespace,
+				"labels":    labels,
+			},
+			"spec": map[string]any{
+				"replicas": int64(1),
+				"selector": map[string]any{
+					"matchLabels": selector,
+				},
+				"template": map[string]any{
+					"metadata": map[string]any{
+						"labels": labels,
+					},
+					"spec": podSpec,
+				},
+			},
+		},
+	}
+}
+
+func imagePullSecretsToAny(secrets []corev1.LocalObjectReference) []any {
+	result := make([]any, 0, len(secrets))
+	for _, secret := range secrets {
+		if secret.Name == "" {
+			continue
+		}
+		result = append(result, map[string]any{"name": secret.Name})
+	}
+	return result
 }
 
 func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error {

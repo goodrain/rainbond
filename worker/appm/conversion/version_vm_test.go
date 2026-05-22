@@ -5,6 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
@@ -440,5 +441,48 @@ func TestVMRootBlankDataVolumeNameReturnsRootBlankTemplate(t *testing.T) {
 
 	if got := vmRootBlankDataVolumeName(templates); got != "manual-root" {
 		t.Fatalf("expected blank root template manual-root, got %q", got)
+	}
+}
+
+func TestBuildVMArtifactImportManifestsCreatesServiceAndDeployment(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "manual-root",
+				Labels: map[string]string{
+					"service_id": "svc-vm",
+				},
+				Annotations: map[string]string{
+					"rainbond.com/vm-artifact-image":   "goodrain.me/team/windows-root:v1",
+					"rainbond.com/vm-artifact-service": "vm-artifact-manual-root",
+				},
+			},
+		},
+	}
+
+	manifests := buildVMArtifactImportManifests("default", templates)
+
+	if len(manifests) != 2 {
+		t.Fatalf("expected service and deployment manifests, got %d", len(manifests))
+	}
+	if manifests[0].GetKind() != "Service" || manifests[0].GetName() != "vm-artifact-manual-root" {
+		t.Fatalf("expected artifact service first, got %s/%s", manifests[0].GetKind(), manifests[0].GetName())
+	}
+	if manifests[0].GetNamespace() != "default" {
+		t.Fatalf("expected artifact service namespace default, got %q", manifests[0].GetNamespace())
+	}
+	if manifests[1].GetKind() != "Deployment" || manifests[1].GetName() != "vm-artifact-manual-root" {
+		t.Fatalf("expected artifact deployment second, got %s/%s", manifests[1].GetKind(), manifests[1].GetName())
+	}
+	containers, found, err := unstructured.NestedSlice(manifests[1].Object, "spec", "template", "spec", "containers")
+	if err != nil || !found || len(containers) != 1 {
+		t.Fatalf("expected one artifact container, found=%v err=%v containers=%#v", found, err, containers)
+	}
+	container, ok := containers[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("unexpected container payload: %#v", containers[0])
+	}
+	if container["image"] != "goodrain.me/team/windows-root:v1" {
+		t.Fatalf("expected artifact image, got %#v", container["image"])
 	}
 }
