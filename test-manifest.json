@@ -6732,6 +6732,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-template-import.status-building",
+      "title": "VM template import status is building",
+      "title_zh": "VM template import status is building",
+      "interface_type": "package_function",
+      "interface": "api/handler.resolveVMTransitionStatus",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMTransitionStatusReturnsBuildingForDataVolumeImport"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-volume-selected-storage-class",
       "title": "Preserve selected storage class for VM data volumes",
       "title_zh": "\u4e3a VM \u6570\u636e\u5377\u4fdd\u7559\u6240\u9009\u5b58\u50a8\u7c7b",

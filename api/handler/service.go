@@ -572,10 +572,29 @@ func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.Virt
 	return &vm, nil
 }
 
+func (s *ServiceAction) resolveVMServiceRuntimeStatus(serviceID string) (string, bool) {
+	if s == nil || (s.kubevirtClient == nil && s.getVirtualMachineByServiceIDHook == nil && s.getVirtualMachineInstanceByServiceIDHook == nil) {
+		return "", false
+	}
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, err)
+	}
+	vmi, err := s.getVirtualMachineInstanceByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
+	}
+	return resolveVMTransitionStatus(vm, vmi)
+}
+
 func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance) (string, bool) {
 	if vm != nil {
 		switch vm.Status.PrintableStatus {
-		case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting:
+		case v1.VirtualMachineStatusProvisioning:
+			return "building", true
+		case v1.VirtualMachineStatusDataVolumeError:
+			return "abnormal", true
+		case v1.VirtualMachineStatusStarting:
 			return "starting", true
 		case v1.VirtualMachineStatusRunning:
 			return "running", true
@@ -588,13 +607,13 @@ func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInst
 	if vmi == nil {
 		return "", false
 	}
-	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
-		return "starting", true
-	}
 	for _, condition := range vmi.Status.Conditions {
 		if condition.Type == v1.VirtualMachineInstanceDataVolumesReady && condition.Status == "False" {
-			return "starting", true
+			return "building", true
 		}
+	}
+	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
+		return "starting", true
 	}
 	switch vmi.Status.Phase {
 	case v1.Pending, v1.Scheduling, v1.Scheduled, v1.VmPhaseUnset:
@@ -2267,15 +2286,7 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 		sl.StatusCN = TransStatus(status)
 	}
 	if services.IsVM() {
-		vm, err := s.getVirtualMachineByServiceID(serviceID)
-		if err != nil {
-			logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, err)
-		}
-		vmi, err := s.getVirtualMachineInstanceByServiceID(serviceID)
-		if err != nil {
-			logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
-		}
-		if vmStatus, ok := resolveVMTransitionStatus(vm, vmi); ok {
+		if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
 			sl.CurStatus = vmStatus
 			sl.StatusCN = TransStatus(vmStatus)
 		}
@@ -2291,19 +2302,47 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 
 // GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
 func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) []map[string]interface{} {
+	var services []*dbmodel.TenantServices
 	if len(serviceIDs) == 0 {
-		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
-		for _, s := range services {
-			serviceIDs = append(serviceIDs, s.ServiceID)
+		tenantServices, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
+		services = tenantServices
+		for _, service := range tenantServices {
+			serviceIDs = append(serviceIDs, service.ServiceID)
 		}
+	} else {
+		tenantServices, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(serviceIDs)
+		if err != nil {
+			logrus.Warningf("get services by service ids failed: %v", err)
+		}
+		services = tenantServices
 	}
 	if len(serviceIDs) == 0 {
 		return []map[string]interface{}{}
 	}
-	statusList := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	statusList := map[string]string{}
+	if s.statusCli != nil {
+		statusList = s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	}
+	serviceMap := make(map[string]*dbmodel.TenantServices, len(services))
+	for _, service := range services {
+		serviceMap[service.ServiceID] = service
+	}
 	var info = make([]map[string]interface{}, 0)
-	for k, v := range statusList {
-		serviceInfo := map[string]interface{}{"service_id": k, "status": v, "status_cn": TransStatus(v), "used_mem": 0}
+	for _, serviceID := range serviceIDs {
+		status := statusList[serviceID]
+		service := serviceMap[serviceID]
+		if status == "" && service != nil {
+			status = service.CurStatus
+		}
+		if service != nil && service.IsVM() {
+			if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
+				status = vmStatus
+			}
+		}
+		if status == "" {
+			continue
+		}
+		serviceInfo := map[string]interface{}{"service_id": serviceID, "status": status, "status_cn": TransStatus(status), "used_mem": 0}
 		info = append(info, serviceInfo)
 	}
 	return info
@@ -3471,6 +3510,8 @@ func TransStatus(eStatus string) string {
 		return "运行异常"
 	case "upgrade":
 		return "升级中"
+	case "building":
+		return "构建中"
 	case "closed":
 		return "已关闭"
 	case "stopped":
