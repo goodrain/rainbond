@@ -15,7 +15,7 @@ import (
 )
 
 // capability_id: rainbond.vm-run.build-media-paths
-// capability_id: rainbond.vm-publish.qcow2-image-build
+// capability_id: rainbond.vm-publish.http-artifact-image-build
 func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -67,14 +67,17 @@ func TestRenderVMDockerfileUsesDedicatedTemplatesPerMedia(t *testing.T) {
 	}
 }
 
-func TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport(t *testing.T) {
+func TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport(t *testing.T) {
 	dockerfile, err := renderVMDockerfile("disk.img.gz")
 	if err != nil {
 		t.Fatalf("render gzip raw dockerfile: %v", err)
 	}
-	expected := "FROM quay.io/libpod/busybox:latest AS gzip\nFROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY --from=gzip /bin/busybox /usr/local/bin/busybox\nCOPY disk.img.gz /work/source.img.gz\nRUN /usr/local/bin/busybox gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
+	expected := "FROM nginx:1.25-alpine\nCOPY disk.img.gz /disk/disk.img.gz\nRUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\\n  listen 80;\\n  root /usr/share/nginx/html;\\n  location /disk.img.gz {\\n    add_header Content-Type application/gzip;\\n    try_files /disk.img.gz =404;\\n  }\\n}\\n' > /etc/nginx/conf.d/default.conf\n"
 	if dockerfile != expected {
 		t.Fatalf("unexpected gzip raw dockerfile: %q", dockerfile)
+	}
+	if strings.Contains(dockerfile, "qemu-img") || strings.Contains(dockerfile, "gzip -dc") {
+		t.Fatalf("gzip export artifact dockerfile must not convert disk data: %q", dockerfile)
 	}
 }
 

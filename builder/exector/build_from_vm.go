@@ -34,13 +34,13 @@ const (
 type vmDiskBuildStrategy string
 
 const (
-	vmDiskBuildStrategyDirect         vmDiskBuildStrategy = "direct"
-	vmDiskBuildStrategyConvertRaw     vmDiskBuildStrategy = "convert-raw"
-	vmDiskBuildStrategyConvertRawGzip vmDiskBuildStrategy = "convert-raw-gzip"
+	vmDiskBuildStrategyDirect       vmDiskBuildStrategy = "direct"
+	vmDiskBuildStrategyConvertRaw   vmDiskBuildStrategy = "convert-raw"
+	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
-const defaultVMGzipImage = "quay.io/libpod/busybox:latest"
+const defaultVMHTTPArtifactImage = "nginx:1.25-alpine"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
@@ -54,15 +54,10 @@ FROM scratch
 ADD --chown=107:107 ${VM_PATH} /disk/
 `
 
-var vmRawGzipToQCOW2DockerfileTmpl = `
-FROM ${GZIP_IMAGE} AS gzip
-FROM ${CONVERTER_IMAGE} AS convert
-WORKDIR /work
-COPY --from=gzip /bin/busybox /usr/local/bin/busybox
-COPY ${VM_PATH} /work/source.img.gz
-RUN /usr/local/bin/busybox gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz
-FROM scratch
-COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
+var vmHTTPArtifactDockerfileTmpl = `
+FROM ${ARTIFACT_IMAGE}
+COPY ${VM_PATH} /disk/disk.img.gz
+RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
 `
 
 var vmRawToQCOW2DockerfileTmpl = `
@@ -196,15 +191,15 @@ func renderVMDockerfile(fileName string) (string, error) {
 	envs := map[string]string{
 		"VM_PATH":         fileName,
 		"CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage),
-		"GZIP_IMAGE":      utils.GetenvDefault("VM_GZIP_IMAGE", defaultVMGzipImage),
+		"ARTIFACT_IMAGE":  utils.GetenvDefault("VM_HTTP_ARTIFACT_IMAGE", defaultVMHTTPArtifactImage),
 	}
 	switch media {
 	case vmBuildMediaISO:
 		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), nil
 	case vmBuildMediaDisk:
 		switch resolveVMDiskBuildStrategy(fileName) {
-		case vmDiskBuildStrategyConvertRawGzip:
-			return strings.TrimPrefix(util.ParseVariable(vmRawGzipToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyHTTPArtifact:
+			return strings.TrimPrefix(util.ParseVariable(vmHTTPArtifactDockerfileTmpl, envs), "\n"), nil
 		case vmDiskBuildStrategyConvertRaw:
 			return strings.TrimPrefix(util.ParseVariable(vmRawToQCOW2DockerfileTmpl, envs), "\n"), nil
 		default:
@@ -219,7 +214,7 @@ func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
 	name := strings.ToLower(strings.TrimSpace(fileName))
 	switch {
 	case strings.HasSuffix(name, ".img.gz"):
-		return vmDiskBuildStrategyConvertRawGzip
+		return vmDiskBuildStrategyHTTPArtifact
 	case strings.HasSuffix(name, ".img"):
 		return vmDiskBuildStrategyConvertRaw
 	default:

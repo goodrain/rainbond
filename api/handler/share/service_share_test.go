@@ -136,7 +136,7 @@ func TestServiceShareUsesRequestedDeployVersionForImageShare(t *testing.T) {
 	assert.Equal(t, "snapshot-deploy-version", versionDao.requestedVersion)
 }
 
-// capability_id: rainbond.vm-publish.qcow2-image-build
+// capability_id: rainbond.vm-publish.http-artifact-image-build
 func TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation(t *testing.T) {
 	service := &dbmodel.TenantServices{
 		ServiceID:     "service-id",

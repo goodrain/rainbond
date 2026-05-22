@@ -6590,9 +6590,9 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-publish.qcow2-image-build",
-      "title": "Build VM publish image from exported disk as qcow2",
-      "title_zh": "\u5c06\u5bfc\u51fa\u7684\u865a\u62df\u673a\u78c1\u76d8\u6784\u5efa\u4e3a qcow2 \u53d1\u5e03\u955c\u50cf",
+      "id": "rainbond.vm-publish.http-artifact-image-build",
+      "title": "Build VM publish image from exported disk as HTTP artifact",
+      "title_zh": "\u5c06\u5bfc\u51fa\u7684\u865a\u62df\u673a\u78c1\u76d8\u6784\u5efa\u4e3a HTTP \u5236\u54c1\u955c\u50cf",
       "interface_type": "workflow",
       "interface": "builder/exector.BuildFromVM",
       "code_paths": [
@@ -6607,7 +6607,7 @@
         },
         {
           "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport"
+          "selector": "TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport"
         },
         {
           "path": "builder/exector/build_from_vm_test.go",

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// capability_id: rainbond.vm-publish.qcow2-image-build
+// capability_id: rainbond.vm-publish.http-artifact-image-build
 func TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService(t *testing.T) {
 	client := NewRemotePackageHTTPClient("https://virt-export-vm-root.default.svc/volumes/manual22/disk.img.gz")
 	transport, ok := client.Transport.(*http.Transport)

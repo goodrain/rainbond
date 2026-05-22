@@ -8,7 +8,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 )
 
-// capability_id: rainbond.vm-publish.qcow2-image-build
+// capability_id: rainbond.vm-publish.http-artifact-image-build
 func TestNewImageShareItemCapturesVMImageSource(t *testing.T) {
 	body := []byte(`{
 		"service_id":"svc-vm",
