@@ -40,6 +40,7 @@ const (
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
+const defaultVMGzipImage = "busybox:1.36.1"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
@@ -54,10 +55,12 @@ ADD --chown=107:107 ${VM_PATH} /disk/
 `
 
 var vmRawGzipToQCOW2DockerfileTmpl = `
+FROM ${GZIP_IMAGE} AS gzip
 FROM ${CONVERTER_IMAGE} AS convert
 WORKDIR /work
+COPY --from=gzip /bin/busybox /usr/local/bin/busybox
 COPY ${VM_PATH} /work/source.img.gz
-RUN gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz
+RUN /usr/local/bin/busybox gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz
 FROM scratch
 COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 `
@@ -193,6 +196,7 @@ func renderVMDockerfile(fileName string) (string, error) {
 	envs := map[string]string{
 		"VM_PATH":         fileName,
 		"CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage),
+		"GZIP_IMAGE":      utils.GetenvDefault("VM_GZIP_IMAGE", defaultVMGzipImage),
 	}
 	switch media {
 	case vmBuildMediaISO:

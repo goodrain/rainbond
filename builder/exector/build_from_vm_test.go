@@ -72,7 +72,7 @@ func TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render gzip raw dockerfile: %v", err)
 	}
-	expected := "FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY disk.img.gz /work/source.img.gz\nRUN gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
+	expected := "FROM busybox:1.36.1 AS gzip\nFROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY --from=gzip /bin/busybox /usr/local/bin/busybox\nCOPY disk.img.gz /work/source.img.gz\nRUN /usr/local/bin/busybox gzip -dc /work/source.img.gz > /work/source.img && /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source.img.gz\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
 	if dockerfile != expected {
 		t.Fatalf("unexpected gzip raw dockerfile: %q", dockerfile)
 	}
