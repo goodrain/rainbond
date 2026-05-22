@@ -13,6 +13,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamic "k8s.io/client-go/dynamic"
@@ -270,6 +271,71 @@ data:
 	assert.NoError(t, err)
 	assert.Equal(t, "custom-namespace", configMap.GetNamespace())
 	assert.Equal(t, "manual", configMap.GetLabels()["rainbond.io/source"])
+}
+
+// capability_id: rainbond.ns-resource.ingress-summary
+func TestToNsResourceInfoIncludesIngressSummary(t *testing.T) {
+	ingress := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "networking.k8s.io/v1",
+			"kind":       "Ingress",
+			"metadata": map[string]interface{}{
+				"name": "demo-ingress",
+			},
+			"spec": map[string]interface{}{
+				"ingressClassName": "nginx",
+				"defaultBackend": map[string]interface{}{
+					"service": map[string]interface{}{
+						"name": "default-svc",
+					},
+				},
+				"rules": []interface{}{
+					map[string]interface{}{
+						"host": "api.example.com",
+						"http": map[string]interface{}{
+							"paths": []interface{}{
+								map[string]interface{}{
+									"backend": map[string]interface{}{
+										"service": map[string]interface{}{
+											"name": "api-svc",
+										},
+									},
+								},
+							},
+						},
+					},
+					map[string]interface{}{
+						"host": "web.example.com",
+						"http": map[string]interface{}{
+							"paths": []interface{}{
+								map[string]interface{}{
+									"backend": map[string]interface{}{
+										"service": map[string]interface{}{
+											"name": "web-svc",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"tls": []interface{}{
+					map[string]interface{}{
+						"hosts": []interface{}{"api.example.com"},
+					},
+				},
+			},
+		},
+	}
+
+	info := toNsResourceInfo(ingress)
+
+	assert.Equal(t, "demo-ingress", info.Name)
+	assert.Equal(t, "Ingress", info.Kind)
+	assert.Equal(t, "nginx", info.IngressClass)
+	assert.ElementsMatch(t, []string{"api.example.com", "web.example.com"}, info.Hosts)
+	assert.ElementsMatch(t, []string{"api.example.com"}, info.TLSHosts)
+	assert.ElementsMatch(t, []string{"default-svc", "api-svc", "web-svc"}, info.BackendServices)
 }
 
 func newTestNsResourceMapper(entries ...interface{}) meta.RESTMapper {

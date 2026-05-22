@@ -24,27 +24,31 @@ import (
 
 // NsResourceInfo is the list item response for a namespace-scoped resource
 type NsResourceInfo struct {
-	Name          string               `json:"name"`
-	Kind          string               `json:"kind"`
-	APIVersion    string               `json:"api_version"`
-	Status        string               `json:"status"`
-	Replicas      int64                `json:"replicas,omitempty"`
-	ReadyReplicas int64                `json:"ready_replicas,omitempty"`
-	Source        string               `json:"source"`
-	CreatedAt     string               `json:"created_at"`
-	Node          string               `json:"node,omitempty"`
-	RestartCount  int32                `json:"restart_count,omitempty"`
-	Owner         string               `json:"owner,omitempty"`
-	PodIP         string               `json:"pod_ip,omitempty"`
-	Type          string               `json:"type,omitempty"`
-	ClusterIP     string               `json:"cluster_ip,omitempty"`
-	Ports         []corev1.ServicePort `json:"ports,omitempty"`
-	Selector      map[string]string    `json:"selector,omitempty"`
-	DataCount     int                  `json:"data_count,omitempty"`
-	Storage       string               `json:"storage,omitempty"`
-	AccessModes   []string             `json:"access_modes,omitempty"`
-	StorageClass  string               `json:"storage_class,omitempty"`
-	VolumeName    string               `json:"volume_name,omitempty"`
+	Name            string               `json:"name"`
+	Kind            string               `json:"kind"`
+	APIVersion      string               `json:"api_version"`
+	Status          string               `json:"status"`
+	Replicas        int64                `json:"replicas,omitempty"`
+	ReadyReplicas   int64                `json:"ready_replicas,omitempty"`
+	Source          string               `json:"source"`
+	CreatedAt       string               `json:"created_at"`
+	Node            string               `json:"node,omitempty"`
+	RestartCount    int32                `json:"restart_count,omitempty"`
+	Owner           string               `json:"owner,omitempty"`
+	PodIP           string               `json:"pod_ip,omitempty"`
+	Type            string               `json:"type,omitempty"`
+	ClusterIP       string               `json:"cluster_ip,omitempty"`
+	Ports           []corev1.ServicePort `json:"ports,omitempty"`
+	Selector        map[string]string    `json:"selector,omitempty"`
+	IngressClass    string               `json:"ingress_class,omitempty"`
+	Hosts           []string             `json:"hosts,omitempty"`
+	TLSHosts        []string             `json:"tls_hosts,omitempty"`
+	BackendServices []string             `json:"backend_services,omitempty"`
+	DataCount       int                  `json:"data_count,omitempty"`
+	Storage         string               `json:"storage,omitempty"`
+	AccessModes     []string             `json:"access_modes,omitempty"`
+	StorageClass    string               `json:"storage_class,omitempty"`
+	VolumeName      string               `json:"volume_name,omitempty"`
 }
 
 // NsResourceCreateSummary is the aggregated create result summary.
@@ -517,6 +521,11 @@ func fillNsResourceInfo(info *NsResourceInfo, obj unstructured.Unstructured) {
 			}
 		}
 		info.Ports = ports
+	case "Ingress":
+		info.IngressClass, _, _ = unstructured.NestedString(obj.Object, "spec", "ingressClassName")
+		info.Hosts = extractIngressHosts(obj)
+		info.TLSHosts = extractIngressTLSHosts(obj)
+		info.BackendServices = extractIngressBackendServices(obj)
 	case "ConfigMap", "Secret":
 		data, _, _ := unstructured.NestedMap(obj.Object, "data")
 		if len(data) == 0 {
@@ -530,6 +539,67 @@ func fillNsResourceInfo(info *NsResourceInfo, obj unstructured.Unstructured) {
 		accessModes, _, _ := unstructured.NestedStringSlice(obj.Object, "spec", "accessModes")
 		info.AccessModes = accessModes
 	}
+}
+
+func extractIngressHosts(obj unstructured.Unstructured) []string {
+	rules, _, _ := unstructured.NestedSlice(obj.Object, "spec", "rules")
+	hosts := make([]string, 0, len(rules))
+	for _, item := range rules {
+		rule, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if host, ok := rule["host"].(string); ok && host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return uniqueStrings(hosts)
+}
+
+func extractIngressTLSHosts(obj unstructured.Unstructured) []string {
+	tlsList, _, _ := unstructured.NestedSlice(obj.Object, "spec", "tls")
+	hosts := make([]string, 0, len(tlsList))
+	for _, item := range tlsList {
+		tls, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		rawHosts, ok := tls["hosts"].([]interface{})
+		if !ok {
+			continue
+		}
+		for _, rawHost := range rawHosts {
+			if host, ok := rawHost.(string); ok && host != "" {
+				hosts = append(hosts, host)
+			}
+		}
+	}
+	return uniqueStrings(hosts)
+}
+
+func extractIngressBackendServices(obj unstructured.Unstructured) []string {
+	services := make([]string, 0, 4)
+	if serviceName, _, _ := unstructured.NestedString(obj.Object, "spec", "defaultBackend", "service", "name"); serviceName != "" {
+		services = append(services, serviceName)
+	}
+	rules, _, _ := unstructured.NestedSlice(obj.Object, "spec", "rules")
+	for _, item := range rules {
+		rule, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		paths, _, _ := unstructured.NestedSlice(rule, "http", "paths")
+		for _, pathItem := range paths {
+			path, ok := pathItem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if serviceName, _, _ := unstructured.NestedString(path, "backend", "service", "name"); serviceName != "" {
+				services = append(services, serviceName)
+			}
+		}
+	}
+	return uniqueStrings(services)
 }
 
 func intstrFromString(value string) intstr.IntOrString {
