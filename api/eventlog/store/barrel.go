@@ -148,6 +148,9 @@ func (r *readEventBarrel) empty() {
 }
 
 func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
+	// Keep file append, history replay, and live forwarding ordered for each event.
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
 	r.updateTime = time.Now()
 
 	// 1. 立即持久化到文件（不在内存累积）
@@ -158,9 +161,6 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 	}
 
 	// 2. 只转发给当前活跃的订阅者（不缓存）
-	r.subLock.Lock()
-	defer r.subLock.Unlock()
-
 	for _, v := range r.subSocketChan {
 		select {
 		case v <- message:
@@ -171,12 +171,12 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 }
 
 func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
-	// 先注册订阅通道，确保实时消息不会丢失
+	// Hold the same lock as insertMessage so history replay cannot overlap live delivery.
 	r.subLock.Lock()
-	r.subSocketChan[subID] = ch
-	r.subLock.Unlock()
+	defer r.subLock.Unlock()
 
-	// 再从文件读取历史消息并推送
+	r.subSocketChan[subID] = ch
+
 	if r.fileStore != nil && r.eventID != "" {
 		messages, err := r.fileStore.ReadLast(r.eventID, 1000)
 		if err != nil {
@@ -223,7 +223,7 @@ func (r *readEventBarrel) delSubChan(subID string) {
 }
 
 type dockerLogEventBarrel struct {
-	name            string
+	name string
 	// 移除barrel数组，使用流式处理
 	// barrel          []*db.EventLogMessage
 	subSocketChan   map[string]chan *db.EventLogMessage
