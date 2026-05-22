@@ -40,6 +40,8 @@ const (
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
+const defaultVMDownloadProgressInterval = 10 * time.Second
+const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
 var vmISODockerfileTmpl = `
 FROM scratch
@@ -331,19 +333,99 @@ type MyDownloader struct {
 	Current   int64 // 当前大小
 	Logger    event.Logger
 	Pace      float64
+
+	StartedAt        time.Time
+	LastProgressLog  time.Time
+	ProgressInterval time.Duration
+	NextProgressByte int64
+	Now              func() time.Time
 }
 
 func (d *MyDownloader) Read(p []byte) (n int, err error) {
 	n, err = d.Reader.Read(p)
+	if n <= 0 {
+		return
+	}
 	d.Current += int64(n)
+	now := d.now()
+	if d.StartedAt.IsZero() {
+		d.StartedAt = now
+		d.LastProgressLog = now
+	}
 	if d.Total <= 0 {
+		d.logUnknownSizeProgress(now)
 		return
 	}
 	progress := float64(d.Current) * 100 / float64(d.Total)
 	if progress >= d.Pace && d.Logger != nil {
-		downLog := fmt.Sprintf("virtual machine image is being downloaded.current download progress is:%.2f%%", progress)
-		d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
-		d.Pace += 10
+		d.logKnownSizeProgress(now, progress)
+		for progress >= d.Pace {
+			d.Pace += 10
+		}
+		return
+	}
+	if d.shouldLogByInterval(now) {
+		d.logKnownSizeProgress(now, progress)
 	}
 	return
+}
+
+func (d *MyDownloader) now() time.Time {
+	if d.Now != nil {
+		return d.Now()
+	}
+	return time.Now()
+}
+
+func (d *MyDownloader) progressInterval() time.Duration {
+	if d.ProgressInterval > 0 {
+		return d.ProgressInterval
+	}
+	return defaultVMDownloadProgressInterval
+}
+
+func (d *MyDownloader) shouldLogByInterval(now time.Time) bool {
+	if d.Logger == nil {
+		return false
+	}
+	return now.Sub(d.LastProgressLog) >= d.progressInterval()
+}
+
+func (d *MyDownloader) logKnownSizeProgress(now time.Time, progress float64) {
+	if d.Logger == nil {
+		return
+	}
+	elapsed := now.Sub(d.StartedAt).Round(time.Second)
+	downLog := fmt.Sprintf(
+		"virtual machine image download progress: %.2f%% (%s / %s, elapsed %s)",
+		progress,
+		humanize.Bytes(uint64(d.Current)),
+		humanize.Bytes(uint64(d.Total)),
+		elapsed,
+	)
+	d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
+	d.LastProgressLog = now
+}
+
+func (d *MyDownloader) logUnknownSizeProgress(now time.Time) {
+	if d.Logger == nil {
+		return
+	}
+	if d.NextProgressByte <= 0 {
+		d.NextProgressByte = defaultVMDownloadProgressBytes
+	}
+	if d.Current < d.NextProgressByte && !d.shouldLogByInterval(now) {
+		return
+	}
+	elapsed := now.Sub(d.StartedAt).Round(time.Second)
+	downLog := fmt.Sprintf(
+		"virtual machine image download progress: downloaded %s (elapsed %s, total size unknown)",
+		humanize.Bytes(uint64(d.Current)),
+		elapsed,
+	)
+	d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
+	for d.Current >= d.NextProgressByte {
+		d.NextProgressByte += defaultVMDownloadProgressBytes
+	}
+	d.LastProgressLog = now
 }

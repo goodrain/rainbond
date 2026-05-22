@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/event"
 )
@@ -119,6 +120,35 @@ func TestMyDownloaderHandlesUnknownContentLength(t *testing.T) {
 	}
 }
 
+func TestMyDownloaderLogsUnknownSizeProgress(t *testing.T) {
+	logger := &recordingLogger{}
+	now := time.Unix(100, 0)
+	downloader := &MyDownloader{
+		Reader:           strings.NewReader("vm-image-content"),
+		Total:            0,
+		Logger:           logger,
+		Pace:             10,
+		ProgressInterval: time.Hour,
+		NextProgressByte: 5,
+		Now: func() time.Time {
+			return now
+		},
+	}
+	var dst bytes.Buffer
+
+	_, err := io.Copy(&dst, downloader)
+
+	if err != nil {
+		t.Fatalf("copy with unknown content length failed: %v", err)
+	}
+	if len(logger.infos) == 0 {
+		t.Fatal("expected progress log for unknown content length")
+	}
+	if !strings.Contains(logger.infos[0], "downloaded") || !strings.Contains(logger.infos[0], "total size unknown") {
+		t.Fatalf("unexpected progress log: %q", logger.infos[0])
+	}
+}
+
 func TestDownloadFileUsesVMExportTokenHeader(t *testing.T) {
 	tokenCh := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,4 +173,42 @@ func TestDownloadFileUsesVMExportTokenHeader(t *testing.T) {
 	if string(content) != "vm-image-content" {
 		t.Fatalf("unexpected downloaded content: %q", string(content))
 	}
+}
+
+type recordingLogger struct {
+	infos []string
+}
+
+func (l *recordingLogger) Info(message string, info map[string]string) {
+	l.infos = append(l.infos, message)
+}
+
+func (l *recordingLogger) Error(message string, info map[string]string) {}
+
+func (l *recordingLogger) Debug(message string, info map[string]string) {}
+
+func (l *recordingLogger) Event() string {
+	return "test"
+}
+
+func (l *recordingLogger) CreateTime() time.Time {
+	return time.Unix(0, 0)
+}
+
+func (l *recordingLogger) GetChan() chan []byte {
+	return nil
+}
+
+func (l *recordingLogger) SetChan(ch chan []byte) {}
+
+func (l *recordingLogger) GetWriter(step, level string) event.LoggerWriter {
+	return discardLoggerWriter{}
+}
+
+type discardLoggerWriter struct{}
+
+func (discardLoggerWriter) SetFormat(format map[string]interface{}) {}
+
+func (discardLoggerWriter) Write(p []byte) (int, error) {
+	return len(p), nil
 }

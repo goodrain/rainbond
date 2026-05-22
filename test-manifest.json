@@ -6592,6 +6592,10 @@
           "selector": "TestDownloadFileUsesVMExportTokenHeader"
         },
         {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestMyDownloaderLogsUnknownSizeProgress"
+        },
+        {
           "path": "builder/exector/share_image_test.go",
           "selector": "TestNewImageShareItemCapturesVMImageSource"
         },
