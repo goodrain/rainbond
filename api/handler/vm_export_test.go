@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	kubecli "kubevirt.io/client-go/kubecli"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -140,6 +141,9 @@ func TestCreateVMExport(t *testing.T) {
 	if len(secret.Data["token"]) == 0 {
 		t.Fatalf("expected token secret to contain token")
 	}
+	if status.DownloadToken != string(secret.Data["token"]) {
+		t.Fatalf("expected export status to include download token")
+	}
 }
 
 func TestExtractVMExportDownloadURLPrefersGzip(t *testing.T) {
@@ -219,7 +223,16 @@ func TestGetVMExport(t *testing.T) {
 		},
 	}, nil)
 
-	action := &ServiceAction{kubevirtClient: mockClient}
+	kubeClient := k8sfake.NewSimpleClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "osdisk-export-token",
+			Namespace: "demo-ns",
+		},
+		Data: map[string][]byte{
+			"token": []byte("download-token"),
+		},
+	})
+	action := &ServiceAction{kubevirtClient: mockClient, kubeClient: kubeClient}
 	status, err := action.GetVMExport("service-1", "osdisk-export")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -232,5 +245,8 @@ func TestGetVMExport(t *testing.T) {
 	}
 	if status.DownloadURL != "https://virt-export-osdisk-export.default.svc/volumes/manual22/disk.img.gz" {
 		t.Fatalf("unexpected download url: %#v", status)
+	}
+	if status.DownloadToken != "download-token" {
+		t.Fatalf("unexpected download token: %#v", status)
 	}
 }

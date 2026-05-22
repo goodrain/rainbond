@@ -3,8 +3,14 @@ package exector
 import (
 	"bytes"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/goodrain/rainbond/event"
 )
 
 // capability_id: rainbond.vm-run.build-media-paths
@@ -110,5 +116,31 @@ func TestMyDownloaderHandlesUnknownContentLength(t *testing.T) {
 	}
 	if dst.String() != "vm-image-content" {
 		t.Fatalf("unexpected copied content: %q", dst.String())
+	}
+}
+
+func TestDownloadFileUsesVMExportTokenHeader(t *testing.T) {
+	tokenCh := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenCh <- r.Header.Get("x-kubevirt-export-token")
+		_, _ = w.Write([]byte("vm-image-content"))
+	}))
+	defer server.Close()
+	downloadDir := t.TempDir()
+
+	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "download-token", event.NewLogger("evt-token", nil))
+
+	if err != nil {
+		t.Fatalf("download file failed: %v", err)
+	}
+	if got := <-tokenCh; got != "download-token" {
+		t.Fatalf("expected token header, got %q", got)
+	}
+	content, err := os.ReadFile(filepath.Join(downloadDir, "disk.img.gz"))
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if string(content) != "vm-image-content" {
+		t.Fatalf("unexpected downloaded content: %q", string(content))
 	}
 }

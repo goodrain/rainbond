@@ -28,6 +28,7 @@ type VMExportStatus struct {
 	Namespace      string `json:"namespace"`
 	SourcePVC      string `json:"source_pvc"`
 	TokenSecretRef string `json:"token_secret_ref"`
+	DownloadToken  string `json:"download_token,omitempty"`
 	Phase          string `json:"phase,omitempty"`
 	DownloadURL    string `json:"download_url,omitempty"`
 }
@@ -88,6 +89,11 @@ func (s *ServiceAction) CreateVMExport(serviceID string, req *VMExportRequest) (
 		logrus.Errorf("[vm-export] ensure token secret failed: service_id=%s export_name=%s namespace=%s secret=%s error=%v", serviceID, exportName, vm.Namespace, tokenSecretRef, err)
 		return nil, err
 	}
+	downloadToken, err := readVMExportDownloadToken(s.kubeClient, vm.Namespace, tokenSecretRef)
+	if err != nil {
+		logrus.Errorf("[vm-export] read token secret failed: service_id=%s export_name=%s namespace=%s secret=%s error=%v", serviceID, exportName, vm.Namespace, tokenSecretRef, err)
+		return nil, err
+	}
 	resourceIf := dynamicClient.Resource(vmExportGVR).Namespace(vm.Namespace)
 	_ = resourceIf.Delete(context.Background(), exportName, metav1.DeleteOptions{})
 	obj := buildVMExport(vm.Namespace, exportName, strings.TrimSpace(req.Description), serviceID, sourcePVC, tokenSecretRef)
@@ -110,6 +116,7 @@ func (s *ServiceAction) CreateVMExport(serviceID string, req *VMExportRequest) (
 		Namespace:      created.GetNamespace(),
 		SourcePVC:      sourcePVC,
 		TokenSecretRef: tokenSecretRef,
+		DownloadToken:  downloadToken,
 		Phase:          nestedString(created.Object, "status", "phase"),
 		DownloadURL:    extractVMExportDownloadURL(created.Object),
 	}
@@ -143,17 +150,28 @@ func (s *ServiceAction) GetVMExport(serviceID, exportName string) (*VMExportStat
 		logrus.Warnf("[vm-export] vm not found: service_id=%s export_name=%s", serviceID, exportName)
 		return nil, fmt.Errorf("service id is %v vm is not exist", serviceID)
 	}
+	if s.kubeClient == nil {
+		logrus.Errorf("[vm-export] get failed before reading token: service_id=%s export_name=%s error=kube client is not initialized", serviceID, exportName)
+		return nil, fmt.Errorf("kube client is not initialized")
+	}
 	vm := &vms.Items[0]
 	export, err := dynamicClient.Resource(vmExportGVR).Namespace(vm.Namespace).Get(context.Background(), exportName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("[vm-export] get VirtualMachineExport failed: service_id=%s export_name=%s namespace=%s error=%v", serviceID, exportName, vm.Namespace, err)
 		return nil, err
 	}
+	tokenSecretRef := nestedString(export.Object, "spec", "tokenSecretRef")
+	downloadToken, err := readVMExportDownloadToken(s.kubeClient, vm.Namespace, tokenSecretRef)
+	if err != nil {
+		logrus.Errorf("[vm-export] read token secret failed: service_id=%s export_name=%s namespace=%s secret=%s error=%v", serviceID, exportName, vm.Namespace, tokenSecretRef, err)
+		return nil, err
+	}
 	status := &VMExportStatus{
 		ExportName:     export.GetName(),
 		Namespace:      export.GetNamespace(),
 		SourcePVC:      nestedString(export.Object, "spec", "source", "name"),
-		TokenSecretRef: nestedString(export.Object, "spec", "tokenSecretRef"),
+		TokenSecretRef: tokenSecretRef,
+		DownloadToken:  downloadToken,
 		Phase:          nestedString(export.Object, "status", "phase"),
 		DownloadURL:    extractVMExportDownloadURL(export.Object),
 	}
@@ -225,6 +243,24 @@ func ensureVMExportTokenSecret(kubeClient kubernetes.Interface, namespace, secre
 		},
 	}, metav1.CreateOptions{})
 	return err
+}
+
+func readVMExportDownloadToken(kubeClient kubernetes.Interface, namespace, secretName string) (string, error) {
+	if kubeClient == nil {
+		return "", fmt.Errorf("kube client is nil")
+	}
+	if strings.TrimSpace(secretName) == "" {
+		return "", fmt.Errorf("token secret is empty")
+	}
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	token := string(secret.Data["token"])
+	if strings.TrimSpace(token) == "" {
+		return "", fmt.Errorf("token secret %s has no token", secretName)
+	}
+	return token, nil
 }
 
 func buildVMExport(namespace, exportName, description, serviceID, sourcePVC, tokenSecretRef string) *unstructured.Unstructured {

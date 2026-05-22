@@ -341,7 +341,7 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
-| rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport |
+| rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
 | rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
@@ -358,7 +358,7 @@
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
-| rainbond.vm-publish.qcow2-image-build | 将导出的虚拟机磁盘构建为 qcow2 发布镜像 | active | regression | builder/exector.BuildFromVM | builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource |
+| rainbond.vm-publish.qcow2-image-build | 将导出的虚拟机磁盘构建为 qcow2 发布镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -3803,7 +3803,7 @@
 - 接口类型: `handler_method`
 - 业务入口: `api/handler.VMExportHandler`
 - 代码路径: `api/handler/vm_export.go`
-- 测试路径: `api/handler/vm_export_test.go::TestCreateVMExport`
+- 测试路径: `api/handler/vm_export_test.go::TestCreateVMExport`, `api/handler/vm_export_test.go::TestGetVMExport`
 
 ### 热添加虚拟机磁盘时在冲突后重试
 
@@ -3972,8 +3972,8 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `builder/exector.BuildFromVM`
-- 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`
-- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`
+- 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`, `builder/sourceutil/remote_http_client.go`
+- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport`, `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`, `builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 

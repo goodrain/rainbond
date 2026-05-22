@@ -1669,6 +1669,7 @@ type ServiceShare struct {
 			Namespace     string `json:"namespace"`
 			IsTrust       bool   `json:"is_trust,omitempty" validate:"is_trust"`
 			VMImageSource string `json:"vm_image_source,omitempty"`
+			VMImageToken  string `json:"vm_image_token,omitempty"`
 		} `json:"image_info,omitempty"`
 		SlugInfo struct {
 			Namespace   string `json:"namespace"`

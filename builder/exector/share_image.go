@@ -62,6 +62,7 @@ type ImageShareItem struct {
 			Namespace     string `json:"namespace"`
 			IsTrust       bool   `json:"is_trust,omitempty"`
 			VMImageSource string `json:"vm_image_source,omitempty"`
+			VMImageToken  string `json:"vm_image_token,omitempty"`
 		} `json:"image_info,omitempty"`
 	} `json:"share_info"`
 	ImageClient sources.ImageClient
@@ -99,6 +100,7 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 		Logger:        i.Logger,
 		Arch:          i.Arch,
 		VMImageSource: i.ShareInfo.ImageInfo.VMImageSource,
+		VMImageToken:  i.ShareInfo.ImageInfo.VMImageToken,
 		ImageClient:   i.ImageClient,
 		ServiceID:     i.ServiceID,
 		DeployVersion: buildVersion,

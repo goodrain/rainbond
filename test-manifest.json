@@ -6249,6 +6249,10 @@
         {
           "path": "api/handler/vm_export_test.go",
           "selector": "TestCreateVMExport"
+        },
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestGetVMExport"
         }
       ],
       "test_type": "regression",
@@ -6582,6 +6586,10 @@
         {
           "path": "builder/exector/build_from_vm_test.go",
           "selector": "TestRenderVMDockerfileUsesQCOW2ConversionForGzipRawExport"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileUsesVMExportTokenHeader"
         },
         {
           "path": "builder/exector/share_image_test.go",

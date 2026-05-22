@@ -74,6 +74,7 @@ type VMBuildItem struct {
 	Logger        event.Logger `json:"logger"`
 	Arch          string       `json:"arch"`
 	VMImageSource string       `json:"vm_image_source"`
+	VMImageToken  string       `json:"vm_image_token"`
 	ImageClient   sources.ImageClient
 	Configs       map[string]gjson.Result `json:"configs"`
 	ServiceID     string                  `json:"service_id"`
@@ -96,6 +97,7 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 		Logger:        logger,
 		Arch:          gjson.GetBytes(in, "arch").String(),
 		VMImageSource: gjson.GetBytes(in, "vm_image_source").String(),
+		VMImageToken:  gjson.GetBytes(in, "vm_image_token").String(),
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
@@ -249,7 +251,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 	}
 	vmImageSource := fmt.Sprintf("/grdata/package_build/temp/events/%v", v.ServiceID)
 	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
-	err := downloadFile(vmImageSource, v.VMImageSource, v.Logger)
+	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger)
 	if err != nil {
 		return err
 	}
@@ -257,7 +259,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 	return v.vmBuild(vmImageSource)
 }
 
-func downloadFile(downPath, url string, Logger event.Logger) error {
+func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	// 创建一个 HTTP client 和 request
 	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
@@ -267,6 +269,9 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 
 	// 添加请求头，例如设置 User-Agent
 	req.Header.Set("User-Agent", "MyCustomDownloader/1.0")
+	if strings.TrimSpace(token) != "" {
+		req.Header.Set("x-kubevirt-export-token", token)
+	}
 
 	// 发送请求
 	rsp, err := client.Do(req)
