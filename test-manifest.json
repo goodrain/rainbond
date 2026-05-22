@@ -2456,6 +2456,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.image-share.single-attempt",
+      "title": "Run image share only once",
+      "title_zh": "\u955c\u50cf\u5206\u4eab\u5931\u8d25\u540e\u4e0d\u81ea\u52a8\u91cd\u8bd5",
+      "interface_type": "workflow",
+      "interface": "builder/exector.imageShare",
+      "code_paths": [
+        "builder/exector/exector.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestExecuteImageShareOnceDoesNotRetryFailure"
+        },
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestExecuteImageShareOnceReturnsSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ingress-nginx.meta-namespace-key",
       "title": "Build meta namespace keys for ingress-nginx watched objects",
       "title_zh": "\u4e3a ingress-nginx \u76d1\u542c\u5bf9\u8c61\u6784\u5efa namespace/name \u952e",

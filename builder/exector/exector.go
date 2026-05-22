@@ -776,25 +776,22 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-	for n := 0; n < 2; n++ {
-		err := i.ShareService()
-		if err != nil {
-			logrus.Errorf("image share error: %s", err.Error())
-			if n < 1 {
-				i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
-			} else {
-				MetricErrorTaskNum++
-				i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
-				status = "failure"
-			}
-		} else {
-			status = "success"
-			break
-		}
+	status, err = executeImageShareOnce(i.ShareService)
+	if err != nil {
+		logrus.Errorf("image share error: %s", err.Error())
+		MetricErrorTaskNum++
+		i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 	}
 	if err := i.UpdateShareStatus(status); err != nil {
 		logrus.Debugf("Add image share result error: %s", err.Error())
 	}
+}
+
+func executeImageShareOnce(share func() error) (string, error) {
+	if err := share(); err != nil {
+		return "failure", err
+	}
+	return "success", nil
 }
 
 func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {

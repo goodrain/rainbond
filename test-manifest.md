@@ -137,6 +137,7 @@
 | rainbond.helm-repo.requested-filter | 校验并匹配请求更新的 Helm 仓库名称 | active | regression | pkg/helm.checkRequestedRepos | pkg/helm/helm_release_test.go::TestCheckRequestedRepos |
 | rainbond.image-clean.registry-gc-noop | 当没有匹配的仓库 Pod 时跳过垃圾回收执行 | active | regression | builder/clean.Manager.PodExecCmd | builder/clean/clean_test.go::TestPodExecCmdNoMatchingPod |
 | rainbond.image-clean.stop-loop | 通过取消上下文停止镜像清理管理器循环 | active | regression | builder/clean.Manager.Stop | builder/clean/clean_test.go::TestManagerStopCancelsContext |
+| rainbond.image-share.single-attempt | 镜像分享失败后不自动重试 | active | regression | builder/exector.imageShare | builder/exector/share_image_test.go::TestExecuteImageShareOnceDoesNotRetryFailure<br>builder/exector/share_image_test.go::TestExecuteImageShareOnceReturnsSuccess |
 | rainbond.ingress-nginx.meta-namespace-key | 为 ingress-nginx 监听对象构建 namespace/name 键 | active | regression | util/ingress-nginx/k8s.MetaNamespaceKey | util/ingress-nginx/k8s/main_test.go::TestMetaNamespaceKey |
 | rainbond.ingress-nginx.name-namespace-parse | 解析 ingress-nginx 资源的 namespace/name 标识 | active | regression | util/ingress-nginx/k8s.ParseNameNS | util/ingress-nginx/k8s/main_test.go::TestParseNameNS |
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
@@ -1754,6 +1755,16 @@
 - 业务入口: `builder/clean.Manager.Stop`
 - 代码路径: `builder/clean/clean.go`
 - 测试路径: `builder/clean/clean_test.go::TestManagerStopCancelsContext`
+
+### 镜像分享失败后不自动重试
+
+- Capability ID: `rainbond.image-share.single-attempt`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.imageShare`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/share_image_test.go::TestExecuteImageShareOnceDoesNotRetryFailure`, `builder/exector/share_image_test.go::TestExecuteImageShareOnceReturnsSuccess`
 
 ### 为 ingress-nginx 监听对象构建 namespace/name 键
 

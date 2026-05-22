@@ -1,6 +1,7 @@
 package exector
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -62,5 +63,43 @@ func TestResolveVMShareLocalImageNameMatchesVMBuildOutput(t *testing.T) {
 	want := fmt.Sprintf("%s/svc-vm:20260521230400", builder.REGISTRYDOMAIN)
 	if got != want {
 		t.Fatalf("expected vm share to pull the image produced by vm build, got %q", got)
+	}
+}
+
+// capability_id: rainbond.image-share.single-attempt
+func TestExecuteImageShareOnceDoesNotRetryFailure(t *testing.T) {
+	attempts := 0
+	status, err := executeImageShareOnce(func() error {
+		attempts++
+		return errors.New("build code job exec failure")
+	})
+
+	if attempts != 1 {
+		t.Fatalf("expected image share to run once, got %d attempts", attempts)
+	}
+	if status != "failure" {
+		t.Fatalf("expected failure status, got %q", status)
+	}
+	if err == nil {
+		t.Fatal("expected failure error to be returned")
+	}
+}
+
+// capability_id: rainbond.image-share.single-attempt
+func TestExecuteImageShareOnceReturnsSuccess(t *testing.T) {
+	attempts := 0
+	status, err := executeImageShareOnce(func() error {
+		attempts++
+		return nil
+	})
+
+	if attempts != 1 {
+		t.Fatalf("expected image share to run once, got %d attempts", attempts)
+	}
+	if status != "success" {
+		t.Fatalf("expected success status, got %q", status)
+	}
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }
