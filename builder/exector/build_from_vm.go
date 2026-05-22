@@ -277,6 +277,9 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 		_ = rsp.Body.Close()
 	}()
 	logrus.Infof("vm source download response: url=%s status=%d content_length=%d", url, rsp.StatusCode, rsp.ContentLength)
+	if rsp.StatusCode < http.StatusOK || rsp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("download vm image %v failure: unexpected http status %d", url, rsp.StatusCode)
+	}
 	baseURL := filepath.Base(url)
 	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)
@@ -301,14 +304,20 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	}
 
 	Logger.Info(fmt.Sprintf("begin download vm image %v, image name is %v", url, fileName), map[string]string{"step": "builder-exector"})
-	Logger.Info(fmt.Sprintf("image size is %v, downloading will take some time, please be patient.", humanize.Bytes(uint64(rsp.ContentLength))), map[string]string{"step": "builder-exector"})
+	if rsp.ContentLength > 0 {
+		Logger.Info(fmt.Sprintf("image size is %v, downloading will take some time, please be patient.", humanize.Bytes(uint64(rsp.ContentLength))), map[string]string{"step": "builder-exector"})
+	} else {
+		Logger.Info("image size is unknown, downloading will take some time, please be patient.", map[string]string{"step": "builder-exector"})
+	}
 
-	_, err = io.Copy(f, myDownloader)
+	written, err := io.Copy(f, myDownloader)
 	if err != nil {
 		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
+		return err
 	}
-	return err
+	Logger.Info(fmt.Sprintf("download vm image success, downloaded size is %v", humanize.Bytes(uint64(written))), map[string]string{"step": "builder-exector"})
+	return nil
 }
 
 type MyDownloader struct {
@@ -322,13 +331,14 @@ type MyDownloader struct {
 func (d *MyDownloader) Read(p []byte) (n int, err error) {
 	n, err = d.Reader.Read(p)
 	d.Current += int64(n)
-	if float64(d.Current*10000/d.Total)/100 == d.Pace {
-		downLog := fmt.Sprintf("virtual machine image is being downloaded.current download progress is:%.2f%%", float64(d.Current*10000/d.Total)/100)
+	if d.Total <= 0 {
+		return
+	}
+	progress := float64(d.Current) * 100 / float64(d.Total)
+	if progress >= d.Pace && d.Logger != nil {
+		downLog := fmt.Sprintf("virtual machine image is being downloaded.current download progress is:%.2f%%", progress)
 		d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
 		d.Pace += 10
-	}
-	if float64(d.Current*10000/d.Total)/100 == 100 {
-		d.Logger.Info("download vm image success", map[string]string{"step": "builder-exector"})
 	}
 	return
 }

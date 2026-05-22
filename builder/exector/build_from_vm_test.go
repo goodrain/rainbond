@@ -1,6 +1,9 @@
 package exector
 
 import (
+	"bytes"
+	"io"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +89,26 @@ func TestVMBuildItemLocalImageNameUsesLocalRegistryPrefix(t *testing.T) {
 
 	if got != "goodrain.me/tenant-ns:windows-root" {
 		t.Fatalf("unexpected local image name: %q", got)
+	}
+}
+
+func TestMyDownloaderHandlesUnknownContentLength(t *testing.T) {
+	downloader := &MyDownloader{
+		Reader: strings.NewReader("vm-image-content"),
+		Total:  0,
+		Pace:   10,
+	}
+	var dst bytes.Buffer
+
+	n, err := io.Copy(&dst, downloader)
+
+	if err != nil {
+		t.Fatalf("copy with unknown content length failed: %v", err)
+	}
+	if n != int64(len("vm-image-content")) {
+		t.Fatalf("unexpected copied bytes: %d", n)
+	}
+	if dst.String() != "vm-image-content" {
+		t.Fatalf("unexpected copied content: %q", dst.String())
 	}
 }
