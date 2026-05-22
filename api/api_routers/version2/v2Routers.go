@@ -157,11 +157,21 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
+		restorePluginBackendAuthorization(req.Header)
 		proxyPath := chi.URLParam(r, "*")
 		req.URL.Path = "/" + strings.TrimLeft(proxyPath, "/")
 		req.Host = backend.Host
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func restorePluginBackendAuthorization(header http.Header) {
+	originalAuthorization := strings.TrimSpace(header.Get("X-Original-Authorization"))
+	if originalAuthorization == "" {
+		return
+	}
+	header.Set("Authorization", originalAuthorization)
+	header.Del("X-Original-Authorization")
 }
 
 func resolveBackend(plugin *v1alpha1.RBDPlugin) (url *url.URL, err error) {
