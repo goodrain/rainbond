@@ -40,7 +40,7 @@ const (
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
-const defaultVMGzipImage = "busybox:1.36.1"
+const defaultVMGzipImage = "quay.io/libpod/busybox:latest"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
