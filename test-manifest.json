@@ -3764,28 +3764,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.plugin-proxy.restore-original-authorization",
-      "title": "Restore original authorization for plugin backend proxy",
-      "title_zh": "\u63d2\u4ef6\u540e\u7aef\u4ee3\u7406\u6062\u590d\u539f\u59cb Authorization",
-      "interface_type": "view_endpoint",
-      "interface": "api/api_routers/version2.PluginBackendProxy",
-      "code_paths": [
-        "api/api_routers/version2/v2Routers.go"
-      ],
-      "tests": [
-        {
-          "path": "api/api_routers/version2/v2Routers_test.go",
-          "selector": "TestRestorePluginBackendAuthorizationUsesOriginalAuthorization"
-        },
-        {
-          "path": "api/api_routers/version2/v2Routers_test.go",
-          "selector": "TestRestorePluginBackendAuthorizationKeepsRegionAuthorizationWithoutOriginal"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",
