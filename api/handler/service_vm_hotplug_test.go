@@ -16,7 +16,11 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	v1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 )
@@ -381,6 +385,90 @@ func TestHotunplugVMDataDiskRemovesVolumeFromRunningVM(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.remove-volume-running-vm
+func TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM)
+	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	dv := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cdi.kubevirt.io/v1beta1",
+			"kind":       "DataVolume",
+			"metadata": map[string]interface{}{
+				"name":      "manual42",
+				"namespace": "demo-ns",
+			},
+		},
+	}
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), dv)
+	originalDynamicClient := vmHotplugDynamicClient
+	vmHotplugDynamicClient = func() dynamic.Interface {
+		return dynamicClient
+	}
+	defer func() {
+		vmHotplugDynamicClient = originalDynamicClient
+	}()
+
+	kubeClient := k8sfake.NewSimpleClientset(&corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "manual42",
+			Namespace: "demo-ns",
+		},
+	})
+
+	action := &ServiceAction{
+		kubevirtClient: mockClient,
+		kubeClient:     kubeClient,
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo-vm",
+				Namespace: "demo-ns",
+			},
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusRunning,
+			},
+		}, nil
+	}
+
+	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 42},
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 20,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	_, err = dynamicClient.Resource(dataVolumeGVR).Namespace("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		t.Fatalf("expected backing DataVolume to be deleted, got err=%v", err)
+	}
+
+	_, err = kubeClient.CoreV1().PersistentVolumeClaims("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		t.Fatalf("expected backing PVC to be deleted, got err=%v", err)
 	}
 }
 

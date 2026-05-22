@@ -6333,6 +6333,10 @@
         },
         {
           "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC"
+        },
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
           "selector": "TestVolumnVarDeleteHotunplugsRunningVMDataDisk"
         }
       ],

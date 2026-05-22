@@ -9,10 +9,12 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
 	v1 "kubevirt.io/api/core/v1"
 )
@@ -21,6 +23,13 @@ var dataVolumeGVR = schema.GroupVersionResource{
 	Group:    "cdi.kubevirt.io",
 	Version:  "v1beta1",
 	Resource: "datavolumes",
+}
+
+var vmHotplugDynamicClient = func() dynamic.Interface {
+	if k8s.Default() == nil {
+		return nil
+	}
+	return k8s.Default().DynamicClient
 }
 
 func (s *ServiceAction) hotplugVMDataDisk(tenantID string, volume *dbmodel.TenantServiceVolume) error {
@@ -103,11 +112,17 @@ func (s *ServiceAction) hotunplugVMDataDisk(volume *dbmodel.TenantServiceVolume)
 		return err
 	}
 	if resolveVMHotplugDeviceType(volume.VolumePath) != "disk" {
-		return s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID)
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(volume.ServiceID); err != nil {
+			return err
+		}
+		return s.cleanupVMHotplugBackingStorage(volume.ServiceID, vmHotplugBackingName(volume))
 	}
 
 	opts := buildVMHotplugRemoveVolumeOptions(vmHotplugBackingName(volume))
-	return s.performVMHotplugRemoveVolume(volume.ServiceID, opts)
+	if err := s.performVMHotplugRemoveVolume(volume.ServiceID, opts); err != nil {
+		return err
+	}
+	return s.cleanupVMHotplugBackingStorage(volume.ServiceID, opts.Name)
 }
 
 func (s *ServiceAction) performVMHotplugAddVolume(serviceID string, opts *v1.AddVolumeOptions) error {
@@ -138,8 +153,38 @@ func (s *ServiceAction) retryVMHotplugVolumeRequest(serviceID string, request fu
 	})
 }
 
+func (s *ServiceAction) cleanupVMHotplugBackingStorage(serviceID, backingName string) error {
+	if strings.TrimSpace(backingName) == "" {
+		return nil
+	}
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil || vm == nil {
+		return err
+	}
+	return s.deleteVMHotplugBackingStorage(vm.Namespace, backingName)
+}
+
+func (s *ServiceAction) deleteVMHotplugBackingStorage(namespace, backingName string) error {
+	if strings.TrimSpace(namespace) == "" || strings.TrimSpace(backingName) == "" {
+		return nil
+	}
+	if dynamicClient := vmHotplugDynamicClient(); dynamicClient != nil {
+		err := dynamicClient.Resource(dataVolumeGVR).Namespace(namespace).Delete(context.Background(), backingName, metav1.DeleteOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("delete vm backing datavolume %s/%s: %w", namespace, backingName, err)
+		}
+	}
+	if s.kubeClient != nil {
+		err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.Background(), backingName, metav1.DeleteOptions{})
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("delete vm backing pvc %s/%s: %w", namespace, backingName, err)
+		}
+	}
+	return nil
+}
+
 func ensureVMHotplugDataVolume(namespace, tenantID string, volume *dbmodel.TenantServiceVolume, backingName string) error {
-	dynamicClient := k8s.Default().DynamicClient
+	dynamicClient := vmHotplugDynamicClient()
 	if dynamicClient == nil {
 		return fmt.Errorf("dynamic client is required for vm hotplug volume")
 	}
