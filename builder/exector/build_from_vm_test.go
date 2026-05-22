@@ -175,6 +175,39 @@ func TestDownloadFileUsesVMExportTokenHeader(t *testing.T) {
 	}
 }
 
+func TestDownloadFileOverwritesExistingPartialFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("new-vm-image-content"))
+	}))
+	defer server.Close()
+	downloadDir := t.TempDir()
+	existingPath := filepath.Join(downloadDir, "disk.img.gz")
+	if err := os.WriteFile(existingPath, []byte("partial-stale-content"), 0644); err != nil {
+		t.Fatalf("write existing partial file: %v", err)
+	}
+
+	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "", event.NewLogger("evt-overwrite", nil))
+
+	if err != nil {
+		t.Fatalf("download file failed: %v", err)
+	}
+	content, err := os.ReadFile(existingPath)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if string(content) != "new-vm-image-content" {
+		t.Fatalf("expected stale content to be overwritten, got %q", string(content))
+	}
+}
+
+func TestVMRemoteImageSourceDirUsesEventID(t *testing.T) {
+	got := vmRemoteImageSourceDir("service-a", "event-b")
+
+	if got != "/grdata/package_build/temp/events/service-a/event-b" {
+		t.Fatalf("unexpected remote image source dir: %q", got)
+	}
+}
+
 type recordingLogger struct {
 	infos []string
 }

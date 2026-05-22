@@ -255,7 +255,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 		defer os.RemoveAll(v.VMImageSource)
 		return v.vmBuild(v.VMImageSource)
 	}
-	vmImageSource := fmt.Sprintf("/grdata/package_build/temp/events/%v", v.ServiceID)
+	vmImageSource := vmRemoteImageSourceDir(v.ServiceID, v.EventID)
 	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
 	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger)
 	if err != nil {
@@ -263,6 +263,13 @@ func (v *VMBuildItem) RunVMBuild() error {
 	}
 	defer os.RemoveAll(vmImageSource)
 	return v.vmBuild(vmImageSource)
+}
+
+func vmRemoteImageSourceDir(serviceID, eventID string) string {
+	if strings.TrimSpace(eventID) == "" {
+		return fmt.Sprintf("/grdata/package_build/temp/events/%v", serviceID)
+	}
+	return path.Join("/grdata/package_build/temp/events", serviceID, eventID)
 }
 
 func downloadFile(downPath, url, token string, Logger event.Logger) error {
@@ -299,7 +306,7 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
 	}

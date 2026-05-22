@@ -6593,6 +6593,14 @@
         },
         {
           "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileOverwritesExistingPartialFile"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestVMRemoteImageSourceDirUsesEventID"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
           "selector": "TestMyDownloaderLogsUnknownSizeProgress"
         },
         {
