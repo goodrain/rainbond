@@ -40,7 +40,7 @@ const (
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
-const defaultVMHTTPArtifactImage = "nginx:1.25-alpine"
+const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
