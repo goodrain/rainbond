@@ -360,6 +360,7 @@
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-publish.http-artifact-image-build | 将导出的虚拟机磁盘构建为 HTTP 制品镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile<br>builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID<br>builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
+| rainbond.vm-publish.resource-guard | Guard VM publish resource usage | active | regression | builder/exector.RunTask | builder/exector/exector_test.go::TestRunVMPublishTaskSerializesHeavyTasksAndHoldsQueueSlot<br>builder/exector/exector_test.go::TestIsVMPublishTaskDetectsVMShareImage<br>builder/exector/build_from_vm_test.go::TestEnsureVMImageDownloadSpaceFailsWhenDiskHasInsufficientSpace<br>builder/exector/build_from_vm_test.go::TestEnsureVMImageDownloadSpaceAllowsUnknownContentLength<br>builder/sources/image_test.go::TestBuildKitContainerUsesDefaultResourceGuard |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -3988,6 +3989,16 @@
 - 业务入口: `builder/exector.BuildFromVM`
 - 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`, `builder/sourceutil/remote_http_client.go`
 - 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport`, `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader`, `builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile`, `builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID`, `builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`, `builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService`
+
+### Guard VM publish resource usage
+
+- Capability ID: `rainbond.vm-publish.resource-guard`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.RunTask`
+- 代码路径: `builder/exector/exector.go`, `builder/exector/build_from_vm.go`, `builder/sources/image.go`
+- 测试路径: `builder/exector/exector_test.go::TestRunVMPublishTaskSerializesHeavyTasksAndHoldsQueueSlot`, `builder/exector/exector_test.go::TestIsVMPublishTaskDetectsVMShareImage`, `builder/exector/build_from_vm_test.go::TestEnsureVMImageDownloadSpaceFailsWhenDiskHasInsufficientSpace`, `builder/exector/build_from_vm_test.go::TestEnsureVMImageDownloadSpaceAllowsUnknownContentLength`, `builder/sources/image_test.go::TestBuildKitContainerUsesDefaultResourceGuard`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 

@@ -5,31 +5,33 @@ import (
 )
 
 type ChaosConfig struct {
-	RunMode          string
-	ClusterName      string
-	BuildKitImage    string
-	BuildKitArgs     string
-	BuildKitCache    bool
-	MaxTasks         int
-	DockerEndpoint   string
-	CleanUp          bool
-	Topic            string
-	RbdRepoName      string
-	GRDataPVCName    string
-	CachePVCName     string
-	CacheMode        string
-	CachePath        string
-	ContainerRuntime string
-	RuntimeEndpoint  string
-	KeepCount        int
-	CleanInterval    int
-	BRVersion        string
-	SourceScanURL    string
+	RunMode           string
+	ClusterName       string
+	BuildKitImage     string
+	BuildKitArgs      string
+	BuildKitCache     bool
+	MaxTasks          int
+	VMPublishMaxTasks int
+	DockerEndpoint    string
+	CleanUp           bool
+	Topic             string
+	RbdRepoName       string
+	GRDataPVCName     string
+	CachePVCName      string
+	CacheMode         string
+	CachePath         string
+	ContainerRuntime  string
+	RuntimeEndpoint   string
+	KeepCount         int
+	CleanInterval     int
+	BRVersion         string
+	SourceScanURL     string
 }
 
 func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
 	fs.StringVar(&cc.BuildKitImage, "buildkit-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/buildkit:v0.12.0", "buildkit image version")
 	fs.IntVar(&cc.MaxTasks, "max-tasks", 50, "Maximum number of simultaneous build tasks")
+	fs.IntVar(&cc.VMPublishMaxTasks, "vm-publish-max-tasks", 1, "Maximum number of simultaneous VM publish tasks")
 	fs.StringVar(&cc.RunMode, "run", "sync", "sync data when worker start")
 	fs.StringVar(&cc.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")
 	fs.BoolVar(&cc.CleanUp, "clean-up", true, "Turn on build version cleanup")
