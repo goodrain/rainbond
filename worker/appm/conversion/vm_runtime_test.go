@@ -1,5 +1,7 @@
 package conversion
 
+// capability_id: rainbond.worker.appm.vm-container-disk-cdrom
+
 import (
 	"testing"
 
@@ -152,6 +154,27 @@ func TestBuildVMDiskLayoutParsesJSON(t *testing.T) {
 	}
 }
 
+func TestBuildVMDiskLayoutKeepsContainerDiskImage(t *testing.T) {
+	layout, err := buildVMDiskLayout(map[string]string{
+		"vm_disk_layout": `[{"disk_key":"driver-media","disk_name":"driver-media","disk_role":"data","device_type":"cdrom","source_kind":"container_disk","image":"registry.example.com/team/windows-driver:virtio","order_index":1}]`,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(layout) != 1 {
+		t.Fatalf("expected one layout item, got %#v", layout)
+	}
+	if layout[0].SourceKind != vmDiskSourceContainerDisk {
+		t.Fatalf("expected container disk source kind, got %#v", layout[0])
+	}
+	if layout[0].DeviceType != vmDiskDeviceCDRom {
+		t.Fatalf("expected container disk to stay cdrom, got %#v", layout[0])
+	}
+	if layout[0].Image != "registry.example.com/team/windows-driver:virtio" {
+		t.Fatalf("expected image to be preserved, got %#v", layout[0])
+	}
+}
+
 func TestBuildVMDiskLayoutRejectsInvalidJSON(t *testing.T) {
 	_, err := buildVMDiskLayout(map[string]string{
 		"vm_disk_layout": `{"invalid":true}`,
@@ -228,5 +251,37 @@ func TestApplyVMDiskLayoutDropsInstallerDiskWhenLayoutRemovesIt(t *testing.T) {
 	}
 	if applied[0].BootOrder == nil || *applied[0].BootOrder != 1 {
 		t.Fatalf("expected root disk boot order 1 after removing installer, got %#v", applied[0].BootOrder)
+	}
+}
+
+func TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk(t *testing.T) {
+	layout := []vmDiskLayoutItem{
+		{
+			DiskKey:    "driver-media",
+			DiskName:   "driver-media",
+			DiskRole:   vmDiskRoleData,
+			DeviceType: vmDiskDeviceCDRom,
+			SourceKind: vmDiskSourceContainerDisk,
+			Image:      "registry.example.com/team/windows-driver:virtio",
+			OrderIndex: 1,
+		},
+	}
+
+	volumes, disks := appendVMContainerDiskCDROMs(nil, nil, layout)
+
+	if len(volumes) != 1 {
+		t.Fatalf("expected one container disk volume, got %#v", volumes)
+	}
+	if volumes[0].Name != "driver-media" || volumes[0].ContainerDisk == nil {
+		t.Fatalf("expected driver-media container disk volume, got %#v", volumes[0])
+	}
+	if volumes[0].ContainerDisk.Image != "registry.example.com/team/windows-driver:virtio" {
+		t.Fatalf("unexpected container disk image: %#v", volumes[0].ContainerDisk)
+	}
+	if len(disks) != 1 {
+		t.Fatalf("expected one cdrom disk, got %#v", disks)
+	}
+	if disks[0].Name != "driver-media" || disks[0].DiskDevice.CDRom == nil {
+		t.Fatalf("expected driver-media cdrom disk, got %#v", disks[0])
 	}
 }

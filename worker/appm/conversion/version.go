@@ -194,6 +194,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		disks := dv.GetVMDisk()
 		disks = prepareVMImageBootDisks(bootPath, disks, rootBlankDataVolumeName)
 		disks = append(disks, vmRuntime.Disks...)
+		layout, err := buildVMDiskLayout(as.ExtensionSet)
+		if err != nil {
+			return fmt.Errorf("create vm disk layout failure: %v", err)
+		}
+		volumes, disks = appendVMContainerDiskCDROMs(volumes, disks, layout)
 		switch bootPath {
 		case vmBootPathISOInstaller:
 			disks = appendISOInstallerDisk(disks, nil)
@@ -1670,6 +1675,51 @@ func appendVMImageRootDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubev
 		},
 		Name: "vmimage",
 	})
+}
+
+func appendVMContainerDiskCDROMs(volumes []kubevirtv1.Volume, disks []kubevirtv1.Disk,
+	layout []vmDiskLayoutItem) ([]kubevirtv1.Volume, []kubevirtv1.Disk) {
+	updatedVolumes := append([]kubevirtv1.Volume(nil), volumes...)
+	updatedDisks := append([]kubevirtv1.Disk(nil), disks...)
+	seenVolumes := make(map[string]struct{}, len(updatedVolumes))
+	for _, vmVolume := range updatedVolumes {
+		seenVolumes[vmVolume.Name] = struct{}{}
+	}
+	seenDisks := make(map[string]struct{}, len(updatedDisks))
+	for _, disk := range updatedDisks {
+		seenDisks[disk.Name] = struct{}{}
+	}
+
+	for _, item := range layout {
+		if item.SourceKind != vmDiskSourceContainerDisk || strings.TrimSpace(item.Image) == "" || strings.TrimSpace(item.DiskKey) == "" {
+			continue
+		}
+		name := item.DiskKey
+		if _, exists := seenVolumes[name]; !exists {
+			updatedVolumes = append(updatedVolumes, kubevirtv1.Volume{
+				Name: name,
+				VolumeSource: kubevirtv1.VolumeSource{
+					ContainerDisk: &kubevirtv1.ContainerDiskSource{
+						Image:           item.Image,
+						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+					},
+				},
+			})
+			seenVolumes[name] = struct{}{}
+		}
+		if _, exists := seenDisks[name]; !exists {
+			updatedDisks = append(updatedDisks, kubevirtv1.Disk{
+				DiskDevice: kubevirtv1.DiskDevice{
+					CDRom: &kubevirtv1.CDRomTarget{
+						Bus: kubevirtv1.DiskBusSATA,
+					},
+				},
+				Name: name,
+			})
+			seenDisks[name] = struct{}{}
+		}
+	}
+	return updatedVolumes, updatedDisks
 }
 
 func summarizeVMDisks(disks []kubevirtv1.Disk) string {

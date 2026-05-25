@@ -13,19 +13,23 @@ import (
 )
 
 const (
-	vmOSNameKey           = "vm_os_name"
-	vmGPUEnabledKey       = "vm_gpu_enabled"
-	vmGPUResourcesKey     = "vm_gpu_resources"
-	vmGPUCountKey         = "vm_gpu_count"
-	vmUSBEnabledKey       = "vm_usb_enabled"
-	vmUSBResourcesKey     = "vm_usb_resources"
-	vmDiskLayoutKey       = "vm_disk_layout"
-	vmDiskRootKey         = "disk"
-	vmDiskInstallerKey    = "vmimage"
-	vmDiskRoleRoot        = "root"
-	vmDiskRoleData        = "data"
-	vmDiskRoleInstaller   = "installer"
-	vmDiskSourceInstaller = "installer_media"
+	vmOSNameKey               = "vm_os_name"
+	vmGPUEnabledKey           = "vm_gpu_enabled"
+	vmGPUResourcesKey         = "vm_gpu_resources"
+	vmGPUCountKey             = "vm_gpu_count"
+	vmUSBEnabledKey           = "vm_usb_enabled"
+	vmUSBResourcesKey         = "vm_usb_resources"
+	vmDiskLayoutKey           = "vm_disk_layout"
+	vmDiskRootKey             = "disk"
+	vmDiskInstallerKey        = "vmimage"
+	vmDiskRoleRoot            = "root"
+	vmDiskRoleData            = "data"
+	vmDiskRoleInstaller       = "installer"
+	vmDiskSourceInstaller     = "installer_media"
+	vmDiskSourceContainerDisk = "container_disk"
+	vmDiskDeviceDisk          = "disk"
+	vmDiskDeviceCDRom         = "cdrom"
+	vmDiskDeviceLUN           = "lun"
 
 	vmPrimaryNetworkName = "default"
 )
@@ -46,6 +50,7 @@ type vmDiskLayoutItem struct {
 	DiskRole   string `json:"disk_role"`
 	DeviceType string `json:"device_type"`
 	SourceKind string `json:"source_kind"`
+	Image      string `json:"image"`
 	OrderIndex int    `json:"order_index"`
 	Boot       bool   `json:"boot"`
 }
@@ -253,6 +258,11 @@ func buildVMDiskLayout(extensionSet map[string]string) ([]vmDiskLayoutItem, erro
 			layout[i].DiskRole = vmDiskRoleInstaller
 			layout[i].SourceKind = vmDiskSourceInstaller
 		}
+		if layout[i].SourceKind == vmDiskSourceContainerDisk {
+			layout[i].DiskRole = vmDiskRoleData
+			layout[i].DeviceType = vmDiskDeviceCDRom
+			layout[i].Image = strings.TrimSpace(layout[i].Image)
+		}
 	}
 	return layout, nil
 }
@@ -370,6 +380,12 @@ func resolveVMDiskNameForLayoutItem(item vmDiskLayoutItem, diskMeta map[string]v
 			return "", false
 		}
 		return vmDiskInstallerKey, true
+	}
+	if item.SourceKind == vmDiskSourceContainerDisk {
+		if strings.TrimSpace(item.Image) == "" || strings.TrimSpace(item.DiskKey) == "" {
+			return "", false
+		}
+		return item.DiskKey, true
 	}
 	if item.DiskRole == vmDiskRoleRoot && bootPath == vmBootPathVMImageRootDisk {
 		return vmDiskInstallerKey, true
