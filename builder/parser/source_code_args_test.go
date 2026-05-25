@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
@@ -89,6 +88,23 @@ func TestCNBDefaultPorts_MultiLanguage(t *testing.T) {
 	}
 }
 
+func TestSourceCodeParseApplyCNBDefaultPorts_JavaWarUses8080(t *testing.T) {
+	d := &SourceCodeParse{
+		Lang:  code.JaveWar,
+		ports: make(map[int]*types.Port),
+	}
+
+	d.applyCNBDefaultPorts(nil)
+
+	port, ok := d.ports[8080]
+	if !ok {
+		t.Fatalf("expected Java-war CNB default port 8080, got %v", d.ports)
+	}
+	if port.Protocol != "http" {
+		t.Fatalf("expected Java-war CNB default port protocol http, got %q", port.Protocol)
+	}
+}
+
 // capability_id: rainbond.source-args.normalize-multi-module-lang
 func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
 	d := &SourceCodeParse{
@@ -110,24 +126,11 @@ func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
 	}
 }
 
-// applyCNBDefaultPorts mirrors the port logic in source_code.go Parse() for testability.
 func applyCNBDefaultPorts(d *SourceCodeParse, runtimeType string) {
 	var runtimeInfo map[string]string
 	if runtimeType != "" {
 		runtimeInfo = map[string]string{"RUNTIME_TYPE": runtimeType}
 	}
 
-	langStr := string(d.Lang)
-	hasNodejs := strings.Contains(langStr, string(code.Nodejs))
-	hasStatic := strings.Contains(langStr, string(code.Static))
-	if hasStatic || (hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
-		if _, ok := d.ports[8080]; !ok {
-			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
-		}
-	}
-	if hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
-		if _, ok := d.ports[3000]; !ok {
-			d.ports[3000] = &types.Port{ContainerPort: 3000, Protocol: "http"}
-		}
-	}
+	d.applyCNBDefaultPorts(runtimeInfo)
 }
