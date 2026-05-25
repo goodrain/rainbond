@@ -298,10 +298,7 @@ func (h *NsResourceHandler) createSingleNsResource(dynamicClient dynamic.Interfa
 	namespaceableClient := dynamicClient.Resource(mapping.Resource)
 	resourceClient := dynamic.ResourceInterface(namespaceableClient)
 	if mapping.Scope.Name() == k8smeta.RESTScopeNameNamespace {
-		namespace := obj.GetNamespace()
-		if namespace == "" {
-			namespace = teamNamespace
-		}
+		namespace := teamNamespace
 		obj.SetNamespace(namespace)
 		result.Namespace = namespace
 		result.ResourceScope = "namespaced"

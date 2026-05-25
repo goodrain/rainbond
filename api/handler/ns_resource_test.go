@@ -226,7 +226,7 @@ roleRef:
 }
 
 // capability_id: rainbond.ns-resource.batch-create
-func TestCreateNsResourceBatchPreservesExplicitNamespace(t *testing.T) {
+func TestCreateNsResourceBatchOverridesExplicitNamespace(t *testing.T) {
 	tenantDao := &testTenantDao{
 		tenant: &dbmodel.Tenants{
 			Name:      "demo-team",
@@ -263,13 +263,15 @@ data:
 
 	assert.NoError(t, err)
 	assert.Equal(t, 200, statusCode)
-	assert.Equal(t, "custom-namespace", result.Results[0].Namespace)
+	assert.Equal(t, "team-namespace", result.Results[0].Namespace)
 
 	configMap, err := client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}).
-		Namespace("custom-namespace").
+		Namespace("team-namespace").
 		Get(context.Background(), "explicit-config", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, "custom-namespace", configMap.GetNamespace())
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.Equal(t, "team-namespace", configMap.GetNamespace())
 	assert.Equal(t, "manual", configMap.GetLabels()["rainbond.io/source"])
 }
 
