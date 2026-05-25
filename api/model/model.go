@@ -691,6 +691,32 @@ type StatusList struct {
 	StatusCN      string     `json:"status_cn"`
 	StartTime     string     `json:"start_time"`
 	PodList       []PodsList `json:"pod_list"`
+	VMRestore     *VMRestore `json:"vm_restore,omitempty"`
+}
+
+// VMRestore virtual machine data volume restore status.
+type VMRestore struct {
+	Status       string                 `json:"status"`
+	StatusCN     string                 `json:"status_cn"`
+	Progress     string                 `json:"progress"`
+	Message      string                 `json:"message"`
+	DataVolumes  []VMRestoreDataVolume  `json:"data_volumes"`
+	ImporterPods []VMRestoreImporterPod `json:"importer_pods"`
+}
+
+// VMRestoreDataVolume data volume import status for virtual machine restore.
+type VMRestoreDataVolume struct {
+	Name     string `json:"name"`
+	Phase    string `json:"phase"`
+	Progress string `json:"progress"`
+	Message  string `json:"message"`
+}
+
+// VMRestoreImporterPod importer pod name for virtual machine restore logs.
+type VMRestoreImporterPod struct {
+	Name      string `json:"name"`
+	Volume    string `json:"volume"`
+	Namespace string `json:"namespace"`
 }
 
 // PodsList pod list

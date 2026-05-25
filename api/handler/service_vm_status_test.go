@@ -91,6 +91,66 @@ func TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBefor
 	}
 }
 
+// capability_id: rainbond.vm-template-import.restore-progress
+func TestResolveVMRestoreStatusIncludesDataVolumeProgress(t *testing.T) {
+	status := resolveVMDataVolumeRestoreStatus("demo-ns", []vmDataVolumeDetail{
+		{
+			Name:     "manual133",
+			Phase:    "ImportInProgress",
+			Progress: "11.34%",
+			Message:  "copying disk",
+		},
+		{
+			Name:     "manual134",
+			Phase:    "Succeeded",
+			Progress: "100.0%",
+		},
+	})
+
+	if status == nil {
+		t.Fatal("expected restore status")
+	}
+	if status.Status != "restoring" {
+		t.Fatalf("expected restore status %q, got %q", "restoring", status.Status)
+	}
+	if status.Progress != "11.34%" {
+		t.Fatalf("expected aggregate progress %q, got %q", "11.34%", status.Progress)
+	}
+	if len(status.DataVolumes) != 2 {
+		t.Fatalf("expected two data volumes, got %#v", status.DataVolumes)
+	}
+	if len(status.ImporterPods) != 1 || status.ImporterPods[0].Name != "importer-manual133" {
+		t.Fatalf("expected importer pod for importing volume, got %#v", status.ImporterPods)
+	}
+	if status.Message != "manual133: copying disk" {
+		t.Fatalf("expected restore message from importing volume, got %q", status.Message)
+	}
+}
+
+// capability_id: rainbond.vm-template-import.restore-progress
+func TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded(t *testing.T) {
+	status := resolveVMDataVolumeRestoreStatus("demo-ns", []vmDataVolumeDetail{
+		{
+			Name:     "manual133",
+			Phase:    "Succeeded",
+			Progress: "100.0%",
+		},
+	})
+
+	if status == nil {
+		t.Fatal("expected restore status")
+	}
+	if status.Status != "success" {
+		t.Fatalf("expected restore status %q, got %q", "success", status.Status)
+	}
+	if status.Progress != "100.0%" {
+		t.Fatalf("expected progress 100.0%%, got %q", status.Progress)
+	}
+	if len(status.ImporterPods) != 0 {
+		t.Fatalf("expected no importer pods after success, got %#v", status.ImporterPods)
+	}
+}
+
 func TestResolveVMTransitionStatusReturnsStartingForPendingProvisioningVMI(t *testing.T) {
 	vm := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{

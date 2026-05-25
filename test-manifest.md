@@ -365,6 +365,7 @@
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
+| rainbond.vm-template-import.restore-progress | Expose VM template import restore progress | active | unit | api/handler.resolveVMDataVolumeRestoreStatus | api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress<br>api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded |
 | rainbond.vm-template-import.status-restoring | VM template import status is restoring | active | unit | api/handler.resolveVMServiceRuntimeStatus | api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsRestoringForDataVolumeImport<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBeforeVMIExists<br>api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError |
 | rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
 | rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
@@ -396,6 +397,7 @@
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
+| rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
@@ -4037,6 +4039,16 @@
 - 代码路径: `api/handler/k8s_attribute.go`
 - 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
 
+### Expose VM template import restore progress
+
+- Capability ID: `rainbond.vm-template-import.restore-progress`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.resolveVMDataVolumeRestoreStatus`
+- 代码路径: `api/handler/service.go`, `api/model/model.go`
+- 测试路径: `api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress`, `api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded`
+
 ### VM template import status is restoring
 
 - Capability ID: `rainbond.vm-template-import.status-restoring`
@@ -4346,6 +4358,16 @@
 - 业务入口: `worker/appm/conversion.TenantServiceVersion`
 - 代码路径: `worker/appm/conversion/version.go`, `worker/appm/conversion/vm_runtime.go`
 - 测试路径: `worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank`, `worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt`
+
+### VM container disk CD-ROM media
+
+- Capability ID: `rainbond.worker.appm.vm-container-disk-cdrom`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.appendVMContainerDiskCDROMs`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`, `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage`, `worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk`
 
 ### 默认虚拟机内存热插拔上限预留
 

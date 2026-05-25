@@ -101,6 +101,7 @@ type ServiceAction struct {
 	getVirtualMachineByServiceIDHook         func(serviceID string) (*v1.VirtualMachine, error)
 	getVirtualMachineInstanceByServiceIDHook func(serviceID string) (*v1.VirtualMachineInstance, error)
 	getDataVolumePhasesByNamesHook           func(namespace string, names []string) (map[string]string, error)
+	getDataVolumeDetailsByNamesHook          func(namespace string, names []string) ([]vmDataVolumeDetail, error)
 	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
 	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
 	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
@@ -114,6 +115,13 @@ type dCfg struct {
 	Key      string   `json:"key"`
 	Username string   `json:"username"`
 	Password string   `json:"password"`
+}
+
+type vmDataVolumeDetail struct {
+	Name     string
+	Phase    string
+	Progress string
+	Message  string
 }
 
 // CreateManager create Manger
@@ -653,6 +661,30 @@ func (s *ServiceAction) resolveVMDataVolumeRuntimeStatus(vm *v1.VirtualMachine, 
 	return resolveVMDataVolumeRuntimeStatus(phases)
 }
 
+func (s *ServiceAction) resolveVMDataVolumeRestore(serviceID string) *apimodel.VMRestore {
+	if s == nil || (s.kubevirtClient == nil && s.getVirtualMachineByServiceIDHook == nil) {
+		return nil
+	}
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine for restore status: %v", serviceID, err)
+		return nil
+	}
+	if vm == nil || vm.Namespace == "" {
+		return nil
+	}
+	names := vmDataVolumeNames(vm)
+	if len(names) == 0 {
+		return nil
+	}
+	details, err := s.getDataVolumeDetailsByNames(vm.Namespace, names)
+	if err != nil {
+		logrus.Warningf("vm %s/%s; failed to get data volume restore details: %v", vm.Namespace, vm.Name, err)
+		return nil
+	}
+	return resolveVMDataVolumeRestoreStatus(vm.Namespace, details)
+}
+
 func (s *ServiceAction) getDataVolumePhasesByNames(namespace string, names []string) (map[string]string, error) {
 	if s != nil && s.getDataVolumePhasesByNamesHook != nil {
 		return s.getDataVolumePhasesByNamesHook(namespace, names)
@@ -674,6 +706,56 @@ func (s *ServiceAction) getDataVolumePhasesByNames(namespace string, names []str
 		phases[name] = strings.TrimSpace(phase)
 	}
 	return phases, nil
+}
+
+func (s *ServiceAction) getDataVolumeDetailsByNames(namespace string, names []string) ([]vmDataVolumeDetail, error) {
+	if s != nil && s.getDataVolumeDetailsByNamesHook != nil {
+		return s.getDataVolumeDetailsByNamesHook(namespace, names)
+	}
+	if len(names) == 0 || k8s.Default() == nil || k8s.Default().DynamicClient == nil {
+		return nil, nil
+	}
+	details := make([]vmDataVolumeDetail, 0, len(names))
+	for _, name := range names {
+		detail := vmDataVolumeDetail{Name: name}
+		obj, err := k8s.Default().DynamicClient.Resource(dataVolumeGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if k8sErrors.IsNotFound(err) {
+			detail.Phase = "Pending"
+			details = append(details, detail)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase")
+		progress, _, _ := unstructured.NestedString(obj.Object, "status", "progress")
+		detail.Phase = strings.TrimSpace(phase)
+		detail.Progress = strings.TrimSpace(progress)
+		detail.Message = dataVolumeStatusMessage(obj.Object)
+		details = append(details, detail)
+	}
+	return details, nil
+}
+
+func dataVolumeStatusMessage(obj map[string]interface{}) string {
+	conditions, _, _ := unstructured.NestedSlice(obj, "status", "conditions")
+	for i := len(conditions) - 1; i >= 0; i-- {
+		condition, ok := conditions[i].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		message, _, _ := unstructured.NestedString(condition, "message")
+		message = strings.TrimSpace(message)
+		if message != "" {
+			return message
+		}
+		reason, _, _ := unstructured.NestedString(condition, "reason")
+		reason = strings.TrimSpace(reason)
+		if reason != "" {
+			return reason
+		}
+	}
+	return ""
 }
 
 func vmDataVolumeNames(vm *v1.VirtualMachine) []string {
@@ -708,6 +790,95 @@ func vmDataVolumeNames(vm *v1.VirtualMachine) []string {
 		}
 	}
 	return names
+}
+
+func resolveVMDataVolumeRestoreStatus(namespace string, details []vmDataVolumeDetail) *apimodel.VMRestore {
+	if len(details) == 0 {
+		return nil
+	}
+	restore := &apimodel.VMRestore{
+		Status:      "success",
+		StatusCN:    "恢复完成",
+		Progress:    "100.0%",
+		DataVolumes: make([]apimodel.VMRestoreDataVolume, 0, len(details)),
+	}
+	minProgress := 100.0
+	hasNumericProgress := false
+	hasUnknownProgress := false
+	for _, detail := range details {
+		phase := strings.TrimSpace(detail.Phase)
+		progress := strings.TrimSpace(detail.Progress)
+		message := strings.TrimSpace(detail.Message)
+		restore.DataVolumes = append(restore.DataVolumes, apimodel.VMRestoreDataVolume{
+			Name:     detail.Name,
+			Phase:    phase,
+			Progress: progress,
+			Message:  message,
+		})
+		switch phase {
+		case "", "Succeeded":
+			continue
+		case "Failed":
+			restore.Status = "failure"
+			restore.StatusCN = "恢复失败"
+			if restore.Message == "" {
+				restore.Message = formatVMRestoreMessage(detail.Name, message)
+			}
+		default:
+			if restore.Status != "failure" {
+				restore.Status = "restoring"
+				restore.StatusCN = "恢复中"
+			}
+			if restore.Message == "" {
+				restore.Message = formatVMRestoreMessage(detail.Name, message)
+			}
+			restore.ImporterPods = append(restore.ImporterPods, apimodel.VMRestoreImporterPod{
+				Name:      "importer-" + detail.Name,
+				Volume:    detail.Name,
+				Namespace: namespace,
+			})
+		}
+		if value, ok := parseVMRestoreProgress(progress); ok {
+			hasNumericProgress = true
+			if value < minProgress {
+				minProgress = value
+			}
+		} else if phase != "" && phase != "Succeeded" {
+			hasUnknownProgress = true
+		}
+	}
+	if restore.Status == "restoring" || restore.Status == "failure" {
+		if hasNumericProgress {
+			restore.Progress = fmt.Sprintf("%.2f%%", minProgress)
+		} else if hasUnknownProgress {
+			restore.Progress = "N/A"
+		}
+	}
+	return restore
+}
+
+func formatVMRestoreMessage(name, message string) string {
+	name = strings.TrimSpace(name)
+	message = strings.TrimSpace(message)
+	if name == "" {
+		return message
+	}
+	if message == "" {
+		return name
+	}
+	return fmt.Sprintf("%s: %s", name, message)
+}
+
+func parseVMRestoreProgress(progress string) (float64, bool) {
+	progress = strings.TrimSpace(strings.TrimSuffix(progress, "%"))
+	if progress == "" || strings.EqualFold(progress, "N/A") {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(progress, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
 }
 
 func resolveVMDataVolumeRuntimeStatus(phases map[string]string) (string, bool) {
@@ -2389,6 +2560,7 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 			sl.CurStatus = vmStatus
 			sl.StatusCN = TransStatus(vmStatus)
 		}
+		sl.VMRestore = s.resolveVMDataVolumeRestore(serviceID)
 	}
 	di, err := s.statusCli.GetServiceDeployInfo(serviceID)
 	if err != nil {

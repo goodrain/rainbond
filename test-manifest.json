@@ -6732,6 +6732,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-template-import.restore-progress",
+      "title": "Expose VM template import restore progress",
+      "title_zh": "Expose VM template import restore progress",
+      "interface_type": "package_function",
+      "interface": "api/handler.resolveVMDataVolumeRestoreStatus",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/model/model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMRestoreStatusIncludesDataVolumeProgress"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-template-import.status-restoring",
       "title": "VM template import status is restoring",
       "title_zh": "VM template import status is restoring",
@@ -7302,6 +7325,29 @@
         {
           "path": "worker/appm/conversion/version_vm_test.go",
           "selector": "TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-container-disk-cdrom",
+      "title": "VM container disk CD-ROM media",
+      "title_zh": "VM container disk CD-ROM media",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.appendVMContainerDiskCDROMs",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestBuildVMDiskLayoutKeepsContainerDiskImage"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk"
         }
       ],
       "test_type": "regression",
