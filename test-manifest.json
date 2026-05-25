@@ -3526,6 +3526,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.ns-resource.ingress-summary",
+      "title": "Summarize ingress routing metadata for namespace resources",
+      "title_zh": "\u6c47\u603b Ingress \u8d44\u6e90\u8def\u7531\u5143\u6570\u636e",
+      "interface_type": "workflow",
+      "interface": "api/handler.toNsResourceInfo",
+      "code_paths": [
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/ns_resource_test.go",
+          "selector": "TestToNsResourceInfoIncludesIngressSummary"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.package-build.clean-extracted-content",
       "title": "Clean stale extracted package content before unpacking",
       "title_zh": "\u89e3\u538b\u524d\u6e05\u7406\u65e7\u5305\u5c55\u5f00\u5185\u5bb9",
