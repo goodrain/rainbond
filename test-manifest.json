@@ -6732,18 +6732,22 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-template-import.status-building",
-      "title": "VM template import status is building",
-      "title_zh": "VM template import status is building",
+      "id": "rainbond.vm-template-import.status-restoring",
+      "title": "VM template import status is restoring",
+      "title_zh": "VM template import status is restoring",
       "interface_type": "package_function",
-      "interface": "api/handler.resolveVMTransitionStatus",
+      "interface": "api/handler.resolveVMServiceRuntimeStatus",
       "code_paths": [
         "api/handler/service.go"
       ],
       "tests": [
         {
           "path": "api/handler/service_vm_status_test.go",
-          "selector": "TestResolveVMTransitionStatusReturnsBuildingForDataVolumeImport"
+          "selector": "TestResolveVMTransitionStatusReturnsRestoringForDataVolumeImport"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBeforeVMIExists"
         },
         {
           "path": "api/handler/service_vm_status_test.go",

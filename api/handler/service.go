@@ -72,6 +72,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/kubernetes"
 )
@@ -99,6 +100,7 @@ type ServiceAction struct {
 	getServicePodsHook                       func(serviceID string) (*pb.ServiceAppPodList, error)
 	getVirtualMachineByServiceIDHook         func(serviceID string) (*v1.VirtualMachine, error)
 	getVirtualMachineInstanceByServiceIDHook func(serviceID string) (*v1.VirtualMachineInstance, error)
+	getDataVolumePhasesByNamesHook           func(namespace string, names []string) (map[string]string, error)
 	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
 	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
 	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
@@ -584,14 +586,21 @@ func (s *ServiceAction) resolveVMServiceRuntimeStatus(serviceID string) (string,
 	if err != nil {
 		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
 	}
-	return resolveVMTransitionStatus(vm, vmi)
+	transitionStatus, hasTransitionStatus := resolveVMTransitionStatus(vm, vmi)
+	if transitionStatus == "abnormal" {
+		return transitionStatus, true
+	}
+	if restoreStatus, ok := s.resolveVMDataVolumeRuntimeStatus(vm, vmi, transitionStatus); ok {
+		return restoreStatus, true
+	}
+	return transitionStatus, hasTransitionStatus
 }
 
 func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance) (string, bool) {
 	if vm != nil {
 		switch vm.Status.PrintableStatus {
 		case v1.VirtualMachineStatusProvisioning:
-			return "building", true
+			return "restoring", true
 		case v1.VirtualMachineStatusDataVolumeError:
 			return "abnormal", true
 		case v1.VirtualMachineStatusStarting:
@@ -609,7 +618,7 @@ func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInst
 	}
 	for _, condition := range vmi.Status.Conditions {
 		if condition.Type == v1.VirtualMachineInstanceDataVolumesReady && condition.Status == "False" {
-			return "building", true
+			return "restoring", true
 		}
 	}
 	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
@@ -624,6 +633,96 @@ func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInst
 		return "closed", true
 	case v1.Failed:
 		return "abnormal", true
+	}
+	return "", false
+}
+
+func (s *ServiceAction) resolveVMDataVolumeRuntimeStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance, transitionStatus string) (string, bool) {
+	if vm == nil || vm.Namespace == "" || vmi != nil && transitionStatus == "running" {
+		return "", false
+	}
+	names := vmDataVolumeNames(vm)
+	if len(names) == 0 {
+		return "", false
+	}
+	phases, err := s.getDataVolumePhasesByNames(vm.Namespace, names)
+	if err != nil {
+		logrus.Warningf("vm %s/%s; failed to get data volume phases: %v", vm.Namespace, vm.Name, err)
+		return "", false
+	}
+	return resolveVMDataVolumeRuntimeStatus(phases)
+}
+
+func (s *ServiceAction) getDataVolumePhasesByNames(namespace string, names []string) (map[string]string, error) {
+	if s != nil && s.getDataVolumePhasesByNamesHook != nil {
+		return s.getDataVolumePhasesByNamesHook(namespace, names)
+	}
+	if len(names) == 0 || k8s.Default() == nil || k8s.Default().DynamicClient == nil {
+		return nil, nil
+	}
+	phases := make(map[string]string, len(names))
+	for _, name := range names {
+		obj, err := k8s.Default().DynamicClient.Resource(dataVolumeGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if k8sErrors.IsNotFound(err) {
+			phases[name] = "Pending"
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase")
+		phases[name] = strings.TrimSpace(phase)
+	}
+	return phases, nil
+}
+
+func vmDataVolumeNames(vm *v1.VirtualMachine) []string {
+	if vm == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	volumeCount := 0
+	if vm.Spec.Template != nil {
+		volumeCount = len(vm.Spec.Template.Spec.Volumes)
+	}
+	names := make([]string, 0, len(vm.Spec.DataVolumeTemplates)+volumeCount)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	for _, template := range vm.Spec.DataVolumeTemplates {
+		add(template.Name)
+	}
+	if vm.Spec.Template != nil {
+		for _, volume := range vm.Spec.Template.Spec.Volumes {
+			if volume.DataVolume != nil {
+				add(volume.DataVolume.Name)
+			}
+		}
+	}
+	return names
+}
+
+func resolveVMDataVolumeRuntimeStatus(phases map[string]string) (string, bool) {
+	if len(phases) == 0 {
+		return "", false
+	}
+	for _, phase := range phases {
+		switch strings.TrimSpace(phase) {
+		case "", "Succeeded":
+			continue
+		case "Failed":
+			return "abnormal", true
+		default:
+			return "restoring", true
+		}
 	}
 	return "", false
 }
