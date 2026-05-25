@@ -98,10 +98,14 @@ func handleServiceUnavailable(w http.ResponseWriter, r *http.Request) {
 func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			if strings.Contains(r.URL.Path, "logs") {
-				timeout = 1 * time.Hour
+			// 长时请求豁免：日志流、插件后端代理（含 SSE / 长连接）使用更长的超时。
+			// 这里用每请求的局部变量，避免直接改写闭包捕获的 timeout 而污染后续所有请求。
+			effectiveTimeout := timeout
+			if strings.Contains(r.URL.Path, "logs") ||
+				strings.Contains(r.URL.Path, "/platform/backend/plugins/") {
+				effectiveTimeout = 1 * time.Hour
 			}
-			ctx, cancel := context.WithTimeout(r.Context(), timeout)
+			ctx, cancel := context.WithTimeout(r.Context(), effectiveTimeout)
 			defer func() {
 				cancel()
 				if ctx.Err() == context.DeadlineExceeded {
