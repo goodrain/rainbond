@@ -41,7 +41,7 @@ const (
 )
 
 const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
-const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine"
+const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/rainbond-plugins:vmqd1.0"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 
@@ -58,7 +58,6 @@ ADD --chown=107:107 ${VM_PATH} /disk/
 var vmHTTPArtifactDockerfileTmpl = `
 FROM ${ARTIFACT_IMAGE}
 COPY ${VM_PATH} /disk/disk.img.gz
-RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
 `
 
 var vmRawToQCOW2DockerfileTmpl = `
