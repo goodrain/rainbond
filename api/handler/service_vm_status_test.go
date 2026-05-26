@@ -5,10 +5,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
 // capability_id: rainbond.vm-template-import.status-restoring
-func TestResolveVMTransitionStatusReturnsRestoringForDataVolumeImport(t *testing.T) {
+func TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext(t *testing.T) {
 	vm := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-vm",
@@ -38,13 +39,13 @@ func TestResolveVMTransitionStatusReturnsRestoringForDataVolumeImport(t *testing
 	if !ok {
 		t.Fatal("expected importing data volumes to override vm closed status")
 	}
-	if got != "restoring" {
-		t.Fatalf("expected importing data volumes to map to %q, got %q", "restoring", got)
+	if got != "starting" {
+		t.Fatalf("expected importing data volumes without restore context to map to %q, got %q", "starting", got)
 	}
 }
 
 // capability_id: rainbond.vm-template-import.status-restoring
-func TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBeforeVMIExists(t *testing.T) {
+func TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists(t *testing.T) {
 	action := &ServiceAction{
 		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
 			return &kubevirtv1.VirtualMachine{
@@ -57,6 +58,10 @@ func TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBefor
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "manual133",
+								Annotations: map[string]string{
+									"rainbond.com/vm-artifact-image":   "goodrain.me/team/windows-root:v1",
+									"rainbond.com/vm-artifact-service": "vm-artifact-manual133",
+								},
 							},
 						},
 					},
@@ -88,6 +93,98 @@ func TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBefor
 	}
 	if got != "restoring" {
 		t.Fatalf("expected importing data volume to map to %q, got %q", "restoring", got)
+	}
+}
+
+// capability_id: rainbond.vm-template-import.status-restoring
+func TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume(t *testing.T) {
+	action := &ServiceAction{
+		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+			return &kubevirtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-vm",
+					Namespace: "demo-ns",
+				},
+				Spec: kubevirtv1.VirtualMachineSpec{
+					DataVolumeTemplates: []kubevirtv1.DataVolumeTemplateSpec{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "manual133",
+							},
+							Spec: cdiv1.DataVolumeSpec{
+								Source: &cdiv1.DataVolumeSource{
+									Blank: &cdiv1.DataVolumeBlankImage{},
+								},
+							},
+						},
+					},
+				},
+				Status: kubevirtv1.VirtualMachineStatus{
+					PrintableStatus: kubevirtv1.VirtualMachineStatusProvisioning,
+				},
+			}, nil
+		},
+		getVirtualMachineInstanceByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachineInstance, error) {
+			return nil, nil
+		},
+		getDataVolumePhasesByNamesHook: func(namespace string, names []string) (map[string]string, error) {
+			t.Fatalf("blank data volumes should not be queried as restore volumes")
+			return nil, nil
+		},
+	}
+
+	got, ok := action.resolveVMServiceRuntimeStatus("service-a")
+	if !ok {
+		t.Fatal("expected provisioning vm to map to starting")
+	}
+	if got != "starting" {
+		t.Fatalf("expected initial blank data volume to map to %q, got %q", "starting", got)
+	}
+}
+
+// capability_id: rainbond.vm-template-import.status-restoring
+func TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume(t *testing.T) {
+	action := &ServiceAction{
+		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+			return &kubevirtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-vm",
+					Namespace: "demo-ns",
+				},
+				Spec: kubevirtv1.VirtualMachineSpec{
+					DataVolumeTemplates: []kubevirtv1.DataVolumeTemplateSpec{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "manual133",
+							},
+							Spec: cdiv1.DataVolumeSpec{
+								Source: &cdiv1.DataVolumeSource{
+									HTTP: &cdiv1.DataVolumeSourceHTTP{URL: "https://download/root.qcow2"},
+								},
+							},
+						},
+					},
+				},
+				Status: kubevirtv1.VirtualMachineStatus{
+					PrintableStatus: kubevirtv1.VirtualMachineStatusProvisioning,
+				},
+			}, nil
+		},
+		getVirtualMachineInstanceByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachineInstance, error) {
+			return nil, nil
+		},
+		getDataVolumePhasesByNamesHook: func(namespace string, names []string) (map[string]string, error) {
+			t.Fatalf("initial http data volumes should not be queried as restore volumes")
+			return nil, nil
+		},
+	}
+
+	got, ok := action.resolveVMServiceRuntimeStatus("service-a")
+	if !ok {
+		t.Fatal("expected provisioning vm to map to starting")
+	}
+	if got != "starting" {
+		t.Fatalf("expected initial http data volume to map to %q, got %q", "starting", got)
 	}
 }
 
@@ -148,6 +245,42 @@ func TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded(t *testing.T) {
 	}
 	if len(status.ImporterPods) != 0 {
 		t.Fatalf("expected no importer pods after success, got %#v", status.ImporterPods)
+	}
+}
+
+// capability_id: rainbond.vm-template-import.restore-progress
+func TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes(t *testing.T) {
+	action := &ServiceAction{
+		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+			return &kubevirtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-vm",
+					Namespace: "demo-ns",
+				},
+				Spec: kubevirtv1.VirtualMachineSpec{
+					DataVolumeTemplates: []kubevirtv1.DataVolumeTemplateSpec{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "manual133",
+							},
+							Spec: cdiv1.DataVolumeSpec{
+								Source: &cdiv1.DataVolumeSource{
+									Blank: &cdiv1.DataVolumeBlankImage{},
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		},
+		getDataVolumeDetailsByNamesHook: func(namespace string, names []string) ([]vmDataVolumeDetail, error) {
+			t.Fatalf("blank data volumes should not be queried as restore details")
+			return nil, nil
+		},
+	}
+
+	if got := action.resolveVMDataVolumeRestore("service-a"); got != nil {
+		t.Fatalf("expected no restore status for initial blank data volume, got %#v", got)
 	}
 }
 

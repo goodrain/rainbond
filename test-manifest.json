@@ -6781,6 +6781,10 @@
         {
           "path": "api/handler/service_vm_status_test.go",
           "selector": "TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes"
         }
       ],
       "test_type": "unit",
@@ -6788,8 +6792,8 @@
     },
     {
       "id": "rainbond.vm-template-import.status-restoring",
-      "title": "VM template import status is restoring",
-      "title_zh": "VM template import status is restoring",
+      "title": "VM restore status is limited to artifact imports",
+      "title_zh": "VM restore status is limited to artifact imports",
       "interface_type": "package_function",
       "interface": "api/handler.resolveVMServiceRuntimeStatus",
       "code_paths": [
@@ -6798,11 +6802,19 @@
       "tests": [
         {
           "path": "api/handler/service_vm_status_test.go",
-          "selector": "TestResolveVMTransitionStatusReturnsRestoringForDataVolumeImport"
+          "selector": "TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext"
         },
         {
           "path": "api/handler/service_vm_status_test.go",
-          "selector": "TestResolveVMServiceRuntimeStatusReturnsRestoringWhenDataVolumeImportsBeforeVMIExists"
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume"
         },
         {
           "path": "api/handler/service_vm_status_test.go",

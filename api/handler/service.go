@@ -39,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
+	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
@@ -608,7 +609,7 @@ func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInst
 	if vm != nil {
 		switch vm.Status.PrintableStatus {
 		case v1.VirtualMachineStatusProvisioning:
-			return "restoring", true
+			return "starting", true
 		case v1.VirtualMachineStatusDataVolumeError:
 			return "abnormal", true
 		case v1.VirtualMachineStatusStarting:
@@ -626,7 +627,7 @@ func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInst
 	}
 	for _, condition := range vmi.Status.Conditions {
 		if condition.Type == v1.VirtualMachineInstanceDataVolumesReady && condition.Status == "False" {
-			return "restoring", true
+			return "starting", true
 		}
 	}
 	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
@@ -649,7 +650,7 @@ func (s *ServiceAction) resolveVMDataVolumeRuntimeStatus(vm *v1.VirtualMachine, 
 	if vm == nil || vm.Namespace == "" || vmi != nil && transitionStatus == "running" {
 		return "", false
 	}
-	names := vmDataVolumeNames(vm)
+	names := vmRestoreDataVolumeNames(vm)
 	if len(names) == 0 {
 		return "", false
 	}
@@ -673,7 +674,7 @@ func (s *ServiceAction) resolveVMDataVolumeRestore(serviceID string) *apimodel.V
 	if vm == nil || vm.Namespace == "" {
 		return nil
 	}
-	names := vmDataVolumeNames(vm)
+	names := vmRestoreDataVolumeNames(vm)
 	if len(names) == 0 {
 		return nil
 	}
@@ -790,6 +791,57 @@ func vmDataVolumeNames(vm *v1.VirtualMachine) []string {
 		}
 	}
 	return names
+}
+
+func vmRestoreDataVolumeNames(vm *v1.VirtualMachine) []string {
+	if vm == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	names := make([]string, 0, len(vm.Spec.DataVolumeTemplates))
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	restoreTemplates := map[string]struct{}{}
+	for _, template := range vm.Spec.DataVolumeTemplates {
+		if !isVMRestoreDataVolumeTemplate(template) {
+			continue
+		}
+		name := strings.TrimSpace(template.Name)
+		if name == "" {
+			continue
+		}
+		restoreTemplates[name] = struct{}{}
+		add(name)
+	}
+	if vm.Spec.Template != nil {
+		for _, volume := range vm.Spec.Template.Spec.Volumes {
+			if volume.DataVolume == nil {
+				continue
+			}
+			name := strings.TrimSpace(volume.DataVolume.Name)
+			if _, ok := restoreTemplates[name]; ok {
+				add(name)
+			}
+		}
+	}
+	return names
+}
+
+func isVMRestoreDataVolumeTemplate(template v1.DataVolumeTemplateSpec) bool {
+	annotations := template.Annotations
+	if strings.TrimSpace(annotations[appmvolume.VMArtifactImageAnnotation]) != "" {
+		return true
+	}
+	return strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != ""
 }
 
 func resolveVMDataVolumeRestoreStatus(namespace string, details []vmDataVolumeDetail) *apimodel.VMRestore {
