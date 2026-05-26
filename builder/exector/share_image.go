@@ -29,6 +29,7 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"time"
 )
 
 // ImageShareItem ImageShareItem
@@ -140,24 +141,39 @@ func (i *ImageShareItem) ShareService() error {
 	if err := i.prepareVMLocalImage(); err != nil {
 		return err
 	}
+	metadata := map[string]interface{}{
+		"service_id":      i.ServiceID,
+		"event_id":        i.ShareInfo.EventID,
+		"local_image":     i.LocalImageName,
+		"target_image":    i.ImageName,
+		"share_id":        i.ShareID,
+		"deploy_version":  i.ShareInfo.DeployVersion,
+		"share_scope":     i.ShareInfo.ShareScope,
+		"share_user":      i.ShareInfo.ShareUser,
+		"vm_image_source": i.ShareInfo.ImageInfo.VMImageSource,
+	}
 	hubuser, hubpass := builder.GetImageUserInfoV2(i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword)
+	pullStarted := time.Now()
 	_, err := i.ImageClient.ImagePull(i.LocalImageName, hubuser, hubpass, i.Logger, 20)
-	if err != nil {
+	if err = recordVMBuildStage(i.Logger, "share_image_pull", pullStarted, err, metadata); err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(util.Translation("Pull image failed, please check if the image is accessible"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	if err := i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1); err != nil {
+	tagStarted := time.Now()
+	if err := recordVMBuildStage(i.Logger, "share_image_tag", tagStarted, i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1), metadata); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
 		i.Logger.Error(util.Translation("Tag image failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	user, pass := builder.GetImageUserInfoV2(i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword)
+	pushStarted := time.Now()
 	if i.ShareInfo.ImageInfo.IsTrust {
 		err = i.ImageClient.TrustedImagePush(i.ImageName, user, pass, i.Logger, 30)
 	} else {
 		err = i.ImageClient.ImagePush(i.ImageName, user, pass, i.Logger, 30)
 	}
+	err = recordVMBuildStage(i.Logger, "share_image_push", pushStarted, err, metadata)
 	if err != nil {
 		if err.Error() == "authentication required" {
 			i.Logger.Error(util.Translation("Image registry authentication failed"), map[string]string{"step": "builder-exector", "status": "failure"})

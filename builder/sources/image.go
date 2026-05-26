@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -516,6 +517,7 @@ func getHostAlias(kubeClient kubernetes.Interface) []corev1.HostAlias {
 
 // ImageBuild use buildkit build image
 func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
+	buildStarted := time.Now()
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" || buildType == "vm-build" {
@@ -612,20 +614,80 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 	writer := logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
+	execStarted := time.Now()
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
-	if err != nil {
+	if err := recordImageBuildStage(logger, "buildkit_job_create", execStarted, err, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	}); err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
 	}
 	logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
 	// delete job after complete
 	defer jobc.GetJobController().DeleteJob(job.Name)
+	waitStarted := time.Now()
 	err = WaitingComplete(reChan)
-	if err != nil {
+	if err := recordImageBuildStage(logger, "buildkit_job_wait", waitStarted, err, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	}); err != nil {
 		logrus.Errorf("waiting complete failed: %s", err.Error())
 		return err
 	}
+	_ = recordImageBuildStage(logger, "buildkit_image_build", buildStarted, nil, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	})
 	return nil
+}
+
+func recordImageBuildStage(logger event.Logger, stage string, startedAt time.Time, stageErr error, metadata map[string]interface{}) error {
+	if logger == nil {
+		return stageErr
+	}
+	fields := make(map[string]interface{}, len(metadata)+3)
+	for key, value := range metadata {
+		fields[key] = value
+	}
+	fields["stage"] = stage
+	fields["status"] = "success"
+	fields["duration_ms"] = time.Since(startedAt).Milliseconds()
+	message := formatStageLog(fields)
+	if stageErr != nil {
+		fields["status"] = "failure"
+		fields["error"] = stageErr.Error()
+		message = formatStageLog(fields)
+		logger.Error(message, map[string]string{"step": "build-exector", "status": "failure"})
+		return stageErr
+	}
+	logger.Info(message, map[string]string{"step": "build-exector"})
+	return nil
+}
+
+func formatStageLog(fields map[string]interface{}) string {
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, fields[key]))
+	}
+	return strings.Join(parts, " ")
 }
 
 func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {

@@ -360,6 +360,7 @@
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-publish.http-artifact-image-build | 将导出的虚拟机磁盘构建为 HTTP 制品镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile<br>builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID<br>builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
+| rainbond.vm-publish.stage-timing-logs | Trace VM publish stage timing logs | active | regression | builder/exector.VMBuildItem.RunVMBuild | builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess<br>builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsFields<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsError |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -3988,6 +3989,16 @@
 - 业务入口: `builder/exector.BuildFromVM`
 - 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`, `builder/sourceutil/remote_http_client.go`
 - 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport`, `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader`, `builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile`, `builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID`, `builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`, `builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService`
+
+### Trace VM publish stage timing logs
+
+- Capability ID: `rainbond.vm-publish.stage-timing-logs`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.VMBuildItem.RunVMBuild`
+- 代码路径: `builder/exector/build_from_vm.go`, `builder/exector/share_image.go`, `builder/sources/image.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess`, `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsFields`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsError`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 

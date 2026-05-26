@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -109,7 +110,15 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 }
 
 func (v *VMBuildItem) vmBuild(sourcePath string) error {
+	prepareStarted := time.Now()
 	fileInfoList, err := ioutil.ReadDir(sourcePath)
+	if err = recordVMBuildStage(v.Logger, "vm_source_prepare", prepareStarted, err, map[string]interface{}{
+		"service_id":  v.ServiceID,
+		"event_id":    v.EventID,
+		"source_path": sourcePath,
+	}); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -123,30 +132,68 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		sourcePath,
 		fileInfoList[0].Name(),
 	)
+	renderStarted := time.Now()
 	dockerfile, err := renderVMDockerfile(fileInfoList[0].Name())
+	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_render", renderStarted, err, map[string]interface{}{
+		"service_id":  v.ServiceID,
+		"event_id":    v.EventID,
+		"source_path": sourcePath,
+		"file":        fileInfoList[0].Name(),
+	}); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
 
 	dfpath := path.Join(sourcePath, "Dockerfile")
 	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
+	writeDockerfileStarted := time.Now()
 	err = ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
-	if err != nil {
+	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_write", writeDockerfileStarted, err, map[string]interface{}{
+		"service_id":      v.ServiceID,
+		"event_id":        v.EventID,
+		"dockerfile_path": dfpath,
+		"dockerfile_size": len(dockerfile),
+	}); err != nil {
 		return err
 	}
 	imageName := v.localImageName()
+	buildStarted := time.Now()
 	err = sources.ImageBuild(v.Arch, sourcePath, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), v.ServiceID, v.DeployVersion, v.Logger, "vm-build", imageName, v.BuildKitImage, v.BuildKitArgs, v.BuildKitCache, v.kubeClient)
+	if err = recordVMBuildStage(v.Logger, "vm_image_build", buildStarted, err, map[string]interface{}{
+		"service_id":     v.ServiceID,
+		"event_id":       v.EventID,
+		"source_path":    sourcePath,
+		"image_name":     imageName,
+		"deploy_version": v.DeployVersion,
+	}); err != nil {
+		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("build image error: %s", err.Error())
+		return err
+	}
 	if err != nil {
 		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return err
 	}
 	v.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
-	if err := v.storeVersionInfo(imageName); err != nil {
+	storeVersionStarted := time.Now()
+	if err := recordVMBuildStage(v.Logger, "vm_version_store", storeVersionStarted, v.storeVersionInfo(imageName), map[string]interface{}{
+		"service_id":     v.ServiceID,
+		"event_id":       v.EventID,
+		"image_name":     imageName,
+		"deploy_version": v.DeployVersion,
+	}); err != nil {
 		logrus.Errorf("storage vm version info error: %s", err.Error())
 		return err
 	}
-	if err := v.ImageClient.ImageRemove(imageName); err != nil {
+	removeImageStarted := time.Now()
+	if err := recordVMBuildStage(v.Logger, "vm_local_image_remove", removeImageStarted, v.ImageClient.ImageRemove(imageName), map[string]interface{}{
+		"service_id": v.ServiceID,
+		"event_id":   v.EventID,
+		"image_name": imageName,
+	}); err != nil {
 		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
 	}
 	return nil
@@ -244,7 +291,19 @@ func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
 func (v *VMBuildItem) RunVMBuild() error {
 	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
 		logrus.Infof("vm build uses local package source: service_id=%s event_id=%s source=%s", v.ServiceID, v.EventID, v.VMImageSource)
+		readLocalStarted := time.Now()
 		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
+			return recordVMBuildStage(v.Logger, "vm_local_source_prepare", readLocalStarted, err, map[string]interface{}{
+				"service_id":      v.ServiceID,
+				"event_id":        v.EventID,
+				"vm_image_source": v.VMImageSource,
+			})
+		}
+		if err := recordVMBuildStage(v.Logger, "vm_local_source_prepare", readLocalStarted, nil, map[string]interface{}{
+			"service_id":      v.ServiceID,
+			"event_id":        v.EventID,
+			"vm_image_source": v.VMImageSource,
+		}); err != nil {
 			return err
 		}
 		defer os.RemoveAll(v.VMImageSource)
@@ -252,7 +311,12 @@ func (v *VMBuildItem) RunVMBuild() error {
 	}
 	vmImageSource := vmRemoteImageSourceDir(v.ServiceID, v.EventID)
 	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
-	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger)
+	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger, map[string]interface{}{
+		"service_id":      v.ServiceID,
+		"event_id":        v.EventID,
+		"vm_image_source": v.VMImageSource,
+		"target_dir":      vmImageSource,
+	})
 	if err != nil {
 		return err
 	}
@@ -267,12 +331,16 @@ func vmRemoteImageSourceDir(serviceID, eventID string) string {
 	return path.Join("/grdata/package_build/temp/events", serviceID, eventID)
 }
 
-func downloadFile(downPath, url, token string, Logger event.Logger) error {
+func downloadFile(downPath, url, token string, Logger event.Logger, metadata map[string]interface{}) error {
+	downloadStarted := time.Now()
 	// 创建一个 HTTP client 和 request
 	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":        url,
+			"target_dir": downPath,
+		}))
 	}
 
 	// 添加请求头，例如设置 User-Agent
@@ -284,14 +352,22 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	// 发送请求
 	rsp, err := client.Do(req)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":        url,
+			"target_dir": downPath,
+		}))
 	}
 	defer func() {
 		_ = rsp.Body.Close()
 	}()
 	logrus.Infof("vm source download response: url=%s status=%d content_length=%d", url, rsp.StatusCode, rsp.ContentLength)
 	if rsp.StatusCode < http.StatusOK || rsp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("download vm image %v failure: unexpected http status %d", url, rsp.StatusCode)
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, fmt.Errorf("download vm image %v failure: unexpected http status %d", url, rsp.StatusCode), mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_dir":     downPath,
+			"http_status":    rsp.StatusCode,
+			"content_length": rsp.ContentLength,
+		}))
 	}
 	baseURL := filepath.Base(url)
 	fileName := strings.Split(baseURL, "?")[0]
@@ -299,11 +375,19 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	dir := filepath.Dir(downPath)
 	// 递归创建目录
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_dir":     dir,
+			"content_length": rsp.ContentLength,
+		}))
 	}
 	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_path":    downPath,
+			"content_length": rsp.ContentLength,
+		}))
 	}
 	defer func() {
 		_ = f.Close()
@@ -327,10 +411,65 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	if err != nil {
 		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_path":    downPath,
+			"content_length": rsp.ContentLength,
+			"written_bytes":  written,
+		}))
 	}
 	Logger.Info(fmt.Sprintf("download vm image success, downloaded size is %v", humanize.Bytes(uint64(written))), map[string]string{"step": "builder-exector"})
+	return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, nil, mergeVMBuildMetadata(metadata, map[string]interface{}{
+		"url":            url,
+		"target_path":    downPath,
+		"content_length": rsp.ContentLength,
+		"written_bytes":  written,
+	}))
+}
+
+func recordVMBuildStage(logger event.Logger, stage string, startedAt time.Time, stageErr error, metadata map[string]interface{}) error {
+	if logger == nil {
+		return stageErr
+	}
+	fields := mergeVMBuildMetadata(metadata, map[string]interface{}{
+		"stage":       stage,
+		"status":      "success",
+		"duration_ms": time.Since(startedAt).Milliseconds(),
+	})
+	message := formatVMBuildStageLog(fields)
+	if stageErr != nil {
+		fields["status"] = "failure"
+		fields["error"] = stageErr.Error()
+		message = formatVMBuildStageLog(fields)
+		logger.Error(message, map[string]string{"step": "builder-exector", "status": "failure"})
+		return stageErr
+	}
+	logger.Info(message, map[string]string{"step": "builder-exector"})
 	return nil
+}
+
+func mergeVMBuildMetadata(base map[string]interface{}, extra map[string]interface{}) map[string]interface{} {
+	merged := make(map[string]interface{}, len(base)+len(extra))
+	for key, value := range base {
+		merged[key] = value
+	}
+	for key, value := range extra {
+		merged[key] = value
+	}
+	return merged
+}
+
+func formatVMBuildStageLog(fields map[string]interface{}) string {
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, fields[key]))
+	}
+	return strings.Join(parts, " ")
 }
 
 type MyDownloader struct {

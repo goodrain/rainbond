@@ -21,9 +21,13 @@ package sources
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/registry"
+	"github.com/goodrain/rainbond/event"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -146,4 +150,98 @@ func TestNewBuildKitPodSpecAddsTolerationForHostScheduling(t *testing.T) {
 	if len(podSpec.HostAliases) != 1 || podSpec.HostAliases[0].IP != "10.0.0.2" {
 		t.Fatalf("expected host aliases to be preserved, got %#v", podSpec.HostAliases)
 	}
+}
+
+// capability_id: rainbond.vm-publish.stage-timing-logs
+func TestRecordImageBuildStageLogsFields(t *testing.T) {
+	logger := &stageRecordingLogger{}
+	start := time.Unix(100, 0)
+
+	err := recordImageBuildStage(logger, "buildkit_job_wait", start, nil, map[string]interface{}{
+		"service_id": "svc-a",
+		"job_name":   "svc-a-1-dockerfile",
+	})
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if len(logger.infos) != 1 {
+		t.Fatalf("expected one info log, got %d", len(logger.infos))
+	}
+	got := logger.infos[0]
+	for _, want := range []string{
+		"stage=buildkit_job_wait",
+		"status=success",
+		"duration_ms=",
+		"service_id=svc-a",
+		"job_name=svc-a-1-dockerfile",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected log to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestRecordImageBuildStageLogsError(t *testing.T) {
+	logger := &stageRecordingLogger{}
+	start := time.Unix(100, 0)
+	stageErr := errors.New("job timeout")
+
+	err := recordImageBuildStage(logger, "buildkit_job_wait", start, stageErr, map[string]interface{}{
+		"service_id": "svc-a",
+	})
+
+	if !errors.Is(err, stageErr) {
+		t.Fatalf("expected original error, got %v", err)
+	}
+	if len(logger.errors) != 1 {
+		t.Fatalf("expected one error log, got %d", len(logger.errors))
+	}
+	got := logger.errors[0]
+	for _, want := range []string{
+		"stage=buildkit_job_wait",
+		"status=failure",
+		"duration_ms=",
+		"service_id=svc-a",
+		"error=job timeout",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected log to contain %q, got %q", want, got)
+		}
+	}
+}
+
+type stageRecordingLogger struct {
+	infos  []string
+	errors []string
+}
+
+func (l *stageRecordingLogger) Info(message string, info map[string]string) {
+	l.infos = append(l.infos, message)
+}
+
+func (l *stageRecordingLogger) Error(message string, info map[string]string) {
+	l.errors = append(l.errors, message)
+}
+
+func (l *stageRecordingLogger) Debug(message string, info map[string]string) {}
+
+func (l *stageRecordingLogger) Event() string { return "test" }
+
+func (l *stageRecordingLogger) CreateTime() time.Time { return time.Unix(0, 0) }
+
+func (l *stageRecordingLogger) GetChan() chan []byte { return nil }
+
+func (l *stageRecordingLogger) SetChan(ch chan []byte) {}
+
+func (l *stageRecordingLogger) GetWriter(step, level string) event.LoggerWriter {
+	return stageDiscardLoggerWriter{}
+}
+
+type stageDiscardLoggerWriter struct{}
+
+func (stageDiscardLoggerWriter) SetFormat(format map[string]interface{}) {}
+
+func (stageDiscardLoggerWriter) Write(p []byte) (int, error) {
+	return len(p), nil
 }

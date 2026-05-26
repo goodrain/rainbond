@@ -2,6 +2,7 @@ package exector
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -161,7 +162,7 @@ func TestDownloadFileUsesVMExportTokenHeader(t *testing.T) {
 	defer server.Close()
 	downloadDir := t.TempDir()
 
-	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "download-token", event.NewLogger("evt-token", nil))
+	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "download-token", event.NewLogger("evt-token", nil), nil)
 
 	if err != nil {
 		t.Fatalf("download file failed: %v", err)
@@ -189,7 +190,7 @@ func TestDownloadFileOverwritesExistingPartialFile(t *testing.T) {
 		t.Fatalf("write existing partial file: %v", err)
 	}
 
-	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "", event.NewLogger("evt-overwrite", nil))
+	err := downloadFile(downloadDir, server.URL+"/disk.img.gz", "", event.NewLogger("evt-overwrite", nil), nil)
 
 	if err != nil {
 		t.Fatalf("download file failed: %v", err)
@@ -211,15 +212,78 @@ func TestVMRemoteImageSourceDirUsesEventID(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-publish.stage-timing-logs
+func TestRecordVMBuildStageLogsSuccess(t *testing.T) {
+	logger := &recordingLogger{}
+	start := time.Unix(100, 0)
+	err := recordVMBuildStage(logger, "vm_source_download", start, nil, map[string]interface{}{
+		"service_id": "svc-a",
+		"event_id":   "evt-a",
+		"bytes":      int64(256),
+	})
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if len(logger.infos) != 1 {
+		t.Fatalf("expected one info log, got %d", len(logger.infos))
+	}
+	got := logger.infos[0]
+	for _, want := range []string{
+		"stage=vm_source_download",
+		"status=success",
+		"duration_ms=",
+		"service_id=svc-a",
+		"event_id=evt-a",
+		"bytes=256",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected success log to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestRecordVMBuildStageLogsError(t *testing.T) {
+	logger := &recordingLogger{}
+	start := time.Unix(100, 0)
+	stageErr := errors.New("download timeout")
+
+	err := recordVMBuildStage(logger, "vm_source_download", start, stageErr, map[string]interface{}{
+		"service_id": "svc-a",
+	})
+
+	if !errors.Is(err, stageErr) {
+		t.Fatalf("expected original error to be returned, got %v", err)
+	}
+	if len(logger.errors) != 1 {
+		t.Fatalf("expected one error log, got %d", len(logger.errors))
+	}
+	got := logger.errors[0]
+	for _, want := range []string{
+		"stage=vm_source_download",
+		"status=failure",
+		"duration_ms=",
+		"service_id=svc-a",
+		"error=download timeout",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected error log to contain %q, got %q", want, got)
+		}
+	}
+}
+
 type recordingLogger struct {
-	infos []string
+	infos  []string
+	errors []string
 }
 
 func (l *recordingLogger) Info(message string, info map[string]string) {
 	l.infos = append(l.infos, message)
 }
 
-func (l *recordingLogger) Error(message string, info map[string]string) {}
+func (l *recordingLogger) Error(message string, info map[string]string) {
+	l.errors = append(l.errors, message)
+}
 
 func (l *recordingLogger) Debug(message string, info map[string]string) {}
 

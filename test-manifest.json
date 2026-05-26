@@ -6642,6 +6642,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-publish.stage-timing-logs",
+      "title": "Trace VM publish stage timing logs",
+      "title_zh": "Trace VM publish stage timing logs",
+      "interface_type": "workflow",
+      "interface": "builder/exector.VMBuildItem.RunVMBuild",
+      "code_paths": [
+        "builder/exector/build_from_vm.go",
+        "builder/exector/share_image.go",
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRecordVMBuildStageLogsSuccess"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRecordVMBuildStageLogsError"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestRecordImageBuildStageLogsFields"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestRecordImageBuildStageLogsError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.build-media-paths",
       "title": "Split VM runtime image build templates for ISO and disk sources",
       "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
