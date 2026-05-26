@@ -147,27 +147,3 @@ func TestNewBuildKitPodSpecAddsTolerationForHostScheduling(t *testing.T) {
 		t.Fatalf("expected host aliases to be preserved, got %#v", podSpec.HostAliases)
 	}
 }
-
-// capability_id: rainbond.vm-publish.resource-guard
-func TestBuildKitContainerUsesDefaultResourceGuard(t *testing.T) {
-	container := newBuildKitContainer("svc-1-v1-dockerfile", "buildkit:latest", "goodrain.me/svc-1:v1", nil)
-
-	if container.Resources.Requests.Cpu().IsZero() {
-		t.Fatal("expected default cpu request")
-	}
-	if container.Resources.Requests.Memory().IsZero() {
-		t.Fatal("expected default memory request")
-	}
-	if container.Resources.Requests.StorageEphemeral().IsZero() {
-		t.Fatal("expected default ephemeral-storage request")
-	}
-	if container.Resources.Limits.Cpu().IsZero() {
-		t.Fatal("expected default cpu limit")
-	}
-	if container.Resources.Limits.Memory().IsZero() {
-		t.Fatal("expected default memory limit")
-	}
-	if container.Resources.Limits.StorageEphemeral().IsZero() {
-		t.Fatal("expected default ephemeral-storage limit")
-	}
-}

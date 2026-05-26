@@ -13,7 +13,6 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
@@ -44,15 +43,6 @@ const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
 const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine"
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
-const vmImageDownloadSpaceMultiplier uint64 = 2
-
-var statAvailableBytes = func(path string) (uint64, error) {
-	var stat unix.Statfs_t
-	if err := unix.Statfs(path, &stat); err != nil {
-		return 0, err
-	}
-	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
-}
 
 var vmISODockerfileTmpl = `
 FROM scratch
@@ -311,10 +301,6 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
-	if err := ensureVMImageDownloadSpace(dir, rsp.ContentLength); err != nil {
-		Logger.Error(err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
-		return err
-	}
 	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
@@ -344,32 +330,6 @@ func downloadFile(downPath, url, token string, Logger event.Logger) error {
 		return err
 	}
 	Logger.Info(fmt.Sprintf("download vm image success, downloaded size is %v", humanize.Bytes(uint64(written))), map[string]string{"step": "builder-exector"})
-	return nil
-}
-
-func ensureVMImageDownloadSpace(path string, contentLength int64) error {
-	if contentLength <= 0 {
-		return nil
-	}
-	required := uint64(contentLength)
-	if required > ^uint64(0)/vmImageDownloadSpaceMultiplier {
-		required = ^uint64(0)
-	} else {
-		required *= vmImageDownloadSpaceMultiplier
-	}
-	available, err := statAvailableBytes(path)
-	if err != nil {
-		return fmt.Errorf("check vm image download disk space %s: %w", path, err)
-	}
-	if available < required {
-		return fmt.Errorf(
-			"insufficient disk space for vm image download: path=%s available=%s required=%s image_size=%s",
-			path,
-			humanize.Bytes(available),
-			humanize.Bytes(required),
-			humanize.Bytes(uint64(contentLength)),
-		)
-	}
 	return nil
 }
 

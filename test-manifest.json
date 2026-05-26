@@ -6642,42 +6642,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-publish.resource-guard",
-      "title": "Guard VM publish resource usage",
-      "title_zh": "Guard VM publish resource usage",
-      "interface_type": "workflow",
-      "interface": "builder/exector.RunTask",
-      "code_paths": [
-        "builder/exector/exector.go",
-        "builder/exector/build_from_vm.go",
-        "builder/sources/image.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/exector/exector_test.go",
-          "selector": "TestRunVMPublishTaskSerializesHeavyTasksAndHoldsQueueSlot"
-        },
-        {
-          "path": "builder/exector/exector_test.go",
-          "selector": "TestIsVMPublishTaskDetectsVMShareImage"
-        },
-        {
-          "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestEnsureVMImageDownloadSpaceFailsWhenDiskHasInsufficientSpace"
-        },
-        {
-          "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestEnsureVMImageDownloadSpaceAllowsUnknownContentLength"
-        },
-        {
-          "path": "builder/sources/image_test.go",
-          "selector": "TestBuildKitContainerUsesDefaultResourceGuard"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.vm-run.build-media-paths",
       "title": "Split VM runtime image build templates for ISO and disk sources",
       "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",

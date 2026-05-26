@@ -63,7 +63,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -557,7 +556,45 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 	// only support never and onfailure
 	volumes, volumeMounts := CreateVolumeAndMounts(contextDir, buildType, buildKitTomlCMName)
 	podSpec.Volumes = volumes
-	container := newBuildKitContainer(name, BuildKitImage, buildImageName, BuildKitArgs)
+	privileged := true
+	// container config
+	container := corev1.Container{
+		Name:      name,
+		Image:     BuildKitImage,
+		Stdin:     true,
+		StdinOnce: true,
+		Command:   []string{"buildctl-daemonless.sh"},
+		Env: []corev1.EnvVar{
+			{
+				Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
+				Value: util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", "100"),
+			},
+			{
+				Name:  "BUILDKITD_FLAGS",
+				Value: util.GetenvDefault("BUILDKITD_FLAGS", "--oci-worker-gc=false"),
+			},
+		},
+		Args: []string{
+			"build",
+			"--frontend",
+			"dockerfile.v0",
+			"--local",
+			"context=/workspace",
+			"--local",
+			"dockerfile=/workspace",
+			"--output",
+			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &privileged,
+		},
+	}
+	logrus.Infof("buildkt args: %v", BuildKitArgs)
+	if len(BuildKitArgs) > 0 {
+		container.Args = append(container.Args, BuildKitArgs...)
+	}
+
+	// 添加 BuildKit 缓存支持
 	if BuildKitCache {
 		// 使用 Registry cache，支持多阶段构建和完整的层缓存
 		// 缓存镜像基于服务ID，不包含版本号，这样所有版本可以共享缓存
@@ -589,58 +626,6 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		return err
 	}
 	return nil
-}
-
-func newBuildKitContainer(name, buildKitImage, buildImageName string, buildKitArgs []string) corev1.Container {
-	privileged := true
-	container := corev1.Container{
-		Name:      name,
-		Image:     buildKitImage,
-		Stdin:     true,
-		StdinOnce: true,
-		Command:   []string{"buildctl-daemonless.sh"},
-		Env: []corev1.EnvVar{
-			{
-				Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
-				Value: util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", "100"),
-			},
-			{
-				Name:  "BUILDKITD_FLAGS",
-				Value: util.GetenvDefault("BUILDKITD_FLAGS", "--oci-worker-gc=false"),
-			},
-		},
-		Args: []string{
-			"build",
-			"--frontend",
-			"dockerfile.v0",
-			"--local",
-			"context=/workspace",
-			"--local",
-			"dockerfile=/workspace",
-			"--output",
-			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
-		},
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: &privileged,
-		},
-		Resources: corev1.ResourceRequirements{
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:              resource.MustParse(util.GetenvDefault("BUILDKIT_CPU_REQUEST", "500m")),
-				corev1.ResourceMemory:           resource.MustParse(util.GetenvDefault("BUILDKIT_MEMORY_REQUEST", "1Gi")),
-				corev1.ResourceEphemeralStorage: resource.MustParse(util.GetenvDefault("BUILDKIT_EPHEMERAL_STORAGE_REQUEST", "20Gi")),
-			},
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:              resource.MustParse(util.GetenvDefault("BUILDKIT_CPU_LIMIT", "4")),
-				corev1.ResourceMemory:           resource.MustParse(util.GetenvDefault("BUILDKIT_MEMORY_LIMIT", "8Gi")),
-				corev1.ResourceEphemeralStorage: resource.MustParse(util.GetenvDefault("BUILDKIT_EPHEMERAL_STORAGE_LIMIT", "100Gi")),
-			},
-		},
-	}
-	logrus.Infof("buildkt args: %v", buildKitArgs)
-	if len(buildKitArgs) > 0 {
-		container.Args = append(container.Args, buildKitArgs...)
-	}
-	return container
 }
 
 func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {

@@ -103,15 +103,14 @@ func NewManager() (Manager, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	numCPU := runtime.NumCPU()
-	maxConcurrentTask := resolveMaxConcurrentTask(configDefault.ChaosConfig.MaxTasks, numCPU)
-	vmPublishMaxTasks := resolveVMPublishMaxTasks(configDefault.ChaosConfig.VMPublishMaxTasks)
+	// 示例逻辑：根据 CPU 核数设置基准最大并发数，实际中可以加上内存的判断
+	maxConcurrentTask := numCPU * 2
 	stop := make(chan struct{})
 	if err := job.InitJobController(configDefault.PublicConfig.RbdNamespace, stop, kubeClient); err != nil {
 		cancel()
 		return nil, err
 	}
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
-	logrus.Infof("The maximum number of concurrent VM publish tasks supported by the current node is %d", vmPublishMaxTasks)
 
 	return &exectorManager{
 		BuildKitImage:     configDefault.ChaosConfig.BuildKitImage,
@@ -121,7 +120,6 @@ func NewManager() (Manager, error) {
 		RainbondClient:    rainbondClient,
 		mqClient:          mq.Default().MqClient,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
-		vmPublishTasks:    make(chan struct{}, vmPublishMaxTasks),
 		maxConcurrentTask: maxConcurrentTask,
 		ctx:               ctx,
 		cancel:            cancel,
@@ -143,25 +141,6 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	imageClient       sources.ImageClient
-	vmPublishTasks    chan struct{}
-	vmPublishTasksMu  sync.Mutex
-}
-
-func resolveMaxConcurrentTask(configured, numCPU int) int {
-	if configured > 0 {
-		return configured
-	}
-	if numCPU <= 0 {
-		return 1
-	}
-	return numCPU * 2
-}
-
-func resolveVMPublishMaxTasks(configured int) int {
-	if configured > 0 {
-		return configured
-	}
-	return 1
 }
 
 // TaskWorker worker interface
@@ -268,37 +247,6 @@ func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task
 	e.runningTask.Delete(task.TaskId)
 	logrus.Infof("[runTask] Task completed: task_id=%s", task.TaskId)
 }
-
-func (e *exectorManager) runVMPublishTask(f func(task *pb.TaskMessage), task *pb.TaskMessage) {
-	e.runTask(func(task *pb.TaskMessage) {
-		if e.vmPublishTasks == nil {
-			e.vmPublishTasksMu.Lock()
-			if e.vmPublishTasks == nil {
-				e.vmPublishTasks = make(chan struct{}, 1)
-			}
-			e.vmPublishTasksMu.Unlock()
-		}
-		e.vmPublishTasks <- struct{}{}
-		defer func() {
-			<-e.vmPublishTasks
-		}()
-		f(task)
-	}, task, true)
-}
-
-func isVMPublishTask(task *pb.TaskMessage) bool {
-	if task == nil {
-		return false
-	}
-	if task.TaskType == "build_from_vm" {
-		return true
-	}
-	if task.TaskType != "share-image" {
-		return false
-	}
-	return strings.TrimSpace(gjson.GetBytes(task.TaskBody, "share_info.image_info.vm_image_source").String()) != ""
-}
-
 func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	logrus.Infof("[RunTask] Received task from MQ: task_id=%s, task_type=%s", task.TaskId, task.TaskType)
 
@@ -306,7 +254,7 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	case "build_from_image":
 		go e.runTask(e.buildFromImage, task, false)
 	case "build_from_vm":
-		go e.runVMPublishTask(e.buildFromVM, task)
+		go e.runTask(e.buildFromVM, task, false)
 	case "build_from_source_code":
 		go e.runTask(e.buildFromSourceCode, task, true)
 	case "build_from_market_slug":
@@ -322,10 +270,6 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		//deprecated
 		go e.runTask(e.slugShare, task, false)
 	case "share-image":
-		if isVMPublishTask(task) {
-			go e.runVMPublishTask(e.imageShare, task)
-			return
-		}
 		go e.runTask(e.imageShare, task, false)
 	case "load-tar-image":
 		logrus.Infof("[RunTask] Dispatching load-tar-image task to handler")

@@ -2,7 +2,6 @@ package exector
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -209,48 +208,6 @@ func TestVMRemoteImageSourceDirUsesEventID(t *testing.T) {
 
 	if got != "/grdata/package_build/temp/events/service-a/event-b" {
 		t.Fatalf("unexpected remote image source dir: %q", got)
-	}
-}
-
-// capability_id: rainbond.vm-publish.resource-guard
-func TestEnsureVMImageDownloadSpaceFailsWhenDiskHasInsufficientSpace(t *testing.T) {
-	original := statAvailableBytes
-	statAvailableBytes = func(path string) (uint64, error) {
-		if path == "/grdata/package_build/temp/events/service-a/event-b" {
-			return 100, nil
-		}
-		return 0, errors.New("unexpected path")
-	}
-	defer func() {
-		statAvailableBytes = original
-	}()
-
-	err := ensureVMImageDownloadSpace("/grdata/package_build/temp/events/service-a/event-b", 100)
-
-	if err == nil {
-		t.Fatal("expected insufficient space to fail")
-	}
-	if !strings.Contains(err.Error(), "insufficient disk space") {
-		t.Fatalf("expected insufficient disk space error, got %v", err)
-	}
-}
-
-func TestEnsureVMImageDownloadSpaceAllowsUnknownContentLength(t *testing.T) {
-	original := statAvailableBytes
-	called := false
-	statAvailableBytes = func(path string) (uint64, error) {
-		called = true
-		return 0, nil
-	}
-	defer func() {
-		statAvailableBytes = original
-	}()
-
-	if err := ensureVMImageDownloadSpace("/grdata/package_build/temp/events/service-a/event-b", -1); err != nil {
-		t.Fatalf("expected unknown content length to skip preflight, got %v", err)
-	}
-	if called {
-		t.Fatal("expected unknown content length to skip statfs")
 	}
 }
 
