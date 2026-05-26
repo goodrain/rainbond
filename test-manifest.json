@@ -6602,6 +6602,7 @@
       "code_paths": [
         "api/handler/share/service_share.go",
         "builder/exector/build_from_vm.go",
+        "builder/sources/image.go",
         "builder/sourceutil/remote_http_client.go"
       ],
       "tests": [
@@ -6632,6 +6633,10 @@
         {
           "path": "builder/exector/share_image_test.go",
           "selector": "TestNewImageShareItemCapturesVMImageSource"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildKitImageOutputUsesUncompressedLayersForVMBuild"
         },
         {
           "path": "builder/sourceutil/remote_http_client_test.go",

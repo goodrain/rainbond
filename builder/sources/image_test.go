@@ -211,6 +211,19 @@ func TestRecordImageBuildStageLogsError(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-publish.http-artifact-image-build
+func TestBuildKitImageOutputUsesUncompressedLayersForVMBuild(t *testing.T) {
+	vmOutput := buildKitImageOutput("vm-build", "goodrain.me/demo:latest")
+	if vmOutput != "type=image,name=goodrain.me/demo:latest,push=true,compression=uncompressed" {
+		t.Fatalf("unexpected vm build output: %q", vmOutput)
+	}
+
+	defaultOutput := buildKitImageOutput("run-build", "goodrain.me/demo:latest")
+	if defaultOutput != "type=image,name=goodrain.me/demo:latest,push=true" {
+		t.Fatalf("unexpected default build output: %q", defaultOutput)
+	}
+}
+
 type stageRecordingLogger struct {
 	infos  []string
 	errors []string

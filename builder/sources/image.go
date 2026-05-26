@@ -77,6 +77,14 @@ var ErrorNoImage = fmt.Errorf("image not exist")
 // Namespace containerd image namespace
 var Namespace = "k8s.io"
 
+func buildKitImageOutput(buildType, buildImageName string) string {
+	output := fmt.Sprintf("type=image,name=%s,push=true", buildImageName)
+	if buildType == "vm-build" {
+		output += ",compression=uncompressed"
+	}
+	return output
+}
+
 // ImagePull pull docker image
 // Deprecated: use sources.ImageClient.ImagePull instead
 func ImagePull(client *containerd.Client, ref string, username, password string, logger event.Logger, timeout int) (*containerd.Image, error) {
@@ -585,7 +593,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 			"--local",
 			"dockerfile=/workspace",
 			"--output",
-			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+			buildKitImageOutput(buildType, buildImageName),
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
