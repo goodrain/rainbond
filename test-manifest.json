@@ -6594,6 +6594,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-probe-attribute-syncs-spec",
+      "title": "VM probe attributes trigger VirtualMachine spec sync",
+      "title_zh": "VM probe attributes trigger VirtualMachine spec sync",
+      "interface_type": "package_function",
+      "interface": "api/handler.isVMRuntimeSpecAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestIsVMRuntimeSpecAttributeIncludesProbeAttributes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-probe-change-syncs-spec",
+      "title": "VM probe changes sync VirtualMachine spec",
+      "title_zh": "VM probe changes sync VirtualMachine spec",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.ServiceProbe",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_resource_sync_test.go",
+          "selector": "TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-publish.http-artifact-image-build",
       "title": "Build VM publish image from exported disk as HTTP artifact",
       "title_zh": "\u5c06\u5bfc\u51fa\u7684\u865a\u62df\u673a\u78c1\u76d8\u6784\u5efa\u4e3a HTTP \u5236\u54c1\u955c\u50cf",

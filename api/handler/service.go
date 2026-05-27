@@ -2546,6 +2546,9 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.TenantServiceProbe, action str
 			return err
 		}
 	}
+	if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsp.ServiceID); err != nil {
+		return err
+	}
 	return nil
 }
 

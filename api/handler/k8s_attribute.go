@@ -156,6 +156,8 @@ var vmRuntimeDeviceAttributeNames = []string{
 var vmRuntimeSpecAttributeNames = []string{
 	"vm_os_name",
 	"vm_disk_layout",
+	dbmodel.K8sAttributeNameLiveNessProbe,
+	dbmodel.K8sAttributeNameReadinessProbe,
 }
 
 func (s *ServiceAction) getDBManager() db.Manager {

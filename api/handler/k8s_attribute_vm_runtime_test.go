@@ -386,6 +386,18 @@ func TestIsVMRuntimeSpecAttributeIncludesDiskLayout(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-probe-attribute-syncs-spec
+func TestIsVMRuntimeSpecAttributeIncludesProbeAttributes(t *testing.T) {
+	for _, name := range []string{
+		"livenessProbe",
+		"readinessProbe",
+	} {
+		if !isVMRuntimeSpecAttribute(name) {
+			t.Fatalf("expected %s to trigger vm spec sync", name)
+		}
+	}
+}
+
 func pointerToRunStrategy(strategy kubevirtv1.VirtualMachineRunStrategy) *kubevirtv1.VirtualMachineRunStrategy {
 	return &strategy
 }

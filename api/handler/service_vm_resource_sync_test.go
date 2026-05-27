@@ -15,8 +15,9 @@ import (
 
 type resourceSyncTestManager struct {
 	db.Manager
-	serviceDao dbdao.TenantServiceDao
-	eventDao   dbdao.EventDao
+	serviceDao      dbdao.TenantServiceDao
+	eventDao        dbdao.EventDao
+	serviceProbeDao dbdao.ServiceProbeDao
 }
 
 func (m resourceSyncTestManager) TenantServiceDao() dbdao.TenantServiceDao {
@@ -25,6 +26,10 @@ func (m resourceSyncTestManager) TenantServiceDao() dbdao.TenantServiceDao {
 
 func (m resourceSyncTestManager) ServiceEventDao() dbdao.EventDao {
 	return m.eventDao
+}
+
+func (m resourceSyncTestManager) ServiceProbeDao() dbdao.ServiceProbeDao {
+	return m.serviceProbeDao
 }
 
 type resourceSyncTenantServiceDao struct {
@@ -62,6 +67,28 @@ func (d *resourceSyncEventDao) SetEventStatus(_ context.Context, status dbmodel.
 	return nil
 }
 
+type resourceSyncServiceProbeDao struct {
+	dbdao.ServiceProbeDao
+	added   int
+	updated int
+	deleted int
+}
+
+func (d *resourceSyncServiceProbeDao) AddModel(dbmodel.Interface) error {
+	d.added++
+	return nil
+}
+
+func (d *resourceSyncServiceProbeDao) UpdateModel(dbmodel.Interface) error {
+	d.updated++
+	return nil
+}
+
+func (d *resourceSyncServiceProbeDao) DeleteModel(string, ...interface{}) error {
+	d.deleted++
+	return nil
+}
+
 type noopMQClient struct{}
 
 func (m *noopMQClient) Enqueue(context.Context, *mqpb.EnqueueRequest, ...grpc.CallOption) (*mqpb.TaskReply, error) {
@@ -80,6 +107,61 @@ func (m *noopMQClient) Close() {}
 
 func (m *noopMQClient) SendBuilderTopic(gclient.TaskStruct) error {
 	return nil
+}
+
+// capability_id: rainbond.vm-probe-change-syncs-spec
+func TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		action     string
+		wantAdd    int
+		wantUpdate int
+		wantDelete int
+	}{
+		{name: "add", action: "add", wantAdd: 1},
+		{name: "update", action: "update", wantUpdate: 1},
+		{name: "delete", action: "delete", wantDelete: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serviceDao := &resourceSyncTenantServiceDao{
+				service: &dbmodel.TenantServices{
+					ServiceID:    "service-vm",
+					ServiceAlias: "service-vm",
+					ExtendMethod: "vm",
+				},
+			}
+			probeDao := &resourceSyncServiceProbeDao{}
+			db.SetTestManager(resourceSyncTestManager{
+				serviceDao:      serviceDao,
+				eventDao:        &resourceSyncEventDao{},
+				serviceProbeDao: probeDao,
+			})
+			defer db.SetTestManager(nil)
+
+			syncedServiceID := ""
+			action := &ServiceAction{
+				syncVirtualMachineSpecHook: func(serviceID string) error {
+					syncedServiceID = serviceID
+					return nil
+				},
+			}
+
+			err := action.ServiceProbe(&dbmodel.TenantServiceProbe{
+				ServiceID: "service-vm",
+				ProbeID:   "probe-vm",
+				Mode:      "readiness",
+			}, tc.action)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if syncedServiceID != "service-vm" {
+				t.Fatalf("expected vm spec sync for service-vm, got %q", syncedServiceID)
+			}
+			if probeDao.added != tc.wantAdd || probeDao.updated != tc.wantUpdate || probeDao.deleted != tc.wantDelete {
+				t.Fatalf("unexpected probe dao calls: add=%d update=%d delete=%d", probeDao.added, probeDao.updated, probeDao.deleted)
+			}
+		})
+	}
 }
 
 func TestServiceUpdateSyncsVirtualMachineSpecWhenVMResourcesChange(t *testing.T) {
