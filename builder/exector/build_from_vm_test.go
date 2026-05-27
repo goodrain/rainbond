@@ -73,12 +73,12 @@ func TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render gzip raw dockerfile: %v", err)
 	}
-	expected := "FROM registry.cn-hangzhou.aliyuncs.com/zhangqihang/rainbond-plugins:vmqd1.0\nCOPY disk.img.gz /disk/disk.img.gz\n"
+	expected := "FROM registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine\nCOPY disk.img.gz /disk/disk.img.gz\nRUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\\n  listen 80;\\n  root /usr/share/nginx/html;\\n  location /disk.img.gz {\\n    add_header Content-Type application/gzip;\\n    try_files /disk.img.gz =404;\\n  }\\n}\\n' > /etc/nginx/conf.d/default.conf\n"
 	if dockerfile != expected {
 		t.Fatalf("unexpected gzip raw dockerfile: %q", dockerfile)
 	}
-	if strings.Contains(dockerfile, "RUN ") {
-		t.Fatalf("gzip export artifact dockerfile must not execute runtime setup: %q", dockerfile)
+	if !strings.Contains(dockerfile, "RUN ln -sf") || !strings.Contains(dockerfile, "/etc/nginx/conf.d/default.conf") {
+		t.Fatalf("gzip export artifact dockerfile must configure nginx serving path: %q", dockerfile)
 	}
 	if strings.Contains(dockerfile, "qemu-img") || strings.Contains(dockerfile, "gzip -dc") {
 		t.Fatalf("gzip export artifact dockerfile must not convert disk data: %q", dockerfile)
