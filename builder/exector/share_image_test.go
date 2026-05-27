@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/containerd/containerd"
+	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/event"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // capability_id: rainbond.vm-publish.http-artifact-image-build
@@ -101,5 +105,127 @@ func TestExecuteImageShareOnceReturnsSuccess(t *testing.T) {
 	}
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// capability_id: rainbond.vm-publish.http-artifact-image-build
+func TestShareServiceSkipsRegistryRoundTripWhenTargetMatchesLocalImage(t *testing.T) {
+	item := &ImageShareItem{
+		ServiceID:      "svc-vm",
+		Arch:           "amd64",
+		ImageName:      "goodrain.me/svc-vm:20260526121000",
+		LocalImageName: "goodrain.me/svc-vm:20260526121000",
+		ShareID:        "share-1",
+		Logger:         event.NewLogger("evt-skip-share", nil),
+		ImageClient:    &countingImageClient{},
+	}
+	item.ShareInfo.EventID = "evt-skip-share"
+	item.ShareInfo.DeployVersion = "20260526121000"
+	item.ShareInfo.ShareScope = "enterprise"
+	item.ShareInfo.ShareUser = "admin"
+
+	if err := item.ShareService(); err != nil {
+		t.Fatalf("expected share service to skip registry round-trip, got %v", err)
+	}
+
+	client := item.ImageClient.(*countingImageClient)
+	if client.pullCount != 0 || client.tagCount != 0 || client.pushCount != 0 || client.trustedPushCount != 0 {
+		t.Fatalf("expected no registry round-trip calls, got pull=%d tag=%d push=%d trustedPush=%d",
+			client.pullCount, client.tagCount, client.pushCount, client.trustedPushCount)
+	}
+}
+
+type countingImageClient struct {
+	pullCount        int
+	tagCount         int
+	pushCount        int
+	trustedPushCount int
+	metadataCount    int
+}
+
+func (c *countingImageClient) GetContainerdClient() *containerd.Client {
+	return nil
+}
+
+func (c *countingImageClient) GetDockerClient() *dockercli.Client {
+	return nil
+}
+
+func (c *countingImageClient) ImagePull(imageName, username, password string, logger event.Logger, timeout int) (*ocispec.ImageConfig, error) {
+	c.pullCount++
+	return &ocispec.ImageConfig{}, nil
+}
+
+func (c *countingImageClient) ImagePush(imageName, username, password string, logger event.Logger, timeout int) error {
+	c.pushCount++
+	return nil
+}
+
+func (c *countingImageClient) TrustedImagePush(imageName, username, password string, logger event.Logger, timeout int) error {
+	c.trustedPushCount++
+	return nil
+}
+
+func (c *countingImageClient) ImageTag(source, target string, logger event.Logger, timeout int) error {
+	c.tagCount++
+	return nil
+}
+
+func (c *countingImageClient) ImageRemove(imageName string) error {
+	return nil
+}
+
+func (c *countingImageClient) ImagesPullAndPush(sourceImage, targetImage, username, password string, logger event.Logger) error {
+	return nil
+}
+
+func (c *countingImageClient) CheckIfImageExists(imageName string) (string, bool, error) {
+	return imageName, true, nil
+}
+
+func (c *countingImageClient) ImageSave(image, destination string) error {
+	return nil
+}
+
+func (c *countingImageClient) ImageLoad(tarFile string, logger event.Logger) ([]string, error) {
+	return nil, nil
+}
+
+func (c *countingImageClient) GetImageMetadata(image, username, password string, logger event.Logger) (*ocispec.ImageConfig, error) {
+	c.metadataCount++
+	return &ocispec.ImageConfig{}, nil
+}
+
+// capability_id: rainbond.vm-publish.http-artifact-image-build
+func TestPrepareVMLocalImageReusesExistingRegistryArtifact(t *testing.T) {
+	client := &countingImageClient{}
+	item := &ImageShareItem{
+		ServiceID:     "svc-vm",
+		Arch:          "amd64",
+		Logger:        event.NewLogger("evt-reuse-vm-build", nil),
+		ImageClient:   client,
+		BuildKitImage: "buildkit:test",
+		BuildKitArgs:  nil,
+		BuildKitCache: false,
+	}
+	item.ShareInfo.EventID = "evt-reuse-vm-build"
+	item.ShareInfo.DeployVersion = "20260526121000"
+	item.ShareInfo.AppVersion = "1.0.0"
+	item.ShareInfo.ImageInfo.VMImageSource = "https://virt-export/default/disk.img.gz"
+
+	if err := item.prepareVMLocalImage(); err != nil {
+		t.Fatalf("expected existing registry artifact to be reused, got %v", err)
+	}
+
+	expected := "goodrain.me/svc-vm:20260526121000"
+	if item.LocalImageName != expected {
+		t.Fatalf("expected local image name %q, got %q", expected, item.LocalImageName)
+	}
+	if client.metadataCount != 1 {
+		t.Fatalf("expected one metadata probe, got %d", client.metadataCount)
+	}
+	if client.pullCount != 0 || client.tagCount != 0 || client.pushCount != 0 || client.trustedPushCount != 0 {
+		t.Fatalf("expected no registry round-trip calls during prepare, got pull=%d tag=%d push=%d trustedPush=%d",
+			client.pullCount, client.tagCount, client.pushCount, client.trustedPushCount)
 	}
 }

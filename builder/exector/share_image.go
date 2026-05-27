@@ -97,6 +97,12 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 	}
 	buildVersion := resolveVMLocalBuildVersion(i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
 	localBuildImage := resolveVMLocalBuildImage(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	localImageName := resolveVMShareLocalImageName(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	if _, err := i.ImageClient.GetImageMetadata(localImageName, i.LocalImageUsername, i.LocalImagePassword, i.Logger); err == nil {
+		i.LocalImageName = localImageName
+		i.Logger.Info("reuse existing vm local image from registry", map[string]string{"step": "builder-exector"})
+		return nil
+	}
 	buildItem := &VMBuildItem{
 		Logger:        i.Logger,
 		Arch:          i.Arch,
@@ -117,7 +123,7 @@ func (i *ImageShareItem) prepareVMLocalImage() error {
 	if err := buildItem.RunVMBuild(); err != nil {
 		return err
 	}
-	i.LocalImageName = resolveVMShareLocalImageName(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	i.LocalImageName = localImageName
 	return nil
 }
 
@@ -151,6 +157,10 @@ func (i *ImageShareItem) ShareService() error {
 		"share_scope":     i.ShareInfo.ShareScope,
 		"share_user":      i.ShareInfo.ShareUser,
 		"vm_image_source": i.ShareInfo.ImageInfo.VMImageSource,
+	}
+	if i.LocalImageName == i.ImageName {
+		i.Logger.Info("skip share image pull/tag/push because local image matches target image", map[string]string{"step": "builder-exector"})
+		return nil
 	}
 	hubuser, hubpass := builder.GetImageUserInfoV2(i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword)
 	pullStarted := time.Now()
