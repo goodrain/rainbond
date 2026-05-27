@@ -352,10 +352,11 @@
 | rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
 | rainbond.vm-live-update.installer-media-removal-required | 初始化安装光盘未删除时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.memory-target-below-max-guest | 拒绝等于 maxGuest 的虚拟机内存热更新目标 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest |
-| rainbond.vm-live-update.migration-target-required | 无可用迁移目标节点时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode |
+| rainbond.vm-live-update.migration-target-missing-auto-restart | 无可用迁移目标节点时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.running-cpu-shrink-rejected | Reject running VM CPU shrink during live update | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink |
 | rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
-| rainbond.vm-live-update.running-shrink-rejected-before-event | 运行中虚拟机缩容在创建垂直扩展事件前被拒绝 | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent |
+| rainbond.vm-live-update.running-shrink-restart-allowed-before-event | 运行中虚拟机缩容允许进入垂直伸缩流程 | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler |
+| rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
@@ -3912,15 +3913,15 @@
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest`
 
-### 无可用迁移目标节点时拒绝虚拟机热更新
+### 无可用迁移目标节点时自动调整规格并重启虚拟机
 
-- Capability ID: `rainbond.vm-live-update.migration-target-required`
+- Capability ID: `rainbond.vm-live-update.migration-target-missing-auto-restart`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `handler_method`
 - 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
 - 代码路径: `api/handler/service_vm_live_update.go`
-- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode`
 
 ### Reject running VM CPU shrink during live update
 
@@ -3942,15 +3943,25 @@
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink`
 
-### 运行中虚拟机缩容在创建垂直扩展事件前被拒绝
+### 运行中虚拟机缩容允许进入垂直伸缩流程
 
-- Capability ID: `rainbond.vm-live-update.running-shrink-rejected-before-event`
+- Capability ID: `rainbond.vm-live-update.running-shrink-restart-allowed-before-event`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `other`
 - 业务入口: `api/middleware.WrapEL`
 - 代码路径: `api/middleware/middleware.go`
-- 测试路径: `api/middleware/middleware_test.go::TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent`
+- 测试路径: `api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler`
+
+### 不满足热更新条件时自动调整规格并重启虚拟机
+
+- Capability ID: `rainbond.vm-live-update.unsupported-auto-restart`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart`, `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart`
 
 ### 虚拟机热更新后清理已完成的 virt-launcher Pod
 

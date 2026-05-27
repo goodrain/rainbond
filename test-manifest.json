@@ -6452,9 +6452,9 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-live-update.migration-target-required",
-      "title": "Reject live update when no migration target node is available",
-      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
+      "id": "rainbond.vm-live-update.migration-target-missing-auto-restart",
+      "title": "Restart VM when no live migration target node is available",
+      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u81ea\u52a8\u8c03\u6574\u89c4\u683c\u5e76\u91cd\u542f\u865a\u62df\u673a",
       "interface_type": "handler_method",
       "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
       "code_paths": [
@@ -6463,7 +6463,7 @@
       "tests": [
         {
           "path": "api/handler/service_vm_live_update_test.go",
-          "selector": "TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode"
+          "selector": "TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode"
         }
       ],
       "test_type": "regression",
@@ -6506,9 +6506,9 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-live-update.running-shrink-rejected-before-event",
-      "title": "Reject running VM shrink requests before creating vertical events",
-      "title_zh": "\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7f29\u5bb9\u5728\u521b\u5efa\u5782\u76f4\u6269\u5c55\u4e8b\u4ef6\u524d\u88ab\u62d2\u7edd",
+      "id": "rainbond.vm-live-update.running-shrink-restart-allowed-before-event",
+      "title": "Allow running VM shrink requests to reach vertical scaling handler",
+      "title_zh": "\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7f29\u5bb9\u5141\u8bb8\u8fdb\u5165\u5782\u76f4\u4f38\u7f29\u6d41\u7a0b",
       "interface_type": "other",
       "interface": "api/middleware.WrapEL",
       "code_paths": [
@@ -6517,7 +6517,29 @@
       "tests": [
         {
           "path": "api/middleware/middleware_test.go",
-          "selector": "TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent"
+          "selector": "TestWrapELAllowsRunningVMShrinkToReachHandler"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.unsupported-auto-restart",
+      "title": "Restart running VM when live update is unsupported",
+      "title_zh": "\u4e0d\u6ee1\u8db3\u70ed\u66f4\u65b0\u6761\u4ef6\u65f6\u81ea\u52a8\u8c03\u6574\u89c4\u683c\u5e76\u91cd\u542f\u865a\u62df\u673a",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart"
+        },
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart"
         }
       ],
       "test_type": "regression",

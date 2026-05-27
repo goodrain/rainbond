@@ -5,19 +5,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/jinzhu/gorm"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "kubevirt.io/api/core/v1"
-	kubecli "kubevirt.io/client-go/kubecli"
 )
 
 type wrapELTestManager struct {
@@ -43,43 +37,23 @@ func (d *wrapELTestEventDao) AddModel(arg dbmodel.Interface) error {
 	return nil
 }
 
-// capability_id: rainbond.vm-live-update.running-shrink-rejected-before-event
-func TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
+// capability_id: rainbond.vm-live-update.running-shrink-restart-allowed-before-event
+func TestWrapELAllowsRunningVMShrinkToReachHandler(t *testing.T) {
 	eventDao := &wrapELTestEventDao{}
 	db.SetTestManager(wrapELTestManager{eventDao: eventDao})
 	defer db.SetTestManager(nil)
 
-	mockClient := kubecli.NewMockKubevirtClient(ctrl)
-	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
-	k8sComponent := k8s.New()
-	k8sComponent.KubevirtCli = mockClient
-
-	mockClient.EXPECT().VirtualMachine("").Return(mockVMInterface).Times(2)
-	mockVMInterface.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-vm"}).Return(&v1.VirtualMachineList{
-		Items: []v1.VirtualMachine{
-			{
-				Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
-			},
-		},
-	}, nil).Times(2)
-
 	testCases := []struct {
-		name           string
-		body           string
-		expectedReason string
+		name string
+		body string
 	}{
 		{
-			name:           "cpu_shrink",
-			body:           `{"container_cpu":4000,"container_memory":12288}`,
-			expectedReason: "虚拟机 CPU 热更新仅支持扩容，不支持缩容，请停机后再修改规格。",
+			name: "cpu_shrink",
+			body: `{"container_cpu":4000,"container_memory":12288}`,
 		},
 		{
-			name:           "memory_shrink",
-			body:           `{"container_cpu":6000,"container_memory":8192}`,
-			expectedReason: "虚拟机内存热更新仅支持扩容，不支持缩容，请停机后再修改规格。",
+			name: "memory_shrink",
+			body: `{"container_cpu":6000,"container_memory":8192}`,
 		},
 	}
 
@@ -105,19 +79,16 @@ func TestWrapELRejectsRunningVMShrinkBeforeCreatingEvent(t *testing.T) {
 			resp := httptest.NewRecorder()
 			handler(resp, req)
 
-			if resp.Code != http.StatusConflict {
-				t.Fatalf("expected status 409, got %d", resp.Code)
+			if resp.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d", resp.Code)
 			}
-			if called {
-				t.Fatal("expected request to be rejected before reaching wrapped handler")
-			}
-			if !strings.Contains(resp.Body.String(), tc.expectedReason) {
-				t.Fatalf("expected rejection reason %q, got %s", tc.expectedReason, resp.Body.String())
+			if !called {
+				t.Fatal("expected request to reach wrapped handler")
 			}
 		})
 	}
 
-	if eventDao.added != 0 {
-		t.Fatalf("expected no events to be created for rejected vm shrink requests, got %d", eventDao.added)
+	if eventDao.added != len(testCases) {
+		t.Fatalf("expected one event per allowed vm shrink request, got %d", eventDao.added)
 	}
 }

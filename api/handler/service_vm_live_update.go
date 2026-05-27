@@ -47,6 +47,11 @@ func newVMLiveUpdateError(status int, message string) error {
 	}
 }
 
+func isVMLiveUpdateUnsupportedError(err error) bool {
+	_, ok := err.(*vmLiveUpdateError)
+	return ok
+}
+
 func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServices, oldCPU, oldMemory int) error {
 	if service == nil || !service.IsVM() {
 		return nil
@@ -79,13 +84,16 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 	}
 
 	if !isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceIsMigratable) {
-		return newVMLiveUpdateError(409, liveMigratableMessage(vmi.Status.Conditions))
+		return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
 	}
 
 	if !s.isVMLiveUpdateClusterConfigured(context.Background()) {
-		return newVMLiveUpdateError(409, "kubevirt live update requires LiveMigrate workload updates and LiveUpdate rollout strategy")
+		return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
 	}
 	if err := s.ensureVMLiveUpdateMigrationTargetAvailable(context.Background(), service.ServiceID); err != nil {
+		if isVMLiveUpdateUnsupportedError(err) {
+			return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
+		}
 		return err
 	}
 
@@ -152,10 +160,37 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 	}
 	_, err = s.kubevirtClient.VirtualMachine(vm.Namespace).Patch(context.Background(), vm.Name, types.JSONPatchType, payload, metav1.PatchOptions{})
 	if err != nil {
+		if isVMLiveMigrationUnsupportedPatchError(err) {
+			return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
+		}
 		return err
 	}
 	s.enqueueCompletedVMLauncherCleanup(service.ServiceID)
 	return nil
+}
+
+func (s *ServiceAction) syncVirtualMachineSpecAndRestart(serviceID string, vm *v1.VirtualMachine) error {
+	if err := s.syncVirtualMachineSpecAfterResourceUpdate(serviceID); err != nil {
+		return err
+	}
+	if s == nil || s.kubevirtClient == nil || vm == nil {
+		return nil
+	}
+	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		return nil
+	}
+	return s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{})
+}
+
+func isVMLiveMigrationUnsupportedPatchError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "cannot migrate") ||
+		strings.Contains(message, "live migration") ||
+		(strings.Contains(message, "pvc") && strings.Contains(message, "not shared")) ||
+		strings.Contains(message, "readwritemany")
 }
 
 func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability {

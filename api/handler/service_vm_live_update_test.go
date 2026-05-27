@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -191,6 +192,167 @@ func TestServiceVerticalVMStoppedFallsBackToSpecSync(t *testing.T) {
 	}
 	if syncedServiceID != "service-vm" {
 		t.Fatalf("expected vm spec sync for stopped VM, got %q", syncedServiceID)
+	}
+}
+
+// capability_id: rainbond.vm-live-update.unsupported-auto-restart
+func TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Status:     v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{
+					Type:    v1.VirtualMachineInstanceIsMigratable,
+					Status:  "False",
+					Message: "PVC manual82 is not shared",
+				},
+			},
+		}}, nil
+	}
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Restart(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err != nil {
+		t.Fatalf("expected non-migratable running VM to restart instead of failing live update, got %v", err)
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected vm spec sync before restart, got %q", syncedServiceID)
+	}
+	if serviceDao.updatedService == nil || serviceDao.updatedService.ContainerMemory != 10240 {
+		t.Fatalf("expected updated memory to persist, got %#v", serviceDao.updatedService)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status, got %#v", eventDao.statuses)
+	}
+}
+
+// capability_id: rainbond.vm-live-update.unsupported-auto-restart
+func TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							Memory: &v1.Memory{
+								Guest:    quantityPtr("8Gi"),
+								MaxGuest: quantityPtr("16Gi"),
+							},
+						},
+					},
+				},
+			},
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface).Times(2)
+	mockVMInterface.EXPECT().Patch(gomock.Any(), "demo-vm", types.JSONPatchType, gomock.Any(), gomock.Any()).
+		Return(nil, errors.New("cannot migrate VMI: PVC manual82 is not shared, live migration requires that all PVCs must be shared (using ReadWriteMany access mode)"))
+	mockVMInterface.EXPECT().Restart(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err != nil {
+		t.Fatalf("expected live migration pvc error to restart instead of failing vertical update, got %v", err)
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected vm spec sync before restart, got %q", syncedServiceID)
+	}
+	if serviceDao.updatedService == nil || serviceDao.updatedService.ContainerMemory != 10240 {
+		t.Fatalf("expected updated memory to persist, got %#v", serviceDao.updatedService)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status, got %#v", eventDao.statuses)
 	}
 }
 
@@ -744,8 +906,8 @@ func TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached(t *te
 	}
 }
 
-// capability_id: rainbond.vm-live-update.migration-target-required
-func TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode(t *testing.T) {
+// capability_id: rainbond.vm-live-update.migration-target-missing-auto-restart
+func TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -805,10 +967,11 @@ func TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode(t *testing.
 	)
 
 	syncedServiceID := ""
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
 	action := &ServiceAction{
 		MQClient:       &noopMQClient{},
 		kubeClient:     kubeClient,
-		kubevirtClient: kubecli.NewMockKubevirtClient(ctrl),
+		kubevirtClient: mockClient,
 		syncVirtualMachineSpecHook: func(serviceID string) error {
 			syncedServiceID = serviceID
 			return nil
@@ -830,25 +993,26 @@ func TestServiceVerticalVMLiveUpdateRejectsWhenNoMigrationTargetNode(t *testing.
 		}}, nil
 	}
 
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockClient.EXPECT().VirtualMachine("default").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Restart(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
 	newMemory := 10240
 	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
 		ServiceID:       "service-vm",
 		ContainerMemory: &newMemory,
 	})
-	if err == nil {
-		t.Fatal("expected live update to be rejected without a migration target node")
-	}
-	if !strings.Contains(err.Error(), "没有可用的迁移目标节点") {
-		t.Fatalf("expected migration target rejection, got %q", err.Error())
+	if err != nil {
+		t.Fatalf("expected missing migration target to restart instead of failing live update, got %v", err)
 	}
 	if syncedServiceID != "service-vm" {
-		t.Fatalf("expected rollback vm spec sync, got %q", syncedServiceID)
+		t.Fatalf("expected vm spec sync before restart, got %q", syncedServiceID)
 	}
-	if serviceDao.service == nil || serviceDao.service.ContainerMemory != 8192 {
-		t.Fatalf("expected memory rollback to original value, got %#v", serviceDao.service)
+	if serviceDao.service == nil || serviceDao.service.ContainerMemory != 10240 {
+		t.Fatalf("expected updated memory to persist, got %#v", serviceDao.service)
 	}
-	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusFailure {
-		t.Fatalf("expected failure event status, got %#v", eventDao.statuses)
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status, got %#v", eventDao.statuses)
 	}
 }
 
