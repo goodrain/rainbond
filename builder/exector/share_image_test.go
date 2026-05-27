@@ -217,7 +217,7 @@ func TestPrepareVMLocalImageReusesExistingRegistryArtifact(t *testing.T) {
 		t.Fatalf("expected existing registry artifact to be reused, got %v", err)
 	}
 
-	expected := "goodrain.me/svc-vm:20260526121000"
+	expected := fmt.Sprintf("%s/svc-vm:20260526121000", builder.REGISTRYDOMAIN)
 	if item.LocalImageName != expected {
 		t.Fatalf("expected local image name %q, got %q", expected, item.LocalImageName)
 	}
