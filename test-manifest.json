@@ -6616,6 +6616,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.stop-restoring-fallback",
+      "title": "Fallback to halt transient VM when direct stop fails",
+      "title_zh": "Fallback to halt transient VM when direct stop fails",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.StopVM",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-probe-attribute-syncs-spec",
       "title": "VM probe attributes trigger VirtualMachine spec sync",
       "title_zh": "VM probe attributes trigger VirtualMachine spec sync",

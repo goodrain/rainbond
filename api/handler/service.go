@@ -560,10 +560,33 @@ func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
 	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{}); err != nil {
+		if fallbackErr := s.haltTransientVM(vm, err); fallbackErr == nil {
+			return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+		}
 		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
 	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func (s *ServiceAction) haltTransientVM(vm *v1.VirtualMachine, stopErr error) error {
+	if s == nil || s.kubevirtClient == nil || vm == nil {
+		return stopErr
+	}
+	switch vm.Status.PrintableStatus {
+	case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting, v1.VirtualMachineStatusStopping:
+	default:
+		return stopErr
+	}
+	updatedVM := vm.DeepCopy()
+	halted := v1.RunStrategyHalted
+	updatedVM.Spec.RunStrategy = &halted
+	updatedVM.Spec.Running = nil
+	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+	if err != nil {
+		return stopErr
+	}
+	return nil
 }
 
 func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.VirtualMachine, error) {
