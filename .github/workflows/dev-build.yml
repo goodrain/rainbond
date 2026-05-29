@@ -45,9 +45,12 @@ on:
         required: false
         default: ''
       ui-image-tag:
-        description: '不重打前端时，console 复用的现成 UI 镜像 tag（需已存在）'
+        # dev 构建为 amd64 单架构，且历史多架构 release 的 UI 镜像只有 -amd64/-arm64
+        # 后缀（无合并 manifest），故默认用 -amd64 后缀的现存 tag。
+        # 注：release-v6.yml 已补上 UI 多架构 manifest，后续新版本可改用无后缀 tag。
+        description: '不重打前端时 console 复用的现成 UI 镜像 tag（需已存在；dev 为 amd64，默认用 -amd64 后缀）'
         required: false
-        default: 'v6.8.1-release'
+        default: 'v6.8.1-release-amd64'
       run-unit-test:
         description: '是否跑 Go 单测（region/all 时生效）'
         required: false

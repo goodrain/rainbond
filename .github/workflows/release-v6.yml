@@ -329,3 +329,11 @@ jobs:
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
           fi
+
+          # Rainbond UI（仅推 Docker Hub，故只合并该处的多架构 manifest）
+          if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
+            echo "Creating manifest for rainbond-ui..."
+            docker buildx imagetools create -t rainbond/rainbond-ui:${VERSION} \
+              rainbond/rainbond-ui:${VERSION}-amd64 \
+              rainbond/rainbond-ui:${VERSION}-arm64
+          fi
