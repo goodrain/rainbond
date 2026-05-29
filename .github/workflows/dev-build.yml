@@ -1,0 +1,338 @@
+# =============================================================================
+# dev-build —— 开发期"按分支出可部署 dev 镜像"工作流
+#
+# 与现有工作流的分工：
+#   - pr-ci-build.yml ：PR 触发，单测 + 编译检查（push:false，不产出可部署镜像）
+#   - dev-build.yml   ：手动触发，从任意特性分支出【已推送、可部署】的 dev-* 镜像，
+#                       供测试环境换镜像实测，无需合并到 main
+#   - release-v6.yml  ：正式发布，完全不受本工作流影响
+#
+# 设计要点：
+#   - 单架构 amd64 + buildx 层缓存 → 比 release 快数倍
+#   - 镜像 tag 强制 dev-*，绝不覆盖正式 release tag
+#   - 分支回退：某仓库无同名分支自动用 main（只改 console 不必给 ui 建空分支）
+#   - 前端按需构建：console 默认复用现成 UI 镜像；要带前端就传 ui-branch
+#
+# 典型用法（命令行触发，单 console 改动）：
+#   gh workflow run dev-build.yml -R goodrain/rainbond \
+#     -f branch=dev/zhangsan/fix-x -f build-who=console -f dev-tag=dev-zhangsan-fixx
+# =============================================================================
+name: "dev-build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '主特性分支（各仓库有同名分支就用，没有则回退 main）'
+        required: true
+        default: 'main'
+      build-who:
+        description: '构建哪个组件'
+        required: true
+        default: 'region'
+        type: choice
+        options:
+          - region
+          - console
+          - operator
+          - all
+      dev-tag:
+        description: 'dev 镜像 tag，约定 dev-<人>-<功能>，禁止用正式版本号'
+        required: true
+        default: 'dev-test'
+      ui-branch:
+        description: 'console 构建时是否重打前端：留空=复用 ui-image-tag；填分支名=从该分支重打 UI'
+        required: false
+        default: ''
+      ui-image-tag:
+        description: '不重打前端时，console 复用的现成 UI 镜像 tag（需已存在）'
+        required: false
+        default: 'v6.8.1-release'
+      run-unit-test:
+        description: '是否跑 Go 单测（region/all 时生效）'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  # dev 镜像统一打 dev-* tag，复用 release 的 registry/namespace，
+  # 这样 console 的 Dockerfile（FROM ${IMAGE_NAMESPACE}/rainbond-ui）无需改动。
+  VERSION: ${{ github.event.inputs.dev-tag }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 0. Go 单测（仅 region/all，且 run-unit-test=true 时）
+  # ---------------------------------------------------------------------------
+  rainbond-unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve rainbond ref
+        id: ref
+        run: |
+          B="${{ github.event.inputs.branch }}"
+          if git ls-remote --exit-code --heads https://github.com/goodrain/rainbond.git "$B" >/dev/null 2>&1; then
+            echo "ref=$B" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::rainbond 无分支 '$B'，回退 main"
+          fi
+
+      - name: Checkout repository
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Install native dependencies
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libzmq3-dev
+
+      - name: Set up Go
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run unit tests
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
+        run: go test -mod=mod ./... -count=1
+
+      - name: Skip unit tests
+        if: ${{ github.event.inputs.run-unit-test != 'true' || (github.event.inputs.build-who != 'all' && github.event.inputs.build-who != 'region') }}
+        run: echo "跳过 Go 单测 (run-unit-test=${{ github.event.inputs.run-unit-test }}, build-who=${{ github.event.inputs.build-who }})"
+
+  # ---------------------------------------------------------------------------
+  # 1. region 组件（amd64 单架构）
+  # ---------------------------------------------------------------------------
+  rainbond-region:
+    needs: rainbond-unit-test
+    runs-on: ubuntu-latest
+    environment: release-v6   # 复用现有 environment 以读取 DOCKER/Aliyun secrets
+    strategy:
+      matrix:
+        component: [api, chaos, worker, init-probe, mq]
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+    steps:
+      - name: Resolve ref
+        id: ref
+        run: |
+          B="${{ github.event.inputs.branch }}"
+          if git ls-remote --exit-code --heads https://github.com/goodrain/rainbond.git "$B" >/dev/null 2>&1; then
+            echo "ref=$B" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Set release description
+        run: |
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          echo "release_desc=${{ env.VERSION }}-${git_commit}-${buildTime}" >> "${GITHUB_ENV}"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+          context: .
+          file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          push: true
+          cache-from: type=gha,scope=rbd-${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=rbd-${{ matrix.component }}
+          tags: |
+            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}
+
+  # ---------------------------------------------------------------------------
+  # 2. operator
+  # ---------------------------------------------------------------------------
+  rainbond-operator:
+    needs: rainbond-unit-test
+    runs-on: ubuntu-latest
+    environment: release-v6
+    if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'operator' }}
+    steps:
+      - name: Resolve ref
+        id: ref
+        run: |
+          B="${{ github.event.inputs.branch }}"
+          if git ls-remote --exit-code --heads https://github.com/goodrain/rainbond-operator.git "$B" >/dev/null 2>&1; then
+            echo "ref=$B" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::rainbond-operator 无分支 '$B'，回退 main"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/rainbond-operator
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          context: .
+          file: ./Dockerfile
+          push: true
+          cache-from: type=gha,scope=operator
+          cache-to: type=gha,mode=max,scope=operator
+          tags: |
+            rainbond/rainbond-operator:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}
+
+  # ---------------------------------------------------------------------------
+  # 3. rainbond-ui —— 仅当 (build-who console/all) 且显式传了 ui-branch 才重打前端
+  # ---------------------------------------------------------------------------
+  rainbond-ui:
+    needs: rainbond-unit-test
+    runs-on: ubuntu-latest
+    environment: release-v6
+    if: ${{ (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console') && github.event.inputs.ui-branch != '' }}
+    steps:
+      - name: Resolve ui ref
+        id: ref
+        run: |
+          B="${{ github.event.inputs.ui-branch }}"
+          if git ls-remote --exit-code --heads https://github.com/goodrain/rainbond-ui.git "$B" >/dev/null 2>&1; then
+            echo "ref=$B" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::rainbond-ui 无分支 '$B'，回退 main"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/rainbond-ui
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          context: .
+          file: ./Dockerfile
+          push: true
+          cache-from: type=gha,scope=ui
+          cache-to: type=gha,mode=max,scope=ui
+          tags: |
+            rainbond/rainbond-ui:${{ env.VERSION }}
+
+  # ---------------------------------------------------------------------------
+  # 4. rainbond(allinone/console)
+  #    - needs rainbond-ui，但 ui 可能被跳过 → if: always() + 结果判断
+  #    - IMAGE_VERSION：传了 ui-branch 用新打的 VERSION，否则复用 ui-image-tag
+  # ---------------------------------------------------------------------------
+  rainbond-allinone:
+    needs: [rainbond-unit-test, rainbond-ui]
+    runs-on: ubuntu-latest
+    environment: release-v6
+    if: ${{ always() && needs.rainbond-ui.result != 'failure' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'console') }}
+    steps:
+      - name: Resolve console ref
+        id: ref
+        run: |
+          B="${{ github.event.inputs.branch }}"
+          if git ls-remote --exit-code --heads https://github.com/goodrain/rainbond-console.git "$B" >/dev/null 2>&1; then
+            echo "ref=$B" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "::notice::rainbond-console 无分支 '$B'，回退 main"
+          fi
+
+      - name: Checkout rainbond-console repository
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/rainbond-console
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Set release description
+        run: |
+          buildTime=$(date +%F-%H)
+          git_commit=$(git log -n 1 --pretty --format=%h)
+          echo "release_desc=${{ env.VERSION }}-${git_commit}-${buildTime}" >> "${GITHUB_ENV}"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          build-args: |
+            RELEASE_DESC=${{ env.release_desc }}
+            VERSION=${{ env.VERSION }}
+            IMAGE_VERSION=${{ github.event.inputs.ui-branch != '' && env.VERSION || github.event.inputs.ui-image-tag }}
+          context: .
+          file: ./Dockerfile
+          push: true
+          cache-from: type=gha,scope=console
+          cache-to: type=gha,mode=max,scope=console
+          tags: |
+            rainbond/rainbond:${{ env.VERSION }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}
