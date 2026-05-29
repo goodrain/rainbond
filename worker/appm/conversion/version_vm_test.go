@@ -444,6 +444,55 @@ func TestVMRootBlankDataVolumeNameReturnsRootBlankTemplate(t *testing.T) {
 	}
 }
 
+func TestFilterReferencedVMDataVolumeTemplatesDropsTemplatesWithoutMatchingVolume(t *testing.T) {
+	templates := []kubevirtv1.DataVolumeTemplateSpec{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "manual-root",
+				Annotations: map[string]string{"volume_name": "disk"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "data-1",
+				Annotations: map[string]string{"volume_name": "data-1"},
+			},
+			Spec: cdiv1.DataVolumeSpec{
+				Source: &cdiv1.DataVolumeSource{
+					Blank: &cdiv1.DataVolumeBlankImage{},
+				},
+			},
+		},
+	}
+	volumes := []kubevirtv1.Volume{
+		{
+			Name: "vmimage",
+			VolumeSource: kubevirtv1.VolumeSource{
+				ContainerDisk: &kubevirtv1.ContainerDiskSource{
+					Image: "goodrain.me/default:test",
+				},
+			},
+		},
+		{
+			Name: "data-1",
+			VolumeSource: kubevirtv1.VolumeSource{
+				DataVolume: &kubevirtv1.DataVolumeSource{Name: "data-1"},
+			},
+		},
+	}
+
+	filtered := filterReferencedVMDataVolumeTemplates(templates, volumes)
+
+	if len(filtered) != 1 || filtered[0].Name != "data-1" {
+		t.Fatalf("expected only referenced data volume template to remain, got %#v", filtered)
+	}
+}
+
 func TestBuildVMArtifactImportManifestsCreatesServiceAndDeployment(t *testing.T) {
 	templates := []kubevirtv1.DataVolumeTemplateSpec{
 		{

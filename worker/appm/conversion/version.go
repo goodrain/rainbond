@@ -176,7 +176,8 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
 		volumes := dv.GetVMVolume()
-		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName := prepareVMImageBootVolumes(
+		var rootBlankDataVolumeName string
+		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName = prepareVMImageBootVolumes(
 			bootPath,
 			fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
 			volumes,
@@ -215,6 +216,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			return fmt.Errorf("create vm volume layout failure: %v", err)
 		}
 		volumes = layoutVolumes
+		vmDataVolumeTemplates = filterReferencedVMDataVolumeTemplates(vmDataVolumeTemplates, volumes)
 		logrus.Infof(
 			"vm template assemble result: service_id=%s service_alias=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
 			as.ServiceID,
@@ -1818,6 +1820,34 @@ func filterVMDataVolumeTemplatesByName(templates []kubevirtv1.DataVolumeTemplate
 	filtered := make([]kubevirtv1.DataVolumeTemplateSpec, 0, len(templates))
 	for _, template := range templates {
 		if template.Name == name {
+			continue
+		}
+		filtered = append(filtered, template)
+	}
+	return filtered
+}
+
+func filterReferencedVMDataVolumeTemplates(templates []kubevirtv1.DataVolumeTemplateSpec,
+	volumes []kubevirtv1.Volume) []kubevirtv1.DataVolumeTemplateSpec {
+	if len(templates) == 0 {
+		return templates
+	}
+
+	referenced := make(map[string]struct{}, len(volumes))
+	for _, volume := range volumes {
+		if volume.DataVolume == nil {
+			continue
+		}
+		name := strings.TrimSpace(volume.DataVolume.Name)
+		if name == "" {
+			continue
+		}
+		referenced[name] = struct{}{}
+	}
+
+	filtered := make([]kubevirtv1.DataVolumeTemplateSpec, 0, len(templates))
+	for _, template := range templates {
+		if _, ok := referenced[template.Name]; !ok {
 			continue
 		}
 		filtered = append(filtered, template)
