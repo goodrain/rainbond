@@ -166,7 +166,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	podtmpSpec := corev1.PodTemplateSpec{}
 	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
-		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet)
+		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet, envs)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
 		}

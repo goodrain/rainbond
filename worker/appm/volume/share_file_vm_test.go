@@ -2,13 +2,65 @@ package volume
 
 import (
 	"testing"
+	"time"
 
+	"github.com/goodrain/rainbond/db"
+	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	appmtypes "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
+
+type volumeManagerStub struct {
+	db.Manager
+	configFileDao dbdao.TenantServiceConfigFileDao
+}
+
+func (m volumeManagerStub) TenantServiceConfigFileDao() dbdao.TenantServiceConfigFileDao {
+	return m.configFileDao
+}
+
+type tenantServiceConfigFileDaoStub struct {
+	file *dbmodel.TenantServiceConfigFile
+}
+
+func (t tenantServiceConfigFileDaoStub) AddModel(dbmodel.Interface) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) UpdateModel(dbmodel.Interface) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) DeleteModel(interface{}, ...interface{}) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) GetConfigFileByServiceID(serviceID string) ([]*dbmodel.TenantServiceConfigFile, error) {
+	return nil, nil
+}
+
+func (t tenantServiceConfigFileDaoStub) GetByVolumeName(sid, volumeName string) (*dbmodel.TenantServiceConfigFile, error) {
+	return t.file, nil
+}
+
+func (t tenantServiceConfigFileDaoStub) DelByVolumeID(sid string, volumeName string) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) DelByServiceID(sid string) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) DeleteByComponentIDs(componentIDs []string) error {
+	return nil
+}
+
+func (t tenantServiceConfigFileDaoStub) CreateOrUpdateConfigFilesInBatch(configFiles []*dbmodel.TenantServiceConfigFile) error {
+	return nil
+}
 
 func newVMAppServiceForVolumeTest() *appmtypes.AppService {
 	namespace := &corev1.Namespace{
@@ -153,5 +205,61 @@ func TestShareFileVolumeCreateVolumeTreatsIndexedDiskPathAsDiskDevice(t *testing
 	}
 	if len(define.GetVMDataVolumeTemplates()) != 1 {
 		t.Fatalf("expected indexed vm disk path to create one data volume template, got %d", len(define.GetVMDataVolumeTemplates()))
+	}
+}
+
+// capability_id: rainbond.vm-config-file-injected-as-configmap-volume
+func TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk(t *testing.T) {
+	as := newVMAppServiceForVolumeTest()
+	serviceVolume := &dbmodel.TenantServiceVolume{
+		Model:      dbmodel.Model{ID: 4},
+		ServiceID:  "service-1",
+		VolumeName: "rainbond-env-file",
+		VolumePath: "/rainbond/env/rainbond.env",
+		VolumeType: "config-file",
+	}
+
+	manager := volumeManagerStub{configFileDao: tenantServiceConfigFileDaoStub{
+		file: &dbmodel.TenantServiceConfigFile{
+			Model:       dbmodel.Model{CreatedAt: time.Now()},
+			ServiceID:   "service-1",
+			VolumeName:  "rainbond-env-file",
+			FileContent: "DEMO_HOST=${DEMO_HOST}\n",
+		},
+	}}
+
+	vol := NewVolumeManager(as, serviceVolume, nil, nil, []corev1.EnvVar{
+		{Name: "DEMO_HOST", Value: "demo-service"},
+	}, nil, manager, false)
+	configVolume, ok := vol.(*ConfigFileVolume)
+	if !ok {
+		t.Fatalf("expected config-file volume to use ConfigFileVolume, got %T", vol)
+	}
+
+	define := &Define{as: as}
+	if err := configVolume.CreateVolume(define); err != nil {
+		t.Fatalf("create vm config-file volume: %v", err)
+	}
+
+	if len(as.GetConfigMaps()) != 1 {
+		t.Fatalf("expected one configmap attached to app service, got %d", len(as.GetConfigMaps()))
+	}
+	if as.GetConfigMaps()[0].Data["rainbond.env"] != "DEMO_HOST=demo-service\n" {
+		t.Fatalf("unexpected rendered config-file content: %q", as.GetConfigMaps()[0].Data["rainbond.env"])
+	}
+	if len(define.GetVMVolume()) != 1 {
+		t.Fatalf("expected one guest-visible vm volume, got %d", len(define.GetVMVolume()))
+	}
+	if define.GetVMVolume()[0].ConfigMap == nil {
+		t.Fatalf("expected vm config-file to be injected as configmap volume, got %#v", define.GetVMVolume()[0].VolumeSource)
+	}
+	if len(define.GetVMDisk()) != 1 {
+		t.Fatalf("expected one guest-visible config disk, got %d", len(define.GetVMDisk()))
+	}
+	if define.GetVMDisk()[0].DiskDevice.CDRom == nil {
+		t.Fatalf("expected guest-visible config disk to be a cdrom, got %#v", define.GetVMDisk()[0].DiskDevice)
+	}
+	if len(define.GetVolumeMounts()) != 0 {
+		t.Fatalf("expected vm config-file not to rely on container volumeMounts, got %#v", define.GetVolumeMounts())
 	}
 }

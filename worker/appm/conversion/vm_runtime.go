@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"github.com/goodrain/rainbond/util"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
@@ -32,6 +34,9 @@ const (
 	vmDiskDeviceLUN           = "lun"
 
 	vmPrimaryNetworkName = "default"
+	vmEnvVolumeName      = "rainbond-env"
+	vmEnvFileName        = "rainbond.env"
+	vmEnvVolumeLabel     = "RBDENV"
 )
 
 type vmRuntimeConfig struct {
@@ -55,9 +60,9 @@ type vmDiskLayoutItem struct {
 	Boot       bool   `json:"boot"`
 }
 
-func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, error) {
+func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) (vmRuntimeConfig, error) {
 	interfaceModel := resolveVMInterfaceModel(extensionSet)
-	return vmRuntimeConfig{
+	cfg := vmRuntimeConfig{
 		Networks: []kubevirtv1.Network{
 			{
 				Name: vmPrimaryNetworkName,
@@ -77,7 +82,59 @@ func buildVMRuntimeConfig(extensionSet map[string]string) (vmRuntimeConfig, erro
 		},
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
-	}, nil
+	}
+	if envConfigMap := buildVMEnvConfigMap(envs); envConfigMap != nil {
+		cfg.ConfigMaps = append(cfg.ConfigMaps, envConfigMap)
+		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
+			Name: vmEnvVolumeName,
+			VolumeSource: kubevirtv1.VolumeSource{
+				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: envConfigMap.Name},
+					VolumeLabel:          vmEnvVolumeLabel,
+				},
+			},
+		})
+		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
+			Name: vmEnvVolumeName,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+	}
+	return cfg, nil
+}
+
+func buildVMEnvConfigMap(envs []corev1.EnvVar) *corev1.ConfigMap {
+	if len(envs) == 0 {
+		return nil
+	}
+	lines := make([]string, 0, len(envs))
+	seen := make(map[string]struct{}, len(envs))
+	for _, env := range envs {
+		name := strings.TrimSpace(env.Name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		lines = append(lines, fmt.Sprintf("%s=%s", name, env.Value))
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+	sort.Strings(lines)
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.NewUUID(),
+		},
+		Data: map[string]string{
+			vmEnvFileName: strings.Join(lines, "\n") + "\n",
+		},
+	}
 }
 
 func buildVMGPUDevices(extensionSet map[string]string) []kubevirtv1.GPU {

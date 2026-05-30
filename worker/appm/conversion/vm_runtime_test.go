@@ -5,12 +5,13 @@ package conversion
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	"github.com/goodrain/rainbond/worker/appm/volume"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
-	cfg, err := buildVMRuntimeConfig(nil)
+	cfg, err := buildVMRuntimeConfig(nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -40,7 +41,7 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_os_name": "Windows Server 2022",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -58,7 +59,7 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 func TestBuildVMRuntimeConfigRecognizedLinuxNameUsesVirtio(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_os_name": "Ubuntu 22.04.5 LTS",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -80,7 +81,7 @@ func TestBuildVMRuntimeConfigIgnoresRemovedNetworkFields(t *testing.T) {
 		"vm_fixed_ip":     "10.250.250.10/24",
 		"vm_gateway":      "10.250.250.1",
 		"vm_dns_servers":  "223.5.5.5,8.8.8.8",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -105,7 +106,7 @@ func TestBuildVMGPUDevices(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_gpu_enabled":   "true",
 		"vm_gpu_resources": "nvidia.com/TU104GL_Tesla_T4,gpu.example.com/A10",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -124,7 +125,7 @@ func TestBuildVMHostDevices(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_usb_enabled":   "true",
 		"vm_usb_resources": "[\"kubevirt.io/usb-a\",\"kubevirt.io/usb-b\"]",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -136,6 +137,68 @@ func TestBuildVMHostDevices(t *testing.T) {
 	}
 	if cfg.HostDevices[1].Name != "usb-1" || cfg.HostDevices[1].DeviceName != "kubevirt.io/usb-b" {
 		t.Fatalf("unexpected second host device: %#v", cfg.HostDevices[1])
+	}
+}
+
+func TestBuildVMRuntimeConfigInjectsEnvConfigMapVolume(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_os_name": "Windows Server 2022",
+	}, []corev1.EnvVar{
+		{Name: "DEMO_HOST", Value: "demo-service"},
+		{Name: "DEMO_PORT", Value: "8080"},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.ConfigMaps) != 1 {
+		t.Fatalf("expected one env configmap, got %d", len(cfg.ConfigMaps))
+	}
+	content := cfg.ConfigMaps[0].Data["rainbond.env"]
+	if content == "" {
+		t.Fatal("expected rainbond.env content to be generated")
+	}
+	if content != "DEMO_HOST=demo-service\nDEMO_PORT=8080\n" {
+		t.Fatalf("unexpected rainbond.env content: %q", content)
+	}
+	if len(cfg.Volumes) != 1 {
+		t.Fatalf("expected one injected volume, got %d", len(cfg.Volumes))
+	}
+	if cfg.Volumes[0].ConfigMap == nil {
+		t.Fatalf("expected injected volume to use configMap source, got %#v", cfg.Volumes[0].VolumeSource)
+	}
+	if cfg.Volumes[0].ConfigMap.LocalObjectReference.Name != cfg.ConfigMaps[0].Name {
+		t.Fatalf("expected configmap volume name %q, got %q", cfg.ConfigMaps[0].Name, cfg.Volumes[0].ConfigMap.LocalObjectReference.Name)
+	}
+	if cfg.Volumes[0].ConfigMap.VolumeLabel != "RBDENV" {
+		t.Fatalf("expected env volume label RBDENV, got %q", cfg.Volumes[0].ConfigMap.VolumeLabel)
+	}
+	if len(cfg.Disks) != 1 {
+		t.Fatalf("expected one injected disk, got %d", len(cfg.Disks))
+	}
+	if cfg.Disks[0].Name != cfg.Volumes[0].Name {
+		t.Fatalf("expected disk name %q, got %q", cfg.Volumes[0].Name, cfg.Disks[0].Name)
+	}
+	if cfg.Disks[0].DiskDevice.CDRom == nil {
+		t.Fatalf("expected env disk to be attached as cdrom, got %#v", cfg.Disks[0].DiskDevice)
+	}
+	if cfg.Disks[0].DiskDevice.CDRom.Bus != kubevirtv1.DiskBusSATA {
+		t.Fatalf("expected env cdrom bus sata, got %q", cfg.Disks[0].DiskDevice.CDRom.Bus)
+	}
+}
+
+func TestBuildVMRuntimeConfigSkipsDuplicateAndBlankEnvNames(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(nil, []corev1.EnvVar{
+		{Name: "DEMO_HOST", Value: "demo-service"},
+		{Name: "", Value: "ignored"},
+		{Name: "DEMO_HOST", Value: "overwritten"},
+		{Name: "DEMO_PORT", Value: "8080"},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	content := cfg.ConfigMaps[0].Data["rainbond.env"]
+	if content != "DEMO_HOST=demo-service\nDEMO_PORT=8080\n" {
+		t.Fatalf("unexpected deduplicated env content: %q", content)
 	}
 }
 

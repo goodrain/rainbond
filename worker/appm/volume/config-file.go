@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 // ConfigFileVolume config file volume struct
@@ -67,6 +68,26 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap.Data[path.Base(v.svm.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
+	if v.as.GetVirtualMachine() != nil {
+		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
+			Name: cmap.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
+					VolumeLabel:          "RBDCFG",
+				},
+			},
+		})
+		define.vmDisk = append(define.vmDisk, kubevirtv1.Disk{
+			Name: cmap.Name,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+		return nil
+	}
 	define.SetVolumeCMap(cmap, path.Base(v.svm.VolumePath), v.svm.VolumePath, false, v.svm.Mode)
 	return nil
 }
@@ -97,6 +118,26 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	}
 	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
+	if v.as.GetVirtualMachine() != nil {
+		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
+			Name: cmap.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
+					VolumeLabel:          "RBDCFG",
+				},
+			},
+		})
+		define.vmDisk = append(define.vmDisk, kubevirtv1.Disk{
+			Name: cmap.Name,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+		return nil
+	}
 
 	define.SetVolumeCMap(cmap, path.Base(v.smr.VolumePath), v.smr.VolumePath, false, depVol.Mode)
 	return nil
