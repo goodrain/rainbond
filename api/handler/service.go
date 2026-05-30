@@ -574,7 +574,7 @@ func (s *ServiceAction) haltTransientVM(vm *v1.VirtualMachine, stopErr error) er
 		return stopErr
 	}
 	switch vm.Status.PrintableStatus {
-	case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting, v1.VirtualMachineStatusStopping:
+	case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting, v1.VirtualMachineStatusStopping, v1.VirtualMachineStatusDataVolumeError:
 	default:
 		return stopErr
 	}

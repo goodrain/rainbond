@@ -387,6 +387,52 @@ func TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails(t *testing.T)
 	}
 }
 
+func TestStopVMFallsBackToHaltingDataVolumeErrorVMWhenDirectStopFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMList := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockVMUpdate := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	gomock.InOrder(
+		mockClient.EXPECT().VirtualMachine("").Return(mockVMList),
+		mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
+			Items: []kubevirtv1.VirtualMachine{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "demo-vm",
+						Namespace: "demo-ns",
+					},
+					Spec: kubevirtv1.VirtualMachineSpec{
+						RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
+					},
+					Status: kubevirtv1.VirtualMachineStatus{
+						PrintableStatus: kubevirtv1.VirtualMachineStatusDataVolumeError,
+					},
+				},
+			},
+		}, nil),
+		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),
+		mockVMUpdate.EXPECT().Stop(gomock.Any(), "demo-vm", gomock.Any()).Return(errors.New("stop not allowed while datavolume error")),
+		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),
+		mockVMUpdate.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&kubevirtv1.VirtualMachine{}), gomock.Any()).DoAndReturn(
+			func(_ context.Context, vm *kubevirtv1.VirtualMachine, _ metav1.UpdateOptions) (*kubevirtv1.VirtualMachine, error) {
+				if vm.Spec.RunStrategy == nil || *vm.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
+					t.Fatalf("expected fallback update to halt vm, got %#v", vm.Spec.RunStrategy)
+				}
+				return vm, nil
+			},
+		),
+	)
+
+	action := &ServiceAction{kubevirtClient: mockClient}
+	err := action.StopVM(context.Background(), "service-1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestRestartVMRestartsExistingRunningVMWithoutWorkerTask(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
