@@ -21,6 +21,7 @@ package volume
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -60,7 +61,7 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
+			Name:      stableVMConfigMapName(v.as.ServiceID, v.svm.VolumeName),
 			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
@@ -110,7 +111,7 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
+			Name:      stableVMConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
 			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
@@ -141,4 +142,13 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 
 	define.SetVolumeCMap(cmap, path.Base(v.smr.VolumePath), v.smr.VolumePath, false, depVol.Mode)
 	return nil
+}
+
+func stableVMConfigMapName(serviceID, volumeName string) string {
+	serviceID = strings.TrimSpace(serviceID)
+	volumeName = strings.TrimSpace(volumeName)
+	if serviceID == "" || volumeName == "" {
+		return util.NewUUID()
+	}
+	return fmt.Sprintf("vm-cfg-%s-%s", serviceID, volumeName)
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/worker/appm/volume"
-	"github.com/goodrain/rainbond/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -83,7 +82,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) 
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
 	}
-	if envConfigMap := buildVMEnvConfigMap(envs); envConfigMap != nil {
+	if envConfigMap := buildVMEnvConfigMap(extensionSet, envs); envConfigMap != nil {
 		cfg.ConfigMaps = append(cfg.ConfigMaps, envConfigMap)
 		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
 			Name: vmEnvVolumeName,
@@ -106,7 +105,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) 
 	return cfg, nil
 }
 
-func buildVMEnvConfigMap(envs []corev1.EnvVar) *corev1.ConfigMap {
+func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar) *corev1.ConfigMap {
 	if len(envs) == 0 {
 		return nil
 	}
@@ -127,9 +126,13 @@ func buildVMEnvConfigMap(envs []corev1.EnvVar) *corev1.ConfigMap {
 		return nil
 	}
 	sort.Strings(lines)
+	name := vmEnvVolumeName
+	if serviceID := strings.TrimSpace(extensionSet["service_id"]); serviceID != "" {
+		name = fmt.Sprintf("vm-env-%s", serviceID)
+	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: util.NewUUID(),
+			Name: name,
 		},
 		Data: map[string]string{
 			vmEnvFileName: strings.Join(lines, "\n") + "\n",

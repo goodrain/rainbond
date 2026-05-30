@@ -202,6 +202,27 @@ func TestBuildVMRuntimeConfigSkipsDuplicateAndBlankEnvNames(t *testing.T) {
 	}
 }
 
+func TestBuildVMRuntimeConfigUsesStableEnvConfigMapName(t *testing.T) {
+	cfgA, err := buildVMRuntimeConfig(map[string]string{
+		"service_id": "service-vm-1",
+	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	cfgB, err := buildVMRuntimeConfig(map[string]string{
+		"service_id": "service-vm-1",
+	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if cfgA.ConfigMaps[0].Name != cfgB.ConfigMaps[0].Name {
+		t.Fatalf("expected stable configmap name, got %q and %q", cfgA.ConfigMaps[0].Name, cfgB.ConfigMaps[0].Name)
+	}
+	if cfgA.ConfigMaps[0].Name != "vm-env-service-vm-1" {
+		t.Fatalf("expected stable vm env configmap name, got %q", cfgA.ConfigMaps[0].Name)
+	}
+}
+
 func TestBuildVMDiskLayoutParsesJSON(t *testing.T) {
 	layout, err := buildVMDiskLayout(map[string]string{
 		"vm_disk_layout": `[{"disk_key":"rootdisk","disk_role":"root","order_index":0,"boot":true},{"disk_key":"data-1","disk_role":"data","order_index":1,"boot":false}]`,

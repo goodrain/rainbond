@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -286,6 +287,9 @@ func (s *ServiceAction) syncVirtualMachineSpecForService(serviceID string) error
 	if err != nil || desiredVM == nil {
 		return err
 	}
+	if err := s.syncVirtualMachineConfigMaps(serviceID); err != nil {
+		return err
+	}
 	return s.syncVirtualMachineSpec(existingVM, desiredVM)
 }
 
@@ -317,6 +321,39 @@ func (s *ServiceAction) buildDesiredVirtualMachine(serviceID string) (*kubevirtv
 		return nil, err
 	}
 	return appService.GetVirtualMachine(), nil
+}
+
+func (s *ServiceAction) syncVirtualMachineConfigMaps(serviceID string) error {
+	if s == nil || s.kubeClient == nil {
+		return nil
+	}
+	appService, err := conversion.InitAppService(false, s.getDBManager(), serviceID, nil)
+	if err != nil {
+		return err
+	}
+	vm := appService.GetVirtualMachine()
+	if vm == nil {
+		return nil
+	}
+	namespace := vm.Namespace
+	for _, cm := range appService.GetConfigMaps() {
+		if cm == nil {
+			continue
+		}
+		existing, err := s.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), cm.Name, metav1.GetOptions{})
+		if err == nil && existing != nil {
+			cm.ResourceVersion = existing.ResourceVersion
+			cm.UID = existing.UID
+			if _, err = s.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{}); err != nil {
+				return fmt.Errorf("update vm configmap %s/%s: %w", namespace, cm.Name, err)
+			}
+			continue
+		}
+		if _, err = s.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("create vm configmap %s/%s: %w", namespace, cm.Name, err)
+		}
+	}
+	return nil
 }
 
 func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) error {
