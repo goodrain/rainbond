@@ -6259,6 +6259,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-config-file-injected-as-configmap-volume",
+      "title": "Inject VM config-file volumes as guest-visible ConfigMap disks",
+      "title_zh": "\u5c06 VM \u914d\u7f6e\u6587\u4ef6\u5377\u6ce8\u5165\u4e3a guest \u53ef\u89c1\u7684 ConfigMap \u914d\u7f6e\u76d8",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ConfigFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/config-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-export.root-disk-url",
       "title": "Create VMExport and expose root disk download URL",
       "title_zh": "\u521b\u5efa VMExport \u5e76\u8fd4\u56de\u7cfb\u7edf\u76d8\u4e0b\u8f7d\u5730\u5740",
