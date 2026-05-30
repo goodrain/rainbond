@@ -3,15 +3,16 @@ package conversion
 // capability_id: rainbond.worker.appm.vm-container-disk-cdrom
 
 import (
+	"strings"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	corev1 "k8s.io/api/core/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
-	cfg, err := buildVMRuntimeConfig(nil, nil)
+	cfg, err := buildVMRuntimeConfig(nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -41,7 +42,7 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_os_name": "Windows Server 2022",
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -59,7 +60,7 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 func TestBuildVMRuntimeConfigRecognizedLinuxNameUsesVirtio(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_os_name": "Ubuntu 22.04.5 LTS",
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -81,7 +82,7 @@ func TestBuildVMRuntimeConfigIgnoresRemovedNetworkFields(t *testing.T) {
 		"vm_fixed_ip":     "10.250.250.10/24",
 		"vm_gateway":      "10.250.250.1",
 		"vm_dns_servers":  "223.5.5.5,8.8.8.8",
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -106,7 +107,7 @@ func TestBuildVMGPUDevices(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_gpu_enabled":   "true",
 		"vm_gpu_resources": "nvidia.com/TU104GL_Tesla_T4,gpu.example.com/A10",
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -125,7 +126,7 @@ func TestBuildVMHostDevices(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_usb_enabled":   "true",
 		"vm_usb_resources": "[\"kubevirt.io/usb-a\",\"kubevirt.io/usb-b\"]",
-	}, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -146,7 +147,7 @@ func TestBuildVMRuntimeConfigInjectsEnvConfigMapVolume(t *testing.T) {
 	}, []corev1.EnvVar{
 		{Name: "DEMO_HOST", Value: "demo-service"},
 		{Name: "DEMO_PORT", Value: "8080"},
-	})
+	}, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -192,12 +193,18 @@ func TestBuildVMRuntimeConfigSkipsDuplicateAndBlankEnvNames(t *testing.T) {
 		{Name: "", Value: "ignored"},
 		{Name: "DEMO_HOST", Value: "overwritten"},
 		{Name: "DEMO_PORT", Value: "8080"},
-	})
+		{
+			Name: "POD_IP",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"},
+			},
+		},
+	}, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	content := cfg.ConfigMaps[0].Data["rainbond.env"]
-	if content != "DEMO_HOST=demo-service\nDEMO_PORT=8080\n" {
+	if content != "DEMO_HOST=overwritten\nDEMO_PORT=8080\n" {
 		t.Fatalf("unexpected deduplicated env content: %q", content)
 	}
 }
@@ -205,13 +212,13 @@ func TestBuildVMRuntimeConfigSkipsDuplicateAndBlankEnvNames(t *testing.T) {
 func TestBuildVMRuntimeConfigUsesStableEnvConfigMapName(t *testing.T) {
 	cfgA, err := buildVMRuntimeConfig(map[string]string{
 		"service_id": "service-vm-1",
-	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}})
+	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}}, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	cfgB, err := buildVMRuntimeConfig(map[string]string{
 		"service_id": "service-vm-1",
-	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}})
+	}, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}}, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -220,6 +227,66 @@ func TestBuildVMRuntimeConfigUsesStableEnvConfigMapName(t *testing.T) {
 	}
 	if cfgA.ConfigMaps[0].Name != "vm-env-service-vm-1" {
 		t.Fatalf("expected stable vm env configmap name, got %q", cfgA.ConfigMaps[0].Name)
+	}
+}
+
+func TestBuildVMRuntimeConfigIncludesEnvSecretsInEnvConfigMap(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"service_id": "service-vm-1",
+	}, []corev1.EnvVar{
+		{Name: "DEMO_HOST", Value: "demo-service"},
+	}, []*corev1.Secret{
+		{
+			Data: map[string][]byte{
+				"DEMO_TOKEN": []byte("secret-token"),
+				"DEMO_HOST":  []byte("secret-host"),
+			},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	content := cfg.ConfigMaps[0].Data["rainbond.env"]
+	if content != "DEMO_HOST=demo-service\nDEMO_TOKEN=secret-token\n" {
+		t.Fatalf("expected env file to merge secret-backed vars, got %q", content)
+	}
+}
+
+func TestBuildVMRuntimeConfigAddsCloudInitSyncDiskForLinuxGuests(t *testing.T) {
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		"vm_os_name": "Ubuntu 22.04.5 LTS",
+		"service_id": "service-vm-1",
+	}, []corev1.EnvVar{
+		{Name: "DEMO_HOST", Value: "demo-service"},
+	}, nil, []volume.VMGuestFile{
+		{
+			VolumeLabel: "RBDCFG5D41402A",
+			SourceFile:  "app.conf",
+			TargetPath:  "/etc/demo/app.conf",
+			Mode:        "0640",
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(cfg.Volumes) != 2 {
+		t.Fatalf("expected env disk and cloud-init disk, got %d", len(cfg.Volumes))
+	}
+	if cfg.Volumes[1].CloudInitNoCloud == nil {
+		t.Fatalf("expected second volume to be cloud-init, got %#v", cfg.Volumes[1].VolumeSource)
+	}
+	userData := cfg.Volumes[1].CloudInitNoCloud.UserData
+	if userData == "" {
+		t.Fatal("expected cloud-init userData to be rendered")
+	}
+	if !strings.Contains(userData, "/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh") {
+		t.Fatalf("expected cloud-init userData to install per-boot sync script, got %q", userData)
+	}
+	if !strings.Contains(userData, "RBDCFG5D41402A") {
+		t.Fatalf("expected cloud-init userData to reference config volume label, got %q", userData)
+	}
+	if !strings.Contains(userData, "/etc/demo/app.conf") {
+		t.Fatalf("expected cloud-init userData to reference guest target path, got %q", userData)
 	}
 }
 

@@ -185,6 +185,7 @@ type Define struct {
 	vmDisk       []kubevirtv1.Disk
 	vmDVTemplate []kubevirtv1.DataVolumeTemplateSpec
 	vmDiskMeta   map[string]VMDiskMeta
+	vmGuestFiles []VMGuestFile
 }
 
 type VMDiskMeta struct {
@@ -194,6 +195,14 @@ type VMDiskMeta struct {
 	SourceKind string
 	VolumePath string
 	VolumeName string
+}
+
+type VMGuestFile struct {
+	VolumeName  string
+	VolumeLabel string
+	SourceFile  string
+	TargetPath  string
+	Mode        string
 }
 
 // GetVolumes get define volumes
@@ -228,6 +237,15 @@ func (v *Define) GetVMDiskMeta() map[string]VMDiskMeta {
 	return meta
 }
 
+func (v *Define) GetVMGuestFiles() []VMGuestFile {
+	if len(v.vmGuestFiles) == 0 {
+		return nil
+	}
+	files := make([]VMGuestFile, len(v.vmGuestFiles))
+	copy(files, v.vmGuestFiles)
+	return files
+}
+
 // SetVMDiskMeta records the logical mapping for a VM disk.
 func (v *Define) SetVMDiskMeta(meta VMDiskMeta) {
 	if meta.DiskKey == "" {
@@ -237,6 +255,16 @@ func (v *Define) SetVMDiskMeta(meta VMDiskMeta) {
 		v.vmDiskMeta = make(map[string]VMDiskMeta)
 	}
 	v.vmDiskMeta[meta.DiskKey] = meta
+}
+
+func (v *Define) AddVMGuestFile(file VMGuestFile) {
+	if strings.TrimSpace(file.VolumeLabel) == "" || strings.TrimSpace(file.SourceFile) == "" || strings.TrimSpace(file.TargetPath) == "" {
+		return
+	}
+	if strings.TrimSpace(file.Mode) == "" {
+		file.Mode = "0644"
+	}
+	v.vmGuestFiles = append(v.vmGuestFiles, file)
 }
 
 // GetVolumeMounts get define volume mounts

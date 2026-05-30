@@ -37,6 +37,27 @@ type ConfigFileVolume struct {
 	envVarSecrets []*corev1.Secret
 }
 
+func stableVMConfigVolumeLabel(serviceID, volumeName string) string {
+	serviceID = strings.TrimSpace(serviceID)
+	volumeName = strings.TrimSpace(volumeName)
+	if serviceID == "" || volumeName == "" {
+		return "RBDCFG"
+	}
+	hash, err := util.CreateHashString(fmt.Sprintf("%s:%s", serviceID, volumeName))
+	if err != nil || len(hash) < 8 {
+		return "RBDCFG"
+	}
+	label := strings.ToUpper(hash[:8])
+	return "RBDCFG" + label
+}
+
+func formatVMGuestFileMode(mode *int32) string {
+	if mode == nil {
+		return "0644"
+	}
+	return fmt.Sprintf("%04o", *mode)
+}
+
 // CreateVolume config file volume create volume
 func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	// environment variables
@@ -70,12 +91,13 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	cmap.Data[path.Base(v.svm.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
 	if v.as.GetVirtualMachine() != nil {
+		volumeLabel := stableVMConfigVolumeLabel(v.as.ServiceID, v.svm.VolumeName)
 		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
 			Name: cmap.Name,
 			VolumeSource: kubevirtv1.VolumeSource{
 				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
-					VolumeLabel:          "RBDCFG",
+					VolumeLabel:          volumeLabel,
 				},
 			},
 		})
@@ -86,6 +108,13 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 					Bus: kubevirtv1.DiskBusSATA,
 				},
 			},
+		})
+		define.AddVMGuestFile(VMGuestFile{
+			VolumeName:  cmap.Name,
+			VolumeLabel: volumeLabel,
+			SourceFile:  path.Base(v.svm.VolumePath),
+			TargetPath:  v.svm.VolumePath,
+			Mode:        formatVMGuestFileMode(v.svm.Mode),
 		})
 		return nil
 	}
@@ -120,12 +149,13 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
 	if v.as.GetVirtualMachine() != nil {
+		volumeLabel := stableVMConfigVolumeLabel(v.smr.DependServiceID, v.smr.VolumeName)
 		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
 			Name: cmap.Name,
 			VolumeSource: kubevirtv1.VolumeSource{
 				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
-					VolumeLabel:          "RBDCFG",
+					VolumeLabel:          volumeLabel,
 				},
 			},
 		})
@@ -136,6 +166,13 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 					Bus: kubevirtv1.DiskBusSATA,
 				},
 			},
+		})
+		define.AddVMGuestFile(VMGuestFile{
+			VolumeName:  cmap.Name,
+			VolumeLabel: volumeLabel,
+			SourceFile:  path.Base(v.smr.VolumePath),
+			TargetPath:  v.smr.VolumePath,
+			Mode:        formatVMGuestFileMode(depVol.Mode),
 		})
 		return nil
 	}

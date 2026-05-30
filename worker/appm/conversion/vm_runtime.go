@@ -36,6 +36,7 @@ const (
 	vmEnvVolumeName      = "rainbond-env"
 	vmEnvFileName        = "rainbond.env"
 	vmEnvVolumeLabel     = "RBDENV"
+	vmGuestSyncVolume    = "rainbond-guest-sync"
 )
 
 type vmRuntimeConfig struct {
@@ -59,7 +60,8 @@ type vmDiskLayoutItem struct {
 	Boot       bool   `json:"boot"`
 }
 
-func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) (vmRuntimeConfig, error) {
+func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret,
+	guestFiles []volume.VMGuestFile) (vmRuntimeConfig, error) {
 	interfaceModel := resolveVMInterfaceModel(extensionSet)
 	cfg := vmRuntimeConfig{
 		Networks: []kubevirtv1.Network{
@@ -82,7 +84,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) 
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
 	}
-	if envConfigMap := buildVMEnvConfigMap(extensionSet, envs); envConfigMap != nil {
+	if envConfigMap := buildVMEnvConfigMap(extensionSet, envs, envVarSecrets); envConfigMap != nil {
 		cfg.ConfigMaps = append(cfg.ConfigMaps, envConfigMap)
 		cfg.Volumes = append(cfg.Volumes, kubevirtv1.Volume{
 			Name: vmEnvVolumeName,
@@ -102,24 +104,61 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar) 
 			},
 		})
 	}
+	if syncVolume := buildVMGuestSyncVolume(extensionSet, guestFiles); syncVolume != nil {
+		cfg.Volumes = append(cfg.Volumes, *syncVolume)
+		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
+			Name: vmGuestSyncVolume,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+	}
 	return cfg, nil
 }
 
-func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar) *corev1.ConfigMap {
-	if len(envs) == 0 {
+func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret) *corev1.ConfigMap {
+	if len(envs) == 0 && len(envVarSecrets) == 0 {
 		return nil
 	}
-	lines := make([]string, 0, len(envs))
-	seen := make(map[string]struct{}, len(envs))
+	values := make(map[string]string, len(envs))
+	lines := make([]string, 0, len(envs)+len(envVarSecrets))
+	seen := make(map[string]struct{}, len(envs)+len(envVarSecrets))
+	for _, secret := range envVarSecrets {
+		for key, value := range secret.Data {
+			name := strings.TrimSpace(key)
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+			values[name] = string(value)
+			lines = append(lines, fmt.Sprintf("%s=%s", name, values[name]))
+		}
+	}
 	for _, env := range envs {
 		name := strings.TrimSpace(env.Name)
 		if name == "" {
 			continue
 		}
+		if env.ValueFrom != nil {
+			continue
+		}
 		if _, ok := seen[name]; ok {
+			for i := range lines {
+				if strings.HasPrefix(lines[i], name+"=") {
+					lines[i] = fmt.Sprintf("%s=%s", name, env.Value)
+					break
+				}
+			}
+			values[name] = env.Value
 			continue
 		}
 		seen[name] = struct{}{}
+		values[name] = env.Value
 		lines = append(lines, fmt.Sprintf("%s=%s", name, env.Value))
 	}
 	if len(lines) == 0 {
@@ -138,6 +177,65 @@ func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar) *
 			vmEnvFileName: strings.Join(lines, "\n") + "\n",
 		},
 	}
+}
+
+func buildVMGuestSyncVolume(extensionSet map[string]string, guestFiles []volume.VMGuestFile) *kubevirtv1.Volume {
+	if !looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) || len(guestFiles) == 0 {
+		return nil
+	}
+	commands := make([]string, 0, len(guestFiles)+8)
+	commands = append(commands,
+		"#!/bin/bash",
+		"set -eu",
+		"",
+		"mkdir -p /var/lib/cloud/scripts/per-boot",
+		"cat >/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh <<'EOF'",
+		"#!/bin/bash",
+		"set -eu",
+	)
+	for _, file := range guestFiles {
+		commands = append(commands,
+			fmt.Sprintf("src_dir=$(blkid -L %s -o device | xargs -r dirname || true)", shellQuote(file.VolumeLabel)),
+			"if [ -n \"$src_dir\" ]; then",
+			fmt.Sprintf("  mkdir -p %s", shellQuote(parentDir(file.TargetPath))),
+			fmt.Sprintf("  cp \"$src_dir/%s\" %s", escapeShellDoubleQuotes(file.SourceFile), shellQuote(file.TargetPath)),
+			fmt.Sprintf("  chmod %s %s || true", shellQuote(file.Mode), shellQuote(file.TargetPath)),
+			"fi",
+		)
+	}
+	commands = append(commands,
+		"EOF",
+		"chmod +x /var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh",
+		"/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh || true",
+	)
+	return &kubevirtv1.Volume{
+		Name: vmGuestSyncVolume,
+		VolumeSource: kubevirtv1.VolumeSource{
+			CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+				UserData: strings.Join(commands, "\n") + "\n",
+			},
+		},
+	}
+}
+
+func parentDir(targetPath string) string {
+	path := strings.TrimSpace(targetPath)
+	if path == "" {
+		return "/"
+	}
+	if idx := strings.LastIndex(path, "/"); idx > 0 {
+		return path[:idx]
+	}
+	return "/"
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
+}
+
+func escapeShellDoubleQuotes(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "$", `\$`, "`", "\\`")
+	return replacer.Replace(value)
 }
 
 func buildVMGPUDevices(extensionSet map[string]string) []kubevirtv1.GPU {

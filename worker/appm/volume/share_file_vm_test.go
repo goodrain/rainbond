@@ -253,11 +253,30 @@ func TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk(t *testin
 	if define.GetVMVolume()[0].ConfigMap == nil {
 		t.Fatalf("expected vm config-file to be injected as configmap volume, got %#v", define.GetVMVolume()[0].VolumeSource)
 	}
+	if define.GetVMVolume()[0].ConfigMap.VolumeLabel == "" || define.GetVMVolume()[0].ConfigMap.VolumeLabel == "RBDCFG" {
+		t.Fatalf("expected vm config-file volume label to be stable and specific, got %q", define.GetVMVolume()[0].ConfigMap.VolumeLabel)
+	}
 	if len(define.GetVMDisk()) != 1 {
 		t.Fatalf("expected one guest-visible config disk, got %d", len(define.GetVMDisk()))
 	}
 	if define.GetVMDisk()[0].DiskDevice.CDRom == nil {
 		t.Fatalf("expected guest-visible config disk to be a cdrom, got %#v", define.GetVMDisk()[0].DiskDevice)
+	}
+	if define.GetVMDisk()[0].Name != define.GetVMVolume()[0].Name {
+		t.Fatalf("expected guest-visible config disk to match volume name, got disk=%q volume=%q", define.GetVMDisk()[0].Name, define.GetVMVolume()[0].Name)
+	}
+	if files := define.GetVMGuestFiles(); len(files) != 1 {
+		t.Fatalf("expected one guest sync file mapping, got %#v", files)
+	} else {
+		if files[0].VolumeLabel != define.GetVMVolume()[0].ConfigMap.VolumeLabel {
+			t.Fatalf("expected guest file volume label %q, got %q", define.GetVMVolume()[0].ConfigMap.VolumeLabel, files[0].VolumeLabel)
+		}
+		if files[0].TargetPath != "/rainbond/env/rainbond.env" {
+			t.Fatalf("expected guest file target path /rainbond/env/rainbond.env, got %q", files[0].TargetPath)
+		}
+		if files[0].SourceFile != "rainbond.env" {
+			t.Fatalf("expected guest file source file rainbond.env, got %q", files[0].SourceFile)
+		}
 	}
 	if len(define.GetVolumeMounts()) != 0 {
 		t.Fatalf("expected vm config-file not to rely on container volumeMounts, got %#v", define.GetVolumeMounts())
