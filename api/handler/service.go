@@ -1785,6 +1785,14 @@ func (s *ServiceAction) CodeCheck(c *apimodel.CheckCodeStruct) error {
 
 // ServiceDepend service depend
 func (s *ServiceAction) ServiceDepend(action string, ds *apimodel.DependService) error {
+	defer func() {
+		if ds == nil || ds.ServiceID == "" {
+			return
+		}
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(ds.ServiceID); err != nil {
+			logrus.Warningf("sync vm spec after dependency change failed for %s: %v", ds.ServiceID, err)
+		}
+	}()
 	switch action {
 	case "add":
 		tsr := &dbmodel.TenantServiceRelation{

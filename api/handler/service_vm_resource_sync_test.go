@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -18,6 +19,7 @@ type resourceSyncTestManager struct {
 	serviceDao      dbdao.TenantServiceDao
 	eventDao        dbdao.EventDao
 	serviceProbeDao dbdao.ServiceProbeDao
+	relationDao     dbdao.TenantServiceRelationDao
 }
 
 func (m resourceSyncTestManager) TenantServiceDao() dbdao.TenantServiceDao {
@@ -30,6 +32,10 @@ func (m resourceSyncTestManager) ServiceEventDao() dbdao.EventDao {
 
 func (m resourceSyncTestManager) ServiceProbeDao() dbdao.ServiceProbeDao {
 	return m.serviceProbeDao
+}
+
+func (m resourceSyncTestManager) TenantServiceRelationDao() dbdao.TenantServiceRelationDao {
+	return m.relationDao
 }
 
 type resourceSyncTenantServiceDao struct {
@@ -85,6 +91,22 @@ func (d *resourceSyncServiceProbeDao) UpdateModel(dbmodel.Interface) error {
 }
 
 func (d *resourceSyncServiceProbeDao) DeleteModel(string, ...interface{}) error {
+	d.deleted++
+	return nil
+}
+
+type resourceSyncRelationDao struct {
+	dbdao.TenantServiceRelationDao
+	added   int
+	deleted int
+}
+
+func (d *resourceSyncRelationDao) AddModel(dbmodel.Interface) error {
+	d.added++
+	return nil
+}
+
+func (d *resourceSyncRelationDao) DeleteRelationByDepID(serviceID, depID string) error {
 	d.deleted++
 	return nil
 }
@@ -254,5 +276,51 @@ func TestServiceVerticalSyncsVirtualMachineSpecWhenVMResourcesChange(t *testing.
 	}
 	if serviceDao.updatedService.ContainerCPU != 1000 || serviceDao.updatedService.ContainerMemory != 1024 {
 		t.Fatalf("expected updated resources to be persisted, got cpu=%d mem=%d", serviceDao.updatedService.ContainerCPU, serviceDao.updatedService.ContainerMemory)
+	}
+}
+
+func TestServiceDependSyncsVirtualMachineSpecWhenVMDependencyChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		action string
+	}{
+		{name: "add", action: "add"},
+		{name: "delete", action: "delete"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			serviceDao := &resourceSyncTenantServiceDao{
+				service: &dbmodel.TenantServices{
+					ServiceID:    "service-vm",
+					ServiceAlias: "service-vm",
+					ExtendMethod: "vm",
+				},
+			}
+			db.SetTestManager(resourceSyncTestManager{
+				serviceDao: serviceDao,
+				eventDao:   &resourceSyncEventDao{},
+				relationDao: &resourceSyncRelationDao{},
+			})
+			defer db.SetTestManager(nil)
+
+			syncedServiceID := ""
+			action := &ServiceAction{
+				syncVirtualMachineSpecHook: func(serviceID string) error {
+					syncedServiceID = serviceID
+					return nil
+				},
+			}
+
+			err := action.ServiceDepend(tc.action, &apimodel.DependService{
+				TenantID:     "tenant-1",
+				ServiceID:    "service-vm",
+				DepServiceID: "dep-service",
+			})
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if syncedServiceID != "service-vm" {
+				t.Fatalf("expected vm spec sync for service-vm, got %q", syncedServiceID)
+			}
+		})
 	}
 }
