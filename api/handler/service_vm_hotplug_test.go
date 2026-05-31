@@ -168,11 +168,78 @@ type hotunplugTenantServiceConfigFileDao struct {
 	dbdao.TenantServiceConfigFileDao
 	serviceID  string
 	volumeName string
+	created    *dbmodel.TenantServiceConfigFile
+}
+
+func (d *hotunplugTenantServiceConfigFileDao) AddModel(arg dbmodel.Interface) error {
+	cfg, ok := arg.(*dbmodel.TenantServiceConfigFile)
+	if !ok {
+		return nil
+	}
+	copied := *cfg
+	d.created = &copied
+	return nil
 }
 
 func (d *hotunplugTenantServiceConfigFileDao) DelByVolumeID(serviceID, volumeName string) error {
 	d.serviceID = serviceID
 	d.volumeName = volumeName
+	return nil
+}
+
+type hotplugConfigFileTestManager struct {
+	db.Manager
+	tx            *gorm.DB
+	volumeDao     dbdao.TenantServiceVolumeDao
+	configFileDao dbdao.TenantServiceConfigFileDao
+	serviceDao    dbdao.TenantServiceDao
+}
+
+func (m hotplugConfigFileTestManager) Begin() *gorm.DB {
+	return m.tx
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
+	return m.volumeDao
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceConfigFileDaoTransactions(*gorm.DB) dbdao.TenantServiceConfigFileDao {
+	return m.configFileDao
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type envAttrTestManager struct {
+	db.Manager
+	envDao     dbdao.TenantServiceEnvVarDao
+	serviceDao dbdao.TenantServiceDao
+}
+
+func (m envAttrTestManager) TenantServiceEnvVarDao() dbdao.TenantServiceEnvVarDao {
+	return m.envDao
+}
+
+func (m envAttrTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type envAttrDaoStub struct {
+	dbdao.TenantServiceEnvVarDao
+	updated bool
+}
+
+func (d *envAttrDaoStub) AddModel(arg dbmodel.Interface) error {
+	return nil
+}
+
+func (d *envAttrDaoStub) DeleteModel(serviceID string, args ...interface{}) error {
+	return nil
+}
+
+func (d *envAttrDaoStub) UpdateModelByAttrName(env *dbmodel.TenantServiceEnvVar, oldAttrName string) error {
+	d.updated = true
 	return nil
 }
 
@@ -242,6 +309,125 @@ func TestVolumnVarHotplugsRunningVMDataDisk(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestVolumnVarAddSyncsVMConfigFileImmediately(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectCommit()
+
+	volumeDao := &hotplugTenantServiceVolumeDao{}
+	configFileDao := &hotunplugTenantServiceConfigFileDao{}
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugConfigFileTestManager{
+		tx:            tx,
+		volumeDao:     volumeDao,
+		configFileDao: configFileDao,
+		serviceDao:    serviceDao,
+	})
+	defer db.SetTestManager(nil)
+
+	hotplugCalled := false
+	syncCalled := false
+	action := &ServiceAction{
+		hotplugVMDataDiskHook: func(tenantID string, volume *dbmodel.TenantServiceVolume) error {
+			hotplugCalled = true
+			return nil
+		},
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected vm spec sync for service-vm, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+
+	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
+		ServiceID:  "service-vm",
+		VolumeName: "test",
+		VolumePath: "test.txt",
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}, "tenant-1", "demo=1", "add")
+	if apiErr != nil {
+		t.Fatalf("expected no error, got %v", apiErr)
+	}
+	if hotplugCalled {
+		t.Fatal("did not expect config-file add to go through vm hotplug path")
+	}
+	if !syncCalled {
+		t.Fatal("expected config-file add to sync vm spec immediately")
+	}
+	if volumeDao.added == nil || volumeDao.added.VolumeType != dbmodel.ConfigFileVolumeType.String() {
+		t.Fatalf("expected config-file volume to be persisted, got %#v", volumeDao.added)
+	}
+	if configFileDao.created == nil || configFileDao.created.VolumeName != "test" {
+		t.Fatalf("expected config-file content to be persisted, got %#v", configFileDao.created)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestEnvAttrSyncsVMSpecAfterUpdate(t *testing.T) {
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	envDao := &envAttrDaoStub{}
+	db.SetTestManager(envAttrTestManager{
+		envDao:     envDao,
+		serviceDao: serviceDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncCalled := false
+	action := &ServiceAction{
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected service-vm sync target, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+
+	err := action.EnvAttr("update", &dbmodel.TenantServiceEnvVar{
+		ServiceID: "service-vm",
+		AttrName:  "DEMO_HOST",
+		AttrValue: "demo-service",
+	}, "DEMO_HOST")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !syncCalled {
+		t.Fatal("expected vm env update to sync vm spec")
+	}
+	if !envDao.updated {
+		t.Fatal("expected env dao update to be called")
 	}
 }
 

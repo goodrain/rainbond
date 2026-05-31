@@ -1842,6 +1842,17 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar, 
 			return err
 		}
 	}
+	if at != nil && at.ServiceID != "" {
+		service, err := s.getDBManager().TenantServiceDao().GetServiceByID(at.ServiceID)
+		if err != nil {
+			return err
+		}
+		if service != nil && service.IsVM() {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(at.ServiceID); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -2347,6 +2358,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			return util.CreateAPIHandleErrorFromDBError("get service", err)
 		}
 		if serviceInfo != nil && serviceInfo.IsVM() {
+			if tsv.VolumeType == dbmodel.ConfigFileVolumeType.String() {
+				if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsv.ServiceID); err != nil {
+					return util.CreateAPIHandleError(500, fmt.Errorf("sync vm config-file to virtualmachine: %w", err))
+				}
+				return nil
+			}
 			if err := s.hotplugVMDataDisk(tenantID, tsv); err != nil {
 				return util.CreateAPIHandleError(500, fmt.Errorf("hotplug vm data disk: %w", err))
 			}
