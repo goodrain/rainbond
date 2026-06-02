@@ -4,6 +4,7 @@
 
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
+| rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
 | rainbond.app-backup.service-volume-archive | 将服务卷数据归档为备份包 | active | regression | builder/exector.BackupAPPNew.backupServiceInfo | builder/exector/groupapp_backup_test.go::TestBackupServiceVolume |
 | rainbond.app-backup.upload-package | 将应用备份包上传到外部存储 | active | integration | builder/exector.BackupAPPNew.uploadPkg | builder/exector/groupapp_backup_test.go::TestUploadPkg |
@@ -435,6 +436,16 @@
 | rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType<br>db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode |
 
 ## 详情
+
+### Use Local externalTrafficPolicy for VM NodePort services
+
+- Capability ID: `rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.controller.apigateway.Struct.CreateTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
 
 ### 识别旧版与新版应用备份元数据结构
 

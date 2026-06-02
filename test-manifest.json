@@ -3,6 +3,24 @@
   "repo": "rainbond",
   "capabilities": [
     {
+      "id": "rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy",
+      "title": "Use Local externalTrafficPolicy for VM NodePort services",
+      "title_zh": "Use Local externalTrafficPolicy for VM NodePort services",
+      "interface_type": "handler_method",
+      "interface": "api.controller.apigateway.Struct.CreateTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-backup.metadata-version-detect",
       "title": "Detect legacy and new backup metadata schema versions",
       "title_zh": "\u8bc6\u522b\u65e7\u7248\u4e0e\u65b0\u7248\u5e94\u7528\u5907\u4efd\u5143\u6570\u636e\u7ed3\u6784",
