@@ -1,0 +1,45 @@
+name: e2e-product-gate-trigger
+
+# Second-layer E2E gate trigger (this product repo's side).
+#
+# On a PR labeled `run-e2e`, dispatch the E2E gate workflow in the gate repository
+# (referenced via the E2E_REPO secret) using a PAT. The gate deploys this PR's branch
+# to a shared staging environment, runs the full E2E suite, always restores the env,
+# and reports back as the `e2e/product-gate` commit status on this PR.
+#
+# Prerequisites:
+#   - Repo secret CROSS_REPO_PAT: a PAT with actions:write on the gate repository.
+#   - Repo secret E2E_REPO: the gate repository ("owner/name").
+#
+# Notes:
+#   - Fork PRs don't receive secrets and won't trigger; the `if` below also restricts to
+#     same-repo branches.
+#   - The tested branch must exist in the central repo under the same name (the dev image
+#     build matches components by branch name).
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  trigger:
+    name: trigger e2e gate
+    if: >-
+      github.event.label.name == 'run-e2e' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch E2E gate
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_PAT }}
+          E2E_REPO: ${{ secrets.E2E_REPO }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PRODUCT_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh workflow run product-gate.yml -R "$E2E_REPO" \
+            -f product_repo="$PRODUCT_REPO" \
+            -f product_sha="$PR_SHA" \
+            -f branch="$PR_BRANCH" \
+            -f who=region
+          echo "Dispatched E2E gate for ${PRODUCT_REPO} @ ${PR_SHA} (branch ${PR_BRANCH})"
