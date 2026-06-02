@@ -6846,6 +6846,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-runtime-spec-sync-conflict-retry",
+      "title": "Retry VM spec sync when KubeVirt update conflicts",
+      "title_zh": "Retry VM spec sync when KubeVirt update conflicts",
+      "interface_type": "handler_method",
+      "interface": "github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestSyncVirtualMachineSpecRetriesOnConflict"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync",
       "title": "Treat vm_disk_layout as a VM spec sync attribute",
       "title_zh": "\u5c06 vm_disk_layout \u89c6\u4e3a\u89e6\u53d1 VM \u89c4\u683c\u540c\u6b65\u7684\u5c5e\u6027",

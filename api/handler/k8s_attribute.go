@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -357,12 +358,21 @@ func (s *ServiceAction) syncVirtualMachineConfigMaps(serviceID string) error {
 }
 
 func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) error {
-	updatedVM, changed := applyVirtualMachineSpec(existingVM, desiredVM)
-	if !changed {
+	if existingVM == nil || desiredVM == nil {
 		return nil
 	}
-	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentVM, err := s.kubevirtClient.VirtualMachine(existingVM.Namespace).Get(context.Background(), existingVM.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		updatedVM, changed := applyVirtualMachineSpec(currentVM, desiredVM)
+		if !changed {
+			return nil
+		}
+		_, err = s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (*kubevirtv1.VirtualMachine, bool) {

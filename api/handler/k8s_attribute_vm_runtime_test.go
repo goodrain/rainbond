@@ -2,12 +2,15 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"k8s.io/apimachinery/pkg/api/resource"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 )
@@ -336,7 +339,12 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 		},
 	}
 
-	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface).Times(2)
+	mockVMInterface.EXPECT().Get(gomock.Any(), "demo-vm", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, _ metav1.GetOptions) (*kubevirtv1.VirtualMachine, error) {
+			return existing.DeepCopy(), nil
+		},
+	)
 	mockVMInterface.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&kubevirtv1.VirtualMachine{}), gomock.Any()).DoAndReturn(
 		func(_ context.Context, updated *kubevirtv1.VirtualMachine, _ metav1.UpdateOptions) (*kubevirtv1.VirtualMachine, error) {
 			if updated.Spec.RunStrategy == nil || *updated.Spec.RunStrategy != kubevirtv1.RunStrategyHalted {
@@ -355,6 +363,86 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 	action := &ServiceAction{kubevirtClient: mockClient}
 	if err := action.syncVirtualMachineSpec(existing, desired); err != nil {
 		t.Fatalf("expected virtual machine spec sync to succeed, got %v", err)
+	}
+}
+
+// capability_id: rainbond.vm-runtime-spec-sync-conflict-retry
+func TestSyncVirtualMachineSpecRetriesOnConflict(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	existing := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyHalted),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{},
+					},
+				},
+			},
+		},
+	}
+	desiredMemory := resourceMustParse(t, "4Gi")
+	desired := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-vm",
+			Namespace: "demo-ns",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Memory: &kubevirtv1.Memory{
+							Guest: &desiredMemory,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface).Times(4)
+	mockVMInterface.EXPECT().Get(gomock.Any(), "demo-vm", gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, _ string, _ metav1.GetOptions) (*kubevirtv1.VirtualMachine, error) {
+			return existing.DeepCopy(), nil
+		},
+	)
+	attempts := 0
+	mockVMInterface.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&kubevirtv1.VirtualMachine{}), gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, updated *kubevirtv1.VirtualMachine, _ metav1.UpdateOptions) (*kubevirtv1.VirtualMachine, error) {
+			attempts++
+			if updated.Spec.Template == nil || updated.Spec.Template.Spec.Domain.Memory == nil || updated.Spec.Template.Spec.Domain.Memory.Guest == nil {
+				t.Fatalf("expected updated vm to carry memory config, got %#v", updated.Spec.Template)
+			}
+			if updated.Spec.Template.Spec.Domain.Memory.Guest.Cmp(desiredMemory) != 0 {
+				t.Fatalf("expected updated vm to carry target memory, got %#v", updated.Spec.Template.Spec.Domain.Memory.Guest)
+			}
+			if attempts == 1 {
+				return nil, k8serrors.NewConflict(
+					schema.GroupResource{Group: "kubevirt.io", Resource: "virtualmachines"},
+					"demo-vm",
+					errors.New("the object has been modified"),
+				)
+			}
+			return updated, nil
+		},
+	)
+
+	action := &ServiceAction{kubevirtClient: mockClient}
+	if err := action.syncVirtualMachineSpec(existing, desired); err != nil {
+		t.Fatalf("expected conflict retry to succeed, got %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected vm spec update to retry once after conflict, got %d attempts", attempts)
 	}
 }
 
