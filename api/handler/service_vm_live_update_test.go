@@ -842,7 +842,7 @@ func TestGetVMLiveUpdateCapabilityRejectsGPUVM(t *testing.T) {
 	}
 }
 
-func TestGetVMLiveUpdateCapabilityRejectsWindowsVMCPUHotUpdate(t *testing.T) {
+func TestGetVMLiveUpdateCapabilityRejectsNonSocketCPUHotUpdate(t *testing.T) {
 	serviceDao := &resourceSyncTenantServiceDao{
 		service: &dbmodel.TenantServices{
 			ServiceID:       "service-vm",
@@ -860,14 +860,29 @@ func TestGetVMLiveUpdateCapabilityRejectsWindowsVMCPUHotUpdate(t *testing.T) {
 
 	action := &ServiceAction{}
 	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
-		return map[string]string{"vm_os_name": "Windows 10 Pro"}, nil
+		return map[string]string{}, nil
 	}
 	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
 	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
-		return &v1.VirtualMachine{Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning}}, nil
+		return &v1.VirtualMachine{
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							CPU: &v1.CPU{
+								Sockets: 1,
+								Cores:   4,
+								Threads: 1,
+							},
+						},
+					},
+				},
+			},
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
 	}
 	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
 		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
@@ -880,13 +895,13 @@ func TestGetVMLiveUpdateCapabilityRejectsWindowsVMCPUHotUpdate(t *testing.T) {
 
 	capability := action.GetVMLiveUpdateCapability("service-vm")
 	if capability.CPUHotUpdateSupported {
-		t.Fatalf("expected windows vm cpu hot update to be disabled, got %#v", capability)
+		t.Fatalf("expected non-socket vm cpu hot update to be disabled, got %#v", capability)
 	}
 	if !capability.MemoryHotUpdateSupported {
-		t.Fatalf("expected windows vm memory hot update to remain enabled, got %#v", capability)
+		t.Fatalf("expected non-socket vm memory hot update to remain enabled, got %#v", capability)
 	}
 	if capability.HotUpdateReason == "" {
-		t.Fatalf("expected windows cpu hot update rejection reason, got %#v", capability)
+		t.Fatalf("expected non-socket cpu hot update rejection reason, got %#v", capability)
 	}
 }
 

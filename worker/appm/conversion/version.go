@@ -1860,22 +1860,22 @@ func buildStandardVMCPU(cpuMilli int, guestOSName string) *kubevirtv1.CPU {
 	if units < 1 {
 		units = 1
 	}
-	if looksLikeWindowsGuestHint(guestOSName) {
+	if looksLikeLinuxGuestHint(guestOSName) {
+		maxSockets := units * 2
+		if maxSockets < units+1 {
+			maxSockets = units + 1
+		}
 		return &kubevirtv1.CPU{
-			Sockets: 1,
-			Cores:   uint32(units),
-			Threads: 1,
+			Sockets:    uint32(units),
+			Cores:      1,
+			Threads:    1,
+			MaxSockets: uint32(maxSockets),
 		}
 	}
-	maxSockets := units * 2
-	if maxSockets < units+1 {
-		maxSockets = units + 1
-	}
 	return &kubevirtv1.CPU{
-		Sockets:    uint32(units),
-		Cores:      1,
-		Threads:    1,
-		MaxSockets: uint32(maxSockets),
+		Sockets: 1,
+		Cores:   uint32(units),
+		Threads: 1,
 	}
 }
 

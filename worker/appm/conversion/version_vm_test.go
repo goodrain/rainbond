@@ -127,8 +127,8 @@ func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
 	}
 }
 
-func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopology(t *testing.T) {
-	cpu := buildStandardVMCPU(4000, "")
+func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopologyForExplicitLinuxGuests(t *testing.T) {
+	cpu := buildStandardVMCPU(4000, "Ubuntu 22.04.5 LTS")
 
 	if cpu.Sockets != 4 || cpu.Cores != 1 || cpu.Threads != 1 {
 		t.Fatalf("expected sockets=4 cores=1 threads=1, got %#v", cpu)
@@ -138,14 +138,14 @@ func TestBuildStandardVMCPUUsesHotUpdateFriendlyTopology(t *testing.T) {
 	}
 }
 
-func TestBuildStandardVMCPUUsesCoreTopologyForWindowsGuests(t *testing.T) {
-	cpu := buildStandardVMCPU(4000, "Windows 10 Pro")
+func TestBuildStandardVMCPUUsesCoreTopologyByDefault(t *testing.T) {
+	cpu := buildStandardVMCPU(4000, "")
 
 	if cpu.Sockets != 1 || cpu.Cores != 4 || cpu.Threads != 1 {
-		t.Fatalf("expected sockets=1 cores=4 threads=1 for windows guest, got %#v", cpu)
+		t.Fatalf("expected sockets=1 cores=4 threads=1 by default, got %#v", cpu)
 	}
 	if cpu.MaxSockets != 0 {
-		t.Fatalf("expected windows guest to skip maxSockets hotplug topology, got %d", cpu.MaxSockets)
+		t.Fatalf("expected default guest to skip maxSockets hotplug topology, got %d", cpu.MaxSockets)
 	}
 }
 
