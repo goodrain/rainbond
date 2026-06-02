@@ -513,6 +513,94 @@ func TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink(t *testing.T) {
 	}
 }
 
+func TestServiceVerticalWindowsVMLiveUpdateFallsBackToSpecSyncAndRestart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Spec: v1.VirtualMachineSpec{
+				Template: &v1.VirtualMachineInstanceTemplateSpec{
+					Spec: v1.VirtualMachineInstanceSpec{
+						Domain: v1.DomainSpec{
+							CPU: &v1.CPU{
+								Sockets: 1,
+								Cores:   4,
+								Threads: 1,
+							},
+							Memory: &v1.Memory{
+								Guest:    quantityPtr("8Gi"),
+								MaxGuest: quantityPtr("16Gi"),
+							},
+						},
+					},
+				},
+			},
+			Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Restart(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	newCPU := 6000
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:    "service-vm",
+		ContainerCPU: &newCPU,
+	})
+	if err != nil {
+		t.Fatalf("expected windows vm cpu change to fall back to sync and restart, got %v", err)
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected vm spec sync before restart, got %q", syncedServiceID)
+	}
+	if serviceDao.updatedService == nil || serviceDao.updatedService.ContainerCPU != 6000 {
+		t.Fatalf("expected updated cpu persisted, got %#v", serviceDao.updatedService)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status, got %#v", eventDao.statuses)
+	}
+}
+
 // capability_id: rainbond.vm-live-update.running-memory-shrink-rejected
 func TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -751,6 +839,54 @@ func TestGetVMLiveUpdateCapabilityRejectsGPUVM(t *testing.T) {
 	}
 	if capability.HotUpdateReason == "" {
 		t.Fatalf("expected gpu reason, got %#v", capability)
+	}
+}
+
+func TestGetVMLiveUpdateCapabilityRejectsWindowsVMCPUHotUpdate(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	action := &ServiceAction{}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{"vm_os_name": "Windows 10 Pro"}, nil
+	}
+	action.loadVMRuntimeDeviceExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{Status: v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning}}, nil
+	}
+	action.getVirtualMachineInstanceByServiceIDHook = func(serviceID string) (*v1.VirtualMachineInstance, error) {
+		return &v1.VirtualMachineInstance{Status: v1.VirtualMachineInstanceStatus{
+			Phase: v1.Running,
+			Conditions: []v1.VirtualMachineInstanceCondition{
+				{Type: v1.VirtualMachineInstanceIsMigratable, Status: "True"},
+			},
+		}}, nil
+	}
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported {
+		t.Fatalf("expected windows vm cpu hot update to be disabled, got %#v", capability)
+	}
+	if !capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected windows vm memory hot update to remain enabled, got %#v", capability)
+	}
+	if capability.HotUpdateReason == "" {
+		t.Fatalf("expected windows cpu hot update rejection reason, got %#v", capability)
 	}
 }
 

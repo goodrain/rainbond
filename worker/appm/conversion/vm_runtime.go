@@ -341,6 +341,11 @@ func looksLikeLinuxGuestHint(value string) bool {
 	return false
 }
 
+func looksLikeWindowsGuestHint(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return normalized != "" && strings.Contains(normalized, "windows")
+}
+
 func extensionEnabled(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "1", "true", "yes", "enabled", "on":

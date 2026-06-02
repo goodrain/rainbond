@@ -110,6 +110,9 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 		if vm.Spec.Template == nil || vm.Spec.Template.Spec.Domain.CPU == nil {
 			return newVMLiveUpdateError(409, "vm cpu topology is not configured for live update")
 		}
+		if !supportsVMSocketCPUHotUpdate(vm.Spec.Template.Spec.Domain.CPU) {
+			return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
+		}
 		targetSockets, err := vmSocketsFromMilliCPU(service.ContainerCPU)
 		if err != nil {
 			return err
@@ -245,6 +248,19 @@ func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdate
 		}
 	}
 
+	specExtensions, err := s.loadVMRuntimeSpecExtensionSetForCapability(serviceID)
+	if err == nil && looksLikeWindowsVMGuest(specExtensions["vm_os_name"]) {
+		capability.MemoryHotUpdateSupported = true
+		capability.HotUpdateReason = "Windows 虚拟机 CPU 修改将在重启后生效，当前仅支持内存热更新。"
+		return capability
+	}
+
+	if vm.Spec.Template != nil && vm.Spec.Template.Spec.Domain.CPU != nil && !supportsVMSocketCPUHotUpdate(vm.Spec.Template.Spec.Domain.CPU) {
+		capability.MemoryHotUpdateSupported = true
+		capability.HotUpdateReason = "当前虚拟机 CPU 拓扑不支持热更新，CPU 修改将在重启后生效。"
+		return capability
+	}
+
 	capability.CPUHotUpdateSupported = true
 	capability.MemoryHotUpdateSupported = true
 	return capability
@@ -314,6 +330,18 @@ func vmSocketsFromMilliCPU(cpuMilli int) (uint32, error) {
 		return 0, newVMLiveUpdateError(409, "vm cpu live update requires whole CPU cores")
 	}
 	return uint32(cpuMilli / 1000), nil
+}
+
+func supportsVMSocketCPUHotUpdate(cpu *v1.CPU) bool {
+	if cpu == nil {
+		return false
+	}
+	return cpu.Cores == 1 && cpu.Threads == 1 && cpu.MaxSockets > 0
+}
+
+func looksLikeWindowsVMGuest(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return normalized != "" && strings.Contains(normalized, "windows")
 }
 
 func buildAlignedVMMemoryQuantity(memoryMB int) resource.Quantity {

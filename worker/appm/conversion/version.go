@@ -230,7 +230,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
 			return createVMProbe(as, dbmanager, mode)
 		})
-		standardVMCPU := buildStandardVMCPU(as.ContainerCPU)
+		standardVMCPU := buildStandardVMCPU(as.ContainerCPU, as.ExtensionSet[vmOSNameKey])
 		standardVMMemory := buildStandardVMMemory(as.ContainerMemory)
 		domainSpec := kubevirtv1.DomainSpec{
 			Resources: reource,
@@ -1855,17 +1855,24 @@ func filterReferencedVMDataVolumeTemplates(templates []kubevirtv1.DataVolumeTemp
 	return filtered
 }
 
-func buildStandardVMCPU(cpuMilli int) *kubevirtv1.CPU {
-	sockets := cpuMilli / 1000
-	if sockets < 1 {
-		sockets = 1
+func buildStandardVMCPU(cpuMilli int, guestOSName string) *kubevirtv1.CPU {
+	units := cpuMilli / 1000
+	if units < 1 {
+		units = 1
 	}
-	maxSockets := sockets * 2
-	if maxSockets < sockets+1 {
-		maxSockets = sockets + 1
+	if looksLikeWindowsGuestHint(guestOSName) {
+		return &kubevirtv1.CPU{
+			Sockets: 1,
+			Cores:   uint32(units),
+			Threads: 1,
+		}
+	}
+	maxSockets := units * 2
+	if maxSockets < units+1 {
+		maxSockets = units + 1
 	}
 	return &kubevirtv1.CPU{
-		Sockets:    uint32(sockets),
+		Sockets:    uint32(units),
 		Cores:      1,
 		Threads:    1,
 		MaxSockets: uint32(maxSockets),
