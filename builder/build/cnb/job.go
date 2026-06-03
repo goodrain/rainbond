@@ -211,10 +211,15 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 // buildEnvVars builds environment variables for the CNB build container.
 func (b *Builder) buildEnvVars(re *build.Request) []corev1.EnvVar {
 	registryHost, _ := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
+	langLocale := resolveBuildLocale(re, "LANG", "C.UTF-8")
+	lcAllLocale := resolveBuildLocale(re, "LC_ALL", langLocale)
 	envs := []corev1.EnvVar{
 		{Name: "CNB_PLATFORM_API", Value: "0.13"},
 		{Name: "CNB_INSECURE_REGISTRIES", Value: registryHost},
 		{Name: "DOCKER_CONFIG", Value: "/home/cnb/.docker"},
+		// Keep lifecycle and buildpack tools on UTF-8 so non-ASCII resource names survive packaging.
+		{Name: "LANG", Value: langLocale},
+		{Name: "LC_ALL", Value: lcAllLocale},
 	}
 
 	if httpProxy := os.Getenv("HTTP_PROXY"); httpProxy != "" {

@@ -13,6 +13,7 @@ import (
 // Generic BP_* passthrough is handled here.
 func (b *Builder) buildPlatformAnnotations(re *build.Request) map[string]string {
 	annotations := make(map[string]string)
+	addBuildEnvAnnotations(re, annotations)
 	addDebugAnnotations(re, annotations)
 
 	// Language-specific annotations
@@ -30,6 +31,36 @@ func (b *Builder) buildPlatformAnnotations(re *build.Request) map[string]string 
 	}
 
 	return annotations
+}
+
+func addBuildEnvAnnotations(re *build.Request, annotations map[string]string) {
+	setAnnotationValue(annotations, "cnb-lang", resolveBuildLocale(re, "LANG", "C.UTF-8"))
+	setAnnotationValue(annotations, "cnb-lc-all", resolveBuildLocale(re, "LC_ALL", resolveBuildLocale(re, "LANG", "C.UTF-8")))
+}
+
+func resolveBuildLocale(re *build.Request, key, fallback string) string {
+	if re == nil {
+		return fallback
+	}
+	if value := strings.TrimSpace(re.BuildEnvs[key]); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func appendJavaUTF8Options(value string) string {
+	value = strings.TrimSpace(value)
+	options := []string{}
+	if value != "" {
+		options = append(options, value)
+	}
+	if !strings.Contains(value, "-Dfile.encoding=") {
+		options = append(options, "-Dfile.encoding=UTF-8")
+	}
+	if !strings.Contains(value, "-Dsun.jnu.encoding=") {
+		options = append(options, "-Dsun.jnu.encoding=UTF-8")
+	}
+	return strings.Join(options, " ")
 }
 
 func addDebugAnnotations(re *build.Request, annotations map[string]string) {

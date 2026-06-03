@@ -69,6 +69,138 @@ func TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim(t *testing.T) 
 	}
 }
 
+// capability_id: rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec
+func TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existingClaim := manualClaimForTest("manual1", "10Gi")
+	existingClaim.Spec.VolumeName = "pv-manual1"
+	existingClaim.Status.Phase = corev1.ClaimBound
+
+	oldApp := &appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	oldApp.SetTenant(namespace)
+	oldApp.SetClaimManually(existingClaim.DeepCopy())
+
+	newClaim := manualClaimForTest("manual1", "20Gi")
+	newStorageClass := "local-path"
+	newClaim.Spec.StorageClassName = &newStorageClass
+	newClaim.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+
+	newApp := appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	newApp.SetTenant(namespace)
+	newApp.SetClaimManually(newClaim)
+
+	client := k8sfake.NewSimpleClientset(namespace, existingClaim.DeepCopy())
+	client.PrependReactor("update", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updated, ok := action.(k8stesting.UpdateAction).GetObject().(*corev1.PersistentVolumeClaim)
+		if !ok {
+			return true, nil, errors.New("expected persistentvolumeclaim update object")
+		}
+		if updated.Spec.VolumeName != existingClaim.Spec.VolumeName {
+			return true, nil, errors.New("spec is immutable: volumeName changed")
+		}
+		if updated.Spec.StorageClassName == nil || *updated.Spec.StorageClassName != *existingClaim.Spec.StorageClassName {
+			return true, nil, errors.New("spec is immutable: storageClassName changed")
+		}
+		if len(updated.Spec.AccessModes) != len(existingClaim.Spec.AccessModes) || updated.Spec.AccessModes[0] != existingClaim.Spec.AccessModes[0] {
+			return true, nil, errors.New("spec is immutable: accessModes changed")
+		}
+		gotStorage := updated.Spec.Resources.Requests[corev1.ResourceStorage]
+		if gotStorage.Cmp(resource.MustParse("20Gi")) != 0 {
+			return true, nil, errors.New("storage request was not updated")
+		}
+		return true, updated, nil
+	})
+	controller := &upgradeController{
+		manager: &Manager{
+			client: client,
+		},
+	}
+
+	if err := controller.upgradeManualClaims(oldApp, &newApp); err != nil {
+		t.Fatalf("upgrade manual claims: %v", err)
+	}
+}
+
+// capability_id: rainbond.manual-pvc-upgrade-preserves-existing-metadata
+func TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existingClaim := manualClaimForTest("manual1", "10Gi")
+	existingClaim.Labels = map[string]string{"existing": "label"}
+	existingClaim.Annotations = map[string]string{"existing": "annotation"}
+
+	oldApp := &appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	oldApp.SetTenant(namespace)
+	oldApp.SetClaimManually(existingClaim.DeepCopy())
+
+	newClaim := manualClaimForTest("manual1", "20Gi")
+	newClaim.Labels = map[string]string{"new": "label"}
+	newClaim.Annotations = map[string]string{"new": "annotation"}
+
+	newApp := appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	newApp.SetTenant(namespace)
+	newApp.SetClaimManually(newClaim)
+
+	client := k8sfake.NewSimpleClientset(namespace, existingClaim.DeepCopy())
+	controller := &upgradeController{
+		manager: &Manager{
+			client: client,
+		},
+	}
+
+	if err := controller.upgradeManualClaims(oldApp, &newApp); err != nil {
+		t.Fatalf("upgrade manual claims: %v", err)
+	}
+
+	pvc, err := client.CoreV1().PersistentVolumeClaims("default").Get(context.Background(), "manual1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get pvc after upgrade: %v", err)
+	}
+	if pvc.Labels["existing"] != "label" || len(pvc.Labels) != 1 {
+		t.Fatalf("expected existing labels to be preserved, got %#v", pvc.Labels)
+	}
+	if pvc.Annotations["existing"] != "annotation" || len(pvc.Annotations) != 1 {
+		t.Fatalf("expected existing annotations to be preserved, got %#v", pvc.Annotations)
+	}
+	got := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+	want := resource.MustParse("20Gi")
+	if got.Cmp(want) != 0 {
+		t.Fatalf("expected pvc storage request to be updated to %s, got %s", want.String(), got.String())
+	}
+}
+
+// capability_id: rainbond.manual-pvc-upgrade-skips-unchanged-storage
+func TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existingClaim := manualClaimForTest("manual1", "10Gi")
+
+	oldApp := &appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	oldApp.SetTenant(namespace)
+	oldApp.SetClaimManually(existingClaim.DeepCopy())
+
+	newApp := appmtypes.AppService{AppServiceBase: appmtypes.AppServiceBase{ServiceID: "service-1", ServiceAlias: "demo"}}
+	newApp.SetTenant(namespace)
+	newApp.SetClaimManually(manualClaimForTest("manual1", "10Gi"))
+
+	client := k8sfake.NewSimpleClientset(namespace, existingClaim.DeepCopy())
+	updateCalled := false
+	client.PrependReactor("update", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updateCalled = true
+		return true, nil, errors.New("pvc update should not be called when storage is unchanged")
+	})
+	controller := &upgradeController{
+		manager: &Manager{
+			client: client,
+		},
+	}
+
+	if err := controller.upgradeManualClaims(oldApp, &newApp); err != nil {
+		t.Fatalf("upgrade manual claims: %v", err)
+	}
+	if updateCalled {
+		t.Fatal("expected unchanged pvc storage to skip update")
+	}
+}
+
 // capability_id: rainbond.manual-pvc-upgrade-surfaces-update-errors
 func TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError(t *testing.T) {
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}

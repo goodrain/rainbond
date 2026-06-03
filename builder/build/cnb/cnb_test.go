@@ -1486,6 +1486,9 @@ func TestRunCNBBuildJob(t *testing.T) {
 			"cnb-bp-maven-built-module":               "service-a",
 			"cnb-bp-maven-built-artifact":             "service-a/target/app.jar",
 			"cnb-bp-maven-settings-path":              "/platform/bindings/default-maven/settings.xml",
+			"cnb-lang":                                "C.UTF-8",
+			"cnb-lc-all":                              "C.UTF-8",
+			"cnb-maven-opts":                          "-Xmx1024m -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
 		}
 		for key, wantValue := range wantAnnotations {
 			if got := capturedPod.Annotations[key]; got != wantValue {
@@ -1498,7 +1501,7 @@ func TestRunCNBBuildJob(t *testing.T) {
 			"BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS": "-DskipTests",
 			"BP_MAVEN_BUILT_MODULE":               "service-a",
 			"BP_MAVEN_BUILT_ARTIFACT":             "service-a/target/app.jar",
-			"MAVEN_OPTS":                          "-Xmx1024m",
+			"MAVEN_OPTS":                          "-Xmx1024m -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
 		}
 		foundEnv := map[string]bool{}
 		for _, env := range capturedPod.Spec.Containers[0].Env {
@@ -1512,6 +1515,36 @@ func TestRunCNBBuildJob(t *testing.T) {
 		for name := range wantEnv {
 			if !foundEnv[name] {
 				t.Fatalf("missing env %s in CNB pod", name)
+			}
+		}
+
+		wantPlatformEnvFiles := map[string]string{
+			"env/LANG":       "metadata.annotations['cnb-lang']",
+			"env/LC_ALL":     "metadata.annotations['cnb-lc-all']",
+			"env/MAVEN_OPTS": "metadata.annotations['cnb-maven-opts']",
+		}
+		foundPlatformEnvFiles := map[string]bool{}
+		for _, vol := range capturedPod.Spec.Volumes {
+			if vol.Name != "platform" || vol.Projected == nil {
+				continue
+			}
+			for _, source := range vol.Projected.Sources {
+				if source.DownwardAPI == nil {
+					continue
+				}
+				for _, item := range source.DownwardAPI.Items {
+					if wantField, ok := wantPlatformEnvFiles[item.Path]; ok {
+						foundPlatformEnvFiles[item.Path] = true
+						if item.FieldRef == nil || item.FieldRef.FieldPath != wantField {
+							t.Fatalf("platform env %s fieldRef = %+v, want %q", item.Path, item.FieldRef, wantField)
+						}
+					}
+				}
+			}
+		}
+		for path := range wantPlatformEnvFiles {
+			if !foundPlatformEnvFiles[path] {
+				t.Fatalf("missing platform env file %s in CNB pod", path)
 			}
 		}
 	})

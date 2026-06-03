@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/go-chi/chi"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
@@ -118,6 +119,32 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 			if err := json.NewEncoder(w).Encode(&service); err != nil {
 				t.Fatalf("encode created service: %v", err)
 			}
+			return
+		}
+		if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/default/services/") {
+			name := strings.TrimPrefix(r.URL.Path, "/api/v1/namespaces/default/services/")
+			if _, ok := services[name]; !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(v1.Status{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "Status",
+						APIVersion: "v1",
+					},
+					Status: v1.StatusFailure,
+					Reason: v1.StatusReasonNotFound,
+					Code:   http.StatusNotFound,
+				})
+				return
+			}
+			delete(services, name)
+			_ = json.NewEncoder(w).Encode(v1.Status{
+				TypeMeta: v1.TypeMeta{
+					Kind:       "Status",
+					APIVersion: "v1",
+				},
+				Status: v1.StatusSuccess,
+				Code:   http.StatusOK,
+			})
 			return
 		}
 		t.Fatalf("unexpected kubernetes request: %s %s", r.Method, r.URL.Path)
@@ -484,5 +511,63 @@ func TestGetTCPRouteIncludesServiceMetadata(t *testing.T) {
 	}
 	if got.ContainerPort != 80 {
 		t.Fatalf("expected container_port 80, got %d", got.ContainerPort)
+	}
+}
+
+func TestDeleteTCPRouteFallsBackToNodePortWhenNameDiffers(t *testing.T) {
+	const (
+		namespace         = "default"
+		serviceAlias      = "gr447979"
+		actualServiceName = "gr447979-30003"
+		requestedName     = "custom-k8s-service-30003"
+		nodePort          = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		actualServiceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      actualServiceName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"service_alias": serviceAlias,
+					"outer":         "true",
+					"tcp":           "true",
+					"port":          "6379",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       actualServiceName,
+					Protocol:   corev1.ProtocolTCP,
+					Port:       6379,
+					TargetPort: intstr.FromInt(6379),
+					NodePort:   nodePort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	req := httptest.NewRequest(http.MethodDelete, "/"+requestedName, nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("name", requestedName)
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx)
+	ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.DeleteTCPRoute(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	_, err := k8s.Default().Clientset.CoreV1().Services(namespace).Get(context.Background(), actualServiceName, v1.GetOptions{})
+	if !errors.IsNotFound(err) {
+		t.Fatalf("expected actual TCP route service to be deleted, got err %v", err)
 	}
 }

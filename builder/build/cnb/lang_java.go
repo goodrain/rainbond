@@ -26,12 +26,16 @@ func (j *javaConfig) BuildAnnotations(re *build.Request, annotations map[string]
 	builtModule, builtArtifact := resolveMavenBuiltTarget(re)
 	setAnnotationValue(annotations, "cnb-bp-maven-built-module", builtModule)
 	setAnnotationValue(annotations, "cnb-bp-maven-built-artifact", builtArtifact)
+	if re.Lang == code.JavaMaven || re.Lang == code.JaveWar {
+		setAnnotationValue(annotations, "cnb-maven-opts", resolveJavaMavenOpts(re))
+	}
 
 	if re.Lang == code.Gradle {
 		setAnnotationValue(annotations, "cnb-bp-gradle-build-arguments", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILD_ARGUMENTS", "BUILD_GRADLE_BUILD_ARGUMENTS"))
 		setAnnotationValue(annotations, "cnb-bp-gradle-additional-build-arguments", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_ADDITIONAL_BUILD_ARGUMENTS", "BUILD_GRADLE_ADDITIONAL_BUILD_ARGUMENTS"))
 		setAnnotationValue(annotations, "cnb-bp-gradle-built-module", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILT_MODULE", "BUILD_GRADLE_BUILT_MODULE"))
 		setAnnotationValue(annotations, "cnb-bp-gradle-built-artifact", firstNonEmptyEnv(re.BuildEnvs, "BP_GRADLE_BUILT_ARTIFACT", "BUILD_GRADLE_BUILT_ARTIFACT"))
+		setAnnotationValue(annotations, "cnb-gradle-opts", resolveJavaGradleOpts(re))
 	}
 
 	server := firstNonEmptyEnv(re.BuildEnvs, "BP_JAVA_APP_SERVER", "BUILD_RUNTIMES_SERVER")
@@ -48,7 +52,12 @@ func (j *javaConfig) BuildEnvVars(re *build.Request) []corev1.EnvVar {
 	envs = appendEnvVar(envs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", firstNonEmptyEnv(re.BuildEnvs, "BP_MAVEN_ADDITIONAL_BUILD_ARGUMENTS", "BUILD_MAVEN_CUSTOM_OPTS"))
 	envs = appendEnvVar(envs, "BP_MAVEN_BUILT_MODULE", builtModule)
 	envs = appendEnvVar(envs, "BP_MAVEN_BUILT_ARTIFACT", builtArtifact)
-	envs = appendEnvVar(envs, "MAVEN_OPTS", re.BuildEnvs["BUILD_MAVEN_JAVA_OPTS"])
+	if re.Lang == code.JavaMaven || re.Lang == code.JaveWar {
+		envs = appendEnvVar(envs, "MAVEN_OPTS", resolveJavaMavenOpts(re))
+	}
+	if re.Lang == code.Gradle {
+		envs = appendEnvVar(envs, "GRADLE_OPTS", resolveJavaGradleOpts(re))
+	}
 	return envs
 }
 
@@ -113,4 +122,12 @@ func deriveMavenBuiltModule(artifact string) string {
 		return module
 	}
 	return ""
+}
+
+func resolveJavaMavenOpts(re *build.Request) string {
+	return appendJavaUTF8Options(firstNonEmptyEnv(re.BuildEnvs, "MAVEN_OPTS", "BUILD_MAVEN_JAVA_OPTS"))
+}
+
+func resolveJavaGradleOpts(re *build.Request) string {
+	return appendJavaUTF8Options(firstNonEmptyEnv(re.BuildEnvs, "GRADLE_OPTS", "BUILD_GRADLE_JAVA_OPTS"))
 }

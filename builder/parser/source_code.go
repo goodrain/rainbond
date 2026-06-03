@@ -615,19 +615,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	// - Node.js 前端框架（static 类型）：构建后由 nginx 托管，端口 8080
 	// - Node.js 后端框架（dynamic 类型）：默认端口 3000（Next.js/Nuxt/Remix/Nest.js/Express）
 	// 多语言场景（如 "dockerfile,Node.js"）也需要设置 CNB 默认端口
-	langStr := string(d.Lang)
-	hasNodejs := strings.Contains(langStr, string(code.Nodejs))
-	hasStatic := strings.Contains(langStr, string(code.Static))
-	if hasStatic || (hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
-		if _, ok := d.ports[8080]; !ok {
-			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
-		}
-	}
-	if hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
-		if _, ok := d.ports[3000]; !ok {
-			d.ports[3000] = &types.Port{ContainerPort: 3000, Protocol: "http"}
-		}
-	}
+	d.applyCNBDefaultPorts(runtimeInfo)
 
 	// 扫描所有 Dockerfile 文件
 	// 参数：最大深度 5 层，最多返回 20 个文件
@@ -672,6 +660,27 @@ func getRecommendedMemory(lang code.Lang) int {
 		return 512
 	}
 	return 512
+}
+
+func (d *SourceCodeParse) applyCNBDefaultPorts(runtimeInfo map[string]string) {
+	if d.ports == nil {
+		d.ports = make(map[int]*types.Port)
+	}
+
+	langStr := string(d.Lang)
+	hasNodejs := strings.Contains(langStr, string(code.Nodejs))
+	hasStatic := strings.Contains(langStr, string(code.Static))
+	hasJavaWar := strings.Contains(langStr, string(code.JaveWar))
+	if hasJavaWar || hasStatic || (hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "static") {
+		if _, ok := d.ports[8080]; !ok {
+			d.ports[8080] = &types.Port{ContainerPort: 8080, Protocol: "http"}
+		}
+	}
+	if hasNodejs && runtimeInfo != nil && runtimeInfo["RUNTIME_TYPE"] == "dynamic" {
+		if _, ok := d.ports[3000]; !ok {
+			d.ports[3000] = &types.Port{ContainerPort: 3000, Protocol: "http"}
+		}
+	}
 }
 
 func (d *SourceCodeParse) errappend(pe ParseError) {
