@@ -19,8 +19,11 @@
 package exector
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 )
 
 // capability_id: rainbond.app-import.package-name-normalize
@@ -58,5 +61,55 @@ func TestAppStatusMapRoundTrip(t *testing.T) {
 	roundTrip := str2map(serialized)
 	if !reflect.DeepEqual(roundTrip, want) {
 		t.Fatalf("round trip mismatch: got %v, want %v", roundTrip, want)
+	}
+}
+
+// capability_id: rainbond.app-import.scaling-rule-compat
+func TestNormalizeImportedRAMPreservesLegacyScalingRule(t *testing.T) {
+	rawMetadata := []byte(`{
+		"group_key": "demo-app",
+		"group_name": "Demo App",
+		"group_version": "1.0.0",
+		"apps": [{
+			"service_key": "svc-key",
+			"cpu": 250,
+			"extend_method_map": {
+				"min_node": 1,
+				"min_memory": 64
+			},
+			"service_extend_method": {
+				"min_node": 2,
+				"max_node": 7,
+				"step_node": 2,
+				"min_memory": 512,
+				"max_memory": 4096,
+				"step_memory": 128,
+				"is_restart": false,
+				"container_cpu": 600
+			}
+		}]
+	}`)
+	var ram v1alpha1.RainbondApplicationConfig
+	if err := json.Unmarshal(rawMetadata, &ram); err != nil {
+		t.Fatal(err)
+	}
+
+	normalizeImportedRAM(rawMetadata, &ram)
+
+	rule := ram.Components[0].ExtendMethodRule
+	if rule.MinNode != 1 {
+		t.Fatalf("expected existing min_node to be kept, got %d", rule.MinNode)
+	}
+	if rule.MaxNode != 7 {
+		t.Fatalf("expected legacy max_node to be restored, got %d", rule.MaxNode)
+	}
+	if rule.StepNode != 2 {
+		t.Fatalf("expected legacy step_node to be restored, got %d", rule.StepNode)
+	}
+	if rule.InitMemory != 64 {
+		t.Fatalf("expected init_memory to fall back to min_memory, got %d", rule.InitMemory)
+	}
+	if ram.Components[0].CPU != 600 {
+		t.Fatalf("expected legacy container_cpu to be restored, got %d", ram.Components[0].CPU)
 	}
 }
