@@ -3162,17 +3162,18 @@
       "status": "active"
     },
     {
-      "id": "rainbond.manual-pvc-upgrade-skips-unchanged-storage",
-      "title": "Skip manual PVC updates when storage request is unchanged",
+      "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
+      "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",
       "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
       "code_paths": [
+        "worker/appm/controller/upgrade.go",
         "worker/appm/f/function.go"
       ],
       "tests": [
         {
           "path": "worker/appm/controller/upgrade_manual_claim_test.go",
-          "selector": "TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage"
+          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec"
         }
       ],
       "test_type": "regression",
@@ -3196,18 +3197,17 @@
       "status": "active"
     },
     {
-      "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
-      "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
+      "id": "rainbond.manual-pvc-upgrade-skips-unchanged-storage",
+      "title": "Skip manual PVC updates when storage request is unchanged",
       "interface_type": "workflow",
       "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
       "code_paths": [
-        "worker/appm/controller/upgrade.go",
         "worker/appm/f/function.go"
       ],
       "tests": [
         {
           "path": "worker/appm/controller/upgrade_manual_claim_test.go",
-          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec"
+          "selector": "TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage"
         }
       ],
       "test_type": "regression",
@@ -3540,6 +3540,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.ns-resource.ingress-summary",
+      "title": "Summarize ingress routing metadata for namespace resources",
+      "title_zh": "\u6c47\u603b Ingress \u8d44\u6e90\u8def\u7531\u5143\u6570\u636e",
+      "interface_type": "workflow",
+      "interface": "api/handler.toNsResourceInfo",
+      "code_paths": [
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/ns_resource_test.go",
+          "selector": "TestToNsResourceInfoIncludesIngressSummary"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ns-resource.mark-source",
       "title": "Mark namespace resource source labels",
       "title_zh": "\u6807\u8bb0\u547d\u540d\u7a7a\u95f4\u8d44\u6e90\u6765\u6e90",
@@ -3578,24 +3596,6 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.ns-resource.ingress-summary",
-      "title": "Summarize ingress routing metadata for namespace resources",
-      "title_zh": "\u6c47\u603b Ingress \u8d44\u6e90\u8def\u7531\u5143\u6570\u636e",
-      "interface_type": "workflow",
-      "interface": "api/handler.toNsResourceInfo",
-      "code_paths": [
-        "api/handler/ns_resource.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/ns_resource_test.go",
-          "selector": "TestToNsResourceInfoIncludesIngressSummary"
         }
       ],
       "test_type": "regression",
@@ -7498,6 +7498,28 @@
         {
           "path": "worker/appm/conversion/gateway_test.go",
           "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy",
+      "title": "Use Local externalTrafficPolicy for VM worker NodePort services",
+      "title_zh": "Use Local externalTrafficPolicy for VM worker NodePort services",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.outerServiceExternalTrafficPolicy",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestOuterServiceExternalTrafficPolicyForVM"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestOuterServiceExternalTrafficPolicyForNonVM"
         }
       ],
       "test_type": "regression",

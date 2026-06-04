@@ -3,6 +3,7 @@ package conversion
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/db/model"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,5 +59,23 @@ func TestReassignAllocatedNodePortKeepsCurrentServicePort(t *testing.T) {
 	}
 	if nodePort != 30000 {
 		t.Fatalf("nodePort = %d, expected 30000", nodePort)
+	}
+}
+
+// capability_id: rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy
+func TestOuterServiceExternalTrafficPolicyForVM(t *testing.T) {
+	service := &model.TenantServices{ExtendMethod: model.ServiceTypeVM.String()}
+
+	if got := outerServiceExternalTrafficPolicy(service); got != corev1.ServiceExternalTrafficPolicyLocal {
+		t.Fatalf("expected VM outer service traffic policy %q, got %q", corev1.ServiceExternalTrafficPolicyLocal, got)
+	}
+}
+
+// capability_id: rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy
+func TestOuterServiceExternalTrafficPolicyForNonVM(t *testing.T) {
+	service := &model.TenantServices{ExtendMethod: model.ServiceTypeStatelessMultiple.String()}
+
+	if got := outerServiceExternalTrafficPolicy(service); got != corev1.ServiceExternalTrafficPolicyCluster {
+		t.Fatalf("expected non-VM outer service traffic policy %q, got %q", corev1.ServiceExternalTrafficPolicyCluster, got)
 	}
 }

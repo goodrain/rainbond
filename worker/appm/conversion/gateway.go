@@ -71,6 +71,13 @@ func createDefaultDomain(tenantName, serviceAlias string, servicePort int) strin
 	return fmt.Sprintf("%d.%s.%s.%s", servicePort, serviceAlias, tenantName, exDomain)
 }
 
+func outerServiceExternalTrafficPolicy(service *model.TenantServices) corev1.ServiceExternalTrafficPolicy {
+	if service != nil && service.IsVM() {
+		return corev1.ServiceExternalTrafficPolicyLocal
+	}
+	return corev1.ServiceExternalTrafficPolicyCluster
+}
+
 // TenantServiceRegist conv inner and outer service regist
 func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	builder, err := AppServiceBuilder(as.ServiceID, string(as.ServiceType), dbmanager, as)
@@ -516,7 +523,8 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 							NodePort:   int32(tcpRule.Port),
 						},
 					},
-					Type: corev1.ServiceTypeNodePort,
+					Type:                  corev1.ServiceTypeNodePort,
+					ExternalTrafficPolicy: outerServiceExternalTrafficPolicy(a.service),
 					Selector: map[string]string{
 						"service_alias": as.ServiceAlias,
 					},
