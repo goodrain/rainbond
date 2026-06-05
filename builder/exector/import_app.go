@@ -148,6 +148,11 @@ func (i *ImportApp) importApp() error {
 				i.updateStatusForApp(app, "failed")
 				return
 			}
+			if rawMetadata, err := readImportedMetadata(tmpDir); err == nil {
+				normalizeImportedRAM(rawMetadata, ram)
+			} else {
+				logrus.Warningf("read imported metadata for %s failure: %v", appFile, err)
+			}
 			os.Rename(appFile, appFile+".success")
 			datas = append(datas, *ram)
 			logrus.Infof("Successful import app: %s", appFile)
@@ -171,6 +176,106 @@ func (i *ImportApp) importApp() error {
 		return err
 	}
 	return nil
+}
+
+type importedRAMMetadata struct {
+	Components []importedComponentMetadata `json:"apps"`
+}
+
+type importedComponentMetadata struct {
+	ExtendMethodMap     map[string]interface{} `json:"extend_method_map"`
+	ServiceExtendMethod map[string]interface{} `json:"service_extend_method"`
+}
+
+func readImportedMetadata(tmpDir string) ([]byte, error) {
+	files, err := ioutil.ReadDir(tmpDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("metadata dir is empty: %s", tmpDir)
+	}
+	return ioutil.ReadFile(path.Join(tmpDir, files[0].Name(), "metadata.json"))
+}
+
+func normalizeImportedRAM(rawMetadata []byte, ram *v1alpha1.RainbondApplicationConfig) {
+	var metadata importedRAMMetadata
+	if err := json.Unmarshal(rawMetadata, &metadata); err != nil {
+		return
+	}
+	for idx := range ram.Components {
+		if idx >= len(metadata.Components) || ram.Components[idx] == nil {
+			continue
+		}
+		normalizeImportedComponent(ram.Components[idx], metadata.Components[idx])
+	}
+}
+
+func normalizeImportedComponent(component *v1alpha1.Component, metadata importedComponentMetadata) {
+	normalizeImportedExtendMethodRule(&component.ExtendMethodRule, metadata)
+	if component.CPU == 0 || component.CPU == 250 {
+		component.CPU = legacyExtendMethodValueWithPresence(metadata, "container_cpu")
+	}
+}
+
+func normalizeImportedExtendMethodRule(rule *v1alpha1.ComponentExtendMethodRule, metadata importedComponentMetadata) {
+	if rule.MinNode == 0 {
+		rule.MinNode = legacyExtendMethodValue(metadata, "min_node")
+	}
+	if rule.MaxNode == 0 {
+		rule.MaxNode = legacyExtendMethodValue(metadata, "max_node")
+	}
+	if rule.StepNode == 0 {
+		rule.StepNode = legacyExtendMethodValue(metadata, "step_node")
+	}
+	if rule.MinMemory == 0 {
+		rule.MinMemory = legacyExtendMethodValue(metadata, "min_memory")
+	}
+	if rule.MaxMemory == 0 {
+		rule.MaxMemory = legacyExtendMethodValue(metadata, "max_memory")
+	}
+	if rule.StepMemory == 0 {
+		rule.StepMemory = legacyExtendMethodValue(metadata, "step_memory")
+	}
+	if rule.IsRestart == 0 {
+		rule.IsRestart = legacyExtendMethodValue(metadata, "is_restart")
+	}
+	if rule.InitMemory == 0 {
+		rule.InitMemory = legacyExtendMethodValue(metadata, "init_memory")
+	}
+	if rule.InitMemory == 0 {
+		rule.InitMemory = rule.MinMemory
+	}
+}
+
+func legacyExtendMethodValue(metadata importedComponentMetadata, key string) int {
+	if value, ok := metadata.ExtendMethodMap[key]; ok {
+		if intValue := metadataValueToInt(value); intValue != 0 {
+			return intValue
+		}
+	}
+	return metadataValueToInt(metadata.ServiceExtendMethod[key])
+}
+
+func metadataValueToInt(value interface{}) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case bool:
+		if v {
+			return 1
+		}
+	}
+	return 0
+}
+
+func legacyExtendMethodValueWithPresence(metadata importedComponentMetadata, key string) int {
+	if value, ok := metadata.ExtendMethodMap[key]; ok {
+		return metadataValueToInt(value)
+	}
+	return metadataValueToInt(metadata.ServiceExtendMethod[key])
 }
 
 func (i *ImportApp) updateStatus(status string) error {

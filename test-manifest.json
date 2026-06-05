@@ -273,6 +273,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-import.scaling-rule-compat",
+      "title": "Preserve legacy scaling rules during app import",
+      "title_zh": "\u5bfc\u5165\u5e94\u7528\u65f6\u4fdd\u7559\u65e7\u7248\u4f38\u7f29\u89c4\u5219",
+      "interface_type": "workflow",
+      "interface": "builder/exector.normalizeImportedRAM",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestNormalizeImportedRAMPreservesLegacyScalingRule"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-import.status-serialization",
       "title": "Serialize and parse per-app import status maps",
       "title_zh": "\u5e8f\u5217\u5316\u5e76\u89e3\u6790\u6309\u5e94\u7528\u8bb0\u5f55\u7684\u5bfc\u5165\u72b6\u6001",
