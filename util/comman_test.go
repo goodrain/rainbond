@@ -42,7 +42,7 @@ func TestOpenOrCreateFile(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.array-deduplicate
-func TestDeweight(t *testing.T) {
+func TestDeweightLegacy(t *testing.T) {
 	data := []string{"asd", "asd", "12", "12"}
 	Deweight(&data)
 	if len(data) != 2 || data[0] != "asd" || data[1] != "12" {
@@ -52,7 +52,7 @@ func TestDeweight(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-size-walk
-func TestGetDirSize(t *testing.T) {
+func TestGetDirSizeLegacy(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte(strings.Repeat("a", 1024)), 0644); err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestGetDirSize(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-size-shell
-func TestGetDirSizeByCmd(t *testing.T) {
+func TestGetDirSizeByCmdLegacy(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte(strings.Repeat("a", 2048)), 0644); err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestGetDirSizeByCmd(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.zip-archive
-func TestZip(t *testing.T) {
+func TestZipLegacy(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "cache")
 	target := filepath.Join(root, "cache.zip")
@@ -103,7 +103,7 @@ func TestZip(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.version-timestamp
-func TestCreateVersionByTime(t *testing.T) {
+func TestCreateVersionByTimeLegacy(t *testing.T) {
 	if re := CreateVersionByTime(); re != "" {
 		if len(re) != 14 {
 			t.Fatalf("expected 14-digit version, got %q", re)
@@ -120,7 +120,7 @@ func TestCreateVersionByTime(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.dir-list-depth
-func TestGetDirList(t *testing.T) {
+func TestGetDirListLegacy(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "a", "b"), 0755); err != nil {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestDetectZipStructure(t *testing.T) {
 }
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
-func TestMergeDir(t *testing.T) {
+func TestMergeDirLegacy(t *testing.T) {
 	root := t.TempDir()
 	fromDir := filepath.Join(root, "from")
 	toDir := filepath.Join(root, "to")
@@ -225,7 +225,7 @@ func TestMergeDir(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.host-id-generate
-func TestCreateHostID(t *testing.T) {
+func TestCreateHostIDLegacy(t *testing.T) {
 	uid, err := CreateHostID()
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func TestCreateHostID(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.current-dir-path
-func TestGetCurrentDir(t *testing.T) {
+func TestGetCurrentDirLegacy(t *testing.T) {
 	if dir := GetCurrentDir(); dir == "" || !filepath.IsAbs(dir) {
 		t.Fatalf("expected absolute current dir, got %q", dir)
 	}
@@ -245,7 +245,7 @@ func TestGetCurrentDir(t *testing.T) {
 
 // capability_id: rainbond.util.fs.archive-and-directory-ops
 // capability_id: rainbond.util.file-copy
-func TestCopyFile(t *testing.T) {
+func TestCopyFileLegacy(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "source.txt")
 	target := filepath.Join(root, "target.txt")
@@ -266,7 +266,7 @@ func TestCopyFile(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.template-variable-parse
-func TestParseVariable(t *testing.T) {
+func TestParseVariableLegacy(t *testing.T) {
 	configs := make(map[string]string, 0)
 	result := ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", configs)
 	if result != "sadaaaadasdaaa aaa ASDASD aaa" {
@@ -284,7 +284,7 @@ func TestParseVariable(t *testing.T) {
 
 // capability_id: rainbond.util.system.identity-and-template-helpers
 // capability_id: rainbond.util.time-format-rfc3339
-func TestTimeFormat(t *testing.T) {
+func TestTimeFormatLegacy(t *testing.T) {
 	tt := "2019-08-24 11:11:30.165753932 +0800 CST m=+55557.682499470"
 	timeF, err := time.Parse(time.RFC3339, strings.Replace(tt[0:19]+"+08:00", " ", "T", 1))
 	if err != nil {
@@ -361,22 +361,31 @@ func TestIsEndWithNumber(t *testing.T) {
 	}
 }
 
-func TestOpenOrCreateFileWithRelativePath(t *testing.T) {
-	filePath := filepath.Join(t.TempDir(), "test.log")
-	file, err := OpenOrCreateFile(filePath)
+func TestOpenOrCreateFileLegacyPath(t *testing.T) {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir := t.TempDir()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(currentDir)
+
+	file, err := OpenOrCreateFile("./test.log")
 	if err != nil {
 		t.Fatal(err)
 	}
 	file.Close()
 }
 
-func TestDeweightLegacy(t *testing.T) {
+func TestDeweight(t *testing.T) {
 	data := []string{"asd", "asd", "12", "12"}
 	Deweight(&data)
 	t.Log(data)
 }
 
-func TestGetDirSizeLegacy(t *testing.T) {
+func TestGetDirSize(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
 		t.Fatal(err)
@@ -386,7 +395,7 @@ func TestGetDirSizeLegacy(t *testing.T) {
 	runtime.ReadMemStats(memStats)
 }
 
-func TestGetDirSizeByCmdLegacy(t *testing.T) {
+func TestGetDirSizeByCmd(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("12345"), 0644); err != nil {
 		t.Fatal(err)
@@ -396,7 +405,7 @@ func TestGetDirSizeByCmdLegacy(t *testing.T) {
 	runtime.ReadMemStats(memStats)
 }
 
-func TestZipLegacy(t *testing.T) {
+func TestZip(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "cache")
 	if err := os.MkdirAll(source, 0755); err != nil {
@@ -410,13 +419,13 @@ func TestZipLegacy(t *testing.T) {
 	}
 }
 
-func TestCreateVersionByTimeLegacy(t *testing.T) {
+func TestCreateVersionByTime(t *testing.T) {
 	if re := CreateVersionByTime(); re != "" {
 		t.Log(re)
 	}
 }
 
-func TestGetDirListLegacy(t *testing.T) {
+func TestGetDirList(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "sub")
 	if err := os.MkdirAll(sub, 0755); err != nil {
@@ -432,7 +441,7 @@ func TestGetDirListLegacy(t *testing.T) {
 	t.Log(list)
 }
 
-func TestMergeDirLegacy(t *testing.T) {
+func TestMergeDir(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "src")
 	dst := filepath.Join(t.TempDir(), "dst")
 	if err := os.MkdirAll(src, 0755); err != nil {
@@ -450,7 +459,7 @@ func TestMergeDirLegacy(t *testing.T) {
 	}
 }
 
-func TestCreateHostIDLegacy(t *testing.T) {
+func TestCreateHostID(t *testing.T) {
 	uid, err := CreateHostID()
 	if err != nil {
 		t.Fatal(err)
@@ -458,11 +467,11 @@ func TestCreateHostIDLegacy(t *testing.T) {
 	t.Log(uid)
 }
 
-func TestGetCurrentDirLegacy(t *testing.T) {
+func TestGetCurrentDir(t *testing.T) {
 	t.Log(GetCurrentDir())
 }
 
-func TestCopyFileLegacy(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "test2.zip")
 	dst := filepath.Join(dir, "test4.zip")
@@ -474,7 +483,7 @@ func TestCopyFileLegacy(t *testing.T) {
 	}
 }
 
-func TestParseVariableLegacy(t *testing.T) {
+func TestParseVariable(t *testing.T) {
 	configs := make(map[string]string, 0)
 	result := ParseVariable("sada${XXX:aaa}dasd${XXX:aaa} ${YYY:aaa} ASDASD ${ZZZ:aaa}", configs)
 	t.Log(result)
@@ -485,7 +494,7 @@ func TestParseVariableLegacy(t *testing.T) {
 	}))
 }
 
-func TestTimeFormatLegacy(t *testing.T) {
+func TestTimeFormat(t *testing.T) {
 	tt := "2019-08-24 11:11:30.165753932 +0800 CST m=+55557.682499470"
 	timeF, err := time.Parse(time.RFC3339, strings.Replace(tt[0:19]+"+08:00", " ", "T", 1))
 	if err != nil {

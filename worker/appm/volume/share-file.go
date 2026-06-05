@@ -20,6 +20,7 @@ package volume
 
 import (
 	"fmt"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -31,6 +32,19 @@ import (
 // ShareFileVolume nfs volume struct
 type ShareFileVolume struct {
 	Base
+}
+
+func (v *ShareFileVolume) vmStorageClassName() string {
+	if v.svm == nil {
+		return "local-path"
+	}
+	if v.svm.VolumeType == "" || v.svm.VolumeType == dbmodel.VMVolumeType.String() {
+		return "local-path"
+	}
+	if v.svm.VolumeType == dbmodel.ShareFileVolumeType.String() && v.as.SharedStorageClass != "" {
+		return v.as.SharedStorageClass
+	}
+	return v.svm.VolumeType
 }
 
 // CreateVolume share file volume create volume
@@ -59,46 +73,50 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.generateVolumeSubPath(define, vm)
 		define.volumeMounts = append(define.volumeMounts, *vm)
 	} else if v.as.GetVirtualMachine() != nil {
+		importConfigs := map[string]vmDiskImportConfig{}
+		if v.dbmanager != nil {
+			var err error
+			importConfigs, err = loadVMDiskImportConfigs(v.as.ServiceID, v.dbmanager)
+			if err != nil {
+				return err
+			}
+		}
 		labels := v.as.GetCommonLabels(map[string]string{
 			"volume_name": volumeMountName,
 			"stateless":   "",
 		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, "local-path", v.svm.VolumeCapacity, labels, annotations)
+		storageClassName := v.vmStorageClassName()
+		claim := newVolumeClaim(
+			volumeMountName,
+			path.Join(volumeMountPath, volumeMountName),
+			v.svm.AccessMode,
+			storageClassName,
+			v.svm.VolumeCapacity,
+			labels,
+			annotations)
 		v.as.SetClaim(claim)
-		v.as.SetClaimManually(claim)
-		vo := kubevirtv1.Volume{
-			Name: volumeMountName,
-			VolumeSource: kubevirtv1.VolumeSource{
-				PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
-					PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: claim.Name,
-					},
-					Hotpluggable: false,
-				},
-			},
+		var importConfig *vmDiskImportConfig
+		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
+			logrus.Infof(
+				"vm import config prepared: service_id=%s service_alias=%s claim=%s volume_name=%s image_url=%s",
+				v.as.ServiceID,
+				v.as.ServiceAlias,
+				claim.Name,
+				v.svm.VolumeName,
+				cfg.ImageURL,
+			)
+			importConfig = &cfg
 		}
-		var dd kubevirtv1.DiskDevice
-		switch volumeMountPath {
-		case "/disk":
-			dd = kubevirtv1.DiskDevice{
-				Disk: &kubevirtv1.DiskTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
-		case "/lun":
-			dd = kubevirtv1.DiskDevice{
-				LUN: &kubevirtv1.LunTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
-		case "/cdrom":
-			dd = kubevirtv1.DiskDevice{
-				CDRom: &kubevirtv1.CDRomTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
-			}
+		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)
+		if dvTemplate != nil {
+			define.vmDVTemplate = append(define.vmDVTemplate, *dvTemplate)
 		}
+		if manualClaim {
+			v.as.SetClaimManually(claim)
+		}
+		deviceType := vmVolumeDeviceType(volumeMountPath)
+		dd := BuildVMDiskDevice(volumeMountPath)
 		bootOrder := uint(len(define.vmDisk) + 1)
 		dk := kubevirtv1.Disk{
 			BootOrder:  &bootOrder,
@@ -107,6 +125,34 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		}
 		define.vmDisk = append(define.vmDisk, dk)
 		define.vmVolume = append(define.vmVolume, vo)
+		if deviceType == "" {
+			deviceType = "disk"
+		}
+		define.SetVMDiskMeta(VMDiskMeta{
+			DiskName:   dk.Name,
+			DiskKey:    v.svm.VolumeName,
+			DeviceType: deviceType,
+			SourceKind: "volume",
+			VolumePath: volumeMountPath,
+			VolumeName: v.svm.VolumeName,
+		})
+		logrus.Infof(
+			"vm volume appended: service_id=%s service_alias=%s source_volume=%s claim=%s mount_path=%s import=%t manual_claim=%t disk_name=%s boot_order=%d device=disk:%t,lun:%t,cdrom:%t current_vm_disks=%d current_vm_volumes=%d",
+			v.as.ServiceID,
+			v.as.ServiceAlias,
+			v.svm.VolumeName,
+			claim.Name,
+			volumeMountPath,
+			importConfig != nil,
+			manualClaim,
+			dk.Name,
+			bootOrder,
+			dk.DiskDevice.Disk != nil,
+			dk.DiskDevice.LUN != nil,
+			dk.DiskDevice.CDRom != nil,
+			len(define.vmDisk),
+			len(define.vmVolume),
+		)
 	} else {
 		for _, m := range define.volumeMounts {
 			if m.MountPath == volumeMountPath { // TODO move to prepare

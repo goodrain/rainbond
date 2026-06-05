@@ -6,6 +6,8 @@ import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/builder/sourceutil"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
@@ -18,12 +20,54 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
-var vmDockerfileTmpl = `
+type vmBuildMedia string
+
+const (
+	vmBuildMediaISO  vmBuildMedia = "iso"
+	vmBuildMediaDisk vmBuildMedia = "disk"
+)
+
+type vmDiskBuildStrategy string
+
+const (
+	vmDiskBuildStrategyDirect       vmDiskBuildStrategy = "direct"
+	vmDiskBuildStrategyConvertRaw   vmDiskBuildStrategy = "convert-raw"
+	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
+)
+
+const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
+const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine"
+const defaultVMDownloadProgressInterval = 10 * time.Second
+const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
+
+var vmISODockerfileTmpl = `
 FROM scratch
-ADD ${VM_PATH} /disk/
+COPY --chown=107:107 ${VM_PATH} /disk/
+`
+
+var vmDiskDockerfileTmpl = `
+FROM scratch
+ADD --chown=107:107 ${VM_PATH} /disk/
+`
+
+var vmHTTPArtifactDockerfileTmpl = `
+FROM ${ARTIFACT_IMAGE}
+COPY ${VM_PATH} /disk/disk.img.gz
+RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
+`
+
+var vmRawToQCOW2DockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS convert
+WORKDIR /work
+COPY ${VM_PATH} /work/source.img
+RUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img
+FROM scratch
+COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 `
 
 // VMBuildItem -
@@ -31,6 +75,7 @@ type VMBuildItem struct {
 	Logger        event.Logger `json:"logger"`
 	Arch          string       `json:"arch"`
 	VMImageSource string       `json:"vm_image_source"`
+	VMImageToken  string       `json:"vm_image_token"`
 	ImageClient   sources.ImageClient
 	Configs       map[string]gjson.Result `json:"configs"`
 	ServiceID     string                  `json:"service_id"`
@@ -53,6 +98,7 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 		Logger:        logger,
 		Arch:          gjson.GetBytes(in, "arch").String(),
 		VMImageSource: gjson.GetBytes(in, "vm_image_source").String(),
+		VMImageToken:  gjson.GetBytes(in, "vm_image_token").String(),
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
@@ -64,45 +110,213 @@ func NewVMBuildItem(in []byte) *VMBuildItem {
 }
 
 func (v *VMBuildItem) vmBuild(sourcePath string) error {
-	envs := make(map[string]string)
+	prepareStarted := time.Now()
 	fileInfoList, err := ioutil.ReadDir(sourcePath)
+	if err = recordVMBuildStage(v.Logger, "vm_source_prepare", prepareStarted, err, map[string]interface{}{
+		"service_id":  v.ServiceID,
+		"event_id":    v.EventID,
+		"source_path": sourcePath,
+	}); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
 	if len(fileInfoList) != 1 {
 		return fmt.Errorf("%v file len is not 1", sourcePath)
 	}
-	envs["VM_PATH"] = path.Join("./", fileInfoList[0].Name())
-	dockerfile := util.ParseVariable(vmDockerfileTmpl, envs)
-
-	dfpath := path.Join(sourcePath, "Dockerfile")
-	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
-	err = ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
+	logrus.Infof(
+		"vm runtime image build context: service_id=%s event_id=%s source_path=%s file=%s",
+		v.ServiceID,
+		v.EventID,
+		sourcePath,
+		fileInfoList[0].Name(),
+	)
+	renderStarted := time.Now()
+	dockerfile, err := renderVMDockerfile(fileInfoList[0].Name())
+	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_render", renderStarted, err, map[string]interface{}{
+		"service_id":  v.ServiceID,
+		"event_id":    v.EventID,
+		"source_path": sourcePath,
+		"file":        fileInfoList[0].Name(),
+	}); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
-	imageName := fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, v.Image)
+
+	dfpath := path.Join(sourcePath, "Dockerfile")
+	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
+	writeDockerfileStarted := time.Now()
+	err = ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
+	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_write", writeDockerfileStarted, err, map[string]interface{}{
+		"service_id":      v.ServiceID,
+		"event_id":        v.EventID,
+		"dockerfile_path": dfpath,
+		"dockerfile_size": len(dockerfile),
+	}); err != nil {
+		return err
+	}
+	imageName := v.localImageName()
+	buildStarted := time.Now()
 	err = sources.ImageBuild(v.Arch, sourcePath, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), v.ServiceID, v.DeployVersion, v.Logger, "vm-build", imageName, v.BuildKitImage, v.BuildKitArgs, v.BuildKitCache, v.kubeClient)
+	if err = recordVMBuildStage(v.Logger, "vm_image_build", buildStarted, err, map[string]interface{}{
+		"service_id":     v.ServiceID,
+		"event_id":       v.EventID,
+		"source_path":    sourcePath,
+		"image_name":     imageName,
+		"deploy_version": v.DeployVersion,
+	}); err != nil {
+		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("build image error: %s", err.Error())
+		return err
+	}
 	if err != nil {
 		v.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return err
 	}
 	v.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
-	if err := v.ImageClient.ImageRemove(imageName); err != nil {
+	storeVersionStarted := time.Now()
+	if err := recordVMBuildStage(v.Logger, "vm_version_store", storeVersionStarted, v.storeVersionInfo(imageName), map[string]interface{}{
+		"service_id":     v.ServiceID,
+		"event_id":       v.EventID,
+		"image_name":     imageName,
+		"deploy_version": v.DeployVersion,
+	}); err != nil {
+		logrus.Errorf("storage vm version info error: %s", err.Error())
+		return err
+	}
+	removeImageStarted := time.Now()
+	if err := recordVMBuildStage(v.Logger, "vm_local_image_remove", removeImageStarted, v.ImageClient.ImageRemove(imageName), map[string]interface{}{
+		"service_id": v.ServiceID,
+		"event_id":   v.EventID,
+		"image_name": imageName,
+	}); err != nil {
 		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
 	}
 	return nil
 }
 
+func (v *VMBuildItem) localImageName() string {
+	return fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, v.Image)
+}
+
+func (v *VMBuildItem) storeVersionInfo(imageName string) error {
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(v.DeployVersion, v.ServiceID)
+	if err != nil {
+		return err
+	}
+	version.DeliveredType = "image"
+	version.DeliveredPath = imageName
+	if version.ImageName == "" {
+		version.ImageName = v.Image
+	}
+	version.RepoURL = v.VMImageSource
+	version.FinalStatus = "success"
+	version.FinishTime = time.Now()
+	return db.GetManager().VersionInfoDao().UpdateModel(version)
+}
+
+func (v *VMBuildItem) UpdateVersionInfo(status string) error {
+	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(v.EventID)
+	if err != nil {
+		return err
+	}
+	version.FinalStatus = status
+	version.RepoURL = v.VMImageSource
+	version.FinishTime = time.Now()
+	return db.GetManager().VersionInfoDao().UpdateModel(version)
+}
+
+func renderVMDockerfile(fileName string) (string, error) {
+	media, err := resolveVMBuildMedia(fileName)
+	if err != nil {
+		return "", err
+	}
+	envs := map[string]string{
+		"VM_PATH":         fileName,
+		"CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage),
+		"ARTIFACT_IMAGE":  utils.GetenvDefault("VM_HTTP_ARTIFACT_IMAGE", defaultVMHTTPArtifactImage),
+	}
+	switch media {
+	case vmBuildMediaISO:
+		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), nil
+	case vmBuildMediaDisk:
+		switch resolveVMDiskBuildStrategy(fileName) {
+		case vmDiskBuildStrategyHTTPArtifact:
+			return strings.TrimPrefix(util.ParseVariable(vmHTTPArtifactDockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyConvertRaw:
+			return strings.TrimPrefix(util.ParseVariable(vmRawToQCOW2DockerfileTmpl, envs), "\n"), nil
+		default:
+			return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
+		}
+	default:
+		return "", fmt.Errorf("unsupported vm build media %q", media)
+	}
+}
+
+func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
+	name := strings.ToLower(strings.TrimSpace(fileName))
+	switch {
+	case strings.HasSuffix(name, ".img.gz"):
+		return vmDiskBuildStrategyHTTPArtifact
+	case strings.HasSuffix(name, ".img"):
+		return vmDiskBuildStrategyConvertRaw
+	default:
+		return vmDiskBuildStrategyDirect
+	}
+}
+
+func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
+	name := strings.ToLower(strings.TrimSpace(fileName))
+	for _, suffix := range []string{".gz", ".xz"} {
+		if strings.HasSuffix(name, suffix) {
+			name = strings.TrimSuffix(name, suffix)
+			break
+		}
+	}
+	switch {
+	case strings.HasSuffix(name, ".iso"):
+		return vmBuildMediaISO, nil
+	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".tar"):
+		return vmBuildMediaDisk, nil
+	default:
+		return "", fmt.Errorf("unsupported vm image format for %q", fileName)
+	}
+}
+
 // RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
-	if strings.HasPrefix(v.VMImageSource, "/grdata") {
+	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
+		logrus.Infof("vm build uses local package source: service_id=%s event_id=%s source=%s", v.ServiceID, v.EventID, v.VMImageSource)
+		readLocalStarted := time.Now()
+		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
+			return recordVMBuildStage(v.Logger, "vm_local_source_prepare", readLocalStarted, err, map[string]interface{}{
+				"service_id":      v.ServiceID,
+				"event_id":        v.EventID,
+				"vm_image_source": v.VMImageSource,
+			})
+		}
+		if err := recordVMBuildStage(v.Logger, "vm_local_source_prepare", readLocalStarted, nil, map[string]interface{}{
+			"service_id":      v.ServiceID,
+			"event_id":        v.EventID,
+			"vm_image_source": v.VMImageSource,
+		}); err != nil {
+			return err
+		}
 		defer os.RemoveAll(v.VMImageSource)
 		return v.vmBuild(v.VMImageSource)
 	}
-	vmImageSource := fmt.Sprintf("/grdata/package_build/temp/events/%v", v.ServiceID)
-	err := downloadFile(vmImageSource, v.VMImageSource, v.Logger)
+	vmImageSource := vmRemoteImageSourceDir(v.ServiceID, v.EventID)
+	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
+	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger, map[string]interface{}{
+		"service_id":      v.ServiceID,
+		"event_id":        v.EventID,
+		"vm_image_source": v.VMImageSource,
+		"target_dir":      vmImageSource,
+	})
 	if err != nil {
 		return err
 	}
@@ -110,36 +324,70 @@ func (v *VMBuildItem) RunVMBuild() error {
 	return v.vmBuild(vmImageSource)
 }
 
-func downloadFile(downPath, url string, Logger event.Logger) error {
+func vmRemoteImageSourceDir(serviceID, eventID string) string {
+	if strings.TrimSpace(eventID) == "" {
+		return fmt.Sprintf("/grdata/package_build/temp/events/%v", serviceID)
+	}
+	return path.Join("/grdata/package_build/temp/events", serviceID, eventID)
+}
+
+func downloadFile(downPath, url, token string, Logger event.Logger, metadata map[string]interface{}) error {
+	downloadStarted := time.Now()
 	// 创建一个 HTTP client 和 request
-	client := &http.Client{}
+	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":        url,
+			"target_dir": downPath,
+		}))
 	}
 
 	// 添加请求头，例如设置 User-Agent
 	req.Header.Set("User-Agent", "MyCustomDownloader/1.0")
+	if strings.TrimSpace(token) != "" {
+		req.Header.Set("x-kubevirt-export-token", token)
+	}
 
 	// 发送请求
 	rsp, err := client.Do(req)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":        url,
+			"target_dir": downPath,
+		}))
 	}
 	defer func() {
 		_ = rsp.Body.Close()
 	}()
+	logrus.Infof("vm source download response: url=%s status=%d content_length=%d", url, rsp.StatusCode, rsp.ContentLength)
+	if rsp.StatusCode < http.StatusOK || rsp.StatusCode >= http.StatusMultipleChoices {
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, fmt.Errorf("download vm image %v failure: unexpected http status %d", url, rsp.StatusCode), mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_dir":     downPath,
+			"http_status":    rsp.StatusCode,
+			"content_length": rsp.ContentLength,
+		}))
+	}
 	baseURL := filepath.Base(url)
 	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)
 	dir := filepath.Dir(downPath)
 	// 递归创建目录
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_dir":     dir,
+			"content_length": rsp.ContentLength,
+		}))
 	}
-	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	f, err := os.OpenFile(downPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
-		return err
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_path":    downPath,
+			"content_length": rsp.ContentLength,
+		}))
 	}
 	defer func() {
 		_ = f.Close()
@@ -153,14 +401,75 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	}
 
 	Logger.Info(fmt.Sprintf("begin download vm image %v, image name is %v", url, fileName), map[string]string{"step": "builder-exector"})
-	Logger.Info(fmt.Sprintf("image size is %v, downloading will take some time, please be patient.", humanize.Bytes(uint64(rsp.ContentLength))), map[string]string{"step": "builder-exector"})
+	if rsp.ContentLength > 0 {
+		Logger.Info(fmt.Sprintf("image size is %v, downloading will take some time, please be patient.", humanize.Bytes(uint64(rsp.ContentLength))), map[string]string{"step": "builder-exector"})
+	} else {
+		Logger.Info("image size is unknown, downloading will take some time, please be patient.", map[string]string{"step": "builder-exector"})
+	}
 
-	_, err = io.Copy(f, myDownloader)
+	written, err := io.Copy(f, myDownloader)
 	if err != nil {
 		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, mergeVMBuildMetadata(metadata, map[string]interface{}{
+			"url":            url,
+			"target_path":    downPath,
+			"content_length": rsp.ContentLength,
+			"written_bytes":  written,
+		}))
 	}
-	return err
+	Logger.Info(fmt.Sprintf("download vm image success, downloaded size is %v", humanize.Bytes(uint64(written))), map[string]string{"step": "builder-exector"})
+	return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, nil, mergeVMBuildMetadata(metadata, map[string]interface{}{
+		"url":            url,
+		"target_path":    downPath,
+		"content_length": rsp.ContentLength,
+		"written_bytes":  written,
+	}))
+}
+
+func recordVMBuildStage(logger event.Logger, stage string, startedAt time.Time, stageErr error, metadata map[string]interface{}) error {
+	if logger == nil {
+		return stageErr
+	}
+	fields := mergeVMBuildMetadata(metadata, map[string]interface{}{
+		"stage":       stage,
+		"status":      "success",
+		"duration_ms": time.Since(startedAt).Milliseconds(),
+	})
+	message := formatVMBuildStageLog(fields)
+	if stageErr != nil {
+		fields["status"] = "failure"
+		fields["error"] = stageErr.Error()
+		message = formatVMBuildStageLog(fields)
+		logger.Error(message, map[string]string{"step": "builder-exector", "status": "failure"})
+		return stageErr
+	}
+	logger.Info(message, map[string]string{"step": "builder-exector"})
+	return nil
+}
+
+func mergeVMBuildMetadata(base map[string]interface{}, extra map[string]interface{}) map[string]interface{} {
+	merged := make(map[string]interface{}, len(base)+len(extra))
+	for key, value := range base {
+		merged[key] = value
+	}
+	for key, value := range extra {
+		merged[key] = value
+	}
+	return merged
+}
+
+func formatVMBuildStageLog(fields map[string]interface{}) string {
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, fields[key]))
+	}
+	return strings.Join(parts, " ")
 }
 
 type MyDownloader struct {
@@ -169,18 +478,99 @@ type MyDownloader struct {
 	Current   int64 // 当前大小
 	Logger    event.Logger
 	Pace      float64
+
+	StartedAt        time.Time
+	LastProgressLog  time.Time
+	ProgressInterval time.Duration
+	NextProgressByte int64
+	Now              func() time.Time
 }
 
 func (d *MyDownloader) Read(p []byte) (n int, err error) {
 	n, err = d.Reader.Read(p)
-	d.Current += int64(n)
-	if float64(d.Current*10000/d.Total)/100 == d.Pace {
-		downLog := fmt.Sprintf("virtual machine image is being downloaded.current download progress is:%.2f%%", float64(d.Current*10000/d.Total)/100)
-		d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
-		d.Pace += 10
+	if n <= 0 {
+		return
 	}
-	if float64(d.Current*10000/d.Total)/100 == 100 {
-		d.Logger.Info("download vm image success", map[string]string{"step": "builder-exector"})
+	d.Current += int64(n)
+	now := d.now()
+	if d.StartedAt.IsZero() {
+		d.StartedAt = now
+		d.LastProgressLog = now
+	}
+	if d.Total <= 0 {
+		d.logUnknownSizeProgress(now)
+		return
+	}
+	progress := float64(d.Current) * 100 / float64(d.Total)
+	if progress >= d.Pace && d.Logger != nil {
+		d.logKnownSizeProgress(now, progress)
+		for progress >= d.Pace {
+			d.Pace += 10
+		}
+		return
+	}
+	if d.shouldLogByInterval(now) {
+		d.logKnownSizeProgress(now, progress)
 	}
 	return
+}
+
+func (d *MyDownloader) now() time.Time {
+	if d.Now != nil {
+		return d.Now()
+	}
+	return time.Now()
+}
+
+func (d *MyDownloader) progressInterval() time.Duration {
+	if d.ProgressInterval > 0 {
+		return d.ProgressInterval
+	}
+	return defaultVMDownloadProgressInterval
+}
+
+func (d *MyDownloader) shouldLogByInterval(now time.Time) bool {
+	if d.Logger == nil {
+		return false
+	}
+	return now.Sub(d.LastProgressLog) >= d.progressInterval()
+}
+
+func (d *MyDownloader) logKnownSizeProgress(now time.Time, progress float64) {
+	if d.Logger == nil {
+		return
+	}
+	elapsed := now.Sub(d.StartedAt).Round(time.Second)
+	downLog := fmt.Sprintf(
+		"virtual machine image download progress: %.2f%% (%s / %s, elapsed %s)",
+		progress,
+		humanize.Bytes(uint64(d.Current)),
+		humanize.Bytes(uint64(d.Total)),
+		elapsed,
+	)
+	d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
+	d.LastProgressLog = now
+}
+
+func (d *MyDownloader) logUnknownSizeProgress(now time.Time) {
+	if d.Logger == nil {
+		return
+	}
+	if d.NextProgressByte <= 0 {
+		d.NextProgressByte = defaultVMDownloadProgressBytes
+	}
+	if d.Current < d.NextProgressByte && !d.shouldLogByInterval(now) {
+		return
+	}
+	elapsed := now.Sub(d.StartedAt).Round(time.Second)
+	downLog := fmt.Sprintf(
+		"virtual machine image download progress: downloaded %s (elapsed %s, total size unknown)",
+		humanize.Bytes(uint64(d.Current)),
+		elapsed,
+	)
+	d.Logger.Info(downLog, map[string]string{"step": "builder-exector"})
+	for d.Current >= d.NextProgressByte {
+		d.NextProgressByte += defaultVMDownloadProgressBytes
+	}
+	d.LastProgressLog = now
 }

@@ -123,12 +123,12 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	// 1. 如果是项目包方式，从 S3 下载并解压
 	if d.eventID != "" {
 		if err := d.downloadAndExtractProject(); err != nil {
-			d.errappend(Errorf(FatalError, "下载或解压项目失败: "+err.Error()))
+			d.errappend(Errorf(FatalError, "下载或解压项目失败: %v", err))
 			return d.errors
 		}
 		// 读取 compose 文件内容
 		if err := d.loadComposeFile(); err != nil {
-			d.errappend(Errorf(FatalError, "读取 compose 文件失败: "+err.Error()))
+			d.errappend(Errorf(FatalError, "读取 compose 文件失败: %v", err))
 			return d.errors
 		}
 	}

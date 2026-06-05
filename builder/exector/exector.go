@@ -545,7 +545,12 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	if v.VMImageSource != "" {
 		err := v.RunVMBuild()
 		if err != nil {
-			logrus.Errorf("failure")
+			logrus.Errorf("build from vm error: %v", err)
+			v.Logger.Error(err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			if updateErr := v.UpdateVersionInfo("failure"); updateErr != nil {
+				logrus.Debugf("update vm version info error: %s", updateErr.Error())
+			}
+			return
 		}
 	}
 	var configs = make(map[string]string, len(v.Configs))
@@ -737,10 +742,10 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 			if err != nil {
 				logrus.Errorf("image share error: %s", err.Error())
 				if n < 1 {
-					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					MetricErrorTaskNum++
-					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
 			} else {
@@ -756,7 +761,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 
 // imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
-	i, err := NewImageShareItem(task.TaskBody, e.imageClient)
+	i, err := NewImageShareItem(task.TaskBody, e.imageClient, e.KubeClient, e.BuildKitImage, e.BuildKitArgs, e.BuildKitCache)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -771,25 +776,22 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-	for n := 0; n < 2; n++ {
-		err := i.ShareService()
-		if err != nil {
-			logrus.Errorf("image share error: %s", err.Error())
-			if n < 1 {
-				i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-			} else {
-				MetricErrorTaskNum++
-				i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
-				status = "failure"
-			}
-		} else {
-			status = "success"
-			break
-		}
+	status, err = executeImageShareOnce(i.ShareService)
+	if err != nil {
+		logrus.Errorf("image share error: %s", err.Error())
+		MetricErrorTaskNum++
+		i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
 	}
 	if err := i.UpdateShareStatus(status); err != nil {
 		logrus.Debugf("Add image share result error: %s", err.Error())
 	}
+}
+
+func executeImageShareOnce(share func() error) (string, error) {
+	if err := share(); err != nil {
+		return "failure", err
+	}
+	return "success", nil
 }
 
 func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {

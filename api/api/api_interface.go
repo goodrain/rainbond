@@ -149,6 +149,7 @@ type ServiceInterface interface {
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UploadPackage(w http.ResponseWriter, r *http.Request)
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
+	VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request)
 }
 
 // TenantInterfaceWithV1 funcs for both v2 and v1
@@ -161,6 +162,9 @@ type TenantInterfaceWithV1 interface {
 	BuildService(w http.ResponseWriter, r *http.Request)
 	PauseService(w http.ResponseWriter, r *http.Request)
 	UNPauseService(w http.ResponseWriter, r *http.Request)
+	CreateVMExport(w http.ResponseWriter, r *http.Request)
+	GetVMExport(w http.ResponseWriter, r *http.Request)
+	CreateVMSnapshot(w http.ResponseWriter, r *http.Request)
 	FileManageService(w http.ResponseWriter, r *http.Request)
 	DeployService(w http.ResponseWriter, r *http.Request)
 	UpgradeService(w http.ResponseWriter, r *http.Request)

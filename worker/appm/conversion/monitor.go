@@ -83,7 +83,7 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 				{
 					TargetPort: &intstr.IntOrString{Type: intstr.Int, IntVal: int32(tsm.Port)},
 					Path:       tsm.Path,
-					Interval:   tsm.Interval,
+					Interval:   mv1.Duration(tsm.Interval),
 				},
 			},
 		}

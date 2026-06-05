@@ -333,6 +333,96 @@ func TestCreateTCPRouteUsesRainbondServiceAliasFromBackendServiceLabels(t *testi
 	}
 }
 
+// capability_id: rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy
+func TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService(t *testing.T) {
+	const (
+		namespace    = "default"
+		tenantID     = "tenant-id"
+		appID        = "app-id"
+		serviceID    = "7de1e7b94ccf418eac0cc0de61447979"
+		serviceAlias = "gr447979"
+		serviceName  = "gr447979"
+		nodePort     = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"app_id":        appID,
+					"service_id":    serviceID,
+					"service_alias": serviceAlias,
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "rdp-3389",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       3389,
+					TargetPort: intstr.FromInt(3389),
+				}},
+				Selector: map[string]string{"service_alias": serviceAlias},
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	db.SetTestManager(tcpRouteTestManager{
+		tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+			serviceID: {
+				ServiceID:        serviceID,
+				ServiceAlias:     serviceAlias,
+				TenantID:         tenantID,
+				ExtendMethod:     string(dbmodel.ServiceTypeVM),
+				K8sComponentName: serviceAlias,
+			},
+		}},
+		tcpRuleDao: &tcpRouteRuleDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	streamRoute := v2.ApisixRouteStream{
+		Name:     "tcp",
+		Protocol: "tcp",
+		Match: v2.ApisixRouteStreamMatch{
+			IngressPort: nodePort,
+		},
+		Backend: v2.ApisixRouteStreamBackend{
+			ServiceName: serviceName,
+			ServicePort: intstr.FromInt(3389),
+		},
+	}
+	body, err := json.Marshal(streamRoute)
+	if err != nil {
+		t.Fatalf("marshal route: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/?appID="+appID+"&service_id="+serviceID, bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		UUID:      tenantID,
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	created, err := k8s.Default().Clientset.CoreV1().Services(namespace).Get(context.Background(), serviceName+"-30003", v1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get created service: %v", err)
+	}
+	if created.Spec.ExternalTrafficPolicy != corev1.ServiceExternalTrafficPolicyLocal {
+		t.Fatalf("expected VM NodePort service externalTrafficPolicy %q, got %q", corev1.ServiceExternalTrafficPolicyLocal, created.Spec.ExternalTrafficPolicy)
+	}
+}
+
 func TestGetTCPRouteIncludesServiceMetadata(t *testing.T) {
 	const (
 		namespace    = "default"

@@ -4,6 +4,7 @@
 
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
+| rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
 | rainbond.app-backup.service-volume-archive | 将服务卷数据归档为备份包 | active | regression | builder/exector.BackupAPPNew.backupServiceInfo | builder/exector/groupapp_backup_test.go::TestBackupServiceVolume |
 | rainbond.app-backup.upload-package | 将应用备份包上传到外部存储 | active | integration | builder/exector.BackupAPPNew.uploadPkg | builder/exector/groupapp_backup_test.go::TestUploadPkg |
@@ -137,10 +138,12 @@
 | rainbond.helm-repo.requested-filter | 校验并匹配请求更新的 Helm 仓库名称 | active | regression | pkg/helm.checkRequestedRepos | pkg/helm/helm_release_test.go::TestCheckRequestedRepos |
 | rainbond.image-clean.registry-gc-noop | 当没有匹配的仓库 Pod 时跳过垃圾回收执行 | active | regression | builder/clean.Manager.PodExecCmd | builder/clean/clean_test.go::TestPodExecCmdNoMatchingPod |
 | rainbond.image-clean.stop-loop | 通过取消上下文停止镜像清理管理器循环 | active | regression | builder/clean.Manager.Stop | builder/clean/clean_test.go::TestManagerStopCancelsContext |
+| rainbond.image-share.single-attempt | 镜像分享失败后不自动重试 | active | regression | builder/exector.imageShare | builder/exector/share_image_test.go::TestExecuteImageShareOnceDoesNotRetryFailure<br>builder/exector/share_image_test.go::TestExecuteImageShareOnceReturnsSuccess |
 | rainbond.ingress-nginx.meta-namespace-key | 为 ingress-nginx 监听对象构建 namespace/name 键 | active | regression | util/ingress-nginx/k8s.MetaNamespaceKey | util/ingress-nginx/k8s/main_test.go::TestMetaNamespaceKey |
 | rainbond.ingress-nginx.name-namespace-parse | 解析 ingress-nginx 资源的 namespace/name 标识 | active | regression | util/ingress-nginx/k8s.ParseNameNS | util/ingress-nginx/k8s/main_test.go::TestParseNameNS |
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
+| rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
 | rainbond.kb-adapter.backup-repo.list-ready | 列出 kb-adapter 可用的备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos |
 | rainbond.kb-adapter.cluster-backup.delete | 按服务范围删除允许清理的集群备份 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.DeleteBackups | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackups |
 | rainbond.kb-adapter.cluster-backup.delete-guard | 判断集群备份是否允许安全删除 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.canDeleteBackup | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCanDeleteBackup |
@@ -173,6 +176,9 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
+| rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
+| rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
 | rainbond.manual-pvc-upgrade-surfaces-update-errors | 应用升级时返回手动 PVC 更新错误 | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError |
 | rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
@@ -188,6 +194,7 @@
 | rainbond.ns-resource.batch-create | 批量创建命名空间资源 | active | regression | api/handler.NsResourceHandler.CreateNsResource | api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess<br>api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace |
 | rainbond.ns-resource.detect-source | 识别命名空间资源来源 | active | regression | api/handler.detectResourceSource | api/handler/ns_resource_test.go::TestDetectResourceSource |
 | rainbond.ns-resource.handler-singleton | 复用命名空间资源处理器单例 | active | unit | api/handler.GetNsResourceHandler | api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton |
+| rainbond.ns-resource.ingress-summary | 汇总 Ingress 资源路由元数据 | active | regression | api/handler.toNsResourceInfo | api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
 | rainbond.package-build.clean-extracted-content | 解压前清理旧包展开内容 | active | regression | builder/parser.cleanPackageExtractDir | builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly |
@@ -214,6 +221,10 @@
 | rainbond.runtime.node-cnb-framework-detection | CNB 构建检测 Node.js 框架信息 | active | regression | builder/parser/code.CheckRuntimeByStrategy | builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
+| rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
+| rainbond.service-check.eventlog-progress | 将服务检测进度消息同步写入事件日志 | active | regression | builder/exector.logServiceCheckProgress | builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger |
+| rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
+| rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
@@ -234,6 +245,7 @@
 | rainbond.source-image.save | 将镜像保存为归档文件 | active | integration | builder/sources.ImageSave | builder/sources/image_test.go::TestImageSave |
 | rainbond.source-image.tag-from-ref | 从规范化镜像引用中提取标签 | active | regression | builder/sources.GetTagFromNamedRef | builder/sources/registry_test.go::TestGetTagFromNamedRef |
 | rainbond.source-image.trusted-registry-check | 校验受信任的镜像仓库 | active | integration | builder/sources.CheckTrustedRepositories | builder/sources/image_test.go::TestCheckTrustedRepositories |
+| rainbond.source-image.vm-build-host-taint-toleration | 为绑定主机的 VM 构建 Pod 添加通配容忍 | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecAddsTolerationForHostScheduling |
 | rainbond.source-repo.build-info | 构建包含净化地址与构建子目录的仓库元数据 | active | regression | builder/sources.CreateRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateRepostoryBuildInfo |
 | rainbond.source-repo.cache-dir | 根据仓库分支租户与服务解析源码缓存目录 | active | regression | builder/sources.GetCodeSourceDir | builder/sources/file_test.go::TestGetCodeSourceDirUsesSourceDirEnv<br>builder/sources/git_test.go::TestGetCodeCacheDir |
 | rainbond.source-repo.clone | 克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitClone |
@@ -249,6 +261,7 @@
 | rainbond.source-svn.branch-path | 解析 SVN 分支标签与 trunk 的目标路径 | active | regression | builder/sources.getBranchPath | builder/sources/svn_test.go::TestGetBranchPath |
 | rainbond.storage.class-summary | 汇总存储类信息 | active | regression | api/handler.StorageClassInfo | api/handler/storage_test.go::TestStorageClassInfoFields |
 | rainbond.storage.handler-singleton | 复用存储处理器单例 | active | unit | api/handler.GetStorageHandler | api/handler/storage_test.go::TestGetStorageHandlerSingleton |
+| rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
 | rainbond.third-component.endpoint-address-port | 从第三方组件端点地址中解析有效端口 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetPort | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetPort |
@@ -334,6 +347,42 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
+| rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
+| rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
+| rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
+| rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
+| rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate |
+| rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
+| rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
+| rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
+| rainbond.vm-live-update.installer-media-removal-required | 初始化安装光盘未删除时拒绝虚拟机热更新 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached |
+| rainbond.vm-live-update.memory-target-below-max-guest | 拒绝等于 maxGuest 的虚拟机内存热更新目标 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest |
+| rainbond.vm-live-update.migration-target-missing-auto-restart | 无可用迁移目标节点时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode |
+| rainbond.vm-live-update.running-cpu-shrink-rejected | Reject running VM CPU shrink during live update | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink |
+| rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
+| rainbond.vm-live-update.running-shrink-restart-allowed-before-event | 运行中虚拟机缩容允许进入垂直伸缩流程 | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler |
+| rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
+| rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
+| rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
+| rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
+| rainbond.vm-power.stop-restoring-fallback | Fallback to halt transient VM when direct stop fails | active | regression | api/handler.ServiceAction.StopVM | api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails |
+| rainbond.vm-probe-attribute-syncs-spec | VM probe attributes trigger VirtualMachine spec sync | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes |
+| rainbond.vm-probe-change-syncs-spec | VM probe changes sync VirtualMachine spec | active | regression | api/handler.ServiceAction.ServiceProbe | api/handler/service_vm_resource_sync_test.go::TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges |
+| rainbond.vm-publish.http-artifact-image-build | 将导出的虚拟机磁盘构建为 HTTP 制品镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile<br>builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID<br>builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sources/image_test.go::TestBuildKitImageOutputUsesUncompressedLayersForVMBuild<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
+| rainbond.vm-publish.stage-timing-logs | Trace VM publish stage timing logs | active | regression | builder/exector.VMBuildItem.RunVMBuild | builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess<br>builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsFields<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsError |
+| rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
+| rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
+| rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
+| rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
+| rainbond.vm-runtime-spec-sync-conflict-retry | Retry VM spec sync when KubeVirt update conflicts | active | regression | github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec | api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict |
+| rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
+| rainbond.vm-template-import.restore-progress | Expose VM template import restore progress | active | unit | api/handler.resolveVMDataVolumeRestoreStatus | api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress<br>api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded<br>api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes |
+| rainbond.vm-template-import.status-restoring | VM restore status is limited to artifact imports | active | unit | api/handler.resolveVMServiceRuntimeStatus | api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError |
+| rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
+| rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
+| rainbond.vm-volume.allow-shared-device-paths | 允许 VM 服务在不同数据卷间复用设备路径 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath |
+| rainbond.volume.keep-non-vm-path-uniqueness | 保持非 VM 服务卷路径唯一性校验 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
 | rainbond.watch.etcd-event-parse | 将 etcd watch 事件解析为内部事件结构 | active | regression | util/watch.parseEvent | util/watch/watch_test.go::TestParseEvent |
@@ -355,9 +404,14 @@
 | rainbond.worker.appm.autoscaler.build-hpa-spec | 根据自动伸缩规则构建 HPA 指标与对象 | active | regression | worker/appm/conversion.newHPA | worker/appm/conversion/autoscaler_test.go::TestNewHPA |
 | rainbond.worker.appm.discovery.etcd-config | 配置 appm 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | worker/appm/thirdparty/discovery.NewEtcd | worker/appm/thirdparty/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.worker.appm.discovery.unsupported-type | 对不支持的 appm 发现后端返回错误 | active | regression | worker/appm/thirdparty/discovery.NewDiscoverier | worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
+| rainbond.worker.appm.gateway.reassign-conflicting-nodeport | Reassign worker TCP NodePorts already allocated in Kubernetes | active | regression | worker/appm/conversion.reassignAllocatedNodePort | worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort<br>worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort |
+| rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM worker NodePort services | active | regression | worker/appm/conversion.outerServiceExternalTrafficPolicy | worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM<br>worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM |
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
+| rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
+| rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
+| rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
 | rainbond.worker.helmapp.condition-query | 按类型查询 HelmApp 条件及其真值状态 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.GetCondition | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionQuery |
@@ -384,9 +438,19 @@
 | rainbond.worker.thirdcomponent.prober.manage-results-cache | 缓存并清理第三方组件探测结果 | active | regression | worker/master/controller/thirdcomponent/prober/results.NewManager | worker/master/controller/thirdcomponent/prober/results/results_manager_test.go::TestCacheOperations |
 | rainbond.worker.volume-provider.pvc-identifiers | 根据 PVC 名称解析 Pod 名与卷 ID | active | regression | worker/master/volumes/provider.getVolumeIDByPVCName | worker/master/volumes/provider/rainbondsslc_test.go::TestGetVolumeIDByPVCName |
 | rainbond.worker.volume-provider.select-node | 按可用内存选择存储节点 | active | integration | worker/master/volumes/provider.rainbondsslcProvisioner.selectNode | worker/master/volumes/provider/rainbondsslc_test.go::TestSelectNode |
-| rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType |
+| rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType<br>db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode |
 
 ## 详情
+
+### Use Local externalTrafficPolicy for VM NodePort services
+
+- Capability ID: `rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.controller.apigateway.Struct.CreateTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
 
 ### 识别旧版与新版应用备份元数据结构
 
@@ -1718,6 +1782,16 @@
 - 代码路径: `builder/clean/clean.go`
 - 测试路径: `builder/clean/clean_test.go::TestManagerStopCancelsContext`
 
+### 镜像分享失败后不自动重试
+
+- Capability ID: `rainbond.image-share.single-attempt`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.imageShare`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/share_image_test.go::TestExecuteImageShareOnceDoesNotRetryFailure`, `builder/exector/share_image_test.go::TestExecuteImageShareOnceReturnsSuccess`
+
 ### 为 ingress-nginx 监听对象构建 namespace/name 键
 
 - Capability ID: `rainbond.ingress-nginx.meta-namespace-key`
@@ -1757,6 +1831,16 @@
 - 业务入口: `util/ingress-nginx/k8s.GetPodDetails`
 - 代码路径: `util/ingress-nginx/k8s/main.go`
 - 测试路径: `util/ingress-nginx/k8s/main_test.go::TestGetPodDetails`
+
+### K8s scheme registers KubeVirt VirtualMachine
+
+- Capability ID: `rainbond.k8s.scheme-registers-kubevirt-vm`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `pkg/component/k8s.init`
+- 代码路径: `pkg/component/k8s/k8sComponent.go`
+- 测试路径: `pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine`
 
 ### 列出 kb-adapter 可用的备份仓库
 
@@ -2078,6 +2162,36 @@
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
 
+### Preserve bound manual PVC immutable spec fields during app upgrade
+
+- Capability ID: `rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`, `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec`
+
+### Preserve existing manual PVC metadata during app upgrade
+
+- Capability ID: `rainbond.manual-pvc-upgrade-preserves-existing-metadata`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata`
+
+### Skip manual PVC updates when storage request is unchanged
+
+- Capability ID: `rainbond.manual-pvc-upgrade-skips-unchanged-storage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage`
+
 ### 应用升级时返回手动 PVC 更新错误
 
 - Capability ID: `rainbond.manual-pvc-upgrade-surfaces-update-errors`
@@ -2227,6 +2341,16 @@
 - 业务入口: `api/handler.GetNsResourceHandler`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton`
+
+### 汇总 Ingress 资源路由元数据
+
+- Capability ID: `rainbond.ns-resource.ingress-summary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.toNsResourceInfo`
+- 代码路径: `api/handler/ns_resource.go`
+- 测试路径: `api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary`
 
 ### 标记命名空间资源来源
 
@@ -2488,6 +2612,46 @@
 - 代码路径: `builder/parser/code/runtime.go`
 - 测试路径: `builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo`
 
+### 服务检测完成摘要日志反映真实检测状态
+
+- Capability ID: `rainbond.service-check.completion-log-summary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/exector.serviceCheckCompletionLogSummary`
+- 代码路径: `builder/exector/service_check.go`
+- 测试路径: `builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary`
+
+### 将服务检测进度消息同步写入事件日志
+
+- Capability ID: `rainbond.service-check.eventlog-progress`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/exector.logServiceCheckProgress`
+- 代码路径: `builder/exector/service_check.go`
+- 测试路径: `builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger`
+
+### 构建带路径分隔符的安全文件管理列表命令
+
+- Capability ID: `rainbond.service.file-manage-command-safety`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/handler.buildFileManageListCommand`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_file_manage_test.go::TestBuildFileManageListCommand`
+
+### 文件管理列表失败时保留 exec 的 stderr 细节
+
+- Capability ID: `rainbond.service.file-manage-exec-error-detail`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/handler.wrapFileManageExecError`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr`
+
 ### 镜像分享使用请求中的快照部署版本
 
 - Capability ID: `rainbond.share.image-from-snapshot-deploy-version`
@@ -2688,6 +2852,16 @@
 - 代码路径: `builder/sources/image.go`
 - 测试路径: `builder/sources/image_test.go::TestCheckTrustedRepositories`
 
+### 为绑定主机的 VM 构建 Pod 添加通配容忍
+
+- Capability ID: `rainbond.source-image.vm-build-host-taint-toleration`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sources.newBuildKitPodSpec`
+- 代码路径: `builder/sources/image.go`
+- 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecAddsTolerationForHostScheduling`
+
 ### 构建包含净化地址与构建子目录的仓库元数据
 
 - Capability ID: `rainbond.source-repo.build-info`
@@ -2837,6 +3011,16 @@
 - 业务入口: `api/handler.GetStorageHandler`
 - 代码路径: `api/handler/storage.go`
 - 测试路径: `api/handler/storage_test.go::TestGetStorageHandlerSingleton`
+
+### S3 生命周期已配置时不再输出 info 日志
+
+- Capability ID: `rainbond.storage.s3-lifecycle-skip-logs`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `pkg/component/storage.(*S3Storage).ensureBucketLifecycle`
+- 代码路径: `pkg/component/storage/s3_storage.go`
+- 测试路径: `pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured`
 
 ### 构造并校验第三方组件端点地址
 
@@ -3688,6 +3872,366 @@
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
 
+### 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘
+
+- Capability ID: `rainbond.vm-config-file-injected-as-configmap-volume`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ConfigFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk`
+
+### 创建 VMExport 并返回系统盘下载地址
+
+- Capability ID: `rainbond.vm-export.root-disk-url`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.VMExportHandler`
+- 代码路径: `api/handler/vm_export.go`
+- 测试路径: `api/handler/vm_export_test.go::TestCreateVMExport`, `api/handler/vm_export_test.go::TestGetVMExport`
+
+### 热添加虚拟机磁盘时在冲突后重试
+
+- Capability ID: `rainbond.vm-hotplug.add-volume-conflict-retry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.hotplugVMDataDisk`
+- 代码路径: `api/handler/service_vm_hotplug.go`
+- 测试路径: `api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts`
+
+### 使用 Gi 容量创建虚拟机热插数据卷
+
+- Capability ID: `rainbond.vm-hotplug.data-volume-capacity-gi`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.buildVMHotplugDataVolumeObject`
+- 代码路径: `api/handler/service_vm_hotplug.go`
+- 测试路径: `api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity`
+
+### 删除存储时热移除运行中虚拟机的数据磁盘
+
+- Capability ID: `rainbond.vm-hotplug.remove-volume-running-vm`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.VolumnVar`
+- 代码路径: `api/handler/service.go`, `api/handler/service_vm_hotplug.go`
+- 测试路径: `api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM`, `api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC`, `api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk`
+
+### 通过 registry DataVolume 导入虚拟机系统盘
+
+- Capability ID: `rainbond.vm-import.registry-datavolume`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.BuildVMDataVolumeTemplate`
+- 代码路径: `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate`
+
+### 初始化安装光盘未删除时屏蔽热更新能力
+
+- Capability ID: `rainbond.vm-live-update.capability-requires-installer-media-removal`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetVMLiveUpdateCapability`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached`
+
+### 无可用迁移目标节点时屏蔽热更新能力
+
+- Capability ID: `rainbond.vm-live-update.capability-requires-migration-target`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetVMLiveUpdateCapability`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode`
+
+### 拒绝运行中虚拟机同时热更新 CPU 和内存
+
+- Capability ID: `rainbond.vm-live-update.cpu-memory-combined-rejected`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange`
+
+### 初始化安装光盘未删除时拒绝虚拟机热更新
+
+- Capability ID: `rainbond.vm-live-update.installer-media-removal-required`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached`
+
+### 拒绝等于 maxGuest 的虚拟机内存热更新目标
+
+- Capability ID: `rainbond.vm-live-update.memory-target-below-max-guest`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest`
+
+### 无可用迁移目标节点时自动调整规格并重启虚拟机
+
+- Capability ID: `rainbond.vm-live-update.migration-target-missing-auto-restart`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode`
+
+### Reject running VM CPU shrink during live update
+
+- Capability ID: `rainbond.vm-live-update.running-cpu-shrink-rejected`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink`
+
+### 拒绝运行中虚拟机的内存热缩容
+
+- Capability ID: `rainbond.vm-live-update.running-memory-shrink-rejected`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink`
+
+### 运行中虚拟机缩容允许进入垂直伸缩流程
+
+- Capability ID: `rainbond.vm-live-update.running-shrink-restart-allowed-before-event`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `api/middleware.WrapEL`
+- 代码路径: `api/middleware/middleware.go`
+- 测试路径: `api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler`
+
+### 不满足热更新条件时自动调整规格并重启虚拟机
+
+- Capability ID: `rainbond.vm-live-update.unsupported-auto-restart`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
+- 代码路径: `api/handler/service_vm_live_update.go`
+- 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart`, `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart`
+
+### 虚拟机热更新后清理已完成的 virt-launcher Pod
+
+- Capability ID: `rainbond.vm-pods.cleanup-completed-virt-launcher`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetPods`
+- 代码路径: `api/handler/service_vm_pod_cleanup.go`
+- 测试路径: `api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate`
+
+### 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态
+
+- Capability ID: `rainbond.vm-power.direct-ops-event-close`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler direct VM power operations`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure`, `api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess`, `api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess`
+
+### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
+
+- Capability ID: `rainbond.vm-power.start-existing-or-create`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.StartOrCreateVM`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing`
+
+### Fallback to halt transient VM when direct stop fails
+
+- Capability ID: `rainbond.vm-power.stop-restoring-fallback`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.StopVM`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails`
+
+### VM probe attributes trigger VirtualMachine spec sync
+
+- Capability ID: `rainbond.vm-probe-attribute-syncs-spec`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.isVMRuntimeSpecAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes`
+
+### VM probe changes sync VirtualMachine spec
+
+- Capability ID: `rainbond.vm-probe-change-syncs-spec`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.ServiceProbe`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_resource_sync_test.go::TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges`
+
+### 将导出的虚拟机磁盘构建为 HTTP 制品镜像
+
+- Capability ID: `rainbond.vm-publish.http-artifact-image-build`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.BuildFromVM`
+- 代码路径: `api/handler/share/service_share.go`, `builder/exector/build_from_vm.go`, `builder/sources/image.go`, `builder/sourceutil/remote_http_client.go`
+- 测试路径: `api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport`, `builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader`, `builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile`, `builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID`, `builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress`, `builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource`, `builder/sources/image_test.go::TestBuildKitImageOutputUsesUncompressedLayersForVMBuild`, `builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService`
+
+### Trace VM publish stage timing logs
+
+- Capability ID: `rainbond.vm-publish.stage-timing-logs`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.VMBuildItem.RunVMBuild`
+- 代码路径: `builder/exector/build_from_vm.go`, `builder/exector/share_image.go`, `builder/sources/image.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess`, `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsFields`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsError`
+
+### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
+
+- Capability ID: `rainbond.vm-run.build-media-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/exector.renderVMDockerfile`
+- 代码路径: `builder/exector/build_from_vm.go`
+- 测试路径: `builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages`
+
+### vm-run 本地包源在目录缺失时回退 storage 下载
+
+- Capability ID: `rainbond.vm-run.local-package-storage-download`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sourceutil.ReadLocalPackageDir`
+- 代码路径: `builder/sourceutil/local_package.go`
+- 测试路径: `builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload`
+
+### vm-run 远程包探测优先使用 HEAD
+
+- Capability ID: `rainbond.vm-run.remote-package-probe`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`
+- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe`
+
+### vm-run 远程包探测在 HEAD 失败时回退 Range GET
+
+- Capability ID: `rainbond.vm-run.remote-package-probe-range-fallback`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`
+- 测试路径: `builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet`
+
+### Retry VM spec sync when KubeVirt update conflicts
+
+- Capability ID: `rainbond.vm-runtime-spec-sync-conflict-retry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict`
+
+### 将 vm_disk_layout 视为触发 VM 规格同步的属性
+
+- Capability ID: `rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.isVMRuntimeSpecAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
+
+### Expose VM template import restore progress
+
+- Capability ID: `rainbond.vm-template-import.restore-progress`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.resolveVMDataVolumeRestoreStatus`
+- 代码路径: `api/handler/service.go`, `api/model/model.go`
+- 测试路径: `api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress`, `api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded`, `api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes`
+
+### VM restore status is limited to artifact imports
+
+- Capability ID: `rainbond.vm-template-import.status-restoring`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.resolveVMServiceRuntimeStatus`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext`, `api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists`, `api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume`, `api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume`, `api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError`
+
+### 为 VM 数据卷保留所选存储类
+
+- Capability ID: `rainbond.vm-volume-selected-storage-class`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ShareFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/share-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks`
+
+### 旧版 vm-file 虚机卷继续回退到 local-path
+
+- Capability ID: `rainbond.vm-volume-vm-file-backward-compatible`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ShareFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/share-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile`
+
+### 允许 VM 服务在不同数据卷间复用设备路径
+
+- Capability ID: `rainbond.vm-volume.allow-shared-device-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath`
+
+### 保持非 VM 服务卷路径唯一性校验
+
+- Capability ID: `rainbond.volume.keep-non-vm-path-uniqueness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService`
+
 ### 将 watch 后端错误分发到内部错误通道
 
 - Capability ID: `rainbond.watch.error-dispatch`
@@ -3898,6 +4442,26 @@
 - 代码路径: `worker/appm/thirdparty/discovery/discovery.go`
 - 测试路径: `worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType`
 
+### Reassign worker TCP NodePorts already allocated in Kubernetes
+
+- Capability ID: `rainbond.worker.appm.gateway.reassign-conflicting-nodeport`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.reassignAllocatedNodePort`
+- 代码路径: `worker/appm/conversion/gateway.go`
+- 测试路径: `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort`, `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort`
+
+### Use Local externalTrafficPolicy for VM worker NodePort services
+
+- Capability ID: `rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.outerServiceExternalTrafficPolicy`
+- 代码路径: `worker/appm/conversion/gateway.go`
+- 测试路径: `worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM`, `worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM`
+
 ### 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容
 
 - Capability ID: `rainbond.worker.appm.patch.statefulset-modified-configuration`
@@ -3927,6 +4491,36 @@
 - 业务入口: `worker/appm/store.appRuntimeStore.nsEventHandler`
 - 代码路径: `worker/appm/store/store.go`
 - 测试路径: `worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc`
+
+### 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径
+
+- Capability ID: `rainbond.worker.appm.vm-boot-media-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.TenantServiceVersion`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank`, `worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt`
+
+### VM container disk CD-ROM media
+
+- Capability ID: `rainbond.worker.appm.vm-container-disk-cdrom`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.appendVMContainerDiskCDROMs`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`, `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage`, `worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk`
+
+### 默认虚拟机内存热插拔上限预留
+
+- Capability ID: `rainbond.worker.appm.vm-memory-hotplug-headroom`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.buildStandardVMMemory`
+- 代码路径: `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor`
 
 ### 根据仓库名与模板名拼装 Helm chart 引用
 
@@ -4195,5 +4789,5 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `worker/util.TransStorageClass2RBDVolumeType`
-- 代码路径: `worker/util/volumetype.go`
-- 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`
+- 代码路径: `worker/util/volumetype.go`, `db/mysql/dao/volume_type.go`
+- 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`, `db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode`

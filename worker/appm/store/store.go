@@ -391,7 +391,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 	}
 }
 
-func (a *appRuntimeStore) OnAdd(obj interface{}) {
+func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
 		serviceID := thirdComponent.Labels["service_id"]
 		createrID := thirdComponent.Labels["creater_id"]
@@ -867,7 +867,7 @@ func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 			}
 		}
 	}
-	a.OnAdd(newObj)
+	a.OnAdd(newObj, false)
 }
 func (a *appRuntimeStore) OnDelete(objs interface{}) {
 	a.OnDeletes(objs)
@@ -897,7 +897,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				if serviceID != "" && version != "" && createrID != "" {
 					appservice, _ := a.getAppService(serviceID, version, createrID, false)
 					if appservice != nil {
-						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, metav1.GetOptions{})
 						if err != nil && !k8sErrors.IsNotFound(err) {
 							logrus.Errorf("get vm failure: %v", err)
 							return
@@ -1168,7 +1168,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			}
 		}
 		if vm := appService.GetVirtualMachine(); vm != nil {
-			vm, err := a.k8sClient.KubevirtCli.VirtualMachine(vm.Namespace).Get(context.Background(), vm.Name, &metav1.GetOptions{})
+			vm, err := a.k8sClient.KubevirtCli.VirtualMachine(vm.Namespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
 			if err != nil && k8sErrors.IsNotFound(err) {
 				appService.DeleteVirtualMachine(vm)
 			}
@@ -1725,7 +1725,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
-						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, metav1.GetOptions{})
 						if err != nil {
 							logrus.Errorf("获取虚拟机失败: %v", err)
 						}
@@ -1768,7 +1768,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 				}
 				if appservice != nil {
 					if vmName, t := pod.Labels["kubevirt.io/domain"]; t {
-						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, &metav1.GetOptions{})
+						vm, err := a.k8sClient.KubevirtCli.VirtualMachine(pod.Namespace).Get(context.Background(), vmName, metav1.GetOptions{})
 						if err != nil {
 							logrus.Errorf("获取虚拟机失败: %v", err)
 						}

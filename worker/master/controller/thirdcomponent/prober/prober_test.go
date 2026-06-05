@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/probe"
 )
 
 // capability_id: rainbond.worker.thirdcomponent.prober.execute-endpoint-probe
@@ -57,7 +56,7 @@ func TestProbe(t *testing.T) {
 		env            []v1.EnvVar
 		execError      bool
 		expectError    bool
-		execResult     probe.Result
+		execResult     probeResult
 		expectedResult results.Result
 		expectCommand  []string
 	}{
@@ -75,19 +74,19 @@ func TestProbe(t *testing.T) {
 		{
 			name:           "Probe fails",
 			probe:          httpProbe,
-			execResult:     probe.Failure,
+			execResult:     runtimeProbeResultFailure,
 			expectedResult: results.Failure,
 		},
 		{
 			name:           "Probe succeeds",
 			probe:          httpProbe,
-			execResult:     probe.Success,
+			execResult:     runtimeProbeResultSuccess,
 			expectedResult: results.Success,
 		},
 		{
 			name:           "Probe result is unknown",
 			probe:          httpProbe,
-			execResult:     probe.Unknown,
+			execResult:     runtimeProbeResultUnknown,
 			expectedResult: results.Failure,
 		},
 		{
@@ -95,7 +94,7 @@ func TestProbe(t *testing.T) {
 			probe:          httpProbe,
 			execError:      true,
 			expectError:    true,
-			execResult:     probe.Unknown,
+			execResult:     runtimeProbeResultUnknown,
 			expectedResult: results.Failure,
 		},
 	}
@@ -133,10 +132,10 @@ func TestProbe(t *testing.T) {
 }
 
 type fakeHTTPProber struct {
-	result probe.Result
+	result probeResult
 	err    error
 }
 
-func (p fakeHTTPProber) Probe(url *url.URL, headers http.Header, timeout time.Duration) (probe.Result, string, error) {
+func (p fakeHTTPProber) Probe(url *url.URL, headers http.Header, timeout time.Duration) (probeResult, string, error) {
 	return p.result, "", p.err
 }

@@ -27,9 +27,34 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-//VolumeTypeDaoImpl license model 管理
+// VolumeTypeDaoImpl license model 管理
 type VolumeTypeDaoImpl struct {
 	DB *gorm.DB
+}
+
+func shouldBackfillStorageClassAccessMode(existing, incoming *model.TenantServiceVolumeType) bool {
+	if existing == nil || incoming == nil {
+		return false
+	}
+	if incoming.AccessMode == "" || existing.AccessMode == incoming.AccessMode {
+		return false
+	}
+	if existing.AccessMode != "RWO" {
+		return false
+	}
+	if existing.NameShow != incoming.NameShow {
+		return false
+	}
+	if existing.Provisioner != "" && incoming.Provisioner != "" && existing.Provisioner != incoming.Provisioner {
+		return false
+	}
+	if existing.SharePolicy != "exclusive" || existing.BackupPolicy != "exclusive" {
+		return false
+	}
+	if existing.Description != "" {
+		return false
+	}
+	return existing.Enable && existing.Sort == 999
 }
 
 // CreateOrUpdateVolumeType find or create volumeType, !!! attention：just for store sync storageclass from k8s
@@ -49,12 +74,15 @@ func (vtd *VolumeTypeDaoImpl) CreateOrUpdateVolumeType(vt *model.TenantServiceVo
 		volumeType.Provisioner = vt.Provisioner
 		volumeType.StorageClassDetail = vt.StorageClassDetail
 		volumeType.NameShow = vt.NameShow
+		if shouldBackfillStorageClassAccessMode(volumeType, vt) {
+			volumeType.AccessMode = vt.AccessMode
+		}
 		err = vtd.UpdateModel(volumeType)
 	}
 	return volumeType, err
 }
 
-//AddModel AddModel
+// AddModel AddModel
 func (vtd *VolumeTypeDaoImpl) AddModel(mo model.Interface) error {
 	volumeType := mo.(*model.TenantServiceVolumeType)
 	var oldVolumeType model.TenantServiceVolumeType

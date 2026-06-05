@@ -51,7 +51,7 @@ func RunAsLeader(ctx context.Context, clientset kubernetes.Interface, namespace 
 		Identity:      identity,
 		EventRecorder: eventRecorder,
 	}
-	lock, err := resourcelock.New(resourcelock.ConfigMapsLeasesResourceLock, namespace, SanitizeDriverName(lockName), clientset.CoreV1(), clientset.CoordinationV1(), rlConfig)
+	lock, err := resourcelock.New(resourcelock.LeasesResourceLock, namespace, SanitizeDriverName(lockName), clientset.CoreV1(), clientset.CoordinationV1(), rlConfig)
 	if err != nil {
 		logrus.Error(err)
 		os.Exit(1)

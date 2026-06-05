@@ -359,20 +359,25 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 			}
 			// set a new body, which will simulate the same data we read
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+			var reqData map[string]interface{}
 			var targetID string
 			var ok bool
 			if targetID, ok = r.Context().Value(ctxutil.ContextKey("service_id")).(string); !ok {
-				var reqDataMap map[string]interface{}
-				if err = json.Unmarshal(body, &reqDataMap); err != nil {
+				if err = json.Unmarshal(body, &reqData); err != nil {
 					httputil.ReturnError(r, w, 400, "操作对象未指定")
 					return
 				}
 
-				if targetID, ok = reqDataMap["service_id"].(string); !ok {
+				if targetID, ok = reqData["service_id"].(string); !ok {
 					httputil.ReturnError(r, w, 400, "操作对象未指定")
 					return
 				}
 			}
+			if reqData == nil {
+				reqData = map[string]interface{}{}
+				_ = json.Unmarshal(body, &reqData)
+			}
+
 			//eventLog check the latest event
 
 			if !util.CanDoEvent(optType, synType, target, targetID, serviceKind) {
@@ -383,10 +388,9 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 
 			// handle operator
 			var operator string
-			var reqData map[string]interface{}
-			if err = json.Unmarshal(body, &reqData); err == nil {
-				if operatorI := reqData["operator"]; operatorI != nil {
-					operator = operatorI.(string)
+			if operatorI := reqData["operator"]; operatorI != nil {
+				if operatorString, ok := operatorI.(string); ok {
+					operator = operatorString
 				}
 			}
 

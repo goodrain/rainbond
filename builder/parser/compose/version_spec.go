@@ -12,11 +12,7 @@ import (
 
 	composego "github.com/compose-spec/compose-go/v2/loader"
 	composetypes "github.com/compose-spec/compose-go/v2/types"
-	libcomposeyaml "github.com/docker/libcompose/yaml"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/util"
 )
 
 // parseSpec parses Docker Compose Spec (no version or v3.8+) using compose-go v2
@@ -29,26 +25,23 @@ func parseSpec(bodys [][]byte, workDir string) (ComposeObject, *FieldSupportRepo
 	if workDir != "" {
 		// 使用项目的实际目录作为工作目录，这样 compose-go 能找到 .env 等文件
 		cacheDir = workDir
-		for i, body := range bodys {
-			filename := filepath.Join(cacheDir, fmt.Sprintf("%d-docker-compose.yml", i))
-			if err := ioutil.WriteFile(filename, body, 0755); err != nil {
-				return ComposeObject{}, report, fmt.Errorf("write compose file to project dir error: %s", err.Error())
-			}
-			files = append(files, filename)
+		var err error
+		files, err = writeComposeBodies(cacheDir, bodys)
+		if err != nil {
+			return ComposeObject{}, report, fmt.Errorf("write compose file to project dir error: %s", err.Error())
 		}
 	} else {
-		// 没有项目目录，使用临时 cache 目录
-		cacheName := uuid.New().String()
-		cacheDir = "/cache/docker-compose/" + cacheName
-		if err := util.CheckAndCreateDir(cacheDir); err != nil {
+		// 没有项目目录，优先使用配置缓存目录，失败时回退到系统临时目录
+		createdDir, cleanup, err := createComposeCacheDir()
+		if err != nil {
 			return ComposeObject{}, report, fmt.Errorf("create cache docker compose file dir error: %s", err.Error())
 		}
-		for i, body := range bodys {
-			filename := filepath.Join(cacheDir, fmt.Sprintf("%d-docker-compose.yml", i))
-			if err := ioutil.WriteFile(filename, body, 0755); err != nil {
-				return ComposeObject{}, report, fmt.Errorf("write cache docker compose file error: %s", err.Error())
-			}
-			files = append(files, filename)
+		defer cleanup()
+		cacheDir = createdDir
+
+		files, err = writeComposeBodies(cacheDir, bodys)
+		if err != nil {
+			return ComposeObject{}, report, fmt.Errorf("write cache docker compose file error: %s", err.Error())
 		}
 	}
 
@@ -170,10 +163,10 @@ func composeGoToKomposeMapping(project *composetypes.Project) (ComposeObject, *F
 
 		// Memory limits
 		if service.MemLimit > 0 {
-			serviceConfig.MemLimit = libcomposeyaml.MemStringorInt(service.MemLimit)
+			serviceConfig.MemLimit = MemStringorInt(service.MemLimit)
 		}
 		if service.MemReservation > 0 {
-			serviceConfig.MemReservation = libcomposeyaml.MemStringorInt(service.MemReservation)
+			serviceConfig.MemReservation = MemStringorInt(service.MemReservation)
 		}
 
 		// CPU limits
@@ -207,7 +200,7 @@ func composeGoToKomposeMapping(project *composetypes.Project) (ComposeObject, *F
 					serviceConfig.CPULimit = int64(cpuLimit * 1000000000)
 				}
 				if service.Deploy.Resources.Limits.MemoryBytes > 0 {
-					serviceConfig.MemLimit = libcomposeyaml.MemStringorInt(service.Deploy.Resources.Limits.MemoryBytes)
+					serviceConfig.MemLimit = MemStringorInt(service.Deploy.Resources.Limits.MemoryBytes)
 				}
 			}
 			if service.Deploy.Resources.Reservations != nil {
@@ -216,7 +209,7 @@ func composeGoToKomposeMapping(project *composetypes.Project) (ComposeObject, *F
 					serviceConfig.CPUReservation = int64(cpuReserv * 1000000000)
 				}
 				if service.Deploy.Resources.Reservations.MemoryBytes > 0 {
-					serviceConfig.MemReservation = libcomposeyaml.MemStringorInt(service.Deploy.Resources.Reservations.MemoryBytes)
+					serviceConfig.MemReservation = MemStringorInt(service.Deploy.Resources.Reservations.MemoryBytes)
 				}
 			}
 			if service.Deploy.Placement.Constraints != nil {

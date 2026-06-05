@@ -517,6 +517,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		if resolvedServiceID == "" {
 			resolvedServiceID = rbdService.ServiceID
 		}
+		if rbdService.IsVM() {
+			spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+		}
 	}
 
 	if !isThirdParty {

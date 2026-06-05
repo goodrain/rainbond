@@ -15,20 +15,32 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	etcd "github.com/coreos/etcd/clientv3"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/naming"
-	"google.golang.org/grpc/status"
-
-	"golang.org/x/net/context"
 )
 
 var ErrWatcherClosed = fmt.Errorf("naming: watch closed")
+
+type Operation string
+
+const (
+	Add    Operation = "add"
+	Delete Operation = "delete"
+)
+
+type Update struct {
+	Op   Operation `json:"op"`
+	Addr string    `json:"addr"`
+}
+
+type Watcher interface {
+	Next() ([]*Update, error)
+	Close()
+}
 
 // GRPCResolver creates a grpc.Watcher for a target to track its resolution changes.
 type GRPCResolver struct {
@@ -37,26 +49,26 @@ type GRPCResolver struct {
 }
 
 //Update Update
-func (gr *GRPCResolver) Update(ctx context.Context, target string, nm naming.Update, opts ...etcd.OpOption) (err error) {
+func (gr *GRPCResolver) Update(ctx context.Context, target string, nm Update, opts ...etcd.OpOption) (err error) {
 	switch nm.Op {
-	case naming.Add:
+	case Add:
 		var v []byte
 		if v, err = json.Marshal(nm); err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
+			return err
 		}
 		_, err = gr.Client.KV.Put(ctx, target+"/"+nm.Addr, string(v), opts...)
-	case naming.Delete:
+	case Delete:
 		if gr.Client != nil {
 			_, err = gr.Client.Delete(ctx, target+"/"+nm.Addr, opts...)
 		}
 	default:
-		return status.Error(codes.InvalidArgument, "naming: bad naming op")
+		return fmt.Errorf("naming: bad naming op")
 	}
 	return err
 }
 
 //Resolve Resolve
-func (gr *GRPCResolver) Resolve(target string) (naming.Watcher, error) {
+func (gr *GRPCResolver) Resolve(target string) (Watcher, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	w := &gRPCWatcher{c: gr.Client, target: target + "/", ctx: ctx, cancel: cancel}
 	return w, nil
@@ -75,7 +87,7 @@ type gRPCWatcher struct {
 // Next gets the next set of updates from the etcd resolver.
 // Calls to Next should be serialized; concurrent calls are not safe since
 // there is no way to reconcile the update ordering.
-func (gw *gRPCWatcher) Next() ([]*naming.Update, error) {
+func (gw *gRPCWatcher) Next() ([]*Update, error) {
 
 	if gw.wch == nil {
 		// first Next() returns all addresses
@@ -94,23 +106,23 @@ func (gw *gRPCWatcher) Next() ([]*naming.Update, error) {
 	select {
 	case wr, ok := <-gw.wch:
 		if !ok {
-			gw.err = status.Error(codes.Unavailable, ErrWatcherClosed.Error())
+			gw.err = ErrWatcherClosed
 			return nil, gw.err
 		}
 		if gw.err = wr.Err(); gw.err != nil {
 			return nil, gw.err
 		}
-		updates := make([]*naming.Update, 0, len(wr.Events))
+		updates := make([]*Update, 0, len(wr.Events))
 		for _, e := range wr.Events {
-			var jupdate naming.Update
+			var jupdate Update
 			var err error
 			switch e.Type {
 			case etcd.EventTypePut:
 				err = json.Unmarshal(e.Kv.Value, &jupdate)
-				jupdate.Op = naming.Add
+				jupdate.Op = Add
 			case etcd.EventTypeDelete:
 				err = json.Unmarshal(e.PrevKv.Value, &jupdate)
-				jupdate.Op = naming.Delete
+				jupdate.Op = Delete
 			}
 			if err == nil {
 				updates = append(updates, &jupdate)
@@ -124,16 +136,16 @@ func (gw *gRPCWatcher) Next() ([]*naming.Update, error) {
 	}
 }
 
-func (gw *gRPCWatcher) firstNext(ctx context.Context) ([]*naming.Update, error) {
+func (gw *gRPCWatcher) firstNext(ctx context.Context) ([]*Update, error) {
 	// Use serialized request so resolution still works if the target etcd
 	// server is partitioned away from the quorum.
 	resp, err := gw.c.Get(ctx, gw.target, etcd.WithPrefix(), etcd.WithSerializable())
 	if gw.err = err; err != nil {
 		return nil, err
 	}
-	updates := make([]*naming.Update, 0, len(resp.Kvs))
+	updates := make([]*Update, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		var jupdate naming.Update
+		var jupdate Update
 		if err := json.Unmarshal(kv.Value, &jupdate); err != nil {
 			continue
 		}

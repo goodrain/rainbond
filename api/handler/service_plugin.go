@@ -135,7 +135,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 				)
 				if err != nil {
 					tx.Rollback()
-					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.Port, err))
+					logrus.Errorf("set upstream port %d error, %v", p.Port, err)
 					return nil, util.CreateAPIHandleErrorFromDBError(
 						fmt.Sprintf("set upstream port %d error ", p.Port),
 						err,
@@ -251,7 +251,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *apimodel.SetVersionEnv) *util.APIH
 				)
 				if err != nil {
 					tx.Rollback()
-					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.Port, err))
+					logrus.Errorf("set upstream port %d error, %v", p.Port, err)
 					return util.CreateAPIHandleErrorFromDBError(
 						fmt.Sprintf("set upstream port %d error ", p.Port),
 						err,

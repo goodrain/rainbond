@@ -33,6 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type startController struct {
@@ -142,9 +143,9 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm)
+		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
 		if err != nil {
-			s.logWorkloadCreateError(app, "VirtualMachine", err)
+			s.logVirtualMachineCreateFailure(app, err)
 			return fmt.Errorf("create vm failure:%s;", err.Error())
 		}
 	}
@@ -319,6 +320,31 @@ func (s *startController) logWorkloadCreateError(app v1.AppService, workloadType
 	// Log to application logger so user can see it
 	app.Logger.Error(userMessage, event.GetLoggerOption("failure"))
 	logrus.Errorf("Service %s: %s creation failed: %v", app.ServiceAlias, workloadType, err)
+}
+
+func (s *startController) logVirtualMachineCreateFailure(app v1.AppService, err error) {
+	s.logWorkloadCreateError(app, "VirtualMachine", err)
+	s.logWorkloadCreateManifest(app.ServiceAlias, "VirtualMachine", app.GetVirtualMachine())
+}
+
+func (s *startController) logWorkloadCreateManifest(serviceAlias, workloadType string, workload interface{}) {
+	if workload == nil {
+		return
+	}
+	manifest, err := marshalWorkloadManifestYAML(workload)
+	if err != nil {
+		logrus.Errorf("Service %s: %s create request manifest marshal failed: %v", serviceAlias, workloadType, err)
+		return
+	}
+	logrus.Errorf("Service %s: %s create request manifest:\n%s", serviceAlias, workloadType, manifest)
+}
+
+func marshalWorkloadManifestYAML(workload interface{}) (string, error) {
+	manifestBytes, err := yaml.Marshal(workload)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(manifestBytes)), nil
 }
 
 // containsIgnoreCase checks if s contains substr (case insensitive)

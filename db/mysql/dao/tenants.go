@@ -1385,7 +1385,15 @@ func (t *TenantServiceVolumeDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		if ok := t.DB.Where("(volume_name=? or volume_path = ?) and service_id=?", volume.VolumeName, volume.VolumePath, volume.ServiceID).Find(&oldvolume).RecordNotFound(); ok {
+		condition := "(volume_name=? or volume_path = ?) and service_id=?"
+		args := []interface{}{volume.VolumeName, volume.VolumePath, volume.ServiceID}
+		if isVMService, err := t.isVMService(volume.ServiceID); err != nil {
+			return err
+		} else if isVMService {
+			condition = "volume_name=? and service_id=?"
+			args = []interface{}{volume.VolumeName, volume.ServiceID}
+		}
+		if ok := t.DB.Where(condition, args...).Find(&oldvolume).RecordNotFound(); ok {
 			if err := t.DB.Create(volume).Error; err != nil {
 				return err
 			}
@@ -1394,6 +1402,17 @@ func (t *TenantServiceVolumeDaoImpl) AddModel(mo model.Interface) error {
 		}
 	}
 	return nil
+}
+
+func (t *TenantServiceVolumeDaoImpl) isVMService(serviceID string) (bool, error) {
+	var service model.TenantServices
+	if err := t.DB.Select("service_id, extend_method").Where("service_id=?", serviceID).First(&service).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return service.IsVM(), nil
 }
 
 // UpdateModel 更��应用挂载

@@ -69,6 +69,8 @@ const (
 	K8sAttributeNameArgs = "args"
 	// K8sAttributeNameWorkingDir -
 	K8sAttributeNameWorkingDir = "workingDir"
+	// K8sAttributeNameVMDiskImports -
+	K8sAttributeNameVMDiskImports = "vm_disk_imports"
 )
 
 // ComponentK8sAttributes -

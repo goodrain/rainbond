@@ -367,24 +367,25 @@ type ServiceStruct struct {
 	//OSType runtime os type
 	// in: body
 	// required: false
-	OSType            string                               `json:"os_type" validate:"os_type|in:windows,linux"`
-	ServiceLabel      string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
-	NodeLabel         string                               `json:"node_label"  validate:"node_label"`
-	Operator          string                               `json:"operator"  validate:"operator"`
-	RepoURL           string                               `json:"repo_url" validate:"repo_url"`
-	DependIDs         []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
-	VolumesInfo       []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
-	DepVolumesInfo    []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
-	EnvsInfo          []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
-	PortsInfo         []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
-	Endpoints         *Endpoints                           `json:"endpoints" validate:"endpoints"`
-	AppID             string                               `json:"app_id" validate:"required"`
-	ComponentProbes   []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
-	ComponentMonitors []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
-	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
-	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
-	K8sComponentName  string                               `json:"k8s_component_name" validate:"k8s_component_name"`
-	JobStrategy       string                               `json:"job_strategy" validate:"job_strategy"`
+	OSType                 string                               `json:"os_type" validate:"os_type|in:windows,linux"`
+	ServiceLabel           string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
+	NodeLabel              string                               `json:"node_label"  validate:"node_label"`
+	Operator               string                               `json:"operator"  validate:"operator"`
+	RepoURL                string                               `json:"repo_url" validate:"repo_url"`
+	DependIDs              []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
+	VolumesInfo            []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
+	DepVolumesInfo         []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
+	EnvsInfo               []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
+	PortsInfo              []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
+	Endpoints              *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID                  string                               `json:"app_id" validate:"required"`
+	ComponentProbes        []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
+	ComponentMonitors      []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
+	HTTPRules              []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
+	TCPRules               []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
+	ComponentK8sAttributes []ComponentK8sAttribute              `json:"component_k8s_attributes"`
+	K8sComponentName       string                               `json:"k8s_component_name" validate:"k8s_component_name"`
+	JobStrategy            string                               `json:"job_strategy" validate:"job_strategy"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -690,6 +691,32 @@ type StatusList struct {
 	StatusCN      string     `json:"status_cn"`
 	StartTime     string     `json:"start_time"`
 	PodList       []PodsList `json:"pod_list"`
+	VMRestore     *VMRestore `json:"vm_restore,omitempty"`
+}
+
+// VMRestore virtual machine data volume restore status.
+type VMRestore struct {
+	Status       string                 `json:"status"`
+	StatusCN     string                 `json:"status_cn"`
+	Progress     string                 `json:"progress"`
+	Message      string                 `json:"message"`
+	DataVolumes  []VMRestoreDataVolume  `json:"data_volumes"`
+	ImporterPods []VMRestoreImporterPod `json:"importer_pods"`
+}
+
+// VMRestoreDataVolume data volume import status for virtual machine restore.
+type VMRestoreDataVolume struct {
+	Name     string `json:"name"`
+	Phase    string `json:"phase"`
+	Progress string `json:"progress"`
+	Message  string `json:"message"`
+}
+
+// VMRestoreImporterPod importer pod name for virtual machine restore logs.
+type VMRestoreImporterPod struct {
+	Name      string `json:"name"`
+	Volume    string `json:"volume"`
+	Namespace string `json:"namespace"`
 }
 
 // PodsList pod list
@@ -1657,15 +1684,18 @@ type ServiceShare struct {
 		ServiceKey    string `json:"service_key" validate:"service_key|required"`
 		AppVersion    string `json:"app_version" validate:"app_version|required"`
 		DeployVersion string `json:"deploy_version,omitempty"`
+		Arch          string `json:"arch,omitempty"`
 		EventID       string `json:"event_id"`
 		ShareUser     string `json:"share_user"`
 		ShareScope    string `json:"share_scope"`
 		ImageInfo     struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty" validate:"is_trust"`
+			HubURL        string `json:"hub_url"`
+			HubUser       string `json:"hub_user"`
+			HubPassword   string `json:"hub_password"`
+			Namespace     string `json:"namespace"`
+			IsTrust       bool   `json:"is_trust,omitempty" validate:"is_trust"`
+			VMImageSource string `json:"vm_image_source,omitempty"`
+			VMImageToken  string `json:"vm_image_token,omitempty"`
 		} `json:"image_info,omitempty"`
 		SlugInfo struct {
 			Namespace   string `json:"namespace"`

@@ -21,9 +21,14 @@ package sources
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/goodrain/rainbond/event"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // capability_id: rainbond.source-image.parse-name
@@ -62,7 +67,7 @@ func TestImageNameWithNamespace(t *testing.T) {
 
 // capability_id: rainbond.source-image.auth-base64-encode
 func TestEncodeAuthToBase64(t *testing.T) {
-	encoded, err := EncodeAuthToBase64(types.AuthConfig{
+	encoded, err := EncodeAuthToBase64(registry.AuthConfig{
 		Username: "demo",
 		Password: "secret",
 	})
@@ -74,7 +79,7 @@ func TestEncodeAuthToBase64(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var auth types.AuthConfig
+	var auth registry.AuthConfig
 	if err := json.Unmarshal(raw, &auth); err != nil {
 		t.Fatal(err)
 	}
@@ -125,4 +130,131 @@ func TestImageImport(t *testing.T) {
 			t.Fatal(err)
 		}
 	*/
+}
+
+// capability_id: rainbond.source-image.vm-build-host-taint-toleration
+func TestNewBuildKitPodSpecAddsTolerationForHostScheduling(t *testing.T) {
+	hostAliases := []corev1.HostAlias{{IP: "10.0.0.2", Hostnames: []string{"registry.local"}}}
+
+	podSpec := newBuildKitPodSpec("amd64", "node-1", hostAliases)
+
+	if podSpec.NodeSelector["kubernetes.io/hostname"] != "node-1" {
+		t.Fatalf("expected node selector for host scheduling, got %#v", podSpec.NodeSelector)
+	}
+	if len(podSpec.Tolerations) != 1 || podSpec.Tolerations[0].Operator != corev1.TolerationOpExists {
+		t.Fatalf("expected broad host taint toleration, got %#v", podSpec.Tolerations)
+	}
+	if podSpec.Affinity == nil || podSpec.Affinity.NodeAffinity == nil {
+		t.Fatal("expected node affinity to be preserved")
+	}
+	if len(podSpec.HostAliases) != 1 || podSpec.HostAliases[0].IP != "10.0.0.2" {
+		t.Fatalf("expected host aliases to be preserved, got %#v", podSpec.HostAliases)
+	}
+}
+
+// capability_id: rainbond.vm-publish.stage-timing-logs
+func TestRecordImageBuildStageLogsFields(t *testing.T) {
+	logger := &stageRecordingLogger{}
+	start := time.Unix(100, 0)
+
+	err := recordImageBuildStage(logger, "buildkit_job_wait", start, nil, map[string]interface{}{
+		"service_id": "svc-a",
+		"job_name":   "svc-a-1-dockerfile",
+	})
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if len(logger.infos) != 1 {
+		t.Fatalf("expected one info log, got %d", len(logger.infos))
+	}
+	got := logger.infos[0]
+	for _, want := range []string{
+		"stage=buildkit_job_wait",
+		"status=success",
+		"duration_ms=",
+		"service_id=svc-a",
+		"job_name=svc-a-1-dockerfile",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected log to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestRecordImageBuildStageLogsError(t *testing.T) {
+	logger := &stageRecordingLogger{}
+	start := time.Unix(100, 0)
+	stageErr := errors.New("job timeout")
+
+	err := recordImageBuildStage(logger, "buildkit_job_wait", start, stageErr, map[string]interface{}{
+		"service_id": "svc-a",
+	})
+
+	if !errors.Is(err, stageErr) {
+		t.Fatalf("expected original error, got %v", err)
+	}
+	if len(logger.errors) != 1 {
+		t.Fatalf("expected one error log, got %d", len(logger.errors))
+	}
+	got := logger.errors[0]
+	for _, want := range []string{
+		"stage=buildkit_job_wait",
+		"status=failure",
+		"duration_ms=",
+		"service_id=svc-a",
+		"error=job timeout",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected log to contain %q, got %q", want, got)
+		}
+	}
+}
+
+// capability_id: rainbond.vm-publish.http-artifact-image-build
+func TestBuildKitImageOutputUsesUncompressedLayersForVMBuild(t *testing.T) {
+	vmOutput := buildKitImageOutput("vm-build", "goodrain.me/demo:latest")
+	if vmOutput != "type=image,name=goodrain.me/demo:latest,push=true,compression=uncompressed" {
+		t.Fatalf("unexpected vm build output: %q", vmOutput)
+	}
+
+	defaultOutput := buildKitImageOutput("run-build", "goodrain.me/demo:latest")
+	if defaultOutput != "type=image,name=goodrain.me/demo:latest,push=true" {
+		t.Fatalf("unexpected default build output: %q", defaultOutput)
+	}
+}
+
+type stageRecordingLogger struct {
+	infos  []string
+	errors []string
+}
+
+func (l *stageRecordingLogger) Info(message string, info map[string]string) {
+	l.infos = append(l.infos, message)
+}
+
+func (l *stageRecordingLogger) Error(message string, info map[string]string) {
+	l.errors = append(l.errors, message)
+}
+
+func (l *stageRecordingLogger) Debug(message string, info map[string]string) {}
+
+func (l *stageRecordingLogger) Event() string { return "test" }
+
+func (l *stageRecordingLogger) CreateTime() time.Time { return time.Unix(0, 0) }
+
+func (l *stageRecordingLogger) GetChan() chan []byte { return nil }
+
+func (l *stageRecordingLogger) SetChan(ch chan []byte) {}
+
+func (l *stageRecordingLogger) GetWriter(step, level string) event.LoggerWriter {
+	return stageDiscardLoggerWriter{}
+}
+
+type stageDiscardLoggerWriter struct{}
+
+func (stageDiscardLoggerWriter) SetFormat(format map[string]interface{}) {}
+
+func (stageDiscardLoggerWriter) Write(p []byte) (int, error) {
+	return len(p), nil
 }

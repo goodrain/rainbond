@@ -21,11 +21,13 @@ package volume
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 // ConfigFileVolume config file volume struct
@@ -33,6 +35,27 @@ type ConfigFileVolume struct {
 	Base
 	envs          []corev1.EnvVar
 	envVarSecrets []*corev1.Secret
+}
+
+func stableVMConfigVolumeLabel(serviceID, volumeName string) string {
+	serviceID = strings.TrimSpace(serviceID)
+	volumeName = strings.TrimSpace(volumeName)
+	if serviceID == "" || volumeName == "" {
+		return "RBDCFG"
+	}
+	hash, err := util.CreateHashString(fmt.Sprintf("%s:%s", serviceID, volumeName))
+	if err != nil || len(hash) < 8 {
+		return "RBDCFG"
+	}
+	label := strings.ToUpper(hash[:8])
+	return "RBDCFG" + label
+}
+
+func formatVMGuestFileMode(mode *int32) string {
+	if mode == nil {
+		return "0644"
+	}
+	return fmt.Sprintf("%04o", *mode)
 }
 
 // CreateVolume config file volume create volume
@@ -59,7 +82,7 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
+			Name:      stableVMConfigMapName(v.as.ServiceID, v.svm.VolumeName),
 			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
@@ -67,6 +90,34 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap.Data[path.Base(v.svm.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
+	if v.as.GetVirtualMachine() != nil {
+		volumeLabel := stableVMConfigVolumeLabel(v.as.ServiceID, v.svm.VolumeName)
+		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
+			Name: cmap.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
+					VolumeLabel:          volumeLabel,
+				},
+			},
+		})
+		define.vmDisk = append(define.vmDisk, kubevirtv1.Disk{
+			Name: cmap.Name,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+		define.AddVMGuestFile(VMGuestFile{
+			VolumeName:  cmap.Name,
+			VolumeLabel: volumeLabel,
+			SourceFile:  path.Base(v.svm.VolumePath),
+			TargetPath:  v.svm.VolumePath,
+			Mode:        formatVMGuestFileMode(v.svm.Mode),
+		})
+		return nil
+	}
 	define.SetVolumeCMap(cmap, path.Base(v.svm.VolumePath), v.svm.VolumePath, false, v.svm.Mode)
 	return nil
 }
@@ -89,7 +140,7 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.NewUUID(),
+			Name:      stableVMConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
 			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
@@ -97,7 +148,44 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	}
 	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
+	if v.as.GetVirtualMachine() != nil {
+		volumeLabel := stableVMConfigVolumeLabel(v.smr.DependServiceID, v.smr.VolumeName)
+		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
+			Name: cmap.Name,
+			VolumeSource: kubevirtv1.VolumeSource{
+				ConfigMap: &kubevirtv1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmap.Name},
+					VolumeLabel:          volumeLabel,
+				},
+			},
+		})
+		define.vmDisk = append(define.vmDisk, kubevirtv1.Disk{
+			Name: cmap.Name,
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			},
+		})
+		define.AddVMGuestFile(VMGuestFile{
+			VolumeName:  cmap.Name,
+			VolumeLabel: volumeLabel,
+			SourceFile:  path.Base(v.smr.VolumePath),
+			TargetPath:  v.smr.VolumePath,
+			Mode:        formatVMGuestFileMode(depVol.Mode),
+		})
+		return nil
+	}
 
 	define.SetVolumeCMap(cmap, path.Base(v.smr.VolumePath), v.smr.VolumePath, false, depVol.Mode)
 	return nil
+}
+
+func stableVMConfigMapName(serviceID, volumeName string) string {
+	serviceID = strings.TrimSpace(serviceID)
+	volumeName = strings.TrimSpace(volumeName)
+	if serviceID == "" || volumeName == "" {
+		return util.NewUUID()
+	}
+	return fmt.Sprintf("vm-cfg-%s-%s", serviceID, volumeName)
 }

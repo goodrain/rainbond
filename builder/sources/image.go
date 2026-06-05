@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -46,6 +47,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker/config"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
@@ -74,6 +76,14 @@ var ErrorNoImage = fmt.Errorf("image not exist")
 
 // Namespace containerd image namespace
 var Namespace = "k8s.io"
+
+func buildKitImageOutput(buildType, buildImageName string) string {
+	output := fmt.Sprintf("type=image,name=%s,push=true", buildImageName)
+	if buildType == "vm-build" {
+		output += ",compression=uncompressed"
+	}
+	return output
+}
 
 // ImagePull pull docker image
 // Deprecated: use sources.ImageClient.ImagePull instead
@@ -250,7 +260,7 @@ func ImageTag(containerdClient *containerd.Client, source, target string, logger
 		return err
 	}
 	targetImage := targetNamed.String()
-	logrus.Infof(fmt.Sprintf("change image tag：%s -> %s", srcImage, targetImage))
+	logrus.Infof("change image tag：%s -> %s", srcImage, targetImage)
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageService := containerdClient.ImageService()
@@ -492,7 +502,7 @@ func CheckTrustedRepositories(image, user, pass string) error {
 }
 
 // EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+func EncodeAuthToBase64(authConfig registry.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", err
@@ -515,6 +525,7 @@ func getHostAlias(kubeClient kubernetes.Interface) []corev1.HostAlias {
 
 // ImageBuild use buildkit build image
 func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
+	buildStarted := time.Now()
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" || buildType == "vm-build" {
@@ -544,31 +555,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 			},
 		},
 	}
-	podSpec := corev1.PodSpec{
-		RestartPolicy: corev1.RestartPolicyOnFailure,
-		Affinity: &corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/arch",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{arch},
-							},
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{os.Getenv("HOST_IP")},
-							},
-						},
-					},
-					},
-				},
-			},
-		},
-		HostAliases: getHostAlias(kubeClient),
-	}
+	podSpec := newBuildKitPodSpec(arch, os.Getenv("HOST_IP"), getHostAlias(kubeClient))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	imageDomain, buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
@@ -606,7 +593,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 			"--local",
 			"dockerfile=/workspace",
 			"--output",
-			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+			buildKitImageOutput(buildType, buildImageName),
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
@@ -635,20 +622,118 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 	writer := logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
+	execStarted := time.Now()
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
-	if err != nil {
+	if err := recordImageBuildStage(logger, "buildkit_job_create", execStarted, err, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	}); err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
 	}
 	logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
 	// delete job after complete
 	defer jobc.GetJobController().DeleteJob(job.Name)
+	waitStarted := time.Now()
 	err = WaitingComplete(reChan)
-	if err != nil {
+	if err := recordImageBuildStage(logger, "buildkit_job_wait", waitStarted, err, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	}); err != nil {
 		logrus.Errorf("waiting complete failed: %s", err.Error())
 		return err
 	}
+	_ = recordImageBuildStage(logger, "buildkit_image_build", buildStarted, nil, map[string]interface{}{
+		"service_id":     ServiceID,
+		"deploy_version": DeployVersion,
+		"build_type":     buildType,
+		"job_name":       name,
+		"context_dir":    contextDir,
+		"image_name":     buildImageName,
+	})
 	return nil
+}
+
+func recordImageBuildStage(logger event.Logger, stage string, startedAt time.Time, stageErr error, metadata map[string]interface{}) error {
+	if logger == nil {
+		return stageErr
+	}
+	fields := make(map[string]interface{}, len(metadata)+3)
+	for key, value := range metadata {
+		fields[key] = value
+	}
+	fields["stage"] = stage
+	fields["status"] = "success"
+	fields["duration_ms"] = time.Since(startedAt).Milliseconds()
+	message := formatStageLog(fields)
+	if stageErr != nil {
+		fields["status"] = "failure"
+		fields["error"] = stageErr.Error()
+		message = formatStageLog(fields)
+		logger.Error(message, map[string]string{"step": "build-exector", "status": "failure"})
+		return stageErr
+	}
+	logger.Info(message, map[string]string{"step": "build-exector"})
+	return nil
+}
+
+func formatStageLog(fields map[string]interface{}) string {
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, fields[key]))
+	}
+	return strings.Join(parts, " ")
+}
+
+func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{hostIP},
+							},
+						},
+					}},
+				},
+			},
+		},
+		HostAliases: hostAliases,
+	}
+	if hostIP != "" {
+		podSpec.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": hostIP,
+		}
+		podSpec.Tolerations = []corev1.Toleration{
+			{
+				Operator: corev1.TolerationOpExists,
+			},
+		}
+	}
+	return podSpec
 }
 
 // ImageInspectWithRaw get image inspect

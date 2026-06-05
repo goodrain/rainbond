@@ -38,7 +38,14 @@ type ServiceHandler interface {
 	DeleteLabel(l *apimodel.LabelsStruct, serviceID string) error
 	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
 	StartStopService(s *apimodel.StartStopStruct) error
+	StartOrCreateVM(ctx context.Context, s *apimodel.StartStopStruct, deployVersion string) error
+	RestartVM(ctx context.Context, s *apimodel.StartStopStruct, deployVersion string) error
+	StopVM(ctx context.Context, serviceID string) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
+	CreateVMExport(serviceID string, req *VMExportRequest) (*VMExportStatus, error)
+	GetVMExport(serviceID, exportName string) (*VMExportStatus, error)
+	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
+	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error
@@ -116,5 +123,5 @@ type ServiceHandler interface {
 	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
-	FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error)
+	FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error)
 }

@@ -136,6 +136,60 @@ func TestServiceShareUsesRequestedDeployVersionForImageShare(t *testing.T) {
 	assert.Equal(t, "snapshot-deploy-version", versionDao.requestedVersion)
 }
 
+// capability_id: rainbond.vm-publish.http-artifact-image-build
+func TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation(t *testing.T) {
+	service := &dbmodel.TenantServices{
+		ServiceID:     "service-id",
+		ServiceAlias:  "service-alias",
+		TenantID:      "tenant-id",
+		DeployVersion: "current-deploy-version",
+	}
+	versionDao := &shareTestVersionInfoDao{
+		versions: map[string]*dbmodel.VersionInfo{
+			"snapshot-deploy-version": {
+				ServiceID:     service.ServiceID,
+				BuildVersion:  "snapshot-build-version",
+				DeliveredType: "image",
+				DeliveredPath: "https://virt-export.default.svc/volumes/manual22/disk.img.gz",
+				FinalStatus:   "success",
+			},
+		},
+	}
+	db.SetTestManager(shareTestManager{
+		tenantServiceDao: &shareTestTenantServiceDao{service: service},
+		versionInfoDao:   versionDao,
+		labelDao:         &shareTestLabelDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	mq := &recordingMQClient{}
+	handle := &ServiceShareHandle{MQClient: mq}
+	req := apimodel.ServiceShare{
+		TenantName:   "demo-team",
+		ServiceAlias: service.ServiceAlias,
+	}
+	req.Body.ServiceKey = "service-key"
+	req.Body.AppVersion = "1.2.3"
+	req.Body.DeployVersion = "snapshot-deploy-version"
+	req.Body.EventID = "event-id"
+	req.Body.ImageInfo.HubURL = "registry.target"
+	req.Body.ImageInfo.Namespace = "snapshot-space"
+	req.Body.ImageInfo.VMImageSource = "https://virt-export.default.svc/volumes/manual22/disk.img.gz"
+
+	res, apiErr := handle.Share(service.ServiceID, req)
+
+	assert.Nil(t, apiErr)
+	if assert.NotNil(t, res) {
+		assert.Equal(t, "registry.target/snapshot-space/service-id:snapshot-build-version", res.ImageName)
+	}
+	if assert.Len(t, mq.tasks, 1) {
+		body := mq.tasks[0].TaskBody.(map[string]interface{})
+		assert.Equal(t, "share-image", mq.tasks[0].TaskType)
+		assert.Equal(t, "registry.target/snapshot-space/service-id:snapshot-build-version", body["image_name"])
+	}
+	assert.Equal(t, "snapshot-deploy-version", versionDao.requestedVersion)
+}
+
 // capability_id: rainbond.share.slug-from-snapshot-deploy-version
 func TestServiceShareUsesRequestedDeployVersionForSlugShare(t *testing.T) {
 	service := &dbmodel.TenantServices{

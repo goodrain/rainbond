@@ -3,6 +3,24 @@
   "repo": "rainbond",
   "capabilities": [
     {
+      "id": "rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy",
+      "title": "Use Local externalTrafficPolicy for VM NodePort services",
+      "title_zh": "Use Local externalTrafficPolicy for VM NodePort services",
+      "interface_type": "handler_method",
+      "interface": "api.controller.apigateway.Struct.CreateTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-backup.metadata-version-detect",
       "title": "Detect legacy and new backup metadata schema versions",
       "title_zh": "\u8bc6\u522b\u65e7\u7248\u4e0e\u65b0\u7248\u5e94\u7528\u5907\u4efd\u5143\u6570\u636e\u7ed3\u6784",
@@ -561,24 +579,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.cnb-version.match-language",
-      "title": "Match CNB version for composite language",
-      "title_zh": "\u4e3a\u590d\u5408\u8bed\u8a00\u5339\u914d CNB \u7248\u672c",
-      "interface_type": "workflow",
-      "interface": "builder/parser/code.MatchCNBVersion",
-      "code_paths": [
-        "builder/parser/code/cnb_versions.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/code/cnb_versions_test.go",
-          "selector": "TestMatchCNBVersion_CompositeLanguage"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.cnb-version.match-golang",
       "title": "Normalize and match Go CNB version specs",
       "title_zh": "\u5f52\u4e00\u5316\u5e76\u5339\u914d Go CNB \u7248\u672c\u8868\u8fbe\u5f0f",
@@ -591,6 +591,24 @@
         {
           "path": "builder/parser/code/cnb_versions_test.go",
           "selector": "TestMatchCNBVersion_Golang"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb-version.match-language",
+      "title": "Match CNB version for composite language",
+      "title_zh": "\u4e3a\u590d\u5408\u8bed\u8a00\u5339\u914d CNB \u7248\u672c",
+      "interface_type": "workflow",
+      "interface": "builder/parser/code.MatchCNBVersion",
+      "code_paths": [
+        "builder/parser/code/cnb_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/code/cnb_versions_test.go",
+          "selector": "TestMatchCNBVersion_CompositeLanguage"
         }
       ],
       "test_type": "regression",
@@ -2456,6 +2474,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.image-share.single-attempt",
+      "title": "Run image share only once",
+      "title_zh": "\u955c\u50cf\u5206\u4eab\u5931\u8d25\u540e\u4e0d\u81ea\u52a8\u91cd\u8bd5",
+      "interface_type": "workflow",
+      "interface": "builder/exector.imageShare",
+      "code_paths": [
+        "builder/exector/exector.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestExecuteImageShareOnceDoesNotRetryFailure"
+        },
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestExecuteImageShareOnceReturnsSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ingress-nginx.meta-namespace-key",
       "title": "Build meta namespace keys for ingress-nginx watched objects",
       "title_zh": "\u4e3a ingress-nginx \u76d1\u542c\u5bf9\u8c61\u6784\u5efa namespace/name \u952e",
@@ -2522,6 +2562,24 @@
         {
           "path": "util/ingress-nginx/k8s/main_test.go",
           "selector": "TestGetPodDetails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s.scheme-registers-kubevirt-vm",
+      "title": "K8s scheme registers KubeVirt VirtualMachine",
+      "title_zh": "K8s scheme registers KubeVirt VirtualMachine",
+      "interface_type": "package_function",
+      "interface": "pkg/component/k8s.init",
+      "code_paths": [
+        "pkg/component/k8s/k8sComponent.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/k8s/k8sComponent_test.go",
+          "selector": "TestSchemeRegistersKubeVirtVirtualMachine"
         }
       ],
       "test_type": "regression",
@@ -3104,17 +3162,18 @@
       "status": "active"
     },
     {
-      "id": "rainbond.manual-pvc-upgrade-skips-unchanged-storage",
-      "title": "Skip manual PVC updates when storage request is unchanged",
+      "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
+      "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",
       "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
       "code_paths": [
+        "worker/appm/controller/upgrade.go",
         "worker/appm/f/function.go"
       ],
       "tests": [
         {
           "path": "worker/appm/controller/upgrade_manual_claim_test.go",
-          "selector": "TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage"
+          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec"
         }
       ],
       "test_type": "regression",
@@ -3138,18 +3197,17 @@
       "status": "active"
     },
     {
-      "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
-      "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
+      "id": "rainbond.manual-pvc-upgrade-skips-unchanged-storage",
+      "title": "Skip manual PVC updates when storage request is unchanged",
       "interface_type": "workflow",
       "interface": "worker/appm/controller.upgradeController.upgradeManualClaims",
       "code_paths": [
-        "worker/appm/controller/upgrade.go",
         "worker/appm/f/function.go"
       ],
       "tests": [
         {
           "path": "worker/appm/controller/upgrade_manual_claim_test.go",
-          "selector": "TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec"
+          "selector": "TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage"
         }
       ],
       "test_type": "regression",
@@ -3482,6 +3540,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.ns-resource.ingress-summary",
+      "title": "Summarize ingress routing metadata for namespace resources",
+      "title_zh": "\u6c47\u603b Ingress \u8d44\u6e90\u8def\u7531\u5143\u6570\u636e",
+      "interface_type": "workflow",
+      "interface": "api/handler.toNsResourceInfo",
+      "code_paths": [
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/ns_resource_test.go",
+          "selector": "TestToNsResourceInfoIncludesIngressSummary"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ns-resource.mark-source",
       "title": "Mark namespace resource source labels",
       "title_zh": "\u6807\u8bb0\u547d\u540d\u7a7a\u95f4\u8d44\u6e90\u6765\u6e90",
@@ -3520,24 +3596,6 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.ns-resource.ingress-summary",
-      "title": "Summarize ingress routing metadata for namespace resources",
-      "title_zh": "\u6c47\u603b Ingress \u8d44\u6e90\u8def\u7531\u5143\u6570\u636e",
-      "interface_type": "workflow",
-      "interface": "api/handler.toNsResourceInfo",
-      "code_paths": [
-        "api/handler/ns_resource.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/ns_resource_test.go",
-          "selector": "TestToNsResourceInfoIncludesIngressSummary"
         }
       ],
       "test_type": "regression",
@@ -3992,6 +4050,78 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service-check.completion-log-summary",
+      "title": "Service check completion log reflects check status",
+      "title_zh": "\u670d\u52a1\u68c0\u6d4b\u5b8c\u6210\u6458\u8981\u65e5\u5fd7\u53cd\u6620\u771f\u5b9e\u68c0\u6d4b\u72b6\u6001",
+      "interface_type": "other",
+      "interface": "builder/exector.serviceCheckCompletionLogSummary",
+      "code_paths": [
+        "builder/exector/service_check.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/service_check_test.go",
+          "selector": "TestServiceCheckCompletionLogSummary"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service-check.eventlog-progress",
+      "title": "Mirror service-check progress messages to the event logger",
+      "title_zh": "\u5c06\u670d\u52a1\u68c0\u6d4b\u8fdb\u5ea6\u6d88\u606f\u540c\u6b65\u5199\u5165\u4e8b\u4ef6\u65e5\u5fd7",
+      "interface_type": "other",
+      "interface": "builder/exector.logServiceCheckProgress",
+      "code_paths": [
+        "builder/exector/service_check.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/service_check_test.go",
+          "selector": "TestLogServiceCheckProgressMirrorsMessageToEventLogger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.file-manage-command-safety",
+      "title": "Build safe file-manage list command with path separator",
+      "title_zh": "\u6784\u5efa\u5e26\u8def\u5f84\u5206\u9694\u7b26\u7684\u5b89\u5168\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u547d\u4ee4",
+      "interface_type": "other",
+      "interface": "api/handler.buildFileManageListCommand",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_file_manage_test.go",
+          "selector": "TestBuildFileManageListCommand"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.file-manage-exec-error-detail",
+      "title": "Preserve exec stderr when file-manage listing fails",
+      "title_zh": "\u6587\u4ef6\u7ba1\u7406\u5217\u8868\u5931\u8d25\u65f6\u4fdd\u7559 exec \u7684 stderr \u7ec6\u8282",
+      "interface_type": "other",
+      "interface": "api/handler.wrapFileManageExecError",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_file_manage_test.go",
+          "selector": "TestWrapFileManageExecErrorIncludesStderr"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.share.image-from-snapshot-deploy-version",
       "title": "Share image snapshots using the requested deploy version",
       "title_zh": "\u955c\u50cf\u5206\u4eab\u4f7f\u7528\u8bf7\u6c42\u4e2d\u7684\u5feb\u7167\u90e8\u7f72\u7248\u672c",
@@ -4352,6 +4482,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-image.vm-build-host-taint-toleration",
+      "title": "Add broad toleration for host-scheduled VM build pods",
+      "title_zh": "\u4e3a\u7ed1\u5b9a\u4e3b\u673a\u7684 VM \u6784\u5efa Pod \u6dfb\u52a0\u901a\u914d\u5bb9\u5fcd",
+      "interface_type": "package_function",
+      "interface": "builder/sources.newBuildKitPodSpec",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestNewBuildKitPodSpecAddsTolerationForHostScheduling"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-repo.build-info",
       "title": "Build repository source metadata including stripped URL and build path",
       "title_zh": "\u6784\u5efa\u5305\u542b\u51c0\u5316\u5730\u5740\u4e0e\u6784\u5efa\u5b50\u76ee\u5f55\u7684\u4ed3\u5e93\u5143\u6570\u636e",
@@ -4364,42 +4512,6 @@
         {
           "path": "builder/sources/repo_test.go",
           "selector": "TestCreateRepostoryBuildInfo"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.source-repo.temp-build-info",
-      "title": "Create isolated temporary repository workspaces for source tasks",
-      "title_zh": "\u4e3a\u6e90\u7801\u4efb\u52a1\u521b\u5efa\u72ec\u7acb\u7684\u4e34\u65f6\u4ed3\u5e93\u5de5\u4f5c\u76ee\u5f55",
-      "interface_type": "workflow",
-      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
-      "code_paths": [
-        "builder/sources/repo.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/repo_test.go",
-          "selector": "TestCreateTempRepostoryBuildInfo"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.source-repo.temp-build-info-pkg",
-      "title": "Keep package build sources on their original path when creating temp workspace info",
-      "title_zh": "\u4e3a pkg \u6784\u5efa\u521b\u5efa\u4e34\u65f6\u5de5\u4f5c\u76ee\u5f55\u4fe1\u606f\u65f6\u4fdd\u6301\u539f\u59cb\u8def\u5f84",
-      "interface_type": "workflow",
-      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
-      "code_paths": [
-        "builder/sources/repo.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/repo_test.go",
-          "selector": "TestCreateTempRepostoryBuildInfoForPkg"
         }
       ],
       "test_type": "regression",
@@ -4536,6 +4648,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.temp-build-info",
+      "title": "Create isolated temporary repository workspaces for source tasks",
+      "title_zh": "\u4e3a\u6e90\u7801\u4efb\u52a1\u521b\u5efa\u72ec\u7acb\u7684\u4e34\u65f6\u4ed3\u5e93\u5de5\u4f5c\u76ee\u5f55",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfo"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-repo.temp-build-info-pkg",
+      "title": "Keep package build sources on their original path when creating temp workspace info",
+      "title_zh": "\u4e3a pkg \u6784\u5efa\u521b\u5efa\u4e34\u65f6\u5de5\u4f5c\u76ee\u5f55\u4fe1\u606f\u65f6\u4fdd\u6301\u539f\u59cb\u8def\u5f84",
+      "interface_type": "workflow",
+      "interface": "builder/sources.CreateTempRepostoryBuildInfo",
+      "code_paths": [
+        "builder/sources/repo.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/repo_test.go",
+          "selector": "TestCreateTempRepostoryBuildInfoForPkg"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-sftp.close-safe",
       "title": "Close zero-value SFTP clients safely",
       "title_zh": "\u5b89\u5168\u5173\u95ed\u96f6\u503c SFTP \u5ba2\u6237\u7aef",
@@ -4623,6 +4771,24 @@
         }
       ],
       "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.s3-lifecycle-skip-logs",
+      "title": "Suppress info logs when S3 lifecycle is already configured",
+      "title_zh": "S3 \u751f\u547d\u5468\u671f\u5df2\u914d\u7f6e\u65f6\u4e0d\u518d\u8f93\u51fa info \u65e5\u5fd7",
+      "interface_type": "package_function",
+      "interface": "pkg/component/storage.(*S3Storage).ensureBucketLifecycle",
+      "code_paths": [
+        "pkg/component/storage/s3_storage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/s3_storage_test.go",
+          "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {
@@ -6181,6 +6347,764 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-config-file-injected-as-configmap-volume",
+      "title": "Inject VM config-file volumes as guest-visible ConfigMap disks",
+      "title_zh": "\u5c06 VM \u914d\u7f6e\u6587\u4ef6\u5377\u6ce8\u5165\u4e3a guest \u53ef\u89c1\u7684 ConfigMap \u914d\u7f6e\u76d8",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ConfigFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/config-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-export.root-disk-url",
+      "title": "Create VMExport and expose root disk download URL",
+      "title_zh": "\u521b\u5efa VMExport \u5e76\u8fd4\u56de\u7cfb\u7edf\u76d8\u4e0b\u8f7d\u5730\u5740",
+      "interface_type": "handler_method",
+      "interface": "api/handler.VMExportHandler",
+      "code_paths": [
+        "api/handler/vm_export.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestCreateVMExport"
+        },
+        {
+          "path": "api/handler/vm_export_test.go",
+          "selector": "TestGetVMExport"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-hotplug.add-volume-conflict-retry",
+      "title": "Retry VM hotplug add volume on conflict",
+      "title_zh": "\u70ed\u6dfb\u52a0\u865a\u62df\u673a\u78c1\u76d8\u65f6\u5728\u51b2\u7a81\u540e\u91cd\u8bd5",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.hotplugVMDataDisk",
+      "code_paths": [
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestPerformVMHotplugAddVolumeRetriesConflicts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-hotplug.data-volume-capacity-gi",
+      "title": "Create VM hotplug DataVolumes with Gi capacity",
+      "title_zh": "\u4f7f\u7528 Gi \u5bb9\u91cf\u521b\u5efa\u865a\u62df\u673a\u70ed\u63d2\u6570\u636e\u5377",
+      "interface_type": "package_function",
+      "interface": "api/handler.buildVMHotplugDataVolumeObject",
+      "code_paths": [
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestBuildVMHotplugDataVolumeObjectUsesGiCapacity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-hotplug.remove-volume-running-vm",
+      "title": "Hot-unplug running VM data disks on delete",
+      "title_zh": "\u5220\u9664\u5b58\u50a8\u65f6\u70ed\u79fb\u9664\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u6570\u636e\u78c1\u76d8",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.VolumnVar",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_hotplug.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestHotunplugVMDataDiskRemovesVolumeFromRunningVM"
+        },
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC"
+        },
+        {
+          "path": "api/handler/service_vm_hotplug_test.go",
+          "selector": "TestVolumnVarDeleteHotunplugsRunningVMDataDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-import.registry-datavolume",
+      "title": "Import VM root disk from registry DataVolume",
+      "title_zh": "\u901a\u8fc7 registry DataVolume \u5bfc\u5165\u865a\u62df\u673a\u7cfb\u7edf\u76d8",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.BuildVMDataVolumeTemplate",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.capability-requires-installer-media-removal",
+      "title": "Block live update capability until installer media is removed",
+      "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVMLiveUpdateCapability",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.capability-requires-migration-target",
+      "title": "Block hot update capability when no migration target node is available",
+      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVMLiveUpdateCapability",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.cpu-memory-combined-rejected",
+      "title": "Reject combined CPU and memory live updates",
+      "title_zh": "\u62d2\u7edd\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u540c\u65f6\u70ed\u66f4\u65b0 CPU \u548c\u5185\u5b58",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.installer-media-removal-required",
+      "title": "Reject live update until installer media is removed",
+      "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u62d2\u7edd\u865a\u62df\u673a\u70ed\u66f4\u65b0",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsWhenInstallerMediaStillAttached"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.memory-target-below-max-guest",
+      "title": "Reject memory live update targets at maxGuest",
+      "title_zh": "\u62d2\u7edd\u7b49\u4e8e maxGuest \u7684\u865a\u62df\u673a\u5185\u5b58\u70ed\u66f4\u65b0\u76ee\u6807",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryAtMaxGuest"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.migration-target-missing-auto-restart",
+      "title": "Restart VM when no live migration target node is available",
+      "title_zh": "\u65e0\u53ef\u7528\u8fc1\u79fb\u76ee\u6807\u8282\u70b9\u65f6\u81ea\u52a8\u8c03\u6574\u89c4\u683c\u5e76\u91cd\u542f\u865a\u62df\u673a",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRestartsWhenNoMigrationTargetNode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.running-cpu-shrink-rejected",
+      "title": "Reject running VM CPU shrink during live update",
+      "title_zh": "Reject running VM CPU shrink during live update",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMCPUShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.running-memory-shrink-rejected",
+      "title": "Reject running VM memory shrink during live update",
+      "title_zh": "\u62d2\u7edd\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7684\u5185\u5b58\u70ed\u7f29\u5bb9",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.running-shrink-restart-allowed-before-event",
+      "title": "Allow running VM shrink requests to reach vertical scaling handler",
+      "title_zh": "\u8fd0\u884c\u4e2d\u865a\u62df\u673a\u7f29\u5bb9\u5141\u8bb8\u8fdb\u5165\u5782\u76f4\u4f38\u7f29\u6d41\u7a0b",
+      "interface_type": "other",
+      "interface": "api/middleware.WrapEL",
+      "code_paths": [
+        "api/middleware/middleware.go"
+      ],
+      "tests": [
+        {
+          "path": "api/middleware/middleware_test.go",
+          "selector": "TestWrapELAllowsRunningVMShrinkToReachHandler"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-live-update.unsupported-auto-restart",
+      "title": "Restart running VM when live update is unsupported",
+      "title_zh": "\u4e0d\u6ee1\u8db3\u70ed\u66f4\u65b0\u6761\u4ef6\u65f6\u81ea\u52a8\u8c03\u6574\u89c4\u683c\u5e76\u91cd\u542f\u865a\u62df\u673a",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.applyVMLiveUpdateIfPossible",
+      "code_paths": [
+        "api/handler/service_vm_live_update.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart"
+        },
+        {
+          "path": "api/handler/service_vm_live_update_test.go",
+          "selector": "TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
+      "title": "Cleanup completed virt-launcher pods after VM hot update",
+      "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetPods",
+      "code_paths": [
+        "api/handler/service_vm_pod_cleanup.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_pod_cleanup_test.go",
+          "selector": "TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.direct-ops-event-close",
+      "title": "Close direct VM power operation events after synchronous KubeVirt actions",
+      "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
+      "interface_type": "workflow",
+      "interface": "api/handler direct VM power operations",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMMarksDirectStartEventSuccess"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMMarksDirectStartEventFailure"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestRestartVMMarksDirectRestartEventSuccess"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStopVMMarksDirectStopEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.start-existing-or-create",
+      "title": "Start existing stopped VM before falling back to worker create flow",
+      "title_zh": "\u4f18\u5148\u542f\u52a8\u5df2\u5b58\u5728\u4e14\u5df2\u505c\u6b62\u7684\u865a\u62df\u673a\uff0c\u5426\u5219\u56de\u9000\u5230 worker \u521b\u5efa\u6d41\u7a0b",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.StartOrCreateVM",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingStoppedVM"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.stop-restoring-fallback",
+      "title": "Fallback to halt transient VM when direct stop fails",
+      "title_zh": "Fallback to halt transient VM when direct stop fails",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.StopVM",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-probe-attribute-syncs-spec",
+      "title": "VM probe attributes trigger VirtualMachine spec sync",
+      "title_zh": "VM probe attributes trigger VirtualMachine spec sync",
+      "interface_type": "package_function",
+      "interface": "api/handler.isVMRuntimeSpecAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestIsVMRuntimeSpecAttributeIncludesProbeAttributes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-probe-change-syncs-spec",
+      "title": "VM probe changes sync VirtualMachine spec",
+      "title_zh": "VM probe changes sync VirtualMachine spec",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.ServiceProbe",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_resource_sync_test.go",
+          "selector": "TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-publish.http-artifact-image-build",
+      "title": "Build VM publish image from exported disk as HTTP artifact",
+      "title_zh": "\u5c06\u5bfc\u51fa\u7684\u865a\u62df\u673a\u78c1\u76d8\u6784\u5efa\u4e3a HTTP \u5236\u54c1\u955c\u50cf",
+      "interface_type": "workflow",
+      "interface": "builder/exector.BuildFromVM",
+      "code_paths": [
+        "api/handler/share/service_share.go",
+        "builder/exector/build_from_vm.go",
+        "builder/sources/image.go",
+        "builder/sourceutil/remote_http_client.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/share/service_share_test.go",
+          "selector": "TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileUsesVMExportTokenHeader"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestDownloadFileOverwritesExistingPartialFile"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestVMRemoteImageSourceDirUsesEventID"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestMyDownloaderLogsUnknownSizeProgress"
+        },
+        {
+          "path": "builder/exector/share_image_test.go",
+          "selector": "TestNewImageShareItemCapturesVMImageSource"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildKitImageOutputUsesUncompressedLayersForVMBuild"
+        },
+        {
+          "path": "builder/sourceutil/remote_http_client_test.go",
+          "selector": "TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-publish.stage-timing-logs",
+      "title": "Trace VM publish stage timing logs",
+      "title_zh": "Trace VM publish stage timing logs",
+      "interface_type": "workflow",
+      "interface": "builder/exector.VMBuildItem.RunVMBuild",
+      "code_paths": [
+        "builder/exector/build_from_vm.go",
+        "builder/exector/share_image.go",
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRecordVMBuildStageLogsSuccess"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRecordVMBuildStageLogsError"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestRecordImageBuildStageLogsFields"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestRecordImageBuildStageLogsError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.build-media-paths",
+      "title": "Split VM runtime image build templates for ISO and disk sources",
+      "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
+      "interface_type": "package_function",
+      "interface": "builder/exector.renderVMDockerfile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestResolveVMBuildMediaDistinguishesISOAndDiskImages"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.local-package-storage-download",
+      "title": "VM local package source falls back to storage download",
+      "title_zh": "vm-run \u672c\u5730\u5305\u6e90\u5728\u76ee\u5f55\u7f3a\u5931\u65f6\u56de\u9000 storage \u4e0b\u8f7d",
+      "interface_type": "package_function",
+      "interface": "builder/sourceutil.ReadLocalPackageDir",
+      "code_paths": [
+        "builder/sourceutil/local_package.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/local_package_test.go",
+          "selector": "TestReadLocalPackageDirFallsBackToStorageDownload"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.remote-package-probe",
+      "title": "VM remote package probe prefers HEAD",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
+      "interface_type": "other",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_test.go",
+          "selector": "TestVMServiceParseRemoteURLPrefersHeadProbe"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.remote-package-probe-range-fallback",
+      "title": "VM remote package probe falls back to range GET",
+      "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u5728 HEAD \u5931\u8d25\u65f6\u56de\u9000 Range GET",
+      "interface_type": "other",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_test.go",
+          "selector": "TestVMServiceParseRemoteURLFallsBackToRangeGet"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime-spec-sync-conflict-retry",
+      "title": "Retry VM spec sync when KubeVirt update conflicts",
+      "title_zh": "Retry VM spec sync when KubeVirt update conflicts",
+      "interface_type": "handler_method",
+      "interface": "github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestSyncVirtualMachineSpecRetriesOnConflict"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync",
+      "title": "Treat vm_disk_layout as a VM spec sync attribute",
+      "title_zh": "\u5c06 vm_disk_layout \u89c6\u4e3a\u89e6\u53d1 VM \u89c4\u683c\u540c\u6b65\u7684\u5c5e\u6027",
+      "interface_type": "package_function",
+      "interface": "api/handler.isVMRuntimeSpecAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_vm_runtime_test.go",
+          "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-template-import.restore-progress",
+      "title": "Expose VM template import restore progress",
+      "title_zh": "Expose VM template import restore progress",
+      "interface_type": "package_function",
+      "interface": "api/handler.resolveVMDataVolumeRestoreStatus",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/model/model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMRestoreStatusIncludesDataVolumeProgress"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-template-import.status-restoring",
+      "title": "VM restore status is limited to artifact imports",
+      "title_zh": "VM restore status is limited to artifact imports",
+      "interface_type": "package_function",
+      "interface": "api/handler.resolveVMServiceRuntimeStatus",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume"
+        },
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-volume-selected-storage-class",
+      "title": "Preserve selected storage class for VM data volumes",
+      "title_zh": "\u4e3a VM \u6570\u636e\u5377\u4fdd\u7559\u6240\u9009\u5b58\u50a8\u7c7b",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ShareFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/share-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestNewVolumeManagerUsesSelectedStorageClassForVMDisks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-volume-vm-file-backward-compatible",
+      "title": "Keep local-path fallback for legacy vm-file VM volumes",
+      "title_zh": "\u65e7\u7248 vm-file \u865a\u673a\u5377\u7ee7\u7eed\u56de\u9000\u5230 local-path",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ShareFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/share-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-volume.allow-shared-device-paths",
+      "title": "Allow VM services to reuse device paths across volumes",
+      "title_zh": "\u5141\u8bb8 VM \u670d\u52a1\u5728\u4e0d\u540c\u6570\u636e\u5377\u95f4\u590d\u7528\u8bbe\u5907\u8def\u5f84",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_volume_vm_test.go",
+          "selector": "TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.volume.keep-non-vm-path-uniqueness",
+      "title": "Keep duplicate path checks for non-VM service volumes",
+      "title_zh": "\u4fdd\u6301\u975e VM \u670d\u52a1\u5377\u8def\u5f84\u552f\u4e00\u6027\u6821\u9a8c",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_volume_vm_test.go",
+          "selector": "TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.watch.error-dispatch",
       "title": "Dispatch watch backend errors onto the internal error channel",
       "title_zh": "\u5c06 watch \u540e\u7aef\u9519\u8bef\u5206\u53d1\u5230\u5185\u90e8\u9519\u8bef\u901a\u9053",
@@ -6523,27 +7447,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
-      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
-      "interface_type": "package_function",
-      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
-      "code_paths": [
-        "worker/appm/conversion/gateway.go"
-      ],
-      "tests": [
-        {
-          "path": "worker/appm/conversion/gateway_test.go",
-          "selector": "TestReassignAllocatedNodePort"
-        },
-        {
-          "path": "worker/appm/conversion/gateway_test.go",
-          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.worker.appm.discovery.etcd-config",
       "title": "Configure appm etcd discovery and guard fetch without client",
       "title_zh": "\u914d\u7f6e appm \u7684 etcd \u53d1\u73b0\u5668\u5e76\u5728\u65e0\u5ba2\u6237\u7aef\u65f6\u4fdd\u62a4\u6293\u53d6\u903b\u8f91",
@@ -6574,6 +7477,49 @@
         {
           "path": "worker/appm/thirdparty/discovery/discovery_unit_test.go",
           "selector": "TestNewDiscoverierUnsupportedType"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.gateway.reassign-conflicting-nodeport",
+      "title": "Reassign worker TCP NodePorts already allocated in Kubernetes",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.reassignAllocatedNodePort",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePort"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestReassignAllocatedNodePortKeepsCurrentServicePort"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy",
+      "title": "Use Local externalTrafficPolicy for VM worker NodePort services",
+      "title_zh": "Use Local externalTrafficPolicy for VM worker NodePort services",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.outerServiceExternalTrafficPolicy",
+      "code_paths": [
+        "worker/appm/conversion/gateway.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestOuterServiceExternalTrafficPolicyForVM"
+        },
+        {
+          "path": "worker/appm/conversion/gateway_test.go",
+          "selector": "TestOuterServiceExternalTrafficPolicyForNonVM"
         }
       ],
       "test_type": "regression",
@@ -6628,6 +7574,78 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestNsEventHandlerProvidesAddFunc"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-boot-media-paths",
+      "title": "Separate ISO and QCOW2 VM boot media assembly paths",
+      "title_zh": "\u62c6\u5206 ISO \u4e0e QCOW2 \u7684 VM \u542f\u52a8\u4ecb\u8d28\u7ec4\u88c5\u8def\u5f84",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.TenantServiceVersion",
+      "code_paths": [
+        "worker/appm/conversion/version.go",
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-container-disk-cdrom",
+      "title": "VM container disk CD-ROM media",
+      "title_zh": "VM container disk CD-ROM media",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.appendVMContainerDiskCDROMs",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestBuildVMDiskLayoutKeepsContainerDiskImage"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.vm-memory-hotplug-headroom",
+      "title": "Default VM memory hotplug headroom",
+      "title_zh": "\u9ed8\u8ba4\u865a\u62df\u673a\u5185\u5b58\u70ed\u63d2\u62d4\u4e0a\u9650\u9884\u7559",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.buildStandardVMMemory",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemorySetsGuestAndMaxGuest"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor"
         }
       ],
       "test_type": "regression",
@@ -7103,12 +8121,17 @@
       "interface_type": "workflow",
       "interface": "worker/util.TransStorageClass2RBDVolumeType",
       "code_paths": [
-        "worker/util/volumetype.go"
+        "worker/util/volumetype.go",
+        "db/mysql/dao/volume_type.go"
       ],
       "tests": [
         {
           "path": "worker/util/volumetype_test.go",
           "selector": "TestTransStorageClass2RBDVolumeType"
+        },
+        {
+          "path": "db/mysql/dao/volume_type_test.go",
+          "selector": "TestShouldBackfillStorageClassAccessMode"
         }
       ],
       "test_type": "regression",

@@ -18,9 +18,7 @@
 
 package compose
 
-import (
-	"github.com/docker/libcompose/yaml"
-)
+type MemStringorInt int64
 
 // ComposeObject holds the generic struct of Kompose transformation
 type ComposeObject struct {
@@ -96,8 +94,8 @@ type ServiceConfig struct {
 	ExposeServiceTLS string              `compose:"kompose.service.expose.tls-secret"`
 	Stdin            bool                `compose:"stdin_open"`
 	Tty              bool                `compose:"tty"`
-	MemLimit         yaml.MemStringorInt `compose:"mem_limit"`
-	MemReservation   yaml.MemStringorInt `compose:""`
+	MemLimit         MemStringorInt `compose:"mem_limit"`
+	MemReservation   MemStringorInt `compose:""`
 	DeployMode       string              `compose:""`
 	TmpFs            []string            `compose:"tmpfs"`
 	Dockerfile       string              `compose:"dockerfile"`

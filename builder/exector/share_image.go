@@ -28,6 +28,8 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
+	"time"
 )
 
 // ImageShareItem ImageShareItem
@@ -36,31 +38,39 @@ type ImageShareItem struct {
 	TenantName         string `json:"tenant_name"`
 	ServiceID          string `json:"service_id"`
 	ServiceAlias       string `json:"service_alias"`
+	Arch               string `json:"arch"`
 	ImageName          string `json:"image_name"`
 	LocalImageName     string `json:"local_image_name"`
 	LocalImageUsername string `json:"-"`
 	LocalImagePassword string `json:"-"`
 	ShareID            string `json:"share_id"`
+	BuildKitImage      string
+	BuildKitArgs       []string
+	BuildKitCache      bool
+	kubeClient         kubernetes.Interface
 	Logger             event.Logger
 	ShareInfo          struct {
-		ServiceKey string `json:"service_key" `
-		AppVersion string `json:"app_version" `
-		EventID    string `json:"event_id"`
-		ShareUser  string `json:"share_user"`
-		ShareScope string `json:"share_scope"`
-		ImageInfo  struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty"`
+		ServiceKey    string `json:"service_key" `
+		AppVersion    string `json:"app_version" `
+		DeployVersion string `json:"deploy_version,omitempty"`
+		EventID       string `json:"event_id"`
+		ShareUser     string `json:"share_user"`
+		ShareScope    string `json:"share_scope"`
+		ImageInfo     struct {
+			HubURL        string `json:"hub_url"`
+			HubUser       string `json:"hub_user"`
+			HubPassword   string `json:"hub_password"`
+			Namespace     string `json:"namespace"`
+			IsTrust       bool   `json:"is_trust,omitempty"`
+			VMImageSource string `json:"vm_image_source,omitempty"`
+			VMImageToken  string `json:"vm_image_token,omitempty"`
 		} `json:"image_info,omitempty"`
 	} `json:"share_info"`
 	ImageClient sources.ImageClient
 }
 
 // NewImageShareItem 创建实体
-func NewImageShareItem(in []byte, imageClient sources.ImageClient) (*ImageShareItem, error) {
+func NewImageShareItem(in []byte, imageClient sources.ImageClient, kubeClient kubernetes.Interface, buildKitImage string, buildKitArgs []string, buildKitCache bool) (*ImageShareItem, error) {
 	var isi ImageShareItem
 	if err := ffjson.Unmarshal(in, &isi); err != nil {
 		return nil, err
@@ -68,31 +78,112 @@ func NewImageShareItem(in []byte, imageClient sources.ImageClient) (*ImageShareI
 	isi.LocalImageUsername = builder.REGISTRYUSER
 	isi.LocalImagePassword = builder.REGISTRYPASS
 	eventID := isi.ShareInfo.EventID
-	isi.Logger = event.GetManager().GetLogger(eventID)
+	if manager := event.GetManager(); manager != nil {
+		isi.Logger = manager.GetLogger(eventID)
+	} else {
+		isi.Logger = event.NewLogger(eventID, nil)
+	}
 	isi.ImageClient = imageClient
+	isi.kubeClient = kubeClient
+	isi.BuildKitImage = buildKitImage
+	isi.BuildKitArgs = buildKitArgs
+	isi.BuildKitCache = buildKitCache
 	return &isi, nil
+}
+
+func (i *ImageShareItem) prepareVMLocalImage() error {
+	if i.ShareInfo.ImageInfo.VMImageSource == "" {
+		return nil
+	}
+	buildVersion := resolveVMLocalBuildVersion(i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	localBuildImage := resolveVMLocalBuildImage(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	localImageName := resolveVMShareLocalImageName(i.ServiceID, i.ShareInfo.DeployVersion, i.ShareInfo.AppVersion)
+	if _, err := i.ImageClient.GetImageMetadata(localImageName, i.LocalImageUsername, i.LocalImagePassword, i.Logger); err == nil {
+		i.LocalImageName = localImageName
+		i.Logger.Info("reuse existing vm local image from registry", map[string]string{"step": "builder-exector"})
+		return nil
+	}
+	buildItem := &VMBuildItem{
+		Logger:        i.Logger,
+		Arch:          i.Arch,
+		VMImageSource: i.ShareInfo.ImageInfo.VMImageSource,
+		VMImageToken:  i.ShareInfo.ImageInfo.VMImageToken,
+		ImageClient:   i.ImageClient,
+		ServiceID:     i.ServiceID,
+		DeployVersion: buildVersion,
+		Image:         localBuildImage,
+		BuildKitImage: i.BuildKitImage,
+		BuildKitArgs:  i.BuildKitArgs,
+		BuildKitCache: i.BuildKitCache,
+		Action:        "",
+		EventID:       i.ShareInfo.EventID,
+		TenantID:      "",
+		kubeClient:    i.kubeClient,
+	}
+	if err := buildItem.RunVMBuild(); err != nil {
+		return err
+	}
+	i.LocalImageName = localImageName
+	return nil
+}
+
+func resolveVMLocalBuildVersion(deployVersion, fallback string) string {
+	if deployVersion != "" {
+		return deployVersion
+	}
+	return fallback
+}
+
+func resolveVMLocalBuildImage(serviceID, deployVersion, fallback string) string {
+	return fmt.Sprintf("%s:%s", serviceID, resolveVMLocalBuildVersion(deployVersion, fallback))
+}
+
+func resolveVMShareLocalImageName(serviceID, deployVersion, fallback string) string {
+	return fmt.Sprintf("%s/%s", builder.REGISTRYDOMAIN, resolveVMLocalBuildImage(serviceID, deployVersion, fallback))
 }
 
 // ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
+	if err := i.prepareVMLocalImage(); err != nil {
+		return err
+	}
+	metadata := map[string]interface{}{
+		"service_id":      i.ServiceID,
+		"event_id":        i.ShareInfo.EventID,
+		"local_image":     i.LocalImageName,
+		"target_image":    i.ImageName,
+		"share_id":        i.ShareID,
+		"deploy_version":  i.ShareInfo.DeployVersion,
+		"share_scope":     i.ShareInfo.ShareScope,
+		"share_user":      i.ShareInfo.ShareUser,
+		"vm_image_source": i.ShareInfo.ImageInfo.VMImageSource,
+	}
+	if i.LocalImageName == i.ImageName {
+		i.Logger.Info("skip share image pull/tag/push because local image matches target image", map[string]string{"step": "builder-exector"})
+		return nil
+	}
 	hubuser, hubpass := builder.GetImageUserInfoV2(i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword)
+	pullStarted := time.Now()
 	_, err := i.ImageClient.ImagePull(i.LocalImageName, hubuser, hubpass, i.Logger, 20)
-	if err != nil {
+	if err = recordVMBuildStage(i.Logger, "share_image_pull", pullStarted, err, metadata); err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(util.Translation("Pull image failed, please check if the image is accessible"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	if err := i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1); err != nil {
+	tagStarted := time.Now()
+	if err := recordVMBuildStage(i.Logger, "share_image_tag", tagStarted, i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1), metadata); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
 		i.Logger.Error(util.Translation("Tag image failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	user, pass := builder.GetImageUserInfoV2(i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword)
+	pushStarted := time.Now()
 	if i.ShareInfo.ImageInfo.IsTrust {
 		err = i.ImageClient.TrustedImagePush(i.ImageName, user, pass, i.Logger, 30)
 	} else {
 		err = i.ImageClient.ImagePush(i.ImageName, user, pass, i.Logger, 30)
 	}
+	err = recordVMBuildStage(i.Logger, "share_image_push", pushStarted, err, metadata)
 	if err != nil {
 		if err.Error() == "authentication required" {
 			i.Logger.Error(util.Translation("Image registry authentication failed"), map[string]string{"step": "builder-exector", "status": "failure"})

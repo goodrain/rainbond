@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/cri-api/pkg/apis/runtime/v1"
-	"k8s.io/kubernetes/pkg/kubelet/util"
 	"time"
 )
 
@@ -28,7 +27,7 @@ func getConnection(endPoints []string, timeout time.Duration) (*grpc.ClientConn,
 	var conn *grpc.ClientConn
 	for indx, endPoint := range endPoints {
 		logrus.Debugf("connect using endpoint '%s' with '%s' timeout", endPoint, timeout)
-		addr, dialer, err := util.GetAddressAndDialer(endPoint)
+		addr, dialer, err := getAddressAndDialer(endPoint)
 		if err != nil {
 			if indx == endPointsLen-1 {
 				return nil, err

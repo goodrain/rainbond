@@ -270,7 +270,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 			return
 		case logLine := <-logChan:
 			msg := "data: " + logLine + "\n\n"
-			_, err := fmt.Fprintf(w, msg)
+			_, err := fmt.Fprint(w, msg)
 			flusher.Flush()
 			if err != nil {
 				logrus.Errorf("Error writing to response: %v", err)
@@ -310,7 +310,7 @@ func streamContainerLogs(
 			return
 		default:
 			msg := "data: " + scanner.Text() + "\n\n"
-			_, err := fmt.Fprintf(w, msg)
+			_, err := fmt.Fprint(w, msg)
 			flusher.Flush()
 			if err != nil {
 				logrus.Errorf("Error writing to response: %v", err)

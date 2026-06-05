@@ -66,31 +66,38 @@ func NewVolumeManager(as *v1.AppService,
 		logrus.Warn("unknown volume Type, can't create volume")
 		return nil
 	}
-	switch volumeType {
-	case dbmodel.ShareFileVolumeType.String():
+	if serviceVolume != nil && as.GetVirtualMachine() != nil &&
+		volumeType != dbmodel.ConfigFileVolumeType.String() &&
+		volumeType != dbmodel.MemoryFSVolumeType.String() &&
+		volumeType != dbmodel.LocalVolumeType.String() {
 		v = new(ShareFileVolume)
-		css := as.SharedStorageClass
-		if css != "" {
-			v = new(OtherVolume)
-		}
-	case dbmodel.ConfigFileVolumeType.String():
-		v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
-	case dbmodel.VMVolumeType.String():
-		v = new(ShareFileVolume)
-	case dbmodel.MemoryFSVolumeType.String():
-		v = new(MemoryFSVolume)
-	case dbmodel.LocalVolumeType.String():
-		v = new(LocalVolume)
-	case dbmodel.PluginStorageType.String():
-		v = new(PluginStorageVolume)
-	case dbmodel.VolcengineType.String():
-		v = new(VolcengineVolume)
-	default:
-		logrus.Warnf("other volume type[%s]", volumeType)
-		if serviceMountR != nil {
+	} else {
+		switch volumeType {
+		case dbmodel.ShareFileVolumeType.String():
 			v = new(ShareFileVolume)
-		} else {
-			v = new(OtherVolume)
+			css := as.SharedStorageClass
+			if css != "" {
+				v = new(OtherVolume)
+			}
+		case dbmodel.ConfigFileVolumeType.String():
+			v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
+		case dbmodel.VMVolumeType.String():
+			v = new(ShareFileVolume)
+		case dbmodel.MemoryFSVolumeType.String():
+			v = new(MemoryFSVolume)
+		case dbmodel.LocalVolumeType.String():
+			v = new(LocalVolume)
+		case dbmodel.PluginStorageType.String():
+			v = new(PluginStorageVolume)
+		case dbmodel.VolcengineType.String():
+			v = new(VolcengineVolume)
+		default:
+			logrus.Warnf("other volume type[%s]", volumeType)
+			if serviceMountR != nil {
+				v = new(ShareFileVolume)
+			} else {
+				v = new(OtherVolume)
+			}
 		}
 	}
 	if tsmr && volumeType != dbmodel.ConfigFileVolumeType.String() {
@@ -138,7 +145,7 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode, storageClassName)},
 			StorageClassName: &storageClassName,
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resourceStorage,
 				},
@@ -176,6 +183,26 @@ type Define struct {
 	volumes      []corev1.Volume
 	vmVolume     []kubevirtv1.Volume
 	vmDisk       []kubevirtv1.Disk
+	vmDVTemplate []kubevirtv1.DataVolumeTemplateSpec
+	vmDiskMeta   map[string]VMDiskMeta
+	vmGuestFiles []VMGuestFile
+}
+
+type VMDiskMeta struct {
+	DiskName   string
+	DiskKey    string
+	DeviceType string
+	SourceKind string
+	VolumePath string
+	VolumeName string
+}
+
+type VMGuestFile struct {
+	VolumeName  string
+	VolumeLabel string
+	SourceFile  string
+	TargetPath  string
+	Mode        string
 }
 
 // GetVolumes get define volumes
@@ -191,6 +218,53 @@ func (v *Define) GetVMVolume() []kubevirtv1.Volume {
 // GetVMDisk get define vm devices
 func (v *Define) GetVMDisk() []kubevirtv1.Disk {
 	return v.vmDisk
+}
+
+// GetVMDataVolumeTemplates get vm data volume templates.
+func (v *Define) GetVMDataVolumeTemplates() []kubevirtv1.DataVolumeTemplateSpec {
+	return v.vmDVTemplate
+}
+
+// GetVMDiskMeta returns VM disk metadata keyed by logical disk key.
+func (v *Define) GetVMDiskMeta() map[string]VMDiskMeta {
+	if len(v.vmDiskMeta) == 0 {
+		return map[string]VMDiskMeta{}
+	}
+	meta := make(map[string]VMDiskMeta, len(v.vmDiskMeta))
+	for key, value := range v.vmDiskMeta {
+		meta[key] = value
+	}
+	return meta
+}
+
+func (v *Define) GetVMGuestFiles() []VMGuestFile {
+	if len(v.vmGuestFiles) == 0 {
+		return nil
+	}
+	files := make([]VMGuestFile, len(v.vmGuestFiles))
+	copy(files, v.vmGuestFiles)
+	return files
+}
+
+// SetVMDiskMeta records the logical mapping for a VM disk.
+func (v *Define) SetVMDiskMeta(meta VMDiskMeta) {
+	if meta.DiskKey == "" {
+		return
+	}
+	if v.vmDiskMeta == nil {
+		v.vmDiskMeta = make(map[string]VMDiskMeta)
+	}
+	v.vmDiskMeta[meta.DiskKey] = meta
+}
+
+func (v *Define) AddVMGuestFile(file VMGuestFile) {
+	if strings.TrimSpace(file.VolumeLabel) == "" || strings.TrimSpace(file.SourceFile) == "" || strings.TrimSpace(file.TargetPath) == "" {
+		return
+	}
+	if strings.TrimSpace(file.Mode) == "" {
+		file.Mode = "0644"
+	}
+	v.vmGuestFiles = append(v.vmGuestFiles, file)
 }
 
 // GetVolumeMounts get define volume mounts

@@ -49,6 +49,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
 )
@@ -143,6 +144,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			return fmt.Errorf("get volumeclaimtemplate failure: %v", err)
 		}
 	}
+	if as.GetVirtualMachine() != nil {
+		if err := hydrateVMRuntimeExtensionSet(as, dbmanager); err != nil {
+			return fmt.Errorf("hydrate vm runtime extension set failure: %v", err)
+		}
+	}
 	annotations, err := createPodAnnotations(as, dbmanager)
 	if err != nil {
 		return fmt.Errorf("get annotation failure: %v", err)
@@ -158,39 +164,97 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	var terminationGracePeriodSeconds int64 = 10
 	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
 	podtmpSpec := corev1.PodTemplateSpec{}
+	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
-		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
-		network := []kubevirtv1.Network{
-			{
-				Name: "default",
-				NetworkSource: kubevirtv1.NetworkSource{
-					Pod: &kubevirtv1.PodNetwork{},
-				},
-			},
+		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles())
+		if err != nil {
+			return fmt.Errorf("create vm runtime config failure: %v", err)
 		}
+		for _, configMap := range vmRuntime.ConfigMaps {
+			as.SetConfigMap(configMap)
+		}
+		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
+		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
 		volumes := dv.GetVMVolume()
-		volumes = append([]kubevirtv1.Volume{
-			{
-				Name: "vmimage",
-				VolumeSource: kubevirtv1.VolumeSource{
-					ContainerDisk: &kubevirtv1.ContainerDiskSource{
-						Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
-						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
-					},
-				},
-			},
-		}, volumes...)
+		var rootBlankDataVolumeName string
+		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName = prepareVMImageBootVolumes(
+			bootPath,
+			fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
+			volumes,
+			vmDataVolumeTemplates,
+		)
+		logrus.Infof(
+			"vm template assemble flags: service_id=%s service_alias=%s initial_disks=%s initial_volumes=%s data_volume_templates=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			summarizeVMDisks(dv.GetVMDisk()),
+			summarizeVMVolumes(dv.GetVMVolume()),
+			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
+		)
+		volumes = append(volumes, vmRuntime.Volumes...)
 		disks := dv.GetVMDisk()
-		bootOrder := uint(len(disks) + 1)
-		disks = append(disks, []kubevirtv1.Disk{{
-			BootOrder: &bootOrder,
-			DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{
-				Bus: kubevirtv1.DiskBusSATA,
-			}},
-			Name: "vmimage",
-		}}...)
+		disks = prepareVMImageBootDisks(bootPath, disks, rootBlankDataVolumeName)
+		disks = append(disks, vmRuntime.Disks...)
+		layout, err := buildVMDiskLayout(as.ExtensionSet)
+		if err != nil {
+			return fmt.Errorf("create vm disk layout failure: %v", err)
+		}
+		volumes, disks = appendVMContainerDiskCDROMs(volumes, disks, layout)
+		switch bootPath {
+		case vmBootPathISOInstaller:
+			disks = appendISOInstallerDisk(disks, nil)
+		case vmBootPathVMImageRootDisk:
+			disks = appendVMImageRootDisk(disks, nil)
+		}
+		layoutDisks, err := applyVMDiskLayout(as.ExtensionSet, disks, dv.GetVMDiskMeta(), bootPath)
+		if err != nil {
+			return fmt.Errorf("create vm disk layout failure: %v", err)
+		}
+		disks = layoutDisks
+		layoutVolumes, err := applyVMBootVolumeLayout(as.ExtensionSet, volumes, bootPath)
+		if err != nil {
+			return fmt.Errorf("create vm volume layout failure: %v", err)
+		}
+		volumes = layoutVolumes
+		vmDataVolumeTemplates = filterReferencedVMDataVolumeTemplates(vmDataVolumeTemplates, volumes)
+		logrus.Infof(
+			"vm template assemble result: service_id=%s service_alias=%s final_disks=%s final_volumes=%s final_data_volume_templates=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			summarizeVMDisks(disks),
+			summarizeVMVolumes(volumes),
+			summarizeVMDataVolumeTemplates(vmDataVolumeTemplates),
+		)
 
 		reource := createVMResources(as)
+		readinessProbe, livenessProbe := selectVMProbes(func(mode string) *kubevirtv1.Probe {
+			return createVMProbe(as, dbmanager, mode)
+		})
+		standardVMCPU := buildStandardVMCPU(as.ContainerCPU, as.ExtensionSet[vmOSNameKey])
+		standardVMMemory := buildStandardVMMemory(as.ContainerMemory)
+		domainSpec := kubevirtv1.DomainSpec{
+			Resources: reource,
+			CPU:       standardVMCPU,
+			Memory:    standardVMMemory,
+			Machine:   &kubevirtv1.Machine{Type: "q35"},
+			Devices: kubevirtv1.Devices{
+				Disks:       disks,
+				Interfaces:  vmRuntime.Interfaces,
+				GPUs:        vmRuntime.GPUs,
+				HostDevices: vmRuntime.HostDevices,
+			},
+		}
+		applyVMBootModeForPath(&domainSpec, as.ExtensionSet, bootPath)
+		logrus.Infof(
+			"vm template resolved: service_id=%s service_alias=%s boot_path=%s boot_mode=%s disks=%s volumes=%s",
+			as.ServiceID,
+			as.ServiceAlias,
+			bootPath,
+			strings.TrimSpace(as.ExtensionSet["vm_boot_mode"]),
+			summarizeVMDisks(domainSpec.Devices.Disks),
+			summarizeVMVolumes(volumes),
+		)
+
 		vmt = kubevirtv1.VirtualMachineInstanceTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        as.GetK8sWorkloadName() + "-vmi-spec",
@@ -198,31 +262,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				Annotations: annotations,
 			},
 			Spec: kubevirtv1.VirtualMachineInstanceSpec{
-				Domain: kubevirtv1.DomainSpec{
-					Resources: reource,
-					CPU: &kubevirtv1.CPU{
-						Cores: uint32(as.ContainerCPU / 1000),
-					},
-					Memory: &kubevirtv1.Memory{
-						Guest: resource.NewScaledQuantity(int64(as.ContainerMemory), resource.Mega),
-					},
-					Machine: &kubevirtv1.Machine{Type: "q35"},
-					Devices: kubevirtv1.Devices{
-						Disks: disks,
-						Interfaces: []kubevirtv1.Interface{
-							{
-								Name:  "default",
-								Model: "virtio",
-								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-									Masquerade: &kubevirtv1.InterfaceMasquerade{},
-								},
-							},
-						},
-					},
-				},
+				Domain:         domainSpec,
 				NodeSelector:   nodeSelector,
-				ReadinessProbe: createVMProbe(as, dbmanager, "liveness"),
-				LivenessProbe:  createVMProbe(as, dbmanager, "readiness"),
+				ReadinessProbe: readinessProbe,
+				LivenessProbe:  livenessProbe,
 				Affinity:       affinity,
 				SchedulerName: func() string {
 					if name, ok := as.ExtensionSet["shcedulername"]; ok {
@@ -239,7 +282,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 					}
 					return ""
 				}(),
-				Networks:  network,
+				Networks:  vmRuntime.Networks,
 				DNSPolicy: corev1.DNSPolicy(dnsPolicy),
 			},
 		}
@@ -336,6 +379,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 
 	//set to deployment or statefulset job or cronjob
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
+	if vm := as.GetVirtualMachine(); vm != nil {
+		vm.Spec.DataVolumeTemplates = vmDataVolumeTemplates
+		if manifests := buildVMArtifactImportManifests(as.GetNamespace(), vmDataVolumeTemplates); len(manifests) > 0 {
+			as.SetManifests(append(as.GetManifests(), manifests...))
+		}
+	}
 	return nil
 }
 
@@ -1000,9 +1049,9 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
 	if mode == "liveness" {
 		probe := new(corev1.Probe)
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			err := yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1011,9 +1060,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 		}
 	} else {
 		probe := new(corev1.Probe)
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			err := yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1082,10 +1131,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 
 func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevirtv1.Probe {
 	if mode == "liveness" {
-		var probe *kubevirtv1.Probe
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			probe, err := decodeVMProbeYAML([]byte(probeAttribute.AttributeValue))
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1093,10 +1141,9 @@ func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevi
 			return probe
 		}
 	} else {
-		var probe *kubevirtv1.Probe
-		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		probeAttribute, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
-			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			probe, err := decodeVMProbeYAML([]byte(probeAttribute.AttributeValue))
 			if err != nil {
 				logrus.Errorf("create vm probe failure: %v", err)
 				return nil
@@ -1162,6 +1209,21 @@ func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevi
 	}
 	//TODO:create default probe
 	return nil
+}
+
+func decodeVMProbeYAML(raw []byte) (*kubevirtv1.Probe, error) {
+	probe := new(kubevirtv1.Probe)
+	if err := yaml.Unmarshal(raw, probe); err != nil {
+		return nil, err
+	}
+	return probe, nil
+}
+
+func selectVMProbes(build func(mode string) *kubevirtv1.Probe) (readiness, liveness *kubevirtv1.Probe) {
+	if build == nil {
+		return nil, nil
+	}
+	return build("readiness"), build("liveness")
 }
 
 func createNodeSelector(as *v1.AppService, dbmanager db.Manager) (map[string]string, error) {
@@ -1327,9 +1389,12 @@ func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]s
 	if as.Replicas <= 1 {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
-	if as.Replicas == 1 && as.ExtensionSet["pod_ip"] != "" {
-		logrus.Infof("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, as.ExtensionSet["pod_ip"])
-		annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", as.ExtensionSet["pod_ip"])
+	if as.Replicas == 1 {
+		podIP := strings.TrimSpace(as.ExtensionSet["pod_ip"])
+		if podIP != "" {
+			logrus.Debugf("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, podIP)
+			annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", podIP)
+		}
 	}
 	return annotations, nil
 }
@@ -1343,6 +1408,574 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{
 		{Name: imagePullSecretName},
 	}
+}
+
+func buildVMArtifactImportManifests(namespace string, templates []kubevirtv1.DataVolumeTemplateSpec) []*unstructured.Unstructured {
+	var manifests []*unstructured.Unstructured
+	seen := make(map[string]struct{})
+	for _, template := range templates {
+		annotations := template.Annotations
+		image := strings.TrimSpace(annotations[volume.VMArtifactImageAnnotation])
+		serviceName := strings.TrimSpace(annotations[volume.VMArtifactServiceAnnotation])
+		if image == "" || serviceName == "" {
+			continue
+		}
+		if _, ok := seen[serviceName]; ok {
+			continue
+		}
+		seen[serviceName] = struct{}{}
+
+		labels := vmArtifactManifestLabels(template.Labels, serviceName)
+		selector := map[string]any{
+			volume.VMArtifactServiceAnnotation: serviceName,
+		}
+		manifests = append(manifests,
+			vmArtifactServiceManifest(namespace, serviceName, labels, selector),
+			vmArtifactDeploymentManifest(namespace, serviceName, image, labels, selector),
+		)
+	}
+	return manifests
+}
+
+func vmArtifactManifestLabels(base map[string]string, serviceName string) map[string]any {
+	labels := make(map[string]any, len(base)+2)
+	for key, value := range base {
+		labels[key] = value
+	}
+	labels["app"] = serviceName
+	labels[volume.VMArtifactServiceAnnotation] = serviceName
+	return labels
+}
+
+func vmArtifactServiceManifest(namespace, name string, labels, selector map[string]any) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Service",
+			"metadata": map[string]any{
+				"name":      name,
+				"namespace": namespace,
+				"labels":    labels,
+			},
+			"spec": map[string]any{
+				"type":     "ClusterIP",
+				"selector": selector,
+				"ports": []any{
+					map[string]any{
+						"name":       "http",
+						"port":       int64(80),
+						"targetPort": int64(80),
+						"protocol":   "TCP",
+					},
+				},
+			},
+		},
+	}
+}
+
+func vmArtifactDeploymentManifest(namespace, name, image string, labels, selector map[string]any) *unstructured.Unstructured {
+	podSpec := map[string]any{
+		"containers": []any{
+			map[string]any{
+				"name":            "artifact",
+				"image":           image,
+				"imagePullPolicy": "IfNotPresent",
+				"ports": []any{
+					map[string]any{
+						"name":          "http",
+						"containerPort": int64(80),
+						"protocol":      "TCP",
+					},
+				},
+			},
+		},
+	}
+	if imagePullSecrets := imagePullSecretsToAny(setImagePullSecrets()); len(imagePullSecrets) > 0 {
+		podSpec["imagePullSecrets"] = imagePullSecrets
+	}
+	return &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      name,
+				"namespace": namespace,
+				"labels":    labels,
+			},
+			"spec": map[string]any{
+				"replicas": int64(1),
+				"selector": map[string]any{
+					"matchLabels": selector,
+				},
+				"template": map[string]any{
+					"metadata": map[string]any{
+						"labels": labels,
+					},
+					"spec": podSpec,
+				},
+			},
+		},
+	}
+}
+
+func imagePullSecretsToAny(secrets []corev1.LocalObjectReference) []any {
+	result := make([]any, 0, len(secrets))
+	for _, secret := range secrets {
+		if secret.Name == "" {
+			continue
+		}
+		result = append(result, map[string]any{"name": secret.Name})
+	}
+	return result
+}
+
+func hydrateVMRuntimeExtensionSet(as *v1.AppService, dbmanager db.Manager) error {
+	for _, name := range vmRuntimeAttributeNames() {
+		attr, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, name)
+		if err != nil {
+			return err
+		}
+		if attr == nil || attr.AttributeValue == "" {
+			continue
+		}
+		as.ExtensionSet[name] = attr.AttributeValue
+	}
+	return nil
+}
+
+func vmRuntimeAttributeNames() []string {
+	return []string{
+		"vm_os_name",
+		"vm_gpu_enabled",
+		"vm_gpu_resources",
+		"vm_gpu_count",
+		"vm_usb_enabled",
+		"vm_usb_resources",
+		"vm_boot_mode",
+		"vm_boot_source_format",
+		"vm_disk_layout",
+	}
+}
+
+func vmBootSourceFormat(extensionSet map[string]string) string {
+	return strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_source_format"]))
+}
+
+func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
+	format := vmBootSourceFormat(extensionSet)
+	return format == "" || format == "iso"
+}
+
+type vmBootPath string
+
+const (
+	vmBootPathISOInstaller     vmBootPath = "iso-installer"
+	vmBootPathVMImageRootDisk  vmBootPath = "vmimage-rootdisk"
+	vmBootPathImportedRootDisk vmBootPath = "imported-rootdisk"
+)
+
+func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.DataVolumeTemplateSpec) vmBootPath {
+	if hasImportedVMRootDataVolume(templates) {
+		return vmBootPathImportedRootDisk
+	}
+	if vmBootSourceUsesCDRom(extensionSet) {
+		return vmBootPathISOInstaller
+	}
+	return vmBootPathVMImageRootDisk
+}
+
+func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
+	if vmBootSourceUsesCDRom(extensionSet) {
+		return kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		}
+	}
+	return kubevirtv1.DiskDevice{
+		Disk: &kubevirtv1.DiskTarget{
+			Bus: kubevirtv1.DiskBusSATA,
+		},
+	}
+}
+
+func prepareVMImageBootVolumes(path vmBootPath, image string, volumes []kubevirtv1.Volume,
+	templates []kubevirtv1.DataVolumeTemplateSpec) ([]kubevirtv1.Volume, []kubevirtv1.DataVolumeTemplateSpec, string) {
+	preparedVolumes := append([]kubevirtv1.Volume(nil), volumes...)
+	preparedTemplates := append([]kubevirtv1.DataVolumeTemplateSpec(nil), templates...)
+	rootBlankDataVolumeName := ""
+
+	switch path {
+	case vmBootPathISOInstaller, vmBootPathVMImageRootDisk:
+		preparedVolumes = append([]kubevirtv1.Volume{{
+			Name: "vmimage",
+			VolumeSource: kubevirtv1.VolumeSource{
+				ContainerDisk: &kubevirtv1.ContainerDiskSource{
+					Image:           image,
+					ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+				},
+			},
+		}}, preparedVolumes...)
+	}
+
+	if path == vmBootPathVMImageRootDisk {
+		rootBlankDataVolumeName = vmRootBlankDataVolumeName(preparedTemplates)
+		if rootBlankDataVolumeName != "" {
+			preparedVolumes = filterVMVolumesByName(preparedVolumes, rootBlankDataVolumeName)
+			preparedTemplates = filterVMDataVolumeTemplatesByName(preparedTemplates, rootBlankDataVolumeName)
+		}
+	}
+
+	return preparedVolumes, preparedTemplates, rootBlankDataVolumeName
+}
+
+func prepareVMImageBootDisks(path vmBootPath, disks []kubevirtv1.Disk, rootBlankDataVolumeName string) []kubevirtv1.Disk {
+	preparedDisks := append([]kubevirtv1.Disk(nil), disks...)
+	if path == vmBootPathVMImageRootDisk && rootBlankDataVolumeName != "" {
+		return filterVMDisksByName(preparedDisks, rootBlankDataVolumeName)
+	}
+	return preparedDisks
+}
+
+func appendISOInstallerDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
+	updated := append([]kubevirtv1.Disk(nil), disks...)
+	for i := range updated {
+		if updated[i].BootOrder == nil {
+			continue
+		}
+		order := *updated[i].BootOrder + 1
+		updated[i].BootOrder = &order
+	}
+	bootOrder := uint(1)
+	if rootBootOrder != nil && len(disks) == 0 {
+		bootOrder = *rootBootOrder
+	}
+	installerDisk := kubevirtv1.Disk{
+		BootOrder: &bootOrder,
+		DiskDevice: kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		},
+		Name: "vmimage",
+	}
+	return append([]kubevirtv1.Disk{installerDisk}, updated...)
+}
+
+func appendVMImageRootDisk(disks []kubevirtv1.Disk, rootBootOrder *uint) []kubevirtv1.Disk {
+	bootOrder := uint(1)
+	if rootBootOrder != nil {
+		bootOrder = *rootBootOrder
+	}
+	updated := append([]kubevirtv1.Disk(nil), disks...)
+	return append(updated, kubevirtv1.Disk{
+		BootOrder: &bootOrder,
+		DiskDevice: kubevirtv1.DiskDevice{
+			Disk: &kubevirtv1.DiskTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			},
+		},
+		Name: "vmimage",
+	})
+}
+
+func appendVMContainerDiskCDROMs(volumes []kubevirtv1.Volume, disks []kubevirtv1.Disk,
+	layout []vmDiskLayoutItem) ([]kubevirtv1.Volume, []kubevirtv1.Disk) {
+	updatedVolumes := append([]kubevirtv1.Volume(nil), volumes...)
+	updatedDisks := append([]kubevirtv1.Disk(nil), disks...)
+	seenVolumes := make(map[string]struct{}, len(updatedVolumes))
+	for _, vmVolume := range updatedVolumes {
+		seenVolumes[vmVolume.Name] = struct{}{}
+	}
+	seenDisks := make(map[string]struct{}, len(updatedDisks))
+	for _, disk := range updatedDisks {
+		seenDisks[disk.Name] = struct{}{}
+	}
+
+	for _, item := range layout {
+		if item.SourceKind != vmDiskSourceContainerDisk || strings.TrimSpace(item.Image) == "" || strings.TrimSpace(item.DiskKey) == "" {
+			continue
+		}
+		name := item.DiskKey
+		if _, exists := seenVolumes[name]; !exists {
+			updatedVolumes = append(updatedVolumes, kubevirtv1.Volume{
+				Name: name,
+				VolumeSource: kubevirtv1.VolumeSource{
+					ContainerDisk: &kubevirtv1.ContainerDiskSource{
+						Image:           item.Image,
+						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+					},
+				},
+			})
+			seenVolumes[name] = struct{}{}
+		}
+		if _, exists := seenDisks[name]; !exists {
+			updatedDisks = append(updatedDisks, kubevirtv1.Disk{
+				DiskDevice: kubevirtv1.DiskDevice{
+					CDRom: &kubevirtv1.CDRomTarget{
+						Bus: kubevirtv1.DiskBusSATA,
+					},
+				},
+				Name: name,
+			})
+			seenDisks[name] = struct{}{}
+		}
+	}
+	return updatedVolumes, updatedDisks
+}
+
+func summarizeVMDisks(disks []kubevirtv1.Disk) string {
+	items := make([]string, 0, len(disks))
+	for _, disk := range disks {
+		deviceType := "unknown"
+		switch {
+		case disk.DiskDevice.Disk != nil:
+			deviceType = "disk"
+		case disk.DiskDevice.CDRom != nil:
+			deviceType = "cdrom"
+		case disk.DiskDevice.LUN != nil:
+			deviceType = "lun"
+		}
+		bootOrder := ""
+		if disk.BootOrder != nil {
+			bootOrder = strconv.FormatUint(uint64(*disk.BootOrder), 10)
+		}
+		items = append(items, fmt.Sprintf("%s:%s:%s", disk.Name, deviceType, bootOrder))
+	}
+	return strings.Join(items, ",")
+}
+
+func summarizeVMVolumes(volumes []kubevirtv1.Volume) string {
+	items := make([]string, 0, len(volumes))
+	for _, volume := range volumes {
+		sourceType := "unknown"
+		switch {
+		case volume.ContainerDisk != nil:
+			sourceType = "containerDisk"
+		case volume.DataVolume != nil:
+			sourceType = "dataVolume"
+		case volume.PersistentVolumeClaim != nil:
+			sourceType = "pvc"
+		case volume.CloudInitNoCloud != nil:
+			sourceType = "cloudInit"
+		case volume.Sysprep != nil:
+			sourceType = "sysprep"
+		}
+		items = append(items, fmt.Sprintf("%s:%s", volume.Name, sourceType))
+	}
+	return strings.Join(items, ",")
+}
+
+func summarizeVMDataVolumeTemplates(templates []kubevirtv1.DataVolumeTemplateSpec) string {
+	items := make([]string, 0, len(templates))
+	for _, template := range templates {
+		sourceType := "unknown"
+		switch {
+		case template.Spec.Source == nil:
+			sourceType = "nil"
+		case template.Spec.Source.Blank != nil:
+			sourceType = "blank"
+		case template.Spec.Source.HTTP != nil:
+			sourceType = "http"
+		case template.Spec.Source.Registry != nil:
+			sourceType = "registry"
+		case template.Spec.Source.PVC != nil:
+			sourceType = "pvc"
+		case template.Spec.Source.S3 != nil:
+			sourceType = "s3"
+		}
+		items = append(items, fmt.Sprintf("%s:%s:%s", template.Name, strings.TrimSpace(template.Annotations["volume_name"]), sourceType))
+	}
+	return strings.Join(items, ",")
+}
+
+func hasImportedVMRootDataVolume(templates []kubevirtv1.DataVolumeTemplateSpec) bool {
+	for _, template := range templates {
+		if strings.TrimSpace(template.Annotations["volume_name"]) != "disk" {
+			continue
+		}
+		if template.Spec.Source != nil && template.Spec.Source.Blank == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func vmRootBlankDataVolumeName(templates []kubevirtv1.DataVolumeTemplateSpec) string {
+	for _, template := range templates {
+		if strings.TrimSpace(template.Annotations["volume_name"]) != "disk" {
+			continue
+		}
+		if template.Spec.Source != nil && template.Spec.Source.Blank != nil {
+			return template.Name
+		}
+	}
+	return ""
+}
+
+func filterVMDataVolumeTemplatesByName(templates []kubevirtv1.DataVolumeTemplateSpec, name string) []kubevirtv1.DataVolumeTemplateSpec {
+	if name == "" {
+		return templates
+	}
+	filtered := make([]kubevirtv1.DataVolumeTemplateSpec, 0, len(templates))
+	for _, template := range templates {
+		if template.Name == name {
+			continue
+		}
+		filtered = append(filtered, template)
+	}
+	return filtered
+}
+
+func filterReferencedVMDataVolumeTemplates(templates []kubevirtv1.DataVolumeTemplateSpec,
+	volumes []kubevirtv1.Volume) []kubevirtv1.DataVolumeTemplateSpec {
+	if len(templates) == 0 {
+		return templates
+	}
+
+	referenced := make(map[string]struct{}, len(volumes))
+	for _, volume := range volumes {
+		if volume.DataVolume == nil {
+			continue
+		}
+		name := strings.TrimSpace(volume.DataVolume.Name)
+		if name == "" {
+			continue
+		}
+		referenced[name] = struct{}{}
+	}
+
+	filtered := make([]kubevirtv1.DataVolumeTemplateSpec, 0, len(templates))
+	for _, template := range templates {
+		if _, ok := referenced[template.Name]; !ok {
+			continue
+		}
+		filtered = append(filtered, template)
+	}
+	return filtered
+}
+
+func buildStandardVMCPU(cpuMilli int, guestOSName string) *kubevirtv1.CPU {
+	units := cpuMilli / 1000
+	if units < 1 {
+		units = 1
+	}
+	if looksLikeLinuxGuestHint(guestOSName) {
+		maxSockets := units * 2
+		if maxSockets < units+1 {
+			maxSockets = units + 1
+		}
+		return &kubevirtv1.CPU{
+			Sockets:    uint32(units),
+			Cores:      1,
+			Threads:    1,
+			MaxSockets: uint32(maxSockets),
+		}
+	}
+	return &kubevirtv1.CPU{
+		Sockets: 1,
+		Cores:   uint32(units),
+		Threads: 1,
+	}
+}
+
+func buildStandardVMMemory(memoryMB int) *kubevirtv1.Memory {
+	guest := buildAlignedVMMemoryQuantity(memoryMB)
+	maxGuest := buildAlignedVMMemoryQuantity(maxVMMemoryHotplugHeadroomMi(memoryMB))
+	return &kubevirtv1.Memory{
+		Guest:    &guest,
+		MaxGuest: &maxGuest,
+	}
+}
+
+func maxVMMemoryHotplugHeadroomMi(memoryMB int) int {
+	const (
+		hotplugRatio       = 4
+		minHotplugMaxGuest = 64 * 1024
+	)
+	maxGuestMB := memoryMB * hotplugRatio
+	if maxGuestMB < minHotplugMaxGuest {
+		return minHotplugMaxGuest
+	}
+	return maxGuestMB
+}
+
+func buildAlignedVMMemoryQuantity(memoryMB int) resource.Quantity {
+	aligned := alignVMMemoryMi(memoryMB)
+	return resource.MustParse(fmt.Sprintf("%dMi", aligned))
+}
+
+func alignVMMemoryMi(memoryMB int) int {
+	if memoryMB <= 0 {
+		return 0
+	}
+	const alignmentMi = 2
+	remainder := memoryMB % alignmentMi
+	if remainder == 0 {
+		return memoryMB
+	}
+	return memoryMB + (alignmentMi - remainder)
+}
+
+func filterVMVolumesByName(volumes []kubevirtv1.Volume, name string) []kubevirtv1.Volume {
+	if name == "" {
+		return volumes
+	}
+	filtered := make([]kubevirtv1.Volume, 0, len(volumes))
+	for _, volume := range volumes {
+		if volume.Name == name {
+			continue
+		}
+		filtered = append(filtered, volume)
+	}
+	return filtered
+}
+
+func filterVMDisksByName(disks []kubevirtv1.Disk, name string) []kubevirtv1.Disk {
+	if name == "" {
+		return disks
+	}
+	filtered := make([]kubevirtv1.Disk, 0, len(disks))
+	for _, disk := range disks {
+		if disk.Name == name {
+			continue
+		}
+		filtered = append(filtered, disk)
+	}
+	return filtered
+}
+
+func applyVMBootMode(domain *kubevirtv1.DomainSpec, extensionSet map[string]string) {
+	if domain == nil {
+		return
+	}
+	mode := strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_mode"]))
+	if mode == "" {
+		return
+	}
+	if domain.Firmware == nil {
+		domain.Firmware = &kubevirtv1.Firmware{}
+	}
+	if domain.Firmware.Bootloader == nil {
+		domain.Firmware.Bootloader = &kubevirtv1.Bootloader{}
+	}
+	switch mode {
+	case "uefi", "efi":
+		domain.Firmware.Bootloader.BIOS = nil
+		domain.Firmware.Bootloader.EFI = &kubevirtv1.EFI{
+			SecureBoot: util.Bool(false),
+		}
+	case "bios", "legacy":
+		domain.Firmware.Bootloader.EFI = nil
+		domain.Firmware.Bootloader.BIOS = &kubevirtv1.BIOS{}
+	}
+}
+
+func applyVMBootModeForPath(domain *kubevirtv1.DomainSpec, extensionSet map[string]string, path vmBootPath) {
+	if path == vmBootPathISOInstaller {
+		return
+	}
+	applyVMBootMode(domain, extensionSet)
 }
 
 func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) ([]corev1.Toleration, error) {

@@ -67,7 +67,7 @@ func GetComponentDefinitionBuilder() *Builder {
 }
 
 // OnAdd -
-func (c *Builder) OnAdd(obj interface{}) {
+func (c *Builder) OnAdd(obj interface{}, _ bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := obj.(*v1alpha1.ComponentDefinition)

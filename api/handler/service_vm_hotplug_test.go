@@ -1,0 +1,738 @@
+package handler
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/golang/mock/gomock"
+	"github.com/goodrain/rainbond/db"
+	dbdao "github.com/goodrain/rainbond/db/dao"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	v1 "kubevirt.io/api/core/v1"
+	kubecli "kubevirt.io/client-go/kubecli"
+)
+
+func TestBuildVMHotplugAddVolumeOptionsUsesSCSIBusForIndexedDiskPath(t *testing.T) {
+	opts := buildVMHotplugAddVolumeOptions("manual99", "/disk-1")
+
+	if opts == nil || opts.Disk == nil || opts.Disk.DiskDevice.Disk == nil {
+		t.Fatalf("expected hotplug add volume options to create a disk target, got %#v", opts)
+	}
+	if opts.Disk.DiskDevice.Disk.Bus != v1.DiskBusSCSI {
+		t.Fatalf("expected indexed vm hotplug disk to use scsi bus, got %q", opts.Disk.DiskDevice.Disk.Bus)
+	}
+}
+
+func TestResolveVMHotplugAccessModesConvertsShorthand(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{AccessMode: "RWX"})
+
+	if !reflect.DeepEqual(modes, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}) {
+		t.Fatalf("expected RWX to convert to ReadWriteMany, got %#v", modes)
+	}
+}
+
+func TestResolveVMHotplugAccessModesKeepsExpandedValues(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{AccessMode: "ReadWriteOnce,ReadOnlyMany"})
+
+	expected := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce, corev1.ReadOnlyMany}
+	if !reflect.DeepEqual(modes, expected) {
+		t.Fatalf("expected expanded access modes to be preserved, got %#v", modes)
+	}
+}
+
+func TestResolveVMHotplugAccessModesDefaultsToReadWriteMany(t *testing.T) {
+	modes := resolveVMHotplugAccessModes(&dbmodel.TenantServiceVolume{})
+
+	if !reflect.DeepEqual(modes, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}) {
+		t.Fatalf("expected empty access mode to default to ReadWriteMany, got %#v", modes)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.data-volume-capacity-gi
+func TestBuildVMHotplugDataVolumeObjectUsesGiCapacity(t *testing.T) {
+	obj := buildVMHotplugDataVolumeObject("demo-ns", "tenant-1", &dbmodel.TenantServiceVolume{
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 10,
+		AccessMode:     "RWX",
+	}, "manual99")
+
+	storage, found, err := unstructured.NestedString(obj.Object, "spec", "storage", "resources", "requests", "storage")
+	if err != nil || !found {
+		t.Fatalf("expected DataVolume storage request, found=%t err=%v obj=%#v", found, err, obj.Object)
+	}
+	if storage != "10Gi" {
+		t.Fatalf("expected 10GB vm hotplug disk to request 10Gi, got %q", storage)
+	}
+}
+
+type hotplugVolumeTestManager struct {
+	db.Manager
+	tx         *gorm.DB
+	volumeDao  dbdao.TenantServiceVolumeDao
+	serviceDao dbdao.TenantServiceDao
+}
+
+func (m hotplugVolumeTestManager) Begin() *gorm.DB {
+	return m.tx
+}
+
+func (m hotplugVolumeTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
+	return m.volumeDao
+}
+
+func (m hotplugVolumeTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type hotplugTenantServiceVolumeDao struct {
+	dbdao.TenantServiceVolumeDao
+	added *dbmodel.TenantServiceVolume
+}
+
+func (d *hotplugTenantServiceVolumeDao) AddModel(arg dbmodel.Interface) error {
+	volume, ok := arg.(*dbmodel.TenantServiceVolume)
+	if !ok {
+		return nil
+	}
+	copied := *volume
+	copied.ID = 99
+	volume.ID = 99
+	d.added = &copied
+	return nil
+}
+
+type hotplugTenantServiceDao struct {
+	dbdao.TenantServiceDao
+	service *dbmodel.TenantServices
+}
+
+func (d *hotplugTenantServiceDao) GetServiceByID(serviceID string) (*dbmodel.TenantServices, error) {
+	return d.service, nil
+}
+
+type hotunplugVolumeDeleteTestManager struct {
+	db.Manager
+	tx            *gorm.DB
+	volumeDao     dbdao.TenantServiceVolumeDao
+	configFileDao dbdao.TenantServiceConfigFileDao
+}
+
+func (m hotunplugVolumeDeleteTestManager) Begin() *gorm.DB {
+	return m.tx
+}
+
+func (m hotunplugVolumeDeleteTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
+	return m.volumeDao
+}
+
+func (m hotunplugVolumeDeleteTestManager) TenantServiceConfigFileDaoTransactions(*gorm.DB) dbdao.TenantServiceConfigFileDao {
+	return m.configFileDao
+}
+
+type hotunplugTenantServiceVolumeDao struct {
+	dbdao.TenantServiceVolumeDao
+	volume        *dbmodel.TenantServiceVolume
+	deletedVolume string
+}
+
+func (d *hotunplugTenantServiceVolumeDao) GetVolumeByServiceIDAndName(serviceID, name string) (*dbmodel.TenantServiceVolume, error) {
+	return d.volume, nil
+}
+
+func (d *hotunplugTenantServiceVolumeDao) DeleteModel(serviceID string, args ...interface{}) error {
+	if len(args) > 0 {
+		if volumeName, ok := args[0].(string); ok {
+			d.deletedVolume = volumeName
+		}
+	}
+	return nil
+}
+
+type hotunplugTenantServiceConfigFileDao struct {
+	dbdao.TenantServiceConfigFileDao
+	serviceID  string
+	volumeName string
+	created    *dbmodel.TenantServiceConfigFile
+}
+
+func (d *hotunplugTenantServiceConfigFileDao) AddModel(arg dbmodel.Interface) error {
+	cfg, ok := arg.(*dbmodel.TenantServiceConfigFile)
+	if !ok {
+		return nil
+	}
+	copied := *cfg
+	d.created = &copied
+	return nil
+}
+
+func (d *hotunplugTenantServiceConfigFileDao) DelByVolumeID(serviceID, volumeName string) error {
+	d.serviceID = serviceID
+	d.volumeName = volumeName
+	return nil
+}
+
+type hotplugConfigFileTestManager struct {
+	db.Manager
+	tx            *gorm.DB
+	volumeDao     dbdao.TenantServiceVolumeDao
+	configFileDao dbdao.TenantServiceConfigFileDao
+	serviceDao    dbdao.TenantServiceDao
+}
+
+func (m hotplugConfigFileTestManager) Begin() *gorm.DB {
+	return m.tx
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
+	return m.volumeDao
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceConfigFileDaoTransactions(*gorm.DB) dbdao.TenantServiceConfigFileDao {
+	return m.configFileDao
+}
+
+func (m hotplugConfigFileTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type envAttrTestManager struct {
+	db.Manager
+	envDao     dbdao.TenantServiceEnvVarDao
+	serviceDao dbdao.TenantServiceDao
+}
+
+func (m envAttrTestManager) TenantServiceEnvVarDao() dbdao.TenantServiceEnvVarDao {
+	return m.envDao
+}
+
+func (m envAttrTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type envAttrDaoStub struct {
+	dbdao.TenantServiceEnvVarDao
+	updated bool
+}
+
+func (d *envAttrDaoStub) AddModel(arg dbmodel.Interface) error {
+	return nil
+}
+
+func (d *envAttrDaoStub) DeleteModel(serviceID string, args ...interface{}) error {
+	return nil
+}
+
+func (d *envAttrDaoStub) UpdateModelByAttrName(env *dbmodel.TenantServiceEnvVar, oldAttrName string) error {
+	d.updated = true
+	return nil
+}
+
+func TestVolumnVarHotplugsRunningVMDataDisk(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectCommit()
+
+	volumeDao := &hotplugTenantServiceVolumeDao{}
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{tx: tx, volumeDao: volumeDao, serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	hotplugCalled := false
+	syncCalled := false
+	action := &ServiceAction{
+		hotplugVMDataDiskHook: func(tenantID string, volume *dbmodel.TenantServiceVolume) error {
+			hotplugCalled = true
+			if volume.ID != 99 {
+				t.Fatalf("expected persisted volume id 99, got %d", volume.ID)
+			}
+			return nil
+		},
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			return nil
+		},
+	}
+	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk",
+		VolumeType:     dbmodel.VMVolumeType.String(),
+		VolumeCapacity: 10240,
+	}, "tenant-1", "", "add")
+	if apiErr != nil {
+		t.Fatalf("expected no error, got %v", apiErr)
+	}
+	if !hotplugCalled {
+		t.Fatal("expected running vm volume add to hotplug data disk")
+	}
+	if syncCalled {
+		t.Fatal("did not expect running vm volume add to sync vm spec directly")
+	}
+	if volumeDao.added == nil || volumeDao.added.VolumeName != "data-1" {
+		t.Fatalf("expected volume to be persisted, got %#v", volumeDao.added)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestVolumnVarAddSyncsVMConfigFileImmediately(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectCommit()
+
+	volumeDao := &hotplugTenantServiceVolumeDao{}
+	configFileDao := &hotunplugTenantServiceConfigFileDao{}
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugConfigFileTestManager{
+		tx:            tx,
+		volumeDao:     volumeDao,
+		configFileDao: configFileDao,
+		serviceDao:    serviceDao,
+	})
+	defer db.SetTestManager(nil)
+
+	hotplugCalled := false
+	syncCalled := false
+	action := &ServiceAction{
+		hotplugVMDataDiskHook: func(tenantID string, volume *dbmodel.TenantServiceVolume) error {
+			hotplugCalled = true
+			return nil
+		},
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected vm spec sync for service-vm, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+
+	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
+		ServiceID:  "service-vm",
+		VolumeName: "test",
+		VolumePath: "test.txt",
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}, "tenant-1", "demo=1", "add")
+	if apiErr != nil {
+		t.Fatalf("expected no error, got %v", apiErr)
+	}
+	if hotplugCalled {
+		t.Fatal("did not expect config-file add to go through vm hotplug path")
+	}
+	if !syncCalled {
+		t.Fatal("expected config-file add to sync vm spec immediately")
+	}
+	if volumeDao.added == nil || volumeDao.added.VolumeType != dbmodel.ConfigFileVolumeType.String() {
+		t.Fatalf("expected config-file volume to be persisted, got %#v", volumeDao.added)
+	}
+	if configFileDao.created == nil || configFileDao.created.VolumeName != "test" {
+		t.Fatalf("expected config-file content to be persisted, got %#v", configFileDao.created)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+func TestEnvAttrSyncsVMSpecAfterUpdate(t *testing.T) {
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	envDao := &envAttrDaoStub{}
+	db.SetTestManager(envAttrTestManager{
+		envDao:     envDao,
+		serviceDao: serviceDao,
+	})
+	defer db.SetTestManager(nil)
+
+	syncCalled := false
+	action := &ServiceAction{
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected service-vm sync target, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+
+	err := action.EnvAttr("update", &dbmodel.TenantServiceEnvVar{
+		ServiceID: "service-vm",
+		AttrName:  "DEMO_HOST",
+		AttrValue: "demo-service",
+	}, "DEMO_HOST")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !syncCalled {
+		t.Fatal("expected vm env update to sync vm spec")
+	}
+	if !envDao.updated {
+		t.Fatal("expected env dao update to be called")
+	}
+}
+
+func TestHotplugVMDataDiskSyncsStoppedVMForSelectedStorageClassVolume(t *testing.T) {
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	syncCalled := false
+	action := &ServiceAction{
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			if serviceID != "service-vm" {
+				t.Fatalf("expected service-vm sync target, got %s", serviceID)
+			}
+			return nil
+		},
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusStopped,
+			},
+		}, nil
+	}
+
+	err := action.hotplugVMDataDisk("tenant-1", &dbmodel.TenantServiceVolume{
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 20,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !syncCalled {
+		t.Fatal("expected selected storage class vm disk to sync stopped vm spec")
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.add-volume-conflict-retry
+func TestPerformVMHotplugAddVolumeRetriesConflicts(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM).Times(2)
+
+	attempts := 0
+	mockVM.EXPECT().AddVolume(gomock.Any(), "demo-vm", gomock.Any()).Times(2).DoAndReturn(
+		func(_ context.Context, _ string, opts *v1.AddVolumeOptions) error {
+			if opts == nil || opts.Name != "manual99" {
+				t.Fatalf("expected add volume options for manual99, got %#v", opts)
+			}
+			attempts++
+			if attempts == 1 {
+				return k8serrors.NewConflict(schema.GroupResource{Group: "kubevirt.io", Resource: "virtualmachines"}, "demo-vm", errors.New("the object has been modified"))
+			}
+			return nil
+		},
+	)
+
+	action := &ServiceAction{
+		kubevirtClient: mockClient,
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo-vm",
+				Namespace: "demo-ns",
+			},
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusRunning,
+			},
+		}, nil
+	}
+
+	if err := action.performVMHotplugAddVolume("service-vm", buildVMHotplugAddVolumeOptions("manual99", "/disk-1")); err != nil {
+		t.Fatalf("expected conflict retry to succeed, got %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected add volume to retry once after conflict, got %d attempts", attempts)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.remove-volume-running-vm
+func TestHotunplugVMDataDiskRemovesVolumeFromRunningVM(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM)
+	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ string, opts *v1.RemoveVolumeOptions) error {
+			if opts == nil || opts.Name != "manual42" {
+				t.Fatalf("expected remove volume options for manual42, got %#v", opts)
+			}
+			return nil
+		},
+	)
+
+	action := &ServiceAction{
+		kubevirtClient: mockClient,
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo-vm",
+				Namespace: "demo-ns",
+			},
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusRunning,
+			},
+		}, nil
+	}
+
+	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 42},
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 20,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.remove-volume-running-vm
+func TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &hotplugTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:    "service-vm",
+			ExtendMethod: "vm",
+		},
+	}
+	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM)
+	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	dv := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cdi.kubevirt.io/v1beta1",
+			"kind":       "DataVolume",
+			"metadata": map[string]interface{}{
+				"name":      "manual42",
+				"namespace": "demo-ns",
+			},
+		},
+	}
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), dv)
+	originalDynamicClient := vmHotplugDynamicClient
+	vmHotplugDynamicClient = func() dynamic.Interface {
+		return dynamicClient
+	}
+	defer func() {
+		vmHotplugDynamicClient = originalDynamicClient
+	}()
+
+	kubeClient := k8sfake.NewSimpleClientset(&corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "manual42",
+			Namespace: "demo-ns",
+		},
+	})
+
+	action := &ServiceAction{
+		kubevirtClient: mockClient,
+		kubeClient:     kubeClient,
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo-vm",
+				Namespace: "demo-ns",
+			},
+			Status: v1.VirtualMachineStatus{
+				PrintableStatus: v1.VirtualMachineStatusRunning,
+			},
+		}, nil
+	}
+
+	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 42},
+		ServiceID:      "service-vm",
+		VolumeName:     "data-1",
+		VolumePath:     "/disk-1",
+		VolumeType:     "nfs-storage",
+		VolumeCapacity: 20,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	_, err = dynamicClient.Resource(dataVolumeGVR).Namespace("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		t.Fatalf("expected backing DataVolume to be deleted, got err=%v", err)
+	}
+
+	_, err = kubeClient.CoreV1().PersistentVolumeClaims("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		t.Fatalf("expected backing PVC to be deleted, got err=%v", err)
+	}
+}
+
+// capability_id: rainbond.vm-hotplug.remove-volume-running-vm
+func TestVolumnVarDeleteHotunplugsRunningVMDataDisk(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectCommit()
+
+	volumeDao := &hotunplugTenantServiceVolumeDao{
+		volume: &dbmodel.TenantServiceVolume{
+			Model:      dbmodel.Model{ID: 42},
+			ServiceID:  "service-vm",
+			VolumeName: "data-1",
+			VolumePath: "/disk-1",
+			VolumeType: "nfs-storage",
+		},
+	}
+	configFileDao := &hotunplugTenantServiceConfigFileDao{}
+	db.SetTestManager(hotunplugVolumeDeleteTestManager{
+		tx:            tx,
+		volumeDao:     volumeDao,
+		configFileDao: configFileDao,
+	})
+	defer db.SetTestManager(nil)
+
+	hotunplugCalled := false
+	syncCalled := false
+	action := &ServiceAction{
+		MQClient: &noopMQClient{},
+		hotunplugVMDataDiskHook: func(volume *dbmodel.TenantServiceVolume) error {
+			hotunplugCalled = true
+			if volume == nil || volume.ID != 42 {
+				t.Fatalf("expected deleted vm volume with id 42, got %#v", volume)
+			}
+			return nil
+		},
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncCalled = true
+			return nil
+		},
+	}
+
+	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
+		ServiceID:  "service-vm",
+		VolumeName: "data-1",
+	}, "tenant-1", "", "delete")
+	if apiErr != nil {
+		t.Fatalf("expected no error, got %v", apiErr)
+	}
+	if !hotunplugCalled {
+		t.Fatal("expected delete to hotunplug running vm data disk")
+	}
+	if syncCalled {
+		t.Fatal("did not expect delete to fall back to vm spec sync when hotunplug hook handled it")
+	}
+	if volumeDao.deletedVolume != "data-1" {
+		t.Fatalf("expected volume data-1 to be deleted, got %q", volumeDao.deletedVolume)
+	}
+	if configFileDao.serviceID != "service-vm" || configFileDao.volumeName != "data-1" {
+		t.Fatalf("expected config file cleanup for deleted volume, got service=%q volume=%q", configFileDao.serviceID, configFileDao.volumeName)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}

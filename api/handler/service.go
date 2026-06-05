@@ -39,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
+	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
@@ -49,6 +50,7 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/db"
 	dberr "github.com/goodrain/rainbond/db/errors"
@@ -71,6 +73,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/kubernetes"
 )
@@ -78,18 +81,33 @@ import (
 // ErrServiceNotClosed -
 var ErrServiceNotClosed = errors.New("Service has not been closed")
 
+const vmStartRetryAttempts = 3
+
+var vmStartRetryDelay = 200 * time.Millisecond
+
 // ServiceAction service act
 type ServiceAction struct {
-	MQClient       gclient.MQClient
-	statusCli      *client.AppRuntimeSyncClient
-	prometheusCli  prometheus.Interface
-	rainbondClient versioned.Interface
-	kubeClient     kubernetes.Interface
-	kubevirtClient kubecli.KubevirtClient
-	dbmanager      db.Manager
-	registryCli    *registry.Registry
-	config         *rest.Config
-	apisixClient   *apisixversioned.Clientset
+	MQClient                                 gclient.MQClient
+	statusCli                                *client.AppRuntimeSyncClient
+	prometheusCli                            prometheus.Interface
+	rainbondClient                           versioned.Interface
+	kubeClient                               kubernetes.Interface
+	kubevirtClient                           kubecli.KubevirtClient
+	dbmanager                                db.Manager
+	registryCli                              *registry.Registry
+	config                                   *rest.Config
+	apisixClient                             *apisixversioned.Clientset
+	syncVirtualMachineSpecHook               func(serviceID string) error
+	getServicePodsHook                       func(serviceID string) (*pb.ServiceAppPodList, error)
+	getVirtualMachineByServiceIDHook         func(serviceID string) (*v1.VirtualMachine, error)
+	getVirtualMachineInstanceByServiceIDHook func(serviceID string) (*v1.VirtualMachineInstance, error)
+	getDataVolumePhasesByNamesHook           func(namespace string, names []string) (map[string]string, error)
+	getDataVolumeDetailsByNamesHook          func(namespace string, names []string) ([]vmDataVolumeDetail, error)
+	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
+	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
+	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
+	hotplugVMDataDiskHook                    func(tenantID string, volume *dbmodel.TenantServiceVolume) error
+	hotunplugVMDataDiskHook                  func(volume *dbmodel.TenantServiceVolume) error
 }
 
 type dCfg struct {
@@ -98,6 +116,13 @@ type dCfg struct {
 	Key      string   `json:"key"`
 	Username string   `json:"username"`
 	Password string   `json:"password"`
+}
+
+type vmDataVolumeDetail struct {
+	Name     string
+	Phase    string
+	Progress string
+	Message  string
 }
 
 // CreateManager create Manger
@@ -114,6 +139,13 @@ func CreateManager() *ServiceAction {
 		registryCli:    hubregistry.Default().RegistryCli,
 		config:         k8s.Default().RestConfig,
 	}
+}
+
+func (s *ServiceAction) syncVirtualMachineSpecAfterResourceUpdate(serviceID string) error {
+	if s.syncVirtualMachineSpecHook != nil {
+		return s.syncVirtualMachineSpecHook(serviceID)
+	}
+	return s.syncVirtualMachineSpecForService(serviceID)
 }
 
 // ServiceBuild service build
@@ -400,9 +432,550 @@ func (s *ServiceAction) StartStopService(sss *apimodel.StartStopStruct) error {
 	return nil
 }
 
+func markDirectVMOperationEvent(ctx context.Context, status dbmodel.EventStatus) error {
+	if ctx == nil {
+		return nil
+	}
+	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
+	if event == nil {
+		return nil
+	}
+	if err := db.GetManager().ServiceEventDao().SetEventStatus(ctx, status); err != nil {
+		logrus.Errorf("update direct vm operation event status to %s failure: %v", status, err)
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) enqueueVMStartTask(sss *apimodel.StartStopStruct, deployVersion string) error {
+	return s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "start",
+		TaskBody: model.StopTaskBody{
+			TenantID:      sss.TenantID,
+			ServiceID:     sss.ServiceID,
+			DeployVersion: deployVersion,
+			EventID:       sss.EventID,
+		},
+		Topic: gclient.WorkerTopic,
+	})
+}
+
+func isTransientVMStartError(err error) bool {
+	return err != nil && (k8sErrors.IsConflict(err) || k8sErrors.IsNotFound(err))
+}
+
+func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVersion string, vm *v1.VirtualMachine) error {
+	currentVM := vm
+	var lastErr error
+	for attempt := 0; attempt < vmStartRetryAttempts; attempt++ {
+		if attempt > 0 {
+			time.Sleep(vmStartRetryDelay)
+			refreshedVM, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+			if err != nil {
+				return err
+			}
+			currentVM = refreshedVM
+		}
+		if currentVM == nil {
+			return s.enqueueVMStartTask(sss, deployVersion)
+		}
+		if currentVM.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+			return nil
+		}
+		if err := s.kubevirtClient.VirtualMachine(currentVM.Namespace).Start(context.Background(), currentVM.Name, &v1.StartOptions{}); err != nil {
+			if !isTransientVMStartError(err) {
+				return err
+			}
+			lastErr = err
+			continue
+		}
+		return nil
+	}
+	return lastErr
+}
+
+func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
+	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return s.enqueueVMStartTask(sss, deployVersion)
+	}
+	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+	}
+	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+			return err
+		}
+	}
+	if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
+	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		startReq := *sss
+		startReq.TaskType = "start"
+		return s.StartOrCreateVM(ctx, &startReq, deployVersion)
+	}
+	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
+				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+				return err
+			}
+		}
+		if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
+			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+			return err
+		}
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+	}
+	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{}); err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		return err
+	}
+	if vm == nil {
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+	}
+	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
+		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+	}
+	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{}); err != nil {
+		if fallbackErr := s.haltTransientVM(vm, err); fallbackErr == nil {
+			return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+		}
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
+	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func (s *ServiceAction) haltTransientVM(vm *v1.VirtualMachine, stopErr error) error {
+	if s == nil || s.kubevirtClient == nil || vm == nil {
+		return stopErr
+	}
+	switch vm.Status.PrintableStatus {
+	case v1.VirtualMachineStatusProvisioning, v1.VirtualMachineStatusStarting, v1.VirtualMachineStatusStopping, v1.VirtualMachineStatusDataVolumeError:
+	default:
+		return stopErr
+	}
+	updatedVM := vm.DeepCopy()
+	halted := v1.RunStrategyHalted
+	updatedVM.Spec.RunStrategy = &halted
+	updatedVM.Spec.Running = nil
+	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+	if err != nil {
+		return stopErr
+	}
+	return nil
+}
+
+func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.VirtualMachine, error) {
+	if s != nil && s.getVirtualMachineByServiceIDHook != nil {
+		return s.getVirtualMachineByServiceIDHook(serviceID)
+	}
+	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_id=" + serviceID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(vms.Items) == 0 {
+		return nil, nil
+	}
+	vm := vms.Items[0]
+	return &vm, nil
+}
+
+func (s *ServiceAction) resolveVMServiceRuntimeStatus(serviceID string) (string, bool) {
+	if s == nil || (s.kubevirtClient == nil && s.getVirtualMachineByServiceIDHook == nil && s.getVirtualMachineInstanceByServiceIDHook == nil) {
+		return "", false
+	}
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, err)
+	}
+	vmi, err := s.getVirtualMachineInstanceByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
+	}
+	transitionStatus, hasTransitionStatus := resolveVMTransitionStatus(vm, vmi)
+	if transitionStatus == "abnormal" {
+		return transitionStatus, true
+	}
+	if restoreStatus, ok := s.resolveVMDataVolumeRuntimeStatus(vm, vmi, transitionStatus); ok {
+		return restoreStatus, true
+	}
+	return transitionStatus, hasTransitionStatus
+}
+
+func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance) (string, bool) {
+	if vm != nil {
+		switch vm.Status.PrintableStatus {
+		case v1.VirtualMachineStatusProvisioning:
+			return "starting", true
+		case v1.VirtualMachineStatusDataVolumeError:
+			return "abnormal", true
+		case v1.VirtualMachineStatusStarting:
+			return "starting", true
+		case v1.VirtualMachineStatusRunning:
+			return "running", true
+		case v1.VirtualMachineStatusPaused:
+			return "paused", true
+		case v1.VirtualMachineStatusStopping:
+			return "stopping", true
+		}
+	}
+	if vmi == nil {
+		return "", false
+	}
+	for _, condition := range vmi.Status.Conditions {
+		if condition.Type == v1.VirtualMachineInstanceDataVolumesReady && condition.Status == "False" {
+			return "starting", true
+		}
+	}
+	if isConditionTrue(vmi.Status.Conditions, v1.VirtualMachineInstanceProvisioning) {
+		return "starting", true
+	}
+	switch vmi.Status.Phase {
+	case v1.Pending, v1.Scheduling, v1.Scheduled, v1.VmPhaseUnset:
+		return "starting", true
+	case v1.Running:
+		return "running", true
+	case v1.Succeeded:
+		return "closed", true
+	case v1.Failed:
+		return "abnormal", true
+	}
+	return "", false
+}
+
+func (s *ServiceAction) resolveVMDataVolumeRuntimeStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance, transitionStatus string) (string, bool) {
+	if vm == nil || vm.Namespace == "" || vmi != nil && transitionStatus == "running" {
+		return "", false
+	}
+	names := vmRestoreDataVolumeNames(vm)
+	if len(names) == 0 {
+		return "", false
+	}
+	phases, err := s.getDataVolumePhasesByNames(vm.Namespace, names)
+	if err != nil {
+		logrus.Warningf("vm %s/%s; failed to get data volume phases: %v", vm.Namespace, vm.Name, err)
+		return "", false
+	}
+	return resolveVMDataVolumeRuntimeStatus(phases)
+}
+
+func (s *ServiceAction) resolveVMDataVolumeRestore(serviceID string) *apimodel.VMRestore {
+	if s == nil || (s.kubevirtClient == nil && s.getVirtualMachineByServiceIDHook == nil) {
+		return nil
+	}
+	vm, err := s.getVirtualMachineByServiceID(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine for restore status: %v", serviceID, err)
+		return nil
+	}
+	if vm == nil || vm.Namespace == "" {
+		return nil
+	}
+	names := vmRestoreDataVolumeNames(vm)
+	if len(names) == 0 {
+		return nil
+	}
+	details, err := s.getDataVolumeDetailsByNames(vm.Namespace, names)
+	if err != nil {
+		logrus.Warningf("vm %s/%s; failed to get data volume restore details: %v", vm.Namespace, vm.Name, err)
+		return nil
+	}
+	return resolveVMDataVolumeRestoreStatus(vm.Namespace, details)
+}
+
+func (s *ServiceAction) getDataVolumePhasesByNames(namespace string, names []string) (map[string]string, error) {
+	if s != nil && s.getDataVolumePhasesByNamesHook != nil {
+		return s.getDataVolumePhasesByNamesHook(namespace, names)
+	}
+	if len(names) == 0 || k8s.Default() == nil || k8s.Default().DynamicClient == nil {
+		return nil, nil
+	}
+	phases := make(map[string]string, len(names))
+	for _, name := range names {
+		obj, err := k8s.Default().DynamicClient.Resource(dataVolumeGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if k8sErrors.IsNotFound(err) {
+			phases[name] = "Pending"
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase")
+		phases[name] = strings.TrimSpace(phase)
+	}
+	return phases, nil
+}
+
+func (s *ServiceAction) getDataVolumeDetailsByNames(namespace string, names []string) ([]vmDataVolumeDetail, error) {
+	if s != nil && s.getDataVolumeDetailsByNamesHook != nil {
+		return s.getDataVolumeDetailsByNamesHook(namespace, names)
+	}
+	if len(names) == 0 || k8s.Default() == nil || k8s.Default().DynamicClient == nil {
+		return nil, nil
+	}
+	details := make([]vmDataVolumeDetail, 0, len(names))
+	for _, name := range names {
+		detail := vmDataVolumeDetail{Name: name}
+		obj, err := k8s.Default().DynamicClient.Resource(dataVolumeGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if k8sErrors.IsNotFound(err) {
+			detail.Phase = "Pending"
+			details = append(details, detail)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		phase, _, _ := unstructured.NestedString(obj.Object, "status", "phase")
+		progress, _, _ := unstructured.NestedString(obj.Object, "status", "progress")
+		detail.Phase = strings.TrimSpace(phase)
+		detail.Progress = strings.TrimSpace(progress)
+		detail.Message = dataVolumeStatusMessage(obj.Object)
+		details = append(details, detail)
+	}
+	return details, nil
+}
+
+func dataVolumeStatusMessage(obj map[string]interface{}) string {
+	conditions, _, _ := unstructured.NestedSlice(obj, "status", "conditions")
+	for i := len(conditions) - 1; i >= 0; i-- {
+		condition, ok := conditions[i].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		message, _, _ := unstructured.NestedString(condition, "message")
+		message = strings.TrimSpace(message)
+		if message != "" {
+			return message
+		}
+		reason, _, _ := unstructured.NestedString(condition, "reason")
+		reason = strings.TrimSpace(reason)
+		if reason != "" {
+			return reason
+		}
+	}
+	return ""
+}
+
+func vmDataVolumeNames(vm *v1.VirtualMachine) []string {
+	if vm == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	volumeCount := 0
+	if vm.Spec.Template != nil {
+		volumeCount = len(vm.Spec.Template.Spec.Volumes)
+	}
+	names := make([]string, 0, len(vm.Spec.DataVolumeTemplates)+volumeCount)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	for _, template := range vm.Spec.DataVolumeTemplates {
+		add(template.Name)
+	}
+	if vm.Spec.Template != nil {
+		for _, volume := range vm.Spec.Template.Spec.Volumes {
+			if volume.DataVolume != nil {
+				add(volume.DataVolume.Name)
+			}
+		}
+	}
+	return names
+}
+
+func vmRestoreDataVolumeNames(vm *v1.VirtualMachine) []string {
+	if vm == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	names := make([]string, 0, len(vm.Spec.DataVolumeTemplates))
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	restoreTemplates := map[string]struct{}{}
+	for _, template := range vm.Spec.DataVolumeTemplates {
+		if !isVMRestoreDataVolumeTemplate(template) {
+			continue
+		}
+		name := strings.TrimSpace(template.Name)
+		if name == "" {
+			continue
+		}
+		restoreTemplates[name] = struct{}{}
+		add(name)
+	}
+	if vm.Spec.Template != nil {
+		for _, volume := range vm.Spec.Template.Spec.Volumes {
+			if volume.DataVolume == nil {
+				continue
+			}
+			name := strings.TrimSpace(volume.DataVolume.Name)
+			if _, ok := restoreTemplates[name]; ok {
+				add(name)
+			}
+		}
+	}
+	return names
+}
+
+func isVMRestoreDataVolumeTemplate(template v1.DataVolumeTemplateSpec) bool {
+	annotations := template.Annotations
+	if strings.TrimSpace(annotations[appmvolume.VMArtifactImageAnnotation]) != "" {
+		return true
+	}
+	return strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != ""
+}
+
+func resolveVMDataVolumeRestoreStatus(namespace string, details []vmDataVolumeDetail) *apimodel.VMRestore {
+	if len(details) == 0 {
+		return nil
+	}
+	restore := &apimodel.VMRestore{
+		Status:      "success",
+		StatusCN:    "恢复完成",
+		Progress:    "100.0%",
+		DataVolumes: make([]apimodel.VMRestoreDataVolume, 0, len(details)),
+	}
+	minProgress := 100.0
+	hasNumericProgress := false
+	hasUnknownProgress := false
+	for _, detail := range details {
+		phase := strings.TrimSpace(detail.Phase)
+		progress := strings.TrimSpace(detail.Progress)
+		message := strings.TrimSpace(detail.Message)
+		restore.DataVolumes = append(restore.DataVolumes, apimodel.VMRestoreDataVolume{
+			Name:     detail.Name,
+			Phase:    phase,
+			Progress: progress,
+			Message:  message,
+		})
+		switch phase {
+		case "", "Succeeded":
+			continue
+		case "Failed":
+			restore.Status = "failure"
+			restore.StatusCN = "恢复失败"
+			if restore.Message == "" {
+				restore.Message = formatVMRestoreMessage(detail.Name, message)
+			}
+		default:
+			if restore.Status != "failure" {
+				restore.Status = "restoring"
+				restore.StatusCN = "恢复中"
+			}
+			if restore.Message == "" {
+				restore.Message = formatVMRestoreMessage(detail.Name, message)
+			}
+			restore.ImporterPods = append(restore.ImporterPods, apimodel.VMRestoreImporterPod{
+				Name:      "importer-" + detail.Name,
+				Volume:    detail.Name,
+				Namespace: namespace,
+			})
+		}
+		if value, ok := parseVMRestoreProgress(progress); ok {
+			hasNumericProgress = true
+			if value < minProgress {
+				minProgress = value
+			}
+		} else if phase != "" && phase != "Succeeded" {
+			hasUnknownProgress = true
+		}
+	}
+	if restore.Status == "restoring" || restore.Status == "failure" {
+		if hasNumericProgress {
+			restore.Progress = fmt.Sprintf("%.2f%%", minProgress)
+		} else if hasUnknownProgress {
+			restore.Progress = "N/A"
+		}
+	}
+	return restore
+}
+
+func formatVMRestoreMessage(name, message string) string {
+	name = strings.TrimSpace(name)
+	message = strings.TrimSpace(message)
+	if name == "" {
+		return message
+	}
+	if message == "" {
+		return name
+	}
+	return fmt.Sprintf("%s: %s", name, message)
+}
+
+func parseVMRestoreProgress(progress string) (float64, bool) {
+	progress = strings.TrimSpace(strings.TrimSuffix(progress, "%"))
+	if progress == "" || strings.EqualFold(progress, "N/A") {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(progress, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func resolveVMDataVolumeRuntimeStatus(phases map[string]string) (string, bool) {
+	if len(phases) == 0 {
+		return "", false
+	}
+	for _, phase := range phases {
+		switch strings.TrimSpace(phase) {
+		case "", "Succeeded":
+			continue
+		case "Failed":
+			return "abnormal", true
+		default:
+			return "restoring", true
+		}
+	}
+	return "", false
+}
+
 // PauseUNPauseService -
 func (s *ServiceAction) PauseUNPauseService(serviceID string, pauseORunpause string) error {
-	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), &metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
+	vmis, err := s.kubevirtClient.VirtualMachineInstance("").List(context.Background(), metav1.ListOptions{LabelSelector: "service_id=" + serviceID})
 	if err != nil {
 		return err
 	}
@@ -433,11 +1006,18 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	oldMemory := service.ContainerMemory
 	oldCPU := service.ContainerCPU
 	oldGPU := service.ContainerGPU
-	var rollback = func() {
+	var rollback = func(syncVM bool) {
 		service.ContainerMemory = oldMemory
 		service.ContainerCPU = oldCPU
 		service.ContainerGPU = oldGPU
-		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
+		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+			logrus.Errorf("rollback service resources failure. %v", err)
+		}
+		if syncVM && service.IsVM() {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(service.ServiceID); err != nil {
+				logrus.Errorf("rollback vm spec sync failure. %v", err)
+			}
+		}
 	}
 	if vs.ContainerCPU != nil {
 		service.ContainerCPU = *vs.ContainerCPU
@@ -458,6 +1038,15 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 		logrus.Errorf("update service memory and cpu failure. %v", err)
 		return fmt.Errorf("vertical service faliure:%s", err.Error())
 	}
+	if service.IsVM() {
+		if err := s.applyVMLiveUpdateIfPossible(service, oldCPU, oldMemory); err != nil {
+			rollback(true)
+			db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
+			return err
+		}
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusSuccess)
+		return nil
+	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
 		TaskBody: vs,
@@ -465,7 +1054,7 @@ func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalS
 	})
 	if err != nil {
 		// roll back service
-		rollback()
+		rollback(service.IsVM())
 		logrus.Errorf("equque mq error, %v", err)
 		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
@@ -878,6 +1467,17 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
+	if len(sc.ComponentK8sAttributes) > 0 {
+		var batchAttrs []*dbmodel.ComponentK8sAttributes
+		for _, k8sAttr := range sc.ComponentK8sAttributes {
+			attr := k8sAttr
+			batchAttrs = append(batchAttrs, attr.DbModel(ts.TenantID, ts.ServiceID))
+		}
+		if err := db.GetManager().ComponentK8sAttributeDaoTransactions(tx).CreateOrUpdateAttributesInBatch(batchAttrs); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 	labelModel := dbmodel.TenantServiceLable{
 		ServiceID:  ts.ServiceID,
 		LabelKey:   dbmodel.LabelKeyServiceType,
@@ -927,6 +1527,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	oldMemory := ts.ContainerMemory
+	oldCPU := ts.ContainerCPU
+	oldGPU := ts.ContainerGPU
 	if memory, ok := sc["container_memory"].(int); ok && memory >= 0 {
 		ts.ContainerMemory = memory
 	}
@@ -980,10 +1583,22 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if js, ok := sc["job_strategy"].(string); ok {
 		ts.JobStrategy = js
 	}
+	resourceChanged := ts.ContainerMemory != oldMemory || ts.ContainerCPU != oldCPU || ts.ContainerGPU != oldGPU
 	//update component
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
 		return err
+	}
+	if resourceChanged && ts.IsVM() {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(ts.ServiceID); err != nil {
+			ts.ContainerMemory = oldMemory
+			ts.ContainerCPU = oldCPU
+			ts.ContainerGPU = oldGPU
+			if rollbackErr := db.GetManager().TenantServiceDao().UpdateModel(ts); rollbackErr != nil {
+				logrus.Errorf("rollback service resource update failure. %v", rollbackErr)
+			}
+			return err
+		}
 	}
 	return nil
 }
@@ -1170,6 +1785,14 @@ func (s *ServiceAction) CodeCheck(c *apimodel.CheckCodeStruct) error {
 
 // ServiceDepend service depend
 func (s *ServiceAction) ServiceDepend(action string, ds *apimodel.DependService) error {
+	defer func() {
+		if ds == nil || ds.ServiceID == "" {
+			return
+		}
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(ds.ServiceID); err != nil {
+			logrus.Warningf("sync vm spec after dependency change failed for %s: %v", ds.ServiceID, err)
+		}
+	}()
 	switch action {
 	case "add":
 		tsr := &dbmodel.TenantServiceRelation{
@@ -1217,6 +1840,17 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar, 
 		if err := db.GetManager().TenantServiceEnvVarDao().UpdateModelByAttrName(at, oldAttrName); err != nil {
 			logrus.Errorf("update env %v error,%v", at.AttrName, err)
 			return err
+		}
+	}
+	if at != nil && at.ServiceID != "" {
+		service, err := s.getDBManager().TenantServiceDao().GetServiceByID(at.ServiceID)
+		if err != nil {
+			return err
+		}
+		if service != nil && service.IsVM() {
+			if err := s.syncVirtualMachineSpecAfterResourceUpdate(at.ServiceID); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1476,7 +2110,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 					tx.Rollback()
 					return nil, "", fmt.Errorf("outer, delete plugin mapping port %d error:(%s)", containerPort, err)
 				}
-				logrus.Debugf(fmt.Sprintf("outer, delete plugin port %d->%d", containerPort, pluginPort.PluginPort))
+				logrus.Debugf("outer, delete plugin port %d->%d", containerPort, pluginPort.PluginPort)
 			OUTERCLOSEPASS:
 			}
 			if err := tx.Commit().Error; err != nil {
@@ -1599,7 +2233,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					tx.Rollback()
 					return fmt.Errorf("inner, delete plugin mapping port %d error:(%s)", port, err)
 				}
-				logrus.Debugf(fmt.Sprintf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort))
+				logrus.Debugf("inner, delete plugin port %d->%d", port, pluginPort.PluginPort)
 			INNERCLOSEPASS:
 			}
 		} else {
@@ -1657,6 +2291,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 
 // VolumnVar var volumn
 func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError {
+	dbm := s.getDBManager()
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if localPath == "" {
@@ -1676,7 +2311,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			//本地文件存储
 			case dbmodel.LocalVolumeType.String():
-				serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeByID(tsv.ServiceID)
+				serviceInfo, err := dbm.TenantServiceDao().GetServiceTypeByID(tsv.ServiceID)
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
@@ -1691,14 +2326,14 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		}
 		util.SetVolumeDefaultValue(tsv)
 		// begin transaction
-		tx := db.GetManager().Begin()
+		tx := dbm.Begin()
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
 				tx.Rollback()
 			}
 		}()
-		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
+		if err := dbm.TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
 		}
@@ -1708,7 +2343,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				VolumeName:  tsv.VolumeName,
 				FileContent: fileContent,
 			}
-			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
+			if err := dbm.TenantServiceConfigFileDaoTransactions(tx).AddModel(cf); err != nil {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
 			}
@@ -1718,9 +2353,27 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
+		serviceInfo, err := dbm.TenantServiceDao().GetServiceByID(tsv.ServiceID)
+		if err != nil {
+			return util.CreateAPIHandleErrorFromDBError("get service", err)
+		}
+		if serviceInfo != nil && serviceInfo.IsVM() {
+			if tsv.VolumeType == dbmodel.ConfigFileVolumeType.String() {
+				if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsv.ServiceID); err != nil {
+					return util.CreateAPIHandleError(500, fmt.Errorf("sync vm config-file to virtualmachine: %w", err))
+				}
+				return nil
+			}
+			if err := s.hotplugVMDataDisk(tenantID, tsv); err != nil {
+				return util.CreateAPIHandleError(500, fmt.Errorf("hotplug vm data disk: %w", err))
+			}
+		} else if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
+		}
 	case "delete":
+		var deletedVolume *dbmodel.TenantServiceVolume
 		// begin transaction
-		tx := db.GetManager().Begin()
+		tx := dbm.Begin()
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
@@ -1728,13 +2381,14 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			}
 		}()
 		if tsv.VolumeName != "" {
-			volume, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
+			volume, err := dbm.TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
 			if err != nil {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("find volume", err)
 			}
+			deletedVolume = volume
 
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
@@ -1755,12 +2409,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 		}
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.ServiceID, tsv.VolumeName); err != nil {
+		if err := dbm.TenantServiceConfigFileDaoTransactions(tx).DelByVolumeID(tsv.ServiceID, tsv.VolumeName); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error deleting config files", err)
 		}
@@ -1769,20 +2423,30 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
+		if deletedVolume != nil {
+			if err := s.hotunplugVMDataDisk(deletedVolume); err != nil {
+				return util.CreateAPIHandleError(500, fmt.Errorf("hotunplug vm data disk: %w", err))
+			}
+			return nil
+		}
+		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
+		}
 	}
 	return nil
 }
 
 // UpdVolume updates service volume.
 func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error {
-	tx := db.GetManager().Begin()
+	dbm := s.getDBManager()
+	tx := dbm.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
 			tx.Rollback()
 		}
 	}()
-	v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	v, err := dbm.TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -1792,24 +2456,27 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		v.VolumeCapacity = *req.VolumeCapacity
 	}
 	v.Mode = req.Mode
-	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+	if err := dbm.TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
 		tx.Rollback()
 		return err
 	}
 	if req.VolumeType == "config-file" {
-		configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
+		configfile, err := dbm.TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 		configfile.FileContent = req.FileContent
-		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
+		if err := dbm.TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
-	tx.Commit()
-	return nil
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return s.syncVirtualMachineSpecForService(sid)
 }
 
 // GetVolumes 获取应用全部存储
@@ -1927,6 +2594,9 @@ func (s *ServiceAction) ServiceProbe(tsp *dbmodel.TenantServiceProbe, action str
 			return err
 		}
 	}
+	if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsp.ServiceID); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1988,6 +2658,13 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 		sl.CurStatus = status
 		sl.StatusCN = TransStatus(status)
 	}
+	if services.IsVM() {
+		if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
+			sl.CurStatus = vmStatus
+			sl.StatusCN = TransStatus(vmStatus)
+		}
+		sl.VMRestore = s.resolveVMDataVolumeRestore(serviceID)
+	}
 	di, err := s.statusCli.GetServiceDeployInfo(serviceID)
 	if err != nil {
 		logrus.Warningf("service id: %s; failed to get deploy info: %v", serviceID, err)
@@ -1999,19 +2676,47 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 
 // GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
 func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) []map[string]interface{} {
+	var services []*dbmodel.TenantServices
 	if len(serviceIDs) == 0 {
-		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
-		for _, s := range services {
-			serviceIDs = append(serviceIDs, s.ServiceID)
+		tenantServices, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
+		services = tenantServices
+		for _, service := range tenantServices {
+			serviceIDs = append(serviceIDs, service.ServiceID)
 		}
+	} else {
+		tenantServices, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(serviceIDs)
+		if err != nil {
+			logrus.Warningf("get services by service ids failed: %v", err)
+		}
+		services = tenantServices
 	}
 	if len(serviceIDs) == 0 {
 		return []map[string]interface{}{}
 	}
-	statusList := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	statusList := map[string]string{}
+	if s.statusCli != nil {
+		statusList = s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	}
+	serviceMap := make(map[string]*dbmodel.TenantServices, len(services))
+	for _, service := range services {
+		serviceMap[service.ServiceID] = service
+	}
 	var info = make([]map[string]interface{}, 0)
-	for k, v := range statusList {
-		serviceInfo := map[string]interface{}{"service_id": k, "status": v, "status_cn": TransStatus(v), "used_mem": 0}
+	for _, serviceID := range serviceIDs {
+		status := statusList[serviceID]
+		service := serviceMap[serviceID]
+		if status == "" && service != nil {
+			status = service.CurStatus
+		}
+		if service != nil && service.IsVM() {
+			if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
+				status = vmStatus
+			}
+		}
+		if status == "" {
+			continue
+		}
+		serviceInfo := map[string]interface{}{"service_id": serviceID, "status": status, "status_cn": TransStatus(status), "used_mem": 0}
 		info = append(info, serviceInfo)
 	}
 	return info
@@ -2221,10 +2926,11 @@ type K8sPodInfo struct {
 // GetPods get pods
 func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	// kubeblocks_component 的 workload 由 KubeBlocks 管理，Rainbond 不查询其 Pods
-	if svc, _ := db.GetManager().TenantServiceDao().GetServiceByID(serviceID); svc != nil && svc.IsKubeBlocksComponent() {
+	svc, _ := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if svc != nil && svc.IsKubeBlocksComponent() {
 		return &K8sPodInfos{NewPods: []*K8sPodInfo{}, OldPods: []*K8sPodInfo{}}, nil
 	}
-	pods, err := s.statusCli.GetServicePods(serviceID)
+	pods, err := s.getServicePods(serviceID)
 	if err != nil && !strings.Contains(err.Error(), server.ErrAppServiceNotFound.Error()) &&
 		!strings.Contains(err.Error(), server.ErrPodNotFound.Error()) {
 		logrus.Error("GetPodByService Error:", err)
@@ -2265,6 +2971,11 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	}
 	newpods := convpod(pods.NewPods)
 	oldpods := convpod(pods.OldPods)
+	if svc != nil && svc.IsVM() {
+		excluded := s.cleanupCompletedVMLauncherPods(serviceID)
+		newpods = filterK8sPodInfos(newpods, excluded)
+		oldpods = filterK8sPodInfos(oldpods, excluded)
+	}
 	return &K8sPodInfos{
 		NewPods: newpods,
 		OldPods: oldpods,
@@ -3173,7 +3884,11 @@ func TransStatus(eStatus string) string {
 		return "运行异常"
 	case "upgrade":
 		return "升级中"
+	case "building":
+		return "构建中"
 	case "closed":
+		return "已关闭"
+	case "stopped":
 		return "已关闭"
 	case "stopping":
 		return "关闭中"
@@ -3197,7 +3912,7 @@ func TransStatus(eStatus string) string {
 	return ""
 }
 
-func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace string) ([]apimodel.FileInfo, error) {
+func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
 
 	// 获取服务信息
@@ -3205,10 +3920,12 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 	if err != nil {
 		return nil, err
 	}
-	containerName := service.K8sComponentName
+	if containerName == "" {
+		containerName = service.K8sComponentName
+	}
 
 	// 执行 shell 命令 `ls -p -1`，列出指定路径下的文件和目录
-	output, err := s.executeCommand(podName, namespace, containerName, []string{"ls", "-p", "-1", tarPath})
+	output, err := s.executeCommand(podName, namespace, containerName, buildFileManageListCommand(tarPath))
 	if err != nil {
 		return nil, err
 	}
@@ -3238,6 +3955,29 @@ func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, namespace st
 	return fileInfos, nil
 }
 
+func buildFileManageListCommand(tarPath string) []string {
+	return []string{"ls", "-1", "-p", "--", tarPath}
+}
+
+func wrapFileManageExecError(action string, command []string, stderr string, execErr error) error {
+	if execErr == nil {
+		return nil
+	}
+
+	commandText := strings.Join(command, " ")
+	stderr = strings.TrimSpace(stderr)
+	switch {
+	case commandText != "" && stderr != "":
+		return fmt.Errorf("%s failed (command: %s, stderr: %s): %w", action, commandText, stderr, execErr)
+	case commandText != "":
+		return fmt.Errorf("%s failed (command: %s): %w", action, commandText, execErr)
+	case stderr != "":
+		return fmt.Errorf("%s failed (stderr: %s): %w", action, stderr, execErr)
+	default:
+		return fmt.Errorf("%s failed: %w", action, execErr)
+	}
+}
+
 func (s *ServiceAction) executeCommand(podName, namespace, containerName string, command []string) (string, error) {
 	req := s.kubeClient.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -3264,7 +4004,7 @@ func (s *ServiceAction) executeCommand(podName, namespace, containerName string,
 		Stderr: &stderr,
 	})
 	if err != nil {
-		return "", err
+		return "", wrapFileManageExecError("exec command", command, stderr.String(), err)
 	}
 	// 返回输出结果
 	return strings.TrimSpace(stdout.String()), nil

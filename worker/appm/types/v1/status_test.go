@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 func TestGetServiceStatusReturnsAbnormalForUnschedulablePod(t *testing.T) {
@@ -93,5 +94,28 @@ func TestGetServiceStatusReturnsWaitingWhenCurrentVersionPodIsScheduling(t *test
 
 	if got := service.GetServiceStatus(); got != WAITING {
 		t.Fatalf("expected scheduling deployment to be %q, got %q", WAITING, got)
+	}
+}
+
+func TestGetServiceStatusReturnsClosedForStoppedVirtualMachine(t *testing.T) {
+	service := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceType: TypeVirtualMachine,
+			Replicas:    1,
+		},
+		virtualmachine: &kubevirtv1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "demo-vm",
+				Namespace:       "demo-ns",
+				ResourceVersion: "1",
+			},
+			Status: kubevirtv1.VirtualMachineStatus{
+				PrintableStatus: kubevirtv1.VirtualMachineStatusStopped,
+			},
+		},
+	}
+
+	if got := service.GetServiceStatus(); got != CLOSED {
+		t.Fatalf("expected stopped vm to be %q, got %q", CLOSED, got)
 	}
 }

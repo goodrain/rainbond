@@ -1,0 +1,114 @@
+meta:
+  name: "vm-installer-media-disk-management"
+  version: "1.0"
+  repo: "/Users/zhangqihang/MyWork/workrc/rainbond"
+  branch: "current"
+  design_doc: "/Users/zhangqihang/MyWork/workrc/rainbond/docs/plans/2026-05-11-vm-installer-media-disk-management-design.md"
+
+sprints:
+  - id: sprint-1
+    name: "VM disk model and APIs"
+    commits:
+      - id: commit-1
+        message: "feat: add vm disk layout APIs"
+        tasks: [task-1.1, task-1.2]
+    tasks:
+      - id: task-1.1
+        name: "Add console VM disk list and save endpoints"
+        status: pending
+        files:
+          modify:
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-console/console/services/virtual_machine.py"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-console/console/views/app_overview.py"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-console/console/urls/__init__.py"
+        steps:
+          - action: "implement"
+            description: "Add VM disk list serialization and save validation around vm_disk_layout."
+          - action: "verify"
+            description: "Run focused Python tests or lint for the added VM disk service/view logic."
+        acceptance:
+          - cmd: "python -m py_compile console/services/virtual_machine.py console/views/app_overview.py"
+            expect: "PASS"
+      - id: task-1.2
+        name: "Wire UI services and page to use VM disk APIs"
+        status: pending
+        files:
+          modify:
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-ui/src/services/app.js"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-ui/src/models/appControl.js"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond-ui/src/pages/Component/mnt.js"
+        steps:
+          - action: "implement"
+            description: "Add VM disk fetch/save services and replace VM storage table with complete disk list interactions."
+          - action: "verify"
+            description: "Run yarn build after UI changes."
+        acceptance:
+          - cmd: "yarn build"
+            expect: "PASS"
+
+  - id: sprint-2
+    name: "Worker VM layout behavior"
+    commits:
+      - id: commit-2
+        message: "feat: honor installer media in vm disk layout"
+        tasks: [task-2.1, task-2.2]
+    tasks:
+      - id: task-2.1
+        name: "Extend rainbond worker VM disk layout model"
+        status: pending
+        files:
+          modify:
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond/worker/appm/conversion/vm_runtime.go"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond/worker/appm/conversion/version.go"
+        steps:
+          - action: "write-test"
+            description: "Add tests covering installer media visibility, removal, and boot order."
+          - action: "implement"
+            description: "Make ISO installer media conditional on vm_disk_layout rather than unconditional append."
+          - action: "verify"
+            description: "Run focused Go tests for VM conversion."
+        acceptance:
+          - cmd: "go test ./worker/appm/conversion"
+            expect: "PASS"
+      - id: task-2.2
+        name: "Keep imported disks and VM volume imports compatible"
+        status: pending
+        files:
+          modify:
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond/worker/appm/volume/vm_import.go"
+            - path: "/Users/zhangqihang/MyWork/workrc/rainbond/worker/appm/volume/share-file.go"
+        steps:
+          - action: "write-test"
+            description: "Add regression tests for imported root disk and export-auth HTTP imports."
+          - action: "implement"
+            description: "Preserve current imported-disk behavior while allowing unified layout metadata."
+          - action: "verify"
+            description: "Run focused Go tests for VM volume import logic."
+        acceptance:
+          - cmd: "go test ./worker/appm/volume"
+            expect: "PASS"
+
+  - id: sprint-3
+    name: "Cross-repo verification"
+    commits:
+      - id: commit-3
+        message: "test: verify vm installer media disk management flow"
+        tasks: [task-3.1]
+    tasks:
+      - id: task-3.1
+        name: "Run repo-level verification"
+        status: pending
+        files:
+          modify: []
+        steps:
+          - action: "verify"
+            description: "Run Go, Python, and UI quality gates after implementation."
+        acceptance:
+          - cmd: "go test ./worker/appm/conversion ./worker/appm/volume"
+            expect: "PASS"
+          - cmd: "go build ./..."
+            expect: "PASS"
+          - cmd: "go vet ./..."
+            expect: "PASS"
+          - cmd: "yarn build"
+            expect: "PASS"
