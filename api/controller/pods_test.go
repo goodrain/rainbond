@@ -36,3 +36,27 @@ func TestParseFollowRejectsInvalidValue(t *testing.T) {
 		t.Fatal("expected invalid follow value error")
 	}
 }
+
+func TestParsePreviousDefaultsToFalse(t *testing.T) {
+	req := httptest.NewRequest("GET", "/v2/tenants/demo/services/svc/pods/pod-1/logs?lines=50", nil)
+
+	if parsePrevious(req) {
+		t.Fatal("expected previous to default to false")
+	}
+}
+
+func TestParsePreviousParsesTrue(t *testing.T) {
+	req := httptest.NewRequest("GET", "/v2/tenants/demo/services/svc/pods/pod-1/logs?previous=true", nil)
+
+	if !parsePrevious(req) {
+		t.Fatal("expected previous to be true")
+	}
+}
+
+func TestParsePreviousInvalidValueTreatedAsFalse(t *testing.T) {
+	req := httptest.NewRequest("GET", "/v2/tenants/demo/services/svc/pods/pod-1/logs?previous=maybe", nil)
+
+	if parsePrevious(req) {
+		t.Fatal("expected invalid previous value to be treated as false")
+	}
+}

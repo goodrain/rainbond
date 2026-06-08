@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	k8sexec "k8s.io/client-go/util/exec"
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 
@@ -3978,7 +3979,127 @@ func wrapFileManageExecError(action string, command []string, stderr string, exe
 	}
 }
 
-func (s *ServiceAction) executeCommand(podName, namespace, containerName string, command []string) (string, error) {
+const (
+	// PodExecMaxOutputBytes caps stdout and stderr each at 1 MiB. Output
+	// exceeding this is truncated and the result is flagged as truncated.
+	PodExecMaxOutputBytes = 1 << 20
+	// PodExecDefaultTimeoutSeconds is the default exec timeout when the
+	// caller does not specify one (or specifies a non-positive value).
+	PodExecDefaultTimeoutSeconds = 30
+	// PodExecMaxTimeoutSeconds is the upper bound on exec timeout regardless
+	// of the caller-supplied value.
+	PodExecMaxTimeoutSeconds = 120
+)
+
+// ErrContainerNotRunning indicates the target container is not in the Running
+// state, so an exec attempt cannot succeed. Callers can distinguish this case
+// and fall back to previous-container logs for crash diagnosis.
+var ErrContainerNotRunning = errors.New("container not running")
+
+// capBuffer is an io.Writer that records up to a fixed number of bytes and
+// flags whether the cap was exceeded. Bytes beyond the cap are discarded.
+type capBuffer struct {
+	buf       bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func newCapBuffer(limit int) *capBuffer {
+	return &capBuffer{limit: limit}
+}
+
+func (c *capBuffer) Write(p []byte) (int, error) {
+	if remaining := c.limit - c.buf.Len(); remaining > 0 {
+		if len(p) > remaining {
+			c.buf.Write(p[:remaining])
+			c.truncated = true
+		} else {
+			c.buf.Write(p)
+		}
+	} else if len(p) > 0 {
+		c.truncated = true
+	}
+	// Always report the full length as written so the executor keeps
+	// streaming; we intentionally drop the overflow.
+	return len(p), nil
+}
+
+func (c *capBuffer) String() string {
+	return c.buf.String()
+}
+
+// clampExecTimeout normalizes the caller-supplied timeout into a sane bounded
+// duration.
+func clampExecTimeout(timeoutSeconds int) time.Duration {
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = PodExecDefaultTimeoutSeconds
+	}
+	if timeoutSeconds > PodExecMaxTimeoutSeconds {
+		timeoutSeconds = PodExecMaxTimeoutSeconds
+	}
+	return time.Duration(timeoutSeconds) * time.Second
+}
+
+// checkContainerRunning verifies the named container of the pod is in the
+// Running state. It returns ErrContainerNotRunning (wrapped with context) when
+// it is not, so the caller can fall back to previous-container logs.
+func (s *ServiceAction) checkContainerRunning(podName, namespace, containerName string) error {
+	pod, err := s.kubeClient.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	statuses := pod.Status.ContainerStatuses
+	if containerName == "" {
+		// No specific container requested: require the pod itself to be
+		// running and at least one container running.
+		for _, cs := range statuses {
+			if cs.State.Running != nil {
+				return nil
+			}
+		}
+		if len(statuses) == 0 {
+			return fmt.Errorf("%w: pod %s has no container statuses", ErrContainerNotRunning, podName)
+		}
+		return fmt.Errorf("%w: no running container in pod %s", ErrContainerNotRunning, podName)
+	}
+	for _, cs := range statuses {
+		if cs.Name == containerName {
+			if cs.State.Running != nil {
+				return nil
+			}
+			reason := ""
+			switch {
+			case cs.State.Waiting != nil:
+				reason = cs.State.Waiting.Reason
+			case cs.State.Terminated != nil:
+				reason = cs.State.Terminated.Reason
+			}
+			if reason != "" {
+				return fmt.Errorf("%w: container %s state reason %s", ErrContainerNotRunning, containerName, reason)
+			}
+			return fmt.Errorf("%w: container %s", ErrContainerNotRunning, containerName)
+		}
+	}
+	return fmt.Errorf("%w: container %s not found in pod %s", ErrContainerNotRunning, containerName, podName)
+}
+
+// ExecCommand runs a one-shot, non-interactive command in a pod container and
+// returns the captured stdout, stderr, the container exit code, and whether the
+// output was truncated. A non-zero exit code is a valid result (returned with a
+// nil error), not a transport failure. The exec is bounded by timeout and an
+// output cap. When the target container is not running, it returns
+// ErrContainerNotRunning so callers can fall back to previous-container logs.
+func (s *ServiceAction) ExecCommand(podName, namespace, containerName string, command []string, timeoutSeconds int) (stdout, stderr string, exitCode int, truncated bool, err error) {
+	if len(command) == 0 {
+		return "", "", 0, false, fmt.Errorf("exec command must not be empty")
+	}
+
+	// Cheap pre-check so the not-running case is distinguishable from a
+	// genuine exec transport error.
+	if cerr := s.checkContainerRunning(podName, namespace, containerName); cerr != nil {
+		return "", "", 0, false, cerr
+	}
+
 	req := s.kubeClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -3995,19 +4116,46 @@ func (s *ServiceAction) executeCommand(podName, namespace, containerName string,
 
 	executor, err := remotecommand.NewSPDYExecutor(s.config, "POST", req.URL())
 	if err != nil {
-		return "", err
+		return "", "", 0, false, err
 	}
 
-	var stdout, stderr bytes.Buffer
-	err = executor.Stream(remotecommand.StreamOptions{
-		Stdout: &stdout,
-		Stderr: &stderr,
+	ctx, cancel := context.WithTimeout(context.Background(), clampExecTimeout(timeoutSeconds))
+	defer cancel()
+
+	stdoutBuf := newCapBuffer(PodExecMaxOutputBytes)
+	stderrBuf := newCapBuffer(PodExecMaxOutputBytes)
+	streamErr := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: stdoutBuf,
+		Stderr: stderrBuf,
 	})
+
+	stdout = stdoutBuf.String()
+	stderr = stderrBuf.String()
+	truncated = stdoutBuf.truncated || stderrBuf.truncated
+
+	if streamErr != nil {
+		// A non-zero container exit code surfaces as a CodeExitError; treat
+		// it as a valid result rather than a transport error.
+		var codeErr k8sexec.CodeExitError
+		if errors.As(streamErr, &codeErr) {
+			return stdout, stderr, codeErr.ExitStatus(), truncated, nil
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return stdout, stderr, 0, truncated, fmt.Errorf("exec command timed out after %s", clampExecTimeout(timeoutSeconds))
+		}
+		return stdout, stderr, 0, truncated, wrapFileManageExecError("exec command", command, stderr, streamErr)
+	}
+
+	return stdout, stderr, 0, truncated, nil
+}
+
+func (s *ServiceAction) executeCommand(podName, namespace, containerName string, command []string) (string, error) {
+	stdout, _, _, _, err := s.ExecCommand(podName, namespace, containerName, command, PodExecDefaultTimeoutSeconds)
 	if err != nil {
-		return "", wrapFileManageExecError("exec command", command, stderr.String(), err)
+		return "", err
 	}
 	// 返回输出结果
-	return strings.TrimSpace(stdout.String()), nil
+	return strings.TrimSpace(stdout), nil
 }
 
 // checkChaosHealth 检查 chaos 服务健康状态，如果服务未就绪则重试

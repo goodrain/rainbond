@@ -298,6 +298,7 @@ type AppRestoreInterface interface {
 type PodInterface interface {
 	PodDetail(w http.ResponseWriter, r *http.Request)
 	PodLogs(w http.ResponseWriter, r *http.Request)
+	PodExec(w http.ResponseWriter, r *http.Request)
 	SystemPodLogs(w http.ResponseWriter, r *http.Request)
 	SystemPodDetail(w http.ResponseWriter, r *http.Request)
 }
