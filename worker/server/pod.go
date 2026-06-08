@@ -153,9 +153,27 @@ func describeContainers(containers []corev1.Container, containerStatuses []corev
 
 func describeContainerState(status corev1.ContainerStatus, podContainer *pb.PodContainer) {
 	describeStatus(status.State, podContainer)
-	// TODO: LastTerminationState
+	describeLastTerminationState(status.LastTerminationState, podContainer)
 	// TODO: Ready
 	// TODO: Restart Count
+}
+
+// describeLastTerminationState records the last terminated state of a container
+// (crash diagnosis data) onto the PodContainer when available.
+func describeLastTerminationState(lastState corev1.ContainerState, podContainer *pb.PodContainer) {
+	terminated := lastState.Terminated
+	if terminated == nil {
+		return
+	}
+	podContainer.LastTerminatedReason = terminated.Reason
+	podContainer.LastTerminatedExitCode = terminated.ExitCode
+	podContainer.LastTerminatedMessage = terminated.Message
+	if !terminated.StartedAt.IsZero() {
+		podContainer.LastTerminatedStartedAt = terminated.StartedAt.Time.Format(time.RFC3339)
+	}
+	if !terminated.FinishedAt.IsZero() {
+		podContainer.LastTerminatedFinishedAt = terminated.FinishedAt.Time.Format(time.RFC3339)
+	}
 }
 
 func describeStatus(state corev1.ContainerState, podContainer *pb.PodContainer) {
