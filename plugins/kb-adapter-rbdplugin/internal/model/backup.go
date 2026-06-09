@@ -6,7 +6,7 @@ import (
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"
 )
 
-// BackupScheduleInput 用于更新备份设置
+// BackupScheduleInput 用于更新备份策略
 type BackupScheduleInput struct {
 	RBDService
 	ClusterBackup
