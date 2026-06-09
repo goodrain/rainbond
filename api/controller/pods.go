@@ -32,6 +32,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -153,11 +154,19 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 		return
 	}
 
+	// previous=true returns logs of the last terminated instance of the
+	// container, used for crash diagnosis. Following previous logs is not
+	// meaningful, so follow is forced off in that case.
+	previous := parsePrevious(r)
+	if previous {
+		follow = false
+	}
+
 	// Get container name from query parameter
 	container := r.URL.Query().Get("container")
 	logrus.Infof(
-		"resource center pod logs request path=%s namespace=%s pod=%s container=%s lines=%d follow=%t",
-		r.URL.String(), namespace, podName, container, lines, follow,
+		"resource center pod logs request path=%s namespace=%s pod=%s container=%s lines=%d follow=%t previous=%t",
+		r.URL.String(), namespace, podName, container, lines, follow, previous,
 	)
 
 	// Get pod to check how many containers it has
@@ -208,7 +217,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 	// If single container, use original logic
 	if len(containers) == 1 {
-		streamContainerLogs(w, r, podName, namespace, containers[0], tailLines, follow, flusher)
+		streamContainerLogs(w, r, podName, namespace, containers[0], tailLines, follow, previous, flusher)
 		return
 	}
 
@@ -227,6 +236,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 				Timestamps: true,
 				TailLines:  &tailLines,
 				Container:  cName,
+				Previous:   previous,
 			})
 
 			stream, err := req.Stream(r.Context())
@@ -283,7 +293,7 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 
 // streamContainerLogs streams logs from a single container
 func streamContainerLogs(
-	w http.ResponseWriter, r *http.Request, podName, namespace, container string, tailLines int64, follow bool,
+	w http.ResponseWriter, r *http.Request, podName, namespace, container string, tailLines int64, follow, previous bool,
 	flusher http.Flusher,
 ) {
 	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
@@ -291,6 +301,7 @@ func streamContainerLogs(
 		Timestamps: true,
 		TailLines:  &tailLines,
 		Container:  container,
+		Previous:   previous,
 	})
 	logrus.Infof("Opening log stream for pod %s, container %s", podName, container)
 
@@ -340,6 +351,21 @@ func parseFollow(r *http.Request) (bool, error) {
 	return follow, nil
 }
 
+// parsePrevious reports whether the caller requested logs of the previously
+// terminated container instance via previous=true. Defaults to false; any
+// unparseable value is treated as false.
+func parsePrevious(r *http.Request) bool {
+	previousValue := r.URL.Query().Get("previous")
+	if previousValue == "" {
+		return false
+	}
+	previous, err := strconv.ParseBool(previousValue)
+	if err != nil {
+		return false
+	}
+	return previous
+}
+
 func isExpectedLogStreamClose(ctx context.Context, err error) bool {
 	if err == nil {
 		return false
@@ -368,4 +394,65 @@ func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
 func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 	logs(w, r, chi.URLParam(r, "pod_name"), tenant.Namespace)
+}
+
+// PodExec runs a one-shot, non-interactive command in a pod container and
+// returns the captured stdout/stderr, the container exit code, and whether the
+// output was truncated. Authorization is enforced by the existing
+// InitTenant/InitService middleware; arbitrary commands are allowed, mirroring
+// the Web Terminal. Safety rails: context timeout, output cap, audit log.
+func (p *PodController) PodExec(w http.ResponseWriter, r *http.Request) {
+	podName := chi.URLParam(r, "pod_name")
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
+	service := r.Context().Value(ctxutil.ContextKey("service")).(*model.TenantServices)
+
+	var req apimodel.PodExecRequest
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+	if len(req.Command) == 0 {
+		httputil.ReturnError(r, w, 400, "command must not be empty")
+		return
+	}
+
+	// Default to the component's main container when none is specified.
+	containerName := req.Container
+	if containerName == "" {
+		containerName = service.K8sComponentName
+	}
+
+	stdout, stderr, exitCode, truncated, err := handler.GetServiceManager().ExecCommand(
+		podName, tenant.Namespace, containerName, req.Command, req.TimeoutSeconds,
+	)
+	if err != nil {
+		// Distinguish the not-running case so callers can fall back to
+		// previous-container logs.
+		if errors.Is(err, handler.ErrContainerNotRunning) {
+			logrus.Warningf(
+				"pod exec on non-running container: tenant=%s service=%s pod=%s container=%s err=%v",
+				tenant.Name, service.ServiceAlias, podName, containerName, err,
+			)
+			httputil.ReturnError(r, w, 409, fmt.Sprintf("container not running: %v", err))
+			return
+		}
+		logrus.Errorf(
+			"pod exec failed: tenant=%s service=%s pod=%s container=%s command=%v err=%v",
+			tenant.Name, service.ServiceAlias, podName, containerName, req.Command, err,
+		)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("exec failed: %v", err))
+		return
+	}
+
+	// Audit log: one structured line for traceability.
+	logrus.Infof(
+		"pod exec audit: tenant=%s service=%s pod=%s container=%s command=%v exit_code=%d truncated=%t",
+		tenant.Name, service.ServiceAlias, podName, containerName, req.Command, exitCode, truncated,
+	)
+
+	httputil.ReturnSuccess(r, w, &apimodel.PodExecResult{
+		Stdout:    stdout,
+		Stderr:    stderr,
+		ExitCode:  exitCode,
+		Truncated: truncated,
+	})
 }

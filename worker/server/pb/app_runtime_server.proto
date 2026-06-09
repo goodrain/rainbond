@@ -241,6 +241,12 @@ message PodContainer {
   string limit_cpu = 6;
   string request_memory = 7;
   string request_cpu = 8;
+  // last terminated state of the container (crash diagnosis data)
+  string last_terminated_reason = 9;
+  int32 last_terminated_exit_code = 10;
+  string last_terminated_message = 11;
+  string last_terminated_started_at = 12;
+  string last_terminated_finished_at = 13;
 }
 
 message PodDetail {

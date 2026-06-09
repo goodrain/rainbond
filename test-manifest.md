@@ -176,6 +176,9 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
+| rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
+| rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
 | rainbond.manual-pvc-upgrade-surfaces-update-errors | 应用升级时返回手动 PVC 更新错误 | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError |
 | rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
@@ -191,6 +194,7 @@
 | rainbond.ns-resource.batch-create | 批量创建命名空间资源 | active | regression | api/handler.NsResourceHandler.CreateNsResource | api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess<br>api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace |
 | rainbond.ns-resource.detect-source | 识别命名空间资源来源 | active | regression | api/handler.detectResourceSource | api/handler/ns_resource_test.go::TestDetectResourceSource |
 | rainbond.ns-resource.handler-singleton | 复用命名空间资源处理器单例 | active | unit | api/handler.GetNsResourceHandler | api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton |
+| rainbond.ns-resource.ingress-summary | 汇总 Ingress 资源路由元数据 | active | regression | api/handler.toNsResourceInfo | api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
 | rainbond.package-build.clean-extracted-content | 解压前清理旧包展开内容 | active | regression | builder/parser.cleanPackageExtractDir | builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly |
@@ -401,6 +405,7 @@
 | rainbond.worker.appm.discovery.etcd-config | 配置 appm 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | worker/appm/thirdparty/discovery.NewEtcd | worker/appm/thirdparty/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.worker.appm.discovery.unsupported-type | 对不支持的 appm 发现后端返回错误 | active | regression | worker/appm/thirdparty/discovery.NewDiscoverier | worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
 | rainbond.worker.appm.gateway.reassign-conflicting-nodeport | Reassign worker TCP NodePorts already allocated in Kubernetes | active | regression | worker/appm/conversion.reassignAllocatedNodePort | worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort<br>worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort |
+| rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM worker NodePort services | active | regression | worker/appm/conversion.outerServiceExternalTrafficPolicy | worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM<br>worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM |
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
@@ -2157,6 +2162,36 @@
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
 
+### Preserve bound manual PVC immutable spec fields during app upgrade
+
+- Capability ID: `rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/controller/upgrade.go`, `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec`
+
+### Preserve existing manual PVC metadata during app upgrade
+
+- Capability ID: `rainbond.manual-pvc-upgrade-preserves-existing-metadata`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata`
+
+### Skip manual PVC updates when storage request is unchanged
+
+- Capability ID: `rainbond.manual-pvc-upgrade-skips-unchanged-storage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage`
+
 ### 应用升级时返回手动 PVC 更新错误
 
 - Capability ID: `rainbond.manual-pvc-upgrade-surfaces-update-errors`
@@ -2306,6 +2341,16 @@
 - 业务入口: `api/handler.GetNsResourceHandler`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton`
+
+### 汇总 Ingress 资源路由元数据
+
+- Capability ID: `rainbond.ns-resource.ingress-summary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.toNsResourceInfo`
+- 代码路径: `api/handler/ns_resource.go`
+- 测试路径: `api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary`
 
 ### 标记命名空间资源来源
 
@@ -4406,6 +4451,16 @@
 - 业务入口: `worker/appm/conversion.reassignAllocatedNodePort`
 - 代码路径: `worker/appm/conversion/gateway.go`
 - 测试路径: `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort`, `worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort`
+
+### Use Local externalTrafficPolicy for VM worker NodePort services
+
+- Capability ID: `rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.outerServiceExternalTrafficPolicy`
+- 代码路径: `worker/appm/conversion/gateway.go`
+- 测试路径: `worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM`, `worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM`
 
 ### 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容
 

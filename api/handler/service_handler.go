@@ -124,4 +124,5 @@ type ServiceHandler interface {
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
 	FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error)
+	ExecCommand(podName, namespace, containerName string, command []string, timeoutSeconds int) (stdout, stderr string, exitCode int, truncated bool, err error)
 }
