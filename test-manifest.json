@@ -21,6 +21,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.api.kubeblocks.adapter-service-namespace",
+      "title": "KubeBlocks adapter service namespace",
+      "title_zh": "KubeBlocks adapter service namespace",
+      "interface_type": "handler_method",
+      "interface": "api/controller.KubeBlocksController.forwardRequest",
+      "code_paths": [
+        "api/controller/kubeblocks.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/kubeblocks_test.go",
+          "selector": "TestKubeBlocksAdapterBaseURLUsesPluginNamespace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-backup.metadata-version-detect",
       "title": "Detect legacy and new backup metadata schema versions",
       "title_zh": "\u8bc6\u522b\u65e7\u7248\u4e0e\u65b0\u7248\u5e94\u7528\u5907\u4efd\u5143\u6570\u636e\u7ed3\u6784",
