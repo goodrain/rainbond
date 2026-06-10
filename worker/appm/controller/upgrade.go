@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -44,6 +45,24 @@ type upgradeController struct {
 	ctx          context.Context
 }
 
+// truncateErr renders err as a string truncated to at most max bytes. A nil
+// err yields an empty string. The truncation guards against oversized K8s API
+// response bodies bloating the event log stream.
+func truncateErr(err error, max int) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if max <= 0 || len(msg) <= max {
+		return msg
+	}
+	cut := msg[:max]
+	for len(cut) > 0 && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut
+}
+
 func (s *upgradeController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
@@ -52,6 +71,9 @@ func (s *upgradeController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
+				service.Logger.Error(
+					fmt.Sprintf("upgrade %s failure: %s", service.ServiceAlias, truncateErr(err, 1024)),
+					event.GetLoggerOption("failure"))
 				service.Logger.Error(util.Translation("upgrade service error"), event.GetCallbackLoggerOption())
 				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 			} else {

@@ -62,6 +62,9 @@ func (s *startController) Begin() {
 				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
+					service.Logger.Error(
+						fmt.Sprintf("start %s failure: %s", service.ServiceAlias, truncateErr(err, 1024)),
+						event.GetLoggerOption("failure"))
 					service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
 					logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 					s.errorCallback(service)

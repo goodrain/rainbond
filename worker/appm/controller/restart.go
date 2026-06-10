@@ -66,6 +66,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {
+			app.Logger.Error(
+				fmt.Sprintf("restart %s failure (stop phase): %s", app.ServiceAlias, truncateErr(err, 1024)),
+				event.GetLoggerOption("failure"))
 			app.Logger.Error(util.Translation("(restart)stop service error"), event.GetCallbackLoggerOption())
 			return err
 		}
@@ -88,6 +91,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	newAppService, err := conversion.InitAppService(false, db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
+		app.Logger.Error(
+			fmt.Sprintf("restart %s failure (init phase): %s", app.ServiceAlias, truncateErr(err, 1024)),
+			event.GetLoggerOption("failure"))
 		app.Logger.Error(util.Translation("(restart)Application model init create failure"), event.GetCallbackLoggerOption())
 		return fmt.Errorf("application model init create failure,%s", err.Error())
 	}
@@ -96,6 +102,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	s.manager.store.RegistAppService(newAppService)
 	if err := startController.startOne(*newAppService); err != nil {
 		if err != ErrWaitTimeOut {
+			app.Logger.Error(
+				fmt.Sprintf("restart %s failure (start phase): %s", app.ServiceAlias, truncateErr(err, 1024)),
+				event.GetLoggerOption("failure"))
 			app.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
 			return err
 		}
