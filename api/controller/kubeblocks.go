@@ -33,6 +33,23 @@ func (c *KubeBlocksController) GetBackupRepos(w http.ResponseWriter, r *http.Req
 	c.forwardRequest(w, r, "/v1/backuprepos", "GET")
 }
 
+// CreateBackupRepo create KubeBlocks backup repository
+func (c *KubeBlocksController) CreateBackupRepo(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/backuprepos", "POST")
+}
+
+// UpdateBackupRepo update KubeBlocks backup repository
+func (c *KubeBlocksController) UpdateBackupRepo(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/backuprepos/%s", name), "PUT")
+}
+
+// DeleteBackupRepo delete KubeBlocks backup repository
+func (c *KubeBlocksController) DeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/backuprepos/%s", name), "DELETE")
+}
+
 // CreateCluster create KubeBlocks database cluster
 func (c *KubeBlocksController) CreateCluster(w http.ResponseWriter, r *http.Request) {
 	c.forwardRequest(w, r, "/v1/clusters", "POST")
