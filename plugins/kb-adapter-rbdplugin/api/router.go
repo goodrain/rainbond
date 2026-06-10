@@ -16,6 +16,9 @@ func setupRouter(v1 *echo.Group, h *handler.Handler) {
 	v1.GET("/addons", h.GetAddons)
 	v1.GET("/storageclasses", h.GetStorageClasses)
 	v1.GET("/backuprepos", h.GetBackupRepos)
+	v1.POST("/backuprepos", h.CreateBackupRepo)
+	v1.PUT("/backuprepos/:name", h.UpdateBackupRepo)
+	v1.DELETE("/backuprepos/:name", h.DeleteBackupRepo)
 
 	cluster := v1.Group("/clusters")
 	{

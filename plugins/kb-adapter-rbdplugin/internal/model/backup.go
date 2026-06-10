@@ -4,6 +4,8 @@ import (
 	"time"
 
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // BackupScheduleInput 用于更新备份策略
@@ -31,8 +33,23 @@ type BackupItem struct {
 }
 
 type BackupRepo struct {
-	Name         string                       `json:"name"`
-	Type         string                       `json:"type"`
-	AccessMethod datav1alpha1.AccessMethod    `json:"accessMethod"`
-	Phase        datav1alpha1.BackupRepoPhase `json:"phase"`
+	Name                      string                       `json:"name"`
+	Type                      string                       `json:"type"`
+	AccessMethod              datav1alpha1.AccessMethod    `json:"accessMethod"`
+	Phase                     datav1alpha1.BackupRepoPhase `json:"phase"`
+	GeneratedStorageClassName string                       `json:"generatedStorageClassName,omitempty"`
+	BackupPVCName             string                       `json:"backupPVCName,omitempty"`
+	Conditions                []metav1.Condition           `json:"conditions,omitempty"`
+}
+
+type BackupRepoInput struct {
+	Name            string                               `json:"name"`
+	StorageProvider string                               `json:"storageProviderRef"`
+	AccessMethod    datav1alpha1.AccessMethod            `json:"accessMethod"`
+	PVReclaimPolicy corev1.PersistentVolumeReclaimPolicy `json:"pvReclaimPolicy"`
+	VolumeCapacity  string                               `json:"volumeCapacity"`
+	Config          map[string]string                    `json:"config"`
+	Credential      corev1.SecretReference               `json:"credential"`
+	Secrets         map[string]string                    `json:"secrets,omitempty"`
+	PathPrefix      string                               `json:"pathPrefix"`
 }
