@@ -59,6 +59,54 @@ func (h *Handler) GetBackupRepos(c echo.Context) error {
 	return res.ReturnSuccess(c, repos)
 }
 
+// CreateBackupRepo 创建 BackupRepo 与其凭据 Secret。
+//
+// POST /v1/backuprepos
+func (h *Handler) CreateBackupRepo(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var request model.BackupRepoInput
+	if err := c.Bind(&request); err != nil {
+		return res.BadRequest(fmt.Errorf("bind request: %w", err))
+	}
+
+	repo, err := h.svc.CreateBackupRepo(ctx, request)
+	if err != nil {
+		return res.InternalError(fmt.Errorf("create backup repo: %w", err))
+	}
+	return res.ReturnSuccess(c, repo)
+}
+
+// UpdateBackupRepo 更新 BackupRepo。请求中未传 secrets 时保留现有凭据。
+//
+// PUT /v1/backuprepos/:name
+func (h *Handler) UpdateBackupRepo(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var request model.BackupRepoInput
+	if err := c.Bind(&request); err != nil {
+		return res.BadRequest(fmt.Errorf("bind request: %w", err))
+	}
+
+	repo, err := h.svc.UpdateBackupRepo(ctx, c.Param("name"), request)
+	if err != nil {
+		return res.InternalError(fmt.Errorf("update backup repo: %w", err))
+	}
+	return res.ReturnSuccess(c, repo)
+}
+
+// DeleteBackupRepo 删除 BackupRepo 与其凭据 Secret。
+//
+// DELETE /v1/backuprepos/:name
+func (h *Handler) DeleteBackupRepo(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	if err := h.svc.DeleteBackupRepo(ctx, c.Param("name")); err != nil {
+		return res.InternalError(fmt.Errorf("delete backup repo: %w", err))
+	}
+	return res.ReturnSuccess(c, "Done")
+}
+
 // CreateCluster 创建 KubeBlocks 数据库集群
 //
 // POST /v1/clusters

@@ -21,6 +21,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.api.kubeblocks.adapter-service-namespace",
+      "title": "KubeBlocks adapter service namespace",
+      "title_zh": "KubeBlocks adapter service namespace",
+      "interface_type": "handler_method",
+      "interface": "api/controller.KubeBlocksController.forwardRequest",
+      "code_paths": [
+        "api/controller/kubeblocks.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/kubeblocks_test.go",
+          "selector": "TestKubeBlocksAdapterBaseURLUsesPluginNamespace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.api.kubeblocks.backup-repo-mutation-proxy",
+      "title": "KubeBlocks backup repo mutation proxy",
+      "title_zh": "KubeBlocks backup repo mutation proxy",
+      "interface_type": "handler_method",
+      "interface": "api/controller.KubeBlocksController.CreateBackupRepo",
+      "code_paths": [
+        "api/controller/kubeblocks.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/kubeblocks_test.go",
+          "selector": "TestKubeBlocksBackupRepoMutationProxy"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-backup.metadata-version-detect",
       "title": "Detect legacy and new backup metadata schema versions",
       "title_zh": "\u8bc6\u522b\u65e7\u7248\u4e0e\u65b0\u7248\u5e94\u7528\u5907\u4efd\u5143\u6570\u636e\u7ed3\u6784",
@@ -2604,18 +2640,63 @@
       "status": "active"
     },
     {
-      "id": "rainbond.kb-adapter.backup-repo.list-ready",
-      "title": "List ready backup repositories for kb-adapter",
-      "title_zh": "\u5217\u51fa kb-adapter \u53ef\u7528\u7684\u5907\u4efd\u4ed3\u5e93",
+      "id": "rainbond.kb-adapter.addon-version-order",
+      "title": "List kb-adapter addons with deterministic version order",
+      "title_zh": "\u6309\u7a33\u5b9a\u987a\u5e8f\u8fd4\u56de kb-adapter \u63d2\u4ef6 Addon \u7248\u672c",
+      "interface_type": "workflow",
+      "interface": "plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons",
+      "code_paths": [
+        "plugins/kb-adapter-rbdplugin/service/resource/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/resource/resource_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.kb-adapter.backup-repo.list-all",
+      "title": "List backup repositories with all phases for kb-adapter",
+      "title_zh": "\u5217\u51fa kb-adapter \u5168\u90e8\u72b6\u6001\u7684\u5907\u4efd\u4ed3\u5e93",
       "interface_type": "workflow",
       "interface": "plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos",
       "code_paths": [
+        "plugins/kb-adapter-rbdplugin/internal/model/backup.go",
         "plugins/kb-adapter-rbdplugin/service/backup/backup.go"
       ],
       "tests": [
         {
           "path": "plugins/kb-adapter-rbdplugin/service/backup/backup_test.go",
           "selector": "TestListAvailableBackupRepos"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.kb-adapter.backup-repo.mutate",
+      "title": "Create, update, and delete backup repositories in kb-adapter",
+      "title_zh": "kb-adapter \u521b\u5efa\u3001\u66f4\u65b0\u548c\u5220\u9664\u5907\u4efd\u4ed3\u5e93",
+      "interface_type": "workflow",
+      "interface": "plugins/kb-adapter-rbdplugin/service/backup.Service.CreateBackupRepo",
+      "code_paths": [
+        "plugins/kb-adapter-rbdplugin/api/handler/handler.go",
+        "plugins/kb-adapter-rbdplugin/api/router.go",
+        "plugins/kb-adapter-rbdplugin/deploy/k8s/deploy.yaml",
+        "plugins/kb-adapter-rbdplugin/internal/model/backup.go",
+        "plugins/kb-adapter-rbdplugin/service/backup/backup.go",
+        "plugins/kb-adapter-rbdplugin/service/service.go"
+      ],
+      "tests": [
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/backup/backup_test.go",
+          "selector": "TestCreateBackupRepo"
+        },
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/backup/backup_test.go",
+          "selector": "TestDeleteBackupRepoRejectsClusterInUse"
         }
       ],
       "test_type": "regression",

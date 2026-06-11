@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kb-adapter-rbdplugin
-  namespace: rbd-system
+  namespace: rbd-plugins
 spec:
   replicas: 1
   selector:
@@ -52,7 +52,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: kb-adapter-rbdplugin-config
-  namespace: rbd-system
+  namespace: rbd-plugins
 data:
   HOST: "0.0.0.0"
   PORT: "8080"
@@ -65,7 +65,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kb-adapter-rbdplugin-sa
-  namespace: rbd-system
+  namespace: rbd-plugins
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -80,7 +80,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create"]
@@ -107,7 +107,7 @@ rules:
     verbs: ["list", "delete", "watch"]
   - apiGroups: ["dataprotection.kubeblocks.io"]
     resources: ["backuprepos"]
-    verbs: ["list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
   - apiGroups: ["workloads.kubeblocks.io"]
     resources: ["instancesets"]
     verbs: ["list", "watch"]
@@ -133,14 +133,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: kb-adapter-rbdplugin-sa
-    namespace: rbd-system
+    namespace: rbd-plugins
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: kb-adapter-rbdplugin
-  namespace: rbd-system
+  namespace: rbd-plugins
 spec:
   selector:
     app: kb-adapter-rbdplugin

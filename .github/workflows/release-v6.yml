@@ -121,6 +121,10 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: |
             RELEASE_DESC=${{ env.release_desc }}
+            RAINBOND_ERROR_REPORTING_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_DSN }}
+            RAINBOND_ERROR_REPORTING_REGION_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_REGION_DSN }}
+            RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
+            RAINBOND_POSTHOG_PROJECT_TOKEN=${{ secrets.RAINBOND_POSTHOG_PROJECT_TOKEN }}
           context: .
           file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
           outputs: ${{ github.event.inputs.outputs }}
@@ -257,6 +261,10 @@ jobs:
             RELEASE_DESC=${{ env.release_desc }}
             VERSION=${{ env.VERSION }}
             IMAGE_VERSION=${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }} 
+            RAINBOND_ERROR_REPORTING_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_DSN }}
+            RAINBOND_ERROR_REPORTING_FRONTEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_FRONTEND_DSN }}
+            RAINBOND_ERROR_REPORTING_CONSOLE_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_CONSOLE_DSN }}
+            RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
           context: .
           file: ./Dockerfile
           outputs: ${{ github.event.inputs.outputs }}

@@ -16,7 +16,7 @@ import (
 type KubeBlocksController struct{}
 
 // blockMechanicaBaseURL base URL for block-mechanica service
-const blockMechanicaBaseURL = "http://kb-adapter-rbdplugin.rbd-system.svc:80"
+const blockMechanicaBaseURL = "http://kb-adapter-rbdplugin.rbd-plugins.svc:8080"
 
 // GetSupportedDatabases get KubeBlocks supported databases list
 func (c *KubeBlocksController) GetSupportedDatabases(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +31,23 @@ func (c *KubeBlocksController) GetStorageClasses(w http.ResponseWriter, r *http.
 // GetBackupRepos get KubeBlocks backup repositories list
 func (c *KubeBlocksController) GetBackupRepos(w http.ResponseWriter, r *http.Request) {
 	c.forwardRequest(w, r, "/v1/backuprepos", "GET")
+}
+
+// CreateBackupRepo create KubeBlocks backup repository
+func (c *KubeBlocksController) CreateBackupRepo(w http.ResponseWriter, r *http.Request) {
+	c.forwardRequest(w, r, "/v1/backuprepos", "POST")
+}
+
+// UpdateBackupRepo update KubeBlocks backup repository
+func (c *KubeBlocksController) UpdateBackupRepo(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/backuprepos/%s", name), "PUT")
+}
+
+// DeleteBackupRepo delete KubeBlocks backup repository
+func (c *KubeBlocksController) DeleteBackupRepo(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	c.forwardRequest(w, r, fmt.Sprintf("/v1/backuprepos/%s", name), "DELETE")
 }
 
 // CreateCluster create KubeBlocks database cluster

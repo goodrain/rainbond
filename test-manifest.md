@@ -5,6 +5,8 @@
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
 | rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
+| rainbond.api.kubeblocks.adapter-service-namespace | KubeBlocks adapter service namespace | active | regression | api/controller.KubeBlocksController.forwardRequest | api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace |
+| rainbond.api.kubeblocks.backup-repo-mutation-proxy | KubeBlocks backup repo mutation proxy | active | regression | api/controller.KubeBlocksController.CreateBackupRepo | api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
 | rainbond.app-backup.service-volume-archive | 将服务卷数据归档为备份包 | active | regression | builder/exector.BackupAPPNew.backupServiceInfo | builder/exector/groupapp_backup_test.go::TestBackupServiceVolume |
 | rainbond.app-backup.upload-package | 将应用备份包上传到外部存储 | active | integration | builder/exector.BackupAPPNew.uploadPkg | builder/exector/groupapp_backup_test.go::TestUploadPkg |
@@ -19,6 +21,7 @@
 | rainbond.app-config-group.item-update | 更新应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.UpdateModel | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoUpdateModel |
 | rainbond.app-config-group.unbind-components | 移除应用配置组组件绑定 | active | regression | db/mysql/dao.AppConfigGroupServiceDaoImpl.DeleteConfigGroupService | db/mysql/dao/application_config_group_test.go::TestDeleteConfigGroupService |
 | rainbond.app-import.package-name-normalize | 从 Linux 文件名还原导入镜像包名 | active | regression | builder/exector.buildFromLinuxFileName | builder/exector/import_app_test.go::TestBuildFromLinuxFileName |
+| rainbond.app-import.scaling-rule-compat | 导入应用时保留旧版伸缩规则 | active | regression | builder/exector.normalizeImportedRAM | builder/exector/import_app_test.go::TestNormalizeImportedRAMPreservesLegacyScalingRule |
 | rainbond.app-import.status-serialization | 序列化并解析按应用记录的导入状态 | active | regression | builder/exector.map2str | builder/exector/import_app_test.go::TestAppStatusMapRoundTrip |
 | rainbond.app-restore.image-registry-rewrite | 应用恢复时重写镜像仓库地址 | active | regression | builder/exector.getNewImageName | builder/exector/groupapp_restore_test.go::TestGetImageName |
 | rainbond.app-restore.service-id-lookup | 从恢复后的服务映射中反查原始服务 ID | active | regression | builder/exector.BackupAPPRestore.getOldServiceID | builder/exector/groupapp_restore_test.go::TestGetOldServiceID |
@@ -144,7 +147,9 @@
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
-| rainbond.kb-adapter.backup-repo.list-ready | 列出 kb-adapter 可用的备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos |
+| rainbond.kb-adapter.addon-version-order | 按稳定顺序返回 kb-adapter 插件 Addon 版本 | active | regression | plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons | plugins/kb-adapter-rbdplugin/service/resource/resource_test.go |
+| rainbond.kb-adapter.backup-repo.list-all | 列出 kb-adapter 全部状态的备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos |
+| rainbond.kb-adapter.backup-repo.mutate | kb-adapter 创建、更新和删除备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.CreateBackupRepo | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCreateBackupRepo<br>plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackupRepoRejectsClusterInUse |
 | rainbond.kb-adapter.cluster-backup.delete | 按服务范围删除允许清理的集群备份 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.DeleteBackups | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackups |
 | rainbond.kb-adapter.cluster-backup.delete-guard | 判断集群备份是否允许安全删除 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.canDeleteBackup | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCanDeleteBackup |
 | rainbond.kb-adapter.cluster-backup.list | 列出目标服务对应的集群备份 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListBackups | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListBackups |
@@ -452,6 +457,26 @@
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
 
+### KubeBlocks adapter service namespace
+
+- Capability ID: `rainbond.api.kubeblocks.adapter-service-namespace`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.KubeBlocksController.forwardRequest`
+- 代码路径: `api/controller/kubeblocks.go`
+- 测试路径: `api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace`
+
+### KubeBlocks backup repo mutation proxy
+
+- Capability ID: `rainbond.api.kubeblocks.backup-repo-mutation-proxy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.KubeBlocksController.CreateBackupRepo`
+- 代码路径: `api/controller/kubeblocks.go`
+- 测试路径: `api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy`
+
 ### 识别旧版与新版应用备份元数据结构
 
 - Capability ID: `rainbond.app-backup.metadata-version-detect`
@@ -591,6 +616,16 @@
 - 业务入口: `builder/exector.buildFromLinuxFileName`
 - 代码路径: `builder/exector/import_app.go`
 - 测试路径: `builder/exector/import_app_test.go::TestBuildFromLinuxFileName`
+
+### 导入应用时保留旧版伸缩规则
+
+- Capability ID: `rainbond.app-import.scaling-rule-compat`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.normalizeImportedRAM`
+- 代码路径: `builder/exector/import_app.go`
+- 测试路径: `builder/exector/import_app_test.go::TestNormalizeImportedRAMPreservesLegacyScalingRule`
 
 ### 序列化并解析按应用记录的导入状态
 
@@ -1842,15 +1877,35 @@
 - 代码路径: `pkg/component/k8s/k8sComponent.go`
 - 测试路径: `pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine`
 
-### 列出 kb-adapter 可用的备份仓库
+### 按稳定顺序返回 kb-adapter 插件 Addon 版本
 
-- Capability ID: `rainbond.kb-adapter.backup-repo.list-ready`
+- Capability ID: `rainbond.kb-adapter.addon-version-order`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons`
+- 代码路径: `plugins/kb-adapter-rbdplugin/service/resource/resource.go`
+- 测试路径: `plugins/kb-adapter-rbdplugin/service/resource/resource_test.go`
+
+### 列出 kb-adapter 全部状态的备份仓库
+
+- Capability ID: `rainbond.kb-adapter.backup-repo.list-all`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos`
-- 代码路径: `plugins/kb-adapter-rbdplugin/service/backup/backup.go`
+- 代码路径: `plugins/kb-adapter-rbdplugin/internal/model/backup.go`, `plugins/kb-adapter-rbdplugin/service/backup/backup.go`
 - 测试路径: `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos`
+
+### kb-adapter 创建、更新和删除备份仓库
+
+- Capability ID: `rainbond.kb-adapter.backup-repo.mutate`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `plugins/kb-adapter-rbdplugin/service/backup.Service.CreateBackupRepo`
+- 代码路径: `plugins/kb-adapter-rbdplugin/api/handler/handler.go`, `plugins/kb-adapter-rbdplugin/api/router.go`, `plugins/kb-adapter-rbdplugin/deploy/k8s/deploy.yaml`, `plugins/kb-adapter-rbdplugin/internal/model/backup.go`, `plugins/kb-adapter-rbdplugin/service/backup/backup.go`, `plugins/kb-adapter-rbdplugin/service/service.go`
+- 测试路径: `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCreateBackupRepo`, `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackupRepoRejectsClusterInUse`
 
 ### 按服务范围删除允许清理的集群备份
 
