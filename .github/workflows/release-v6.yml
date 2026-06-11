@@ -124,6 +124,7 @@ jobs:
             RAINBOND_ERROR_REPORTING_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_DSN }}
             RAINBOND_ERROR_REPORTING_REGION_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_REGION_DSN }}
             RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
+            RAINBOND_POSTHOG_PROJECT_TOKEN=${{ secrets.RAINBOND_POSTHOG_PROJECT_TOKEN }}
           context: .
           file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
           outputs: ${{ github.event.inputs.outputs }}
