@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
+	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -35,6 +36,8 @@ func main() {
 		cmd.ShowVersion("api")
 	}
 	configs.Default().SetAppName("rbd-api").SetAPIFlags().SetPublicFlags().Parse().SetLog()
+	sentryobs.Init("rbd-api")
+	defer sentryobs.Flush()
 	// 启动 rbd-api
 	err := rainbond.New(context.Background(), configs.Default()).
 		Registry(component.Database()).

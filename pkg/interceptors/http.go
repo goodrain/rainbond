@@ -30,6 +30,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+
+	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 )
 
 // Recoverer -
@@ -37,7 +39,11 @@ func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
+				stack := debug.Stack()
 				debug.PrintStack()
+				sentryobs.CaptureHTTPPanic(rvr, r, stack, map[string]string{
+					"component": "rbd-api",
+				})
 				handleServiceUnavailable(w, r)
 			}
 		}()

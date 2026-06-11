@@ -5,6 +5,8 @@
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
 | rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
+| rainbond.api.kubeblocks.adapter-service-namespace | KubeBlocks adapter service namespace | active | regression | api/controller.KubeBlocksController.forwardRequest | api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace |
+| rainbond.api.kubeblocks.backup-repo-mutation-proxy | KubeBlocks backup repo mutation proxy | active | regression | api/controller.KubeBlocksController.CreateBackupRepo | api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
 | rainbond.app-backup.service-volume-archive | 将服务卷数据归档为备份包 | active | regression | builder/exector.BackupAPPNew.backupServiceInfo | builder/exector/groupapp_backup_test.go::TestBackupServiceVolume |
 | rainbond.app-backup.upload-package | 将应用备份包上传到外部存储 | active | integration | builder/exector.BackupAPPNew.uploadPkg | builder/exector/groupapp_backup_test.go::TestUploadPkg |
@@ -19,6 +21,7 @@
 | rainbond.app-config-group.item-update | 更新应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.UpdateModel | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoUpdateModel |
 | rainbond.app-config-group.unbind-components | 移除应用配置组组件绑定 | active | regression | db/mysql/dao.AppConfigGroupServiceDaoImpl.DeleteConfigGroupService | db/mysql/dao/application_config_group_test.go::TestDeleteConfigGroupService |
 | rainbond.app-import.package-name-normalize | 从 Linux 文件名还原导入镜像包名 | active | regression | builder/exector.buildFromLinuxFileName | builder/exector/import_app_test.go::TestBuildFromLinuxFileName |
+| rainbond.app-import.scaling-rule-compat | 导入应用时保留旧版伸缩规则 | active | regression | builder/exector.normalizeImportedRAM | builder/exector/import_app_test.go::TestNormalizeImportedRAMPreservesLegacyScalingRule |
 | rainbond.app-import.status-serialization | 序列化并解析按应用记录的导入状态 | active | regression | builder/exector.map2str | builder/exector/import_app_test.go::TestAppStatusMapRoundTrip |
 | rainbond.app-restore.image-registry-rewrite | 应用恢复时重写镜像仓库地址 | active | regression | builder/exector.getNewImageName | builder/exector/groupapp_restore_test.go::TestGetImageName |
 | rainbond.app-restore.service-id-lookup | 从恢复后的服务映射中反查原始服务 ID | active | regression | builder/exector.BackupAPPRestore.getOldServiceID | builder/exector/groupapp_restore_test.go::TestGetOldServiceID |
@@ -452,6 +455,26 @@
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
 
+### KubeBlocks adapter service namespace
+
+- Capability ID: `rainbond.api.kubeblocks.adapter-service-namespace`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.KubeBlocksController.forwardRequest`
+- 代码路径: `api/controller/kubeblocks.go`
+- 测试路径: `api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace`
+
+### KubeBlocks backup repo mutation proxy
+
+- Capability ID: `rainbond.api.kubeblocks.backup-repo-mutation-proxy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.KubeBlocksController.CreateBackupRepo`
+- 代码路径: `api/controller/kubeblocks.go`
+- 测试路径: `api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy`
+
 ### 识别旧版与新版应用备份元数据结构
 
 - Capability ID: `rainbond.app-backup.metadata-version-detect`
@@ -591,6 +614,16 @@
 - 业务入口: `builder/exector.buildFromLinuxFileName`
 - 代码路径: `builder/exector/import_app.go`
 - 测试路径: `builder/exector/import_app_test.go::TestBuildFromLinuxFileName`
+
+### 导入应用时保留旧版伸缩规则
+
+- Capability ID: `rainbond.app-import.scaling-rule-compat`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.normalizeImportedRAM`
+- 代码路径: `builder/exector/import_app.go`
+- 测试路径: `builder/exector/import_app_test.go::TestNormalizeImportedRAMPreservesLegacyScalingRule`
 
 ### 序列化并解析按应用记录的导入状态
 

@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
-	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/mono"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/registry"
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	datav1alpha1 "github.com/apecloud/kubeblocks/apis/dataprotection/v1alpha1"
 	"github.com/apecloud/kubeblocks/pkg/constant"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,18 +40,100 @@ func NewService(c client.Client) *Service {
 	}
 }
 
-// ListAvailableBackupRepos 返回所有 Available 的 BackupRepo
+// ListAvailableBackupRepos 返回集群内所有 BackupRepo，并保留 Ready/Failed/PreChecking 等状态。
 func (s *Service) ListAvailableBackupRepos(ctx context.Context) ([]*model.BackupRepo, error) {
-	repos, err := s.listBackupRepos(ctx)
-	if err != nil {
+	return s.listBackupRepos(ctx)
+}
+
+func (s *Service) CreateBackupRepo(ctx context.Context, input model.BackupRepoInput) (*model.BackupRepo, error) {
+	if err := validateBackupRepoInput(input, true); err != nil {
 		return nil, err
 	}
 
-	available := mono.Filter(repos, func(r *model.BackupRepo) bool {
-		return r.Phase == datav1alpha1.BackupRepoReady
-	})
+	if err := s.upsertBackupRepoSecret(ctx, input); err != nil {
+		return nil, err
+	}
 
-	return available, nil
+	repo, err := buildBackupRepo(input)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.client.Create(ctx, repo); err != nil {
+		return nil, fmt.Errorf("create BackupRepo %s: %w", input.Name, err)
+	}
+	return backupRepoToModel(repo), nil
+}
+
+func (s *Service) UpdateBackupRepo(ctx context.Context, name string, input model.BackupRepoInput) (*model.BackupRepo, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("backup repo name is required")
+	}
+	if input.Name == "" {
+		input.Name = name
+	}
+	if input.Name != name {
+		return nil, fmt.Errorf("backup repo name %s does not match path %s", input.Name, name)
+	}
+	if err := validateBackupRepoInput(input, false); err != nil {
+		return nil, err
+	}
+
+	var repo datav1alpha1.BackupRepo
+	if err := s.client.Get(ctx, types.NamespacedName{Name: name}, &repo); err != nil {
+		return nil, fmt.Errorf("get BackupRepo %s: %w", name, err)
+	}
+	if input.StorageProvider != "" && input.StorageProvider != repo.Spec.StorageProviderRef {
+		return nil, fmt.Errorf("storageProviderRef is immutable")
+	}
+	if err := s.upsertBackupRepoSecret(ctx, input); err != nil {
+		return nil, err
+	}
+
+	updated, err := buildBackupRepo(input)
+	if err != nil {
+		return nil, err
+	}
+	repo.Spec.AccessMethod = updated.Spec.AccessMethod
+	repo.Spec.VolumeCapacity = updated.Spec.VolumeCapacity
+	repo.Spec.PVReclaimPolicy = updated.Spec.PVReclaimPolicy
+	repo.Spec.Config = updated.Spec.Config
+	repo.Spec.Credential = updated.Spec.Credential
+	repo.Spec.PathPrefix = updated.Spec.PathPrefix
+	if err := s.client.Update(ctx, &repo); err != nil {
+		return nil, fmt.Errorf("update BackupRepo %s: %w", name, err)
+	}
+	return backupRepoToModel(&repo), nil
+}
+
+func (s *Service) DeleteBackupRepo(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("backup repo name is required")
+	}
+	if err := s.ensureBackupRepoNotInUse(ctx, name); err != nil {
+		return err
+	}
+
+	var repo datav1alpha1.BackupRepo
+	if err := s.client.Get(ctx, types.NamespacedName{Name: name}, &repo); err != nil {
+		return fmt.Errorf("get BackupRepo %s: %w", name, err)
+	}
+	if err := s.client.Delete(ctx, &repo); err != nil {
+		return fmt.Errorf("delete BackupRepo %s: %w", name, err)
+	}
+	if repo.Spec.Credential != nil && repo.Spec.Credential.Name != "" && repo.Spec.Credential.Namespace != "" {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      repo.Spec.Credential.Name,
+				Namespace: repo.Spec.Credential.Namespace,
+			},
+		}
+		if err := s.client.Delete(ctx, secret); err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("delete BackupRepo credential %s/%s: %w", secret.Namespace, secret.Name, err)
+		}
+	}
+	return nil
 }
 
 // ReScheduleBackup 重新调度 Cluster 的备份配置
@@ -233,14 +318,141 @@ func (s *Service) listBackupRepos(ctx context.Context) ([]*model.BackupRepo, err
 	}
 	result := make([]*model.BackupRepo, 0, len(repoList.Items))
 	for _, item := range repoList.Items {
-		result = append(result, &model.BackupRepo{
-			Name:         item.Name,
-			Type:         item.Spec.StorageProviderRef,
-			AccessMethod: item.Spec.AccessMethod,
-			Phase:        item.Status.Phase,
-		})
+		result = append(result, backupRepoToModel(&item))
 	}
 	return result, nil
+}
+
+func validateBackupRepoInput(input model.BackupRepoInput, requireSecret bool) error {
+	if strings.TrimSpace(input.Name) == "" {
+		return fmt.Errorf("backup repo name is required")
+	}
+	if strings.TrimSpace(input.StorageProvider) == "" {
+		return fmt.Errorf("storageProviderRef is required")
+	}
+	if input.Config == nil {
+		return fmt.Errorf("config is required")
+	}
+	if strings.TrimSpace(input.Config["bucket"]) == "" {
+		return fmt.Errorf("config.bucket is required")
+	}
+	if strings.TrimSpace(input.Config["endpoint"]) == "" {
+		return fmt.Errorf("config.endpoint is required")
+	}
+	if input.Credential.Name == "" || input.Credential.Namespace == "" {
+		return fmt.Errorf("credential.name and credential.namespace are required")
+	}
+	if requireSecret && (input.Secrets["accessKeyId"] == "" || input.Secrets["secretAccessKey"] == "") {
+		return fmt.Errorf("accessKeyId and secretAccessKey are required")
+	}
+	return nil
+}
+
+func buildBackupRepo(input model.BackupRepoInput) (*datav1alpha1.BackupRepo, error) {
+	accessMethod := input.AccessMethod
+	if accessMethod == "" {
+		accessMethod = datav1alpha1.AccessMethodTool
+	}
+	reclaimPolicy := input.PVReclaimPolicy
+	if reclaimPolicy == "" {
+		reclaimPolicy = corev1.PersistentVolumeReclaimRetain
+	}
+	capacityText := strings.TrimSpace(input.VolumeCapacity)
+	if capacityText == "" {
+		capacityText = "100Gi"
+	}
+	capacity, err := resource.ParseQuantity(capacityText)
+	if err != nil {
+		return nil, fmt.Errorf("parse volumeCapacity %s: %w", capacityText, err)
+	}
+
+	config := make(map[string]string, len(input.Config))
+	for k, v := range input.Config {
+		config[k] = v
+	}
+
+	return &datav1alpha1.BackupRepo{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: input.Name,
+		},
+		Spec: datav1alpha1.BackupRepoSpec{
+			StorageProviderRef: input.StorageProvider,
+			AccessMethod:       accessMethod,
+			VolumeCapacity:     capacity,
+			PVReclaimPolicy:    reclaimPolicy,
+			Config:             config,
+			Credential: &corev1.SecretReference{
+				Name:      input.Credential.Name,
+				Namespace: input.Credential.Namespace,
+			},
+			PathPrefix: input.PathPrefix,
+		},
+	}, nil
+}
+
+func (s *Service) upsertBackupRepoSecret(ctx context.Context, input model.BackupRepoInput) error {
+	if len(input.Secrets) == 0 {
+		return nil
+	}
+
+	key := types.NamespacedName{Name: input.Credential.Name, Namespace: input.Credential.Namespace}
+	var secret corev1.Secret
+	err := s.client.Get(ctx, key, &secret)
+	if apierrors.IsNotFound(err) {
+		secret = corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      input.Credential.Name,
+				Namespace: input.Credential.Namespace,
+			},
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{},
+		}
+		for k, v := range input.Secrets {
+			secret.Data[k] = []byte(v)
+		}
+		if err := s.client.Create(ctx, &secret); err != nil {
+			return fmt.Errorf("create BackupRepo credential %s/%s: %w", key.Namespace, key.Name, err)
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get BackupRepo credential %s/%s: %w", key.Namespace, key.Name, err)
+	}
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+	for k, v := range input.Secrets {
+		secret.Data[k] = []byte(v)
+	}
+	if err := s.client.Update(ctx, &secret); err != nil {
+		return fmt.Errorf("update BackupRepo credential %s/%s: %w", key.Namespace, key.Name, err)
+	}
+	return nil
+}
+
+func (s *Service) ensureBackupRepoNotInUse(ctx context.Context, name string) error {
+	var clusterList kbappsv1.ClusterList
+	if err := s.client.List(ctx, &clusterList); err != nil {
+		return fmt.Errorf("list clusters for BackupRepo usage: %w", err)
+	}
+	for _, cluster := range clusterList.Items {
+		if cluster.Spec.Backup != nil && cluster.Spec.Backup.RepoName == name {
+			return fmt.Errorf("backup repo %s is in use by cluster %s/%s", name, cluster.Namespace, cluster.Name)
+		}
+	}
+	return nil
+}
+
+func backupRepoToModel(item *datav1alpha1.BackupRepo) *model.BackupRepo {
+	return &model.BackupRepo{
+		Name:                      item.Name,
+		Type:                      item.Spec.StorageProviderRef,
+		AccessMethod:              item.Spec.AccessMethod,
+		Phase:                     item.Status.Phase,
+		GeneratedStorageClassName: item.Status.GeneratedStorageClassName,
+		BackupPVCName:             item.Status.BackupPVCName,
+		Conditions:                item.Status.Conditions,
+	}
 }
 
 // getBackupsByIndex 使用索引查询 Backup，失败时回退到标签查询

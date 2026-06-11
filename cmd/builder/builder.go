@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
+	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -39,6 +40,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+	sentryobs.Init("rbd-chaos")
+	defer sentryobs.Flush()
 	err = rainbond.New(context.Background(), configs.Default()).
 		Registry(component.Database()).
 		Registry(component.Grpc()).

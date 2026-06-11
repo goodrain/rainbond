@@ -33,6 +33,9 @@ type Services interface {
 type Backup interface {
 	// ListAvailableBackupRepos 返回所有 Available 的 BackupRepo
 	ListAvailableBackupRepos(ctx context.Context) ([]*model.BackupRepo, error)
+	CreateBackupRepo(ctx context.Context, input model.BackupRepoInput) (*model.BackupRepo, error)
+	UpdateBackupRepo(ctx context.Context, name string, input model.BackupRepoInput) (*model.BackupRepo, error)
+	DeleteBackupRepo(ctx context.Context, name string) error
 
 	// ReScheduleBackup 重新调度 Cluster 的备份配置
 	//
@@ -157,6 +160,18 @@ func New(c client.Client) Services {
 
 func (s *DefaultServices) ListAvailableBackupRepos(ctx context.Context) ([]*model.BackupRepo, error) {
 	return s.Backup.ListAvailableBackupRepos(ctx)
+}
+
+func (s *DefaultServices) CreateBackupRepo(ctx context.Context, input model.BackupRepoInput) (*model.BackupRepo, error) {
+	return s.Backup.CreateBackupRepo(ctx, input)
+}
+
+func (s *DefaultServices) UpdateBackupRepo(ctx context.Context, name string, input model.BackupRepoInput) (*model.BackupRepo, error) {
+	return s.Backup.UpdateBackupRepo(ctx, name, input)
+}
+
+func (s *DefaultServices) DeleteBackupRepo(ctx context.Context, name string) error {
+	return s.Backup.DeleteBackupRepo(ctx, name)
 }
 
 func (s *DefaultServices) ReScheduleBackup(ctx context.Context, schedule model.BackupScheduleInput) error {
