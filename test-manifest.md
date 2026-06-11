@@ -147,7 +147,9 @@
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
-| rainbond.kb-adapter.backup-repo.list-ready | 列出 kb-adapter 可用的备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos |
+| rainbond.kb-adapter.addon-version-order | 按稳定顺序返回 kb-adapter 插件 Addon 版本 | active | regression | plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons | plugins/kb-adapter-rbdplugin/service/resource/resource_test.go |
+| rainbond.kb-adapter.backup-repo.list-all | 列出 kb-adapter 全部状态的备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos |
+| rainbond.kb-adapter.backup-repo.mutate | kb-adapter 创建、更新和删除备份仓库 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.CreateBackupRepo | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCreateBackupRepo<br>plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackupRepoRejectsClusterInUse |
 | rainbond.kb-adapter.cluster-backup.delete | 按服务范围删除允许清理的集群备份 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.DeleteBackups | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackups |
 | rainbond.kb-adapter.cluster-backup.delete-guard | 判断集群备份是否允许安全删除 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.canDeleteBackup | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCanDeleteBackup |
 | rainbond.kb-adapter.cluster-backup.list | 列出目标服务对应的集群备份 | active | regression | plugins/kb-adapter-rbdplugin/service/backup.Service.ListBackups | plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListBackups |
@@ -1875,15 +1877,35 @@
 - 代码路径: `pkg/component/k8s/k8sComponent.go`
 - 测试路径: `pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine`
 
-### 列出 kb-adapter 可用的备份仓库
+### 按稳定顺序返回 kb-adapter 插件 Addon 版本
 
-- Capability ID: `rainbond.kb-adapter.backup-repo.list-ready`
+- Capability ID: `rainbond.kb-adapter.addon-version-order`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons`
+- 代码路径: `plugins/kb-adapter-rbdplugin/service/resource/resource.go`
+- 测试路径: `plugins/kb-adapter-rbdplugin/service/resource/resource_test.go`
+
+### 列出 kb-adapter 全部状态的备份仓库
+
+- Capability ID: `rainbond.kb-adapter.backup-repo.list-all`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `plugins/kb-adapter-rbdplugin/service/backup.Service.ListAvailableBackupRepos`
-- 代码路径: `plugins/kb-adapter-rbdplugin/service/backup/backup.go`
+- 代码路径: `plugins/kb-adapter-rbdplugin/internal/model/backup.go`, `plugins/kb-adapter-rbdplugin/service/backup/backup.go`
 - 测试路径: `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestListAvailableBackupRepos`
+
+### kb-adapter 创建、更新和删除备份仓库
+
+- Capability ID: `rainbond.kb-adapter.backup-repo.mutate`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `plugins/kb-adapter-rbdplugin/service/backup.Service.CreateBackupRepo`
+- 代码路径: `plugins/kb-adapter-rbdplugin/api/handler/handler.go`, `plugins/kb-adapter-rbdplugin/api/router.go`, `plugins/kb-adapter-rbdplugin/deploy/k8s/deploy.yaml`, `plugins/kb-adapter-rbdplugin/internal/model/backup.go`, `plugins/kb-adapter-rbdplugin/service/backup/backup.go`, `plugins/kb-adapter-rbdplugin/service/service.go`
+- 测试路径: `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestCreateBackupRepo`, `plugins/kb-adapter-rbdplugin/service/backup/backup_test.go::TestDeleteBackupRepoRejectsClusterInUse`
 
 ### 按服务范围删除允许清理的集群备份
 
