@@ -2640,6 +2640,23 @@
       "status": "active"
     },
     {
+      "id": "rainbond.kb-adapter.addon-version-order",
+      "title": "List kb-adapter addons with deterministic version order",
+      "title_zh": "\u6309\u7a33\u5b9a\u987a\u5e8f\u8fd4\u56de kb-adapter \u63d2\u4ef6 Addon \u7248\u672c",
+      "interface_type": "workflow",
+      "interface": "plugins/kb-adapter-rbdplugin/service/resource.Service.GetAddons",
+      "code_paths": [
+        "plugins/kb-adapter-rbdplugin/service/resource/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/resource/resource_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.kb-adapter.backup-repo.list-all",
       "title": "List backup repositories with all phases for kb-adapter",
       "title_zh": "\u5217\u51fa kb-adapter \u5168\u90e8\u72b6\u6001\u7684\u5907\u4efd\u4ed3\u5e93",
