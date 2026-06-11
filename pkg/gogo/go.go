@@ -20,9 +20,7 @@ package gogo
 
 import (
 	"context"
-	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/sirupsen/logrus"
-	"runtime/debug"
 	"sync"
 )
 
@@ -41,9 +39,6 @@ func Go(fun func(ctx context.Context) error, opts ...Option) error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				sentryobs.CapturePanic(r, debug.Stack(), map[string]string{
-					"component": "goroutine",
-				})
 				logrus.Warningf("recovered in goroutine: %v", r)
 			}
 		}()

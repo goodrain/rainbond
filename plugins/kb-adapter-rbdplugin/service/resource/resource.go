@@ -4,7 +4,6 @@ package resource
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/mono"
@@ -13,7 +12,6 @@ import (
 
 	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,7 +56,7 @@ func (s *Service) GetAddons(ctx context.Context) ([]*model.Addon, error) {
 
 		addon := &model.Addon{
 			Type:            item.Name,
-			Version:         sortServiceVersionsLatestFirst(releases),
+			Version:         mono.Sorted(releases),
 			IsSupportBackup: kbkit.IsSupportBackup(item.Name),
 		}
 		addons = append(addons, addon)
@@ -67,28 +65,6 @@ func (s *Service) GetAddons(ctx context.Context) ([]*model.Addon, error) {
 	return mono.FilterThenSort(addons, filterSupportedAddons, func(a, b *model.Addon) bool {
 		return a.Type < b.Type
 	}), nil
-}
-
-func sortServiceVersionsLatestFirst(versions []string) []string {
-	result := append([]string(nil), versions...)
-	sort.SliceStable(result, func(i, j int) bool {
-		left, leftErr := utilversion.Parse(result[i])
-		right, rightErr := utilversion.Parse(result[j])
-		switch {
-		case leftErr == nil && rightErr == nil:
-			if left.EqualTo(right) {
-				return result[i] > result[j]
-			}
-			return left.GreaterThan(right)
-		case leftErr == nil:
-			return true
-		case rightErr == nil:
-			return false
-		default:
-			return result[i] > result[j]
-		}
-	})
-	return result
 }
 
 // GetClusterPort 返回指定数据库在 KubeBlocks service 中的目标端口

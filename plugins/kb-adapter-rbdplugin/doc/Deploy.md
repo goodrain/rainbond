@@ -162,7 +162,7 @@ make image
 make deploy
 ```
 
-Block Mechanica 需要部署在 rbd-plugins namespace 中，为了简化安装, rbd-api 中硬编码了 kb-adapter-rbdplugin 使用的 namespace，所以不要修改 `deploy.yaml` 中除镜像地址以外的内容，未来待 Rainbond 的插件体系完善之后将会有所优化
+Block Mechanica 需要部署在 rbd-system namespace 中，为了简化安装, rbd-api 中硬编码了 kb-adapter-rbdplugin 使用的 namespace，所以不要修改 `deploy.yaml` 中除镜像地址以外的内容，未来待 Rainbond 的插件体系完善之后将会有所优化
 
 ## 在 Rainbond 中使用 KubeBlocks
 

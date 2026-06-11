@@ -22,14 +22,8 @@ RUN apt-get update && apt -y install upx && \
 
 FROM rainbond/alpine:3
 ARG RELEASE_DESC
-ARG RAINBOND_ERROR_REPORTING_DSN=
-ARG RAINBOND_ERROR_REPORTING_REGION_DSN=
-ARG RAINBOND_ERROR_REPORTING_BACKEND_DSN=
 
 ENV RELEASE_DESC=${RELEASE_DESC}
-ENV RAINBOND_ERROR_REPORTING_DSN=${RAINBOND_ERROR_REPORTING_DSN}
-ENV RAINBOND_ERROR_REPORTING_REGION_DSN=${RAINBOND_ERROR_REPORTING_REGION_DSN}
-ENV RAINBOND_ERROR_REPORTING_BACKEND_DSN=${RAINBOND_ERROR_REPORTING_BACKEND_DSN}
 RUN apk add --no-cache libzmq libsodium
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/worker/entrypoint.sh /run/entrypoint.sh
 COPY --from=compress /run/rainbond-worker /run/rainbond-worker

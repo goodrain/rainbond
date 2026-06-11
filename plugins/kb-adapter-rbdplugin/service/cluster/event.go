@@ -6,16 +6,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/index"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/log"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/model"
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/service/kbkit"
 
-	kbappsv1 "github.com/apecloud/kubeblocks/apis/apps/v1"
 	opsv1alpha1 "github.com/apecloud/kubeblocks/apis/operations/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetClusterEvents 获取指定 KubeBlocks Cluster 的运维事件列表
@@ -46,16 +42,6 @@ func (s *Service) GetClusterEvents(ctx context.Context, serviceID string, pagina
 		events = append(events, event)
 	}
 
-	podEvents, err := s.getClusterPodEventItems(ctx, cluster)
-	if err != nil {
-		log.Warn("Failed to get cluster pod events",
-			log.String("cluster", cluster.Name),
-			log.String("namespace", cluster.Namespace),
-			log.Err(err))
-	} else {
-		events = append(events, podEvents...)
-	}
-
 	// 按创建时间降序
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].CreateTime > events[j].CreateTime
@@ -75,86 +61,6 @@ func (s *Service) GetClusterEvents(ctx context.Context, serviceID string, pagina
 		Items: result,
 		Total: len(events),
 	}, nil
-}
-
-// getClusterPodEventItems 将数据库实例 Pod 的 Warning 事件纳入组件事件列表
-func (s *Service) getClusterPodEventItems(ctx context.Context, cluster *kbappsv1.Cluster) ([]model.EventItem, error) {
-	pods, err := s.getClusterPods(ctx, cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	eventItems := make([]model.EventItem, 0)
-	for _, pod := range pods {
-		events, err := getRawPodEventsByIndex(ctx, s.client, pod.Name, cluster.Namespace)
-		if err != nil {
-			return nil, err
-		}
-		for i := range events {
-			eventItem, ok := convertPodEventToEventItem(pod.Name, &events[i])
-			if !ok {
-				continue
-			}
-			eventItems = append(eventItems, eventItem)
-		}
-	}
-
-	return eventItems, nil
-}
-
-func getRawPodEventsByIndex(ctx context.Context, c client.Client, podName, namespace string) ([]corev1.Event, error) {
-	var eventList corev1.EventList
-
-	indexKey := fmt.Sprintf("%s/%s", namespace, podName)
-	if err := c.List(ctx, &eventList, client.MatchingFields{index.NamespacePodNameField: indexKey}); err != nil {
-		log.Warn("Index query for pod events failed",
-			log.String("indexKey", indexKey),
-			log.String("pod", podName),
-			log.String("namespace", namespace),
-			log.Err(err))
-		return []corev1.Event{}, nil
-	}
-
-	return eventList.Items, nil
-}
-
-func convertPodEventToEventItem(podName string, event *corev1.Event) (model.EventItem, bool) {
-	if event.Type != corev1.EventTypeWarning {
-		return model.EventItem{}, false
-	}
-
-	eventTime := podEventTimestamp(event)
-	return model.EventItem{
-		OpsName:     fmt.Sprintf("%s/%s", podName, event.Name),
-		OpsType:     podEventType(event),
-		UserName:    "system",
-		Status:      "failure",
-		FinalStatus: "complete",
-		Message:     event.Message,
-		Reason:      event.Reason,
-		CreateTime:  formatTimeWithOffset(eventTime),
-		EndTime:     formatTimeWithOffset(eventTime),
-	}, true
-}
-
-func podEventTimestamp(event *corev1.Event) time.Time {
-	if !event.LastTimestamp.IsZero() {
-		return event.LastTimestamp.Time
-	}
-	if !event.FirstTimestamp.IsZero() {
-		return event.FirstTimestamp.Time
-	}
-	if !event.EventTime.IsZero() {
-		return event.EventTime.Time
-	}
-	return event.CreationTimestamp.Time
-}
-
-func podEventType(event *corev1.Event) string {
-	if event.Reason != "" {
-		return event.Reason
-	}
-	return event.Type
 }
 
 // convertOpsRequestToEventItem 将 OpsRequest 转换为 EventItem

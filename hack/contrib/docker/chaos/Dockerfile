@@ -21,13 +21,7 @@ RUN apt-get update && apt -y install upx && \
 
 FROM rainbond/alpine:3
 ARG RELEASE_DESC
-ARG RAINBOND_ERROR_REPORTING_DSN=
-ARG RAINBOND_ERROR_REPORTING_REGION_DSN=
-ARG RAINBOND_ERROR_REPORTING_BACKEND_DSN=
 
-ENV RAINBOND_ERROR_REPORTING_DSN=${RAINBOND_ERROR_REPORTING_DSN}
-ENV RAINBOND_ERROR_REPORTING_REGION_DSN=${RAINBOND_ERROR_REPORTING_REGION_DSN}
-ENV RAINBOND_ERROR_REPORTING_BACKEND_DSN=${RAINBOND_ERROR_REPORTING_BACKEND_DSN}
 RUN apk add --no-cache openssl openssh-client subversion libzmq libsodium
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/entrypoint.sh /run/entrypoint.sh
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/export-app /src/export-app

@@ -26,7 +26,6 @@ import (
 
 	version "github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/init-probe/cmd"
-	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/urfave/cli"
 )
 
@@ -34,8 +33,6 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		version.ShowVersion("init-probe")
 	}
-	sentryobs.Init("rbd-init-probe")
-	defer sentryobs.Flush()
 	App := cli.NewApp()
 	App.Version = version.GetVersion()
 	App.Flags = []cli.Flag{}
@@ -43,9 +40,6 @@ func main() {
 	sort.Sort(cli.FlagsByName(App.Flags))
 	sort.Sort(cli.CommandsByName(App.Commands))
 	if err := App.Run(os.Args); err != nil {
-		sentryobs.CaptureException(err, map[string]string{
-			"component": "rbd-init-probe",
-		})
 		logrus.Errorf("probe cmd run failure. %s", err.Error())
 		os.Exit(1)
 	}

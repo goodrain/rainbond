@@ -13,13 +13,10 @@ import (
 	"github.com/furutachiKurea/kb-adapter-rbdplugin/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// capability_id: rainbond.kb-adapter.backup-repo.list-all
+// capability_id: rainbond.kb-adapter.backup-repo.list-ready
 func TestListAvailableBackupRepos(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -30,7 +27,7 @@ func TestListAvailableBackupRepos(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:        "multiple_repos_all_phases_returned",
+			name:        "multiple_repos_only_ready_returned",
 			clientSetup: func() client.Client { return testutil.NewFakeClient() },
 			setup: func(c client.Client) error {
 				ctx := context.Background()
@@ -54,8 +51,6 @@ func TestListAvailableBackupRepos(t *testing.T) {
 			},
 			want: []*model.BackupRepo{
 				{Name: "repo1", Type: "s3", AccessMethod: datav1alpha1.AccessMethodMount, Phase: datav1alpha1.BackupRepoReady},
-				{Name: "repo2", Type: "s3", AccessMethod: datav1alpha1.AccessMethodTool, Phase: datav1alpha1.BackupRepoFailed},
-				{Name: "repo3", Type: "minio", AccessMethod: datav1alpha1.AccessMethodTool, Phase: datav1alpha1.BackupRepoPreChecking},
 			},
 			expectErr: false,
 		},
@@ -98,78 +93,6 @@ func TestListAvailableBackupRepos(t *testing.T) {
 			}
 		})
 	}
-}
-
-// capability_id: rainbond.kb-adapter.backup-repo.mutate
-func TestCreateBackupRepo(t *testing.T) {
-	ctx := context.Background()
-	k8sClient := testutil.NewFakeClient()
-	svc := NewService(k8sClient)
-
-	got, err := svc.CreateBackupRepo(ctx, model.BackupRepoInput{
-		Name:            "team-a-prod",
-		StorageProvider: "s3-compatible",
-		AccessMethod:    datav1alpha1.AccessMethodTool,
-		PVReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-		VolumeCapacity:  "100Gi",
-		Config: map[string]string{
-			"bucket":         "kubeblocks-backup",
-			"endpoint":       "http://minio-service.rbd-system.svc.cluster.local:9000",
-			"region":         "",
-			"forcePathStyle": "true",
-		},
-		Credential: corev1.SecretReference{
-			Name:      "team-a-prod-secret",
-			Namespace: "rbd-plugins",
-		},
-		Secrets: map[string]string{
-			"accessKeyId":     "ak",
-			"secretAccessKey": "sk",
-		},
-		PathPrefix: "aaa",
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, "team-a-prod", got.Name)
-	assert.Equal(t, "s3-compatible", got.Type)
-
-	var repo datav1alpha1.BackupRepo
-	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Name: "team-a-prod"}, &repo))
-	assert.Equal(t, "s3-compatible", repo.Spec.StorageProviderRef)
-	assert.Equal(t, datav1alpha1.AccessMethodTool, repo.Spec.AccessMethod)
-	assert.Equal(t, corev1.PersistentVolumeReclaimRetain, repo.Spec.PVReclaimPolicy)
-	assert.Equal(t, resource.MustParse("100Gi"), repo.Spec.VolumeCapacity)
-	assert.Equal(t, "true", repo.Spec.Config["forcePathStyle"])
-	assert.Equal(t, "kubeblocks-backup", repo.Spec.Config["bucket"])
-	assert.Equal(t, "aaa", repo.Spec.PathPrefix)
-	require.NotNil(t, repo.Spec.Credential)
-	assert.Equal(t, "team-a-prod-secret", repo.Spec.Credential.Name)
-	assert.Equal(t, "rbd-plugins", repo.Spec.Credential.Namespace)
-
-	var secret corev1.Secret
-	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Name: "team-a-prod-secret", Namespace: "rbd-plugins"}, &secret))
-	assert.Equal(t, []byte("ak"), secret.Data["accessKeyId"])
-	assert.Equal(t, []byte("sk"), secret.Data["secretAccessKey"])
-}
-
-// capability_id: rainbond.kb-adapter.backup-repo.mutate
-func TestDeleteBackupRepoRejectsClusterInUse(t *testing.T) {
-	ctx := context.Background()
-	cluster := testutil.NewMySQLCluster("mysql", testutil.TestNamespace).
-		WithBackup(&appsv1.ClusterBackup{RepoName: "team-a-prod"}).
-		Build()
-	repo := testutil.NewBackupRepoBuilder("team-a-prod").
-		WithStorageProvider("s3-compatible").
-		WithAccessMethod(datav1alpha1.AccessMethodTool).
-		Build()
-	k8sClient := testutil.NewFakeClient(cluster, repo)
-	svc := NewService(k8sClient)
-
-	err := svc.DeleteBackupRepo(ctx, "team-a-prod")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "in use")
-	require.NoError(t, k8sClient.Get(ctx, types.NamespacedName{Name: "team-a-prod"}, &datav1alpha1.BackupRepo{}))
 }
 
 // capability_id: rainbond.kb-adapter.cluster-backup.schedule-reconcile
