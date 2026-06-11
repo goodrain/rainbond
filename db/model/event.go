@@ -78,7 +78,7 @@ var EventStatusFailure EventStatus = "failure"
 // ServiceEvent event struct
 type ServiceEvent struct {
 	ID          uint   `gorm:"column:ID;primary_key" json:"-"`
-	CreatedAt   string `gorm:"column:create_time" json:"create_time"`
+	CreateTime  string `gorm:"column:create_time" json:"create_time"`
 	EventID     string `gorm:"column:event_id;size:40;index:event_id" json:"event_id"`
 	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id" json:"tenant_id"`
 	ServiceID   string `gorm:"column:service_id;size:40;index:service_id" json:"service_id"`

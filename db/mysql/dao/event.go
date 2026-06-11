@@ -191,7 +191,7 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 	if err := db.Model(&model.ServiceEvent{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := db.Offset(offset).Limit(limit).Order("create_time DESC, ID DESC").Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Order("start_time DESC, ID DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
