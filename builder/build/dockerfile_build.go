@@ -191,6 +191,11 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			Privileged: &privileged,
 		},
 	}
+	// 启用基于本地目录的 layer cache，使 apt-get update 等耗时层在同一组件的
+	// 重复构建中得到复用。/cache 已通过 createVolumeAndMount 挂载到宿主机的
+	// /opt/rainbond/cache，按 serviceID 区分缓存目录，默认开启无需开关。
+	container.Args = append(container.Args, localBuildKitCacheArgs(re.ServiceID)...)
+
 	// 如果指定了自定义的 dockerfile 路径，添加 filename 参数
 	if dockerfilePath != "Dockerfile" {
 		container.Args = append(container.Args, fmt.Sprintf("--opt=filename=%s", dockerfilePath))
@@ -236,6 +241,17 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	defer d.deleteAuthSecret(re, secret.Name)
 	defer jobc.GetJobController().DeleteJob(job.Name)
 	return d.waitingComplete(re, reChan)
+}
+
+// localBuildKitCacheArgs 返回 buildctl 使用本地目录作为 layer cache 的参数。
+// 缓存目录位于已挂载的 /cache 下，按 serviceID 区分，保证同一组件的重复构建
+// 复用 apt-get update 等耗时层。mode=max 导出全部中间层缓存。
+func localBuildKitCacheArgs(serviceID string) []string {
+	cacheDir := fmt.Sprintf("/cache/buildkit/%s", serviceID)
+	return []string{
+		"--cache-from", fmt.Sprintf("type=local,src=%s", cacheDir),
+		"--cache-to", fmt.Sprintf("type=local,dest=%s,mode=max", cacheDir),
+	}
 }
 
 func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
