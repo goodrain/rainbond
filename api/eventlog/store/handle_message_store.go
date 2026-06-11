@@ -289,12 +289,12 @@ func (h *handleMessageStore) handleBarrelEvent() {
 						logrus.Errorf("get event by event id %s failure %s", eventID, err.Error())
 
 					} else {
-						createAt, err := formatTime(event.CreatedAt)
+						createAt, err := formatTime(event.CreateTime)
 						if err != nil {
 							logrus.Errorf("format time failure: %v", err)
 						}
 						if createAt != "" {
-							event.CreatedAt = createAt
+							event.CreateTime = createAt
 						}
 						event.Status = status
 						if strings.Contains(event.FinalStatus, "empty") {

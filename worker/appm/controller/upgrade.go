@@ -20,9 +20,11 @@ package controller
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -44,6 +46,24 @@ type upgradeController struct {
 	ctx          context.Context
 }
 
+// truncateErr renders err as a string truncated to at most max bytes. A nil
+// err yields an empty string. The truncation guards against oversized K8s API
+// response bodies bloating the event log stream.
+func truncateErr(err error, max int) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if max <= 0 || len(msg) <= max {
+		return msg
+	}
+	cut := msg[:max]
+	for len(cut) > 0 && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut
+}
+
 func (s *upgradeController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
@@ -52,6 +72,9 @@ func (s *upgradeController) Begin() {
 			defer wait.Done()
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
+				service.Logger.Error(
+					fmt.Sprintf("upgrade %s failure: %s", service.ServiceAlias, truncateErr(err, 1024)),
+					event.GetLoggerOption("failure"))
 				service.Logger.Error(util.Translation("upgrade service error"), event.GetCallbackLoggerOption())
 				logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
@@ -65,20 +88,28 @@ func (s *upgradeController) Begin() {
 func (s *upgradeController) Stop() error {
 	return nil
 }
-func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
-	nowApp := s.manager.store.GetAppService(newapp.ServiceID)
+
+// upgradeConfigMap reconciles the namespace ConfigMaps from nowApp to newapp.
+// create/update failures are aggregated and returned so the caller can fail the
+// upgrade fast (the error reaches the event log stream via the failure detail
+// line). delete failures of stale ConfigMaps are only logged: a leftover
+// ConfigMap does not affect the new version running, so it must not block.
+func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.AppService) error {
 	nowConfigMaps := nowApp.GetConfigMaps()
 	newConfigMaps := newapp.GetConfigMaps()
 	var nowConfigMapMaps = make(map[string]*corev1.ConfigMap, len(nowConfigMaps))
 	for i, now := range nowConfigMaps {
 		nowConfigMapMaps[now.Name] = nowConfigMaps[i]
 	}
+	var errs []error
 	for _, new := range newConfigMaps {
 		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("update configmap %s failure: %s", new.Name, err.Error()))
+				continue
 			}
 			nowApp.SetConfigMap(newc)
 			nowConfigMapMaps[new.Name] = nil
@@ -86,7 +117,9 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 		} else {
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
 			if err != nil {
-				logrus.Errorf("update config map failure %s", err.Error())
+				logrus.Errorf("create config map failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("create configmap %s failure: %s", new.Name, err.Error()))
+				continue
 			}
 			nowApp.SetConfigMap(newc)
 			logrus.Debugf("create configmap %s for service %s", new.Name, newapp.ServiceID)
@@ -95,21 +128,26 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 	for name, handle := range nowConfigMapMaps {
 		if handle != nil {
 			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
+				// delete of stale configmap is best-effort, never blocks the upgrade
 				logrus.Errorf("delete config map failure %s", err.Error())
 			}
 			logrus.Debugf("delete configmap %s for service %s", name, newapp.ServiceID)
 		}
 	}
+	return stderrors.Join(errs...)
 }
 
-func (s *upgradeController) upgradeService(newapp v1.AppService) {
-	nowApp := s.manager.store.GetAppService(newapp.ServiceID)
+// upgradeService reconciles the namespace Services from nowApp to newapp.
+// create/update failures are aggregated and returned; delete failures of stale
+// Services are only logged and never block the upgrade.
+func (s *upgradeController) upgradeService(nowApp *v1.AppService, newapp v1.AppService) error {
 	nowServices := nowApp.GetServices(true)
 	newService := newapp.GetServices(true)
 	var nowServiceMaps = make(map[string]*corev1.Service, len(nowServices))
 	for i, now := range nowServices {
 		nowServiceMaps[now.Name] = nowServices[i]
 	}
+	var errs []error
 	for i := range newService {
 		new := newService[i]
 		if nowConfig, ok := nowServiceMaps[new.Name]; ok {
@@ -119,6 +157,8 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			newc, err := s.manager.client.CoreV1().Services(nowApp.GetNamespace()).Update(s.ctx, nowConfig, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("update service %s failure: %s", new.Name, err.Error()))
+				continue
 			}
 			nowApp.SetService(newc)
 			nowServiceMaps[new.Name] = nil
@@ -126,7 +166,9 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 		} else {
 			err := CreateKubeService(s.manager.client, nowApp.GetNamespace(), new)
 			if err != nil {
-				logrus.Errorf("update service failure %s", err.Error())
+				logrus.Errorf("create service failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("create service %s failure: %s", new.Name, err.Error()))
+				continue
 			}
 			nowApp.SetService(new)
 			logrus.Debugf("create service %s for service %s", new.Name, newapp.ServiceID)
@@ -135,11 +177,13 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	for name, handle := range nowServiceMaps {
 		if handle != nil {
 			if err := s.manager.client.CoreV1().Services(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
+				// delete of stale service is best-effort, never blocks the upgrade
 				logrus.Errorf("delete service failure %s", err.Error())
 			}
 			logrus.Debugf("delete service %s for service %s", name, newapp.ServiceID)
 		}
 	}
+	return stderrors.Join(errs...)
 }
 
 func (s *upgradeController) upgradeManualClaims(oldApp *v1.AppService, newApp *v1.AppService) error {
@@ -169,7 +213,13 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 			}
 		}
 	}
-	s.upgradeConfigMap(app)
+	nowApp := s.manager.store.GetAppService(app.ServiceID)
+	if nowApp == nil {
+		return fmt.Errorf("app service %s not found in store", app.ServiceID)
+	}
+	if err := s.upgradeConfigMap(nowApp, app); err != nil {
+		return fmt.Errorf("upgrade configmap for service %s failure: %w", app.ServiceAlias, err)
+	}
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err = s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(s.ctx, deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"], metav1.PatchOptions{})
 		if err != nil {
@@ -187,11 +237,13 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
-	oldApp := s.manager.store.GetAppService(app.ServiceID)
+	oldApp := nowApp
 	if err := s.upgradeManualClaims(oldApp, &app); err != nil {
 		return fmt.Errorf("upgrade manual claims for service %s failure %w", app.ServiceAlias, err)
 	}
-	s.upgradeService(app)
+	if err := s.upgradeService(oldApp, app); err != nil {
+		return fmt.Errorf("upgrade service for service %s failure: %w", app.ServiceAlias, err)
+	}
 	handleErr := func(msg string, err error) error {
 		// ignore ingress and secret error
 		logrus.Warning(msg)

@@ -1017,14 +1017,63 @@ func GetImageFirstPart(str string) (string, string) {
 	return imageDomain, imageName
 }
 
-// PrepareBuildKitTomlCM -
+// buildKitTomlContent renders the buildkitd.toml payload. With no mirrors it is
+// byte-for-byte identical to the historical inline string so existing builds are
+// unaffected. Mirrors are applied only to docker.io. A mirror written with an
+// "http://" prefix is treated as a plain-HTTP endpoint: its host is added to the
+// docker.io mirrors array and an extra `[registry."<host>"] http = true` section
+// is emitted, because BuildKit decides TLS for a mirror endpoint independently of
+// the upstream registry.
+func buildKitTomlContent(imageDomain string, mirrors []string) string {
+	configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true", imageDomain)
+
+	hosts := make([]string, 0, len(mirrors))
+	httpHosts := make([]string, 0)
+	for _, m := range mirrors {
+		m = strings.TrimSpace(m)
+		if m == "" {
+			continue
+		}
+		if strings.HasPrefix(m, "http://") {
+			host := strings.TrimPrefix(m, "http://")
+			host = strings.TrimSpace(host)
+			if host == "" {
+				continue
+			}
+			hosts = append(hosts, host)
+			httpHosts = append(httpHosts, host)
+			continue
+		}
+		hosts = append(hosts, strings.TrimPrefix(m, "https://"))
+	}
+	if len(hosts) == 0 {
+		return configStr
+	}
+
+	quoted := make([]string, 0, len(hosts))
+	for _, h := range hosts {
+		quoted = append(quoted, fmt.Sprintf("%q", h))
+	}
+	configStr += fmt.Sprintf("\n[registry.\"docker.io\"]\n  mirrors = [%s]", strings.Join(quoted, ", "))
+
+	for _, host := range httpHosts {
+		configStr += fmt.Sprintf("\n[registry.\"%s\"]\n  http = true", host)
+	}
+	return configStr
+}
+
+// PrepareBuildKitTomlCM ensures the buildkitd.toml ConfigMap exists and reflects
+// the current configuration. It creates the ConfigMap when absent and updates it
+// in place when the rendered content differs from the stored one, so registry
+// mirror changes take effect on the next build without manual cleanup.
 func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace, buildKitTomlCMName, imageDomain string) error {
+	configStr := buildKitTomlContent(imageDomain, builder.REGISTRYMIRRORS)
+
 	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
 	if k8serror.IsNotFound(err) {
-		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true", imageDomain)
 		buildKitTomlCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: buildKitTomlCMName,
@@ -1033,10 +1082,20 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 				"buildkittoml": configStr,
 			},
 		}
-		_, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{})
-		if err != nil {
+		if _, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{}); err != nil {
 			return errors.Wrap(err, "create buildkittoml cm failure")
 		}
+		return nil
+	}
+	if buildKitTomlCM.Data["buildkittoml"] == configStr {
+		return nil
+	}
+	if buildKitTomlCM.Data == nil {
+		buildKitTomlCM.Data = map[string]string{}
+	}
+	buildKitTomlCM.Data["buildkittoml"] = configStr
+	if _, err = kubeClient.CoreV1().ConfigMaps(namespace).Update(ctx, buildKitTomlCM, metav1.UpdateOptions{}); err != nil {
+		return errors.Wrap(err, "update buildkittoml cm failure")
 	}
 	return nil
 }

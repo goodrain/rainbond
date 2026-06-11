@@ -684,16 +684,16 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 	case "upgrade":
 		//add upgrade event
 		event := &dbmodel.ServiceEvent{
-			EventID:   util.NewUUID(),
-			TenantID:  tenantID,
-			ServiceID: serviceID,
-			CreatedAt: time.Now().Format(time.RFC3339),
-			StartTime: time.Now().Format(time.RFC3339),
-			OptType:   "upgrade",
-			Target:    "service",
-			TargetID:  serviceID,
-			UserName:  "",
-			SynType:   dbmodel.ASYNEVENTTYPE,
+			EventID:    util.NewUUID(),
+			TenantID:   tenantID,
+			ServiceID:  serviceID,
+			CreateTime: time.Now().Format(time.RFC3339),
+			StartTime:  time.Now().Format(time.RFC3339),
+			OptType:    "upgrade",
+			Target:     "service",
+			TargetID:   serviceID,
+			UserName:   "",
+			SynType:    dbmodel.ASYNEVENTTYPE,
 		}
 		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
 			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
@@ -916,7 +916,7 @@ func (e *exectorManager) createSourceScanEvent(eventID, tenantID, serviceID, ope
 		TargetID:    serviceID,
 		UserName:    operator,
 		StartTime:   now,
-		CreatedAt:   now,
+		CreateTime:  now,
 		SynType:     dbmodel.ASYNEVENTTYPE,
 		OptType:     "source-scan",
 		FinalStatus: "",
@@ -974,7 +974,7 @@ func (e *exectorManager) createBuildServiceEvent(eventID, tenantID, serviceID, o
 		TargetID:    serviceID,
 		UserName:    operator,
 		StartTime:   now,
-		CreatedAt:   now,
+		CreateTime:  now,
 		SynType:     dbmodel.ASYNEVENTTYPE,
 		OptType:     "build-service",
 		FinalStatus: "",

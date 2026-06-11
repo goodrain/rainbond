@@ -277,15 +277,15 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 	var events []*dbmodel.ServiceEvent
 	for _, req := range batchOpReqs {
 		event := &dbmodel.ServiceEvent{
-			EventID:   req.GetEventID(),
-			TenantID:  tenantID,
-			Target:    dbmodel.TargetTypeService,
-			TargetID:  req.GetComponentID(),
-			UserName:  operator,
-			StartTime: time.Now().Format(time.RFC3339),
-			CreatedAt: time.Now().Format(time.RFC3339),
-			SynType:   dbmodel.ASYNEVENTTYPE,
-			OptType:   req.OpType(),
+			EventID:    req.GetEventID(),
+			TenantID:   tenantID,
+			Target:     dbmodel.TargetTypeService,
+			TargetID:   req.GetComponentID(),
+			UserName:   operator,
+			StartTime:  time.Now().Format(time.RFC3339),
+			CreateTime: time.Now().Format(time.RFC3339),
+			SynType:    dbmodel.ASYNEVENTTYPE,
+			OptType:    req.OpType(),
 		}
 		_, ok := bads[req.GetEventID()]
 		if ok {

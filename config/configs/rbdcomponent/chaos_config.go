@@ -25,6 +25,7 @@ type ChaosConfig struct {
 	CleanInterval    int
 	BRVersion        string
 	SourceScanURL    string
+	RegistryMirrors  string
 }
 
 func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
@@ -47,4 +48,5 @@ func AddChaosFlags(fs *pflag.FlagSet, cc *ChaosConfig) {
 	fs.IntVar(&cc.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
 	fs.StringVar(&cc.BRVersion, "br-version", "stable", "builder and runner version")
 	fs.StringVar(&cc.SourceScanURL, "source-scan-url", "", "rainbond source scan service URL, eg: http://rainbond-sourcescan:8080")
+	fs.StringVar(&cc.RegistryMirrors, "registry-mirrors", "", "comma-separated registry mirrors for docker.io base-image pulls in dockerfile builds, empty means no mirror; can be overridden by env REGISTRY_MIRRORS. prefix a value with http:// to mark it as a plain-HTTP mirror endpoint")
 }

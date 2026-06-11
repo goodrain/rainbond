@@ -556,7 +556,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 				}
 				// 扩大去重窗口到45秒，避免同一次崩溃被多次检测
 				if exitErrorEvent != nil {
-					eventTime, err := time.Parse(time.RFC3339, exitErrorEvent.CreatedAt)
+					eventTime, err := time.Parse(time.RFC3339, exitErrorEvent.CreateTime)
 					if err != nil {
 						logrus.Warningf("failed to parse event time: %v", err)
 					} else {
@@ -887,7 +887,7 @@ func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg strin
 		Status:      status,
 		FinalStatus: model.EventFinalStatusEmpty.String(),
 		Message:     msg,
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		CreateTime:  time.Now().Format(time.RFC3339),
 		StartTime:   time.Now().Format(time.RFC3339),
 	}
 	if err = db.GetManager().ServiceEventDao().AddModel(et); err != nil {
@@ -1267,7 +1267,7 @@ func (p *PodEvent) checkLivenessRestart(pod *corev1.Pod, cs corev1.ContainerStat
 								db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeLivenessRestart.String())
 							} else {
 								// Same pod, check time-based deduplication
-								eventTime, err := time.Parse(time.RFC3339, existingEvent.CreatedAt)
+								eventTime, err := time.Parse(time.RFC3339, existingEvent.CreateTime)
 								if err == nil && time.Since(eventTime) < 30*time.Second {
 									return
 								}
