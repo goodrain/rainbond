@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
 	"github.com/goodrain/rainbond/pkg/rainbond"
@@ -38,6 +39,11 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
+	}
+	// Env REGISTRY_MIRRORS (already applied in builder.init) takes precedence over
+	// the --registry-mirrors flag; only apply the flag when env was not set.
+	if os.Getenv("REGISTRY_MIRRORS") == "" && configs.Default().ChaosConfig.RegistryMirrors != "" {
+		builder.SetRegistryMirrors(configs.Default().ChaosConfig.RegistryMirrors)
 	}
 	err = rainbond.New(context.Background(), configs.Default()).
 		Registry(component.Database()).

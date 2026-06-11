@@ -38,6 +38,9 @@ func init() {
 	if os.Getenv("BUILD_IMAGE_REPOSTORY_PASS") != "" {
 		REGISTRYPASS = os.Getenv("BUILD_IMAGE_REPOSTORY_PASS")
 	}
+	if os.Getenv("REGISTRY_MIRRORS") != "" {
+		SetRegistryMirrors(os.Getenv("REGISTRY_MIRRORS"))
+	}
 	arch := runtime.GOARCH
 	RUNNERIMAGENAME = fmt.Sprintf("%s:latest-%s", "/runner", arch)
 	if os.Getenv("RUNNER_IMAGE_NAME") != "" {
@@ -90,6 +93,30 @@ var REGISTRYUSER = ""
 
 // REGISTRYPASS REGISTRY PASSWORD
 var REGISTRYPASS = ""
+
+// REGISTRYMIRRORS registry mirrors used when pulling docker.io base images in
+// Dockerfile builds. Empty (the default) means no mirror is configured and the
+// generated buildkitd.toml is identical to the historical content.
+var REGISTRYMIRRORS []string
+
+// SetRegistryMirrors parses a comma-separated mirror list into REGISTRYMIRRORS.
+// Empty / whitespace-only entries are dropped. An empty input resets the value
+// to nil so the default (no-mirror) behaviour is preserved.
+func SetRegistryMirrors(raw string) {
+	mirrors := make([]string, 0)
+	for _, m := range strings.Split(raw, ",") {
+		m = strings.TrimSpace(m)
+		if m == "" {
+			continue
+		}
+		mirrors = append(mirrors, m)
+	}
+	if len(mirrors) == 0 {
+		REGISTRYMIRRORS = nil
+		return
+	}
+	REGISTRYMIRRORS = mirrors
+}
 
 // RUNNERIMAGENAME runner image name
 var RUNNERIMAGENAME string
