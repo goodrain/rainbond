@@ -113,9 +113,44 @@ db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 ```bash
 go build ./...          # Compile all packages
 go vet ./...            # Static analysis
-make check              # CI lint check (golint on changed files)
+make check              # CI lint check (golint on changed files) + test manifest validation
+make test-manifest-check # Validate test-manifest.json against capability_id markers
 make build              # Build binaries via localbuild.sh
 ```
+
+## Test Manifest (CI-enforced)
+
+`test-manifest.json` is a registry of behavior-guarding tests. Any test annotated
+with a `capability_id` comment is a "managed" test and MUST have a matching entry
+in the manifest, otherwise CI fails.
+
+- Marker: `// capability_id: rainbond.<area>.<behavior>` (Go) or
+  `# capability_id: ...` (Python), placed directly above the test function.
+- Enforced by `scripts/validate_test_manifest.py`, invoked from `make check` and
+  `make test-manifest-check`. Runs in CI as the **Check test manifest** step in
+  `.github/workflows/pr-ci-build.yml` and `release-v6.yml`.
+- `test-manifest.md` is the human-readable table — **auto-generated, never edit by hand**.
+
+### Registering a managed test
+
+Do NOT hand-edit `test-manifest.json`. Use the manager — it inserts in sorted order
+and regenerates `test-manifest.md`:
+
+```bash
+python3 scripts/manage_test_manifest.py add rainbond.<area>.<behavior> \
+  --title "Short English summary" \
+  --interface-type workflow \
+  --interface "builder/sources.buildKitTomlContent" \
+  --code-path builder/sources/image.go \
+  --test builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent \
+  --test-type regression
+```
+
+- `interface_type`: one of `service_method | view_endpoint | handler_method |
+  dao_method | package_function | workflow | other` (internal funcs/methods use `workflow`).
+- `test_type`: one of `unit | regression | characterization | integration`.
+- Repeat `--code-path` / `--test` for multiple values; `--status` defaults to `active`.
+- Other subcommands: `list`, `show <id>`, `render` (rebuild the `.md`), `prune <id>`.
 
 ## Coding Conventions
 
