@@ -35,11 +35,19 @@ type probeResult struct {
 	latency time.Duration
 }
 
-// Probe checks every candidate's /v2/ registry endpoint concurrently and
-// returns only the alive ones, sorted by ascending latency. A mirror is alive
-// when /v2/ answers 200 or 401 (an auth challenge still proves a working
-// registry frontend). Candidates keep their scheme; entries without one are
-// probed via https.
+// probeManifestPath is a real, tiny docker.io manifest. Probing it instead of
+// the bare /v2/ ping exercises the mirror's actual proxy path, so a frontend
+// that answers pings but stalls on manifests fails the probe timeout.
+const probeManifestPath = "/v2/library/alpine/manifests/latest"
+
+// Probe fetches a real manifest from every candidate concurrently and returns
+// only the alive ones, sorted by ascending latency. 200 and 401 both count as
+// alive: token-auth mirrors (e.g. daocloud) answer 401 to anonymous manifest
+// requests, and the containerd/BuildKit token flow handles that during real
+// pulls. The probe cannot catch every stall (a mirror may serve alpine fine
+// and hang on another image) — the pull-side client timeout is the hard
+// safety net; the probe only filters and orders. Candidates keep their
+// scheme; entries without one are probed via https.
 func Probe(ctx context.Context, candidates []string, timeout time.Duration) []string {
 	if len(candidates) == 0 {
 		return nil
@@ -76,12 +84,18 @@ func probeOne(ctx context.Context, client *http.Client, mirrorURL string) (time.
 	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
 		endpoint = "https://" + endpoint
 	}
-	endpoint = strings.TrimSuffix(endpoint, "/") + "/v2/"
+	endpoint = strings.TrimSuffix(endpoint, "/") + probeManifestPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		logrus.Debugf("probe mirror %s: build request failure: %v", mirrorURL, err)
 		return 0, false
 	}
+	req.Header.Set("Accept", strings.Join([]string{
+		"application/vnd.docker.distribution.manifest.v2+json",
+		"application/vnd.docker.distribution.manifest.list.v2+json",
+		"application/vnd.oci.image.manifest.v1+json",
+		"application/vnd.oci.image.index.v1+json",
+	}, ", "))
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
