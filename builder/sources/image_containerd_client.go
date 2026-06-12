@@ -574,9 +574,10 @@ func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) 
 // by checking status in the content store.
 func ShowProgress(ctx context.Context, ongoing *Jobs, cs content.Store, logger event.Logger) {
 	var (
-		ticker   = time.NewTicker(100 * time.Millisecond)
+		ticker   = time.NewTicker(500 * time.Millisecond)
 		start    = time.Now()
 		statuses = map[string]ctrcontent.StatusInfo{}
+		emitted  = map[string]ctrcontent.StatusInfo{}
 		done     bool
 	)
 	defer ticker.Stop()
@@ -664,12 +665,17 @@ outer:
 					}
 				}
 			}
-			var ordered []ctrcontent.StatusInfo
+			var changed []ctrcontent.StatusInfo
 			for _, key := range keys {
-				ordered = append(ordered, statuses[key])
+				status := statuses[key]
+				if !statusInfoChanged(emitted[key], status) {
+					continue
+				}
+				emitted[key] = status
+				changed = append(changed, status)
 			}
 
-			Display(ordered, start, logger)
+			Display(changed, start, logger)
 
 			if done {
 				//tt.Flush()
@@ -729,6 +735,14 @@ func (j *Jobs) IsResolved() bool {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	return j.resolved
+}
+
+// statusInfoChanged reports whether a status update carries new information
+// worth emitting to the event log. The progress ticker fires on a fixed
+// interval, so without this check the same "resolving"/"waiting" line would
+// be appended to the build log on every tick.
+func statusInfoChanged(prev, cur ctrcontent.StatusInfo) bool {
+	return prev.Status != cur.Status || prev.Offset != cur.Offset || prev.Total != cur.Total
 }
 
 // Display pretty prints out the download or upload progress
