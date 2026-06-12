@@ -51,6 +51,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/mirror"
 	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/db"
@@ -1067,7 +1068,7 @@ func buildKitTomlContent(imageDomain string, mirrors []string) string {
 // in place when the rendered content differs from the stored one, so registry
 // mirror changes take effect on the next build without manual cleanup.
 func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace, buildKitTomlCMName, imageDomain string) error {
-	configStr := buildKitTomlContent(imageDomain, builder.REGISTRYMIRRORS)
+	configStr := buildKitTomlContent(imageDomain, mergeMirrors(builder.REGISTRYMIRRORS, mirror.Default().Mirrors()))
 
 	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {

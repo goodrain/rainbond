@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/builder/clean"
 	chaos_discover "github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/builder/mirror"
 	exec_monitor "github.com/goodrain/rainbond/builder/monitor"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/config/crd"
@@ -60,6 +61,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -227,6 +229,9 @@ func WorkerInit() rainbond.FuncComponent {
 // ChaosInit -
 func ChaosInit() rainbond.FuncComponent {
 	return func(ctx context.Context) error {
+		// 启动 docker.io 动态镜像代理：定期拉取候选源并探活，构建路径在渲染
+		// buildkitd.toml 时读取（DYNAMIC_REGISTRY_MIRRORS=false 可关闭）。
+		mirror.Init(ctx, os.Getenv, k8s.Default().Clientset, configs.Default().PublicConfig.RbdNamespace)
 		errChan := make(chan error)
 		exec, err := exector.NewManager()
 		if err != nil {
