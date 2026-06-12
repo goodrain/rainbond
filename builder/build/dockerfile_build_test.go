@@ -6,27 +6,36 @@ import (
 )
 
 // TestLocalBuildKitCacheArgsContainServiceID 验证生成的本地 layer cache 参数
-// 同时包含 --cache-from 与 --cache-to，且缓存路径包含 serviceID。
+// 使用 buildctl 的 --import-cache / --export-cache（而非 buildx 的
+// --cache-from / --cache-to），且缓存路径包含 serviceID。
 func TestLocalBuildKitCacheArgsContainServiceID(t *testing.T) {
 	const serviceID = "svc-abc123"
 
 	args := localBuildKitCacheArgs(serviceID)
 
-	from := flagValue(t, args, "--cache-from")
-	to := flagValue(t, args, "--cache-to")
+	for _, invalid := range []string{"--cache-from", "--cache-to"} {
+		for _, a := range args {
+			if a == invalid {
+				t.Errorf("args contain %q, which buildctl does not support", invalid)
+			}
+		}
+	}
+
+	from := flagValue(t, args, "--import-cache")
+	to := flagValue(t, args, "--export-cache")
 
 	wantDir := "/cache/buildkit/" + serviceID
 	if !strings.Contains(from, wantDir) {
-		t.Errorf("--cache-from %q does not contain cache dir %q", from, wantDir)
+		t.Errorf("--import-cache %q does not contain cache dir %q", from, wantDir)
 	}
 	if !strings.Contains(to, wantDir) {
-		t.Errorf("--cache-to %q does not contain cache dir %q", to, wantDir)
+		t.Errorf("--export-cache %q does not contain cache dir %q", to, wantDir)
 	}
 	if !strings.Contains(from, "type=local") || !strings.Contains(from, "src=") {
-		t.Errorf("--cache-from %q is not a local source spec", from)
+		t.Errorf("--import-cache %q is not a local source spec", from)
 	}
 	if !strings.Contains(to, "type=local") || !strings.Contains(to, "dest=") || !strings.Contains(to, "mode=max") {
-		t.Errorf("--cache-to %q is not a local mode=max dest spec", to)
+		t.Errorf("--export-cache %q is not a local mode=max dest spec", to)
 	}
 }
 
