@@ -20,8 +20,10 @@ package sources
 
 import (
 	"crypto/tls"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	refdocker "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/containerd/remotes/docker"
@@ -60,8 +62,16 @@ func mirrorRegistryHost(mirrorURL string) docker.RegistryHost {
 	}
 	host = strings.TrimSuffix(host, "/")
 	return docker.RegistryHost{
+		// 必须带超时：探活通过的 mirror 仍可能在取 manifest/blob 时挂起不响应，
+		// containerd 这条 pull 路径外层没有 ctx 超时，没有这里的超时会把构建卡死。
 		Client: &http.Client{
-			Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+			Transport: &http.Transport{
+				DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
+				TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second,
+				IdleConnTimeout:       90 * time.Second,
+			},
 		},
 		Authorizer:   docker.NewDockerAuthorizer(),
 		Host:         host,
