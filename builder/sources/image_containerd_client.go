@@ -22,6 +22,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker/config"
 	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/mirror"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util/criutil"
 	"github.com/opencontainers/go-digest"
@@ -132,9 +133,11 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 		return username, password, nil
 	}
 	Tracker := docker.NewInMemoryTracker()
+	// docker.io 镜像优先尝试动态 mirror，全部失败自动回退上游 registry。
+	dynamicMirrors := mirror.Default().Mirrors()
 	options := docker.ResolverOptions{
 		Tracker: Tracker,
-		Hosts:   config.ConfigureHosts(pctx, hostOpt),
+		Hosts:   mirrorRegistryHosts(dynamicMirrors, config.ConfigureHosts(pctx, hostOpt)),
 	}
 
 	platformMC := platforms.Ordered([]ocispec.Platform{platforms.DefaultSpec()}...)
@@ -153,7 +156,7 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 		hostOpt.DefaultScheme = "http"
 		options := docker.ResolverOptions{
 			Tracker: Tracker,
-			Hosts:   config.ConfigureHosts(pctx, hostOpt),
+			Hosts:   mirrorRegistryHosts(dynamicMirrors, config.ConfigureHosts(pctx, hostOpt)),
 		}
 		opts = []containerd.RemoteOpt{
 			containerd.WithImageHandler(h),
