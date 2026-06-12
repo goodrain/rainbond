@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/mirror"
 	"github.com/goodrain/rainbond/event"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -100,40 +101,36 @@ func (d *dockerImageCliImpl) ImagePull(image string, username, password string, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
-	//TODO: 使用1.12版本api的bug "repository name must be canonical"，使用rf.String()完整的镜像地址
-	readcloser, err := d.client.ImagePull(ctx, rf.String(), pullipo)
-	if err != nil {
-		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
-		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
+	// docker.io 镜像依次尝试动态 mirror 改写后的引用，全部失败回退原始地址；
+	// 经 mirror 拉取成功后回打原始 tag，保证后续按原镜像名可见。
+	pullRefs := mirrorPullRefs(rf.String(), mirror.Default().Mirrors())
+	var pullErr error
+	for i, pullRef := range pullRefs {
+		if pullRef != rf.String() {
+			printLog(logger, "info", fmt.Sprintf("try pull image via mirror: %s", pullRef), map[string]string{"step": "pullimage"})
+		}
+		pullErr = d.pullAndStreamProgress(ctx, pullRef, pullipo, logger)
+		if pullErr == nil {
+			if pullRef != rf.String() {
+				if err := d.client.ImageTag(ctx, pullRef, rf.String()); err != nil {
+					logrus.Errorf("tag mirror image %s to %s failure: %v", pullRef, rf.String(), err)
+					pullErr = err
+					continue
+				}
+			}
+			break
+		}
+		logrus.Warnf("pull image %s (attempt %d/%d) failure: %v", pullRef, i+1, len(pullRefs), pullErr)
+	}
+	if pullErr != nil {
+		logrus.Debugf("image name: %s readcloser error: %v", image, pullErr.Error())
+		if strings.HasSuffix(pullErr.Error(), "does not exist or no pull access") {
 			printLog(logger, "error", fmt.Sprintf("image: %s does not exist or is not available", image), map[string]string{"step": "pullimage", "status": "failure"})
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}
 		// 增强错误处理，提供更详细的错误信息
-		enhancedErr := d.enhanceImagePullError(err, image, logger)
+		enhancedErr := d.enhanceImagePullError(pullErr, image, logger)
 		return nil, enhancedErr
-	}
-	defer readcloser.Close()
-	dec := json.NewDecoder(readcloser)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		var jm JSONMessage
-		if err := dec.Decode(&jm); err != nil {
-			if err == io.EOF {
-				break
-			}
-			logrus.Debugf("error decoding jm(JSONMessage): %v", err)
-			return nil, err
-		}
-		if jm.Error != nil {
-			logrus.Debugf("error pulling image: %v", jm.Error)
-			return nil, jm.Error
-		}
-		printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
-		logrus.Debug(jm.JSONString())
 	}
 	printLog(logger, "debug", "Get the image information and its raw representation", map[string]string{"step": "progress"})
 	ins, _, err := d.client.ImageInspectWithRaw(ctx, image)
@@ -157,6 +154,38 @@ func (d *dockerImageCliImpl) ImagePull(image string, username, password string, 
 		Labels:       ins.Config.Labels,
 		StopSignal:   ins.Config.StopSignal,
 	}, nil
+}
+
+// pullAndStreamProgress pulls one reference and forwards the daemon progress
+// stream to the build log, returning the first error the stream reports.
+func (d *dockerImageCliImpl) pullAndStreamProgress(ctx context.Context, ref string, pullipo dtypes.ImagePullOptions, logger event.Logger) error {
+	readcloser, err := d.client.ImagePull(ctx, ref, pullipo)
+	if err != nil {
+		return err
+	}
+	defer readcloser.Close()
+	dec := json.NewDecoder(readcloser)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		var jm JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			logrus.Debugf("error decoding jm(JSONMessage): %v", err)
+			return err
+		}
+		if jm.Error != nil {
+			logrus.Debugf("error pulling image: %v", jm.Error)
+			return jm.Error
+		}
+		printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
+		logrus.Debug(jm.JSONString())
+	}
 }
 
 // enhanceImagePullError 增强镜像拉取错误信息，提供更详细的错误描述和解决建议
