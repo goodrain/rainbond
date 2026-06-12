@@ -249,8 +249,8 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 func localBuildKitCacheArgs(serviceID string) []string {
 	cacheDir := fmt.Sprintf("/cache/buildkit/%s", serviceID)
 	return []string{
-		"--cache-from", fmt.Sprintf("type=local,src=%s", cacheDir),
-		"--cache-to", fmt.Sprintf("type=local,dest=%s,mode=max", cacheDir),
+		"--import-cache", fmt.Sprintf("type=local,src=%s", cacheDir),
+		"--export-cache", fmt.Sprintf("type=local,dest=%s,mode=max", cacheDir),
 	}
 }
 
