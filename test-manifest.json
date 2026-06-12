@@ -1415,6 +1415,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.dockerfile-build.registry-mirror-toml",
+      "title": "Render BuildKit TOML with optional registry mirrors",
+      "title_zh": "Render BuildKit TOML with optional registry mirrors",
+      "interface_type": "workflow",
+      "interface": "builder/sources.buildKitTomlContent",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/buildkit_toml_test.go",
+          "selector": "TestBuildKitTomlContent"
+        },
+        {
+          "path": "builder/sources/buildkit_toml_test.go",
+          "selector": "TestBuildKitTomlContentLegacyEquivalence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.dockerfile.line-info",
       "title": "Track Dockerfile AST line information",
       "title_zh": "\u8ddf\u8e2a Dockerfile AST \u7684\u884c\u53f7\u4fe1\u606f",
@@ -5083,6 +5105,42 @@
         {
           "path": "pkg/apis/rainbond/v1alpha1/third_component_unit_test.go",
           "selector": "TestThirdComponentSpecIsStaticEndpoints"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.upgrade-configmap-aggregates-create-update-errors",
+      "title": "Aggregate ConfigMap create/update errors during upgrade",
+      "title_zh": "Aggregate ConfigMap create/update errors during upgrade",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeConfigMap",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapErrorAggregation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.upgrade-service-aggregates-create-update-errors",
+      "title": "Aggregate Service create/update errors during upgrade",
+      "title_zh": "Aggregate Service create/update errors during upgrade",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeService",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeServiceErrorAggregation"
         }
       ],
       "test_type": "regression",
