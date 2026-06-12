@@ -80,6 +80,7 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
+| rainbond.dockerfile-build.registry-mirror-toml | Render BuildKit TOML with optional registry mirrors | active | regression | builder/sources.buildKitTomlContent | builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent<br>builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence |
 | rainbond.dockerfile.line-info | 跟踪 Dockerfile AST 的行号信息 | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestLineInformation |
 | rainbond.dockerfile.parse-fixtures | 将标准 Dockerfile 示例解析为稳定 AST | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestTestData |
 | rainbond.dockerfile.parse-json-array | 解析 Dockerfile 指令中的 JSON 数组语法 | active | regression | util/dockerfile/parser.parseJSON | util/dockerfile/parser/json_test.go::TestJSONArraysOfStrings |
@@ -278,6 +279,8 @@
 | rainbond.third-component.probe-equals | 比较第三方组件探测定义是否相等 | active | regression | pkg/apis/rainbond/v1alpha1.Probe.Equals | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestProbeEquals |
 | rainbond.third-component.probe-required | 判断第三方组件是否需要主动探测 | active | regression | pkg/apis/rainbond/v1alpha1.ThirdComponentSpec.NeedProbe | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestThirdComponentSpecNeedProbe |
 | rainbond.third-component.static-endpoints-detect | 检测第三方组件是否使用静态端点 | active | regression | pkg/apis/rainbond/v1alpha1.ThirdComponentSpec.IsStaticEndpoints | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestThirdComponentSpecIsStaticEndpoints |
+| rainbond.upgrade-configmap-aggregates-create-update-errors | Aggregate ConfigMap create/update errors during upgrade | active | regression | worker/appm/controller.upgradeController.upgradeConfigMap | worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapErrorAggregation |
+| rainbond.upgrade-service-aggregates-create-update-errors | Aggregate Service create/update errors during upgrade | active | regression | worker/appm/controller.upgradeController.upgradeService | worker/appm/controller/upgrade_test.go::TestUpgradeServiceErrorAggregation |
 | rainbond.util.array-deduplicate | 对字符串切片去重并保留非空元素 | active | regression | util.Deweight | util/comman_test.go::TestDeweight |
 | rainbond.util.bytes-equality | 比较字节切片是否完全相等并区分 nil 情况 | active | regression | util.BytesSliceEqual | util/bytes_test.go::TestBytesSliceEqual |
 | rainbond.util.bytes-to-string | 使用零拷贝辅助将字节切片转换为字符串 | active | regression | util.ToString | util/bytes_test.go::TestToString |
@@ -1206,6 +1209,16 @@
 - 业务入口: `builder/parser/code.ConfigFiles.GetRelevantConfigFile`
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
+
+### Render BuildKit TOML with optional registry mirrors
+
+- Capability ID: `rainbond.dockerfile-build.registry-mirror-toml`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.buildKitTomlContent`
+- 代码路径: `builder/sources/image.go`
+- 测试路径: `builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent`, `builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence`
 
 ### 跟踪 Dockerfile AST 的行号信息
 
@@ -3186,6 +3199,26 @@
 - 业务入口: `pkg/apis/rainbond/v1alpha1.ThirdComponentSpec.IsStaticEndpoints`
 - 代码路径: `pkg/apis/rainbond/v1alpha1/third_component.go`
 - 测试路径: `pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestThirdComponentSpecIsStaticEndpoints`
+
+### Aggregate ConfigMap create/update errors during upgrade
+
+- Capability ID: `rainbond.upgrade-configmap-aggregates-create-update-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeConfigMap`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapErrorAggregation`
+
+### Aggregate Service create/update errors during upgrade
+
+- Capability ID: `rainbond.upgrade-service-aggregates-create-update-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeService`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_test.go::TestUpgradeServiceErrorAggregation`
 
 ### 对字符串切片去重并保留非空元素
 
