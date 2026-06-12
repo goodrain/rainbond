@@ -453,6 +453,168 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.dynamic-mirror-config",
+      "title": "Dynamic mirror config defaults and env overrides",
+      "title_zh": "Dynamic mirror config defaults and env overrides",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.LoadConfig",
+      "code_paths": [
+        "builder/mirror/config.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/config_test.go",
+          "selector": "TestLoadConfigDefaults"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.dynamic-mirror-fetch",
+      "title": "Fetch mirror candidates from remote JSON source with schema validation",
+      "title_zh": "Fetch mirror candidates from remote JSON source with schema validation",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.FetchCandidates",
+      "code_paths": [
+        "builder/mirror/fetcher.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/fetcher_test.go",
+          "selector": "TestFetchCandidates"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.dynamic-mirror-fetch-fallback",
+      "title": "Mirror source fetch falls back to next URL on failure",
+      "title_zh": "Mirror source fetch falls back to next URL on failure",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.FetchCandidates",
+      "code_paths": [
+        "builder/mirror/fetcher.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/fetcher_test.go",
+          "selector": "TestFetchCandidatesFallsBackToNextURL"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.dynamic-mirror-probe",
+      "title": "Probe filters dead mirrors and sorts alive ones by latency",
+      "title_zh": "Probe filters dead mirrors and sorts alive ones by latency",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.Probe",
+      "code_paths": [
+        "builder/mirror/prober.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/prober_test.go",
+          "selector": "TestProbeFiltersAndSortsByLatency"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.dynamic-mirror-refresh",
+      "title": "Mirror manager refresh updates list and persists configmap",
+      "title_zh": "Mirror manager refresh updates list and persists configmap",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.Manager.Refresh",
+      "code_paths": [
+        "builder/mirror/manager.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/manager_test.go",
+          "selector": "TestManagerRefreshUpdatesMirrorsAndConfigMap"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.dynamic-mirror-restore",
+      "title": "Mirror manager restores last good list from configmap",
+      "title_zh": "Mirror manager restores last good list from configmap",
+      "interface_type": "workflow",
+      "interface": "builder/mirror.Manager.restore",
+      "code_paths": [
+        "builder/mirror/manager.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/mirror/manager_test.go",
+          "selector": "TestManagerRestoreFromConfigMap"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.mirror-containerd-hosts",
+      "title": "containerd pulls try docker.io mirrors first with upstream fallback",
+      "title_zh": "containerd pulls try docker.io mirrors first with upstream fallback",
+      "interface_type": "workflow",
+      "interface": "builder/sources.mirrorRegistryHosts",
+      "code_paths": [
+        "builder/sources/mirror_hosts.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/mirror_hosts_test.go",
+          "selector": "TestMirrorRegistryHosts"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.mirror-docker-ref-rewrite",
+      "title": "docker daemon pulls rewrite docker.io refs to mirrors with fallback order",
+      "title_zh": "docker daemon pulls rewrite docker.io refs to mirrors with fallback order",
+      "interface_type": "workflow",
+      "interface": "builder/sources.mirrorPullRefs",
+      "code_paths": [
+        "builder/sources/mirror_hosts.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/mirror_hosts_test.go",
+          "selector": "TestMirrorPullRefs"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.mirror-merge-manual-priority",
+      "title": "Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup",
+      "title_zh": "Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup",
+      "interface_type": "workflow",
+      "interface": "builder/sources.mergeMirrors",
+      "code_paths": [
+        "builder/sources/mirror_merge.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/mirror_merge_test.go",
+          "selector": "TestMergeMirrors"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
       "id": "rainbond.builder.registered-worker-dispatch",
       "title": "Dispatch registered worker tasks without unknown warnings",
       "title_zh": "\u5df2\u6ce8\u518c worker \u5206\u53d1\u65f6\u4e0d\u518d\u8bef\u62a5\u672a\u77e5\u4efb\u52a1",

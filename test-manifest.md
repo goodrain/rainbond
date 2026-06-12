@@ -29,6 +29,15 @@
 | rainbond.app-restore.unzip-all-data | 在恢复时解压完整备份数据包 | active | regression | builder/exector.BackupAPPRestore | builder/exector/groupapp_restore_test.go::TestUnzipAllDataFile |
 | rainbond.application.check-port-k8s-service-name-duplicate | 校验应用端口 Kubernetes Service 名称重复 | active | regression | api/handler.ApplicationAction.checkPorts | api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
+| rainbond.builder.dynamic-mirror-config | Dynamic mirror config defaults and env overrides | active | unit | builder/mirror.LoadConfig | builder/mirror/config_test.go::TestLoadConfigDefaults |
+| rainbond.builder.dynamic-mirror-fetch | Fetch mirror candidates from remote JSON source with schema validation | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidates |
+| rainbond.builder.dynamic-mirror-fetch-fallback | Mirror source fetch falls back to next URL on failure | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidatesFallsBackToNextURL |
+| rainbond.builder.dynamic-mirror-probe | Probe filters dead mirrors and sorts alive ones by latency | active | unit | builder/mirror.Probe | builder/mirror/prober_test.go::TestProbeFiltersAndSortsByLatency |
+| rainbond.builder.dynamic-mirror-refresh | Mirror manager refresh updates list and persists configmap | active | unit | builder/mirror.Manager.Refresh | builder/mirror/manager_test.go::TestManagerRefreshUpdatesMirrorsAndConfigMap |
+| rainbond.builder.dynamic-mirror-restore | Mirror manager restores last good list from configmap | active | unit | builder/mirror.Manager.restore | builder/mirror/manager_test.go::TestManagerRestoreFromConfigMap |
+| rainbond.builder.mirror-containerd-hosts | containerd pulls try docker.io mirrors first with upstream fallback | active | unit | builder/sources.mirrorRegistryHosts | builder/sources/mirror_hosts_test.go::TestMirrorRegistryHosts |
+| rainbond.builder.mirror-docker-ref-rewrite | docker daemon pulls rewrite docker.io refs to mirrors with fallback order | active | unit | builder/sources.mirrorPullRefs | builder/sources/mirror_hosts_test.go::TestMirrorPullRefs |
+| rainbond.builder.mirror-merge-manual-priority | Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup | active | unit | builder/sources.mergeMirrors | builder/sources/mirror_merge_test.go::TestMergeMirrors |
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
 | rainbond.cloud-storage.alioss-error-map | 将 AliOSS 服务错误转换为统一存储 SDK 错误 | active | regression | builder/cloudos.svcErrToS3SDKError | builder/cloudos/alioss_test.go::TestSvcErrToS3SDKError |
 | rainbond.cloud-storage.driver-factory | 将云存储配置分发到正确的驱动实现 | active | regression | builder/cloudos.New | builder/cloudos/cloudos_test.go::TestNewDispatchesProviderDrivers |
@@ -699,6 +708,96 @@
 - 业务入口: `builder/build.GetBuildByType`
 - 代码路径: `builder/build/build.go`
 - 测试路径: `builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix`
+
+### Dynamic mirror config defaults and env overrides
+
+- Capability ID: `rainbond.builder.dynamic-mirror-config`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.LoadConfig`
+- 代码路径: `builder/mirror/config.go`
+- 测试路径: `builder/mirror/config_test.go::TestLoadConfigDefaults`
+
+### Fetch mirror candidates from remote JSON source with schema validation
+
+- Capability ID: `rainbond.builder.dynamic-mirror-fetch`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.FetchCandidates`
+- 代码路径: `builder/mirror/fetcher.go`
+- 测试路径: `builder/mirror/fetcher_test.go::TestFetchCandidates`
+
+### Mirror source fetch falls back to next URL on failure
+
+- Capability ID: `rainbond.builder.dynamic-mirror-fetch-fallback`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.FetchCandidates`
+- 代码路径: `builder/mirror/fetcher.go`
+- 测试路径: `builder/mirror/fetcher_test.go::TestFetchCandidatesFallsBackToNextURL`
+
+### Probe filters dead mirrors and sorts alive ones by latency
+
+- Capability ID: `rainbond.builder.dynamic-mirror-probe`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.Probe`
+- 代码路径: `builder/mirror/prober.go`
+- 测试路径: `builder/mirror/prober_test.go::TestProbeFiltersAndSortsByLatency`
+
+### Mirror manager refresh updates list and persists configmap
+
+- Capability ID: `rainbond.builder.dynamic-mirror-refresh`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.Manager.Refresh`
+- 代码路径: `builder/mirror/manager.go`
+- 测试路径: `builder/mirror/manager_test.go::TestManagerRefreshUpdatesMirrorsAndConfigMap`
+
+### Mirror manager restores last good list from configmap
+
+- Capability ID: `rainbond.builder.dynamic-mirror-restore`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/mirror.Manager.restore`
+- 代码路径: `builder/mirror/manager.go`
+- 测试路径: `builder/mirror/manager_test.go::TestManagerRestoreFromConfigMap`
+
+### containerd pulls try docker.io mirrors first with upstream fallback
+
+- Capability ID: `rainbond.builder.mirror-containerd-hosts`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.mirrorRegistryHosts`
+- 代码路径: `builder/sources/mirror_hosts.go`
+- 测试路径: `builder/sources/mirror_hosts_test.go::TestMirrorRegistryHosts`
+
+### docker daemon pulls rewrite docker.io refs to mirrors with fallback order
+
+- Capability ID: `rainbond.builder.mirror-docker-ref-rewrite`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.mirrorPullRefs`
+- 代码路径: `builder/sources/mirror_hosts.go`
+- 测试路径: `builder/sources/mirror_hosts_test.go::TestMirrorPullRefs`
+
+### Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup
+
+- Capability ID: `rainbond.builder.mirror-merge-manual-priority`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.mergeMirrors`
+- 代码路径: `builder/sources/mirror_merge.go`
+- 测试路径: `builder/sources/mirror_merge_test.go::TestMergeMirrors`
 
 ### 已注册 worker 分发时不再误报未知任务
 
