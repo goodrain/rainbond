@@ -424,6 +424,20 @@ func TestDeduplicateLanguageVersionsRemovesHistoricalDuplicates(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.db.retire_system_cnb_where_quotes_reserved_column
+func TestRetireMissingSystemCNBWhereClauseQuotesReservedColumnForMySQL(t *testing.T) {
+	db := newMySQLDialectPatchTestDB(t)
+
+	clause := retireMissingSystemCNBWhereClause(db)
+
+	if !strings.Contains(clause, "`system` = ?") {
+		t.Fatalf("expected mysql where clause to quote system column, got %q", clause)
+	}
+	if !strings.Contains(clause, "build_strategy = ?") {
+		t.Fatalf("expected where clause to filter by build_strategy, got %q", clause)
+	}
+}
+
 func TestLongVersionDeduplicationOrderClausesQuoteReservedColumnsForMySQL(t *testing.T) {
 	db := newMySQLDialectPatchTestDB(t)
 

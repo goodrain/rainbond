@@ -610,7 +610,7 @@ func retireMissingSystemCNBVersions(db *gorm.DB, seedVersions []*model.Enterpris
 	}
 
 	var stored []model.EnterpriseLanguageVersion
-	if err := db.Where("build_strategy = ? AND system = ?", model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
+	if err := db.Where(retireMissingSystemCNBWhereClause(db), model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
 		return err
 	}
 
@@ -638,6 +638,13 @@ func normalizeSeedLongVersionBuildStrategy(buildStrategy string) string {
 		return model.LongVersionBuildStrategySlug
 	}
 	return buildStrategy
+}
+
+// retireMissingSystemCNBWhereClause quotes the system column because it is a
+// reserved word in MySQL 8.
+func retireMissingSystemCNBWhereClause(db *gorm.DB) string {
+	scope := db.NewScope(&model.EnterpriseLanguageVersion{})
+	return "build_strategy = ? AND " + scope.Quote("system") + " = ?"
 }
 
 func longVersionDeduplicationOrderClauses(db *gorm.DB) []string {
