@@ -1577,6 +1577,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.db.retire_system_cnb_where_quotes_reserved_column",
+      "title": "Retire system CNB versions where-clause quotes reserved system column for MySQL",
+      "title_zh": "Retire system CNB versions where-clause quotes reserved system column for MySQL",
+      "interface_type": "workflow",
+      "interface": "db/mysql.retireMissingSystemCNBWhereClause",
+      "code_paths": [
+        "db/mysql/mysql.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/mysql_long_version_test.go",
+          "selector": "TestRetireMissingSystemCNBWhereClauseQuotesReservedColumnForMySQL"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.dockerfile-build.registry-mirror-toml",
       "title": "Render BuildKit TOML with optional registry mirrors",
       "title_zh": "Render BuildKit TOML with optional registry mirrors",

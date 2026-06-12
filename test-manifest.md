@@ -89,6 +89,7 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
+| rainbond.db.retire_system_cnb_where_quotes_reserved_column | Retire system CNB versions where-clause quotes reserved system column for MySQL | active | regression | db/mysql.retireMissingSystemCNBWhereClause | db/mysql/mysql_long_version_test.go::TestRetireMissingSystemCNBWhereClauseQuotesReservedColumnForMySQL |
 | rainbond.dockerfile-build.registry-mirror-toml | Render BuildKit TOML with optional registry mirrors | active | regression | builder/sources.buildKitTomlContent | builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent<br>builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence |
 | rainbond.dockerfile.line-info | 跟踪 Dockerfile AST 的行号信息 | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestLineInformation |
 | rainbond.dockerfile.parse-fixtures | 将标准 Dockerfile 示例解析为稳定 AST | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestTestData |
@@ -1282,6 +1283,16 @@
 - 业务入口: `builder/parser/code.ConfigFiles.GetRelevantConfigFile`
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
+
+### Retire system CNB versions where-clause quotes reserved system column for MySQL
+
+- Capability ID: `rainbond.db.retire_system_cnb_where_quotes_reserved_column`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `db/mysql.retireMissingSystemCNBWhereClause`
+- 代码路径: `db/mysql/mysql.go`
+- 测试路径: `db/mysql/mysql_long_version_test.go::TestRetireMissingSystemCNBWhereClauseQuotesReservedColumnForMySQL`
 
 ### Render BuildKit TOML with optional registry mirrors
 
