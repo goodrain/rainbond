@@ -3061,6 +3061,14 @@
         {
           "path": "plugins/kb-adapter-rbdplugin/service/cluster/event_test.go",
           "selector": "TestGetClusterEvents"
+        },
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/cluster/event_test.go",
+          "selector": "TestGetClusterEventsIncludesPodWarningEvents"
+        },
+        {
+          "path": "plugins/kb-adapter-rbdplugin/service/cluster/event_test.go",
+          "selector": "TestGetClusterEventsIncludesPodWarningEventsWhenInstanceStatusIsEmpty"
         }
       ],
       "test_type": "regression",

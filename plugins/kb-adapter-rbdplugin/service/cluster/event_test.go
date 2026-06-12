@@ -887,6 +887,59 @@ func TestGetClusterEventsIncludesPodWarningEvents(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// capability_id: rainbond.kb-adapter.cluster.event-timeline
+func TestGetClusterEventsIncludesPodWarningEventsWhenInstanceStatusIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	baseTime := time.Date(2026, 6, 11, 10, 0, 0, 0, time.UTC)
+	cluster := testutil.NewMySQLCluster("test-cluster", testutil.TestNamespace).
+		WithServiceID(testutil.TestServiceID).
+		Build()
+	instanceSet := testutil.NewInstanceSetBuilder("test-cluster-mysql", testutil.TestNamespace).
+		WithClusterInstance(cluster.Name).
+		WithComponentName("mysql").
+		Build()
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-mysql-0",
+			Namespace: testutil.TestNamespace,
+			Labels: map[string]string{
+				index.InstanceLabel:                 cluster.Name,
+				"apps.kubeblocks.io/component-name": "mysql",
+				"workloads.kubeblocks.io/instance":  instanceSet.Name,
+			},
+		},
+		Status: corev1.PodStatus{Phase: corev1.PodPending},
+	}
+	podEvent := &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-mysql-0.17d4",
+			Namespace: testutil.TestNamespace,
+		},
+		InvolvedObject: corev1.ObjectReference{
+			Kind:      "Pod",
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+		},
+		Type:           corev1.EventTypeWarning,
+		Reason:         "FailedScheduling",
+		Message:        "0/1 nodes are available: 1 Insufficient memory.",
+		FirstTimestamp: metav1.NewTime(baseTime),
+		LastTimestamp:  metav1.NewTime(baseTime.Add(time.Minute)),
+	}
+
+	k8sClient := testutil.NewFakeClientWithIndexes(cluster, instanceSet, pod, podEvent)
+	service := &Service{client: k8sClient}
+	result, err := service.GetClusterEvents(ctx, testutil.TestServiceID, model.Pagination{Page: 1, PageSize: 10})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, result.Items, 1)
+	assert.Equal(t, 1, result.Total)
+	assert.Equal(t, "FailedScheduling", result.Items[0].OpsType)
+	assert.Equal(t, "failure", result.Items[0].Status)
+	assert.Equal(t, podEvent.Message, result.Items[0].Message)
+}
+
 // TestConvertOpsRequestToEventItem 测试 OpsRequest 转换为 EventItem
 // capability_id: rainbond.kb-adapter.cluster.event-timeline
 func TestConvertOpsRequestToEventItem(t *testing.T) {

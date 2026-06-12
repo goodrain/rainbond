@@ -79,19 +79,19 @@ func (s *Service) GetClusterEvents(ctx context.Context, serviceID string, pagina
 
 // getClusterPodEventItems 将数据库实例 Pod 的 Warning 事件纳入组件事件列表
 func (s *Service) getClusterPodEventItems(ctx context.Context, cluster *kbappsv1.Cluster) ([]model.EventItem, error) {
-	pods, err := s.getClusterPods(ctx, cluster)
+	podNames, err := s.getClusterEventPodNames(ctx, cluster)
 	if err != nil {
 		return nil, err
 	}
 
 	eventItems := make([]model.EventItem, 0)
-	for _, pod := range pods {
-		events, err := getRawPodEventsByIndex(ctx, s.client, pod.Name, cluster.Namespace)
+	for _, podName := range podNames {
+		events, err := getRawPodEventsByIndex(ctx, s.client, podName, cluster.Namespace)
 		if err != nil {
 			return nil, err
 		}
 		for i := range events {
-			eventItem, ok := convertPodEventToEventItem(pod.Name, &events[i])
+			eventItem, ok := convertPodEventToEventItem(podName, &events[i])
 			if !ok {
 				continue
 			}
@@ -100,6 +100,61 @@ func (s *Service) getClusterPodEventItems(ctx context.Context, cluster *kbappsv1
 	}
 
 	return eventItems, nil
+}
+
+func (s *Service) getClusterEventPodNames(ctx context.Context, cluster *kbappsv1.Cluster) ([]string, error) {
+	pods, err := s.getClusterPods(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	podNames := make([]string, 0, len(pods))
+	seen := make(map[string]struct{}, len(pods))
+	for _, pod := range pods {
+		if pod.Name == "" {
+			continue
+		}
+		seen[pod.Name] = struct{}{}
+		podNames = append(podNames, pod.Name)
+	}
+
+	labelPods, err := getClusterPodsByInstanceIndex(ctx, s.client, cluster.Name, cluster.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	for _, pod := range labelPods {
+		if pod.Name == "" {
+			continue
+		}
+		if _, exists := seen[pod.Name]; exists {
+			continue
+		}
+		seen[pod.Name] = struct{}{}
+		podNames = append(podNames, pod.Name)
+	}
+
+	return podNames, nil
+}
+
+func getClusterPodsByInstanceIndex(ctx context.Context, c client.Client, clusterName, namespace string) ([]corev1.Pod, error) {
+	var podList corev1.PodList
+
+	indexKey := fmt.Sprintf("%s/%s", namespace, clusterName)
+	if err := c.List(ctx, &podList, client.MatchingFields{index.NamespaceInstanceField: indexKey}); err == nil {
+		return podList.Items, nil
+	} else {
+		log.Warn("Index query for cluster pods failed",
+			log.String("indexKey", indexKey),
+			log.String("cluster", clusterName),
+			log.String("namespace", namespace),
+			log.Err(err))
+	}
+
+	if err := c.List(ctx, &podList, client.MatchingLabels{index.InstanceLabel: clusterName}, client.InNamespace(namespace)); err != nil {
+		return nil, fmt.Errorf("list pods for cluster %s in namespace %s: %w", clusterName, namespace, err)
+	}
+
+	return podList.Items, nil
 }
 
 func getRawPodEventsByIndex(ctx context.Context, c client.Client, podName, namespace string) ([]corev1.Event, error) {
