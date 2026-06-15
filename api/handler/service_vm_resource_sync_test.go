@@ -20,6 +20,7 @@ type resourceSyncTestManager struct {
 	eventDao        dbdao.EventDao
 	serviceProbeDao dbdao.ServiceProbeDao
 	relationDao     dbdao.TenantServiceRelationDao
+	attributeDao    dbdao.ComponentK8sAttributeDao
 }
 
 func (m resourceSyncTestManager) TenantServiceDao() dbdao.TenantServiceDao {
@@ -36,6 +37,10 @@ func (m resourceSyncTestManager) ServiceProbeDao() dbdao.ServiceProbeDao {
 
 func (m resourceSyncTestManager) TenantServiceRelationDao() dbdao.TenantServiceRelationDao {
 	return m.relationDao
+}
+
+func (m resourceSyncTestManager) ComponentK8sAttributeDao() dbdao.ComponentK8sAttributeDao {
+	return m.attributeDao
 }
 
 type resourceSyncTenantServiceDao struct {
@@ -108,6 +113,31 @@ func (d *resourceSyncRelationDao) AddModel(dbmodel.Interface) error {
 
 func (d *resourceSyncRelationDao) DeleteRelationByDepID(serviceID, depID string) error {
 	d.deleted++
+	return nil
+}
+
+type resourceSyncComponentK8sAttributeDao struct {
+	dbdao.ComponentK8sAttributeDao
+	attributes map[string]*dbmodel.ComponentK8sAttributes
+	deleted    []string
+}
+
+func (d *resourceSyncComponentK8sAttributeDao) CreateOrUpdateAttributesInBatch(attributes []*dbmodel.ComponentK8sAttributes) error {
+	if d.attributes == nil {
+		d.attributes = map[string]*dbmodel.ComponentK8sAttributes{}
+	}
+	for _, attr := range attributes {
+		copied := *attr
+		d.attributes[attr.Name] = &copied
+	}
+	return nil
+}
+
+func (d *resourceSyncComponentK8sAttributeDao) DeleteByComponentIDAndName(componentID, name string) error {
+	d.deleted = append(d.deleted, componentID+"/"+name)
+	if d.attributes != nil {
+		delete(d.attributes, name)
+	}
 	return nil
 }
 

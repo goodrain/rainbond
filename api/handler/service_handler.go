@@ -46,6 +46,7 @@ type ServiceHandler interface {
 	GetVMExport(serviceID, exportName string) (*VMExportStatus, error)
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
 	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
+	SetVMFixedPodIP(ctx context.Context, serviceID string, enabled bool) (*VMFixedPodIPResult, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error

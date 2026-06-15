@@ -512,6 +512,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用伸缩
 	r.Put("/vertical", middleware.WrapEL(controller.GetManager().VerticalService, dbmodel.TargetTypeService, "vertical-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, dbmodel.TargetTypeService, "horizontal-service", dbmodel.ASYNEVENTTYPE, true))
+	r.Put("/vm-network/fixed-ip", middleware.WrapEL(controller.GetManager().SetVMFixedPodIP, dbmodel.TargetTypeService, "vm-fixed-ip", dbmodel.SYNEVENTTYPE, true))
 	r.Get("/vm-live-update-capability", controller.GetManager().VMLiveUpdateCapability)
 
 	//设置应用语言(act)

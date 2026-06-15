@@ -28,8 +28,11 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	if cfg.Interfaces[0].Model != "e1000" {
 		t.Fatalf("expected unknown guest network to default to e1000, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected default masquerade interface")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected default bridge interface so VM guest uses pod IP")
+	}
+	if cfg.Interfaces[0].Masquerade != nil {
+		t.Fatalf("did not expect default masquerade interface when VM guest should use pod IP")
 	}
 	if len(cfg.Volumes) != 0 {
 		t.Fatalf("expected no extra volumes for random network, got %d", len(cfg.Volumes))
@@ -52,8 +55,8 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	if cfg.Interfaces[0].Model != "e1000" {
 		t.Fatalf("expected windows random network to use e1000, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected windows random network to keep masquerade binding")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected windows random network to use bridge binding")
 	}
 }
 
@@ -70,8 +73,8 @@ func TestBuildVMRuntimeConfigRecognizedLinuxNameUsesVirtio(t *testing.T) {
 	if cfg.Interfaces[0].Model != "virtio" {
 		t.Fatalf("expected recognized linux guest to use virtio, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected recognized linux guest to keep masquerade binding")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected recognized linux guest to use bridge binding")
 	}
 }
 
@@ -92,8 +95,8 @@ func TestBuildVMRuntimeConfigIgnoresRemovedNetworkFields(t *testing.T) {
 	if cfg.Networks[0].Pod == nil {
 		t.Fatalf("expected removed network fields to keep default pod network")
 	}
-	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected removed network fields to keep masquerade interface")
+	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected removed network fields to keep bridge interface")
 	}
 	if len(cfg.Volumes) != 0 {
 		t.Fatalf("expected no network helper volumes once fixed ip is removed, got %d", len(cfg.Volumes))

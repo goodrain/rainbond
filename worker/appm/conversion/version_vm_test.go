@@ -59,6 +59,42 @@ func TestVMRuntimeAttributeNamesIncludesBootMode(t *testing.T) {
 	}
 }
 
+func TestResolveVMFixedPodIPAnnotationUsesFixedIPAttribute(t *testing.T) {
+	annotation, ok := resolveVMFixedPodIPAnnotation(map[string]string{
+		"vm_fixed_ip_enabled": "true",
+		"vm_fixed_ip":         "10.42.247.130",
+	})
+
+	if !ok {
+		t.Fatal("expected fixed pod ip annotation to be resolved")
+	}
+	if annotation != "[\"10.42.247.130\"]" {
+		t.Fatalf("unexpected annotation value %q", annotation)
+	}
+}
+
+func TestResolveVMFixedPodIPAnnotationStripsCIDR(t *testing.T) {
+	annotation, ok := resolveVMFixedPodIPAnnotation(map[string]string{
+		"vm_fixed_ip_enabled": "true",
+		"vm_fixed_ip":         "10.42.247.130/32",
+	})
+
+	if !ok {
+		t.Fatal("expected fixed pod ip annotation to be resolved")
+	}
+	if annotation != "[\"10.42.247.130\"]" {
+		t.Fatalf("unexpected annotation value %q", annotation)
+	}
+}
+
+func TestResolveVMFixedPodIPAnnotationRequiresEnabledFlag(t *testing.T) {
+	if annotation, ok := resolveVMFixedPodIPAnnotation(map[string]string{
+		"vm_fixed_ip": "10.42.247.130",
+	}); ok {
+		t.Fatalf("did not expect annotation when fixed IP is disabled, got %q", annotation)
+	}
+}
+
 func TestApplyVMBootModeSetsUEFIFirmware(t *testing.T) {
 	domain := &kubevirtv1.DomainSpec{}
 
