@@ -74,6 +74,9 @@ func (s *ServiceAction) applyVMLiveUpdateIfPossible(service *dbmodel.TenantServi
 	if hasVMInstallerMediaAttached(vm) {
 		return newVMLiveUpdateError(409, vmInstallerMediaRemovalRequiredMessage)
 	}
+	if s.isVMFixedPodIPEnabled(service.ServiceID) {
+		return s.syncVirtualMachineSpecAndRestart(service.ServiceID, vm)
+	}
 
 	vmi, err := s.getVirtualMachineInstanceByServiceID(service.ServiceID)
 	if err != nil {
@@ -185,6 +188,14 @@ func (s *ServiceAction) syncVirtualMachineSpecAndRestart(serviceID string, vm *v
 	return s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{})
 }
 
+func (s *ServiceAction) isVMFixedPodIPEnabled(serviceID string) bool {
+	specExtensions, err := s.loadVMFixedPodIPExtensionSetForCapability(serviceID)
+	if err != nil {
+		return false
+	}
+	return extensionEnabled(specExtensions["vm_fixed_ip_enabled"])
+}
+
 func isVMLiveMigrationUnsupportedPatchError(err error) bool {
 	if err == nil {
 		return false
@@ -201,6 +212,11 @@ func (s *ServiceAction) GetVMLiveUpdateCapability(serviceID string) VMLiveUpdate
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil || service == nil || !service.IsVM() {
 		capability.HotUpdateReason = "当前组件不是虚拟机，不能使用虚拟机热更新。"
+		return capability
+	}
+	specExtensions, err := s.loadVMFixedPodIPExtensionSetForCapability(serviceID)
+	if err == nil && extensionEnabled(specExtensions["vm_fixed_ip_enabled"]) {
+		capability.HotUpdateReason = "固定 IP 已开启，CPU / 内存热更新不可用，修改规格将在重启虚拟机后生效。"
 		return capability
 	}
 	if !s.isVMLiveUpdateClusterConfigured(context.Background()) {
@@ -313,6 +329,27 @@ func (s *ServiceAction) loadVMRuntimeSpecExtensionSetForCapability(componentID s
 		return s.loadVMRuntimeSpecExtensionSetHook(componentID)
 	}
 	return s.loadVMRuntimeSpecExtensionSet(componentID)
+}
+
+func (s *ServiceAction) loadVMFixedPodIPExtensionSetForCapability(componentID string) (map[string]string, error) {
+	if s != nil && s.loadVMRuntimeSpecExtensionSetHook != nil {
+		return s.loadVMRuntimeSpecExtensionSetHook(componentID)
+	}
+	if s == nil || s.getDBManager() == nil || s.getDBManager().ComponentK8sAttributeDao() == nil {
+		return map[string]string{}, nil
+	}
+	extensionSet := map[string]string{}
+	dao := s.getDBManager().ComponentK8sAttributeDao()
+	for _, name := range []string{"vm_fixed_ip_enabled", "vm_fixed_ip"} {
+		attr, err := dao.GetByComponentIDAndName(componentID, name)
+		if err != nil {
+			continue
+		}
+		if attr != nil && attr.AttributeValue != "" {
+			extensionSet[name] = attr.AttributeValue
+		}
+	}
+	return extensionSet, nil
 }
 
 func vmSocketsFromMilliCPU(cpuMilli int) (uint32, error) {

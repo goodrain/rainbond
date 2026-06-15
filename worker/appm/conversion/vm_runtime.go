@@ -77,7 +77,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 				Name:  vmPrimaryNetworkName,
 				Model: interfaceModel,
 				InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-					Masquerade: &kubevirtv1.InterfaceMasquerade{},
+					Bridge: &kubevirtv1.InterfaceBridge{},
 				},
 			},
 		},

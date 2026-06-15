@@ -1396,7 +1396,31 @@ func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]s
 			annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", podIP)
 		}
 	}
+	if as.GetVirtualMachine() != nil {
+		if fixedPodIPAnnotation, ok := resolveVMFixedPodIPAnnotation(as.ExtensionSet); ok {
+			logrus.Debugf("custom set vm fixed pod ip for calico, service %s, annotation: %s", as.ServiceID, fixedPodIPAnnotation)
+			annotations["cni.projectcalico.org/ipAddrs"] = fixedPodIPAnnotation
+		}
+	}
 	return annotations, nil
+}
+
+func resolveVMFixedPodIPAnnotation(extensionSet map[string]string) (string, bool) {
+	if !extensionEnabled(extensionSet["vm_fixed_ip_enabled"]) {
+		return "", false
+	}
+	fixedIP := strings.TrimSpace(extensionSet["vm_fixed_ip"])
+	if fixedIP == "" {
+		return "", false
+	}
+	if strings.Contains(fixedIP, "/") {
+		fixedIP = strings.SplitN(fixedIP, "/", 2)[0]
+	}
+	fixedIP = strings.TrimSpace(fixedIP)
+	if fixedIP == "" {
+		return "", false
+	}
+	return fmt.Sprintf("[\"%s\"]", fixedIP), true
 }
 
 func setImagePullSecrets() []corev1.LocalObjectReference {
@@ -1554,6 +1578,8 @@ func vmRuntimeAttributeNames() []string {
 		"vm_boot_mode",
 		"vm_boot_source_format",
 		"vm_disk_layout",
+		"vm_fixed_ip_enabled",
+		"vm_fixed_ip",
 	}
 }
 

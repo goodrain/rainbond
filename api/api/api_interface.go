@@ -150,6 +150,7 @@ type ServiceInterface interface {
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UploadPackage(w http.ResponseWriter, r *http.Request)
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
+	SetVMFixedPodIP(w http.ResponseWriter, r *http.Request)
 	VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request)
 }
 

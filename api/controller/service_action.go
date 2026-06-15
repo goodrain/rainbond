@@ -332,6 +332,32 @@ func (t *TenantStruct) VMLiveUpdateCapability(w http.ResponseWriter, r *http.Req
 	httputil.ReturnSuccess(r, w, capability)
 }
 
+func (t *TenantStruct) SetVMFixedPodIP(w http.ResponseWriter, r *http.Request) {
+	rules := validator.MapData{
+		"enabled": []string{"required"},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+	enabled, ok := data["enabled"].(bool)
+	if !ok {
+		httputil.ReturnError(r, w, 400, "enabled must be boolean")
+		return
+	}
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	result, err := handler.GetServiceManager().SetVMFixedPodIP(r.Context(), serviceID, enabled)
+	if err != nil {
+		if coder, ok := err.(interface{ StatusCode() int }); ok {
+			httputil.ReturnError(r, w, coder.StatusCode(), err.Error())
+			return
+		}
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("set vm fixed pod ip error. %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, result)
+}
+
 // HorizontalService HorizontalService
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/horizontal v2 horizontalService
 //

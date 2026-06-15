@@ -270,6 +270,77 @@ func TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart(t *testing.
 	}
 }
 
+func TestServiceVerticalVMFixedPodIPFallsBackToSpecSyncAndRestart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    4000,
+			ContainerMemory: 8192,
+			ContainerGPU:    0,
+		},
+	}
+	eventDao := &resourceSyncEventDao{}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   eventDao,
+	})
+	defer db.SetTestManager(nil)
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	syncedServiceID := ""
+	action := &ServiceAction{
+		MQClient:       &noopMQClient{},
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			syncedServiceID = serviceID
+			return nil
+		},
+	}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		if componentID != "service-vm" {
+			t.Fatalf("unexpected component id %q", componentID)
+		}
+		return map[string]string{
+			"vm_fixed_ip_enabled": "true",
+			"vm_fixed_ip":         "10.42.247.130",
+		}, nil
+	}
+	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
+		return &v1.VirtualMachine{
+			ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"},
+			Status:     v1.VirtualMachineStatus{PrintableStatus: v1.VirtualMachineStatusRunning},
+		}, nil
+	}
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Restart(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	newMemory := 10240
+	err := action.ServiceVertical(context.Background(), &workermodel.VerticalScalingTaskBody{
+		ServiceID:       "service-vm",
+		ContainerMemory: &newMemory,
+	})
+	if err != nil {
+		t.Fatalf("expected fixed pod ip VM to restart instead of live update, got %v", err)
+	}
+	if syncedServiceID != "service-vm" {
+		t.Fatalf("expected vm spec sync before restart, got %q", syncedServiceID)
+	}
+	if serviceDao.updatedService == nil || serviceDao.updatedService.ContainerMemory != 10240 {
+		t.Fatalf("expected updated memory to persist, got %#v", serviceDao.updatedService)
+	}
+	if len(eventDao.statuses) == 0 || eventDao.statuses[len(eventDao.statuses)-1] != dbmodel.EventStatusSuccess {
+		t.Fatalf("expected success event status, got %#v", eventDao.statuses)
+	}
+}
+
 // capability_id: rainbond.vm-live-update.unsupported-auto-restart
 func TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -794,6 +865,40 @@ func TestGetVMLiveUpdateCapabilityIgnoresRemovedNetworkFields(t *testing.T) {
 	}
 	if capability.HotUpdateReason != "" {
 		t.Fatalf("did not expect removed vm network fields to set hot update reason, got %#v", capability)
+	}
+}
+
+func TestGetVMLiveUpdateCapabilityRejectsFixedPodIPVM(t *testing.T) {
+	serviceDao := &resourceSyncTenantServiceDao{
+		service: &dbmodel.TenantServices{
+			ServiceID:       "service-vm",
+			ServiceAlias:    "service-vm",
+			ExtendMethod:    "vm",
+			ContainerCPU:    6000,
+			ContainerMemory: 12288,
+		},
+	}
+	db.SetTestManager(resourceSyncTestManager{
+		serviceDao: serviceDao,
+		eventDao:   &resourceSyncEventDao{},
+	})
+	defer db.SetTestManager(nil)
+
+	action := &ServiceAction{}
+	action.loadVMRuntimeSpecExtensionSetHook = func(componentID string) (map[string]string, error) {
+		return map[string]string{
+			"vm_fixed_ip_enabled": "true",
+			"vm_fixed_ip":         "10.42.247.130",
+		}, nil
+	}
+	action.isVMLiveUpdateClusterConfiguredHook = func(ctx context.Context) bool { return true }
+
+	capability := action.GetVMLiveUpdateCapability("service-vm")
+	if capability.CPUHotUpdateSupported || capability.MemoryHotUpdateSupported {
+		t.Fatalf("expected fixed IP VM hot update to be unsupported, got %#v", capability)
+	}
+	if !strings.Contains(capability.HotUpdateReason, "固定 IP") || !strings.Contains(capability.HotUpdateReason, "重启") {
+		t.Fatalf("expected fixed IP restart reason, got %#v", capability)
 	}
 }
 
