@@ -481,6 +481,20 @@ func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// PluginExists is a lightweight probe that reports whether an official plugin
+// with the given name exists in the cluster. It avoids the heavy enrichment in
+// ListPlugins so callers that only need existence (e.g. edition detection) stay
+// fast even when the worker/status service is slow.
+func (c *ClusterController) PluginExists(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	exist, err := handler.GetClusterHandler().PluginExists(name)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, map[string]bool{"exist": exist})
+}
+
 // CreateRBDPlugin creates an RBDPlugin CR
 func (c *ClusterController) CreateRBDPlugin(w http.ResponseWriter, r *http.Request) {
 	var req model.CreateRBDPluginReq

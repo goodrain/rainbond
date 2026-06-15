@@ -292,6 +292,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	r.Get("/plugins", controller.GetManager().ListPlugins)
+	r.Get("/plugins/exists", controller.GetManager().PluginExists)
 	r.Post("/plugins", controller.GetManager().CreateRBDPlugin)
 	r.Get("/abilities", controller.GetManager().ListAbilities)
 	r.Get("/abilities/{ability_id}", controller.GetManager().GetAbility)

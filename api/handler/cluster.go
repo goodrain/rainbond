@@ -43,6 +43,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/util/flushwriter"
@@ -92,6 +93,7 @@ type ClusterHandler interface {
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
 	ListPlugins(official bool) (rbds []*model.RainbondPlugins, err error)
+	PluginExists(name string) (bool, error)
 	CreatePlugin(req *model.CreateRBDPluginReq) error
 	ListAbilities() (rbds []unstructured.Unstructured, err error)
 	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
@@ -800,6 +802,23 @@ func (c *clusterAction) ListPlugins(official bool) (plugins []*model.RainbondPlu
 		return plugins, nil
 	}
 	return res, nil
+}
+
+// PluginExists reports whether an official plugin with the given name exists in
+// the cluster. It uses a label selector so the K8s API does the filtering and
+// skips the heavy app-status/tenant enrichment done by HandlePlugins, making it
+// a cheap probe for callers that only need existence (e.g. edition detection).
+func (c *clusterAction) PluginExists(name string) (bool, error) {
+	if name == "" {
+		return false, nil
+	}
+	selector := labels.SelectorFromSet(labels.Set{OfficialPluginLabel: name}).String()
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(
+		context.Background(), metav1.ListOptions{LabelSelector: selector, Limit: 1})
+	if err != nil {
+		return false, errors.Wrap(err, "list rbd plugins by name")
+	}
+	return len(list.Items) > 0, nil
 }
 
 // CreatePlugin creates or updates an RBDPlugin CR
