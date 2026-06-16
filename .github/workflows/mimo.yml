@@ -49,7 +49,7 @@ jobs:
          github.event.issue.author_association == 'MEMBER' ||
          github.event.issue.author_association == 'COLLABORATOR'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Generate cross-repo GitHub App token
         id: app-token
