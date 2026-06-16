@@ -9,6 +9,7 @@ import (
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober/results"
+	"github.com/sirupsen/logrus"
 )
 
 type staticEndpoint struct {
@@ -97,6 +98,11 @@ func (s *staticEndpoint) discoverOne(update chan *v1alpha1.ThirdComponent) {
 	if !reflect.DeepEqual(endpoints, component.Status.Endpoints) {
 		newComponent := s.component.DeepCopy()
 		newComponent.Status.Endpoints = endpoints
-		update <- newComponent
+		// Non-blocking send to avoid goroutine leak when channel is full
+		select {
+		case update <- newComponent:
+		default:
+			logrus.Warning("static endpoint update channel full, dropping update")
+		}
 	}
 }

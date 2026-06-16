@@ -106,7 +106,11 @@ func (k *kubernetesDiscover) Discover(ctx context.Context, update chan *v1alpha1
 				if err == nil {
 					new := component.DeepCopy()
 					new.Status.Endpoints = endpoints
-					update <- new
+					// Check context before sending to avoid goroutine leak when channel is full
+					select {
+					case update <- new:
+					case <-ctx.Done():
+					}
 				} else {
 					logrus.Errorf("discover kubernetes endpoints %s change failure %s", component.Spec.EndpointSource.KubernetesService.Name, err.Error())
 				}
