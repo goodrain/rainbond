@@ -145,6 +145,13 @@ func (s *startController) startOne(app v1.AppService) error {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
 	}
+	if daemonSet := app.GetDaemonSet(); daemonSet != nil {
+		_, err = s.manager.client.AppsV1().DaemonSets(app.GetNamespace()).Create(s.ctx, daemonSet, metav1.CreateOptions{})
+		if err != nil {
+			s.logWorkloadCreateError(app, "DaemonSet", err)
+			return fmt.Errorf("create daemonset failure:%s;", err.Error())
+		}
+	}
 	if vm := app.GetVirtualMachine(); vm != nil {
 		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
 		if err != nil {

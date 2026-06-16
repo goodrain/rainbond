@@ -203,6 +203,9 @@ func NewStore(dbmanager db.Manager) Storer {
 	store.informers.StatefulSet = infFactory.Apps().V1().StatefulSets().Informer()
 	store.listers.StatefulSet = infFactory.Apps().V1().StatefulSets().Lister()
 
+	store.informers.DaemonSet = infFactory.Apps().V1().DaemonSets().Informer()
+	store.listers.DaemonSet = infFactory.Apps().V1().DaemonSets().Lister()
+
 	store.informers.Service = infFactory.Core().V1().Services().Informer()
 	store.listers.Service = infFactory.Core().V1().Services().Lister()
 
@@ -326,6 +329,7 @@ func NewStore(dbmanager db.Manager) Storer {
 	// Use 0 to disable additional resync, rely on factory resync period
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, 0)
+	store.informers.DaemonSet.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.Job.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), 0)
@@ -433,6 +437,39 @@ func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 			operatorManaged := a.getOperatorManaged(appID)
 			if operatorManaged != nil {
 				operatorManaged.SetDeployment(deployment)
+				return
+			}
+		}
+	}
+	if daemonSet, ok := obj.(*appsv1.DaemonSet); ok {
+		serviceID := daemonSet.Labels["service_id"]
+		version := daemonSet.Labels["version"]
+		createrID := daemonSet.Labels["creater_id"]
+		migrator := daemonSet.Labels["migrator"]
+		appID := daemonSet.Labels["app_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.k8sClient.Clientset.AppsV1().DaemonSets(daemonSet.Namespace).Delete(context.Background(), daemonSet.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetDaemonSet(daemonSet)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.k8sClient.Clientset.CoreV1().Pods(daemonSet.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
+				return
+			}
+		} else if daemonSet.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetDaemonSet(daemonSet)
 				return
 			}
 		}
@@ -936,6 +973,28 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				}
 			}
 		}
+		if daemonSet, ok := obj.(*appsv1.DaemonSet); ok {
+			serviceID := daemonSet.Labels["service_id"]
+			version := daemonSet.Labels["version"]
+			createrID := daemonSet.Labels["creater_id"]
+			appID := daemonSet.Labels["app_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteDaemonSet(daemonSet)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
+				}
+			} else if daemonSet.OwnerReferences != nil && appID != "" {
+				operatorManaged := a.getOperatorManaged(appID)
+				if operatorManaged != nil {
+					operatorManaged.DeleteDaemonSet(daemonSet)
+					return
+				}
+			}
+		}
 		if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
 			serviceID := statefulset.Labels["service_id"]
 			version := statefulset.Labels["version"]
@@ -1183,6 +1242,15 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			}
 			if deploy != nil {
 				appService.SetDeployment(deploy)
+			}
+		}
+		if daemonSet := appService.GetDaemonSet(); daemonSet != nil {
+			ds, err := a.listers.DaemonSet.DaemonSets(daemonSet.Namespace).Get(daemonSet.Name)
+			if err != nil && k8sErrors.IsNotFound(err) {
+				appService.DeleteDaemonSet(daemonSet)
+			}
+			if ds != nil {
+				appService.SetDaemonSet(ds)
 			}
 		}
 		if job := appService.GetJob(); job != nil {
@@ -1910,6 +1978,14 @@ func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (stri
 		}
 		serviceID = deploy.GetLabels()["service_id"]
 		ruleID = deploy.GetLabels()["rule_id"]
+	case "DaemonSet":
+		daemonSet, err := a.listers.DaemonSet.DaemonSets(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve daemonset: %v", err)
+			return "", ""
+		}
+		serviceID = daemonSet.GetLabels()["service_id"]
+		ruleID = daemonSet.GetLabels()["rule_id"]
 	case "Job":
 		job, err := a.listers.Job.Jobs(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
 		if err != nil {

@@ -135,6 +135,14 @@ func (s ServiceType) IsCronJob() bool {
 	return false
 }
 
+// IsDaemonSet is daemonset
+func (s ServiceType) IsDaemonSet() bool {
+	if s == ServiceTypeDaemonSet {
+		return true
+	}
+	return false
+}
+
 // IsKubeBlocks is kubeblocks
 func (s ServiceType) IsKubeBlocks() bool {
 	if s == ServiceTypeKubeBlocks {
@@ -148,7 +156,7 @@ func (s ServiceType) IsSingleton() bool {
 	if s == "" {
 		return false
 	}
-	if s == ServiceTypeStatelessMultiple || s == ServiceTypeStateMultiple {
+	if s == ServiceTypeStatelessMultiple || s == ServiceTypeStateMultiple || s == ServiceTypeDaemonSet {
 		return false
 	}
 	return true
@@ -181,6 +189,14 @@ func (t *TenantServices) IsJob() bool {
 // IsCronJob is cronjob
 func (t *TenantServices) IsCronJob() bool {
 	if ServiceType(t.ExtendMethod).IsCronJob() {
+		return true
+	}
+	return false
+}
+
+// IsDaemonSet is daemonset
+func (t *TenantServices) IsDaemonSet() bool {
+	if ServiceType(t.ExtendMethod).IsDaemonSet() {
 		return true
 	}
 	return false
@@ -225,6 +241,9 @@ var ServiceTypeJob ServiceType = "job"
 
 // ServiceTypeCronJob cronjob
 var ServiceTypeCronJob ServiceType = "cronjob"
+
+// ServiceTypeDaemonSet daemonset
+var ServiceTypeDaemonSet ServiceType = "daemonset"
 
 // ServiceTypeKubeBlocks kubeblocks
 var ServiceTypeKubeBlocks ServiceType = "kubeblocks_component"

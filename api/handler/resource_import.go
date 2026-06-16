@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-//ResourceImport Import the converted k8s resources into recognition
+// ResourceImport Import the converted k8s resources into recognition
 func (c *clusterAction) ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
 	logrus.Infof("ResourceImport function begin")
 	var returnResourceImport model.ReturnResourceImport
@@ -153,16 +153,9 @@ func (c *clusterAction) CreateK8sResource(k8sResources []dbmodel.K8sResource, Ap
 }
 
 func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool, existComponents []*dbmodel.TenantServices) (*dbmodel.TenantServices, error) {
-	var extendMethod string
-	switch component.BasicManagement.ResourceType {
-	case model.Deployment:
-		extendMethod = string(dbmodel.ServiceTypeStatelessMultiple)
-	case model.Job:
-		extendMethod = string(dbmodel.ServiceTypeJob)
-	case model.CronJob:
-		extendMethod = string(dbmodel.ServiceTypeCronJob)
-	case model.StateFulSet:
-		extendMethod = string(dbmodel.ServiceTypeStateMultiple)
+	extendMethod, ok := extendMethodForResourceType(component.BasicManagement.ResourceType)
+	if !ok {
+		return nil, fmt.Errorf("unsupported resource type %s", component.BasicManagement.ResourceType)
 	}
 	serviceID := rainbondutil.NewUUID()
 	serviceAlias := "gr" + serviceID[len(serviceID)-6:]
@@ -292,10 +285,46 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
 			}
+		case model.DaemonSet:
+			daemonSet, err := c.clientset.AppsV1().DaemonSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("failed to get %v DaemonSets %v:%v", namespace, component.ComponentsName, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get DaemonSets %v:%v", namespace, err)}
+			}
+			if daemonSet.Labels == nil {
+				daemonSet.Labels = make(map[string]string)
+			}
+			daemonSet.Labels = changeLabel(daemonSet.Labels)
+			if daemonSet.Spec.Template.Labels == nil {
+				daemonSet.Spec.Template.Labels = make(map[string]string)
+			}
+			daemonSet.Spec.Template.Labels = changeLabel(daemonSet.Spec.Template.Labels)
+			_, err = c.clientset.AppsV1().DaemonSets(namespace).Update(context.Background(), daemonSet, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("failed to update DaemonSets %v:%v", namespace, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update DaemonSets %v:%v", namespace, err)}
+			}
 		}
 	}
 	return &ts, nil
 
+}
+
+func extendMethodForResourceType(resourceType string) (string, bool) {
+	switch resourceType {
+	case model.Deployment:
+		return dbmodel.ServiceTypeStatelessMultiple.String(), true
+	case model.Job:
+		return dbmodel.ServiceTypeJob.String(), true
+	case model.CronJob:
+		return dbmodel.ServiceTypeCronJob.String(), true
+	case model.StateFulSet:
+		return dbmodel.ServiceTypeStateMultiple.String(), true
+	case model.DaemonSet:
+		return dbmodel.ServiceTypeDaemonSet.String(), true
+	default:
+		return "", false
+	}
 }
 
 func (c *clusterAction) createENV(envs []model.ENVManagement, service *dbmodel.TenantServices) {

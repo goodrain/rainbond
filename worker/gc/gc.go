@@ -200,6 +200,9 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.AppsV1().StatefulSets(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete statefulsets(%s): %v", serviceGCReq.ServiceID, err)
 	}
+	if err := g.clientset.AppsV1().DaemonSets(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete daemonsets(%s): %v", serviceGCReq.ServiceID, err)
+	}
 	if err := g.clientset.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete job(%s): %v", serviceGCReq.ServiceID, err)
 	}

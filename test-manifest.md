@@ -84,6 +84,7 @@
 | rainbond.compose.detect-version | 根据语法特征推断 compose 版本 | active | regression | builder/parser/compose.inferComposeVersion | builder/parser/compose/version_detect_test.go::TestInferComposeVersion |
 | rainbond.compose.parse-warnings | 解析 docker compose 并返回降级告警 | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithWarnings |
 | rainbond.compose.yaml-anchor-support | 支持 docker compose 中的 YAML anchors | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors |
+| rainbond.config-file.k8s-volume-name-safe | Keep config-file Kubernetes volume names DNS-safe | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName |
 | rainbond.config-files.detect | 识别源码目录中的 npm 和 yarn 配置文件 | active | regression | builder/parser/code.DetectConfigFiles | builder/parser/code/config_files_test.go::TestDetectConfigFiles_Npmrc<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcClassic<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcYml<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_Multiple<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_None |
 | rainbond.config-files.has-any | 检测源码中是否存在包管理器配置文件 | active | regression | builder/parser/code.ConfigFiles.HasAnyConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_HasAnyConfigFile |
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
@@ -206,12 +207,14 @@
 | rainbond.resource-center.collect-ingress-services | 收集 Ingress 后端服务名 | active | regression | api/handler.collectIngressServiceNames | api/handler/resource_center_test.go::TestCollectIngressServiceNames |
 | rainbond.resource-center.event-summary | 汇总资源事件信息 | active | regression | api/handler.toResourceEventInfo | api/handler/resource_center_test.go::TestToResourceEventInfo |
 | rainbond.resource-center.match-selector | 按选择器匹配资源标签 | active | regression | api/handler.labelsMatchSelector | api/handler/resource_center_test.go::TestLabelsMatchSelector |
+| rainbond.resource-import.daemonset-component | 将 DaemonSet 导入为组件 | active | regression | api.handler.ComponentController.CreateComponent | api/handler/resource_import_daemonset_test.go::TestExtendMethodForResourceTypeSupportsDaemonSet |
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
 | rainbond.runtime.node-cnb-framework-detection | CNB 构建检测 Node.js 框架信息 | active | regression | builder/parser/code.CheckRuntimeByStrategy | builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
 | rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
 | rainbond.service-check.eventlog-progress | 将服务检测进度消息同步写入事件日志 | active | regression | builder/exector.logServiceCheckProgress | builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger |
+| rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
@@ -403,6 +406,7 @@
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
+| rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
 | rainbond.worker.helmapp.condition-query | 按类型查询 HelmApp 条件及其真值状态 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.GetCondition | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionQuery |
@@ -424,7 +428,9 @@
 | rainbond.worker.helmapp.store-fetch | 从控制器 store lister 获取 HelmApp 对象 | active | regression | worker/master/controller/helmapp.store.GetHelmApp | worker/master/controller/helmapp/store_unit_test.go::TestStoreGetHelmApp |
 | rainbond.worker.helmapp.store-full-name | 根据 EID 与商店名构建完整应用商店名称 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppSpec.FullName | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppSpecFullName |
 | rainbond.worker.helmapp.update-required | 判断已配置 HelmApp 是否需要安装或更新 | active | regression | worker/master/controller/helmapp.App.NeedUpdate | worker/master/controller/helmapp/unit_test.go::TestAppNeedUpdate |
+| rainbond.worker.patch.daemonset-upgrade | DaemonSet 升级补丁生成 | active | regression | worker.appm.types.v1.AppService.SetUpgradePatch | worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch |
 | rainbond.worker.pod-status.describe | 根据条件容器状态与事件归类 Pod 状态 | active | regression | worker/util.DescribePodStatus | worker/util/pod_test.go::TestDescribePodStatus |
+| rainbond.worker.status.daemonset | DaemonSet 运行状态计算 | active | regression | worker.appm.types.v1.AppService.GetServiceStatus | worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsRunningForReadyDaemonSet<br>worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod |
 | rainbond.worker.thirdcomponent.prober.execute-endpoint-probe | 执行第三方组件端点探测并映射结果 | active | regression | worker/master/controller/thirdcomponent/prober.prober.probe | worker/master/controller/thirdcomponent/prober/prober_test.go::TestProbe |
 | rainbond.worker.thirdcomponent.prober.manage-results-cache | 缓存并清理第三方组件探测结果 | active | regression | worker/master/controller/thirdcomponent/prober/results.NewManager | worker/master/controller/thirdcomponent/prober/results/results_manager_test.go::TestCacheOperations |
 | rainbond.worker.volume-provider.pvc-identifiers | 根据 PVC 名称解析 Pod 名与卷 ID | active | regression | worker/master/volumes/provider.getVolumeIDByPVCName | worker/master/volumes/provider/rainbondsslc_test.go::TestGetVolumeIDByPVCName |
@@ -1232,6 +1238,16 @@
 - 业务入口: `builder/parser.CreateDockerComposeParse.Parse`
 - 代码路径: `builder/parser/docker_compose.go`
 - 测试路径: `builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors`
+
+### Keep config-file Kubernetes volume names DNS-safe
+
+- Capability ID: `rainbond.config-file.k8s-volume-name-safe`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ConfigFileVolume.CreateVolume`
+- 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/volume/volume.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName`
 
 ### 识别源码目录中的 npm 和 yarn 配置文件
 
@@ -2453,6 +2469,16 @@
 - 代码路径: `api/handler/resource_center.go`
 - 测试路径: `api/handler/resource_center_test.go::TestLabelsMatchSelector`
 
+### 将 DaemonSet 导入为组件
+
+- Capability ID: `rainbond.resource-import.daemonset-component`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.handler.ComponentController.CreateComponent`
+- 代码路径: `api/handler/resource_import.go`, `api/model/namespace_resource.go`
+- 测试路径: `api/handler/resource_import_daemonset_test.go::TestExtendMethodForResourceTypeSupportsDaemonSet`
+
 ### 复合语言场景使用 Node 运行时解析
 
 - Capability ID: `rainbond.runtime.composite-nodejs`
@@ -2512,6 +2538,16 @@
 - 业务入口: `builder/exector.logServiceCheckProgress`
 - 代码路径: `builder/exector/service_check.go`
 - 测试路径: `builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger`
+
+### DaemonSet 组件类型分类
+
+- Capability ID: `rainbond.service-type.daemonset`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `service_method`
+- 业务入口: `db.model.ServiceType`
+- 代码路径: `db/model/tenant.go`
+- 测试路径: `db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification`
 
 ### 构建带路径分隔符的安全文件管理列表命令
 
@@ -4423,6 +4459,16 @@
 - 代码路径: `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor`
 
+### 根据组件类型创建 DaemonSet 工作负载
+
+- Capability ID: `rainbond.worker.conversion.daemonset-workload`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `service_method`
+- 业务入口: `worker.appm.conversion.TenantServiceBase`
+- 代码路径: `worker/appm/conversion/service.go`
+- 测试路径: `worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload`
+
 ### 根据仓库名与模板名拼装 Helm chart 引用
 
 - Capability ID: `rainbond.worker.helmapp.chart-ref`
@@ -4633,6 +4679,16 @@
 - 代码路径: `worker/master/controller/helmapp/app.go`
 - 测试路径: `worker/master/controller/helmapp/unit_test.go::TestAppNeedUpdate`
 
+### DaemonSet 升级补丁生成
+
+- Capability ID: `rainbond.worker.patch.daemonset-upgrade`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `service_method`
+- 业务入口: `worker.appm.types.v1.AppService.SetUpgradePatch`
+- 代码路径: `worker/appm/types/v1/patch.go`
+- 测试路径: `worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch`
+
 ### 根据条件容器状态与事件归类 Pod 状态
 
 - Capability ID: `rainbond.worker.pod-status.describe`
@@ -4642,6 +4698,16 @@
 - 业务入口: `worker/util.DescribePodStatus`
 - 代码路径: `worker/util/pod.go`
 - 测试路径: `worker/util/pod_test.go::TestDescribePodStatus`
+
+### DaemonSet 运行状态计算
+
+- Capability ID: `rainbond.worker.status.daemonset`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `service_method`
+- 业务入口: `worker.appm.types.v1.AppService.GetServiceStatus`
+- 代码路径: `worker/appm/types/v1/status.go`
+- 测试路径: `worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsRunningForReadyDaemonSet`, `worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod`
 
 ### 执行第三方组件端点探测并映射结果
 

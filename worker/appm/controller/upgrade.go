@@ -228,6 +228,14 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 
+	if daemonSet := app.GetDaemonSet(); daemonSet != nil {
+		_, err = s.manager.client.AppsV1().DaemonSets(daemonSet.Namespace).Patch(s.ctx, daemonSet.Name, types.MergePatchType, app.UpgradePatch["daemonset"], metav1.PatchOptions{})
+		if err != nil {
+			app.Logger.Error(fmt.Sprintf("upgrade daemonset %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
+			return fmt.Errorf("upgrade daemonset %s failure %s", app.ServiceAlias, err.Error())
+		}
+	}
+
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(s.ctx, statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"], metav1.PatchOptions{})
 		if err != nil {

@@ -8,8 +8,8 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	appv1 "k8s.io/api/apps/v1"
-	autoscalv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	autoscalv2 "k8s.io/api/autoscaling/v2"
+	autoscalv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +32,7 @@ type exportController struct {
 	End          bool
 }
 
-//RainbondExport -
+// RainbondExport -
 type RainbondExport struct {
 	ImageDomain  string                       `json:"imageDomain"`
 	StorageClass string                       `json:"storageClass"`
@@ -200,6 +200,26 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		err = s.write(path.Join(exportTemplatePath, "Deployment.yaml"), deploymentBytes, "\n---\n")
 		if err != nil {
 			return fmt.Errorf("write deployment yaml failure %v", err)
+		}
+	}
+	if daemonSet := app.GetDaemonSet(); daemonSet != nil {
+		daemonSet.Name = app.K8sComponentName
+		daemonSet.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
+		daemonSet.Kind = "DaemonSet"
+		daemonSet.Namespace = ""
+		daemonSet.APIVersion = APIVersionDaemonSet
+		image := daemonSet.Spec.Template.Spec.Containers[0].Image
+		imageCut := strings.Split(image, "/")
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		daemonSet.Spec.Template.Spec.Containers[0].Image = Image
+		daemonSet.Status = appv1.DaemonSetStatus{}
+		daemonSetBytes, err := yaml.Marshal(daemonSet)
+		if err != nil {
+			return fmt.Errorf("daemonset to yaml failure %v", err)
+		}
+		err = s.write(path.Join(exportTemplatePath, "DaemonSet.yaml"), daemonSetBytes, "\n---\n")
+		if err != nil {
+			return fmt.Errorf("write daemonset yaml failure %v", err)
 		}
 	}
 	if job := app.GetJob(); job != nil {
@@ -392,7 +412,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 	return nil
 }
 
-//CheckFileExist check whether the file exists
+// CheckFileExist check whether the file exists
 func CheckFileExist(fileName string) bool {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
@@ -437,6 +457,8 @@ var (
 	APIVersionStatefulSet = "apps/v1"
 	//APIVersionDeployment -
 	APIVersionDeployment = "apps/v1"
+	//APIVersionDaemonSet -
+	APIVersionDaemonSet = "apps/v1"
 	//APIVersionJob -
 	APIVersionJob = "batch/v1"
 	//APIVersionCronJob -
