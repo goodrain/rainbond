@@ -87,6 +87,9 @@ var TypeVirtualMachine AppServiceType = "virtualmachine"
 // TypeCronJob deployment
 var TypeCronJob AppServiceType = "cronjob"
 
+// TypeDaemonSet daemonset
+var TypeDaemonSet AppServiceType = "daemonset"
+
 // TypeKubeBlocks kubeblocks component
 var TypeKubeBlocks AppServiceType = "kubeblocks_component"
 
@@ -178,6 +181,7 @@ type OperatorManaged struct {
 	services    []*corev1.Service
 	statefulSet []*v1.StatefulSet
 	deployment  []*v1.Deployment
+	daemonSet   []*v1.DaemonSet
 }
 
 // AppService a service of rainbond app state in kubernetes
@@ -186,6 +190,7 @@ type AppService struct {
 	tenant           *corev1.Namespace
 	statefulset      *v1.StatefulSet
 	deployment       *v1.Deployment
+	daemonset        *v1.DaemonSet
 	virtualmachine   *kubevirtv1.VirtualMachine
 	job              *batchv1.Job
 	cronjob          *batchv1.CronJob
@@ -280,6 +285,29 @@ func (a *AppService) SetDeployment(d *v1.Deployment) {
 // DeleteDeployment delete kubernetes deployment model
 func (a *AppService) DeleteDeployment(d *v1.Deployment) {
 	a.deployment = nil
+}
+
+// GetDaemonSet get kubernetes daemonset model
+func (a AppService) GetDaemonSet() *v1.DaemonSet {
+	return a.daemonset
+}
+
+// SetDaemonSet set kubernetes daemonset model
+func (a *AppService) SetDaemonSet(d *v1.DaemonSet) {
+	a.daemonset = d
+	a.workload = d
+	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
+		a.DeployVersion = v
+	}
+	if d.Status.DesiredNumberScheduled > 0 {
+		a.Replicas = int(d.Status.DesiredNumberScheduled)
+	}
+	a.calculateComponentMemoryRequest()
+}
+
+// DeleteDaemonSet delete kubernetes daemonset model
+func (a *AppService) DeleteDaemonSet(d *v1.DaemonSet) {
+	a.daemonset = nil
 }
 
 // DeleteJob delete kubernetes job model
@@ -634,6 +662,12 @@ func (a *AppService) calculateComponentMemoryRequest() {
 			cpuRequest += c.Resources.Requests.Cpu().MilliValue()
 		}
 	}
+	if a.daemonset != nil {
+		for _, c := range a.daemonset.Spec.Template.Spec.Containers {
+			memoryRequest += c.Resources.Requests.Memory().Value() / 1024 / 1024
+			cpuRequest += c.Resources.Requests.Cpu().MilliValue()
+		}
+	}
 	a.podMemoryRequest = memoryRequest
 	a.podCPURequest = cpuRequest
 }
@@ -646,6 +680,9 @@ func (a *AppService) SetPodAndVMTemplate(d corev1.PodTemplateSpec, vmt kubevirtv
 	}
 	if a.deployment != nil {
 		a.deployment.Spec.Template = d
+	}
+	if a.daemonset != nil {
+		a.daemonset.Spec.Template = d
 	}
 	if a.job != nil {
 		a.job.Spec.Template = d
@@ -666,6 +703,9 @@ func (a *AppService) GetPodTemplate() *corev1.PodTemplateSpec {
 	}
 	if a.deployment != nil {
 		return &a.deployment.Spec.Template
+	}
+	if a.daemonset != nil {
+		return &a.daemonset.Spec.Template
 	}
 	if a.job != nil {
 		return &a.job.Spec.Template
@@ -1198,6 +1238,14 @@ func (o *OperatorManaged) GetStatefulSet() []*v1.StatefulSet {
 	return []*v1.StatefulSet{}
 }
 
+// GetDaemonSet -
+func (o *OperatorManaged) GetDaemonSet() []*v1.DaemonSet {
+	if o.daemonSet != nil {
+		return o.daemonSet
+	}
+	return []*v1.DaemonSet{}
+}
+
 // SetService -
 func (o *OperatorManaged) SetService(d *corev1.Service) {
 	if len(o.services) > 0 {
@@ -1240,11 +1288,35 @@ func (o *OperatorManaged) SetDeployment(d *v1.Deployment) {
 	o.deployment = append(o.deployment, d)
 }
 
+// SetDaemonSet -
+func (o *OperatorManaged) SetDaemonSet(d *v1.DaemonSet) {
+	if len(o.daemonSet) > 0 {
+		for i, daemonSet := range o.daemonSet {
+			if daemonSet.GetName() == d.GetName() {
+				o.daemonSet[i] = d
+				return
+			}
+		}
+	}
+	logrus.Infof("captures daemonSet created by operator: %v", d.GetName())
+	o.daemonSet = append(o.daemonSet, d)
+}
+
 // DeleteDeployment -
 func (o *OperatorManaged) DeleteDeployment(d *v1.Deployment) {
 	for i, old := range o.deployment {
 		if old.GetName() == d.GetName() {
 			o.deployment = append(o.deployment[0:i], o.deployment[i+1:]...)
+			return
+		}
+	}
+}
+
+// DeleteDaemonSet -
+func (o *OperatorManaged) DeleteDaemonSet(d *v1.DaemonSet) {
+	for i, old := range o.daemonSet {
+		if old.GetName() == d.GetName() {
+			o.daemonSet = append(o.daemonSet[0:i], o.daemonSet[i+1:]...)
 			return
 		}
 	}

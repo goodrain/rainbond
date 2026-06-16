@@ -363,7 +363,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		podtmpSpec.Spec.DNSConfig = dnsConfig
 	}
-	if as.GetDeployment() != nil {
+	if as.GetDeployment() != nil || as.GetDaemonSet() != nil {
 		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
 	}
 	if as.GetJob() != nil {

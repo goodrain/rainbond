@@ -119,3 +119,82 @@ func TestGetServiceStatusReturnsClosedForStoppedVirtualMachine(t *testing.T) {
 		t.Fatalf("expected stopped vm to be %q, got %q", CLOSED, got)
 	}
 }
+
+// capability_id: rainbond.worker.status.daemonset
+func TestGetServiceStatusReturnsRunningForReadyDaemonSet(t *testing.T) {
+	service := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceType:   TypeDaemonSet,
+			DeployVersion: "v1",
+		},
+		daemonset: &appsv1.DaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				ResourceVersion: "1",
+				Labels:          map[string]string{"version": "v1"},
+			},
+			Status: appsv1.DaemonSetStatus{
+				DesiredNumberScheduled: 2,
+				NumberReady:            2,
+			},
+		},
+		pods: []*corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"version": "v1"}},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{
+						Type:   corev1.PodReady,
+						Status: corev1.ConditionTrue,
+					}},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"version": "v1"}},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					Conditions: []corev1.PodCondition{{
+						Type:   corev1.PodReady,
+						Status: corev1.ConditionTrue,
+					}},
+				},
+			},
+		},
+	}
+
+	if got := service.GetServiceStatus(); got != RUNNING {
+		t.Fatalf("expected ready daemonset to be %q, got %q", RUNNING, got)
+	}
+}
+
+func TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod(t *testing.T) {
+	service := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceType:   TypeDaemonSet,
+			DeployVersion: "v1",
+		},
+		daemonset: &appsv1.DaemonSet{
+			ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
+			Status: appsv1.DaemonSetStatus{
+				DesiredNumberScheduled: 1,
+				NumberReady:            0,
+			},
+		},
+		pods: []*corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"version": "v1"}},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodPending,
+					Conditions: []corev1.PodCondition{{
+						Type:   corev1.PodScheduled,
+						Status: corev1.ConditionFalse,
+						Reason: "Unschedulable",
+					}},
+				},
+			},
+		},
+	}
+
+	if got := service.GetServiceStatus(); got != ABNORMAL {
+		t.Fatalf("expected unschedulable daemonset to be %q, got %q", ABNORMAL, got)
+	}
+}

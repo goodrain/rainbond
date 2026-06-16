@@ -9,6 +9,8 @@ const (
 	CronJob = "CronJob"
 	//StateFulSet -
 	StateFulSet = "StatefulSet"
+	//DaemonSet -
+	DaemonSet = "DaemonSet"
 	//Service -
 	Service = "Service"
 	//PVC -
@@ -54,6 +56,8 @@ const (
 	APIVersionStatefulSet = "apps/v1"
 	//APIVersionDeployment -
 	APIVersionDeployment = "apps/v1"
+	//APIVersionDaemonSet -
+	APIVersionDaemonSet = "apps/v1"
 	//APIVersionJob -
 	APIVersionJob = "batch/v1"
 	//APIVersionCronJob -

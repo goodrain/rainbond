@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//Informer kube-api client cache
+// Informer kube-api client cache
 type Informer struct {
 	Namespace               cache.SharedIndexInformer
 	Ingress                 cache.SharedIndexInformer
@@ -30,6 +30,7 @@ type Informer struct {
 	Secret                  cache.SharedIndexInformer
 	StatefulSet             cache.SharedIndexInformer
 	Deployment              cache.SharedIndexInformer
+	DaemonSet               cache.SharedIndexInformer
 	Pod                     cache.SharedIndexInformer
 	ConfigMap               cache.SharedIndexInformer
 	ReplicaSet              cache.SharedIndexInformer
@@ -48,14 +49,14 @@ type Informer struct {
 	CRS                     map[string]cache.SharedIndexInformer
 }
 
-//StartCRS -
+// StartCRS -
 func (i *Informer) StartCRS(stop chan struct{}) {
 	for k := range i.CRS {
 		go i.CRS[k].Run(stop)
 	}
 }
 
-//Start statrt
+// Start statrt
 func (i *Informer) Start(stop chan struct{}) {
 	go i.Namespace.Run(stop)
 	go i.Ingress.Run(stop)
@@ -63,6 +64,7 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.Secret.Run(stop)
 	go i.StatefulSet.Run(stop)
 	go i.Deployment.Run(stop)
+	go i.DaemonSet.Run(stop)
 	go i.Pod.Run(stop)
 	go i.ConfigMap.Run(stop)
 	go i.ReplicaSet.Run(stop)
@@ -80,10 +82,10 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.CronJob.Run(stop)
 }
 
-//Ready if all kube informers is syncd, store is ready
+// Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
 	if i.Namespace.HasSynced() && i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
-		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() && i.CronJob.HasSynced() &&
+		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.DaemonSet.HasSynced() && i.Pod.HasSynced() && i.CronJob.HasSynced() &&
 		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() &&
 		i.HorizontalPodAutoscaler.HasSynced() && i.StorageClass.HasSynced() && i.Claims.HasSynced() && i.CRD.HasSynced() {
 		return true

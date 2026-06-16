@@ -41,6 +41,7 @@ type Lister struct {
 	Secret                       corev1.SecretLister
 	StatefulSet                  appsv1.StatefulSetLister
 	Deployment                   appsv1.DeploymentLister
+	DaemonSet                    appsv1.DaemonSetLister
 	Pod                          corev1.PodLister
 	ReplicaSets                  appsv1.ReplicaSetLister
 	ConfigMap                    corev1.ConfigMapLister

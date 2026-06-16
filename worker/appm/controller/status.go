@@ -34,18 +34,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//ErrWaitTimeOut wait time out
+// ErrWaitTimeOut wait time out
 var ErrWaitTimeOut = fmt.Errorf("Wait time out")
 
-//ErrWaitCancel wait cancel
+// ErrWaitCancel wait cancel
 var ErrWaitCancel = fmt.Errorf("Wait cancel")
 
-//WaitReady wait ready
+// WaitReady wait ready
 func WaitReady(store store.Storer, a *v1.AppService, timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
 	return WaitReadyWithClient(store, a, timeout, logger, cancel, nil)
 }
 
-//WaitReadyWithClient wait ready with kubernetes client for checking events
+// WaitReadyWithClient wait ready with kubernetes client for checking events
 func WaitReadyWithClient(store store.Storer, a *v1.AppService, timeout time.Duration, logger event.Logger, cancel chan struct{}, client kubernetes.Interface) error {
 	if timeout < 40 {
 		timeout = time.Second * 40
@@ -97,7 +97,7 @@ func WaitReadyWithClient(store store.Storer, a *v1.AppService, timeout time.Dura
 	}
 }
 
-//WaitStop wait service stop complete
+// WaitStop wait service stop complete
 func WaitStop(store store.Storer, a *v1.AppService, timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
 	if a == nil {
 		return nil
@@ -130,7 +130,7 @@ func WaitStop(store store.Storer, a *v1.AppService, timeout time.Duration, logge
 	}
 }
 
-//WaitUpgradeReady wait upgrade success
+// WaitUpgradeReady wait upgrade success
 func WaitUpgradeReady(store store.Storer, a *v1.AppService, timeout time.Duration, logger event.Logger, cancel chan struct{}) error {
 	if a == nil {
 		return nil
@@ -165,6 +165,9 @@ func printLogger(a *v1.AppService, logger event.Logger) {
 	if a.GetDeployment() != nil {
 		ready = a.GetDeployment().Status.ReadyReplicas
 	}
+	if a.GetDaemonSet() != nil {
+		ready = a.GetDaemonSet().Status.NumberReady
+	}
 	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.GetPods(false)), ready, int32(len(a.GetPods(false)))-ready), map[string]string{"step": "appruntime", "status": "running"})
 	pods := a.GetPods(false)
 	for _, pod := range pods {
@@ -191,6 +194,8 @@ func checkWorkloadFailureReason(client kubernetes.Interface, a *v1.AppService, l
 		namespace = a.GetDeployment().Namespace
 	} else if a.GetStatefulSet() != nil {
 		namespace = a.GetStatefulSet().Namespace
+	} else if a.GetDaemonSet() != nil {
+		namespace = a.GetDaemonSet().Namespace
 	}
 
 	// Check Deployment events
@@ -224,6 +229,12 @@ func checkWorkloadFailureReason(client kubernetes.Interface, a *v1.AppService, l
 	// Check StatefulSet events
 	if statefulset := a.GetStatefulSet(); statefulset != nil {
 		if err := checkStatefulSetEvents(ctx, client, namespace, statefulset.Name, logger); err != nil {
+			return err
+		}
+	}
+
+	if daemonSet := a.GetDaemonSet(); daemonSet != nil {
+		if err := checkDaemonSetEvents(ctx, client, namespace, daemonSet.Name, logger); err != nil {
 			return err
 		}
 	}
@@ -303,6 +314,27 @@ func checkStatefulSetEvents(ctx context.Context, client kubernetes.Interface, na
 		if event.Type == "Warning" && time.Since(event.LastTimestamp.Time) < time.Minute*5 {
 			errMsg := translateK8sEvent(event.Reason, event.Message)
 			logger.Error(fmt.Sprintf("StatefulSet event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
+			if isFailureEvent(event.Reason) {
+				return fmt.Errorf("%s", errMsg)
+			}
+		}
+	}
+	return nil
+}
+
+// checkDaemonSetEvents checks DaemonSet events for failure reasons
+func checkDaemonSetEvents(ctx context.Context, client kubernetes.Interface, namespace, name string, logger event.Logger) error {
+	events, err := client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=DaemonSet", name),
+	})
+	if err != nil {
+		return nil
+	}
+
+	for _, event := range events.Items {
+		if event.Type == "Warning" && time.Since(event.LastTimestamp.Time) < time.Minute*5 {
+			errMsg := translateK8sEvent(event.Reason, event.Message)
+			logger.Error(fmt.Sprintf("DaemonSet event: %s", errMsg), map[string]string{"step": "appruntime", "status": "failure"})
 			if isFailureEvent(event.Reason) {
 				return fmt.Errorf("%s", errMsg)
 			}

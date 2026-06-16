@@ -58,13 +58,16 @@ func (a *AppService) IsClosed() bool {
 			return true
 		}
 	} else {
-		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil && a.cronjob == nil && a.betaCronJob == nil {
+		if a.IsEmpty() && a.statefulset == nil && a.deployment == nil && a.daemonset == nil && a.cronjob == nil && a.betaCronJob == nil {
 			return true
 		}
 		if a.IsEmpty() && a.statefulset != nil && a.statefulset.ResourceVersion == "" {
 			return true
 		}
 		if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
+			return true
+		}
+		if a.IsEmpty() && a.daemonset != nil && a.daemonset.ResourceVersion == "" {
 			return true
 		}
 		if a.IsEmpty() && a.virtualmachine != nil && a.virtualmachine.ResourceVersion == "" {
@@ -243,8 +246,46 @@ func (a *AppService) GetServiceStatus() string {
 		return RUNNING
 	}
 
-	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
+	if a.statefulset == nil && a.deployment == nil && a.daemonset == nil && len(a.pods) > 0 {
 		return STOPPING
+	}
+
+	if a.daemonset != nil {
+		desired := a.daemonset.Status.DesiredNumberScheduled
+		ready := a.daemonset.Status.NumberReady
+		if desired == 0 {
+			if hasAbnormalPods(a.pods) {
+				return ABNORMAL
+			}
+			return RUNNING
+		}
+		if ready >= desired && a.UpgradeComlete() {
+			if hasCurrentVersionUnreadyPods(a.pods, a.DeployVersion) {
+				return WAITING
+			}
+			return RUNNING
+		}
+		if len(a.pods) > 0 {
+			hasOldVersion := false
+			hasNewVersion := false
+			for _, pod := range a.pods {
+				if pod.Labels["version"] == a.DeployVersion {
+					hasNewVersion = true
+				} else {
+					hasOldVersion = true
+				}
+			}
+			if hasOldVersion && hasNewVersion {
+				return UPGRADE
+			}
+		}
+		if hasAbnormalPods(a.pods) {
+			if ready > 0 && ready < desired {
+				return SOMEABNORMAL
+			}
+			return ABNORMAL
+		}
+		return WAITING
 	}
 
 	// Deployment exists - determine status based on pod readiness and version
@@ -441,6 +482,12 @@ func (a *AppService) Ready() bool {
 			return true
 		}
 	}
+	if a.daemonset != nil {
+		desired := a.daemonset.Status.DesiredNumberScheduled
+		if desired == 0 || a.daemonset.Status.NumberReady >= desired {
+			return true
+		}
+	}
 	if a.virtualmachine != nil {
 		if a.virtualmachine.Status.Ready {
 			return true
@@ -513,6 +560,9 @@ func (a *AppService) GetReadyReplicas() int32 {
 	if a.deployment != nil {
 		return a.deployment.Status.ReadyReplicas
 	}
+	if a.daemonset != nil {
+		return a.daemonset.Status.NumberReady
+	}
 	return 0
 }
 
@@ -523,6 +573,9 @@ func (a *AppService) GetRunningVersion() string {
 	}
 	if a.deployment != nil {
 		return a.deployment.Labels["version"]
+	}
+	if a.daemonset != nil {
+		return a.daemonset.Labels["version"]
 	}
 	return ""
 }

@@ -200,6 +200,13 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 		s.manager.store.OnDeletes(deployment)
 	}
+	if daemonSet := app.GetDaemonSet(); daemonSet != nil && daemonSet.Name != "" {
+		err := s.manager.client.AppsV1().DaemonSets(app.GetNamespace()).Delete(s.ctx, daemonSet.Name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete daemonset failure:%s", err.Error())
+		}
+		s.manager.store.OnDeletes(daemonSet)
+	}
 	if job := app.GetJob(); job != nil {
 		err := s.manager.client.BatchV1().Jobs(app.GetNamespace()).Delete(s.ctx, job.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {

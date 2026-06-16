@@ -30,7 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//SetUpgradePatch create and set upgrade pathch for deployment and statefulset
+// SetUpgradePatch create and set upgrade patch for supported workloads.
 func (a *AppService) SetUpgradePatch(new *AppService) error {
 	if a.statefulset != nil && new.statefulset != nil {
 		// If the controller originally had a startup sequence, then the startup sequence needs to be updated
@@ -47,6 +47,25 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		}
 		logrus.Debugf("stateful patch %s", string(statefulsetPatch))
 		new.UpgradePatch["statefulset"] = statefulsetPatch
+	}
+	if a.daemonset != nil && new.daemonset != nil {
+		if isContainsBootSequence(a.daemonset.Spec.Template.Spec.InitContainers) &&
+			!isContainsBootSequence(new.daemonset.Spec.Template.Spec.InitContainers) && new.BootSeqContainer != nil {
+			new.daemonset.Spec.Template.Spec.InitContainers = append(new.daemonset.Spec.Template.Spec.InitContainers, *new.BootSeqContainer)
+		}
+		daemonSetPatch, err := getDaemonSetModifiedConfiguration(a.daemonset, new.daemonset)
+		if err != nil {
+			return err
+		}
+		if len(daemonSetPatch) == 0 {
+			return fmt.Errorf("no upgrade")
+		}
+		daemonSetPatch, err = K8sResourceFormat(daemonSetPatch)
+		if err != nil {
+			logrus.Error("service upgrade format daemonset patch error:", err)
+			return err
+		}
+		new.UpgradePatch["daemonset"] = daemonSetPatch
 	}
 	if a.deployment != nil && new.deployment != nil {
 		// If the controller originally had a startup sequence, then the startup sequence needs to be updated
@@ -73,14 +92,14 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 	return nil
 }
 
-//EncodeNode encode node
+// EncodeNode encode node
 type EncodeNode struct {
 	body  []byte
 	value []byte
 	Field map[string]EncodeNode
 }
 
-//UnmarshalJSON custom yaml decoder
+// UnmarshalJSON custom yaml decoder
 func (e *EncodeNode) UnmarshalJSON(code []byte) error {
 	e.body = code
 	if len(code) < 1 {
@@ -98,7 +117,7 @@ func (e *EncodeNode) UnmarshalJSON(code []byte) error {
 	return nil
 }
 
-//MarshalJSON custom marshal json
+// MarshalJSON custom marshal json
 func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 	if e.value != nil {
 		return e.value, nil
@@ -128,12 +147,12 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("marshal error")
 }
 
-//Contrast Compare value
+// Contrast Compare value
 func (e *EncodeNode) Contrast(endpoint *EncodeNode) bool {
 	return util.BytesSliceEqual(e.value, endpoint.value)
 }
 
-//GetChange get change fields
+// GetChange get change fields
 func (e *EncodeNode) GetChange(endpoint *EncodeNode) *EncodeNode {
 	if util.BytesSliceEqual(e.body, endpoint.body) {
 		return nil
@@ -184,7 +203,7 @@ func getChange(old, new EncodeNode) *EncodeNode {
 	return &result
 }
 
-//stateful label can not be patch
+// stateful label can not be patch
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
 	oldNeed := getStatefulsetAllowFields(old)
@@ -219,7 +238,39 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 	}
 }
 
-//deployment label can not be patch
+func getDaemonSetModifiedConfiguration(old, new *v1.DaemonSet) ([]byte, error) {
+	old.Status = new.Status
+	oldNeed := getDaemonSetAllowFields(old)
+	newNeed := getDaemonSetAllowFields(new)
+	return getchange(oldNeed, newNeed)
+}
+
+func getDaemonSetAllowFields(d *v1.DaemonSet) *v1.DaemonSet {
+	return &v1.DaemonSet{
+		Spec: v1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes:          d.Spec.Template.Spec.Volumes,
+					InitContainers:   d.Spec.Template.Spec.InitContainers,
+					Containers:       d.Spec.Template.Spec.Containers,
+					ImagePullSecrets: d.Spec.Template.Spec.ImagePullSecrets,
+					NodeSelector:     d.Spec.Template.Spec.NodeSelector,
+					Tolerations:      d.Spec.Template.Spec.Tolerations,
+					Affinity:         d.Spec.Template.Spec.Affinity,
+					HostAliases:      d.Spec.Template.Spec.HostAliases,
+					Hostname:         d.Spec.Template.Spec.Hostname,
+					NodeName:         d.Spec.Template.Spec.NodeName,
+					HostNetwork:      d.Spec.Template.Spec.HostNetwork,
+					SchedulerName:    d.Spec.Template.Spec.SchedulerName,
+				},
+				ObjectMeta: d.Spec.Template.ObjectMeta,
+			},
+			UpdateStrategy: d.Spec.UpdateStrategy,
+		},
+	}
+}
+
+// deployment label can not be patch
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
 	oldNeed := getDeploymentAllowFields(old)
