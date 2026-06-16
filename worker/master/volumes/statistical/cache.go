@@ -85,11 +85,6 @@ func (d *DiskCache) setcache() {
 		logrus.Errorln("Error get tenant service when select db :", err)
 		return
 	}
-	_, err = d.dbmanager.TenantServiceVolumeDao().GetAllVolumes()
-	if err != nil {
-		logrus.Errorln("Error get tenant service volume when select db :", err)
-		return
-	}
 	sharePath := os.Getenv("SHARE_DATA_PATH")
 	if sharePath == "" {
 		sharePath = "/grdata"
