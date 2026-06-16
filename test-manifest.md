@@ -100,6 +100,7 @@
 | rainbond.endpoint.domain-not-ip | 判断端点地址应按域名而不是 IP 处理 | active | regression | util/endpoint.IsDomainNotIP | util/endpoint/validation_test.go::TestIsDomainNotIP |
 | rainbond.endpoint.domain-validate | 校验端点域名及通配域名 | active | regression | util/endpoint.ValidateDomain | util/endpoint/validation_test.go::TestValidateDomain |
 | rainbond.endpoint.ip-validate | 校验端点 IP 地址并拒绝受限网段 | active | regression | util/endpoint.ValidateEndpointIP | util/endpoint/validation_test.go::TestValidateEndpointIP |
+| rainbond.env-var.noop-update | Treat no-op component env updates as success | active | regression | db.mysql.dao.TenantServiceEnvVarDaoImpl.UpdateModelByAttrName | db/mysql/dao/tenant_service_env_var_test.go::TestTenantServiceEnvVarDaoUpdateModelByAttrNameNoopSucceeds |
 | rainbond.envutil.custom-memory | 判断内存大小是自定义值还是预设值 | active | regression | util/envutil.IsCustomMemory | util/envutil/envutil_test.go::TestIsCustomMemory |
 | rainbond.envutil.getenv-default | 在 envutil 中为缺失环境变量返回默认值 | active | regression | util/envutil.GetenvDefault | util/envutil/envutil_test.go::TestGetenvDefault |
 | rainbond.envutil.memory-label | 将内存大小映射为预设内存标签 | active | regression | util/envutil.GetMemoryType | util/envutil/envutil_test.go::TestGetMemoryType |
@@ -1398,6 +1399,16 @@
 - 业务入口: `util/endpoint.ValidateEndpointIP`
 - 代码路径: `util/endpoint/validation.go`
 - 测试路径: `util/endpoint/validation_test.go::TestValidateEndpointIP`
+
+### Treat no-op component env updates as success
+
+- Capability ID: `rainbond.env-var.noop-update`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db.mysql.dao.TenantServiceEnvVarDaoImpl.UpdateModelByAttrName`
+- 代码路径: `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/tenant_service_env_var_test.go::TestTenantServiceEnvVarDaoUpdateModelByAttrNameNoopSucceeds`
 
 ### 判断内存大小是自定义值还是预设值
 

@@ -1127,7 +1127,15 @@ func (t *TenantServiceEnvVarDaoImpl) UpdateModelByAttrName(env *model.TenantServ
 		return db.Error
 	}
 	if db.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		var existing model.TenantServiceEnvVar
+		query := t.DB.Where("service_id = ? and attr_name = ?", env.ServiceID, oldAttrName).Find(&existing)
+		if query.RecordNotFound() {
+			return gorm.ErrRecordNotFound
+		}
+		if query.Error != nil {
+			return query.Error
+		}
+		return nil
 	}
 	return nil
 }
