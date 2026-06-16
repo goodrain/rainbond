@@ -1,0 +1,137 @@
+name: codex
+
+# Mention @codex (instead of @claude) in an issue or comment to run the same
+# cross-repo flow with OpenAI Codex CLI, pointed at a third-party
+# OpenAI-compatible endpoint (DeepSeek / MiMo / etc.).
+#
+# NOTE: Codex CLI flags and config keys change between versions. The provider
+# block and `codex exec` flags below are a known-good shape but VERIFY them
+# against the codex version pinned in the install step before relying on it.
+#
+# Required repo config:
+#   secrets.CLAUDE_APP_ID / CLAUDE_APP_PRIVATE_KEY  (same GitHub App as claude.yml)
+#   secrets.CODEX_API_KEY                           (third-party key)
+#   vars.CODEX_BASE_URL                             (e.g. https://api.deepseek.com/v1)
+#   vars.CODEX_MODEL                                (e.g. deepseek-chat)
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  codex:
+    if: |
+      (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@codex') &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@codex') &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'issues' &&
+        contains(github.event.issue.body, '@codex') &&
+        (github.event.issue.author_association == 'OWNER' ||
+         github.event.issue.author_association == 'MEMBER' ||
+         github.event.issue.author_association == 'COLLABORATOR'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Generate cross-repo GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            rainbond
+            rainbond-console
+            rainbond-ui
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Configure git auth for all repos
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh auth setup-git
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      # Point Codex at the third-party OpenAI-compatible endpoint.
+      - name: Configure Codex provider
+        env:
+          CODEX_BASE_URL: ${{ vars.CODEX_BASE_URL }}
+          CODEX_MODEL: ${{ vars.CODEX_MODEL }}
+        run: |
+          mkdir -p "$HOME/.codex"
+          cat > "$HOME/.codex/config.toml" <<EOF
+          model = "${CODEX_MODEL}"
+          model_provider = "thirdparty"
+
+          [model_providers.thirdparty]
+          name = "Third Party"
+          base_url = "${CODEX_BASE_URL}"
+          env_key = "CODEX_API_KEY"
+          EOF
+
+      - name: Run Codex
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          PROMPT=$(cat <<'EOF'
+          You are an automated engineer for the Rainbond platform. Issue
+          #${{ github.event.issue.number }} was filed in the
+          ${{ github.repository }} repository.
+
+          The platform spans three repos under "${{ github.repository_owner }}":
+            - ${{ github.repository_owner }}/rainbond         (Go 1.23, core / K8s)
+            - ${{ github.repository_owner }}/rainbond-console (Python 3.6 / Django 2.2)
+            - ${{ github.repository_owner }}/rainbond-ui      (React 16.8 / UMI)
+
+          The current directory is a checkout of the rainbond (Go) repo. GH_TOKEN
+          is set and `gh` is authenticated for all three repos.
+
+          Steps:
+          1. Read the request:
+             gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
+          2. Decide which repo(s) actually need the fix (do NOT assume Go).
+          3. For each repo needing a change: clone it if needed
+             (gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>),
+             create branch codex/issue-${{ github.event.issue.number }}-<slug>,
+             make the minimal correct change following that repo's CLAUDE.md, run
+             its quality gate (Go: go build ./... && go vet ./...; console:
+             make check && pytest; ui: yarn install && yarn build), commit
+             (Conventional Commits, English, no emoji, no AI attribution), push,
+             and open a PR: gh pr create -R ${{ github.repository_owner }}/<repo> --base main
+             referencing the issue in the body.
+          4. Comment on issue #${{ github.event.issue.number }} with a summary + PR links.
+
+          Hard rules: never push to main; if a quality gate fails and you cannot
+          fix it, do not open the PR — comment on the issue and stop; keep changes
+          scoped; ask for clarification if the issue is unclear.
+          EOF
+          )
+          # --dangerously-bypass-approvals-and-sandbox lets Codex run git/gh and
+          # reach the network in CI. Verify this flag for your codex version.
+          codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
