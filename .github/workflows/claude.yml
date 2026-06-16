@@ -140,12 +140,24 @@ jobs:
             The current working directory is a checkout of the rainbond (Go) repo.
 
             Steps:
-            1. Read the full request:
+            1. Read the full request and the triggering comment:
                gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
-            2. Decide which repo(s) ACTUALLY need the fix. Do NOT assume it is
+            2. Pick a MODE based on what is actually being asked:
+               - ANSWER: it is a question → reply in an issue comment. No code, no PR.
+               - DESIGN: a feature / new requirement, or the comment says things
+                 like "设计 / 方案 / 讨论 / 先别写代码 / don't implement / just propose"
+                 → post a DESIGN PROPOSAL as an issue comment covering: affected
+                 repos & files, API / data-model / UX changes, a step-by-step plan,
+                 and risks / alternatives. DO NOT write code or open a PR.
+               - IMPLEMENT: an explicit ask to fix a bug or build something already
+                 agreed → follow steps 3-5 below.
+               When ambiguous: a clear bug → IMPLEMENT; a feature with no agreed
+               design → prefer DESIGN (propose first, do not build).
+               (Steps 3-5 apply to IMPLEMENT mode only.)
+            3. Decide which repo(s) ACTUALLY need the change. Do NOT assume it is
                the Go repo — many issues filed here are really console (Python)
                or ui (React) problems. Investigate the code before deciding.
-            3. For each repo that needs a change:
+            4. For each repo that needs a change:
                - If it is not the current repo, clone it:
                    gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>
                  then cd into it.
@@ -175,7 +187,7 @@ jobs:
                    gh pr create -R ${{ github.repository_owner }}/<repo> --base main
                  In the PR body, reference the issue:
                    "Ref ${{ github.repository_owner }}/rainbond#${{ github.event.issue.number }}"
-            4. Comment on issue #${{ github.event.issue.number }} summarizing what
+            5. Comment on issue #${{ github.event.issue.number }} summarizing what
                you did and linking the PR(s).
 
             Hard rules:
