@@ -46,7 +46,7 @@ jobs:
          github.event.issue.author_association == 'MEMBER' ||
          github.event.issue.author_association == 'COLLABORATOR'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       # 1) Mint a token that can write to ALL three repos.
       - name: Generate cross-repo GitHub App token
@@ -118,7 +118,7 @@ jobs:
           #   without it every Bash call is denied (permission_denials) and nothing happens.
           # --model sets the third-party model name (e.g. deepseek-chat).
           # Set vars.ANTHROPIC_MODEL to override; defaults to the official model.
-          claude_args: "--max-turns 50 --allowedTools Bash,Edit,MultiEdit,Write,Read,Glob,Grep,TodoWrite,WebFetch ${{ vars.ANTHROPIC_MODEL && format('--model {0}', vars.ANTHROPIC_MODEL) || '' }}"
+          claude_args: "--max-turns 120 --allowedTools Bash,Edit,MultiEdit,Write,Read,Glob,Grep,TodoWrite,WebFetch ${{ vars.ANTHROPIC_MODEL && format('--model {0}', vars.ANTHROPIC_MODEL) || '' }}"
           prompt: |
             You are an automated engineer for the Rainbond platform. Issue
             #${{ github.event.issue.number }} was filed in the
