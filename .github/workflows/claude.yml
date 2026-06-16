@@ -1,6 +1,6 @@
 name: claude
 
-# Mention @claude in an issue or issue comment (in this repo) and Claude Code
+# Comment "/claude" in an issue or issue comment (in this repo) and Claude Code
 # will analyze the request, figure out which Rainbond repo actually needs the
 # fix (rainbond / rainbond-console / rainbond-ui), make the change, run that
 # repo's quality gate, and open a PR back-linked to the issue.
@@ -29,17 +29,17 @@ jobs:
     # Gate: trigger phrase present AND author has write access.
     if: |
       (github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '@claude') &&
+        contains(github.event.comment.body, '/claude') &&
         (github.event.comment.author_association == 'OWNER' ||
          github.event.comment.author_association == 'MEMBER' ||
          github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'pull_request_review_comment' &&
-        contains(github.event.comment.body, '@claude') &&
+        contains(github.event.comment.body, '/claude') &&
         (github.event.comment.author_association == 'OWNER' ||
          github.event.comment.author_association == 'MEMBER' ||
          github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'issues' &&
-        contains(github.event.issue.body, '@claude') &&
+        contains(github.event.issue.body, '/claude') &&
         (github.event.issue.author_association == 'OWNER' ||
          github.event.issue.author_association == 'MEMBER' ||
          github.event.issue.author_association == 'COLLABORATOR'))
@@ -77,11 +77,34 @@ jobs:
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Third-party Anthropic-compatible endpoint. Stored as a SECRET (not a
+          # var) so a private relay domain is masked in public Actions logs.
+          # Leave the secret empty to use the official Anthropic API.
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          # Bearer-auth third parties need ANTHROPIC_AUTH_TOKEN (sent as
+          # "Authorization: Bearer ..."), which takes precedence over x-api-key.
+          # For the OFFICIAL Anthropic API leave this secret empty and instead
+          # set the ANTHROPIC_API_KEY secret below.
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Satisfies the action's auth preflight. When ANTHROPIC_AUTH_TOKEN is
+          # set above, Claude Code uses the Bearer token and ignores this.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN || secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
+          # Post a live-updating progress comment on the issue (todo checklist +
+          # current action). Better than log-watching: visible on the issue and
+          # safe on public repos (it is a comment, not secret-bearing logs).
+          track_progress: true
+          # Full transcript in the Actions log ONLY on private repos. On public
+          # repos (e.g. goodrain) this auto-disables so runtime values the agent
+          # prints are not exposed in the world-readable logs.
+          show_full_output: ${{ github.event.repository.private }}
           # --max-turns caps how long the agent runs => caps token spend.
-          claude_args: "--max-turns 30"
+          # --allowedTools lets the agent run git/gh/build commands non-interactively;
+          #   without it every Bash call is denied (permission_denials) and nothing happens.
+          # --model sets the third-party model name (e.g. deepseek-chat).
+          # Set vars.ANTHROPIC_MODEL to override; defaults to the official model.
+          claude_args: "--max-turns 50 --allowedTools Bash,Edit,MultiEdit,Write,Read,Glob,Grep,TodoWrite,WebFetch ${{ vars.ANTHROPIC_MODEL && format('--model {0}', vars.ANTHROPIC_MODEL) || '' }}"
           prompt: |
             You are an automated engineer for the Rainbond platform. Issue
             #${{ github.event.issue.number }} was filed in the
@@ -89,9 +112,18 @@ jobs:
 
             The Rainbond platform spans three repos under the
             "${{ github.repository_owner }}" GitHub org:
-              - ${{ github.repository_owner }}/rainbond         (Go 1.23, core services / K8s)
-              - ${{ github.repository_owner }}/rainbond-console (Python 3.6 / Django 2.2, web backend)
-              - ${{ github.repository_owner }}/rainbond-ui      (React 16.8 / UMI, frontend)
+              - ${{ github.repository_owner }}/rainbond         (Go 1.23, port 8443) core services
+                (API/builder/worker); the only layer that talks to Kubernetes.
+              - ${{ github.repository_owner }}/rainbond-console (Python 3.6 / Django 2.2, port 7070)
+                web backend; serves the UI and orchestrates calls to rainbond via
+                RegionInvokeApi (HTTP to /v2/tenants/...). Shares the MySQL instance
+                with rainbond but uses a separate logical DB (no shared tables).
+              - ${{ github.repository_owner }}/rainbond-ui      (React 16.8 / UMI) frontend dashboard;
+                calls console at /console/* and /openapi/v1/*.
+
+            Request flow: rainbond-ui -> rainbond-console -> rainbond -> Kubernetes.
+            Each repo has its own CLAUDE.md and AGENTS.md with detailed conventions —
+            ALWAYS read the target repo's CLAUDE.md before changing it.
 
             The current working directory is a checkout of the rainbond (Go) repo.
 
@@ -106,13 +138,21 @@ jobs:
                    gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>
                  then cd into it.
                - Create branch: claude/issue-${{ github.event.issue.number }}-<short-slug>
+               - Where practical, FIRST add a regression test that reproduces the
+                 bug: it must FAIL before your change and PASS after. This proves
+                 the real problem is fixed, not just that existing tests pass.
+                 (Go: table test; console: pytest.) If the bug is purely
+                 visual/frontend and a meaningful automated test is impractical,
+                 say so in the PR and give manual verification steps instead.
                - Make the MINIMAL correct change. Follow that repo's CLAUDE.md.
                - Run the repo's quality gate BEFORE committing:
                    * rainbond (Go):         go build ./... && go vet ./...
                    * rainbond-console (Py): make check && pytest (relevant subset)
                    * rainbond-ui (React):   yarn install && yarn build
-               - Commit using Conventional Commits, English, NO emoji and NO AI
-                 attribution / Co-authored-by lines.
+               - Commit with `git commit -s` (the -s adds the DCO Signed-off-by
+                 trailer REQUIRED by the repo's DCO check; it matches the bot git
+                 identity and is NOT AI attribution). Use Conventional Commits,
+                 English, NO emoji and NO Co-authored-by / AI attribution lines.
                - Push and open a PR:
                    gh pr create -R ${{ github.repository_owner }}/<repo> --base main
                  In the PR body, reference the issue:
