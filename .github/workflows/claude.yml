@@ -1,0 +1,129 @@
+name: claude
+
+# Mention @claude in an issue or issue comment (in this repo) and Claude Code
+# will analyze the request, figure out which Rainbond repo actually needs the
+# fix (rainbond / rainbond-console / rainbond-ui), make the change, run that
+# repo's quality gate, and open a PR back-linked to the issue.
+#
+# Only members/collaborators (people with write access) can trigger it, so
+# random visitors cannot burn your Anthropic credits.
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request_review_comment:
+    types: [created]
+
+# Token used by the action is the GitHub App token (cross-repo). These job
+# permissions cover the action's own bookkeeping on THIS repo.
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  claude:
+    # Gate: trigger phrase present AND author has write access.
+    if: |
+      (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')) ||
+      (github.event_name == 'issues' &&
+        contains(github.event.issue.body, '@claude') &&
+        (github.event.issue.author_association == 'OWNER' ||
+         github.event.issue.author_association == 'MEMBER' ||
+         github.event.issue.author_association == 'COLLABORATOR'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # 1) Mint a token that can write to ALL three repos.
+      - name: Generate cross-repo GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            rainbond
+            rainbond-console
+            rainbond-ui
+
+      # 2) Check out the triggering repo (rainbond/Go) for immediate context.
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      # 3) Make git/gh use the cross-repo token (needed to clone & push the
+      #    console / ui repos on demand).
+      - name: Configure git auth for all repos
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh auth setup-git
+
+      # 4) Run Claude in agent mode with explicit cross-repo instructions.
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          # --max-turns caps how long the agent runs => caps token spend.
+          claude_args: "--max-turns 30"
+          prompt: |
+            You are an automated engineer for the Rainbond platform. Issue
+            #${{ github.event.issue.number }} was filed in the
+            ${{ github.repository }} repository.
+
+            The Rainbond platform spans three repos under the
+            "${{ github.repository_owner }}" GitHub org:
+              - ${{ github.repository_owner }}/rainbond         (Go 1.23, core services / K8s)
+              - ${{ github.repository_owner }}/rainbond-console (Python 3.6 / Django 2.2, web backend)
+              - ${{ github.repository_owner }}/rainbond-ui      (React 16.8 / UMI, frontend)
+
+            The current working directory is a checkout of the rainbond (Go) repo.
+
+            Steps:
+            1. Read the full request:
+               gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
+            2. Decide which repo(s) ACTUALLY need the fix. Do NOT assume it is
+               the Go repo — many issues filed here are really console (Python)
+               or ui (React) problems. Investigate the code before deciding.
+            3. For each repo that needs a change:
+               - If it is not the current repo, clone it:
+                   gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>
+                 then cd into it.
+               - Create branch: claude/issue-${{ github.event.issue.number }}-<short-slug>
+               - Make the MINIMAL correct change. Follow that repo's CLAUDE.md.
+               - Run the repo's quality gate BEFORE committing:
+                   * rainbond (Go):         go build ./... && go vet ./...
+                   * rainbond-console (Py): make check && pytest (relevant subset)
+                   * rainbond-ui (React):   yarn install && yarn build
+               - Commit using Conventional Commits, English, NO emoji and NO AI
+                 attribution / Co-authored-by lines.
+               - Push and open a PR:
+                   gh pr create -R ${{ github.repository_owner }}/<repo> --base main
+                 In the PR body, reference the issue:
+                   "Ref ${{ github.repository_owner }}/rainbond#${{ github.event.issue.number }}"
+            4. Comment on issue #${{ github.event.issue.number }} summarizing what
+               you did and linking the PR(s).
+
+            Hard rules:
+            - NEVER push to main. Always open a PR.
+            - If a quality gate fails and you cannot fix it, do NOT open the PR.
+              Instead comment on the issue explaining what you found and stop.
+            - Keep changes scoped to the issue. No drive-by refactors.
+            - If the issue is unclear or not reproducible, comment asking for
+              clarification instead of guessing.
