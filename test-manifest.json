@@ -1835,6 +1835,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.env-var.noop-update",
+      "title": "Treat no-op component env updates as success",
+      "title_zh": "Treat no-op component env updates as success",
+      "interface_type": "dao_method",
+      "interface": "db.mysql.dao.TenantServiceEnvVarDaoImpl.UpdateModelByAttrName",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_env_var_test.go",
+          "selector": "TestTenantServiceEnvVarDaoUpdateModelByAttrNameNoopSucceeds"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.envutil.custom-memory",
       "title": "Decide whether memory sizes are custom or predefined",
       "title_zh": "\u5224\u65ad\u5185\u5b58\u5927\u5c0f\u662f\u81ea\u5b9a\u4e49\u503c\u8fd8\u662f\u9884\u8bbe\u503c",
