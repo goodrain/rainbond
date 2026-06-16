@@ -1,17 +1,19 @@
-name: codex
+name: mimo
 
-# Comment "/codex" (instead of "/claude") in an issue or comment to run the same
-# cross-repo flow with OpenAI Codex CLI.
+# Comment "/mimo" in an issue or comment to run the cross-repo fix flow with
+# Xiaomi's MiMo-Code agent (an OpenCode fork) driving the MiMo model natively.
+# This is the "native agent + native model" variant, to compare against claude.yml.
 #
-# IMPORTANT: current Codex only speaks the Responses API (/v1/responses). The
-# endpoint in CODEX_BASE_URL MUST support it — a Chat-Completions-only endpoint
-# (e.g. MiMo) will 404. Use OpenAI official or a Responses-API-compatible provider.
+# NOTE: MiMo-Code is an OpenCode fork; CLI binary name, config path and flags may
+# change. Verified against the repo source as of 2026-06: headless run is
+# `mimo run "<msg>"`, auto-approve is `--dangerously-skip-permissions`, custom
+# provider goes in opencode.json with npm "@ai-sdk/openai-compatible".
 #
 # Required repo config:
 #   secrets.CLAUDE_APP_ID / CLAUDE_APP_PRIVATE_KEY  (same GitHub App as claude.yml)
-#   secrets.CODEX_API_KEY                           (provider key)
-#   vars.CODEX_BASE_URL                             (Responses-API endpoint, e.g. https://api.openai.com/v1)
-#   vars.CODEX_MODEL                                (e.g. gpt-5-codex)
+#   secrets.MIMO_API_KEY                            (MiMo key)
+#   vars.MIMO_BASE_URL                              (OpenAI-compatible base, e.g. https://token-plan-cn.xiaomimimo.com/v1)
+#   vars.MIMO_MODEL                                 (e.g. mimo-v2.5)
 
 on:
   issue_comment:
@@ -27,20 +29,20 @@ permissions:
   pull-requests: write
 
 jobs:
-  codex:
+  mimo:
     if: |
       (github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '/codex') &&
+        contains(github.event.comment.body, '/mimo') &&
         (github.event.comment.author_association == 'OWNER' ||
          github.event.comment.author_association == 'MEMBER' ||
          github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'pull_request_review_comment' &&
-        contains(github.event.comment.body, '/codex') &&
+        contains(github.event.comment.body, '/mimo') &&
         (github.event.comment.author_association == 'OWNER' ||
          github.event.comment.author_association == 'MEMBER' ||
          github.event.comment.author_association == 'COLLABORATOR')) ||
       (github.event_name == 'issues' &&
-        contains(github.event.issue.body, '/codex') &&
+        contains(github.event.issue.body, '/mimo') &&
         (github.event.issue.author_association == 'OWNER' ||
          github.event.issue.author_association == 'MEMBER' ||
          github.event.issue.author_association == 'COLLABORATOR'))
@@ -73,34 +75,46 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install Codex CLI
-        run: npm install -g @openai/codex
+      - name: Install MiMo-Code CLI
+        run: npm install -g @mimo-ai/cli
 
-      # Point Codex at the Responses-API endpoint. base_url is a SECRET so a
-      # private relay domain stays masked in public Actions logs.
-      - name: Configure Codex provider
+      # Define the MiMo provider. apiKey uses {env:...} so the key is read at
+      # runtime and never written to the config file on disk. Written to several
+      # candidate paths because the OpenCode fork's config discovery may use
+      # either name (opencode.json / .mimocode/mimocode.json) or the global dir.
+      - name: Configure MiMo provider
         env:
-          CODEX_BASE_URL: ${{ secrets.CODEX_BASE_URL }}
-          CODEX_MODEL: ${{ vars.CODEX_MODEL }}
+          # base_url is a SECRET so a private relay domain stays masked in logs.
+          MIMO_BASE_URL: ${{ secrets.MIMO_BASE_URL }}
+          MIMO_MODEL: ${{ vars.MIMO_MODEL }}
         run: |
-          mkdir -p "$HOME/.codex"
-          cat > "$HOME/.codex/config.toml" <<EOF
-          model = "${CODEX_MODEL}"
-          model_provider = "thirdparty"
-
-          [model_providers.thirdparty]
-          name = "Third Party"
-          base_url = "${CODEX_BASE_URL}"
-          env_key = "CODEX_API_KEY"
-          # Current Codex only supports the Responses API. The provider set in
-          # CODEX_BASE_URL MUST expose /v1/responses (a chat-only endpoint 404s).
-          wire_api = "responses"
+          read -r -d '' CFG <<EOF || true
+          {
+            "\$schema": "https://opencode.ai/config.json",
+            "provider": {
+              "mimo": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "MiMo",
+                "options": {
+                  "baseURL": "${MIMO_BASE_URL}",
+                  "apiKey": "{env:MIMO_API_KEY}"
+                },
+                "models": {
+                  "${MIMO_MODEL}": { "name": "MiMo" }
+                }
+              }
+            }
+          }
           EOF
+          mkdir -p .mimocode "$HOME/.config/opencode"
+          printf '%s\n' "$CFG" | tee opencode.json .mimocode/mimocode.json "$HOME/.config/opencode/opencode.json" >/dev/null
+          echo "provider config written (base_url hidden)"
 
-      - name: Run Codex
+      - name: Run MiMo-Code
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          MIMO_MODEL: ${{ vars.MIMO_MODEL }}
         run: |
           PROMPT=$(cat <<'EOF'
           You are an automated engineer for the Rainbond platform. Issue
@@ -129,7 +143,7 @@ jobs:
           2. Decide which repo(s) actually need the fix (do NOT assume Go).
           3. For each repo needing a change: clone it if needed
              (gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>),
-             create branch codex/issue-${{ github.event.issue.number }}-<slug>.
+             create branch mimo/issue-${{ github.event.issue.number }}-<slug>.
              Where practical, FIRST add a regression test that reproduces the bug
              (must FAIL before the fix, PASS after) to prove the real problem is
              fixed — not just that existing tests pass. If purely visual/frontend
@@ -148,6 +162,6 @@ jobs:
           scoped; ask for clarification if the issue is unclear.
           EOF
           )
-          # --dangerously-bypass-approvals-and-sandbox lets Codex run git/gh and
-          # reach the network in CI. Verify this flag for your codex version.
-          codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+          # --dangerously-skip-permissions auto-approves tool use (bash/git/gh)
+          # so the agent can run unattended in CI.
+          mimo run "$PROMPT" --model "mimo/${MIMO_MODEL}" --dangerously-skip-permissions
