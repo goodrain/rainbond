@@ -133,10 +133,19 @@ jobs:
           is set and `gh` is authenticated for all three repos.
 
           Steps:
-          1. Read the request:
+          1. Read the request and the triggering comment:
              gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
-          2. Decide which repo(s) actually need the fix (do NOT assume Go).
-          3. For each repo needing a change: clone it if needed
+          2. Pick a MODE:
+             - ANSWER: a question → reply in a comment, no code/PR.
+             - DESIGN: a feature/new requirement, or the comment says "设计 / 方案 /
+               讨论 / 先别写代码 / don't implement / just propose" → post a DESIGN
+               PROPOSAL comment (affected repos & files, API/data-model/UX changes,
+               step plan, risks/alternatives). Do NOT write code or open a PR.
+             - IMPLEMENT: explicit ask to fix/build → do steps 3-4.
+             Ambiguous: clear bug → IMPLEMENT; feature with no agreed design → DESIGN.
+             (Steps 3-4 are IMPLEMENT mode only.)
+          3. Decide which repo(s) actually need the change (do NOT assume Go).
+             For each repo needing a change: clone it if needed
              (gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>),
              create branch codex/issue-${{ github.event.issue.number }}-<slug>.
              Add a regression test ONLY IF the repo already has a test framework
