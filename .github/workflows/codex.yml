@@ -64,10 +64,19 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
-      - name: Configure git auth for all repos
+      - name: Configure git auth and bot identity
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: gh auth setup-git
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          gh auth setup-git
+          BOT_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          BOT_NAME="${APP_SLUG}[bot]"
+          BOT_EMAIL="${BOT_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git config --global user.name "$BOT_NAME"
+          git config --global user.email "$BOT_EMAIL"
+          echo "BOT_NAME=$BOT_NAME" >> "$GITHUB_ENV"
+          echo "BOT_EMAIL=$BOT_EMAIL" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -130,14 +139,19 @@ jobs:
           3. For each repo needing a change: clone it if needed
              (gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>),
              create branch codex/issue-${{ github.event.issue.number }}-<slug>.
-             Where practical, FIRST add a regression test that reproduces the bug
-             (must FAIL before the fix, PASS after) to prove the real problem is
-             fixed — not just that existing tests pass. If purely visual/frontend
-             and a test is impractical, say so in the PR with manual steps.
+             Add a regression test ONLY IF the repo already has a test framework
+             (package.json "test" script, or pytest / go test) AND it exercises
+             the REAL code path (import/call the actual code; NEVER copy the fixed
+             logic into the test — a copy tests nothing). It must FAIL before the
+             fix and PASS after. If no test runner exists or it could only be
+             tested by duplicating logic, do NOT add a test; describe manual
+             verification in the PR.
              Then make the minimal correct change following that repo's CLAUDE.md, run
              its quality gate (Go: go build ./... && go vet ./...; console:
-             make check && pytest; ui: yarn install && yarn build), commit with
-             `git commit -s` (DCO Signed-off-by trailer is REQUIRED by the repo)
+             make check && pytest; ui: yarn install && yarn build). Before
+             committing, set identity: git config user.name "$BOT_NAME" &&
+             git config user.email "$BOT_EMAIL". Then commit with
+             `git commit -s` (DCO Signed-off-by REQUIRED, matches the author)
              (Conventional Commits, English, no emoji, no AI attribution), push,
              and open a PR: gh pr create -R ${{ github.repository_owner }}/<repo> --base main
              referencing the issue in the body.

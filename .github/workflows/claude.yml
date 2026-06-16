@@ -65,12 +65,24 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
-      # 3) Make git/gh use the cross-repo token (needed to clone & push the
-      #    console / ui repos on demand).
-      - name: Configure git auth for all repos
+      # 3) Make git/gh use the cross-repo token, and resolve the App's bot
+      #    identity so commits are authored by the app (not claude[bot]) and the
+      #    DCO sign-off matches the author. Exported as env for the agent to apply
+      #    inside each cloned repo before committing.
+      - name: Configure git auth and bot identity
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: gh auth setup-git
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          gh auth setup-git
+          BOT_ID=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          BOT_NAME="${APP_SLUG}[bot]"
+          BOT_EMAIL="${BOT_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git config --global user.name "$BOT_NAME"
+          git config --global user.email "$BOT_EMAIL"
+          echo "BOT_NAME=$BOT_NAME" >> "$GITHUB_ENV"
+          echo "BOT_EMAIL=$BOT_EMAIL" >> "$GITHUB_ENV"
+          echo "bot identity: $BOT_NAME <$BOT_EMAIL>"
 
       # 4) Run Claude in agent mode with explicit cross-repo instructions.
       - name: Run Claude Code
@@ -138,21 +150,27 @@ jobs:
                    gh repo clone ${{ github.repository_owner }}/<repo> /tmp/<repo>
                  then cd into it.
                - Create branch: claude/issue-${{ github.event.issue.number }}-<short-slug>
-               - Where practical, FIRST add a regression test that reproduces the
-                 bug: it must FAIL before your change and PASS after. This proves
-                 the real problem is fixed, not just that existing tests pass.
-                 (Go: table test; console: pytest.) If the bug is purely
-                 visual/frontend and a meaningful automated test is impractical,
-                 say so in the PR and give manual verification steps instead.
+               - Add a regression test ONLY IF the repo already has a test
+                 framework (package.json has a "test" script, or pytest / go test
+                 exist) AND the test can exercise the REAL code path — import or
+                 call the actual code; NEVER copy the logic being fixed into the
+                 test (a copied snippet tests nothing and is dead weight). A good
+                 test FAILS before your change and PASSES after. If the repo has no
+                 test runner, or the fix can only be "tested" by duplicating
+                 logic, do NOT add a test — describe manual verification in the PR.
                - Make the MINIMAL correct change. Follow that repo's CLAUDE.md.
                - Run the repo's quality gate BEFORE committing:
                    * rainbond (Go):         go build ./... && go vet ./...
                    * rainbond-console (Py): make check && pytest (relevant subset)
                    * rainbond-ui (React):   yarn install && yarn build
-               - Commit with `git commit -s` (the -s adds the DCO Signed-off-by
-                 trailer REQUIRED by the repo's DCO check; it matches the bot git
-                 identity and is NOT AI attribution). Use Conventional Commits,
-                 English, NO emoji and NO Co-authored-by / AI attribution lines.
+               - Before committing in this repo, set the bot identity (overrides
+                 any default so the author is the app, not claude[bot]):
+                   git config user.name "$BOT_NAME"
+                   git config user.email "$BOT_EMAIL"
+                 Then commit with `git commit -s` (the -s Signed-off-by is REQUIRED
+                 by the repo's DCO check and matches the author above; it is NOT AI
+                 attribution). Use Conventional Commits, English, NO emoji and NO
+                 Co-authored-by / AI attribution lines.
                - Push and open a PR:
                    gh pr create -R ${{ github.repository_owner }}/<repo> --base main
                  In the PR body, reference the issue:
