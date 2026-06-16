@@ -22,6 +22,8 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  actions: read      # read CI run logs in PR mode (fix failing checks)
+  checks: read       # read PR check status in PR mode
   id-token: write
 
 jobs:
@@ -140,6 +142,25 @@ jobs:
             The current working directory is a checkout of the rainbond (Go) repo.
 
             Steps:
+            0. Determine context. Run:
+                 gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }}
+               If #${{ github.event.issue.number }} IS a pull request, use PR MODE
+               below and STOP (skip the issue steps). Otherwise it is an issue —
+               continue at step 1.
+
+            PR MODE (iterate on THIS existing PR — never open a new PR):
+               - Check out the PR branch:
+                   gh pr checkout ${{ github.event.issue.number }} --repo ${{ github.repository }}
+               - Do what the comment asks. If asked to fix failing CI:
+                   gh pr checks ${{ github.event.issue.number }} --repo ${{ github.repository }}
+                 open the failing check's logs (e.g. gh run view --log --job=<id>),
+                 find the real cause, and fix it.
+               - Set the bot identity (git config user.name "$BOT_NAME";
+                 git config user.email "$BOT_EMAIL"), then `git commit -s` and
+                 `git push` to the SAME PR branch. Do NOT create a new branch or PR.
+               - Comment on the PR with a short summary of what you changed.
+
+            ISSUE MODE:
             1. Read the full request and the triggering comment:
                gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
             2. Pick a MODE based on what is actually being asked:

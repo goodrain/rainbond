@@ -25,6 +25,8 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  actions: read      # read CI run logs in PR mode (fix failing checks)
+  checks: read       # read PR check status in PR mode
 
 jobs:
   codex:
@@ -133,6 +135,20 @@ jobs:
           is set and `gh` is authenticated for all three repos.
 
           Steps:
+          0. Run: gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }}
+             If #${{ github.event.issue.number }} IS a pull request, use PR MODE and
+             STOP. Otherwise continue at step 1 (issue).
+
+          PR MODE (iterate on THIS PR, never open a new one):
+             - gh pr checkout ${{ github.event.issue.number }} --repo ${{ github.repository }}
+             - Do what the comment asks; to fix CI: gh pr checks
+               ${{ github.event.issue.number }} --repo ${{ github.repository }}, read the
+               failing job logs, fix the cause.
+             - Set identity (git config user.name "$BOT_NAME"; git config user.email
+               "$BOT_EMAIL"), git commit -s, git push to the SAME branch. No new PR.
+             - Comment on the PR with a summary.
+
+          ISSUE MODE:
           1. Read the request and the triggering comment:
              gh issue view ${{ github.event.issue.number }} --repo ${{ github.repository }} --comments
           2. Pick a MODE:
