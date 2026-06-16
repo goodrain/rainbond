@@ -2263,6 +2263,8 @@ github.com/goodrain/rainbond-oam v0.0.0-20260616100721-ed623052242e h1:ForTnuBDz
 github.com/goodrain/rainbond-oam v0.0.0-20260616100721-ed623052242e/go.mod h1:f6UgPXajlZaJwxcC24F+utA0ag9K9waSl8haKBetAzY=
 github.com/goodrain/rainbond-oam v0.0.0-20260616102325-d00568abe287 h1:MLsvogREtCB+advyp5l1q8dRSvYEKkZZVPgq0sM8Xck=
 github.com/goodrain/rainbond-oam v0.0.0-20260616102325-d00568abe287/go.mod h1:f6UgPXajlZaJwxcC24F+utA0ag9K9waSl8haKBetAzY=
+github.com/goodrain/rainbond-oam v0.0.0-20260616124540-440d85174612 h1:3AX0GvCPwwx8SzyyreLJtA3iroYaqLJYiyVtt432ZP0=
+github.com/goodrain/rainbond-oam v0.0.0-20260616124540-440d85174612/go.mod h1:f6UgPXajlZaJwxcC24F+utA0ag9K9waSl8haKBetAzY=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21 h1:iCPI96slvJv88iPc1NJW8zhpkiza0kwB0jtsuZIJLRQ=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21/go.mod h1:jcQfNoxO67nkLalCmgihYrdWF82TKyuPW032tgGdqVY=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
