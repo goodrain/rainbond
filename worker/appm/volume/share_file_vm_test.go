@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -16,10 +17,24 @@ import (
 type volumeManagerStub struct {
 	db.Manager
 	configFileDao dbdao.TenantServiceConfigFileDao
+	volumeDao     dbdao.TenantServiceVolumeDao
 }
 
 func (m volumeManagerStub) TenantServiceConfigFileDao() dbdao.TenantServiceConfigFileDao {
 	return m.configFileDao
+}
+
+func (m volumeManagerStub) TenantServiceVolumeDao() dbdao.TenantServiceVolumeDao {
+	return m.volumeDao
+}
+
+type tenantServiceVolumeDaoStub struct {
+	dbdao.TenantServiceVolumeDao
+	volume *dbmodel.TenantServiceVolume
+}
+
+func (t tenantServiceVolumeDaoStub) GetVolumeByServiceIDAndName(serviceID, name string) (*dbmodel.TenantServiceVolume, error) {
+	return t.volume, nil
 }
 
 type tenantServiceConfigFileDaoStub struct {
@@ -88,6 +103,133 @@ func newVMAppServiceForVolumeTest() *appmtypes.AppService {
 		},
 	})
 	return as
+}
+
+func newDeploymentAppServiceForVolumeTest() *appmtypes.AppService {
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "default"},
+	}
+	as := &appmtypes.AppService{
+		AppServiceBase: appmtypes.AppServiceBase{
+			ServiceID:    "service-1",
+			ServiceAlias: "demo-web",
+			TenantID:     "tenant-1",
+			AppID:        "app-1",
+		},
+	}
+	as.SetTenant(namespace)
+	return as
+}
+
+// capability_id: rainbond.config-file.k8s-volume-name-safe
+func TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName(t *testing.T) {
+	as := newDeploymentAppServiceForVolumeTest()
+	serviceVolume := &dbmodel.TenantServiceVolume{
+		Model:      dbmodel.Model{ID: 5},
+		ServiceID:  "service-1",
+		VolumeName: "web.conf",
+		VolumePath: "/etc/nginx/conf.d/web.conf",
+		VolumeType: "config-file",
+	}
+
+	manager := volumeManagerStub{configFileDao: tenantServiceConfigFileDaoStub{
+		file: &dbmodel.TenantServiceConfigFile{
+			Model:       dbmodel.Model{CreatedAt: time.Now()},
+			ServiceID:   "service-1",
+			VolumeName:  "web.conf",
+			FileContent: "server {}\n",
+		},
+	}}
+
+	vol := NewVolumeManager(as, serviceVolume, nil, nil, nil, nil, manager, false)
+	configVolume, ok := vol.(*ConfigFileVolume)
+	if !ok {
+		t.Fatalf("expected config-file volume to use ConfigFileVolume, got %T", vol)
+	}
+
+	define := &Define{as: as}
+	if err := configVolume.CreateVolume(define); err != nil {
+		t.Fatalf("create deployment config-file volume: %v", err)
+	}
+
+	if len(define.GetVolumes()) != 1 || len(define.GetVolumeMounts()) != 1 {
+		t.Fatalf("expected one volume and one mount, got volumes=%#v mounts=%#v", define.GetVolumes(), define.GetVolumeMounts())
+	}
+	volumeName := define.GetVolumes()[0].Name
+	if strings.Contains(volumeName, ".") {
+		t.Fatalf("expected k8s volume name to avoid dots for config file volume, got %q", volumeName)
+	}
+	if define.GetVolumeMounts()[0].Name != volumeName {
+		t.Fatalf("expected volume mount name %q to match volume name %q", define.GetVolumeMounts()[0].Name, volumeName)
+	}
+	if define.GetVolumeMounts()[0].MountPath != "/etc/nginx/conf.d/web.conf" {
+		t.Fatalf("expected mount path to preserve file path, got %q", define.GetVolumeMounts()[0].MountPath)
+	}
+	if define.GetVolumeMounts()[0].SubPath != "web.conf" {
+		t.Fatalf("expected subPath to preserve file name, got %q", define.GetVolumeMounts()[0].SubPath)
+	}
+	if len(as.GetConfigMaps()) != 1 || as.GetConfigMaps()[0].Data["web.conf"] != "server {}\n" {
+		t.Fatalf("expected configmap to preserve web.conf content, got %#v", as.GetConfigMaps())
+	}
+}
+
+// capability_id: rainbond.config-file.k8s-volume-name-safe
+func TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName(t *testing.T) {
+	as := newDeploymentAppServiceForVolumeTest()
+	depVolume := &dbmodel.TenantServiceVolume{
+		Model:      dbmodel.Model{ID: 6},
+		ServiceID:  "dep-service-1",
+		VolumeName: "web.conf",
+		VolumePath: "/source/web.conf",
+		VolumeType: "config-file",
+	}
+	mountRelation := &dbmodel.TenantServiceMountRelation{
+		Model:           dbmodel.Model{ID: 7},
+		ServiceID:       "service-1",
+		DependServiceID: "dep-service-1",
+		VolumeName:      "web.conf",
+		VolumePath:      "/etc/nginx/conf.d/web.conf",
+		VolumeType:      "config-file",
+	}
+	manager := volumeManagerStub{
+		volumeDao: tenantServiceVolumeDaoStub{volume: depVolume},
+		configFileDao: tenantServiceConfigFileDaoStub{
+			file: &dbmodel.TenantServiceConfigFile{
+				Model:       dbmodel.Model{CreatedAt: time.Now()},
+				ServiceID:   "dep-service-1",
+				VolumeName:  "web.conf",
+				FileContent: "server {}\n",
+			},
+		},
+	}
+
+	vol := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true)
+	configVolume, ok := vol.(*ConfigFileVolume)
+	if !ok {
+		t.Fatalf("expected dependent config-file volume to use ConfigFileVolume, got %T", vol)
+	}
+
+	define := &Define{as: as}
+	if err := configVolume.CreateDependVolume(define); err != nil {
+		t.Fatalf("create dependent deployment config-file volume: %v", err)
+	}
+
+	if len(define.GetVolumes()) != 1 || len(define.GetVolumeMounts()) != 1 {
+		t.Fatalf("expected one volume and one mount, got volumes=%#v mounts=%#v", define.GetVolumes(), define.GetVolumeMounts())
+	}
+	volumeName := define.GetVolumes()[0].Name
+	if strings.Contains(volumeName, ".") {
+		t.Fatalf("expected k8s volume name to avoid dots for dependent config file volume, got %q", volumeName)
+	}
+	if define.GetVolumeMounts()[0].Name != volumeName {
+		t.Fatalf("expected volume mount name %q to match volume name %q", define.GetVolumeMounts()[0].Name, volumeName)
+	}
+	if define.GetVolumeMounts()[0].MountPath != "/etc/nginx/conf.d/web.conf" {
+		t.Fatalf("expected dependent mount path to preserve file path, got %q", define.GetVolumeMounts()[0].MountPath)
+	}
+	if define.GetVolumeMounts()[0].SubPath != "web.conf" {
+		t.Fatalf("expected dependent subPath to preserve file name, got %q", define.GetVolumeMounts()[0].SubPath)
+	}
 }
 
 // capability_id: rainbond.vm-volume-selected-storage-class
