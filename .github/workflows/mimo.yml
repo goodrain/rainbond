@@ -133,12 +133,12 @@ jobs:
           ${{ github.repository }} repository.
 
           The platform spans three repos under "${{ github.repository_owner }}":
-            - ${{ github.repository_owner }}/rainbond         (Go 1.23, port 8443) core services
+            - ${{ github.repository_owner }}/rainbond         (Go, port 8443) core services
               (API/builder/worker); only layer that talks to Kubernetes.
-            - ${{ github.repository_owner }}/rainbond-console (Python 3.6 / Django 2.2, port 7070)
+            - ${{ github.repository_owner }}/rainbond-console (Python / Django, port 7070)
               web backend; serves UI, orchestrates rainbond via RegionInvokeApi
               (/v2/tenants/...). Same MySQL instance, separate logical DB.
-            - ${{ github.repository_owner }}/rainbond-ui      (React 16.8 / UMI) frontend;
+            - ${{ github.repository_owner }}/rainbond-ui      (React / UMI) frontend;
               calls console at /console/* and /openapi/v1/*.
 
           Request flow: rainbond-ui -> rainbond-console -> rainbond -> Kubernetes.
