@@ -73,6 +73,9 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 			podStatus.Reason = condition.Reason
 			// Translate condition reasons to user-friendly messages
 			podStatus.Message = translateConditionReason(condition.Reason, condition.Message)
+			if condition.Type == corev1.PodScheduled && condition.Reason == "Unschedulable" {
+				podStatus.Type = pb.PodStatus_ABNORMAL
+			}
 		}
 	}
 	if podStatus.Type == pb.PodStatus_PENDING {
