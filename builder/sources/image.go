@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -51,8 +52,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/mirror"
 	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/mirror"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
@@ -700,6 +701,7 @@ func formatStageLog(fields map[string]interface{}) string {
 }
 
 func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) corev1.PodSpec {
+	arch = normalizeBuildKitArch(arch)
 	podSpec := corev1.PodSpec{
 		RestartPolicy: corev1.RestartPolicyOnFailure,
 		Affinity: &corev1.Affinity{
@@ -735,6 +737,14 @@ func newBuildKitPodSpec(arch, hostIP string, hostAliases []corev1.HostAlias) cor
 		}
 	}
 	return podSpec
+}
+
+func normalizeBuildKitArch(arch string) string {
+	arch = strings.TrimSpace(arch)
+	if arch == "" {
+		return runtime.GOARCH
+	}
+	return arch
 }
 
 // ImageInspectWithRaw get image inspect
