@@ -201,6 +201,7 @@
 | rainbond.plugin-build.detect-dockerfile | 检测插件源码目录中是否存在 Dockerfile | active | regression | builder/exector.checkDockerfile | builder/exector/plugin_dockerfile_test.go::TestCheckDockerfile |
 | rainbond.plugin-build.image-input-validate | 在插件镜像构建前拒绝空值或非法镜像引用 | active | regression | builder/exector.exectorManager.run | builder/exector/plugin_image_test.go::TestPluginImageRunRejectsEmptyImageURL |
 | rainbond.plugin-build.image-tag | 根据源镜像名和版本生成插件镜像标签 | active | regression | builder/exector.createPluginImageTag | builder/exector/plugin_image_test.go::TestCreatePluginImageTag |
+| rainbond.plugin-dockerfile-build.default-arch-affinity | Default plugin Dockerfile build arch affinity | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime |
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
@@ -2409,6 +2410,16 @@
 - 业务入口: `builder/exector.createPluginImageTag`
 - 代码路径: `builder/exector/plugin_image.go`
 - 测试路径: `builder/exector/plugin_image_test.go::TestCreatePluginImageTag`
+
+### Default plugin Dockerfile build arch affinity
+
+- Capability ID: `rainbond.plugin-dockerfile-build.default-arch-affinity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sources.newBuildKitPodSpec`
+- 代码路径: `builder/sources/image.go`, `builder/exector/plugin_dockerfile.go`, `api/handler/plugin.go`, `api/model/pluginModel.go`
+- 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime`
 
 ### 缺少 rainbondfile 时返回未找到
 

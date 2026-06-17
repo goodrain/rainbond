@@ -309,6 +309,7 @@ type BuildPluginReq struct {
 	Operator      string `json:"operator" validate:"operator"`
 	TenantID      string `json:"tenant_id" validate:"tenant_id"`
 	BuildImage    string `json:"build_image" validate:"build_image"`
+	Arch          string `json:"arch"` // Plugin architecture (amd64, arm64, etc.)
 	ImageInfo     struct {
 		HubURL      string `json:"hub_url"`
 		HubUser     string `json:"hub_user"`

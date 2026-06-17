@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -150,6 +151,23 @@ func TestNewBuildKitPodSpecAddsTolerationForHostScheduling(t *testing.T) {
 	if len(podSpec.HostAliases) != 1 || podSpec.HostAliases[0].IP != "10.0.0.2" {
 		t.Fatalf("expected host aliases to be preserved, got %#v", podSpec.HostAliases)
 	}
+}
+
+// capability_id: rainbond.plugin-dockerfile-build.default-arch-affinity
+func TestNewBuildKitPodSpecDefaultsMissingArchToRuntime(t *testing.T) {
+	podSpec := newBuildKitPodSpec("", "node-1", nil)
+
+	terms := podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+	for _, expr := range terms[0].MatchExpressions {
+		if expr.Key != "kubernetes.io/arch" {
+			continue
+		}
+		if len(expr.Values) != 1 || expr.Values[0] != runtime.GOARCH {
+			t.Fatalf("expected arch affinity to default to %q, got %#v", runtime.GOARCH, expr.Values)
+		}
+		return
+	}
+	t.Fatal("expected arch affinity expression")
 }
 
 // capability_id: rainbond.vm-publish.stage-timing-logs

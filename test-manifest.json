@@ -3750,6 +3750,27 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugin-dockerfile-build.default-arch-affinity",
+      "title": "Default plugin Dockerfile build arch affinity",
+      "title_zh": "Default plugin Dockerfile build arch affinity",
+      "interface_type": "workflow",
+      "interface": "builder/sources.newBuildKitPodSpec",
+      "code_paths": [
+        "builder/sources/image.go",
+        "builder/exector/plugin_dockerfile.go",
+        "api/handler/plugin.go",
+        "api/model/pluginModel.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestNewBuildKitPodSpecDefaultsMissingArchToRuntime"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",
