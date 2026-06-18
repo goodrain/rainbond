@@ -127,6 +127,7 @@
 | rainbond.framework-detect.version-normalization | 规范化框架依赖版本号 | active | regression | builder/parser/code.cleanVersion | builder/parser/code/framework_test.go::TestCleanVersion |
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
+| rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
@@ -1670,6 +1671,16 @@
 - 业务入口: `api/handler.selectAvailablePort`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestSelectAvailablePort`
+
+### 删除网关 HTTPRoute 时记录组件事件
+
+- Capability ID: `rainbond.gateway.http-route-delete-component-event`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `service_method`
+- 业务入口: `github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute`
+- 代码路径: `api/handler/gateway_action.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents`
 
 ### Reassign imported TCP ports that conflict with existing NodePorts
 

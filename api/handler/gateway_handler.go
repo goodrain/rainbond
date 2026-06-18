@@ -34,7 +34,7 @@ type ComponentIngressTask struct {
 	IsInner     bool   `json:"is_inner"`
 }
 
-//GatewayHandler gateway api handler
+// GatewayHandler gateway api handler
 type GatewayHandler interface {
 	BatchGetGatewayHTTPRoute(namespace, appID string) ([]*apimodel.GatewayHTTPRouteConcise, error)
 
@@ -45,7 +45,7 @@ type GatewayHandler interface {
 	AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*dbmodel.K8sResource, error)
 	GetGatewayHTTPRoute(name, namespace string) (*apimodel.GatewayHTTPRouteStruct, error)
 	UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*dbmodel.K8sResource, error)
-	DeleteGatewayHTTPRoute(name, namespace, appID string) error
+	DeleteGatewayHTTPRoute(name, namespace, appID, operator string) error
 
 	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
 	CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error
