@@ -2706,16 +2706,27 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 	for _, serviceID := range serviceIDs {
 		status := statusList[serviceID]
 		service := serviceMap[serviceID]
-		if status == "" && service != nil {
+		// If service not found in database, include error info for the caller
+		if service == nil {
+			serviceInfo := map[string]interface{}{
+				"service_id": serviceID,
+				"status":     "unknown",
+				"status_cn":  "unknown",
+				"error":      "service not found",
+			}
+			info = append(info, serviceInfo)
+			continue
+		}
+		if status == "" {
 			status = service.CurStatus
 		}
-		if service != nil && service.IsVM() {
+		if service.IsVM() {
 			if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
 				status = vmStatus
 			}
 		}
 		if status == "" {
-			continue
+			status = "unknown"
 		}
 		serviceInfo := map[string]interface{}{"service_id": serviceID, "status": status, "status_cn": TransStatus(status), "used_mem": 0}
 		info = append(info, serviceInfo)

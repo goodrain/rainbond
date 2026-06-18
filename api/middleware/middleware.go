@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -58,17 +59,17 @@ func InitTenant(next http.Handler) http.Handler {
 
 		tenantName := chi.URLParam(r, "tenant_name")
 		if tenantName == "" {
-			httputil.ReturnError(r, w, 404, "cant find tenant")
+			httputil.ReturnBcodeError(r, w, bcode.ErrTenantNotFound)
 			return
 		}
 		tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
 		if err != nil {
 			logrus.Errorf("get tenant by tenantName error: %s %v", tenantName, err)
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				httputil.ReturnError(r, w, 404, "cant find tenant")
+				httputil.ReturnBcodeError(r, w, bcode.ErrTenantNotFound)
 				return
 			}
-			httputil.ReturnError(r, w, 500, "get assign tenant uuid failed")
+			httputil.ReturnBcodeError(r, w, bcode.ServerErr)
 			return
 		}
 
@@ -85,7 +86,7 @@ func InitService(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		serviceAlias := chi.URLParam(r, "service_alias")
 		if serviceAlias == "" {
-			httputil.ReturnError(r, w, 404, "cant find service alias")
+			httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
 			return
 		}
 
@@ -101,11 +102,11 @@ func InitService(next http.Handler) http.Handler {
 		service, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenantID.(string), serviceAlias)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				httputil.ReturnError(r, w, 404, "cant find service")
+				httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
 				return
 			}
 			logrus.Errorf("get service by tenant & service alias error, %v", err)
-			httputil.ReturnError(r, w, 500, "get service id error")
+			httputil.ReturnBcodeError(r, w, bcode.ServerErr)
 			return
 		}
 		serviceID := service.ServiceID
@@ -223,17 +224,17 @@ func InitPlugin(next http.Handler) http.Handler {
 		pluginID := chi.URLParam(r, "plugin_id")
 		tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 		if pluginID == "" {
-			httputil.ReturnError(r, w, 404, "need plugin id")
+			httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
 			return
 		}
 		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				httputil.ReturnError(r, w, 404, "cant find plugin")
+				httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
 				return
 			}
 			logrus.Errorf("get plugin error, %v", err)
-			httputil.ReturnError(r, w, 500, "get plugin error")
+			httputil.ReturnBcodeError(r, w, bcode.ServerErr)
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("plugin_id"), pluginID)

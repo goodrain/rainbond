@@ -2,6 +2,8 @@ package bcode
 
 // service: 10000~10099
 var (
+	// ErrComponentNotFound is returned when the component/service cannot be found.
+	ErrComponentNotFound = newByMessage(404, 10000, "component not found")
 	//ErrPortNotFound -
 	ErrPortNotFound = newByMessage(404, 10001, "service port not found")
 	//ErrServiceMonitorNotFound -
