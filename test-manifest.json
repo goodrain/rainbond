@@ -2270,6 +2270,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.http-route-delete-component-event",
+      "title": "Record component event when deleting Gateway HTTPRoute",
+      "title_zh": "\u5220\u9664\u7f51\u5173 HTTPRoute \u65f6\u8bb0\u5f55\u7ec4\u4ef6\u4e8b\u4ef6",
+      "interface_type": "service_method",
+      "interface": "github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute",
+      "code_paths": [
+        "api/handler/gateway_action.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestCreateGatewayHTTPRouteDeleteEvents"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.reassign-conflicting-imported-tcp-port",
       "title": "Reassign imported TCP ports that conflict with existing NodePorts",
       "interface_type": "package_function",
