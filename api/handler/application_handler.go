@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -647,6 +648,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	for _, vol := range vols {
 		diskUsage += vol.VolumeCapacity
 	}
+	diskUsageKB := a.getAllocatedDiskKB(ctx, app.AppID, diskUsage)
 	var cpu *int64
 	if status.SetCPU {
 		cpu = commonutil.Int64(status.Cpu)
@@ -657,11 +659,10 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	}
 
 	res := &model.AppStatus{
-		Status: status.Status,
-		CPU:    cpu,
-		Memory: memory,
-		// diskUsage 在数据库中存储的单位是 GB，但是控制台是以 KB 为单位展示的，因此需要单位转换
-		Disk:       diskUsage * 1024 * 1024,
+		Status:     status.Status,
+		CPU:        cpu,
+		Memory:     memory,
+		Disk:       diskUsageKB,
 		Phase:      status.Phase,
 		Overrides:  status.Overrides,
 		Version:    status.Version,
@@ -671,6 +672,75 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		K8sApp:     app.K8sApp,
 	}
 	return res, nil
+}
+
+func (a *ApplicationAction) getAllocatedDiskKB(ctx context.Context, appID string, dbDiskGB int64) int64 {
+	dbDiskKB := dbDiskGB * 1024 * 1024
+	pvcDiskKB, err := a.getPVCDiskRequestsKB(ctx, appID)
+	if err != nil {
+		logrus.Warningf("list pvc disk requests by app_id %s failure: %v", appID, err)
+		return dbDiskKB
+	}
+	if pvcDiskKB > dbDiskKB {
+		return pvcDiskKB
+	}
+	return dbDiskKB
+}
+
+func (a *ApplicationAction) getPVCDiskRequestsKB(ctx context.Context, appID string) (int64, error) {
+	if a.kubeClient == nil || appID == "" {
+		return 0, nil
+	}
+	selector := labels.SelectorFromSet(labels.Set{"app_id": appID}).String()
+	pvcs, err := a.kubeClient.CoreV1().PersistentVolumeClaims(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	var totalBytes int64
+	seen := make(map[string]struct{})
+	addPVC := func(pvc *corev1.PersistentVolumeClaim) {
+		key := pvc.Namespace + "/" + pvc.Name
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		if storage, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			totalBytes += storage.Value()
+		}
+	}
+	for _, pvc := range pvcs.Items {
+		addPVC(&pvc)
+	}
+
+	pods, err := a.kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, pod := range pods.Items {
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim == nil || volume.PersistentVolumeClaim.ClaimName == "" {
+				continue
+			}
+			key := pod.Namespace + "/" + volume.PersistentVolumeClaim.ClaimName
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			pvc, err := a.kubeClient.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
+			if k8sErrors.IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return 0, err
+			}
+			addPVC(pvc)
+		}
+	}
+	return totalBytes / 1024, nil
 }
 
 // Install installs the application.

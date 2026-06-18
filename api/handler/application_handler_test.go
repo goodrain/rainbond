@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"testing"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -9,6 +10,10 @@ import (
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 type applicationPortsTestManager struct {
@@ -86,4 +91,92 @@ func TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName(t *testing.T)
 	assert.Equal(t, []string{"shared-service"}, tenantServicesPortDao.requestedNames)
 	assert.Error(t, err)
 	assert.True(t, bcode.ErrK8sServiceNameExists.Equal(err))
+}
+
+func TestApplicationActionGetPVCDiskRequestsKBByAppID(t *testing.T) {
+	kubeClient := k8sfake.NewSimpleClientset(
+		&corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "data-mysql-0",
+				Namespace: "demo",
+				Labels: map[string]string{
+					"app_id": "app-1",
+				},
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		},
+		&corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "data-other-0",
+				Namespace: "demo",
+				Labels: map[string]string{
+					"app_id": "app-2",
+				},
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("20Gi"),
+					},
+				},
+			},
+		},
+	)
+	action := &ApplicationAction{kubeClient: kubeClient}
+
+	got, err := action.getPVCDiskRequestsKB(context.Background(), "app-1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(10*1024*1024), got)
+}
+
+func TestApplicationActionGetPVCDiskRequestsKBFromAppPods(t *testing.T) {
+	kubeClient := k8sfake.NewSimpleClientset(
+		&corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "data-mysql-0",
+				Namespace: "demo",
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mysql-0",
+				Namespace: "demo",
+				Labels: map[string]string{
+					"app_id": "app-1",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Volumes: []corev1.Volume{
+					{
+						Name: "data",
+						VolumeSource: corev1.VolumeSource{
+							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+								ClaimName: "data-mysql-0",
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+	action := &ApplicationAction{kubeClient: kubeClient}
+
+	got, err := action.getPVCDiskRequestsKB(context.Background(), "app-1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(10*1024*1024), got)
 }
