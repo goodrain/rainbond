@@ -72,6 +72,10 @@ func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID,
 	}
 	resourceObjects := c.HandleResourceYaml([]byte(rs.Content), namespace, "get", name, nil)
 
+	if len(resourceObjects) == 0 {
+		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("no resource objects returned for %v", name)}
+	}
+
 	if resourceObjects[0].State != model.GetError {
 		rs.Content, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
 	}
@@ -87,6 +91,11 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
 	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "update", name, map[string]string{"app_id": appID})
+
+	if len(resourceObjects) == 0 {
+		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("no resource objects returned for %v", name)}
+	}
+
 	var rsYaml string
 	if resourceObjects[0].State == model.UpdateError {
 		rsYaml = resourceYaml

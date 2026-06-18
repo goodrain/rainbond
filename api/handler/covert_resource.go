@@ -50,6 +50,10 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			logrus.Errorf("Failed to get Deployment %v:%v", dmName, err)
 			return nil
 		}
+		if len(resources.Spec.Template.Spec.Containers) == 0 {
+			logrus.Errorf("Deployment %v has no containers, skipping", dmName)
+			continue
+		}
 		memory, cpu := resources.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), resources.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		if memory == 0 {
 			memory = resources.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -87,6 +91,10 @@ func (c *clusterAction) workloadStateFulSets(stsNames []string, namespace string
 			logrus.Errorf("Failed to get Deployment %v:%v", stsName, err)
 			return nil
 		}
+		if len(resources.Spec.Template.Spec.Containers) == 0 {
+			logrus.Errorf("StatefulSet %v has no containers, skipping", stsName)
+			continue
+		}
 		memory, cpu := resources.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), resources.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 		if memory == 0 {
 			memory = resources.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -123,6 +131,10 @@ func (c *clusterAction) workloadJobs(jobNames []string, namespace string) []mode
 		if err != nil {
 			logrus.Errorf("Failed to get Deployment %v:%v", jobName, err)
 			return nil
+		}
+		if len(resources.Spec.Template.Spec.Containers) == 0 {
+			logrus.Errorf("Job %v has no containers, skipping", jobName)
+			continue
 		}
 		var BackoffLimit, Parallelism, ActiveDeadlineSeconds, Completions string
 		if resources.Spec.BackoffLimit != nil {
@@ -181,6 +193,10 @@ func (c *clusterAction) workloadCronJobs(cjNames []string, namespace string) []m
 		if err != nil {
 			logrus.Errorf("Failed to get Deployment %v:%v", cjName, err)
 			return nil
+		}
+		if len(resources.Spec.JobTemplate.Spec.Template.Spec.Containers) == 0 {
+			logrus.Errorf("CronJob %v has no containers, skipping", cjName)
+			continue
 		}
 		BackoffLimit, Parallelism, ActiveDeadlineSeconds, Completions := "", "", "", ""
 		if resources.Spec.JobTemplate.Spec.BackoffLimit != nil {

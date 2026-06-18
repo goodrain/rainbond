@@ -360,6 +360,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 				deployJSON, _ := json.Marshal(buildResource.Resource)
 				var deployObject appv1.Deployment
 				json.Unmarshal(deployJSON, &deployObject)
+				if len(deployObject.Spec.Template.Spec.Containers) == 0 {
+					logrus.Errorf("Deployment %v has no containers, skipping", buildResource.Resource.GetName())
+					continue
+				}
 				memory, cpu := deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -390,6 +394,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 				jobJSON, _ := json.Marshal(buildResource.Resource)
 				var jobObject batchv1.Job
 				json.Unmarshal(jobJSON, &jobObject)
+				if len(jobObject.Spec.Template.Spec.Containers) == 0 {
+					logrus.Errorf("Job %v has no containers, skipping", buildResource.Resource.GetName())
+					continue
+				}
 				memory, cpu := jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -420,6 +428,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 				cjJSON, _ := json.Marshal(buildResource.Resource)
 				var cjObject batchv1.CronJob
 				json.Unmarshal(cjJSON, &cjObject)
+				if len(cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers) == 0 {
+					logrus.Errorf("CronJob %v has no containers, skipping", buildResource.Resource.GetName())
+					continue
+				}
 				memory, cpu := cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
@@ -450,6 +462,10 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 				stsJSON, _ := json.Marshal(buildResource.Resource)
 				var stsObject appv1.StatefulSet
 				json.Unmarshal(stsJSON, &stsObject)
+				if len(stsObject.Spec.Template.Spec.Containers) == 0 {
+					logrus.Errorf("StatefulSet %v has no containers, skipping", buildResource.Resource.GetName())
+					continue
+				}
 				memory, cpu := stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
 					memory = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()

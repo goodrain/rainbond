@@ -40,6 +40,7 @@ func InitAPIHandle() error {
 		return err
 	}
 	defaultGatewayHandler = CreateGatewayManager()
+	defaultAPIGatewayHandler = CreateGatewayManager()
 	def3rdPartySvcHandler = Create3rdPartySvcHandler()
 	operationHandler = CreateOperationHandler()
 	batchOperationHandler = CreateBatchOperationHandler(operationHandler)
