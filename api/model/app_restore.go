@@ -58,8 +58,8 @@ type RestoreDepsReq struct {
 
 // RestoreDep holds infomations of service dependency.
 type RestoreDep struct {
-	DepServiceID   string `validata:"dep_service_id|required" json:"dep_service_id"`
-	DepServiceType string `validata:"dep_service_type|required" json:"dep_service_type"`
+	DepServiceID   string `validate:"dep_service_id|required" json:"dep_service_id"`
+	DepServiceType string `validate:"dep_service_type|required" json:"dep_service_type"`
 }
 
 // RestoreDepVolsReq defines a struct to receive the request body
