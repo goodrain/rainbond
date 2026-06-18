@@ -792,3 +792,19 @@ func (c *ClusterController) ListCNBFrameworks(w http.ResponseWriter, r *http.Req
 	frameworks := code.GetSupportedFrameworks(lang)
 	httputil.ReturnSuccess(r, w, frameworks)
 }
+
+// RegionReadiness returns whether the region API is ready to serve requests.
+// The console can probe this endpoint to detect unavailability before making
+// API calls, receiving structured errors instead of raw stack traces.
+func (c *ClusterController) RegionReadiness(w http.ResponseWriter, r *http.Request) {
+	result, err := handler.GetClusterHandler().CheckReadiness(r.Context())
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("readiness check failed: %v", err))
+		return
+	}
+	if !result.Ready {
+		httputil.ReturnError(r, w, 503, result.Message)
+		return
+	}
+	httputil.ReturnSuccess(r, w, result)
+}

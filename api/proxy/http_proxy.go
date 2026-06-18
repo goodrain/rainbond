@@ -19,6 +19,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -39,19 +40,42 @@ type HTTPProxy struct {
 	client    *http.Client
 }
 
+// proxyErrorResponse is the JSON body returned when the proxy cannot reach
+// the upstream endpoint.  Keeping it small avoids information leaks while
+// still giving callers a structured response instead of a bare status code.
+type proxyErrorResponse struct {
+	Code    int    `json:"code"`
+	Msg     string `json:"msg"`
+	Detail  string `json:"detail,omitempty"`
+}
+
+// writeProxyError sends a structured JSON error response for proxy failures.
+func writeProxyError(w http.ResponseWriter, statusCode int, msg, detail string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	resp := proxyErrorResponse{Code: statusCode, Msg: msg, Detail: detail}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logrus.Errorf("failed to encode proxy error response: %v", err)
+	}
+}
+
 // Proxy http proxy
 func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	endpoint := h.lb.Select(r, h.endpoints)
 	endURL, err := url.Parse(endpoint.GetHTTPAddr())
 	if err != nil {
 		logrus.Errorf("parse endpoint url error,%s", err.Error())
-		w.WriteHeader(502)
+		writeProxyError(w, http.StatusBadGateway, "upstream endpoint unavailable", "failed to parse endpoint address")
 		return
 	}
 	if endURL.Scheme == "" {
 		endURL.Scheme = "http"
 	}
 	proxy := httputil.NewSingleHostReverseProxy(endURL)
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		logrus.Errorf("proxy request to %s failed: %v", endURL.String(), err)
+		writeProxyError(w, http.StatusBadGateway, "upstream service unreachable", err.Error())
+	}
 	proxy.ServeHTTP(w, r)
 }
 
