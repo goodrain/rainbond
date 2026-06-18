@@ -66,15 +66,15 @@ var (
 	ErrRouteNotFound = newByMessage(http.StatusNotFound, RouteNotFound, "route not found")
 
 	// ErrRouteExist 标识路由已存在
-	ErrRouteExist = newByMessage(http.StatusBadRequest, RouteExists, "路由地址已存在")
+	ErrRouteExist = newByMessage(http.StatusBadRequest, RouteExists, "route already exists")
 
 	// ErrRouteUpdate 表示路由更新错误
-	ErrRouteUpdate = newByMessage(http.StatusBadRequest, RouteUpdateError, "路由更新错误,请检查参数")
+	ErrRouteUpdate = newByMessage(http.StatusBadRequest, RouteUpdateError, "route update error, please check parameters")
 
-	ErrPortExists = newByMessage(http.StatusBadRequest, RouteCreateErrorPortExists, "端口已经被占用,请更换端口")
+	ErrPortExists = newByMessage(http.StatusBadRequest, RouteCreateErrorPortExists, "port is already in use, please use a different port")
 
 	// ErrRouteCreate 表示路由创建错误
-	ErrRouteCreate = newByMessage(http.StatusBadRequest, RouteCreateError, "路由创建错误,请检查参数")
+	ErrRouteCreate = newByMessage(http.StatusBadRequest, RouteCreateError, "route creation error, please check parameters")
 
 	// ErrRouteDelete 表示路由删除错误
 	ErrRouteDelete = newByMessage(http.StatusBadRequest, RouteDeleteError, "route delete error")

@@ -84,6 +84,7 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 			}
 			logrus.Errorf("update route %v failure: %v", item.Name, err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
 		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
@@ -579,7 +580,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			},
 			Spec: spec,
 		}
-		for {
+		const maxRetries = 100
+		serviceCreated := false
+		for retryCount := 0; retryCount < maxRetries; retryCount++ {
 			// 设置服务的 NodePort
 			nodePort := service.Spec.Ports[0].NodePort
 			// 创建服务
@@ -598,14 +601,20 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				} else {
 					// 其他错误，返回失败
 					logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-					httputil.ReturnBcodeError(r, w, fmt.Errorf("create tcp rule func, create svc failure: %s", err.Error()))
+					httputil.ReturnBcodeError(r, w, bcode.ErrServiceCreate)
 					return
 				}
 			}
 			apisixRouteStream.Match.IngressPort = nodePort
 			// 如果创建成功，退出循环
 			logrus.Infof("Service created successfully with NodePort %d", nodePort)
+			serviceCreated = true
 			break
+		}
+		if !serviceCreated {
+			logrus.Errorf("failed to create TCP route after %d retries", maxRetries)
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
 		}
 	} else {
 		// Service exists, update it
