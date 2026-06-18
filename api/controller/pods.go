@@ -20,6 +20,7 @@ package controller
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +29,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/util/constants"
@@ -247,6 +249,10 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 			defer stream.Close()
 
 			scanner := bufio.NewScanner(stream)
+			// Increase buffer size to handle large log lines
+			buf := make([]byte, 0, 64*1024)
+			scanner.Buffer(buf, 1024*1024)
+
 			for scanner.Scan() {
 				select {
 				case <-r.Context().Done():
@@ -254,14 +260,19 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 				case <-doneChan:
 					return
 				default:
-					// Prefix log line with container name
-					logLine := fmt.Sprintf("[%s] %s", cName, scanner.Text())
+					// Prefix log line with container name and sanitize non-UTF8 bytes
+					logLine := fmt.Sprintf("[%s] %s", cName, sanitizeLogLine(scanner.Text()))
 					logChan <- logLine
 				}
 			}
 			if err := scanner.Err(); err != nil {
 				if isExpectedLogStreamClose(r.Context(), err) {
 					logrus.Infof("Log stream closed for container %s in pod %s/%s: %v", cName, namespace, podName, err)
+					return
+				}
+				// Log transport errors at warning level since they're often transient
+				if isTransportError(err) {
+					logrus.Warningf("Transport error in log stream for container %s in pod %s/%s: %v", cName, namespace, podName, err)
 					return
 				}
 				logrus.Errorf("Error scanning log stream for container %s in pod %s/%s: %v", cName, namespace, podName, err)
@@ -278,11 +289,21 @@ func logs(w http.ResponseWriter, r *http.Request, podName string, namespace stri
 			close(doneChan)
 			logrus.Warningf("Request context done: %v", r.Context().Err())
 			return
-		case logLine := <-logChan:
+		case logLine, ok := <-logChan:
+			if !ok {
+				// Channel closed, all container streams ended
+				logrus.Infof("All container log streams ended for pod %s/%s", namespace, podName)
+				return
+			}
 			msg := "data: " + logLine + "\n\n"
 			_, err := fmt.Fprint(w, msg)
 			flusher.Flush()
 			if err != nil {
+				if isTransportError(err) {
+					logrus.Warningf("Client disconnected during log stream for pod %s/%s: %v", namespace, podName, err)
+					close(doneChan)
+					return
+				}
 				logrus.Errorf("Error writing to response: %v", err)
 				close(doneChan)
 				return
@@ -314,23 +335,39 @@ func streamContainerLogs(
 	defer stream.Close()
 
 	scanner := bufio.NewScanner(stream)
+	// Increase buffer size to handle large log lines
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
 	for scanner.Scan() {
 		select {
 		case <-r.Context().Done():
 			logrus.Warningf("Request context done: %v", r.Context().Err())
 			return
 		default:
-			msg := "data: " + scanner.Text() + "\n\n"
+			// Sanitize non-UTF8 bytes to prevent encoding errors
+			logLine := sanitizeLogLine(scanner.Text())
+			msg := "data: " + logLine + "\n\n"
 			_, err := fmt.Fprint(w, msg)
 			flusher.Flush()
 			if err != nil {
+				if isTransportError(err) {
+					logrus.Warningf("Client disconnected during log stream for pod %s/%s container %s: %v", namespace, podName, container, err)
+					return
+				}
 				logrus.Errorf("Error writing to response: %v", err)
+				return
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		if isExpectedLogStreamClose(r.Context(), err) {
 			logrus.Infof("Single-container log stream closed for pod %s/%s container %s: %v", namespace, podName, container, err)
+			return
+		}
+		// Log transport errors at warning level since they're often transient
+		if isTransportError(err) {
+			logrus.Warningf("Transport error in single-container log stream for pod %s/%s container %s: %v", namespace, podName, container, err)
 			return
 		}
 		logrus.Errorf("Error scanning single-container log stream for pod %s/%s container %s: %v", namespace, podName, container, err)
@@ -374,6 +411,45 @@ func isExpectedLogStreamClose(ctx context.Context, err error) bool {
 		return true
 	}
 	return errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)
+}
+
+// sanitizeLogLine replaces invalid UTF-8 sequences with the Unicode replacement
+// character so that log lines can be safely written to SSE responses without
+// causing encoding errors on the client side.
+func sanitizeLogLine(line string) string {
+	if utf8.ValidString(line) {
+		return line
+	}
+	var buf bytes.Buffer
+	buf.Grow(len(line))
+	for i := 0; i < len(line); {
+		r, size := utf8.DecodeRuneInString(line[i:])
+		if r == utf8.RuneError && size == 1 {
+			buf.WriteRune('�') // Unicode replacement character
+			i++
+		} else {
+			buf.WriteRune(r)
+			i += size
+		}
+	}
+	return buf.String()
+}
+
+// isTransportError checks if the error is a transport-level error that indicates
+// a connection issue (connection reset, broken pipe, etc.)
+func isTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	// Check for common transport error strings
+	errStr := err.Error()
+	return strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "use of closed network connection")
 }
 
 // SystemPodLogs -
