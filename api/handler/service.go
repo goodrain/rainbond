@@ -2676,6 +2676,9 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 }
 
 // GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
+// GetServicesStatus returns status for all requested services.
+// Missing services are included with status "unknown" and an error field
+// to help callers identify partial failures in topology views.
 func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) []map[string]interface{} {
 	var services []*dbmodel.TenantServices
 	if len(serviceIDs) == 0 {
@@ -2708,6 +2711,7 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 		service := serviceMap[serviceID]
 		// If service not found in database, include error info for the caller
 		if service == nil {
+			logrus.Debugf("service %s not found in database, included as unknown in status response", serviceID)
 			serviceInfo := map[string]interface{}{
 				"service_id": serviceID,
 				"status":     "unknown",

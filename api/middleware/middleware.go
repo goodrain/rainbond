@@ -224,13 +224,13 @@ func InitPlugin(next http.Handler) http.Handler {
 		pluginID := chi.URLParam(r, "plugin_id")
 		tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 		if pluginID == "" {
-			httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
+			httputil.ReturnBcodeError(r, w, bcode.ErrPluginNotFound)
 			return
 		}
 		_, err := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				httputil.ReturnBcodeError(r, w, bcode.ErrComponentNotFound)
+				httputil.ReturnBcodeError(r, w, bcode.ErrPluginNotFound)
 				return
 			}
 			logrus.Errorf("get plugin error, %v", err)
