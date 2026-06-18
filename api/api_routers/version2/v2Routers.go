@@ -20,8 +20,14 @@ package version2
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -29,12 +35,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	http2 "github.com/goodrain/rainbond/util/http"
-	"io"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
 )
 
 // V2 v2
@@ -161,6 +163,20 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 		req.URL.Path = "/" + strings.TrimLeft(proxyPath, "/")
 		req.Host = backend.Host
 	}
+	// Serialize transport errors as JSON instead of leaking raw exception objects
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		logrus.Errorf("plugin proxy error for %s: %v", plugin.Name, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		resp := map[string]interface{}{
+			"code":    http.StatusBadGateway,
+			"msg":     fmt.Sprintf("plugin backend unavailable: %s", err.Error()),
+			"plugin":  plugin.Name,
+		}
+		if encErr := json.NewEncoder(w).Encode(resp); encErr != nil {
+			logrus.Errorf("failed to encode plugin proxy error response: %v", encErr)
+		}
+	}
 	proxy.ServeHTTP(w, r)
 }
 
@@ -183,7 +199,8 @@ func resolveBackend(plugin *v1alpha1.RBDPlugin) (url *url.URL, err error) {
 func getRBDPlugin(pluginName string) (*v1alpha1.RBDPlugin, error) {
 	plugin, err := k8s.Default().RainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceNone).Get(context.TODO(), pluginName, metav1.GetOptions{})
 	if err != nil {
-		return nil, errors.New("plugin not found")
+		// Wrap transport errors with more context for better error messages
+		return nil, fmt.Errorf("plugin %q not found or unavailable: %w", pluginName, err)
 	}
 	return plugin, nil
 }
