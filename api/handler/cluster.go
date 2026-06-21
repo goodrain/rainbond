@@ -2,6 +2,10 @@ package handler
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -102,6 +106,7 @@ type ClusterHandler interface {
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 	ListUpgradeStatus() ([]model.ComponentStatus, error)
 	GetClusterRegionStatus() (map[string]interface{}, error)
+	CheckReadiness(ctx context.Context) (*model.RegionReadiness, error)
 }
 
 // NewClusterHandler -
@@ -1333,6 +1338,14 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 			caPem := secret.Data["ca.pem"]
 			clientPem := secret.Data["server.pem"]
 			clientKey := secret.Data["server.key.pem"]
+
+			// Validate PEM certificates before returning them to the console.
+			// Invalid PEM data causes SSLError: PEM lib on the console side.
+			if err := validatePEMCertificates(caPem, clientPem, clientKey); err != nil {
+				logrus.Errorf("region certificate validation failed: %v", err)
+				return nil, fmt.Errorf("region certificates invalid: %v", err)
+			}
+
 			regionInfo := make(map[string]interface{})
 			regionInfo["regionName"] = time.Now().Unix()
 			regionInfo["regionType"] = []string{"custom"}
@@ -1366,4 +1379,152 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 		}
 	}
 	return nil, fmt.Errorf("get rbd-api-server-cert secret is nil")
+}
+
+// validatePEMCertificates checks that the CA, certificate, and key PEM blocks
+// are parseable and that the certificate/key pair is consistent. This prevents
+// the console from receiving malformed certificates that cause SSLError: PEM lib.
+func validatePEMCertificates(caPEM, certPEM, keyPEM []byte) error {
+	if len(caPEM) == 0 {
+		return fmt.Errorf("ca.pem is empty")
+	}
+	if len(certPEM) == 0 {
+		return fmt.Errorf("server.pem is empty")
+	}
+	if len(keyPEM) == 0 {
+		return fmt.Errorf("server.key.pem is empty")
+	}
+
+	// Validate CA certificate
+	caBlock, _ := pem.Decode(caPEM)
+	if caBlock == nil {
+		return fmt.Errorf("ca.pem: no valid PEM block found")
+	}
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("ca.pem: failed to parse certificate: %v", err)
+	}
+	if !caCert.IsCA {
+		return fmt.Errorf("ca.pem: certificate is not a CA certificate")
+	}
+
+	// Validate server certificate
+	certBlock, _ := pem.Decode(certPEM)
+	if certBlock == nil {
+		return fmt.Errorf("server.pem: no valid PEM block found")
+	}
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("server.pem: failed to parse certificate: %v", err)
+	}
+
+	// Validate private key
+	keyBlock, _ := pem.Decode(keyPEM)
+	if keyBlock == nil {
+		return fmt.Errorf("server.key.pem: no valid PEM block found")
+	}
+	switch keyBlock.Type {
+	case "RSA PRIVATE KEY":
+		key, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("server.key.pem: failed to parse RSA private key: %v", err)
+		}
+		if pubKey, ok := cert.PublicKey.(*rsa.PublicKey); ok {
+			if key.N.Cmp(pubKey.N) != 0 {
+				return fmt.Errorf("server.key.pem: private key does not match server certificate")
+			}
+		}
+	case "EC PRIVATE KEY":
+		key, err := x509.ParseECPrivateKey(keyBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("server.key.pem: failed to parse EC private key: %v", err)
+		}
+		if pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
+			if key.PublicKey.X.Cmp(pubKey.X) != 0 || key.PublicKey.Y.Cmp(pubKey.Y) != 0 {
+				return fmt.Errorf("server.key.pem: private key does not match server certificate")
+			}
+		}
+	case "PRIVATE KEY":
+		// PKCS#8 format
+		parsedKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("server.key.pem: failed to parse PKCS8 private key: %v", err)
+		}
+		switch k := parsedKey.(type) {
+		case *rsa.PrivateKey:
+			if pubKey, ok := cert.PublicKey.(*rsa.PublicKey); ok {
+				if k.N.Cmp(pubKey.N) != 0 {
+					return fmt.Errorf("server.key.pem: private key does not match server certificate")
+				}
+			}
+		case *ecdsa.PrivateKey:
+			if pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
+				if k.PublicKey.X.Cmp(pubKey.X) != 0 || k.PublicKey.Y.Cmp(pubKey.Y) != 0 {
+					return fmt.Errorf("server.key.pem: private key does not match server certificate")
+				}
+			}
+		default:
+			return fmt.Errorf("server.key.pem: unsupported key type in PKCS8 container")
+		}
+	default:
+		return fmt.Errorf("server.key.pem: unsupported key type %q", keyBlock.Type)
+	}
+
+	// Validate certificate chain: server cert must be signed by the CA
+	caPool := x509.NewCertPool()
+	caPool.AddCert(caCert)
+	if _, err := cert.Verify(x509.VerifyOptions{
+		Roots:     caPool,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}); err != nil {
+		return fmt.Errorf("certificate chain validation failed: server cert is not signed by the CA: %v", err)
+	}
+
+	return nil
+}
+
+// CheckReadiness verifies that the region API dependencies are available.
+// The console can call this endpoint to detect region unavailability before
+// making API calls, returning structured errors instead of raw stack traces.
+func (c *clusterAction) CheckReadiness(ctx context.Context) (*model.RegionReadiness, error) {
+	checks := make(map[string]string)
+	ready := true
+
+	// Check K8s API connectivity
+	k8sCtx, k8sCancel := context.WithTimeout(ctx, 3*time.Second)
+	defer k8sCancel()
+	if _, err := c.clientset.CoreV1().Namespaces().List(k8sCtx, metav1.ListOptions{Limit: 1}); err != nil {
+		ready = false
+		checks["k8s_api"] = fmt.Sprintf("unavailable: %v", err)
+		logrus.Warnf("readiness check: k8s api unavailable: %v", err)
+	} else {
+		checks["k8s_api"] = "ok"
+	}
+
+	// Check region certificate secret exists and is valid
+	secretCtx, secretCancel := context.WithTimeout(ctx, 3*time.Second)
+	defer secretCancel()
+	secret := &corev1.Secret{}
+	if err := c.client.Get(secretCtx, types.NamespacedName{Namespace: c.namespace, Name: "rbd-api-server-cert"}, secret); err != nil {
+		ready = false
+		checks["region_cert"] = fmt.Sprintf("unavailable: %v", err)
+		logrus.Warnf("readiness check: region cert secret unavailable: %v", err)
+	} else {
+		if err := validatePEMCertificates(secret.Data["ca.pem"], secret.Data["server.pem"], secret.Data["server.key.pem"]); err != nil {
+			ready = false
+			checks["region_cert"] = fmt.Sprintf("invalid: %v", err)
+			logrus.Warnf("readiness check: region certificates invalid: %v", err)
+		} else {
+			checks["region_cert"] = "ok"
+		}
+	}
+
+	result := &model.RegionReadiness{
+		Ready:  ready,
+		Checks: checks,
+	}
+	if !ready {
+		result.Message = "region is not ready; some dependencies are unavailable"
+	}
+	return result, nil
 }

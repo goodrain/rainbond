@@ -79,3 +79,10 @@ type GatewayResource struct {
 	NodePortIP     []string `json:"node_port_ip,omitempty"`
 	ListenerNames  []string `json:"listener_names"`
 }
+
+// RegionReadiness describes whether the region API is ready to serve requests.
+type RegionReadiness struct {
+	Ready          bool              `json:"ready"`
+	Checks         map[string]string `json:"checks,omitempty"`
+	Message        string            `json:"message,omitempty"`
+}
