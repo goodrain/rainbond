@@ -170,7 +170,8 @@ func (g *GatewayStruct) deleteGatewayHTTPRoute(w http.ResponseWriter, r *http.Re
 	name := r.FormValue("name")
 	namespace := r.FormValue("namespace")
 	appID := r.FormValue("app_id")
-	err := handler.GetGatewayHandler().DeleteGatewayHTTPRoute(name, namespace, appID)
+	operator := r.FormValue("operator")
+	err := handler.GetGatewayHandler().DeleteGatewayHTTPRoute(name, namespace, appID, operator)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete gateway http rule: %v", err))
 		return

@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -109,4 +110,60 @@ func TestGetStatefulsetModifiedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(bytes))
+}
+
+// capability_id: rainbond.worker.patch.daemonset-upgrade
+func TestSetUpgradePatchCreatesDaemonSetPatch(t *testing.T) {
+	oldApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID: "service-a",
+		},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.25",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	newApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID:     "service-a",
+			DeployVersion: "v2",
+		},
+		UpgradePatch: map[string][]byte{},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.26",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := oldApp.SetUpgradePatch(newApp); err != nil {
+		t.Fatalf("set daemonset upgrade patch: %v", err)
+	}
+
+	patch := string(newApp.UpgradePatch["daemonset"])
+	if patch == "" {
+		t.Fatalf("expected daemonset upgrade patch to be set")
+	}
+	if !strings.Contains(patch, "nginx:1.26") {
+		t.Fatalf("expected daemonset patch to include new image, got %s", patch)
+	}
 }

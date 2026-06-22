@@ -372,6 +372,7 @@ func (p *PluginAction) buildPlugin(b *apimodel.BuildPluginStruct, plugin *dbmode
 		TaskType: taskType,
 		TaskBody: taskBody,
 		Topic:    client.BuilderTopic,
+		Arch:     b.Body.Arch,
 	})
 	if err != nil {
 		updateVersion()
@@ -415,6 +416,7 @@ func (p *PluginAction) batchBuildPlugins(req *apimodel.BatchBuildPlugins, plugin
 			GitURL:        reqPluginRel[buildReq.PluginID].GitURL,
 			GitUsername:   buildReq.Username,
 			GitPassword:   buildReq.Password,
+			Arch:          buildReq.Arch,
 		}
 		taskType := "plugin_image_build"
 		loggerInfo := map[string]string{"step": "image-plugin", "status": "starting"}
@@ -426,6 +428,7 @@ func (p *PluginAction) batchBuildPlugins(req *apimodel.BatchBuildPlugins, plugin
 			TaskType: taskType,
 			TaskBody: taskBody,
 			Topic:    client.BuilderTopic,
+			Arch:     buildReq.Arch,
 		})
 		pluginBuildVersion := buildReq.DbModel(reqPluginRel[buildReq.PluginID])
 		if err != nil {

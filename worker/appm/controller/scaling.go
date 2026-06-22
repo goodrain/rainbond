@@ -40,7 +40,7 @@ type scalingController struct {
 	stopChan     chan struct{}
 }
 
-//Begin  start handle service scaling
+// Begin  start handle service scaling
 func (s *scalingController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
@@ -63,13 +63,16 @@ func (s *scalingController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 
-//Replicas petch replicas to n
+// Replicas petch replicas to n
 func Replicas(n int) []byte {
 	return []byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, n))
 }
 
 func (s *scalingController) scalingOne(service v1.AppService) error {
 	if service.ServiceType == v1.TypeKubeBlocks {
+		return nil
+	}
+	if service.GetDaemonSet() != nil {
 		return nil
 	}
 	if statefulset := service.GetStatefulSet(); statefulset != nil {
@@ -102,7 +105,7 @@ func (s *scalingController) scalingOne(service v1.AppService) error {
 	return nil
 }
 
-//WaitingReady wait app start or upgrade ready
+// WaitingReady wait app start or upgrade ready
 func (s *scalingController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32

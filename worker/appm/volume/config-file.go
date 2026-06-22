@@ -187,5 +187,9 @@ func stableVMConfigMapName(serviceID, volumeName string) string {
 	if serviceID == "" || volumeName == "" {
 		return util.NewUUID()
 	}
-	return fmt.Sprintf("vm-cfg-%s-%s", serviceID, volumeName)
+	hash, err := util.CreateHashString(fmt.Sprintf("%s:%s", serviceID, volumeName))
+	if err != nil || len(hash) < 16 {
+		return util.NewUUID()
+	}
+	return fmt.Sprintf("vm-cfg-%s", hash[:16])
 }

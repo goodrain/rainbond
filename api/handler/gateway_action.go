@@ -20,6 +20,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
@@ -690,18 +691,106 @@ func (g *GatewayAction) UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStr
 	return &res, nil
 }
 
-// DeleteGatewayHTTPRoute delete gateway http route
-func (g *GatewayAction) DeleteGatewayHTTPRoute(name, namespace, appID string) error {
-	err := g.gatewayClient.HTTPRoutes(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+func (g *GatewayAction) createGatewayHTTPRouteDeleteEvents(route *apimodel.GatewayHTTPRouteStruct, operator string) ([]*model.ServiceEvent, error) {
+	if route == nil {
+		return nil, nil
+	}
+	serviceNames := gatewayHTTPRouteBackendServiceNames(route)
+	if len(serviceNames) == 0 {
+		return nil, nil
+	}
+	ports, err := db.GetManager().TenantServicesPortDao().ListByK8sServiceNames(serviceNames)
 	if err != nil {
+		return nil, err
+	}
+	if len(ports) == 0 {
+		return nil, nil
+	}
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"name":                  route.Name,
+		"hosts":                 route.Hosts,
+		"backend_service_names": serviceNames,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var events []*model.ServiceEvent
+	seenTargets := make(map[string]struct{})
+	for _, port := range ports {
+		if port == nil || port.ServiceID == "" || port.TenantID == "" {
+			continue
+		}
+		if _, ok := seenTargets[port.ServiceID]; ok {
+			continue
+		}
+		seenTargets[port.ServiceID] = struct{}{}
+		event, err := apiutil.CreateEvent(model.TargetTypeService, "delete-gateway-http-route", port.ServiceID,
+			port.TenantID, string(reqBody), operator, "", "", model.SYNEVENTTYPE)
+		if err != nil {
+			return events, err
+		}
+		events = append(events, event)
+	}
+	return events, nil
+}
+
+func gatewayHTTPRouteBackendServiceNames(route *apimodel.GatewayHTTPRouteStruct) []string {
+	seen := make(map[string]struct{})
+	var serviceNames []string
+	for _, rule := range route.Rules {
+		if rule == nil {
+			continue
+		}
+		for _, backendRef := range rule.BackendRefsRules {
+			if backendRef == nil || backendRef.Name == "" {
+				continue
+			}
+			if backendRef.Kind != "" && backendRef.Kind != apimodel.Service {
+				continue
+			}
+			if _, ok := seen[backendRef.Name]; ok {
+				continue
+			}
+			seen[backendRef.Name] = struct{}{}
+			serviceNames = append(serviceNames, backendRef.Name)
+		}
+	}
+	return serviceNames
+}
+
+func updateGatewayHTTPRouteDeleteEvents(events []*model.ServiceEvent, statusCode int) {
+	for _, event := range events {
+		if event != nil {
+			apiutil.UpdateEvent(event.EventID, statusCode)
+		}
+	}
+}
+
+// DeleteGatewayHTTPRoute delete gateway http route
+func (g *GatewayAction) DeleteGatewayHTTPRoute(name, namespace, appID, operator string) error {
+	route, err := g.GetGatewayHTTPRoute(name, namespace)
+	if err != nil {
+		logrus.Errorf("get gateway http route before delete failure: %v", err)
+		return err
+	}
+	events, err := g.createGatewayHTTPRouteDeleteEvents(route, operator)
+	if err != nil {
+		logrus.Errorf("create gateway http route delete events failure: %v", err)
+		return err
+	}
+	err = g.gatewayClient.HTTPRoutes(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		updateGatewayHTTPRouteDeleteEvents(events, 500)
 		logrus.Errorf("delete gateway http route failure: %v", err)
 		return err
 	}
 	err = db.GetManager().K8sResourceDao().DeleteK8sResource(appID, name, apimodel.HTTPRoute)
 	if err != nil {
+		updateGatewayHTTPRouteDeleteEvents(events, 500)
 		logrus.Errorf("database operation gateway http route delete k8s resource failure: %v", err)
 		return err
 	}
+	updateGatewayHTTPRouteDeleteEvents(events, 200)
 	return nil
 }
 

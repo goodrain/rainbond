@@ -76,6 +76,12 @@ func ServiceSource(as *v1.AppService, dbmanager db.Manager) error {
 				return decodeError(err)
 			}
 			as.SetStatefulSet(&ss)
+		case "daemonset":
+			var ds appsv1.DaemonSet
+			if err := decoding(ssc.SourceBody, &ds); err != nil {
+				return decodeError(err)
+			}
+			as.SetDaemonSet(&ds)
 		case "configmap":
 			var cm corev1.ConfigMap
 			if err := decoding(ssc.SourceBody, &cm); err != nil {
@@ -162,6 +168,10 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	if tenantService.IsKubeBlocksComponent() {
 		initKubeBlocksComponent(as, tenantService)
+		return nil
+	}
+	if tenantService.IsDaemonSet() {
+		initBaseDaemonSet(as, tenantService)
 		return nil
 	}
 	if !tenantService.IsState() {
@@ -275,6 +285,28 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 		deployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
 	}
 	as.SetDeployment(deployment)
+}
+
+func initBaseDaemonSet(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeDaemonSet
+	daemonSet := as.GetDaemonSet()
+	if daemonSet == nil {
+		daemonSet = &appsv1.DaemonSet{}
+	}
+	daemonSet.Namespace = as.GetNamespace()
+	if daemonSet.Spec.Selector == nil {
+		daemonSet.Spec.Selector = &metav1.LabelSelector{}
+	}
+	initSelector(daemonSet.Spec.Selector, service)
+	daemonSet.Name = as.GetK8sWorkloadName()
+	daemonSet.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
+	injectLabels := getInjectLabels(as)
+	daemonSet.Labels = as.GetCommonLabels(daemonSet.Labels, map[string]string{
+		"name":    service.ServiceAlias,
+		"version": service.DeployVersion,
+	}, injectLabels)
+	daemonSet.Spec.UpdateStrategy.Type = appsv1.RollingUpdateDaemonSetStrategyType
+	as.SetDaemonSet(daemonSet)
 }
 
 func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {

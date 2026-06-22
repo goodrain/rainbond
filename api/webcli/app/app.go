@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -48,6 +49,16 @@ var ExecuteCommandTotal float64
 
 // ExecuteCommandFailed metric
 var ExecuteCommandFailed float64
+
+const (
+	// EnvDebugToolboxImage configures the toolbox image used for debug terminals.
+	EnvDebugToolboxImage = "WEBCLI_DEBUG_TOOLBOX_IMAGE"
+	// DefaultDebugToolboxImage is used when EnvDebugToolboxImage is not set.
+	DefaultDebugToolboxImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/toolbox:v1.0"
+
+	webcliModeDebug          = "debug"
+	debugContainerNamePrefix = "rb-debug-"
+)
 
 // App -
 type App struct {
@@ -95,6 +106,7 @@ type InitMessage struct {
 	ContainerName string `json:"containerName"`
 	Md5           string `json:"Md5"`
 	Namespace     string `json:"namespace"`
+	Mode          string `json:"mode"`
 }
 
 // SetUpgrader -
@@ -158,7 +170,11 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 	retryInterval := time.Second
 
 	for i := 0; i < maxRetries; i++ {
-		containerName, ip, args, err = app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
+		if init.Mode == webcliModeDebug {
+			containerName, ip, args, err = app.GetDebugContainerArgs(init.Namespace, init.PodName, init.ContainerName)
+		} else {
+			containerName, ip, args, err = app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
+		}
 		if err == nil {
 			break
 		}
@@ -224,6 +240,14 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+// DebugToolboxImage returns the configured toolbox image for debug terminals.
+func DebugToolboxImage() string {
+	if image := strings.TrimSpace(os.Getenv(EnvDebugToolboxImage)); image != "" {
+		return image
+	}
+	return DefaultDebugToolboxImage
+}
 func (app *App) CreateKubeClient() error {
 	config, err := k8sutil.NewRestConfig("")
 	if err != nil {
@@ -266,50 +290,230 @@ func (app *App) GetContainerArgs(namespace, podname, containerName string) (stri
 		return "", "", args, err
 	}
 
-	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
-		return "", "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	if err := validateExecPod(pod); err != nil {
+		return "", "", args, err
 	}
 
-	// 检查 Pod 是否就绪
-	if pod.Status.Phase != api.PodRunning {
-		return "", "", args, fmt.Errorf("pod is not running yet; current phase is %s", pod.Status.Phase)
-	}
-
-	// 查找目标容器
-	var targetContainerName string
-	for i, container := range pod.Spec.Containers {
-		if container.Name == containerName || (containerName == "" && i == 0) {
-			targetContainerName = container.Name
-			for _, env := range container.Env {
-				if env.Name == "ES_DEFAULT_EXEC_ARGS" {
-					args = strings.Split(env.Value, " ")
-				}
-			}
-			break
-		}
-	}
-
-	if targetContainerName == "" {
+	targetContainer, err := selectTargetContainer(pod, containerName)
+	if err != nil {
 		return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
 	}
-
-	// 检查容器是否就绪
-	containerReady := false
-	for _, status := range pod.Status.ContainerStatuses {
-		if status.Name == targetContainerName {
-			if !status.Ready || status.State.Running == nil {
-				return "", "", args, fmt.Errorf("container %s is not ready yet", targetContainerName)
-			}
-			containerReady = true
-			break
+	for _, env := range targetContainer.Env {
+		if env.Name == "ES_DEFAULT_EXEC_ARGS" {
+			args = strings.Split(env.Value, " ")
 		}
 	}
 
-	if !containerReady {
-		return "", "", args, fmt.Errorf("container %s status not found", targetContainerName)
+	if err := ensureContainerRunning(pod.Status.ContainerStatuses, targetContainer.Name); err != nil {
+		return "", "", args, err
 	}
 
-	return targetContainerName, pod.Status.PodIP, args, nil
+	return targetContainer.Name, pod.Status.PodIP, args, nil
+}
+
+// GetDebugContainerArgs ensures an ephemeral toolbox container exists and returns exec args for it.
+func (app *App) GetDebugContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
+	var args = []string{"/bin/sh"}
+	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
+	if err != nil {
+		return "", "", args, err
+	}
+
+	if err := validateExecPod(pod); err != nil {
+		return "", "", args, err
+	}
+
+	targetContainer, err := selectTargetContainer(pod, containerName)
+	if err != nil {
+		return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
+	}
+	if err := ensureContainerRunning(pod.Status.ContainerStatuses, targetContainer.Name); err != nil {
+		return "", "", args, err
+	}
+
+	debugContainer, debugStatus := findReusableDebugContainer(pod, targetContainer.Name, DebugToolboxImage())
+	if debugContainer != nil {
+		if debugStatus != nil && debugStatus.State.Running != nil {
+			return debugContainer.Name, pod.Status.PodIP, args, nil
+		}
+		if debugStatus != nil && debugStatus.State.Terminated != nil {
+			return app.createDebugContainer(namespace, podname, pod, targetContainer, args)
+		}
+		return "", "", args, fmt.Errorf("debug container %s is not running yet", debugContainer.Name)
+	}
+
+	return app.createDebugContainer(namespace, podname, pod, targetContainer, args)
+}
+
+func (app *App) createDebugContainer(namespace, podname string, pod *api.Pod, targetContainer *api.Container, args []string) (string, string, []string, error) {
+	debugName, err := nextDebugContainerName(pod, targetContainer.Name)
+	if err != nil {
+		return "", "", args, err
+	}
+
+	podCopy := pod.DeepCopy()
+	podCopy.Spec.EphemeralContainers = append(podCopy.Spec.EphemeralContainers, api.EphemeralContainer{
+		EphemeralContainerCommon: api.EphemeralContainerCommon{
+			Name:            debugName,
+			Image:           DebugToolboxImage(),
+			ImagePullPolicy: api.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-c", "trap : TERM INT; sleep infinity & wait"},
+			VolumeMounts:    debugVolumeMounts(targetContainer),
+			Stdin:           true,
+			TTY:             true,
+		},
+		TargetContainerName: targetContainer.Name,
+	})
+
+	if _, err := app.coreClient.CoreV1().Pods(namespace).UpdateEphemeralContainers(context.Background(), podname, podCopy, metav1.UpdateOptions{}); err != nil {
+		return "", "", args, fmt.Errorf("create debug container failure: %w", err)
+	}
+	return "", "", args, fmt.Errorf("debug container %s is not running yet", debugName)
+}
+
+func validateExecPod(pod *api.Pod) error {
+	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
+		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+	if pod.Status.Phase != api.PodRunning {
+		return fmt.Errorf("pod is not running yet; current phase is %s", pod.Status.Phase)
+	}
+	return nil
+}
+
+func selectTargetContainer(pod *api.Pod, containerName string) (*api.Container, error) {
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
+		if container.Name == containerName || (containerName == "" && i == 0) {
+			return container, nil
+		}
+	}
+	return nil, fmt.Errorf("container %s not found", containerName)
+}
+
+func ensureContainerRunning(statuses []api.ContainerStatus, containerName string) error {
+	for _, status := range statuses {
+		if status.Name == containerName {
+			if !status.Ready || status.State.Running == nil {
+				return fmt.Errorf("container %s is not ready yet", containerName)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("container %s status not found", containerName)
+}
+
+func findReusableDebugContainer(pod *api.Pod, targetContainerName, image string) (*api.EphemeralContainer, *api.ContainerStatus) {
+	var firstMatchedContainer *api.EphemeralContainer
+	var firstMatchedStatus *api.ContainerStatus
+	for i := range pod.Spec.EphemeralContainers {
+		container := &pod.Spec.EphemeralContainers[i]
+		if container.TargetContainerName != targetContainerName || container.Image != image {
+			continue
+		}
+		status := findEphemeralContainerStatus(pod, container.Name)
+		if status != nil && status.State.Running != nil {
+			return container, status
+		}
+		if firstMatchedContainer == nil {
+			firstMatchedContainer = container
+			firstMatchedStatus = status
+		}
+	}
+	return firstMatchedContainer, firstMatchedStatus
+}
+
+func findEphemeralContainerStatus(pod *api.Pod, containerName string) *api.ContainerStatus {
+	for i := range pod.Status.EphemeralContainerStatuses {
+		status := &pod.Status.EphemeralContainerStatuses[i]
+		if status.Name == containerName {
+			return status
+		}
+	}
+	return nil
+}
+
+func debugVolumeMounts(targetContainer *api.Container) []api.VolumeMount {
+	volumeMounts := make([]api.VolumeMount, 0, len(targetContainer.VolumeMounts))
+	for _, volumeMount := range targetContainer.VolumeMounts {
+		if volumeMount.SubPath != "" || volumeMount.SubPathExpr != "" {
+			continue
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+	return volumeMounts
+}
+
+func nextDebugContainerName(pod *api.Pod, targetContainerName string) (string, error) {
+	base := debugContainerBaseName(targetContainerName)
+	for i := 0; i < 100; i++ {
+		name := base
+		if i > 0 {
+			suffix := fmt.Sprintf("-%d", i)
+			name = trimDNSLabel(base, len(suffix)) + suffix
+		}
+		if !podContainerNameExists(pod, name) {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("cannot generate debug container name for %s", targetContainerName)
+}
+
+func debugContainerBaseName(targetContainerName string) string {
+	name := sanitizeDNSLabel(debugContainerNamePrefix + targetContainerName)
+	if name == "" || name == debugContainerNamePrefix[:len(debugContainerNamePrefix)-1] {
+		name = debugContainerNamePrefix + "container"
+	}
+	return trimDNSLabel(name, 0)
+}
+
+func sanitizeDNSLabel(value string) string {
+	value = strings.ToLower(value)
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		valid := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if valid {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(builder.String(), "-")
+}
+
+func trimDNSLabel(name string, reservedSuffixLength int) string {
+	maxLength := 63 - reservedSuffixLength
+	if maxLength < 1 {
+		maxLength = 1
+	}
+	if len(name) > maxLength {
+		name = name[:maxLength]
+	}
+	return strings.Trim(name, "-")
+}
+
+func podContainerNameExists(pod *api.Pod, name string) bool {
+	for _, container := range pod.Spec.Containers {
+		if container.Name == name {
+			return true
+		}
+	}
+	for _, container := range pod.Spec.InitContainers {
+		if container.Name == name {
+			return true
+		}
+	}
+	for _, container := range pod.Spec.EphemeralContainers {
+		if container.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // NewRequest new exec request

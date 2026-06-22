@@ -309,6 +309,40 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-import.propagate-image-push-error",
+      "title": "Return imported image push errors during app import",
+      "interface_type": "workflow",
+      "interface": "builder/exector.ensureImportedImagesPushed",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestEnsureImportedImagesPushedReturnsPushError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.app-import.propagate-task-error",
+      "title": "Return app import task errors to the import worker",
+      "interface_type": "workflow",
+      "interface": "builder/exector.runImportAppTasks",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestRunImportAppTasksReturnsTaskError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-import.scaling-rule-compat",
       "title": "Preserve legacy scaling rules during app import",
       "title_zh": "\u5bfc\u5165\u5e94\u7528\u65f6\u4fdd\u7559\u65e7\u7248\u4f38\u7f29\u89c4\u5219",
@@ -321,6 +355,23 @@
         {
           "path": "builder/exector/import_app_test.go",
           "selector": "TestNormalizeImportedRAMPreservesLegacyScalingRule"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.app-import.wait-image-push",
+      "title": "Wait for imported component and plugin images to be pushed",
+      "interface_type": "workflow",
+      "interface": "builder/exector.ensureImportedImagesPushed",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce"
         }
       ],
       "test_type": "regression",
@@ -1489,6 +1540,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.config-file.k8s-volume-name-safe",
+      "title": "Keep config-file Kubernetes volume names DNS-safe",
+      "title_zh": "Keep config-file Kubernetes volume names DNS-safe",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ConfigFileVolume.CreateVolume",
+      "code_paths": [
+        "worker/appm/volume/config-file.go",
+        "worker/appm/volume/volume.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName"
+        },
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.config-files.detect",
       "title": "Detect npm and yarn config files in source tree",
       "title_zh": "\u8bc6\u522b\u6e90\u7801\u76ee\u5f55\u4e2d\u7684 npm \u548c yarn \u914d\u7f6e\u6587\u4ef6",
@@ -1773,6 +1847,24 @@
         {
           "path": "util/endpoint/validation_test.go",
           "selector": "TestValidateEndpointIP"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.env-var.noop-update",
+      "title": "Treat no-op component env updates as success",
+      "title_zh": "Treat no-op component env updates as success",
+      "interface_type": "dao_method",
+      "interface": "db.mysql.dao.TenantServiceEnvVarDaoImpl.UpdateModelByAttrName",
+      "code_paths": [
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/tenant_service_env_var_test.go",
+          "selector": "TestTenantServiceEnvVarDaoUpdateModelByAttrNameNoopSucceeds"
         }
       ],
       "test_type": "regression",
@@ -2241,6 +2333,24 @@
         {
           "path": "api/handler/gateway_action_test.go",
           "selector": "TestSelectAvailablePort"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.http-route-delete-component-event",
+      "title": "Record component event when deleting Gateway HTTPRoute",
+      "title_zh": "\u5220\u9664\u7f51\u5173 HTTPRoute \u65f6\u8bb0\u5f55\u7ec4\u4ef6\u4e8b\u4ef6",
+      "interface_type": "service_method",
+      "interface": "github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute",
+      "code_paths": [
+        "api/handler/gateway_action.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestCreateGatewayHTTPRouteDeleteEvents"
         }
       ],
       "test_type": "regression",
@@ -3676,6 +3786,27 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugin-dockerfile-build.default-arch-affinity",
+      "title": "Default plugin Dockerfile build arch affinity",
+      "title_zh": "Default plugin Dockerfile build arch affinity",
+      "interface_type": "workflow",
+      "interface": "builder/sources.newBuildKitPodSpec",
+      "code_paths": [
+        "builder/sources/image.go",
+        "builder/exector/plugin_dockerfile.go",
+        "api/handler/plugin.go",
+        "api/model/pluginModel.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestNewBuildKitPodSpecDefaultsMissingArchToRuntime"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",
@@ -3802,6 +3933,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.resource-import.daemonset-component",
+      "title": "Import DaemonSet as component",
+      "title_zh": "\u5c06 DaemonSet \u5bfc\u5165\u4e3a\u7ec4\u4ef6",
+      "interface_type": "handler_method",
+      "interface": "api.handler.ComponentController.CreateComponent",
+      "code_paths": [
+        "api/handler/resource_import.go",
+        "api/model/namespace_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_import_daemonset_test.go",
+          "selector": "TestExtendMethodForResourceTypeSupportsDaemonSet"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.runtime.composite-nodejs",
       "title": "Use node runtime parser for composite dockerfile and node language",
       "title_zh": "\u590d\u5408\u8bed\u8a00\u573a\u666f\u4f7f\u7528 Node \u8fd0\u884c\u65f6\u89e3\u6790",
@@ -3904,6 +4054,24 @@
         {
           "path": "builder/exector/service_check_test.go",
           "selector": "TestLogServiceCheckProgressMirrorsMessageToEventLogger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service-type.daemonset",
+      "title": "DaemonSet service type classification",
+      "title_zh": "DaemonSet \u7ec4\u4ef6\u7c7b\u578b\u5206\u7c7b",
+      "interface_type": "service_method",
+      "interface": "db.model.ServiceType",
+      "code_paths": [
+        "db/model/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "db/model/tenant_daemonset_test.go",
+          "selector": "TestServiceTypeDaemonSetClassification"
         }
       ],
       "test_type": "regression",
@@ -7512,6 +7680,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.conversion.daemonset-workload",
+      "title": "Create DaemonSet workload from service type",
+      "title_zh": "\u6839\u636e\u7ec4\u4ef6\u7c7b\u578b\u521b\u5efa DaemonSet \u5de5\u4f5c\u8d1f\u8f7d",
+      "interface_type": "service_method",
+      "interface": "worker.appm.conversion.TenantServiceBase",
+      "code_paths": [
+        "worker/appm/conversion/service.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/service_daemonset_test.go",
+          "selector": "TestInitBaseDaemonSetCreatesDaemonSetWorkload"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.helmapp.chart-ref",
       "title": "Compose Helm chart references from repo and template names",
       "title_zh": "\u6839\u636e\u4ed3\u5e93\u540d\u4e0e\u6a21\u677f\u540d\u62fc\u88c5 Helm chart \u5f15\u7528",
@@ -7885,6 +8071,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.patch.daemonset-upgrade",
+      "title": "DaemonSet upgrade patch",
+      "title_zh": "DaemonSet \u5347\u7ea7\u8865\u4e01\u751f\u6210",
+      "interface_type": "service_method",
+      "interface": "worker.appm.types.v1.AppService.SetUpgradePatch",
+      "code_paths": [
+        "worker/appm/types/v1/patch.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/types/v1/patch_test.go",
+          "selector": "TestSetUpgradePatchCreatesDaemonSetPatch"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.pod-status.describe",
       "title": "Describe pod status from conditions container states and events",
       "title_zh": "\u6839\u636e\u6761\u4ef6\u5bb9\u5668\u72b6\u6001\u4e0e\u4e8b\u4ef6\u5f52\u7c7b Pod \u72b6\u6001",
@@ -7897,6 +8101,28 @@
         {
           "path": "worker/util/pod_test.go",
           "selector": "TestDescribePodStatus"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.status.daemonset",
+      "title": "DaemonSet runtime status",
+      "title_zh": "DaemonSet \u8fd0\u884c\u72b6\u6001\u8ba1\u7b97",
+      "interface_type": "service_method",
+      "interface": "worker.appm.types.v1.AppService.GetServiceStatus",
+      "code_paths": [
+        "worker/appm/types/v1/status.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/types/v1/status_test.go",
+          "selector": "TestGetServiceStatusReturnsRunningForReadyDaemonSet"
+        },
+        {
+          "path": "worker/appm/types/v1/status_test.go",
+          "selector": "TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod"
         }
       ],
       "test_type": "regression",

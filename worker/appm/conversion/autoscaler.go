@@ -25,8 +25,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +44,9 @@ var str2ResourceName = map[string]corev1.ResourceName{
 
 // TenantServiceAutoscaler -
 func TenantServiceAutoscaler(as *v1.AppService, dbmanager db.Manager) error {
+	if as.GetDaemonSet() != nil {
+		return nil
+	}
 	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
 		hpas, err := newHPAs(as, dbmanager)
 		if err != nil {
