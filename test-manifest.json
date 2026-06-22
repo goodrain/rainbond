@@ -309,6 +309,40 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-import.propagate-image-push-error",
+      "title": "Return imported image push errors during app import",
+      "interface_type": "workflow",
+      "interface": "builder/exector.ensureImportedImagesPushed",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestEnsureImportedImagesPushedReturnsPushError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.app-import.propagate-task-error",
+      "title": "Return app import task errors to the import worker",
+      "interface_type": "workflow",
+      "interface": "builder/exector.runImportAppTasks",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestRunImportAppTasksReturnsTaskError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-import.scaling-rule-compat",
       "title": "Preserve legacy scaling rules during app import",
       "title_zh": "\u5bfc\u5165\u5e94\u7528\u65f6\u4fdd\u7559\u65e7\u7248\u4f38\u7f29\u89c4\u5219",
@@ -321,6 +355,23 @@
         {
           "path": "builder/exector/import_app_test.go",
           "selector": "TestNormalizeImportedRAMPreservesLegacyScalingRule"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.app-import.wait-image-push",
+      "title": "Wait for imported component and plugin images to be pushed",
+      "interface_type": "workflow",
+      "interface": "builder/exector.ensureImportedImagesPushed",
+      "code_paths": [
+        "builder/exector/import_app.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/import_app_test.go",
+          "selector": "TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce"
         }
       ],
       "test_type": "regression",

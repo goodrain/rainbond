@@ -116,50 +116,56 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 // support batch import
 func (i *ImportApp) importApp() error {
 	oldSourceDir := i.SourceDir
-	var datas []v1alpha1.RainbondApplicationConfig
-	var wait sync.WaitGroup
-	for _, app := range i.Apps {
-		wait.Add(1)
-		go func(app string) {
-			defer wait.Done()
-			appFile := filepath.Join(oldSourceDir, app)
-			err := storage.Default().StorageCli.DownloadDirToDir(oldSourceDir, oldSourceDir)
-			if err != nil {
-				logrus.Errorf("s3 download dir to dir failure %s", err.Error())
-				return
-			}
-			tmpDir := path.Join(oldSourceDir, app+"-cache")
-			li, err := localimport.New(logrus.StandardLogger(), i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), tmpDir)
-			if err != nil {
-				logrus.Errorf("create localimport failure %s", err.Error())
-				return
-			}
-			if err := i.updateStatusForApp(app, "importing"); err != nil {
-				logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
-			}
-			ram, err := li.Import(appFile, v1alpha1.ImageInfo{
-				HubURL:      i.ServiceImage.HubURL,
-				HubUser:     i.ServiceImage.HubUser,
-				HubPassword: i.ServiceImage.HubPassword,
-				Namespace:   i.ServiceImage.NameSpace,
-			})
-			if err != nil {
-				logrus.Errorf("Failed to load app %s: %v", appFile, err)
-				i.updateStatusForApp(app, "failed")
-				return
-			}
-			if rawMetadata, err := readImportedMetadata(tmpDir); err == nil {
-				normalizeImportedRAM(rawMetadata, ram)
-			} else {
-				logrus.Warningf("read imported metadata for %s failure: %v", appFile, err)
-			}
-			os.Rename(appFile, appFile+".success")
-			datas = append(datas, *ram)
-			logrus.Infof("Successful import app: %s", appFile)
-			os.Remove(tmpDir)
-		}(app)
+	datas, err := runImportAppTasks(i.Apps, func(app string) (*v1alpha1.RainbondApplicationConfig, error) {
+		appFile := filepath.Join(oldSourceDir, app)
+		err := storage.Default().StorageCli.DownloadDirToDir(oldSourceDir, oldSourceDir)
+		if err != nil {
+			logrus.Errorf("s3 download dir to dir failure %s", err.Error())
+			i.updateStatusForApp(app, "failed")
+			return nil, err
+		}
+		tmpDir := path.Join(oldSourceDir, app+"-cache")
+		li, err := localimport.New(logrus.StandardLogger(), i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), tmpDir)
+		if err != nil {
+			logrus.Errorf("create localimport failure %s", err.Error())
+			i.updateStatusForApp(app, "failed")
+			return nil, err
+		}
+		if err := i.updateStatusForApp(app, "importing"); err != nil {
+			logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
+		}
+		ram, err := li.Import(appFile, v1alpha1.ImageInfo{
+			HubURL:      i.ServiceImage.HubURL,
+			HubUser:     i.ServiceImage.HubUser,
+			HubPassword: i.ServiceImage.HubPassword,
+			Namespace:   i.ServiceImage.NameSpace,
+		})
+		if err != nil {
+			logrus.Errorf("Failed to load app %s: %v", appFile, err)
+			i.updateStatusForApp(app, "failed")
+			return nil, err
+		}
+		if rawMetadata, err := readImportedMetadata(tmpDir); err == nil {
+			normalizeImportedRAM(rawMetadata, ram)
+		} else {
+			logrus.Warningf("read imported metadata for %s failure: %v", appFile, err)
+		}
+		if err := ensureImportedImagesPushed(i.ImageClient, ram, i.ServiceImage, i.Logger); err != nil {
+			logrus.Errorf("Failed to push imported app images %s: %v", appFile, err)
+			i.updateStatusForApp(app, "failed")
+			return nil, err
+		}
+		os.Rename(appFile, appFile+".success")
+		logrus.Infof("Successful import app: %s", appFile)
+		os.Remove(tmpDir)
+		return ram, nil
+	})
+	if err != nil {
+		if updateErr := i.updateStatus("failed"); updateErr != nil {
+			logrus.Errorf("Failed to update import status to failed for %s: %v", i.SourceDir, updateErr)
+		}
+		return err
 	}
-	wait.Wait()
 	metadatasFile := fmt.Sprintf("%s/metadatas.json", i.SourceDir)
 	dataBytes, _ := json.Marshal(datas)
 	if err := ioutil.WriteFile(metadatasFile, []byte(dataBytes), 0644); err != nil {
@@ -170,12 +176,93 @@ func (i *ImportApp) importApp() error {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
 	}
-	err := storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
+	err = storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
 	if err != nil {
 		logrus.Errorf("Failed to upload apps %s metadatas.json: %v", i.SourceDir, err)
 		return err
 	}
 	return nil
+}
+
+func runImportAppTasks(apps []string, task func(string) (*v1alpha1.RainbondApplicationConfig, error)) ([]v1alpha1.RainbondApplicationConfig, error) {
+	results := make([]*v1alpha1.RainbondApplicationConfig, len(apps))
+	errCh := make(chan error, len(apps))
+	var wait sync.WaitGroup
+	var mu sync.Mutex
+
+	for idx, app := range apps {
+		idx, app := idx, app
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			ram, err := task(app)
+			if err != nil {
+				errCh <- fmt.Errorf("%s: %w", app, err)
+				return
+			}
+			mu.Lock()
+			results[idx] = ram
+			mu.Unlock()
+		}()
+	}
+
+	wait.Wait()
+	close(errCh)
+
+	var importErr error
+	for err := range errCh {
+		importErr = errors.Join(importErr, err)
+	}
+	if importErr != nil {
+		return nil, importErr
+	}
+
+	datas := make([]v1alpha1.RainbondApplicationConfig, 0, len(results))
+	for _, ram := range results {
+		if ram == nil {
+			continue
+		}
+		datas = append(datas, *ram)
+	}
+	return datas, nil
+}
+
+func ensureImportedImagesPushed(imageClient sources.ImageClient, ram *v1alpha1.RainbondApplicationConfig, serviceImage model.ServiceImage, logger event.Logger) error {
+	if imageClient == nil || ram == nil {
+		return nil
+	}
+	pushed := make(map[string]struct{})
+	for _, imageName := range importedImageNames(ram) {
+		if imageName == "" {
+			continue
+		}
+		if _, ok := pushed[imageName]; ok {
+			continue
+		}
+		pushed[imageName] = struct{}{}
+		logrus.Infof("wait for imported image push completion: %s", imageName)
+		if err := imageClient.ImagePush(imageName, serviceImage.HubUser, serviceImage.HubPassword, logger, 20); err != nil {
+			return fmt.Errorf("push imported image %s: %w", imageName, err)
+		}
+	}
+	return nil
+}
+
+func importedImageNames(ram *v1alpha1.RainbondApplicationConfig) []string {
+	var imageNames []string
+	for _, component := range ram.Components {
+		if component == nil {
+			continue
+		}
+		imageNames = append(imageNames, strings.TrimSpace(component.ShareImage))
+	}
+	for _, plugin := range ram.Plugins {
+		if plugin == nil {
+			continue
+		}
+		imageNames = append(imageNames, strings.TrimSpace(plugin.ShareImage))
+	}
+	return imageNames
 }
 
 type importedRAMMetadata struct {

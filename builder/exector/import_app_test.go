@@ -20,10 +20,17 @@ package exector
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/containerd/containerd"
+	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/event"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // capability_id: rainbond.app-import.package-name-normalize
@@ -112,4 +119,100 @@ func TestNormalizeImportedRAMPreservesLegacyScalingRule(t *testing.T) {
 	if ram.Components[0].CPU != 600 {
 		t.Fatalf("expected legacy container_cpu to be restored, got %d", ram.Components[0].CPU)
 	}
+}
+
+// capability_id: rainbond.app-import.wait-image-push
+func TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce(t *testing.T) {
+	ram := &v1alpha1.RainbondApplicationConfig{
+		Components: []*v1alpha1.Component{
+			{ShareImage: "14.103.42.22/rainbond/demo:v1"},
+			nil,
+			{ShareImage: "14.103.42.22/rainbond/demo:v1"},
+		},
+		Plugins: []*v1alpha1.Plugin{
+			{ShareImage: "14.103.42.22/rainbond/plugin:v1"},
+		},
+	}
+	client := &recordingImageClient{}
+
+	err := ensureImportedImagesPushed(client, ram, api_model.ServiceImage{
+		HubUser:     "hub-user",
+		HubPassword: "hub-pass",
+	}, nil)
+
+	if err != nil {
+		t.Fatalf("ensureImportedImagesPushed returned error: %v", err)
+	}
+	want := []string{"14.103.42.22/rainbond/demo:v1", "14.103.42.22/rainbond/plugin:v1"}
+	if !reflect.DeepEqual(client.pushed, want) {
+		t.Fatalf("pushed images=%v, want %v", client.pushed, want)
+	}
+}
+
+// capability_id: rainbond.app-import.propagate-image-push-error
+func TestEnsureImportedImagesPushedReturnsPushError(t *testing.T) {
+	client := &recordingImageClient{pushErr: fmt.Errorf("registry unavailable")}
+
+	err := ensureImportedImagesPushed(client, &v1alpha1.RainbondApplicationConfig{
+		Components: []*v1alpha1.Component{{ShareImage: "14.103.42.22/rainbond/demo:v1"}},
+	}, api_model.ServiceImage{}, nil)
+
+	if err == nil {
+		t.Fatalf("expected push error")
+	}
+	if !strings.Contains(err.Error(), "14.103.42.22/rainbond/demo:v1") {
+		t.Fatalf("error should include image name, got %v", err)
+	}
+}
+
+// capability_id: rainbond.app-import.propagate-task-error
+func TestRunImportAppTasksReturnsTaskError(t *testing.T) {
+	_, err := runImportAppTasks([]string{"ok-app", "bad-app"}, func(app string) (*v1alpha1.RainbondApplicationConfig, error) {
+		if app == "bad-app" {
+			return nil, fmt.Errorf("import failed")
+		}
+		return &v1alpha1.RainbondApplicationConfig{AppName: app}, nil
+	})
+
+	if err == nil {
+		t.Fatalf("expected task error")
+	}
+	if !strings.Contains(err.Error(), "bad-app") {
+		t.Fatalf("error should include app name, got %v", err)
+	}
+}
+
+type recordingImageClient struct {
+	pushed  []string
+	pushErr error
+}
+
+func (r *recordingImageClient) GetContainerdClient() *containerd.Client { return nil }
+func (r *recordingImageClient) GetDockerClient() *dockercli.Client      { return nil }
+func (r *recordingImageClient) CheckIfImageExists(imageName string) (string, bool, error) {
+	return imageName, false, nil
+}
+func (r *recordingImageClient) ImagePull(string, string, string, event.Logger, int) (*ocispec.ImageConfig, error) {
+	return nil, nil
+}
+func (r *recordingImageClient) ImageTag(string, string, event.Logger, int) error { return nil }
+func (r *recordingImageClient) ImagePush(image, user, pass string, logger event.Logger, timeout int) error {
+	r.pushed = append(r.pushed, image)
+	return r.pushErr
+}
+func (r *recordingImageClient) ImagesPullAndPush(string, string, string, string, event.Logger) error {
+	return nil
+}
+func (r *recordingImageClient) ImageRemove(string) error { return nil }
+func (r *recordingImageClient) ImageSave(string, string) error {
+	return nil
+}
+func (r *recordingImageClient) ImageLoad(string, event.Logger) ([]string, error) {
+	return nil, nil
+}
+func (r *recordingImageClient) TrustedImagePush(string, string, string, event.Logger, int) error {
+	return nil
+}
+func (r *recordingImageClient) GetImageMetadata(string, string, string, event.Logger) (*ocispec.ImageConfig, error) {
+	return nil, nil
 }
