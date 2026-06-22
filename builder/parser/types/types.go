@@ -39,6 +39,8 @@ type Volume struct {
 	VolumePath  string `json:"volume_path"`
 	VolumeType  string `json:"volume_type"`
 	FileContent string `json:"file_content,omitempty"`
+	IsReadOnly  bool   `json:"is_read_only,omitempty"`
+	Mode        *int32 `json:"mode,omitempty"`
 }
 
 // Env env desc

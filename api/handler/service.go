@@ -2514,6 +2514,7 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 			ReclaimPolicy:      volume.ReclaimPolicy,
 			AllowExpansion:     volume.AllowExpansion,
 			VolumeProviderName: volume.VolumeProviderName,
+			Mode:               volume.Mode,
 		}
 		volumeID := strconv.FormatInt(int64(volume.ID), 10)
 		if phrase, ok := volumeStatus[volumeID]; ok {

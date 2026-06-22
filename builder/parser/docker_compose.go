@@ -38,7 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//DockerComposeParse docker compose 文件解析
+// DockerComposeParse docker compose 文件解析
 type DockerComposeParse struct {
 	services     map[string]*ServiceInfoFromDC
 	errors       []ParseError
@@ -54,7 +54,7 @@ type DockerComposeParse struct {
 	composeDir      string // compose 文件所在目录，volume 相对路径基于此目录
 }
 
-//ServiceInfoFromDC service info from dockercompose
+// ServiceInfoFromDC service info from dockercompose
 type ServiceInfoFromDC struct {
 	ports       map[int]*types.Port
 	volumes     map[string]*types.Volume
@@ -71,7 +71,7 @@ type ServiceInfoFromDC struct {
 	name        string
 }
 
-//GetPorts 获取端口列表
+// GetPorts 获取端口列表
 func (d *ServiceInfoFromDC) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
@@ -79,7 +79,7 @@ func (d *ServiceInfoFromDC) GetPorts() (ports []types.Port) {
 	return ports
 }
 
-//GetVolumes 获取存储列表
+// GetVolumes 获取存储列表
 func (d *ServiceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
@@ -87,7 +87,7 @@ func (d *ServiceInfoFromDC) GetVolumes() (volumes []types.Volume) {
 	return
 }
 
-//GetEnvs 环境变量
+// GetEnvs 环境变量
 func (d *ServiceInfoFromDC) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
@@ -95,7 +95,7 @@ func (d *ServiceInfoFromDC) GetEnvs() (envs []types.Env) {
 	return
 }
 
-//CreateDockerComposeParse create parser
+// CreateDockerComposeParse create parser
 func CreateDockerComposeParse(source string, user, pass string, logger event.Logger) Parser {
 	return &DockerComposeParse{
 		source:   source,
@@ -106,7 +106,7 @@ func CreateDockerComposeParse(source string, user, pass string, logger event.Log
 	}
 }
 
-//CreateDockerComposeParseFromProject create parser from project package
+// CreateDockerComposeParseFromProject create parser from project package
 func CreateDockerComposeParseFromProject(eventID, composeFilePath, user, pass string, logger event.Logger) Parser {
 	return &DockerComposeParse{
 		eventID:         eventID,
@@ -118,7 +118,7 @@ func CreateDockerComposeParseFromProject(eventID, composeFilePath, user, pass st
 	}
 }
 
-//Parse 解码
+// Parse 解码
 func (d *DockerComposeParse) Parse() ParseErrorList {
 	// 1. 如果是项目包方式，从 S3 下载并解压
 	if d.eventID != "" {
@@ -184,8 +184,9 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		}
 		volumes := make(map[string]*types.Volume)
 		for _, v := range sc.Volumes {
-			targetPath := v.MountPath  // 容器内挂载路径
-			sourcePath := v.Host       // 宿主机/项目中的源路径
+			targetPath := v.MountPath // 容器内挂载路径
+			sourcePath := v.Host      // 宿主机/项目中的源路径
+			isReadOnly := v.Mode == "ro"
 
 			// 没有源路径的匿名卷（如 /app/node_modules），是 Docker 用来排除子目录的，跳过
 			if sourcePath == "" {
@@ -242,6 +243,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 								VolumePath:  containerPath,
 								VolumeType:  model.ConfigFileVolumeType.String(),
 								FileContent: string(content),
+								IsReadOnly:  isReadOnly,
+								Mode:        defaultConfigFileMode(),
 							}
 							logrus.Infof("detected config file from directory: %s -> %s, size: %d bytes", filePath, containerPath, len(content))
 							return nil
@@ -279,6 +282,8 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				VolumePath:  targetPath,
 				VolumeType:  volumeType,
 				FileContent: fileContent,
+				IsReadOnly:  isReadOnly,
+				Mode:        configFileMode(volumeType),
 			}
 		}
 		envs := make(map[string]*types.Env)
@@ -392,11 +397,23 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 	return d.errors
 }
 
+func defaultConfigFileMode() *int32 {
+	var mode int32 = 644
+	return &mode
+}
+
+func configFileMode(volumeType string) *int32 {
+	if volumeType != model.ConfigFileVolumeType.String() {
+		return nil
+	}
+	return defaultConfigFileMode()
+}
+
 func (d *DockerComposeParse) errappend(pe ParseError) {
 	d.errors = append(d.errors, pe)
 }
 
-//GetServiceInfo 获取service info
+// GetServiceInfo 获取service info
 func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	var sis []ServiceInfo
 	for _, service := range d.services {
@@ -425,7 +442,7 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	return sis
 }
 
-//GetImage 获取镜像名
+// GetImage 获取镜像名
 func (d *DockerComposeParse) GetImage() Image {
 	return Image{}
 }
@@ -495,7 +512,6 @@ func (d *DockerComposeParse) getSimplifiedWarningMessage(issue compose.FieldIssu
 		return fmt.Sprintf("服务 %s：%s 配置有限支持，可能会被调整", serviceName, field)
 	}
 }
-
 
 // downloadAndExtractProject downloads and extracts the project package from S3
 func (d *DockerComposeParse) downloadAndExtractProject() error {
@@ -625,8 +641,9 @@ func (d *DockerComposeParse) loadComposeFile() error {
 
 // proxyDockerIOImage 将 docker.io 镜像替换为代理地址
 // 例如: nginx:latest -> docker.1ms.run/library/nginx:latest
-//       langgenius/dify-api:1.12.1 -> docker.1ms.run/langgenius/dify-api:1.12.1
-//       docker.io/library/nginx:latest -> docker.1ms.run/library/nginx:latest
+//
+//	langgenius/dify-api:1.12.1 -> docker.1ms.run/langgenius/dify-api:1.12.1
+//	docker.io/library/nginx:latest -> docker.1ms.run/library/nginx:latest
 func proxyDockerIOImage(imageName string) string {
 	// 已经是代理地址，不处理
 	if strings.HasPrefix(imageName, "docker.1ms.run/") {

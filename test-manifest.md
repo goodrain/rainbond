@@ -21,8 +21,11 @@
 | rainbond.app-config-group.item-update | 更新应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.UpdateModel | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoUpdateModel |
 | rainbond.app-config-group.unbind-components | 移除应用配置组组件绑定 | active | regression | db/mysql/dao.AppConfigGroupServiceDaoImpl.DeleteConfigGroupService | db/mysql/dao/application_config_group_test.go::TestDeleteConfigGroupService |
 | rainbond.app-import.package-name-normalize | 从 Linux 文件名还原导入镜像包名 | active | regression | builder/exector.buildFromLinuxFileName | builder/exector/import_app_test.go::TestBuildFromLinuxFileName |
+| rainbond.app-import.propagate-image-push-error | Return imported image push errors during app import | active | regression | builder/exector.ensureImportedImagesPushed | builder/exector/import_app_test.go::TestEnsureImportedImagesPushedReturnsPushError |
+| rainbond.app-import.propagate-task-error | Return app import task errors to the import worker | active | regression | builder/exector.runImportAppTasks | builder/exector/import_app_test.go::TestRunImportAppTasksReturnsTaskError |
 | rainbond.app-import.scaling-rule-compat | 导入应用时保留旧版伸缩规则 | active | regression | builder/exector.normalizeImportedRAM | builder/exector/import_app_test.go::TestNormalizeImportedRAMPreservesLegacyScalingRule |
 | rainbond.app-import.status-serialization | 序列化并解析按应用记录的导入状态 | active | regression | builder/exector.map2str | builder/exector/import_app_test.go::TestAppStatusMapRoundTrip |
+| rainbond.app-import.wait-image-push | Wait for imported component and plugin images to be pushed | active | regression | builder/exector.ensureImportedImagesPushed | builder/exector/import_app_test.go::TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce |
 | rainbond.app-restore.image-registry-rewrite | 应用恢复时重写镜像仓库地址 | active | regression | builder/exector.getNewImageName | builder/exector/groupapp_restore_test.go::TestGetImageName |
 | rainbond.app-restore.service-id-lookup | 从恢复后的服务映射中反查原始服务 ID | active | regression | builder/exector.BackupAPPRestore.getOldServiceID | builder/exector/groupapp_restore_test.go::TestGetOldServiceID |
 | rainbond.app-restore.snapshot-relationship-rewrite | 应用恢复时重写服务依赖关系 | active | regression | builder/exector.BackupAPPRestore.modify | builder/exector/groupapp_restore_test.go::TestModify |
@@ -80,6 +83,7 @@
 | rainbond.component.volume-update-persists-capacity | 持久化组件存储容量更新 | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity |
 | rainbond.component.volume-update-preserves-capacity | 组件存储更新请求保留容量字段 | active | regression | api/model.UpdVolumeReq | api/model/volume_test.go::TestUpdVolumeReqPreservesVolumeCapacityFromJSON |
 | rainbond.compose.config-volume-file-content | 保留配置卷文件内容字段语义 | active | regression | builder/parser/types.Volume.FileContent | builder/parser/file_content_test.go::TestVolumeFileContent |
+| rainbond.compose.config-volume-path-mode | Docker Compose config volumes keep container path and mode | active | regression | builder/parser.DockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseConfigVolumeUsesContainerPathAndMode |
 | rainbond.compose.detect-config-file-mount | 识别配置文件类型的挂载路径 | active | regression | builder/parser/compose.isConfigFile | builder/parser/compose/version_detect_test.go::TestIsConfigFile |
 | rainbond.compose.detect-version | 根据语法特征推断 compose 版本 | active | regression | builder/parser/compose.inferComposeVersion | builder/parser/compose/version_detect_test.go::TestInferComposeVersion |
 | rainbond.compose.parse-warnings | 解析 docker compose 并返回降级告警 | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithWarnings |
@@ -613,6 +617,26 @@
 - 代码路径: `builder/exector/import_app.go`
 - 测试路径: `builder/exector/import_app_test.go::TestBuildFromLinuxFileName`
 
+### Return imported image push errors during app import
+
+- Capability ID: `rainbond.app-import.propagate-image-push-error`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.ensureImportedImagesPushed`
+- 代码路径: `builder/exector/import_app.go`
+- 测试路径: `builder/exector/import_app_test.go::TestEnsureImportedImagesPushedReturnsPushError`
+
+### Return app import task errors to the import worker
+
+- Capability ID: `rainbond.app-import.propagate-task-error`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.runImportAppTasks`
+- 代码路径: `builder/exector/import_app.go`
+- 测试路径: `builder/exector/import_app_test.go::TestRunImportAppTasksReturnsTaskError`
+
 ### 导入应用时保留旧版伸缩规则
 
 - Capability ID: `rainbond.app-import.scaling-rule-compat`
@@ -632,6 +656,16 @@
 - 业务入口: `builder/exector.map2str`
 - 代码路径: `builder/exector/import_app.go`
 - 测试路径: `builder/exector/import_app_test.go::TestAppStatusMapRoundTrip`
+
+### Wait for imported component and plugin images to be pushed
+
+- Capability ID: `rainbond.app-import.wait-image-push`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.ensureImportedImagesPushed`
+- 代码路径: `builder/exector/import_app.go`
+- 测试路径: `builder/exector/import_app_test.go::TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce`
 
 ### 应用恢复时重写镜像仓库地址
 
@@ -1202,6 +1236,16 @@
 - 业务入口: `builder/parser/types.Volume.FileContent`
 - 代码路径: `builder/parser/types/types.go`
 - 测试路径: `builder/parser/file_content_test.go::TestVolumeFileContent`
+
+### Docker Compose config volumes keep container path and mode
+
+- Capability ID: `rainbond.compose.config-volume-path-mode`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser.DockerComposeParse.Parse`
+- 代码路径: `builder/parser/docker_compose.go`, `builder/parser/compose/volume_helpers.go`
+- 测试路径: `builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseConfigVolumeUsesContainerPathAndMode`
 
 ### 识别配置文件类型的挂载路径
 

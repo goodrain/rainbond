@@ -272,6 +272,10 @@ type importedRAMMetadata struct {
 type importedComponentMetadata struct {
 	ExtendMethodMap     map[string]interface{} `json:"extend_method_map"`
 	ServiceExtendMethod map[string]interface{} `json:"service_extend_method"`
+	CPU                 *int                   `json:"cpu"`
+	Memory              *int                   `json:"memory"`
+	DeployType          string                 `json:"extend_method"`
+	ServiceType         string                 `json:"service_type"`
 }
 
 func readImportedMetadata(tmpDir string) ([]byte, error) {
@@ -300,9 +304,48 @@ func normalizeImportedRAM(rawMetadata []byte, ram *v1alpha1.RainbondApplicationC
 
 func normalizeImportedComponent(component *v1alpha1.Component, metadata importedComponentMetadata) {
 	normalizeImportedExtendMethodRule(&component.ExtendMethodRule, metadata)
-	if component.CPU == 0 || component.CPU == 250 {
-		component.CPU = legacyExtendMethodValueWithPresence(metadata, "container_cpu")
+	normalizeImportedComponentResources(component, metadata)
+	if isDaemonSetImportedComponent(component, metadata) {
+		clearDaemonSetNodeScaling(&component.ExtendMethodRule)
 	}
+}
+
+func normalizeImportedComponentResources(component *v1alpha1.Component, metadata importedComponentMetadata) {
+	if shouldRestoreLegacyCPU(component, metadata) {
+		if value, ok := legacyExtendMethodValueWithPresence(metadata, "container_cpu"); ok {
+			component.CPU = value
+		}
+	}
+	if component.Memory == 0 && metadata.Memory == nil {
+		if value, ok := legacyExtendMethodValueWithPresence(metadata, "init_memory"); ok {
+			component.Memory = value
+			return
+		}
+		if value, ok := legacyExtendMethodValueWithPresence(metadata, "container_memory"); ok {
+			component.Memory = value
+			return
+		}
+		if value := legacyExtendMethodValue(metadata, "min_memory"); value != 0 {
+			component.Memory = value
+		}
+	}
+}
+
+func shouldRestoreLegacyCPU(component *v1alpha1.Component, metadata importedComponentMetadata) bool {
+	return component.CPU == 250 || (component.CPU == 0 && metadata.CPU == nil)
+}
+
+func isDaemonSetImportedComponent(component *v1alpha1.Component, metadata importedComponentMetadata) bool {
+	return strings.EqualFold(string(component.DeployType), "daemonset") ||
+		strings.EqualFold(component.ServiceType, "daemonset") ||
+		strings.EqualFold(metadata.DeployType, "daemonset") ||
+		strings.EqualFold(metadata.ServiceType, "daemonset")
+}
+
+func clearDaemonSetNodeScaling(rule *v1alpha1.ComponentExtendMethodRule) {
+	rule.MinNode = 0
+	rule.MaxNode = 0
+	rule.StepNode = 0
 }
 
 func normalizeImportedExtendMethodRule(rule *v1alpha1.ComponentExtendMethodRule, metadata importedComponentMetadata) {
@@ -328,10 +371,11 @@ func normalizeImportedExtendMethodRule(rule *v1alpha1.ComponentExtendMethodRule,
 		rule.IsRestart = legacyExtendMethodValue(metadata, "is_restart")
 	}
 	if rule.InitMemory == 0 {
-		rule.InitMemory = legacyExtendMethodValue(metadata, "init_memory")
-	}
-	if rule.InitMemory == 0 {
-		rule.InitMemory = rule.MinMemory
+		if value, ok := legacyExtendMethodValueWithPresence(metadata, "init_memory"); ok {
+			rule.InitMemory = value
+		} else {
+			rule.InitMemory = rule.MinMemory
+		}
 	}
 }
 
@@ -358,11 +402,14 @@ func metadataValueToInt(value interface{}) int {
 	return 0
 }
 
-func legacyExtendMethodValueWithPresence(metadata importedComponentMetadata, key string) int {
+func legacyExtendMethodValueWithPresence(metadata importedComponentMetadata, key string) (int, bool) {
 	if value, ok := metadata.ExtendMethodMap[key]; ok {
-		return metadataValueToInt(value)
+		return metadataValueToInt(value), true
 	}
-	return metadataValueToInt(metadata.ServiceExtendMethod[key])
+	if value, ok := metadata.ServiceExtendMethod[key]; ok {
+		return metadataValueToInt(value), true
+	}
+	return 0, false
 }
 
 func (i *ImportApp) updateStatus(status string) error {

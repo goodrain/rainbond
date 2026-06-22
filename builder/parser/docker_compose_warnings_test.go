@@ -2,8 +2,11 @@ package parser
 
 import (
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 )
 
@@ -210,5 +213,60 @@ services:
 		t.Log("\n✓ YAML anchor/alias syntax is SUPPORTED - all shared environment variables correctly merged")
 	} else {
 		t.Error("\n✗ YAML anchor/alias syntax is NOT SUPPORTED - environment variables not correctly merged")
+	}
+}
+
+// capability_id: rainbond.compose.config-volume-path-mode
+func TestDockerComposeParseConfigVolumeUsesContainerPathAndMode(t *testing.T) {
+	composeDir := t.TempDir()
+	sourceDir := filepath.Join(composeDir, "common", "config", "registry")
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "passwd"), []byte("registry-passwd"), 0644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	composeContent := `version: "3.7"
+
+services:
+  registry:
+    image: registry:2
+    volumes:
+      - ./common/config/registry/passwd:/etc/registry/passwd:ro
+`
+
+	mockLogger := event.NewLogger("test-config-volume", make(chan []byte, 100))
+	parser := CreateDockerComposeParse(composeContent, "", "", mockLogger).(*DockerComposeParse)
+	parser.composeDir = composeDir
+
+	errors := parser.Parse()
+	if errors.IsFatalError() {
+		t.Fatalf("Parsing failed with fatal error: %v", errors)
+	}
+
+	services := parser.GetServiceInfo()
+	if len(services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(services))
+	}
+	if len(services[0].Volumes) != 1 {
+		t.Fatalf("expected 1 volume, got %#v", services[0].Volumes)
+	}
+
+	volume := services[0].Volumes[0]
+	if volume.VolumePath != "/etc/registry/passwd" {
+		t.Fatalf("expected container mount path, got %q", volume.VolumePath)
+	}
+	if volume.VolumeType != model.ConfigFileVolumeType.String() {
+		t.Fatalf("expected config-file volume, got %q", volume.VolumeType)
+	}
+	if volume.FileContent != "registry-passwd" {
+		t.Fatalf("expected source file content, got %q", volume.FileContent)
+	}
+	if volume.Mode == nil || *volume.Mode != 644 {
+		t.Fatalf("expected default config file mode 644, got %#v", volume.Mode)
+	}
+	if !volume.IsReadOnly {
+		t.Fatal("expected read-only flag from compose :ro")
 	}
 }
