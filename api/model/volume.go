@@ -292,5 +292,7 @@ type VolumeWithStatusStruct struct {
 	AllowExpansion bool `json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `json:"volume_provider_name"`
-	Status             string `json:"status"`
+	// Mode 配置文件权限模式
+	Mode   *int32 `json:"mode"`
+	Status string `json:"status"`
 }

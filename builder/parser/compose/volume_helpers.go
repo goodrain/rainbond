@@ -83,7 +83,7 @@ func parseVols(volumeNames []string, serviceName string) ([]Volumes, error) {
 			return nil, fmt.Errorf("could not parse volume %q: %v", volumeName, err)
 		}
 		volume.SvcName = serviceName
-		volume.MountPath = fmt.Sprintf("%s:%s", volume.Host, volume.Container)
+		volume.MountPath = volume.Container
 		volume.PVCName = fmt.Sprintf("%s-claim%d", volume.SvcName, i)
 		volumes = append(volumes, volume)
 	}
