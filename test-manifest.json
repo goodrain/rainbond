@@ -1453,6 +1453,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.compose.preserve-volume-source-path",
+      "title": "Preserve docker compose volume source paths",
+      "title_zh": "Preserve docker compose volume source paths",
+      "interface_type": "package_function",
+      "interface": "builder/parser/compose.loadV3Volumes",
+      "code_paths": [
+        "builder/parser/compose/version3.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/compose/version_detect_test.go",
+          "selector": "TestLoadV3VolumesPreservesSourcePathUnderscores"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.compose.yaml-anchor-support",
       "title": "Support YAML anchors in docker compose parsing",
       "title_zh": "\u652f\u6301 docker compose \u4e2d\u7684 YAML anchors",

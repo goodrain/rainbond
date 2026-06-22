@@ -127,8 +127,9 @@ func loadV3Volumes(volumes []types.ServiceVolumeConfig) []string {
 	var volArray []string
 	for _, vol := range volumes {
 
-		// There will *always* be Source when parsing
-		v := normalizeServiceNames(vol.Source)
+		// There will *always* be Source when parsing. Keep it verbatim:
+		// source is a filesystem path or named volume, not a service name.
+		v := vol.Source
 
 		if vol.Target != "" {
 			v = v + ":" + vol.Target

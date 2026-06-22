@@ -2,6 +2,8 @@ package compose
 
 import (
 	"testing"
+
+	"github.com/docker/cli/cli/compose/types"
 )
 
 // capability_id: rainbond.compose.detect-version
@@ -68,8 +70,8 @@ services:
 			expected: "3.0",
 		},
 		{
-			name: "Empty file",
-			yaml: ``,
+			name:     "Empty file",
+			yaml:     ``,
 			expected: "spec",
 		},
 	}
@@ -81,6 +83,29 @@ services:
 				t.Errorf("inferComposeVersion() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+// capability_id: rainbond.compose.preserve-volume-source-path
+func TestLoadV3VolumesPreservesSourcePathUnderscores(t *testing.T) {
+	source := "/grdata/package_build/temp/events/event_1/common/config/portal/nginx.conf"
+	target := "/etc/nginx/nginx.conf"
+
+	volumes := loadV3Volumes([]types.ServiceVolumeConfig{
+		{
+			Type:   "bind",
+			Source: source,
+			Target: target,
+		},
+	})
+
+	if len(volumes) != 1 {
+		t.Fatalf("loadV3Volumes returned %d volumes, want 1", len(volumes))
+	}
+
+	want := source + ":" + target
+	if volumes[0] != want {
+		t.Fatalf("loadV3Volumes() = %q, want %q", volumes[0], want)
 	}
 }
 
