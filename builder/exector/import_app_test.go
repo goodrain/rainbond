@@ -121,6 +121,71 @@ func TestNormalizeImportedRAMPreservesLegacyScalingRule(t *testing.T) {
 	}
 }
 
+func TestNormalizeImportedRAMRestoresMemoryFromLegacyScalingRule(t *testing.T) {
+	rawMetadata := []byte(`{
+		"group_key": "demo-app",
+		"group_name": "Demo App",
+		"group_version": "1.0.0",
+		"apps": [{
+			"service_key": "svc-key",
+			"extend_method_map": {
+				"min_memory": 64
+			},
+			"service_extend_method": {
+				"init_memory": 1024,
+				"container_cpu": 600
+			}
+		}]
+	}`)
+	var ram v1alpha1.RainbondApplicationConfig
+	if err := json.Unmarshal(rawMetadata, &ram); err != nil {
+		t.Fatal(err)
+	}
+
+	normalizeImportedRAM(rawMetadata, &ram)
+
+	if ram.Components[0].Memory != 1024 {
+		t.Fatalf("expected legacy init_memory to restore component memory, got %d", ram.Components[0].Memory)
+	}
+	if ram.Components[0].CPU != 600 {
+		t.Fatalf("expected legacy container_cpu to restore component CPU, got %d", ram.Components[0].CPU)
+	}
+}
+
+func TestNormalizeImportedRAMClearsDaemonSetNodeScaling(t *testing.T) {
+	rawMetadata := []byte(`{
+		"group_key": "demo-app",
+		"group_name": "Demo App",
+		"group_version": "1.0.0",
+		"apps": [{
+			"service_key": "svc-key",
+			"extend_method": "daemonset",
+			"extend_method_map": {
+				"min_node": 2,
+				"max_node": 7,
+				"step_node": 2,
+				"min_memory": 64,
+				"init_memory": 1024,
+				"container_cpu": 600
+			}
+		}]
+	}`)
+	var ram v1alpha1.RainbondApplicationConfig
+	if err := json.Unmarshal(rawMetadata, &ram); err != nil {
+		t.Fatal(err)
+	}
+
+	normalizeImportedRAM(rawMetadata, &ram)
+
+	rule := ram.Components[0].ExtendMethodRule
+	if rule.MinNode != 0 || rule.MaxNode != 0 || rule.StepNode != 0 {
+		t.Fatalf("expected daemonset node scaling fields to be cleared, got min=%d max=%d step=%d", rule.MinNode, rule.MaxNode, rule.StepNode)
+	}
+	if rule.InitMemory != 1024 || ram.Components[0].CPU != 600 {
+		t.Fatalf("expected daemonset resource settings to be preserved, got init_memory=%d cpu=%d", rule.InitMemory, ram.Components[0].CPU)
+	}
+}
+
 // capability_id: rainbond.app-import.wait-image-push
 func TestEnsureImportedImagesPushedPushesComponentsAndPluginsOnce(t *testing.T) {
 	ram := &v1alpha1.RainbondApplicationConfig{
