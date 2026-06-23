@@ -243,6 +243,7 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 func getDaemonSetModifiedConfiguration(old, new *v1.DaemonSet) ([]byte, error) {
 	old.Status = new.Status
 	keepSelectorLabels(old.Spec.Selector, &new.Spec.Template)
+	keepDaemonSetRollingUpdate(old, new)
 	oldNeed := getDaemonSetAllowFields(old)
 	newNeed := getDaemonSetAllowFields(new)
 	return getchange(oldNeed, newNeed)
@@ -318,6 +319,19 @@ func keepSelectorLabels(selector *metav1.LabelSelector, template *corev1.PodTemp
 	for key, value := range selector.MatchLabels {
 		template.Labels[key] = value
 	}
+}
+
+func keepDaemonSetRollingUpdate(old, new *v1.DaemonSet) {
+	if old.Spec.UpdateStrategy.RollingUpdate == nil || new.Spec.UpdateStrategy.RollingUpdate != nil {
+		return
+	}
+	if old.Spec.UpdateStrategy.Type != new.Spec.UpdateStrategy.Type {
+		return
+	}
+	if new.Spec.UpdateStrategy.Type != v1.RollingUpdateDaemonSetStrategyType {
+		return
+	}
+	new.Spec.UpdateStrategy.RollingUpdate = old.Spec.UpdateStrategy.RollingUpdate.DeepCopy()
 }
 
 func getchange(old, new interface{}) ([]byte, error) {
