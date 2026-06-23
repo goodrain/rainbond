@@ -32,7 +32,14 @@ func newLongVersionPatchTestDB(t *testing.T) *gorm.DB {
 func newMySQLDialectPatchTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	sqlDB, _, err := sqlmock.New()
+	db, _ := newMySQLDialectPatchTestDBWithMock(t)
+	return db
+}
+
+func newMySQLDialectPatchTestDBWithMock(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+
+	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("create sqlmock db: %v", err)
 	}
@@ -45,7 +52,7 @@ func newMySQLDialectPatchTestDB(t *testing.T) *gorm.DB {
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
-	return db
+	return db, mock
 }
 
 func TestLongVersionSeedDefaultsKeepSlugVersions(t *testing.T) {
@@ -435,5 +442,20 @@ func TestLongVersionDeduplicationOrderClausesQuoteReservedColumnsForMySQL(t *tes
 	}
 	if !strings.Contains(joined, "`system` DESC") {
 		t.Fatalf("expected mysql deduplication order clause to quote system column, got %q", joined)
+	}
+}
+
+func TestRetireMissingSystemCNBVersionsQuotesSystemWhereForMySQL(t *testing.T) {
+	db, mock := newMySQLDialectPatchTestDBWithMock(t)
+
+	mock.ExpectQuery("SELECT \\* FROM `enterprise_language_version` WHERE \\(build_strategy = \\? AND `system` = \\?\\)").
+		WithArgs(model.LongVersionBuildStrategyCNB, true).
+		WillReturnRows(sqlmock.NewRows([]string{"ID", "lang", "version", "build_strategy", "system", "is_show", "is_allowed", "first_choice"}))
+
+	if err := retireMissingSystemCNBVersions(db, cnbSeedLanguageVersions()); err != nil {
+		t.Fatalf("retire missing system cnb versions: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("mysql expectations: %v", err)
 	}
 }

@@ -610,7 +610,8 @@ func retireMissingSystemCNBVersions(db *gorm.DB, seedVersions []*model.Enterpris
 	}
 
 	var stored []model.EnterpriseLanguageVersion
-	if err := db.Where("build_strategy = ? AND system = ?", model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
+	scope := db.NewScope(&model.EnterpriseLanguageVersion{})
+	if err := db.Where("build_strategy = ? AND "+scope.Quote("system")+" = ?", model.LongVersionBuildStrategyCNB, true).Find(&stored).Error; err != nil {
 		return err
 	}
 

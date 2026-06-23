@@ -2853,6 +2853,28 @@ func (s *ServiceAction) markExistingNamespaceManaged(ctx context.Context, namesp
 	return true, err
 }
 
+func (s *ServiceAction) syncManagedTenantNamespaceLabels(ctx context.Context) error {
+	tenants, err := s.dbmanager.TenantDao().GetALLTenants("")
+	if err != nil {
+		return err
+	}
+	seen := make(map[string]struct{})
+	for _, tenant := range tenants {
+		namespace := strings.TrimSpace(tenant.Namespace)
+		if namespace == "" {
+			continue
+		}
+		if _, ok := seen[namespace]; ok {
+			continue
+		}
+		seen[namespace] = struct{}{}
+		if _, err := s.markExistingNamespaceManaged(ctx, namespace); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // createPluginTeamRBAC creates ClusterRole and ClusterRoleBinding for rbd-plugins namespace
 func (s *ServiceAction) createPluginTeamRBAC(namespace string) error {
 	ctx := context.Background()
