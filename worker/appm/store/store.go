@@ -2092,6 +2092,31 @@ func (a *appRuntimeStore) listPodsByAppIDLegacy(appID string) ([]*corev1.Pod, er
 	}
 	selector := labels.NewSelector()
 	selector = selector.Add(*requirement)
+	pods, err := a.listers.Pod.List(selector)
+	if err != nil || len(pods) > 0 || a.dbmanager == nil {
+		return pods, err
+	}
+
+	services, err := a.dbmanager.TenantServiceDao().ListByAppID(appID)
+	if err != nil {
+		return nil, err
+	}
+	serviceIDs := make([]string, 0, len(services))
+	for _, service := range services {
+		if service.ServiceID != "" {
+			serviceIDs = append(serviceIDs, service.ServiceID)
+		}
+	}
+	if len(serviceIDs) == 0 {
+		return pods, nil
+	}
+
+	requirement, err = labels.NewRequirement("service_id", selection.In, serviceIDs)
+	if err != nil {
+		return nil, err
+	}
+	selector = labels.NewSelector()
+	selector = selector.Add(*requirement)
 	return a.listers.Pod.List(selector)
 }
 
