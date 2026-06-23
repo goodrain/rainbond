@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goodrain/rainbond/db/model"
@@ -268,5 +269,43 @@ services:
 	}
 	if !volume.IsReadOnly {
 		t.Fatal("expected read-only flag from compose :ro")
+	}
+}
+
+// capability_id: rainbond.compose.missing-file-bind-warning
+func TestDockerComposeParseWarnsMissingFileLikeBindMount(t *testing.T) {
+	composeContent := `version: "3.7"
+
+services:
+  core:
+    image: goharbor/harbor-core:v2.14.4
+    volumes:
+      - /missing/secret/core/private_key.pem:/etc/core/private_key.pem:ro
+      - /missing/secret/core/key:/etc/core/key:ro
+      - /missing/data:/storage
+      - /missing/certs:/harbor_cust_cert
+`
+
+	mockLogger := event.NewLogger("test-missing-file-bind", make(chan []byte, 100))
+	parser := CreateDockerComposeParse(composeContent, "", "", mockLogger).(*DockerComposeParse)
+	parser.composeDir = t.TempDir()
+
+	errors := parser.Parse()
+	if errors.IsFatalError() {
+		t.Fatalf("Parsing failed with fatal error: %v", errors)
+	}
+
+	allErrors := errors.Error()
+	if !strings.Contains(allErrors, "/etc/core/private_key.pem") {
+		t.Fatalf("expected missing file-like bind mount warning for private key, got: %s", allErrors)
+	}
+	if !strings.Contains(allErrors, "/etc/core/key") {
+		t.Fatalf("expected missing file-like bind mount warning for key, got: %s", allErrors)
+	}
+	if strings.Contains(allErrors, "/storage") {
+		t.Fatalf("expected no warning for storage directory bind mount, got: %s", allErrors)
+	}
+	if strings.Contains(allErrors, "/harbor_cust_cert") {
+		t.Fatalf("expected no warning for certificate directory bind mount, got: %s", allErrors)
 	}
 }
