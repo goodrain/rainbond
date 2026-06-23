@@ -182,20 +182,14 @@ func getChange(old, new EncodeNode) *EncodeNode {
 	}
 
 	// keep the modifies of removed field
-	for k, v := range old.Field {
+	for k := range old.Field {
 		if _, ok := new.Field[k]; !ok {
 			if result.Field == nil {
 				result.Field = make(map[string]EncodeNode)
 			}
 			if _, ok := result.Field[k]; !ok {
-				if v.body[0] == '[' {
-					result.Field[k] = EncodeNode{
-						body: []byte("[]"),
-					}
-				} else {
-					result.Field[k] = EncodeNode{
-						body: []byte("\"\""),
-					}
+				result.Field[k] = EncodeNode{
+					body: []byte("null"),
 				}
 			}
 		}
