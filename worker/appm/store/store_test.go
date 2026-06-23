@@ -21,10 +21,14 @@ package store
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -118,6 +122,72 @@ func TestGetAppStatus(t *testing.T) {
 			status := getAppStatus(tc.statuses)
 			assert.Equal(t, tc.want, status)
 		})
+	}
+}
+
+func TestGetAppResourcesFallsBackToServiceIDLabels(t *testing.T) {
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+	assert.NoError(t, indexer.Add(newResourcePod("pod-1", "svc-1", "500m", "512Mi")))
+	assert.NoError(t, indexer.Add(newResourcePod("pod-2", "svc-2", "250m", "256Mi")))
+	assert.NoError(t, indexer.Add(newResourcePod("pod-other", "svc-other", "1000m", "1Gi")))
+
+	store := &appRuntimeStore{
+		dbmanager: testStoreManager{tenantServiceDao: testTenantServiceDao{services: []*dbmodel.TenantServices{
+			{ServiceID: "svc-1"},
+			{ServiceID: "svc-2"},
+		}}},
+		listers: &Lister{
+			Pod: corelisters.NewPodLister(indexer),
+		},
+	}
+
+	cpu, memory, err := store.GetAppResources("app-1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(750), cpu)
+	assert.Equal(t, int64(768), memory)
+}
+
+type testStoreManager struct {
+	db.Manager
+	tenantServiceDao dao.TenantServiceDao
+}
+
+func (m testStoreManager) TenantServiceDao() dao.TenantServiceDao {
+	return m.tenantServiceDao
+}
+
+type testTenantServiceDao struct {
+	dao.TenantServiceDao
+	services []*dbmodel.TenantServices
+}
+
+func (d testTenantServiceDao) ListByAppID(appID string) ([]*dbmodel.TenantServices, error) {
+	return d.services, nil
+}
+
+func newResourcePod(name, serviceID, cpu, memory string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+			Labels: map[string]string{
+				"service_id": serviceID,
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name: "main",
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse(cpu),
+							corev1.ResourceMemory: resource.MustParse(memory),
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
