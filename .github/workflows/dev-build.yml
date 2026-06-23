@@ -338,6 +338,8 @@ jobs:
             RAINBOND_ERROR_REPORTING_FRONTEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_FRONTEND_DSN }}
             RAINBOND_ERROR_REPORTING_CONSOLE_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_CONSOLE_DSN }}
             RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
+            PYTHON_BASE=ghcr.io/goodrain/python:3.11-bookworm
+            PYTHON_SLIM_BASE=ghcr.io/goodrain/python:3.11-slim-bookworm
           context: .
           file: ./Dockerfile
           push: true
