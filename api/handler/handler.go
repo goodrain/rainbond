@@ -19,6 +19,8 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/pkg/component/mq"
@@ -27,7 +29,11 @@ import (
 
 // InitAPIHandle 初始化handle
 func InitAPIHandle() error {
-	defaultServieHandler = CreateManager()
+	serviceManager := CreateManager()
+	if err := serviceManager.syncManagedTenantNamespaceLabels(context.Background()); err != nil {
+		logrus.Errorf("sync managed tenant namespace labels: %v", err)
+	}
+	defaultServieHandler = serviceManager
 	defaultPluginHandler = CreatePluginManager()
 	defaultAppHandler = CreateAppManager()
 	defaultTenantHandler = CreateTenManager()
@@ -227,4 +233,3 @@ var defRegistryAuthSecretHandler RegistryAuthSecretHandler
 func GetRegistryAuthSecretHandler() RegistryAuthSecretHandler {
 	return defRegistryAuthSecretHandler
 }
-
