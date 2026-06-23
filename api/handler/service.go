@@ -2767,14 +2767,12 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants, bindExisting bool) erro
 			}
 		}
 		if t.Namespace == "default" {
-			ns, err := s.kubeClient.CoreV1().Namespaces().Get(context.Background(), t.Namespace, metav1.GetOptions{})
-			if err != nil && !k8sErrors.IsNotFound(err) {
+			exists, err := s.markExistingNamespaceManaged(context.Background(), t.Namespace)
+			if err != nil {
 				return err
 			}
-			if err == nil {
-				ns.Labels = labels
-				_, err = s.kubeClient.CoreV1().Namespaces().Update(context.Background(), ns, metav1.UpdateOptions{})
-				return err
+			if exists {
+				return nil
 			}
 		}
 		if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
@@ -2787,15 +2785,7 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants, bindExisting bool) erro
 				if bindExisting {
 					// Bind mode: patch managed-by label onto existing namespace
 					// Intentionally skip NetworkPolicy and RBAC blocks below
-					ns, getErr := s.kubeClient.CoreV1().Namespaces().Get(context.Background(), t.Namespace, metav1.GetOptions{})
-					if getErr != nil {
-						return getErr
-					}
-					if ns.Labels == nil {
-						ns.Labels = make(map[string]string)
-					}
-					ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
-					_, updateErr := s.kubeClient.CoreV1().Namespaces().Update(context.Background(), ns, metav1.UpdateOptions{})
+					_, updateErr := s.markExistingNamespaceManaged(context.Background(), t.Namespace)
 					return updateErr
 				}
 				return bcode.ErrNamespaceExists
@@ -2842,6 +2832,25 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants, bindExisting bool) erro
 
 		return nil
 	})
+}
+
+func (s *ServiceAction) markExistingNamespaceManaged(ctx context.Context, namespace string) (bool, error) {
+	ns, err := s.kubeClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
+	if ns.Labels[constants.ResourceManagedByLabel] == constants.Rainbond {
+		return true, nil
+	}
+	ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
+	_, err = s.kubeClient.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{})
+	return true, err
 }
 
 // createPluginTeamRBAC creates ClusterRole and ClusterRoleBinding for rbd-plugins namespace
