@@ -275,6 +275,13 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 				} else {
 					// 源路径不存在，作为普通存储卷
 					logrus.Warnf("volume source not found: %s (resolved: %s), treating as share-file volume", sourcePath, resolvedPath)
+					if guessMissingBindMountKind(targetPath, sourcePath) == missingBindMountFile {
+						warningMsg := fmt.Sprintf("服务 %s：挂载路径 %s 看起来是文件，但源路径 %s 未包含在上传包中，平台无法自动上传，请创建后手动挂载该文件", kev, targetPath, sourcePath)
+						d.errappend(ErrorAndSolve(NegligibleError, warningMsg, ""))
+						if d.logger != nil {
+							d.logger.Info(warningMsg, map[string]string{"level": "warning"})
+						}
+					}
 				}
 			}
 
@@ -407,6 +414,120 @@ func configFileMode(volumeType string) *int32 {
 		return nil
 	}
 	return defaultConfigFileMode()
+}
+
+type missingBindMountKind string
+
+const (
+	missingBindMountUnknown missingBindMountKind = "unknown"
+	missingBindMountFile    missingBindMountKind = "file"
+	missingBindMountDir     missingBindMountKind = "dir"
+)
+
+func guessMissingBindMountKind(targetPath, sourcePath string) missingBindMountKind {
+	if strings.HasSuffix(targetPath, "/") || strings.HasSuffix(sourcePath, "/") {
+		return missingBindMountDir
+	}
+
+	target := path.Clean(targetPath)
+	source := path.Clean(sourcePath)
+	targetBase := strings.ToLower(path.Base(target))
+	sourceBase := strings.ToLower(path.Base(source))
+
+	dirPrefixes := []string{
+		"/cache",
+		"/data",
+		"/harbor_cust_cert",
+		"/storage",
+		"/tmp",
+		"/uploads",
+		"/var/lib",
+		"/var/log",
+	}
+	for _, prefix := range dirPrefixes {
+		if pathIsOrUnder(target, prefix) || pathIsOrUnder(source, prefix) {
+			return missingBindMountDir
+		}
+	}
+
+	dirBasenames := map[string]struct{}{
+		"ca":           {},
+		"cert":         {},
+		"certs":        {},
+		"certificates": {},
+		"conf.d":       {},
+		"config.d":     {},
+		"data":         {},
+		"logs":         {},
+		"storage":      {},
+		"uploads":      {},
+	}
+	if _, ok := dirBasenames[targetBase]; ok {
+		return missingBindMountDir
+	}
+	if _, ok := dirBasenames[sourceBase]; ok {
+		return missingBindMountDir
+	}
+	if strings.HasSuffix(targetBase, ".d") || strings.HasSuffix(sourceBase, ".d") {
+		return missingBindMountDir
+	}
+
+	fileExtensions := []string{
+		".bash",
+		".ca-bundle",
+		".cer",
+		".cfg",
+		".conf",
+		".config",
+		".crt",
+		".env",
+		".ini",
+		".json",
+		".key",
+		".pem",
+		".properties",
+		".pub",
+		".sock",
+		".toml",
+		".xml",
+		".yaml",
+		".yml",
+	}
+	for _, ext := range fileExtensions {
+		if strings.HasSuffix(targetBase, ext) || strings.HasSuffix(sourceBase, ext) {
+			return missingBindMountFile
+		}
+	}
+
+	fileBasenames := map[string]struct{}{
+		"config":      {},
+		"docker.sock": {},
+		"htpasswd":    {},
+		"key":         {},
+		"license":     {},
+		"passwd":      {},
+		"private_key": {},
+		"secret":      {},
+		"token":       {},
+	}
+	if _, ok := fileBasenames[targetBase]; ok {
+		return missingBindMountFile
+	}
+	if _, ok := fileBasenames[sourceBase]; ok {
+		return missingBindMountFile
+	}
+
+	if pathIsOrUnder(target, "/etc") || pathIsOrUnder(target, "/run/secrets") || pathIsOrUnder(target, "/var/run") {
+		return missingBindMountFile
+	}
+
+	return missingBindMountUnknown
+}
+
+func pathIsOrUnder(value, base string) bool {
+	cleanValue := path.Clean(value)
+	cleanBase := path.Clean(base)
+	return cleanValue == cleanBase || strings.HasPrefix(cleanValue, cleanBase+"/")
 }
 
 func (d *DockerComposeParse) errappend(pe ParseError) {

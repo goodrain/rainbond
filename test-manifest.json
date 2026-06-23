@@ -1505,6 +1505,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.compose.missing-file-bind-warning",
+      "title": "Warn when missing bind mount looks like a file",
+      "title_zh": "Warn when missing bind mount looks like a file",
+      "interface_type": "workflow",
+      "interface": "builder/parser.DockerComposeParse.Parse",
+      "code_paths": [
+        "builder/parser/docker_compose.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/docker_compose_warnings_test.go",
+          "selector": "TestDockerComposeParseWarnsMissingFileLikeBindMount"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.compose.parse-warnings",
       "title": "Parse docker compose file and return degraded warnings",
       "title_zh": "\u89e3\u6790 docker compose \u5e76\u8fd4\u56de\u964d\u7ea7\u544a\u8b66",

@@ -86,6 +86,7 @@
 | rainbond.compose.config-volume-path-mode | Docker Compose config volumes keep container path and mode | active | regression | builder/parser.DockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseConfigVolumeUsesContainerPathAndMode |
 | rainbond.compose.detect-config-file-mount | 识别配置文件类型的挂载路径 | active | regression | builder/parser/compose.isConfigFile | builder/parser/compose/version_detect_test.go::TestIsConfigFile |
 | rainbond.compose.detect-version | 根据语法特征推断 compose 版本 | active | regression | builder/parser/compose.inferComposeVersion | builder/parser/compose/version_detect_test.go::TestInferComposeVersion |
+| rainbond.compose.missing-file-bind-warning | Warn when missing bind mount looks like a file | active | regression | builder/parser.DockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWarnsMissingFileLikeBindMount |
 | rainbond.compose.parse-warnings | 解析 docker compose 并返回降级告警 | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithWarnings |
 | rainbond.compose.preserve-volume-source-path | Preserve docker compose volume source paths | active | regression | builder/parser/compose.loadV3Volumes | builder/parser/compose/version_detect_test.go::TestLoadV3VolumesPreservesSourcePathUnderscores |
 | rainbond.compose.yaml-anchor-support | 支持 docker compose 中的 YAML anchors | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors |
@@ -1266,6 +1267,16 @@
 - 业务入口: `builder/parser/compose.inferComposeVersion`
 - 代码路径: `builder/parser/compose/version_detect.go`
 - 测试路径: `builder/parser/compose/version_detect_test.go::TestInferComposeVersion`
+
+### Warn when missing bind mount looks like a file
+
+- Capability ID: `rainbond.compose.missing-file-bind-warning`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser.DockerComposeParse.Parse`
+- 代码路径: `builder/parser/docker_compose.go`
+- 测试路径: `builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWarnsMissingFileLikeBindMount`
 
 ### 解析 docker compose 并返回降级告警
 
