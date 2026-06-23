@@ -167,3 +167,75 @@ func TestSetUpgradePatchCreatesDaemonSetPatch(t *testing.T) {
 		t.Fatalf("expected daemonset patch to include new image, got %s", patch)
 	}
 }
+
+func TestSetUpgradePatchKeepsDaemonSetSelectorLabels(t *testing.T) {
+	oldApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID: "service-a",
+		},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "nginx",
+					},
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app":        "nginx",
+							"service_id": "service-a",
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.25",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	newApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID:     "service-a",
+			DeployVersion: "v2",
+		},
+		UpgradePatch: map[string][]byte{},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"service_id": "service-a",
+							"version":    "v2",
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.26",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := oldApp.SetUpgradePatch(newApp); err != nil {
+		t.Fatalf("set daemonset upgrade patch: %v", err)
+	}
+	if got := newApp.daemonset.Spec.Template.Labels["app"]; got != "nginx" {
+		t.Fatalf("expected daemonset selector label to remain nginx, got %q", got)
+	}
+
+	patch := string(newApp.UpgradePatch["daemonset"])
+	if strings.Contains(patch, `"app":""`) {
+		t.Fatalf("expected daemonset selector label to be preserved, got %s", patch)
+	}
+}

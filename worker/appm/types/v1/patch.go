@@ -28,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // SetUpgradePatch create and set upgrade patch for supported workloads.
@@ -206,6 +207,7 @@ func getChange(old, new EncodeNode) *EncodeNode {
 // stateful label can not be patch
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
+	keepSelectorLabels(old.Spec.Selector, &new.Spec.Template)
 	oldNeed := getStatefulsetAllowFields(old)
 	newNeed := getStatefulsetAllowFields(new)
 	return getchange(oldNeed, newNeed)
@@ -240,6 +242,7 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 
 func getDaemonSetModifiedConfiguration(old, new *v1.DaemonSet) ([]byte, error) {
 	old.Status = new.Status
+	keepSelectorLabels(old.Spec.Selector, &new.Spec.Template)
 	oldNeed := getDaemonSetAllowFields(old)
 	newNeed := getDaemonSetAllowFields(new)
 	return getchange(oldNeed, newNeed)
@@ -273,6 +276,7 @@ func getDaemonSetAllowFields(d *v1.DaemonSet) *v1.DaemonSet {
 // deployment label can not be patch
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
+	keepSelectorLabels(old.Spec.Selector, &new.Spec.Template)
 	oldNeed := getDeploymentAllowFields(old)
 	newNeed := getDeploymentAllowFields(new)
 	return getchange(oldNeed, newNeed)
@@ -301,6 +305,18 @@ func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
 				ObjectMeta: d.Spec.Template.ObjectMeta,
 			},
 		},
+	}
+}
+
+func keepSelectorLabels(selector *metav1.LabelSelector, template *corev1.PodTemplateSpec) {
+	if selector == nil || len(selector.MatchLabels) == 0 {
+		return
+	}
+	if template.Labels == nil {
+		template.Labels = make(map[string]string)
+	}
+	for key, value := range selector.MatchLabels {
+		template.Labels[key] = value
 	}
 }
 
