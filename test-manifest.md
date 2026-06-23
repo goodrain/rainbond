@@ -112,6 +112,8 @@
 | rainbond.envutil.memory-label | 将内存大小映射为预设内存标签 | active | regression | util/envutil.GetMemoryType | util/envutil/envutil_test.go::TestGetMemoryType |
 | rainbond.eventlog.file-store | 事件日志文件存储的追加读取与清理 | active | regression | api/eventlog/store.JSONLinesFileStore | api/eventlog/store/filestore_test.go::TestJSONLinesFileStore |
 | rainbond.eventlog.file-store-concurrency | 事件日志文件存储支持并发写入 | active | regression | api/eventlog/store.JSONLinesFileStore.Append | api/eventlog/store/filestore_test.go::TestFileStoreConcurrency |
+| rainbond.file-operate.upload-folder-path-traversal | 文件操作上传拒绝不安全相对路径 | active | regression | api/controller.resolveUploadRelativePath | api/controller/service_monitor_upload_test.go::TestResolveUploadRelativePathRejectsTraversal |
+| rainbond.file-operate.upload-folder-relative-path | 文件操作上传保留文件夹路径 | active | regression | api/controller.resolveUploadRelativePath | api/controller/service_monitor_upload_test.go::TestResolveUploadRelativePathPreservesFolderFromContentDisposition |
 | rainbond.filepersistence.volcengine-client-init | 幂等初始化并复用火山引擎 NAS 客户端 | active | regression | pkg/component/filepersistence.VolcengineProvider.init | pkg/component/filepersistence/volcengine_test.go::TestVolcengineProviderInitIsIdempotent |
 | rainbond.framework-detect.angular-spa | 识别 Angular SPA 模式 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Angular_SPA |
 | rainbond.framework-detect.angular-ssr | 识别 Angular SSR 模式 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Angular_SSR |
@@ -1527,6 +1529,26 @@
 - 业务入口: `api/eventlog/store.JSONLinesFileStore.Append`
 - 代码路径: `api/eventlog/store/filestore.go`
 - 测试路径: `api/eventlog/store/filestore_test.go::TestFileStoreConcurrency`
+
+### 文件操作上传拒绝不安全相对路径
+
+- Capability ID: `rainbond.file-operate.upload-folder-path-traversal`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.resolveUploadRelativePath`
+- 代码路径: `api/controller/service_monitor.go`
+- 测试路径: `api/controller/service_monitor_upload_test.go::TestResolveUploadRelativePathRejectsTraversal`
+
+### 文件操作上传保留文件夹路径
+
+- Capability ID: `rainbond.file-operate.upload-folder-relative-path`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller.resolveUploadRelativePath`
+- 代码路径: `api/controller/service_monitor.go`
+- 测试路径: `api/controller/service_monitor_upload_test.go::TestResolveUploadRelativePathPreservesFolderFromContentDisposition`
 
 ### 幂等初始化并复用火山引擎 NAS 客户端
 

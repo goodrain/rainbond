@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
@@ -255,25 +255,20 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.RemoveAll(tempDir)
 
+	isDirectoryUpload := len(files) > 1
+
 	// 保存文件到临时目录
 	for _, fileHeader := range files {
 		logrus.Debugf("处理文件: %s", fileHeader.Filename)
 
-		// 获取文件的相对路径
-		var relativePath string
-		contentDisposition := fileHeader.Header.Get("Content-Disposition")
-		filenameRegex := regexp.MustCompile(`filename="([^"]+)"`)
-		matches := filenameRegex.FindStringSubmatch(contentDisposition)
-		if len(matches) > 1 {
-			relativePath = matches[1] // 使用正则表达式从Content-Disposition中提取filename
-			logrus.Debugf("使用 Content-Disposition 中的 filename: %s", relativePath)
-		} else if webkitPath := fileHeader.Header.Get("webkitRelativePath"); webkitPath != "" {
-			relativePath = webkitPath
-			logrus.Debugf("使用 webkitRelativePath: %s", relativePath)
-		} else {
-			relativePath = fileHeader.Filename
-			logrus.Debugf("使用文件名作为路径: %s", relativePath)
+		relativePath, hasDirectoryPath, err := resolveUploadRelativePath(fileHeader)
+		if err != nil {
+			logrus.Errorf("上传文件路径非法: %v", err)
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("上传文件路径非法: %v", err))
+			return
 		}
+		isDirectoryUpload = isDirectoryUpload || hasDirectoryPath
+		logrus.Debugf("上传文件相对路径: %s", relativePath)
 
 		file, err := fileHeader.Open()
 		if err != nil {
@@ -314,15 +309,12 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("开始上传文件到容器，源目录: %s，目标路径: %s", tempDir, destPath)
 	// 获取第一个文件的目录结构信息来判断是单文件还是目录上传
 	firstFile := files[0]
-	if webkitPath := firstFile.Header.Get("webkitRelativePath"); webkitPath != "" {
-		// 如果是目录上传(有webkitRelativePath),使用临时目录内容
-		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
-	} else if len(files) == 1 {
+	if len(files) == 1 && !isDirectoryUpload {
 		// 如果是单文件上传
 		uploadPath := filepath.Join(tempDir, firstFile.Filename)
 		err = f.AppFileUpload(containerName, podName, uploadPath, destPath, namespace)
 	} else {
-		// 多文件上传
+		// 目录或多文件上传
 		err = f.AppFileUpload(containerName, podName, tempDir, destPath, namespace)
 	}
 
@@ -335,6 +327,34 @@ func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	logrus.Debug("文件上传成功")
 	w.Header().Set("status", "success")
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+func resolveUploadRelativePath(fileHeader *multipart.FileHeader) (string, bool, error) {
+	relativePath := ""
+	if contentDisposition := fileHeader.Header.Get("Content-Disposition"); contentDisposition != "" {
+		if _, params, err := mime.ParseMediaType(contentDisposition); err == nil {
+			relativePath = params["filename"]
+		}
+	}
+	if relativePath == "" {
+		relativePath = fileHeader.Header.Get("webkitRelativePath")
+	}
+	if relativePath == "" {
+		relativePath = fileHeader.Filename
+	}
+
+	relativePath = strings.ReplaceAll(relativePath, "\\", "/")
+	for _, part := range strings.Split(relativePath, "/") {
+		if part == ".." {
+			return "", false, fmt.Errorf("invalid relative path %q", relativePath)
+		}
+	}
+	cleaned := path.Clean(relativePath)
+	if cleaned == "." || cleaned == "/" || strings.HasPrefix(cleaned, "../") || cleaned == ".." || path.IsAbs(cleaned) {
+		return "", false, fmt.Errorf("invalid relative path %q", relativePath)
+	}
+
+	return cleaned, strings.Contains(cleaned, "/"), nil
 }
 
 func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
