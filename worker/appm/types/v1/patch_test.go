@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -237,5 +238,131 @@ func TestSetUpgradePatchKeepsDaemonSetSelectorLabels(t *testing.T) {
 	patch := string(newApp.UpgradePatch["daemonset"])
 	if strings.Contains(patch, `"app":""`) {
 		t.Fatalf("expected daemonset selector label to be preserved, got %s", patch)
+	}
+}
+
+func TestSetUpgradePatchKeepsDaemonSetRollingUpdateDefaults(t *testing.T) {
+	maxUnavailable := intstr.FromInt(1)
+	oldApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID: "service-a",
+		},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				UpdateStrategy: v1.DaemonSetUpdateStrategy{
+					Type: v1.RollingUpdateDaemonSetStrategyType,
+					RollingUpdate: &v1.RollingUpdateDaemonSet{
+						MaxUnavailable: &maxUnavailable,
+					},
+				},
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.25",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	newApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID:     "service-a",
+			DeployVersion: "v2",
+		},
+		UpgradePatch: map[string][]byte{},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				UpdateStrategy: v1.DaemonSetUpdateStrategy{
+					Type: v1.RollingUpdateDaemonSetStrategyType,
+				},
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.26",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := oldApp.SetUpgradePatch(newApp); err != nil {
+		t.Fatalf("set daemonset upgrade patch: %v", err)
+	}
+
+	patch := string(newApp.UpgradePatch["daemonset"])
+	if strings.Contains(patch, `"rollingUpdate":""`) {
+		t.Fatalf("expected daemonset rollingUpdate defaults to be preserved, got %s", patch)
+	}
+}
+
+func TestSetUpgradePatchUsesNullForRemovedDaemonSetFields(t *testing.T) {
+	oldApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID: "service-a",
+		},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							"disk": "ssd",
+						},
+						Affinity: &corev1.Affinity{
+							NodeAffinity: &corev1.NodeAffinity{},
+						},
+						HostNetwork: true,
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.25",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	newApp := &AppService{
+		AppServiceBase: AppServiceBase{
+			ServiceID:     "service-a",
+			DeployVersion: "v2",
+		},
+		UpgradePatch: map[string][]byte{},
+		daemonset: &v1.DaemonSet{
+			Spec: v1.DaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "main",
+								Image: "nginx:1.26",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := oldApp.SetUpgradePatch(newApp); err != nil {
+		t.Fatalf("set daemonset upgrade patch: %v", err)
+	}
+
+	patch := string(newApp.UpgradePatch["daemonset"])
+	for _, field := range []string{"nodeSelector", "affinity", "hostNetwork"} {
+		if strings.Contains(patch, `"`+field+`":""`) {
+			t.Fatalf("expected removed daemonset field %s to use null, got %s", field, patch)
+		}
+		if !strings.Contains(patch, `"`+field+`":null`) {
+			t.Fatalf("expected removed daemonset field %s to be null, got %s", field, patch)
+		}
 	}
 }
