@@ -1,0 +1,49 @@
+name: mirror-python-base-to-ghcr
+
+# 一次性/按需：把 python base 镜像从 Docker Hub 镜像到 GHCR (ghcr.io/goodrain)，
+# 供 dev-build 的 allinone 构建 FROM 拉取，规避 Docker Hub 拉取限速 (429)。
+# 跑在 GitHub 托管 runner（拉 docker.io 快、推 ghcr 是内网级），GHCR 推送用内置
+# GITHUB_TOKEN（无需 PAT）。**跑完去 GHCR 包设置把 goodrain/python 包设为 Public**，
+# dev-build 才能匿名 FROM 拉取（dev-build 未对 ghcr 登录）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: '要镜像的 python tag（空格分隔）'
+        required: false
+        default: '3.11-bookworm 3.11-slim-bookworm'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror python base images to ghcr.io/goodrain
+        env:
+          TAGS: ${{ github.event.inputs.tags }}
+        run: |
+          set -euo pipefail
+          for t in $TAGS; do
+            src="python:${t}"
+            dst="ghcr.io/goodrain/python:${t}"
+            echo "::group::mirror ${src} -> ${dst}"
+            docker buildx imagetools create --tag "${dst}" "${src}"
+            docker buildx imagetools inspect "${dst}" | grep -i 'linux/amd64' \
+              || { echo "ERROR: linux/amd64 missing in ${dst}"; exit 1; }
+            echo "::endgroup::"
+          done
+          echo "done. 记得到 GHCR 包设置把 goodrain/python 包设为 Public（dev-build 才能匿名拉取）。"
