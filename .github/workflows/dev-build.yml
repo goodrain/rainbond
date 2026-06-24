@@ -320,6 +320,15 @@ jobs:
           username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
 
+      # Pull the python base from the private ghcr.io/goodrain mirror (org policy
+      # disallows public packages), avoiding Docker Hub pull-rate (429) limits.
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Set release description
         run: |
           buildTime=$(date +%F-%H)
