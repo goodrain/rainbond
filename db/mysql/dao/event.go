@@ -63,6 +63,15 @@ type EventDaoImpl struct {
 	DB *gorm.DB
 }
 
+func abnormalEventStatuses(optType string) []string {
+	statuses := []string{model.EventStatusFailure.String()}
+	switch optType {
+	case "ReadinessUnhealthy", "LivenessRestart", "StartupProbeFailure":
+		statuses = append(statuses, model.EventStatusChecking.String())
+	}
+	return statuses
+}
+
 // CreateEventsInBatch creates events in batch.
 func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	dbType := c.DB.Dialect().GetName()
@@ -290,7 +299,7 @@ func (c *EventDaoImpl) GetAppointEvent(serviceID, status, Opt string) (*model.Se
 // AbnormalEvent Abnormal event in components.
 func (c *EventDaoImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent, error) {
 	var event model.ServiceEvent
-	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status=?", model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String()).
+	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status in (?)", model.TargetTypePod, serviceID, Opt, abnormalEventStatuses(Opt)).
 		Last(&event).Error; err != nil {
 		return nil, err
 	}
@@ -300,7 +309,7 @@ func (c *EventDaoImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent
 // DelAbnormalEvent delete Abnormal event in components.
 func (c *EventDaoImpl) DelAbnormalEvent(serviceID, Opt string) error {
 	var event model.ServiceEvent
-	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status=?", model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String()).
+	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status in (?)", model.TargetTypePod, serviceID, Opt, abnormalEventStatuses(Opt)).
 		Delete(&event).Error; err != nil {
 		return err
 	}

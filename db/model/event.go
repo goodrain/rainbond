@@ -75,6 +75,9 @@ var EventStatusSuccess EventStatus = "success"
 // EventStatusFailure -
 var EventStatusFailure EventStatus = "failure"
 
+// EventStatusChecking -
+var EventStatusChecking EventStatus = "checking"
+
 // ServiceEvent event struct
 type ServiceEvent struct {
 	ID          uint   `gorm:"column:ID;primary_key" json:"-"`
