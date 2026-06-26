@@ -65,6 +65,15 @@ var EventTypeStartupProbeFailure EventType = "StartupProbeFailure"
 // EventTypeHealthCheckPassed - Health check passed (recovery from any health check failure)
 var EventTypeHealthCheckPassed EventType = "HealthCheckPassed"
 
+func healthCheckFailureEventState(eventType EventType) (string, string) {
+	switch eventType {
+	case EventTypeReadinessUnhealthy, EventTypeLivenessRestart, EventTypeStartupProbeFailure:
+		return model.EventStatusChecking.String(), model.EventFinalStatusRunning.String()
+	default:
+		return model.EventStatusFailure.String(), model.EventFinalStatusEmpty.String()
+	}
+}
+
 // SortableEventType implements sort.Interface for []EventType
 type SortableEventType []EventType
 
@@ -875,6 +884,10 @@ func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8su
 
 // createSystemEvent -
 func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg string) (eventID string, err error) {
+	return createSystemEventWithFinalStatus(tenantID, serviceID, targetID, optType, status, model.EventFinalStatusEmpty.String(), msg)
+}
+
+func createSystemEventWithFinalStatus(tenantID, serviceID, targetID, optType, status, finalStatus, msg string) (eventID string, err error) {
 	eventID = util.NewUUID()
 	et := &model.ServiceEvent{
 		EventID:     eventID,
@@ -885,7 +898,7 @@ func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg strin
 		UserName:    model.UsernameSystem,
 		OptType:     optType,
 		Status:      status,
-		FinalStatus: model.EventFinalStatusEmpty.String(),
+		FinalStatus: finalStatus,
 		Message:     msg,
 		CreateTime:  time.Now().Format(time.RFC3339),
 		StartTime:   time.Now().Format(time.RFC3339),
@@ -1174,7 +1187,8 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 			msg := fmt.Sprintf("容器 [%s] 健康检查失败，已暂停接收访问。建议查看日志或调整健康检查设置。",
 				cs.Name)
 
-			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeReadinessUnhealthy.String(), model.EventStatusFailure.String(), msg)
+			status, finalStatus := healthCheckFailureEventState(EventTypeReadinessUnhealthy)
+			eventID, err := createSystemEventWithFinalStatus(tenantID, serviceID, pod.Name, EventTypeReadinessUnhealthy.String(), status, finalStatus, msg)
 			if err != nil {
 				logrus.Warnf("pod: %s; type: ReadinessUnhealthy; error creating event: %v", pod.GetName(), err)
 				return
@@ -1277,7 +1291,8 @@ func (p *PodEvent) checkLivenessRestart(pod *corev1.Pod, cs corev1.ContainerStat
 						msg := fmt.Sprintf("容器 [%s] 健康检查失败，已自动重启 %d 次。建议查看日志定位问题。",
 							cs.Name, cs.RestartCount)
 
-						eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeLivenessRestart.String(), model.EventStatusFailure.String(), msg)
+						status, finalStatus := healthCheckFailureEventState(EventTypeLivenessRestart)
+						eventID, err := createSystemEventWithFinalStatus(tenantID, serviceID, pod.Name, EventTypeLivenessRestart.String(), status, finalStatus, msg)
 						if err != nil {
 							logrus.Warnf("pod: %s; type: LivenessRestart; error creating event: %v", pod.GetName(), err)
 							return
@@ -1371,7 +1386,8 @@ func (p *PodEvent) checkStartupProbeFailure(pod *corev1.Pod, cs corev1.Container
 			msg := fmt.Sprintf("容器 [%s] 启动失败 %d 次，%d 秒后重试。建议查看日志或增加启动超时时间。",
 				cs.Name, cs.RestartCount, backoffSeconds)
 
-			eventID, err := createSystemEvent(tenantID, serviceID, pod.Name, EventTypeStartupProbeFailure.String(), model.EventStatusFailure.String(), msg)
+			status, finalStatus := healthCheckFailureEventState(EventTypeStartupProbeFailure)
+			eventID, err := createSystemEventWithFinalStatus(tenantID, serviceID, pod.Name, EventTypeStartupProbeFailure.String(), status, finalStatus, msg)
 			if err != nil {
 				logrus.Warnf("pod: %s; type: StartupProbeFailure; error creating event: %v", pod.GetName(), err)
 				return
