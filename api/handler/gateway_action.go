@@ -22,6 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -42,13 +47,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"os"
 	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/gateway-api/apis/v1beta1"
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 // GatewayAction -
@@ -120,14 +121,7 @@ func (g *GatewayAction) BatchGetGatewayHTTPRoute(namespace, appID string) ([]*ap
 	}
 	var HTTPRouteConcise []*apimodel.GatewayHTTPRouteConcise
 	for _, httpRoute := range httpRoutes {
-		var gatewayName string
-		gatewayNamespace := namespace
-		if httpRoute.Spec.ParentRefs != nil {
-			gatewayName = string(httpRoute.Spec.ParentRefs[0].Name)
-			if httpRoute.Spec.ParentRefs[0].Namespace != nil {
-				gatewayNamespace = string(*httpRoute.Spec.ParentRefs[0].Namespace)
-			}
-		}
+		gatewayName, gatewayNamespace, _ := gatewayParentRefValues(httpRoute.Spec.ParentRefs, namespace)
 		var hosts []string
 		if httpRoute.Spec.Hostnames != nil {
 			for _, hostname := range httpRoute.Spec.Hostnames {
@@ -478,16 +472,7 @@ func (g *GatewayAction) GetGatewayHTTPRoute(name, namespace string) (*apimodel.G
 		logrus.Errorf("get gateway route failure: %v", err)
 		return nil, err
 	}
-	var gatewayName, gatewayNamespace, sectionName string
-	if route.Spec.ParentRefs != nil {
-		gatewayName = string(route.Spec.ParentRefs[0].Name)
-		if route.Spec.ParentRefs[0].Namespace != nil {
-			gatewayNamespace = string(*route.Spec.ParentRefs[0].Namespace)
-		}
-		if route.Spec.ParentRefs[0].SectionName != nil {
-			sectionName = string(*route.Spec.ParentRefs[0].SectionName)
-		}
-	}
+	gatewayName, gatewayNamespace, sectionName := gatewayParentRefValues(route.Spec.ParentRefs, namespace)
 	var hosts []string
 	if route.Spec.Hostnames != nil {
 		for _, hostname := range route.Spec.Hostnames {
@@ -640,6 +625,22 @@ func (g *GatewayAction) GetGatewayHTTPRoute(name, namespace string) (*apimodel.G
 	req.Namespace = namespace
 	req.Rules = rules
 	return &req, nil
+}
+
+func gatewayParentRefValues(parentRefs []v1.ParentReference, defaultNamespace string) (gatewayName, gatewayNamespace, sectionName string) {
+	gatewayNamespace = defaultNamespace
+	if len(parentRefs) == 0 {
+		return gatewayName, gatewayNamespace, sectionName
+	}
+	parentRef := parentRefs[0]
+	gatewayName = string(parentRef.Name)
+	if parentRef.Namespace != nil {
+		gatewayNamespace = string(*parentRef.Namespace)
+	}
+	if parentRef.SectionName != nil {
+		sectionName = string(*parentRef.SectionName)
+	}
+	return gatewayName, gatewayNamespace, sectionName
 }
 
 // UpdateGatewayHTTPRoute update gateway http route

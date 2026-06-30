@@ -22,15 +22,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/grpc"
-	"github.com/goodrain/rainbond/pkg/component/hubregistry"
-	"github.com/goodrain/rainbond/pkg/component/mq"
-	"github.com/goodrain/rainbond/pkg/component/prom"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi"
+	chimiddleware "github.com/go-chi/chi/middleware"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/hubregistry"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 )
 
@@ -42,7 +44,10 @@ func Recoverer(next http.Handler) http.Handler {
 				stack := debug.Stack()
 				debug.PrintStack()
 				sentryobs.CaptureHTTPPanic(rvr, r, stack, map[string]string{
-					"component": "rbd-api",
+					"component":  "rbd-api",
+					"path":       r.URL.Path,
+					"request_id": chimiddleware.GetReqID(r.Context()),
+					"route":      routePattern(r),
 				})
 				handleServiceUnavailable(w, r)
 			}
@@ -52,6 +57,18 @@ func Recoverer(next http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(fn)
+}
+
+func routePattern(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if routeCtx := chi.RouteContext(r.Context()); routeCtx != nil {
+		if pattern := routeCtx.RoutePattern(); pattern != "" {
+			return pattern
+		}
+	}
+	return r.URL.Path
 }
 
 // isNilPointerException Check if the panic is a nil pointer exception
