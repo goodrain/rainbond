@@ -41,6 +41,8 @@ const (
 	K8sAttributeNameENV = "env"
 	// K8sAttributeNameShareProcessNamespace -
 	K8sAttributeNameShareProcessNamespace = "shareProcessNamespace"
+	// K8sAttributeNameHostNetwork -
+	K8sAttributeNameHostNetwork = "hostNetwork"
 	// K8sAttributeNameDNSPolicy -
 	K8sAttributeNameDNSPolicy = "dnsPolicy"
 	// K8sAttributeNameDNSConfig -
@@ -80,7 +82,7 @@ type ComponentK8sAttributes struct {
 	ComponentID string `gorm:"column:component_id" json:"component_id"`
 
 	// Name Define the attribute name, which is currently supported
-	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts]
+	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts/hostNetwork]
 	// The field name should be the same as that in the K8s resource yaml file.
 	Name string `gorm:"column:name" json:"name"`
 

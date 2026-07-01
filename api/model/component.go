@@ -215,7 +215,7 @@ func (l *ComponentLabel) DbModel(componentID string) *dbmodel.TenantServiceLable
 	}
 }
 
-//ComponentEnv  -
+// ComponentEnv  -
 type ComponentEnv struct {
 	ContainerPort int    `validate:"container_port|numeric_between:1,65535" json:"container_port"`
 	Name          string `validate:"name" json:"name"`
@@ -267,7 +267,7 @@ type SyncComponentReq struct {
 	DeleteComponentIDs []string     `json:"delete_component_ids"`
 }
 
-//ComponentK8sAttributeGet -
+// ComponentK8sAttributeGet -
 type ComponentK8sAttributeGet struct {
 	Name string `json:"name"`
 	Arch string `json:"arch"`
@@ -276,7 +276,7 @@ type ComponentK8sAttributeGet struct {
 // ComponentK8sAttribute -
 type ComponentK8sAttribute struct {
 	// Name Define the attribute name, which is currently supported
-	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts]
+	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts/hostNetwork]
 	// The field name should be the same as that in the K8s resource yaml file.
 	Name string `json:"name"`
 

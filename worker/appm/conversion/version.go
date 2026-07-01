@@ -336,12 +336,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 					}
 					return ""
 				}(),
-				HostNetwork: func() bool {
-					if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-						return true
-					}
-					return false
-				}(),
+				HostNetwork: createHostNetwork(as, dbmanager),
 				SchedulerName: func() string {
 					if name, ok := as.ExtensionSet["shcedulername"]; ok {
 						return name
@@ -2101,6 +2096,29 @@ func createShareProcessNamespace(as *v1.AppService, dbmanager db.Manager) bool {
 			return false
 		}
 		return value
+	}
+	return false
+}
+
+func createHostNetwork(as *v1.AppService, dbmanager db.Manager) bool {
+	if as == nil {
+		return false
+	}
+	hostNetwork, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostNetwork)
+	if err != nil {
+		logrus.Debug("get by HostNetwork attribute error", err)
+		return false
+	}
+	if hostNetwork != nil {
+		value, err := strconv.ParseBool(hostNetwork.AttributeValue)
+		if err != nil {
+			logrus.Debug("HostNetwork ParseBool error", err)
+			return false
+		}
+		return value
+	}
+	if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+		return true
 	}
 	return false
 }
