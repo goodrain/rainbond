@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 type gatewayRouteDeleteEventTestManager struct {
@@ -131,6 +132,43 @@ func TestReassignConflictingTCPRulePorts(t *testing.T) {
 	}
 	if incoming[0].Port != 30001 {
 		t.Fatalf("incoming TCP rule port = %d, expected 30001", incoming[0].Port)
+	}
+}
+
+func TestGatewayParentRefValuesHandlesEmptyParentRefs(t *testing.T) {
+	gatewayName, gatewayNamespace, sectionName := gatewayParentRefValues(nil, "app-ns")
+
+	if gatewayName != "" {
+		t.Fatalf("gatewayName = %q, expected empty", gatewayName)
+	}
+	if gatewayNamespace != "app-ns" {
+		t.Fatalf("gatewayNamespace = %q, expected default namespace", gatewayNamespace)
+	}
+	if sectionName != "" {
+		t.Fatalf("sectionName = %q, expected empty", sectionName)
+	}
+}
+
+func TestGatewayParentRefValuesReturnsFirstParentRef(t *testing.T) {
+	parentNamespace := gatewayv1.Namespace("gateway-ns")
+	parentSection := gatewayv1.SectionName("https")
+
+	gatewayName, gatewayNamespace, sectionName := gatewayParentRefValues([]gatewayv1.ParentReference{
+		{
+			Name:        gatewayv1.ObjectName("gateway-a"),
+			Namespace:   &parentNamespace,
+			SectionName: &parentSection,
+		},
+	}, "app-ns")
+
+	if gatewayName != "gateway-a" {
+		t.Fatalf("gatewayName = %q, expected gateway-a", gatewayName)
+	}
+	if gatewayNamespace != "gateway-ns" {
+		t.Fatalf("gatewayNamespace = %q, expected gateway-ns", gatewayNamespace)
+	}
+	if sectionName != "https" {
+		t.Fatalf("sectionName = %q, expected https", sectionName)
 	}
 }
 
