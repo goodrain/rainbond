@@ -310,6 +310,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		if len(aliases) == 0 {
 			aliases = append(aliases, createHostAliases(as)...)
 		}
+		podSecurityContext, err := createPodSecurityContext(as, dbmanager)
+		if err != nil {
+			return fmt.Errorf("create pod security context %v", err)
+		}
 		podtmpSpec = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      labels,
@@ -347,6 +351,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				ShareProcessNamespace: util.Bool(createShareProcessNamespace(as, dbmanager)),
 				DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
 				HostIPC:               createHostIPC(as, dbmanager),
+				SecurityContext:       podSecurityContext,
 			},
 		}
 	}
@@ -2233,6 +2238,28 @@ func createSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.Sec
 		}
 	}
 	return &securityContext, nil
+}
+
+func createPodSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.PodSecurityContext, error) {
+	psc, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNamePodSecurityContext)
+	if err != nil {
+		logrus.Debug("get by podSecurityContext attribute error", err)
+		return nil, err
+	}
+	if psc == nil || strings.TrimSpace(psc.AttributeValue) == "" {
+		return nil, nil
+	}
+	var podSecurityContext corev1.PodSecurityContext
+	podSecurityContextJSON, err := yaml.YAMLToJSON([]byte(psc.AttributeValue))
+	if err != nil {
+		logrus.Debug("podSecurityContext yaml to json error", err)
+		return nil, err
+	}
+	if err := json.Unmarshal(podSecurityContextJSON, &podSecurityContext); err != nil {
+		logrus.Debug("podSecurityContext json unmarshal error", err)
+		return nil, err
+	}
+	return &podSecurityContext, nil
 }
 
 func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements, OverScoreRate string) (res corev1.ResourceRequirements) {
