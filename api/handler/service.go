@@ -2389,6 +2389,16 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			}
 			deletedVolume = volume
 
+			mountRelations, err := dbm.TenantServiceMountRelationDaoTransactions(tx).GetTenantServiceMountRelationsByDepServiceAndVolumeName(volume.ServiceID, volume.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("get volume mount relation", err)
+			}
+			if len(mountRelations) > 0 {
+				tx.Rollback()
+				return util.CreateAPIHandleError(400, fmt.Errorf("组件存储已被共享挂载，不允许删除"))
+			}
+
 			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)

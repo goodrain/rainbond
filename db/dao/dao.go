@@ -342,6 +342,7 @@ type TenantServiceEnvVarDao interface {
 type TenantServiceMountRelationDao interface {
 	Dao
 	GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error)
+	GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName string) ([]*model.TenantServiceMountRelation, error)
 	DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error
 	DELTenantServiceMountRelationByServiceID(serviceID string) error
 	DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error

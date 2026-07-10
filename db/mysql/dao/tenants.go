@@ -1333,6 +1333,18 @@ func (t *TenantServiceMountRelationDaoImpl) GetTenantServiceMountRelationsByServ
 	return relations, nil
 }
 
+// GetTenantServiceMountRelationsByDepServiceAndVolumeName gets mount relations using a source service volume.
+func (t *TenantServiceMountRelationDaoImpl) GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName string) ([]*model.TenantServiceMountRelation, error) {
+	var relations = make([]*model.TenantServiceMountRelation, 0)
+	if err := t.DB.Where("dep_service_id=? and volume_name=?", serviceID, volumeName).Find(&relations).Error; err != nil {
+		if strings.Contains(err.Error(), "record not found") {
+			return relations, nil
+		}
+		return nil, err
+	}
+	return relations, nil
+}
+
 // DeleteByComponentIDs -
 func (t *TenantServiceMountRelationDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceMountRelation{}).Error

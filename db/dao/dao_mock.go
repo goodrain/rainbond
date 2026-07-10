@@ -2748,6 +2748,19 @@ func (mr *MockTenantServiceMountRelationDaoMockRecorder) GetTenantServiceMountRe
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceMountRelationsByService", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).GetTenantServiceMountRelationsByService), serviceID)
 }
 
+// GetTenantServiceMountRelationsByDepServiceAndVolumeName mocks base method
+func (m *MockTenantServiceMountRelationDao) GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName string) ([]*model.TenantServiceMountRelation, error) {
+	ret := m.ctrl.Call(m, "GetTenantServiceMountRelationsByDepServiceAndVolumeName", serviceID, volumeName)
+	ret0, _ := ret[0].([]*model.TenantServiceMountRelation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTenantServiceMountRelationsByDepServiceAndVolumeName indicates an expected call of GetTenantServiceMountRelationsByDepServiceAndVolumeName
+func (mr *MockTenantServiceMountRelationDaoMockRecorder) GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceMountRelationsByDepServiceAndVolumeName", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).GetTenantServiceMountRelationsByDepServiceAndVolumeName), serviceID, volumeName)
+}
+
 // DElTenantServiceMountRelationByServiceAndName mocks base method
 func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error {
 	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByServiceAndName", serviceID, mntDir)
