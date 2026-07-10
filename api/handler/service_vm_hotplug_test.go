@@ -128,9 +128,10 @@ func (d *hotplugTenantServiceDao) GetServiceByID(serviceID string) (*dbmodel.Ten
 
 type hotunplugVolumeDeleteTestManager struct {
 	db.Manager
-	tx            *gorm.DB
-	volumeDao     dbdao.TenantServiceVolumeDao
-	configFileDao dbdao.TenantServiceConfigFileDao
+	tx               *gorm.DB
+	volumeDao        dbdao.TenantServiceVolumeDao
+	mountRelationDao dbdao.TenantServiceMountRelationDao
+	configFileDao    dbdao.TenantServiceConfigFileDao
 }
 
 func (m hotunplugVolumeDeleteTestManager) Begin() *gorm.DB {
@@ -139,6 +140,10 @@ func (m hotunplugVolumeDeleteTestManager) Begin() *gorm.DB {
 
 func (m hotunplugVolumeDeleteTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
 	return m.volumeDao
+}
+
+func (m hotunplugVolumeDeleteTestManager) TenantServiceMountRelationDaoTransactions(*gorm.DB) dbdao.TenantServiceMountRelationDao {
+	return m.mountRelationDao
 }
 
 func (m hotunplugVolumeDeleteTestManager) TenantServiceConfigFileDaoTransactions(*gorm.DB) dbdao.TenantServiceConfigFileDao {
@@ -162,6 +167,14 @@ func (d *hotunplugTenantServiceVolumeDao) DeleteModel(serviceID string, args ...
 		}
 	}
 	return nil
+}
+
+type hotunplugTenantServiceMountRelationDao struct {
+	dbdao.TenantServiceMountRelationDao
+}
+
+func (d *hotunplugTenantServiceMountRelationDao) GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName string) ([]*dbmodel.TenantServiceMountRelation, error) {
+	return nil, nil
 }
 
 type hotunplugTenantServiceConfigFileDao struct {
@@ -690,9 +703,10 @@ func TestVolumnVarDeleteHotunplugsRunningVMDataDisk(t *testing.T) {
 	}
 	configFileDao := &hotunplugTenantServiceConfigFileDao{}
 	db.SetTestManager(hotunplugVolumeDeleteTestManager{
-		tx:            tx,
-		volumeDao:     volumeDao,
-		configFileDao: configFileDao,
+		tx:               tx,
+		volumeDao:        volumeDao,
+		mountRelationDao: &hotunplugTenantServiceMountRelationDao{},
+		configFileDao:    configFileDao,
 	})
 	defer db.SetTestManager(nil)
 

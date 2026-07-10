@@ -1396,6 +1396,26 @@
       "status": "active"
     },
     {
+      "id": "rainbond.component.volume-delete-blocks-shared-mount",
+      "title": "Block deleting shared mounted component volumes",
+      "title_zh": "Block deleting shared mounted component volumes",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.VolumnVar",
+      "code_paths": [
+        "api/handler/service.go",
+        "db/dao/dao.go",
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.component.volume-update-persists-capacity",
       "title": "Persist component volume capacity updates",
       "title_zh": "\u6301\u4e45\u5316\u7ec4\u4ef6\u5b58\u50a8\u5bb9\u91cf\u66f4\u65b0",
