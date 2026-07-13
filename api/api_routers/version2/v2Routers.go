@@ -169,9 +169,9 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
 		resp := map[string]interface{}{
-			"code":    http.StatusBadGateway,
-			"msg":     fmt.Sprintf("plugin backend unavailable: %s", err.Error()),
-			"plugin":  plugin.Name,
+			"code":   http.StatusBadGateway,
+			"msg":    fmt.Sprintf("plugin backend unavailable: %s", err.Error()),
+			"plugin": plugin.Name,
 		}
 		if encErr := json.NewEncoder(w).Encode(resp); encErr != nil {
 			logrus.Errorf("failed to encode plugin proxy error response: %v", encErr)
@@ -319,6 +319,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
 	r.Post("/rbd-upgrade", controller.GetManager().Upgrade)
 	r.Get("/rbd-upgrade/status", controller.GetManager().ListUpgradeStatus)
+	r.Post("/agent-kubernetes/bootstrap-credential", controller.GetManager().BootstrapAgentKubeconfig)
 	r.Mount("/nodes", v2.nodesRouter())
 	r.Get("/langVersion", controller.GetManager().GetLangVersion)
 	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
