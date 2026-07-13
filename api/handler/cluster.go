@@ -107,6 +107,7 @@ type ClusterHandler interface {
 	ListUpgradeStatus() ([]model.ComponentStatus, error)
 	GetClusterRegionStatus() (map[string]interface{}, error)
 	CheckReadiness(ctx context.Context) (*model.RegionReadiness, error)
+	BootstrapAgentKubeconfig(ctx context.Context, req *AgentKubeconfigBootstrapRequest) (*AgentKubeconfigBootstrapResponse, error)
 }
 
 // NewClusterHandler -

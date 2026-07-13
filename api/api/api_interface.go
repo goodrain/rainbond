@@ -66,6 +66,7 @@ type ClusterInterface interface {
 	ListUpgradeStatus(w http.ResponseWriter, r *http.Request)
 	SetOverScore(w http.ResponseWriter, r *http.Request)
 	RegionReadiness(w http.ResponseWriter, r *http.Request)
+	BootstrapAgentKubeconfig(w http.ResponseWriter, r *http.Request)
 }
 
 // NodesInterface -
