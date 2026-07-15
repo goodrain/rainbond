@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -68,72 +69,123 @@ func (c *clusterAction) BootstrapAgentKubeconfig(ctx context.Context, req *Agent
 }
 
 func (c *clusterAction) ensureAgentServiceAccount(ctx context.Context, namespace, serviceAccount string) error {
-	_, err := c.clientset.CoreV1().ServiceAccounts(namespace).Get(ctx, serviceAccount, metav1.GetOptions{})
+	existingServiceAccount, err := c.clientset.CoreV1().ServiceAccounts(namespace).Get(ctx, serviceAccount, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		_, err = c.clientset.CoreV1().ServiceAccounts(namespace).Create(ctx, &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      serviceAccount,
-				Namespace: namespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/name":       "rainbond-agent",
-					"app.kubernetes.io/managed-by": "rainbond",
-				},
-			},
-		}, metav1.CreateOptions{})
+		_, err = c.clientset.CoreV1().ServiceAccounts(namespace).Create(ctx, desiredAgentServiceAccount(namespace, serviceAccount), metav1.CreateOptions{})
 	}
 	if err != nil {
 		return fmt.Errorf("ensure service account: %w", err)
 	}
+	if existingServiceAccount != nil && ensureAgentServiceAccountLabels(existingServiceAccount) {
+		_, err = c.clientset.CoreV1().ServiceAccounts(namespace).Update(ctx, existingServiceAccount, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("update service account labels: %w", err)
+		}
+	}
 
 	roleName := "rainbond-agent-ops"
-	_, err = c.clientset.RbacV1().ClusterRoles().Get(ctx, roleName, metav1.GetOptions{})
+	desiredRole := desiredAgentClusterRole(roleName)
+	existingRole, err := c.clientset.RbacV1().ClusterRoles().Get(ctx, roleName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		_, err = c.clientset.RbacV1().ClusterRoles().Create(ctx, &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: roleName,
-			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					APIGroups: []string{"*"},
-					Resources: []string{"*"},
-					Verbs:     []string{"*"},
-				},
-				{
-					NonResourceURLs: []string{"*"},
-					Verbs:           []string{"get"},
-				},
-			},
-		}, metav1.CreateOptions{})
+		_, err = c.clientset.RbacV1().ClusterRoles().Create(ctx, desiredRole, metav1.CreateOptions{})
 	}
 	if err != nil {
 		return fmt.Errorf("ensure cluster role: %w", err)
 	}
+	if existingRole != nil && !reflect.DeepEqual(existingRole.Rules, desiredRole.Rules) {
+		existingRole.Rules = desiredRole.Rules
+		_, err = c.clientset.RbacV1().ClusterRoles().Update(ctx, existingRole, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("update cluster role: %w", err)
+		}
+	}
 
 	bindingName := fmt.Sprintf("%s-%s", roleName, namespace)
-	_, err = c.clientset.RbacV1().ClusterRoleBindings().Get(ctx, bindingName, metav1.GetOptions{})
+	desiredBinding := desiredAgentClusterRoleBinding(bindingName, roleName, namespace, serviceAccount)
+	existingBinding, err := c.clientset.RbacV1().ClusterRoleBindings().Get(ctx, bindingName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		_, err = c.clientset.RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: bindingName,
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      rbacv1.ServiceAccountKind,
-					Name:      serviceAccount,
-					Namespace: namespace,
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: rbacv1.GroupName,
-				Kind:     "ClusterRole",
-				Name:     roleName,
-			},
-		}, metav1.CreateOptions{})
+		_, err = c.clientset.RbacV1().ClusterRoleBindings().Create(ctx, desiredBinding, metav1.CreateOptions{})
 	}
 	if err != nil {
 		return fmt.Errorf("ensure cluster role binding: %w", err)
 	}
+	if existingBinding != nil && (!reflect.DeepEqual(existingBinding.Subjects, desiredBinding.Subjects) || !reflect.DeepEqual(existingBinding.RoleRef, desiredBinding.RoleRef)) {
+		existingBinding.Subjects = desiredBinding.Subjects
+		existingBinding.RoleRef = desiredBinding.RoleRef
+		_, err = c.clientset.RbacV1().ClusterRoleBindings().Update(ctx, existingBinding, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("update cluster role binding: %w", err)
+		}
+	}
 	return nil
+}
+
+func desiredAgentServiceAccount(namespace, serviceAccount string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccount,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "rainbond-agent",
+				"app.kubernetes.io/managed-by": "rainbond",
+			},
+		},
+	}
+}
+
+func ensureAgentServiceAccountLabels(serviceAccount *corev1.ServiceAccount) bool {
+	changed := false
+	if serviceAccount.Labels == nil {
+		serviceAccount.Labels = map[string]string{}
+		changed = true
+	}
+	expected := desiredAgentServiceAccount("", "").Labels
+	for key, value := range expected {
+		if serviceAccount.Labels[key] != value {
+			serviceAccount.Labels[key] = value
+			changed = true
+		}
+	}
+	return changed
+}
+
+func desiredAgentClusterRole(roleName string) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			},
+			{
+				NonResourceURLs: []string{"*"},
+				Verbs:           []string{"get"},
+			},
+		},
+	}
+}
+
+func desiredAgentClusterRoleBinding(bindingName, roleName, namespace, serviceAccount string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: bindingName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      serviceAccount,
+				Namespace: namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     roleName,
+		},
+	}
 }
 
 func (c *clusterAction) createAgentServiceAccountToken(ctx context.Context, namespace, serviceAccount string, expirationSeconds int64) (string, string, error) {
