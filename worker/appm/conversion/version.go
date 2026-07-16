@@ -175,6 +175,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
+		if err := validateVMBootPath(as.ExtensionSet, bootPath); err != nil {
+			return fmt.Errorf("validate vm boot path failure: %v", err)
+		}
 		volumes := dv.GetVMVolume()
 		var rootBlankDataVolumeName string
 		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName = prepareVMImageBootVolumes(
@@ -1595,9 +1598,10 @@ func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
 type vmBootPath string
 
 const (
-	vmBootPathISOInstaller     vmBootPath = "iso-installer"
-	vmBootPathVMImageRootDisk  vmBootPath = "vmimage-rootdisk"
-	vmBootPathImportedRootDisk vmBootPath = "imported-rootdisk"
+	vmBootPathISOInstaller      vmBootPath = "iso-installer"
+	vmBootPathVMImageRootDisk   vmBootPath = "vmimage-rootdisk"
+	vmBootPathImportedRootDisk  vmBootPath = "imported-rootdisk"
+	vmBootPathMissingRootImport vmBootPath = "missing-root-import"
 )
 
 func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.DataVolumeTemplateSpec) vmBootPath {
@@ -1607,7 +1611,14 @@ func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.Da
 	if vmBootSourceUsesCDRom(extensionSet) {
 		return vmBootPathISOInstaller
 	}
-	return vmBootPathVMImageRootDisk
+	return vmBootPathMissingRootImport
+}
+
+func validateVMBootPath(extensionSet map[string]string, path vmBootPath) error {
+	if path != vmBootPathMissingRootImport {
+		return nil
+	}
+	return fmt.Errorf("missing imported root data volume for vm boot source format %q", vmBootSourceFormat(extensionSet))
 }
 
 func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
