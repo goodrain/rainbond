@@ -129,7 +129,7 @@ func TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImpor
 	}
 }
 
-func TestStartOrCreateVMDoesNotManuallyStartAlwaysRunStrategyVM(t *testing.T) {
+func TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -158,6 +158,8 @@ func TestStartOrCreateVMDoesNotManuallyStartAlwaysRunStrategyVM(t *testing.T) {
 			},
 		},
 	}, nil)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Start(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
 
 	action := &ServiceAction{kubevirtClient: mockClient}
 	err := action.StartOrCreateVM(newVMOperationEventContext("event-1"), &apimodel.StartStopStruct{
@@ -167,10 +169,43 @@ func TestStartOrCreateVMDoesNotManuallyStartAlwaysRunStrategyVM(t *testing.T) {
 		TaskType:  "start",
 	}, "deploy-v1")
 	if err != nil {
-		t.Fatalf("expected Always run strategy VM start to be a no-op, got %v", err)
+		t.Fatalf("expected stopped Always run strategy VM to start, got %v", err)
 	}
 	if len(eventDao.statuses) != 1 || eventDao.statuses[0] != dbmodel.EventStatusSuccess {
 		t.Fatalf("expected success event status update, got %#v", eventDao.statuses)
+	}
+}
+
+func TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	mockClient.EXPECT().VirtualMachine("").Return(mockVMInterface)
+	mockVMInterface.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
+		Items: []kubevirtv1.VirtualMachine{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-vm",
+					Namespace: "demo-ns",
+				},
+			},
+		},
+	}, nil)
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Start(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	action := &ServiceAction{kubevirtClient: mockClient}
+	err := action.StartOrCreateVM(context.Background(), &apimodel.StartStopStruct{
+		TenantID:  "tenant-1",
+		ServiceID: "service-1",
+		EventID:   "event-1",
+		TaskType:  "start",
+	}, "deploy-v1")
+	if err != nil {
+		t.Fatalf("expected VM with unknown printable status to start, got %v", err)
 	}
 }
 

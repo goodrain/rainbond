@@ -6849,6 +6849,14 @@
         },
         {
           "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
         }
       ],

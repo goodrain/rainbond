@@ -489,11 +489,7 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 		if currentVM == nil {
 			return s.enqueueVMStartTask(sss, deployVersion)
 		}
-		if currentVM.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
-			return nil
-		}
-		if currentVM.Spec.RunStrategy != nil && *currentVM.Spec.RunStrategy == v1.RunStrategyAlways {
-			logrus.Debugf("skip manual start for Always run strategy vm: namespace=%s name=%s service_id=%s", currentVM.Namespace, currentVM.Name, sss.ServiceID)
+		if isVMStartRequestedOrRunning(currentVM.Status.PrintableStatus) {
 			return nil
 		}
 		if err := s.kubevirtClient.VirtualMachine(currentVM.Namespace).Start(context.Background(), currentVM.Name, &v1.StartOptions{}); err != nil {
@@ -516,7 +512,7 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 	if vm == nil {
 		return s.enqueueVMStartTask(sss, deployVersion)
 	}
-	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+	if isVMStartRequestedOrRunning(vm.Status.PrintableStatus) {
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
 	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
@@ -533,6 +529,20 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 		return err
 	}
 	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func isVMStartRequestedOrRunning(status v1.VirtualMachinePrintableStatus) bool {
+	switch status {
+	case v1.VirtualMachineStatusProvisioning,
+		v1.VirtualMachineStatusStarting,
+		v1.VirtualMachineStatusRunning,
+		v1.VirtualMachineStatusPaused,
+		v1.VirtualMachineStatusMigrating,
+		v1.VirtualMachineStatusWaitingForVolumeBinding:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
