@@ -214,6 +214,7 @@
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
+| rainbond.registry.delete-vm-image-manifest | Delete internal VM image manifest from registry | active | regression | api/handler.ServiceAction.DeleteRegistryImageManifest | api/handler/registry_image_test.go::TestDeleteRegistryImageManifestDeletesInternalVMImage<br>api/handler/registry_image_test.go::TestDeleteRegistryImageManifestRejectsExternalRegistry<br>api/handler/registry_image_test.go::TestDeleteRegistryImageManifestTreatsMissingManifestAsDeleted |
 | rainbond.registry.manifest-exists-oci | 备份校验支持 OCI 镜像清单 | active | regression | builder/sources/registry.Registry.ManifestExists | builder/sources/registry/manifest_test.go::TestManifestExistsAcceptsOCIManifestTypes |
 | rainbond.resource-center.collect-ingress-services | 收集 Ingress 后端服务名 | active | regression | api/handler.collectIngressServiceNames | api/handler/resource_center_test.go::TestCollectIngressServiceNames |
 | rainbond.resource-center.event-summary | 汇总资源事件信息 | active | regression | api/handler.toResourceEventInfo | api/handler/resource_center_test.go::TestToResourceEventInfo |
@@ -370,7 +371,7 @@
 | rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
-| rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
+| rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-power.stop-restoring-fallback | Fallback to halt transient VM when direct stop fails | active | regression | api/handler.ServiceAction.StopVM | api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails |
 | rainbond.vm-probe-attribute-syncs-spec | VM probe attributes trigger VirtualMachine spec sync | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes |
 | rainbond.vm-probe-change-syncs-spec | VM probe changes sync VirtualMachine spec | active | regression | api/handler.ServiceAction.ServiceProbe | api/handler/service_vm_resource_sync_test.go::TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges |
@@ -2551,6 +2552,16 @@
 - 代码路径: `builder/parser/code/rainbondfile.go`
 - 测试路径: `builder/parser/code/rainbondfile_test.go::TestReadRainbondFile`
 
+### Delete internal VM image manifest from registry
+
+- Capability ID: `rainbond.registry.delete-vm-image-manifest`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.DeleteRegistryImageManifest`
+- 代码路径: `api/handler/registry_image.go`, `api/controller/registry_image.go`, `api/api_routers/version2/v2Routers.go`
+- 测试路径: `api/handler/registry_image_test.go::TestDeleteRegistryImageManifestDeletesInternalVMImage`, `api/handler/registry_image_test.go::TestDeleteRegistryImageManifestRejectsExternalRegistry`, `api/handler/registry_image_test.go::TestDeleteRegistryImageManifestTreatsMissingManifestAsDeleted`
+
 ### 备份校验支持 OCI 镜像清单
 
 - Capability ID: `rainbond.registry.manifest-exists-oci`
@@ -4119,7 +4130,7 @@
 - 接口类型: `handler_method`
 - 业务入口: `api/handler.ServiceAction.StartOrCreateVM`
 - 代码路径: `api/handler/service.go`
-- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing`
+- 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing`
 
 ### Fallback to halt transient VM when direct stop fails
 

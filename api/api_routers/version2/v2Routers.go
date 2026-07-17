@@ -169,9 +169,9 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
 		resp := map[string]interface{}{
-			"code":    http.StatusBadGateway,
-			"msg":     fmt.Sprintf("plugin backend unavailable: %s", err.Error()),
-			"plugin":  plugin.Name,
+			"code":   http.StatusBadGateway,
+			"msg":    fmt.Sprintf("plugin backend unavailable: %s", err.Error()),
+			"plugin": plugin.Name,
 		}
 		if encErr := json.NewEncoder(w).Encode(resp); encErr != nil {
 			logrus.Errorf("failed to encode plugin proxy error response: %v", encErr)
@@ -404,6 +404,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/servicecheck", controller.Check)
 	r.Get("/image-repositories", controller.RegistryImageRepositories)
 	r.Get("/image-tags", controller.RegistryImageTags)
+	r.Delete("/image/manifest", controller.DeleteRegistryImageManifest)
 	//tar包镜像解析和导入
 	r.Post("/image/load", controller.LoadTarImage)
 	r.Get("/image/load/{load_id}", controller.GetTarLoadResult)
