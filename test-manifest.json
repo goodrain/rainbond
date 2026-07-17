@@ -6817,6 +6817,10 @@
         },
         {
           "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
         }
       ],

@@ -90,6 +90,45 @@ func TestStartOrCreateVMStartsExistingStoppedVM(t *testing.T) {
 	}
 }
 
+func TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := kubecli.NewMockKubevirtClient(ctrl)
+	mockVMInterface := kubecli.NewMockVirtualMachineInterface(ctrl)
+
+	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
+	mockVMInterface.EXPECT().Start(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
+
+	action := &ServiceAction{
+		kubevirtClient: mockClient,
+		syncVirtualMachineSpecHook: func(serviceID string) error {
+			return errors.New("validate vm boot path failure: missing imported root data volume for vm boot source format \"qcow2\"")
+		},
+		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+			return &kubevirtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "demo-vm",
+					Namespace: "demo-ns",
+				},
+				Status: kubevirtv1.VirtualMachineStatus{
+					PrintableStatus: kubevirtv1.VirtualMachineStatusStopped,
+				},
+			}, nil
+		},
+	}
+
+	err := action.StartOrCreateVM(context.Background(), &apimodel.StartStopStruct{
+		TenantID:  "tenant-1",
+		ServiceID: "service-1",
+		EventID:   "event-1",
+		TaskType:  "start",
+	}, "deploy-v1")
+	if err != nil {
+		t.Fatalf("expected existing legacy vm to start despite missing root import sync error, got %v", err)
+	}
+}
+
 func TestStartOrCreateVMMarksDirectStartEventSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

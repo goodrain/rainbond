@@ -465,6 +465,15 @@ func isTransientVMStartError(err error) bool {
 	return err != nil && (k8sErrors.IsConflict(err) || k8sErrors.IsNotFound(err))
 }
 
+func isMissingVMRootImportSpecSyncError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "validate vm boot path failure") &&
+		strings.Contains(message, "missing imported root data volume")
+}
+
 func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVersion string, vm *v1.VirtualMachine) error {
 	currentVM := vm
 	var lastErr error
@@ -508,8 +517,11 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 	}
 	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 		if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
-			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
-			return err
+			if !isMissingVMRootImportSpecSyncError(err) {
+				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+				return err
+			}
+			logrus.Warnf("skip vm spec sync before start for existing vm with missing imported root disk: service_id=%s err=%v", sss.ServiceID, err)
 		}
 	}
 	if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
@@ -532,8 +544,11 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
 		if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 			if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
-				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
-				return err
+				if !isMissingVMRootImportSpecSyncError(err) {
+					_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+					return err
+				}
+				logrus.Warnf("skip vm spec sync before restart-start for existing vm with missing imported root disk: service_id=%s err=%v", sss.ServiceID, err)
 			}
 		}
 		if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
