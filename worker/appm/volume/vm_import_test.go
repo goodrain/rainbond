@@ -3,6 +3,7 @@ package volume
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/builder"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -159,6 +160,38 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 	}
 	if *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
 		t.Fatalf("expected docker scheme to be added, got %q", *template.Spec.Source.Registry.URL)
+	}
+}
+
+func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage(t *testing.T) {
+	origRegistryDomain := builder.REGISTRYDOMAIN
+	builder.REGISTRYDOMAIN = "goodrain.me"
+	defer func() {
+		builder.REGISTRYDOMAIN = origRegistryDomain
+	}()
+
+	storageClassName := "nfs-storage"
+	claim := &corev1.PersistentVolumeClaim{}
+	claim.Name = "manual-root"
+	claim.Spec.StorageClassName = &storageClassName
+
+	template := buildVMDiskImportDataVolumeTemplate(
+		claim,
+		map[string]string{"service_id": "svc-vm"},
+		map[string]string{"volume_name": "disk"},
+		vmDiskImportConfig{
+			VolumeName: "disk",
+			ImageURL:   "ceshi:vava",
+			SourceType: "registry",
+			Format:     "qcow2",
+		},
+	)
+
+	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
+		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
+	}
+	if *template.Spec.Source.Registry.URL != "docker://goodrain.me/ceshi:vava" {
+		t.Fatalf("expected short internal image to include registry host, got %q", *template.Spec.Source.Registry.URL)
 	}
 }
 

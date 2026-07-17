@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
@@ -124,9 +126,23 @@ func normalizeVMRegistryImportURL(imageURL string) string {
 		return ""
 	}
 	if strings.HasPrefix(strings.ToLower(url), "docker://") {
+		url = strings.TrimSpace(url[len("docker://"):])
+	} else if strings.Contains(url, "://") {
 		return url
 	}
+	if !hasRegistryHost(url) {
+		url = path.Join(builder.REGISTRYDOMAIN, url)
+	}
 	return "docker://" + url
+}
+
+func hasRegistryHost(image string) bool {
+	slash := strings.Index(image, "/")
+	if slash == -1 {
+		return false
+	}
+	firstSegment := image[:slash]
+	return firstSegment == "localhost" || strings.Contains(firstSegment, ".") || strings.Contains(firstSegment, ":")
 }
 
 func normalizeVMArtifactImageURL(imageURL string) string {

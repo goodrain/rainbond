@@ -6592,6 +6592,14 @@
         {
           "path": "worker/appm/volume/vm_import_test.go",
           "selector": "TestBuildVMRegistryImportDataVolumeTemplate"
+        },
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing"
+        },
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage"
         }
       ],
       "test_type": "regression",
