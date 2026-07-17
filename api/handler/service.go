@@ -492,6 +492,10 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 		if currentVM.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
 			return nil
 		}
+		if currentVM.Spec.RunStrategy != nil && *currentVM.Spec.RunStrategy == v1.RunStrategyAlways {
+			logrus.Debugf("skip manual start for Always run strategy vm: namespace=%s name=%s service_id=%s", currentVM.Namespace, currentVM.Name, sss.ServiceID)
+			return nil
+		}
 		if err := s.kubevirtClient.VirtualMachine(currentVM.Namespace).Start(context.Background(), currentVM.Name, &v1.StartOptions{}); err != nil {
 			if !isTransientVMStartError(err) {
 				return err
