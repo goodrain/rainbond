@@ -6641,6 +6641,10 @@
         },
         {
           "path": "worker/appm/controller/vm_cdi_test.go",
+          "selector": "TestEnsureVMRegistryImportInsecureRegistriesUpdatesCDIResourceConfig"
+        },
+        {
+          "path": "worker/appm/controller/vm_cdi_test.go",
           "selector": "TestEnsureVMRegistryImportInsecureRegistriesIgnoresExternalRegistry"
         }
       ],

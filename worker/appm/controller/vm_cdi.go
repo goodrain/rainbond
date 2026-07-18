@@ -21,11 +21,54 @@ var cdiConfigGVK = schema.GroupVersionKind{
 	Kind:    "CDIConfig",
 }
 
+var cdiGVK = schema.GroupVersionKind{
+	Group:   "cdi.kubevirt.io",
+	Version: "v1beta1",
+	Kind:    "CDI",
+}
+
 func ensureVMRegistryImportInsecureRegistries(ctx context.Context, runtimeClient client.Client, templates []kubevirtv1.DataVolumeTemplateSpec) error {
 	registries := vmRegistryImportInsecureRegistries(templates)
 	if len(registries) == 0 || runtimeClient == nil {
 		return nil
 	}
+	err := ensureCDIResourceInsecureRegistries(ctx, runtimeClient, registries)
+	if err == nil {
+		return nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return err
+	}
+	return ensureCDIConfigInsecureRegistries(ctx, runtimeClient, registries)
+}
+
+func ensureCDIResourceInsecureRegistries(ctx context.Context, runtimeClient client.Client, registries []string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cdi := newCDIObject()
+		err := runtimeClient.Get(ctx, types.NamespacedName{Name: cdi.GetName()}, cdi)
+		if err != nil {
+			return err
+		}
+		existing, found, err := unstructured.NestedStringSlice(cdi.Object, "spec", "config", "insecureRegistries")
+		if err != nil {
+			return err
+		}
+		if !found {
+			existing = nil
+		}
+		merged, changed := mergeVMRegistryList(existing, registries)
+		if !changed {
+			return nil
+		}
+		if err := unstructured.SetNestedStringSlice(cdi.Object, merged, "spec", "config", "insecureRegistries"); err != nil {
+			return err
+		}
+		logrus.Infof("ensure CDI insecure registries for VM import: %v", registries)
+		return runtimeClient.Update(ctx, cdi)
+	})
+}
+
+func ensureCDIConfigInsecureRegistries(ctx context.Context, runtimeClient client.Client, registries []string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		config := newCDIConfigObject()
 		err := runtimeClient.Get(ctx, types.NamespacedName{Name: config.GetName()}, config)
@@ -56,6 +99,13 @@ func ensureVMRegistryImportInsecureRegistries(ctx context.Context, runtimeClient
 		logrus.Infof("ensure CDIConfig insecure registries for VM import: %v", registries)
 		return runtimeClient.Update(ctx, config)
 	})
+}
+
+func newCDIObject() *unstructured.Unstructured {
+	cdi := &unstructured.Unstructured{}
+	cdi.SetGroupVersionKind(cdiGVK)
+	cdi.SetName("cdi")
+	return cdi
 }
 
 func newCDIConfigObject() *unstructured.Unstructured {
