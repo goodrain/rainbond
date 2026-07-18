@@ -6624,6 +6624,30 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-import.cdi-insecure-registry",
+      "title": "Configure CDI insecure registry for VM imports",
+      "title_zh": "\u4e3a\u865a\u62df\u673a\u5bfc\u5165\u914d\u7f6e CDI HTTP \u955c\u50cf\u4ed3\u5e93",
+      "interface_type": "package_function",
+      "interface": "worker/appm/controller.ensureVMRegistryImportInsecureRegistries",
+      "code_paths": [
+        "worker/appm/controller/vm_cdi.go",
+        "worker/appm/controller/start.go",
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/vm_cdi_test.go",
+          "selector": "TestEnsureVMRegistryImportInsecureRegistriesAppendsRBDHub"
+        },
+        {
+          "path": "worker/appm/controller/vm_cdi_test.go",
+          "selector": "TestEnsureVMRegistryImportInsecureRegistriesIgnoresExternalRegistry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-import.registry-datavolume",
       "title": "Import VM root disk from registry DataVolume",
       "title_zh": "\u901a\u8fc7 registry DataVolume \u5bfc\u5165\u865a\u62df\u673a\u7cfb\u7edf\u76d8",
