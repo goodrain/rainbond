@@ -5,12 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,9 +134,94 @@ func normalizeVMRegistryImportURL(imageURL string) string {
 		return url
 	}
 	if !hasRegistryHost(url) {
-		url = path.Join(builder.REGISTRYDOMAIN, url)
+		url = path.Join(vmRegistryImportHost(builder.REGISTRYDOMAIN), url)
+	} else {
+		url = rewriteVMDefaultRegistryHost(url)
 	}
 	return "docker://" + url
+}
+
+func vmRegistryImportHost(registryDomain string) string {
+	host := strings.TrimSpace(registryDomain)
+	if isDefaultVMRegistryHost(host) {
+		return cdiImportRegistryHost()
+	}
+	return host
+}
+
+func rewriteVMDefaultRegistryHost(image string) string {
+	slash := strings.Index(image, "/")
+	if slash == -1 {
+		return image
+	}
+	host := image[:slash]
+	if !isDefaultVMRegistryHost(host) {
+		return image
+	}
+	return cdiImportRegistryHost() + image[slash:]
+}
+
+func cdiImportRegistryHost() string {
+	host := registryHostFromHubAPI(defaultRbdHubAPI())
+	if host == "" || isDefaultVMRegistryHost(host) {
+		host = "rbd-hub:5000"
+	}
+	return qualifyVMRegistryServiceHost(host)
+}
+
+func defaultRbdHubAPI() string {
+	if configs.Default() == nil || configs.Default().ServerConfig == nil {
+		return ""
+	}
+	return configs.Default().ServerConfig.RbdHub
+}
+
+func registryHostFromHubAPI(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if parsed, err := url.Parse(raw); err == nil && parsed.Host != "" {
+		return parsed.Host
+	}
+	if index := strings.Index(raw, "/"); index >= 0 {
+		return raw[:index]
+	}
+	return raw
+}
+
+func qualifyVMRegistryServiceHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+	name, port := splitVMRegistryHostPort(host)
+	if name == "rbd-hub" {
+		return name + "." + vmRegistryNamespace() + ".svc" + port
+	}
+	return host
+}
+
+func splitVMRegistryHostPort(host string) (string, string) {
+	index := strings.LastIndex(host, ":")
+	if index <= 0 || strings.Contains(host[:index], ":") {
+		return host, ""
+	}
+	return host[:index], host[index:]
+}
+
+func vmRegistryNamespace() string {
+	if configs.Default() != nil && configs.Default().PublicConfig != nil {
+		if namespace := strings.TrimSpace(configs.Default().PublicConfig.RbdNamespace); namespace != "" {
+			return namespace
+		}
+	}
+	return constants.Namespace
+}
+
+func isDefaultVMRegistryHost(host string) bool {
+	host, _ = splitVMRegistryHostPort(strings.TrimSpace(host))
+	return host == constants.DefImageRepository
 }
 
 func hasRegistryHost(image string) bool {
