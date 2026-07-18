@@ -7119,6 +7119,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-template-import.registry-restore-progress",
+      "title": "Expose registry VM DataVolume import progress",
+      "title_zh": "\u66b4\u9732 registry \u865a\u62df\u673a DataVolume \u5bfc\u5165\u8fdb\u5ea6",
+      "interface_type": "package_function",
+      "interface": "api/handler.vmRestoreDataVolumeNames",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-template-import.restore-progress",
       "title": "Expose VM template import restore progress",
       "title_zh": "Expose VM template import restore progress",

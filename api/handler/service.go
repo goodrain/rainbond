@@ -894,7 +894,10 @@ func isVMRestoreDataVolumeTemplate(template v1.DataVolumeTemplateSpec) bool {
 	if strings.TrimSpace(annotations[appmvolume.VMArtifactImageAnnotation]) != "" {
 		return true
 	}
-	return strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != ""
+	if strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != "" {
+		return true
+	}
+	return template.Spec.Source != nil && template.Spec.Source.Registry != nil
 }
 
 func resolveVMDataVolumeRestoreStatus(namespace string, details []vmDataVolumeDetail) *apimodel.VMRestore {

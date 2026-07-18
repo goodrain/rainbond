@@ -383,6 +383,7 @@
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.vm-runtime-spec-sync-conflict-retry | Retry VM spec sync when KubeVirt update conflicts | active | regression | github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec | api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict |
 | rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
+| rainbond.vm-template-import.registry-restore-progress | 暴露 registry 虚拟机 DataVolume 导入进度 | active | regression | api/handler.vmRestoreDataVolumeNames | api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes |
 | rainbond.vm-template-import.restore-progress | Expose VM template import restore progress | active | unit | api/handler.resolveVMDataVolumeRestoreStatus | api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress<br>api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded<br>api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes |
 | rainbond.vm-template-import.status-restoring | VM restore status is limited to artifact imports | active | unit | api/handler.resolveVMServiceRuntimeStatus | api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError |
 | rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
@@ -4241,6 +4242,16 @@
 - 业务入口: `api/handler.isVMRuntimeSpecAttribute`
 - 代码路径: `api/handler/k8s_attribute.go`
 - 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
+
+### 暴露 registry 虚拟机 DataVolume 导入进度
+
+- Capability ID: `rainbond.vm-template-import.registry-restore-progress`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.vmRestoreDataVolumeNames`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes`
 
 ### Expose VM template import restore progress
 
