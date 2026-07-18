@@ -79,12 +79,58 @@ var ErrorNoImage = fmt.Errorf("image not exist")
 // Namespace containerd image namespace
 var Namespace = "k8s.io"
 
+const (
+	defaultBuildctlConnectRetriesMax = "100"
+	vmBuildctlConnectRetriesMax      = "600"
+	retainFailedBuildPodEnv          = "RETAIN_FAILED_BUILD_POD"
+)
+
 func buildKitImageOutput(buildType, buildImageName string) string {
 	output := fmt.Sprintf("type=image,name=%s,push=true", buildImageName)
 	if buildType == "vm-build" {
 		output += ",compression=uncompressed"
 	}
 	return output
+}
+
+func buildctlConnectRetriesMax(buildType string) string {
+	defaultRetries := defaultBuildctlConnectRetriesMax
+	if buildType == "vm-build" {
+		defaultRetries = vmBuildctlConnectRetriesMax
+	}
+	return util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", defaultRetries)
+}
+
+func shouldRetainFailedBuildKitJob(waitErr error) bool {
+	if waitErr == nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(retainFailedBuildPodEnv))) {
+	case "false", "0", "no":
+		return false
+	default:
+		return true
+	}
+}
+
+func cleanupBuildKitJob(namespace, jobName string, waitErr error, logger event.Logger) {
+	if shouldRetainFailedBuildKitJob(waitErr) {
+		message := fmt.Sprintf(
+			"retain failed build pod %s/%s for troubleshooting; inspect with: kubectl -n %s describe pod %s && kubectl -n %s logs %s --all-containers=true",
+			namespace,
+			jobName,
+			namespace,
+			jobName,
+			namespace,
+			jobName,
+		)
+		logrus.Info(message)
+		if logger != nil {
+			logger.Info(message, map[string]string{"step": "build-exector"})
+		}
+		return
+	}
+	jobc.GetJobController().DeleteJob(jobName)
 }
 
 // ImagePull pull docker image
@@ -579,7 +625,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		Env: []corev1.EnvVar{
 			{
 				Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
-				Value: util.GetenvDefault("BUILDCTL_CONNECT_RETRIES_MAX", "100"),
+				Value: buildctlConnectRetriesMax(buildType),
 			},
 			{
 				Name:  "BUILDKITD_FLAGS",
@@ -638,11 +684,10 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 		return err
 	}
 	logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
-	// delete job after complete
-	defer jobc.GetJobController().DeleteJob(job.Name)
 	waitStarted := time.Now()
-	err = WaitingComplete(reChan)
-	if err := recordImageBuildStage(logger, "buildkit_job_wait", waitStarted, err, map[string]interface{}{
+	waitErr := WaitingComplete(reChan)
+	cleanupBuildKitJob(namespace, job.Name, waitErr, logger)
+	if err := recordImageBuildStage(logger, "buildkit_job_wait", waitStarted, waitErr, map[string]interface{}{
 		"service_id":     ServiceID,
 		"deploy_version": DeployVersion,
 		"build_type":     buildType,

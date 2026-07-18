@@ -242,6 +242,46 @@ func TestBuildKitImageOutputUsesUncompressedLayersForVMBuild(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-build.buildkit-startup-retry
+func TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild(t *testing.T) {
+	t.Setenv("BUILDCTL_CONNECT_RETRIES_MAX", "")
+
+	if got := buildctlConnectRetriesMax("vm-build"); got != "600" {
+		t.Fatalf("expected vm build to wait longer for buildkitd socket, got %q", got)
+	}
+	if got := buildctlConnectRetriesMax("run-build"); got != "100" {
+		t.Fatalf("expected default build retry count to stay unchanged, got %q", got)
+	}
+}
+
+func TestBuildctlConnectRetriesMaxPreservesExplicitEnv(t *testing.T) {
+	t.Setenv("BUILDCTL_CONNECT_RETRIES_MAX", "900")
+
+	if got := buildctlConnectRetriesMax("vm-build"); got != "900" {
+		t.Fatalf("expected explicit retry count to win, got %q", got)
+	}
+}
+
+// capability_id: rainbond.vm-build.retain-failed-build-pod
+func TestShouldRetainFailedBuildKitJobByDefault(t *testing.T) {
+	t.Setenv("RETAIN_FAILED_BUILD_POD", "")
+
+	if !shouldRetainFailedBuildKitJob(errors.New("build failed")) {
+		t.Fatal("expected failed build pod to be retained by default")
+	}
+	if shouldRetainFailedBuildKitJob(nil) {
+		t.Fatal("expected successful build pod to be deleted")
+	}
+}
+
+func TestShouldRetainFailedBuildKitJobCanBeDisabled(t *testing.T) {
+	t.Setenv("RETAIN_FAILED_BUILD_POD", "false")
+
+	if shouldRetainFailedBuildKitJob(errors.New("build failed")) {
+		t.Fatal("expected failed build pod retention to be disabled")
+	}
+}
+
 type stageRecordingLogger struct {
 	infos  []string
 	errors []string

@@ -6476,6 +6476,50 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.buildkit-startup-retry",
+      "title": "Increase VM BuildKit startup retry window",
+      "title_zh": "\u589e\u52a0\u865a\u62df\u673a BuildKit \u542f\u52a8\u7b49\u5f85\u6b21\u6570",
+      "interface_type": "package_function",
+      "interface": "builder/sources.buildctlConnectRetriesMax",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildctlConnectRetriesMaxPreservesExplicitEnv"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.retain-failed-build-pod",
+      "title": "Retain failed VM build pods for diagnostics",
+      "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
+      "interface_type": "package_function",
+      "interface": "builder/sources.shouldRetainFailedBuildKitJob",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestShouldRetainFailedBuildKitJobByDefault"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestShouldRetainFailedBuildKitJobCanBeDisabled"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-config-file-injected-as-configmap-volume",
       "title": "Inject VM config-file volumes as guest-visible ConfigMap disks",
       "title_zh": "\u5c06 VM \u914d\u7f6e\u6587\u4ef6\u5377\u6ce8\u5165\u4e3a guest \u53ef\u89c1\u7684 ConfigMap \u914d\u7f6e\u76d8",
