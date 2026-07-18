@@ -164,6 +164,7 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 }
 
 func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage(t *testing.T) {
+	t.Setenv("IMAGE_PULL_SECRET", "rbd-hub-credentials")
 	origRegistryDomain := builder.REGISTRYDOMAIN
 	builder.REGISTRYDOMAIN = "goodrain.me"
 	defer func() {
@@ -192,6 +193,9 @@ func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShort
 	}
 	if *template.Spec.Source.Registry.URL != "docker://goodrain.me/ceshi:vava" {
 		t.Fatalf("expected short internal image to use default registry host, got %q", *template.Spec.Source.Registry.URL)
+	}
+	if template.Spec.Source.Registry.SecretRef == nil || *template.Spec.Source.Registry.SecretRef != "rbd-hub-credentials" {
+		t.Fatalf("expected internal registry import to use rbd-hub-credentials, got %#v", template.Spec.Source.Registry.SecretRef)
 	}
 }
 
