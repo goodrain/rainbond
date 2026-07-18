@@ -132,8 +132,11 @@ func TestBuildVMRegistryImportDataVolumeTemplate(t *testing.T) {
 	if template.Spec.Source.Registry.URL == nil || *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
 		t.Fatalf("unexpected registry import url: %#v", template.Spec.Source.Registry.URL)
 	}
-	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullPod {
-		t.Fatalf("expected registry pull method pod, got %#v", template.Spec.Source.Registry.PullMethod)
+	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullNode {
+		t.Fatalf("expected registry pull method node, got %#v", template.Spec.Source.Registry.PullMethod)
+	}
+	if template.Spec.Source.Registry.SecretRef != nil {
+		t.Fatalf("did not expect registry import to use CDI secretRef, got %#v", template.Spec.Source.Registry.SecretRef)
 	}
 }
 
@@ -164,7 +167,6 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 }
 
 func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage(t *testing.T) {
-	t.Setenv("IMAGE_PULL_SECRET", "rbd-hub-credentials")
 	origRegistryDomain := builder.REGISTRYDOMAIN
 	builder.REGISTRYDOMAIN = "goodrain.me"
 	defer func() {
@@ -194,8 +196,11 @@ func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShort
 	if *template.Spec.Source.Registry.URL != "docker://goodrain.me/ceshi:vava" {
 		t.Fatalf("expected short internal image to use default registry host, got %q", *template.Spec.Source.Registry.URL)
 	}
-	if template.Spec.Source.Registry.SecretRef == nil || *template.Spec.Source.Registry.SecretRef != "rbd-hub-credentials" {
-		t.Fatalf("expected internal registry import to use rbd-hub-credentials, got %#v", template.Spec.Source.Registry.SecretRef)
+	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullNode {
+		t.Fatalf("expected internal registry import to use node pull method, got %#v", template.Spec.Source.Registry.PullMethod)
+	}
+	if template.Spec.Source.Registry.SecretRef != nil {
+		t.Fatalf("did not expect internal registry import to use CDI secretRef, got %#v", template.Spec.Source.Registry.SecretRef)
 	}
 }
 

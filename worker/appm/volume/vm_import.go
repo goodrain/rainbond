@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"os"
 	"path"
 	"strings"
 
@@ -339,12 +337,11 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 	switch cfg.SourceType {
 	case vmDiskImportSourceTypeRegistry:
 		url := normalizeVMRegistryImportURL(cfg.ImageURL)
-		pullMethod := cdiv1.RegistryPullPod
+		pullMethod := cdiv1.RegistryPullNode
 		source = &cdiv1.DataVolumeSource{
 			Registry: &cdiv1.DataVolumeSourceRegistry{
 				URL:        &url,
 				PullMethod: &pullMethod,
-				SecretRef:  vmRegistryImportSecretRef(url),
 			},
 		}
 	case vmDiskImportSourceTypeHTTPArtifact:
@@ -376,37 +373,4 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			},
 		},
 	}
-}
-
-func vmRegistryImportSecretRef(registryURL string) *string {
-	secretName := strings.TrimSpace(os.Getenv("IMAGE_PULL_SECRET"))
-	if secretName == "" || !isInternalVMRegistryImport(registryURL) {
-		return nil
-	}
-	return &secretName
-}
-
-func isInternalVMRegistryImport(registryURL string) bool {
-	registryHost := vmRegistryImportHostFromURL(registryURL)
-	internalHost := vmRegistryImportHostFromURL(vmRegistryImportHost(builder.REGISTRYDOMAIN))
-	return registryHost != "" && strings.EqualFold(registryHost, internalHost)
-}
-
-func vmRegistryImportHostFromURL(raw string) string {
-	value := strings.Trim(strings.TrimSpace(raw), "/")
-	if value == "" {
-		return ""
-	}
-	if strings.HasPrefix(strings.ToLower(value), "docker://") {
-		value = strings.TrimSpace(value[len("docker://"):])
-	} else if strings.Contains(value, "://") {
-		parsed, err := url.Parse(value)
-		if err == nil {
-			return strings.Trim(parsed.Host, "[]")
-		}
-	}
-	if index := strings.Index(value, "/"); index >= 0 {
-		value = value[:index]
-	}
-	return strings.Trim(value, "[]")
 }
