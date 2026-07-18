@@ -190,8 +190,8 @@ func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShort
 	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
 		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
 	}
-	if *template.Spec.Source.Registry.URL != "docker://rbd-hub.rbd-system.svc:5000/ceshi:vava" {
-		t.Fatalf("expected short internal image to use resolvable registry host, got %q", *template.Spec.Source.Registry.URL)
+	if *template.Spec.Source.Registry.URL != "docker://goodrain.me/ceshi:vava" {
+		t.Fatalf("expected short internal image to use default registry host, got %q", *template.Spec.Source.Registry.URL)
 	}
 }
 

@@ -360,7 +360,6 @@
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
 | rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
-| rainbond.vm-import.cdi-insecure-registry | 为虚拟机导入配置 CDI HTTP 镜像仓库 | active | regression | worker/appm/controller.ensureVMRegistryImportInsecureRegistries | worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesAppendsRBDHub<br>worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesUpdatesCDIResourceConfig<br>worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesIgnoresExternalRegistry |
 | rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
@@ -4015,16 +4014,6 @@
 - 业务入口: `api/handler.ServiceAction.VolumnVar`
 - 代码路径: `api/handler/service.go`, `api/handler/service_vm_hotplug.go`
 - 测试路径: `api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM`, `api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC`, `api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk`
-
-### 为虚拟机导入配置 CDI HTTP 镜像仓库
-
-- Capability ID: `rainbond.vm-import.cdi-insecure-registry`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `worker/appm/controller.ensureVMRegistryImportInsecureRegistries`
-- 代码路径: `worker/appm/controller/vm_cdi.go`, `worker/appm/controller/start.go`, `worker/appm/controller/upgrade.go`
-- 测试路径: `worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesAppendsRBDHub`, `worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesUpdatesCDIResourceConfig`, `worker/appm/controller/vm_cdi_test.go::TestEnsureVMRegistryImportInsecureRegistriesIgnoresExternalRegistry`
 
 ### 通过 registry DataVolume 导入虚拟机系统盘
 

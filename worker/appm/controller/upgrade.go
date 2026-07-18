@@ -205,11 +205,6 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 			return fmt.Errorf("create or check namespace failure %s", err.Error())
 		}
 	}
-	if vm := app.GetVirtualMachine(); vm != nil {
-		if err := ensureVMRegistryImportInsecureRegistries(s.ctx, s.manager.runtimeClient, vm.Spec.DataVolumeTemplates); err != nil {
-			return fmt.Errorf("ensure vm registry import insecure registries failure %s", err.Error())
-		}
-	}
 	// for custom component
 	if len(app.GetManifests()) > 0 {
 		for _, manifest := range app.GetManifests() {
