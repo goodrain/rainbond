@@ -89,6 +89,7 @@ type ServiceHandler interface {
 	ServiceCheck(*apimodel.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	RegistryImageRepositories(namespace string) ([]string, *util.APIHandleError)
 	RegistryImageTags(repository string) ([]string, *util.APIHandleError)
+	DeleteRegistryImageManifest(image string) (*RegistryImageManifestDeleteResult, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 	ListVersionInfo(serviceID string) (*apimodel.BuildListRespVO, error)

@@ -3,6 +3,7 @@ package volume
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/builder"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -131,8 +132,11 @@ func TestBuildVMRegistryImportDataVolumeTemplate(t *testing.T) {
 	if template.Spec.Source.Registry.URL == nil || *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
 		t.Fatalf("unexpected registry import url: %#v", template.Spec.Source.Registry.URL)
 	}
-	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullPod {
-		t.Fatalf("expected registry pull method pod, got %#v", template.Spec.Source.Registry.PullMethod)
+	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullNode {
+		t.Fatalf("expected registry pull method node, got %#v", template.Spec.Source.Registry.PullMethod)
+	}
+	if template.Spec.Source.Registry.SecretRef != nil {
+		t.Fatalf("did not expect registry import to use CDI secretRef, got %#v", template.Spec.Source.Registry.SecretRef)
 	}
 }
 
@@ -159,6 +163,44 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 	}
 	if *template.Spec.Source.Registry.URL != "docker://registry.example.com/team/windows-root:v1" {
 		t.Fatalf("expected docker scheme to be added, got %q", *template.Spec.Source.Registry.URL)
+	}
+}
+
+func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage(t *testing.T) {
+	origRegistryDomain := builder.REGISTRYDOMAIN
+	builder.REGISTRYDOMAIN = "goodrain.me"
+	defer func() {
+		builder.REGISTRYDOMAIN = origRegistryDomain
+	}()
+
+	storageClassName := "nfs-storage"
+	claim := &corev1.PersistentVolumeClaim{}
+	claim.Name = "manual-root"
+	claim.Spec.StorageClassName = &storageClassName
+
+	template := buildVMDiskImportDataVolumeTemplate(
+		claim,
+		map[string]string{"service_id": "svc-vm"},
+		map[string]string{"volume_name": "disk"},
+		vmDiskImportConfig{
+			VolumeName: "disk",
+			ImageURL:   "ceshi:vava",
+			SourceType: "registry",
+			Format:     "qcow2",
+		},
+	)
+
+	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
+		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
+	}
+	if *template.Spec.Source.Registry.URL != "docker://goodrain.me/ceshi:vava" {
+		t.Fatalf("expected short internal image to use default registry host, got %q", *template.Spec.Source.Registry.URL)
+	}
+	if template.Spec.Source.Registry.PullMethod == nil || *template.Spec.Source.Registry.PullMethod != cdiv1.RegistryPullNode {
+		t.Fatalf("expected internal registry import to use node pull method, got %#v", template.Spec.Source.Registry.PullMethod)
+	}
+	if template.Spec.Source.Registry.SecretRef != nil {
+		t.Fatalf("did not expect internal registry import to use CDI secretRef, got %#v", template.Spec.Source.Registry.SecretRef)
 	}
 }
 

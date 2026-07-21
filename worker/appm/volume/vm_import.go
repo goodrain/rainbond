@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
@@ -124,9 +126,31 @@ func normalizeVMRegistryImportURL(imageURL string) string {
 		return ""
 	}
 	if strings.HasPrefix(strings.ToLower(url), "docker://") {
+		url = strings.TrimSpace(url[len("docker://"):])
+	} else if strings.Contains(url, "://") {
 		return url
 	}
+	if !hasRegistryHost(url) {
+		url = path.Join(vmRegistryImportHost(builder.REGISTRYDOMAIN), url)
+	}
 	return "docker://" + url
+}
+
+func vmRegistryImportHost(registryDomain string) string {
+	host := strings.TrimSpace(registryDomain)
+	if host == "" {
+		return builder.REGISTRYDOMAIN
+	}
+	return host
+}
+
+func hasRegistryHost(image string) bool {
+	slash := strings.Index(image, "/")
+	if slash == -1 {
+		return false
+	}
+	firstSegment := image[:slash]
+	return firstSegment == "localhost" || strings.Contains(firstSegment, ".") || strings.Contains(firstSegment, ":")
 }
 
 func normalizeVMArtifactImageURL(imageURL string) string {
@@ -313,7 +337,7 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 	switch cfg.SourceType {
 	case vmDiskImportSourceTypeRegistry:
 		url := normalizeVMRegistryImportURL(cfg.ImageURL)
-		pullMethod := cdiv1.RegistryPullPod
+		pullMethod := cdiv1.RegistryPullNode
 		source = &cdiv1.DataVolumeSource{
 			Registry: &cdiv1.DataVolumeSourceRegistry{
 				URL:        &url,

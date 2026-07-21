@@ -3954,6 +3954,34 @@
       "status": "active"
     },
     {
+      "id": "rainbond.registry.delete-vm-image-manifest",
+      "title": "Delete internal VM image manifest from registry",
+      "title_zh": "Delete internal VM image manifest from registry",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.DeleteRegistryImageManifest",
+      "code_paths": [
+        "api/handler/registry_image.go",
+        "api/controller/registry_image.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/registry_image_test.go",
+          "selector": "TestDeleteRegistryImageManifestDeletesInternalVMImage"
+        },
+        {
+          "path": "api/handler/registry_image_test.go",
+          "selector": "TestDeleteRegistryImageManifestRejectsExternalRegistry"
+        },
+        {
+          "path": "api/handler/registry_image_test.go",
+          "selector": "TestDeleteRegistryImageManifestTreatsMissingManifestAsDeleted"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.registry.manifest-exists-oci",
       "title": "Resolve OCI image manifests during backup checks",
       "title_zh": "\u5907\u4efd\u6821\u9a8c\u652f\u6301 OCI \u955c\u50cf\u6e05\u5355",
@@ -6468,6 +6496,50 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.buildkit-startup-retry",
+      "title": "Increase VM BuildKit startup retry window",
+      "title_zh": "\u589e\u52a0\u865a\u62df\u673a BuildKit \u542f\u52a8\u7b49\u5f85\u6b21\u6570",
+      "interface_type": "package_function",
+      "interface": "builder/sources.buildctlConnectRetriesMax",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestBuildctlConnectRetriesMaxPreservesExplicitEnv"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.retain-failed-build-pod",
+      "title": "Retain failed VM build pods for diagnostics",
+      "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
+      "interface_type": "package_function",
+      "interface": "builder/sources.shouldRetainFailedBuildKitJob",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestShouldRetainFailedBuildKitJobByDefault"
+        },
+        {
+          "path": "builder/sources/image_test.go",
+          "selector": "TestShouldRetainFailedBuildKitJobCanBeDisabled"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-config-file-injected-as-configmap-volume",
       "title": "Inject VM config-file volumes as guest-visible ConfigMap disks",
       "title_zh": "\u5c06 VM \u914d\u7f6e\u6587\u4ef6\u5377\u6ce8\u5165\u4e3a guest \u53ef\u89c1\u7684 ConfigMap \u914d\u7f6e\u76d8",
@@ -6584,6 +6656,14 @@
         {
           "path": "worker/appm/volume/vm_import_test.go",
           "selector": "TestBuildVMRegistryImportDataVolumeTemplate"
+        },
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing"
+        },
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage"
         }
       ],
       "test_type": "regression",
@@ -6837,6 +6917,18 @@
         },
         {
           "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
+          "selector": "TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus"
+        },
+        {
+          "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing"
         }
       ],
@@ -7085,6 +7177,24 @@
         {
           "path": "api/handler/k8s_attribute_vm_runtime_test.go",
           "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-template-import.registry-restore-progress",
+      "title": "Expose registry VM DataVolume import progress",
+      "title_zh": "\u66b4\u9732 registry \u865a\u62df\u673a DataVolume \u5bfc\u5165\u8fdb\u5ea6",
+      "interface_type": "package_function",
+      "interface": "api/handler.vmRestoreDataVolumeNames",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_status_test.go",
+          "selector": "TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes"
         }
       ],
       "test_type": "regression",
@@ -7785,6 +7895,24 @@
         {
           "path": "worker/appm/conversion/service_daemonset_test.go",
           "selector": "TestInitBaseDaemonSetCreatesDaemonSetWorkload"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.conversion.pod-security-context",
+      "title": "Pod security context attributes",
+      "title_zh": "\u7ec4\u4ef6 Pod \u5b89\u5168\u4e0a\u4e0b\u6587\u5c5e\u6027",
+      "interface_type": "package_function",
+      "interface": "worker.appm.conversion.createPodSecurityContext",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_security_context_test.go",
+          "selector": "TestCreatePodSecurityContextUsesK8sAttribute"
         }
       ],
       "test_type": "regression",
