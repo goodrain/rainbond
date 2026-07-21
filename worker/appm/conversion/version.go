@@ -980,13 +980,6 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	return *res
 }
 
-func getGPULableKey() corev1.ResourceName {
-	if os.Getenv("GPU_LABLE_KEY") != "" {
-		return corev1.ResourceName(os.Getenv("GPU_LABLE_KEY"))
-	}
-	return "rainbond.com/gpu-mem"
-}
-
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {
 	inBoundOK, err := dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
