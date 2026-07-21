@@ -28,11 +28,11 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	if cfg.Interfaces[0].Model != "e1000" {
 		t.Fatalf("expected unknown guest network to default to e1000, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected default masquerade interface")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected default bridge interface so VM guest uses pod IP")
 	}
-	if cfg.Interfaces[0].Bridge != nil {
-		t.Fatalf("did not expect default bridge interface")
+	if cfg.Interfaces[0].Masquerade != nil {
+		t.Fatalf("did not expect default masquerade interface when VM guest should use pod IP")
 	}
 	if len(cfg.Volumes) != 0 {
 		t.Fatalf("expected no extra volumes for random network, got %d", len(cfg.Volumes))
@@ -55,8 +55,8 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	if cfg.Interfaces[0].Model != "e1000" {
 		t.Fatalf("expected windows random network to use e1000, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected windows random network to use masquerade binding")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected windows random network to use bridge binding")
 	}
 }
 
@@ -73,30 +73,8 @@ func TestBuildVMRuntimeConfigRecognizedLinuxNameUsesVirtio(t *testing.T) {
 	if cfg.Interfaces[0].Model != "virtio" {
 		t.Fatalf("expected recognized linux guest to use virtio, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected recognized linux guest to use masquerade binding")
-	}
-}
-
-func TestBuildVMRuntimeConfigUsesBridgeWhenFixedPodIPEnabled(t *testing.T) {
-	cfg, err := buildVMRuntimeConfig(map[string]string{
-		"vm_fixed_ip_enabled": "true",
-		"vm_fixed_ip":         "10.42.247.130",
-	}, nil, nil, nil)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if len(cfg.Networks) != 1 {
-		t.Fatalf("expected 1 network, got %d", len(cfg.Networks))
-	}
-	if cfg.Networks[0].Pod == nil {
-		t.Fatalf("expected default pod network")
-	}
-	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
-		t.Fatalf("expected fixed pod ip to use bridge interface")
-	}
-	if cfg.Interfaces[0].Masquerade != nil {
-		t.Fatalf("did not expect fixed pod ip bridge interface to keep masquerade")
+	if cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected recognized linux guest to use bridge binding")
 	}
 }
 
@@ -117,8 +95,8 @@ func TestBuildVMRuntimeConfigIgnoresRemovedNetworkFields(t *testing.T) {
 	if cfg.Networks[0].Pod == nil {
 		t.Fatalf("expected removed network fields to keep default pod network")
 	}
-	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Masquerade == nil {
-		t.Fatalf("expected removed network fields to keep masquerade interface")
+	if len(cfg.Interfaces) != 1 || cfg.Interfaces[0].Bridge == nil {
+		t.Fatalf("expected removed network fields to keep bridge interface")
 	}
 	if len(cfg.Volumes) != 0 {
 		t.Fatalf("expected no network helper volumes once fixed ip is removed, got %d", len(cfg.Volumes))
