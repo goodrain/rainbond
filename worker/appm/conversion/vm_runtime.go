@@ -20,6 +20,7 @@ const (
 	vmGPUCountKey             = "vm_gpu_count"
 	vmUSBEnabledKey           = "vm_usb_enabled"
 	vmUSBResourcesKey         = "vm_usb_resources"
+	vmFixedPodIPEnabledKey    = "vm_fixed_ip_enabled"
 	vmDiskLayoutKey           = "vm_disk_layout"
 	vmDiskRootKey             = "disk"
 	vmDiskInstallerKey        = "vmimage"
@@ -74,11 +75,9 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 		},
 		Interfaces: []kubevirtv1.Interface{
 			{
-				Name:  vmPrimaryNetworkName,
-				Model: interfaceModel,
-				InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
-					Bridge: &kubevirtv1.InterfaceBridge{},
-				},
+				Name:                   vmPrimaryNetworkName,
+				Model:                  interfaceModel,
+				InterfaceBindingMethod: resolveVMInterfaceBinding(extensionSet),
 			},
 		},
 		GPUs:        buildVMGPUDevices(extensionSet),
@@ -308,6 +307,13 @@ func resolveVMInterfaceModel(extensionSet map[string]string) string {
 		return "virtio"
 	}
 	return "e1000"
+}
+
+func resolveVMInterfaceBinding(extensionSet map[string]string) kubevirtv1.InterfaceBindingMethod {
+	if extensionEnabled(extensionSet[vmFixedPodIPEnabledKey]) {
+		return kubevirtv1.InterfaceBindingMethod{Bridge: &kubevirtv1.InterfaceBridge{}}
+	}
+	return kubevirtv1.InterfaceBindingMethod{Masquerade: &kubevirtv1.InterfaceMasquerade{}}
 }
 
 func looksLikeLinuxGuestHint(value string) bool {
