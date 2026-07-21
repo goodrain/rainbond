@@ -817,8 +817,16 @@ func (c *ClusterController) BootstrapAgentKubeconfig(w http.ResponseWriter, r *h
 	}
 	result, err := handler.GetClusterHandler().BootstrapAgentKubeconfig(r.Context(), &req)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
+		returnAgentKubeconfigBootstrapError(r, w, err)
 		return
 	}
 	httputil.ReturnSuccess(r, w, result)
+}
+
+func returnAgentKubeconfigBootstrapError(r *http.Request, w http.ResponseWriter, err error) {
+	if _, ok := err.(httputil.ErrBadRequest); ok {
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
 }
