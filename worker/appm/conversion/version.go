@@ -478,12 +478,12 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by cmd attribute error: %v", err)
 	}
 	if cmdAttribute != nil {
-		var cmdList []string
-		if err := json.Unmarshal([]byte(cmdAttribute.AttributeValue), &cmdList); err == nil {
+		cmdList, err := parseStringSequenceAttribute(cmdAttribute.AttributeValue)
+		if err != nil {
+			return nil, fmt.Errorf("parse cmd attribute error: %v", err)
+		}
+		if len(cmdList) > 0 {
 			c.Command = cmdList
-		} else {
-			// fallback: old format stored as space-separated string
-			c.Command = strings.Split(cmdAttribute.AttributeValue, " ")
 		}
 	}
 	argsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameArgs)
@@ -491,11 +491,12 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by args attribute error: %v", err)
 	}
 	if argsAttribute != nil {
-		var argsList []string
-		if err := json.Unmarshal([]byte(argsAttribute.AttributeValue), &argsList); err == nil {
+		argsList, err := parseStringSequenceAttribute(argsAttribute.AttributeValue)
+		if err != nil {
+			return nil, fmt.Errorf("parse args attribute error: %v", err)
+		}
+		if len(argsList) > 0 {
 			c.Args = argsList
-		} else {
-			c.Args = strings.Split(argsAttribute.AttributeValue, " ")
 		}
 	}
 	workingDirAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameWorkingDir)
@@ -513,6 +514,39 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		c.Lifecycle = lifeCycle
 	}
 	return c, nil
+}
+
+func parseStringSequenceAttribute(attributeValue string) ([]string, error) {
+	value := strings.TrimSpace(attributeValue)
+	if value == "" {
+		return nil, nil
+	}
+
+	var jsonItems []interface{}
+	if err := json.Unmarshal([]byte(value), &jsonItems); err == nil {
+		return stringSequenceFromInterfaceSlice(jsonItems)
+	}
+
+	var yamlValue interface{}
+	if err := yaml.Unmarshal([]byte(value), &yamlValue); err == nil {
+		if items, ok := yamlValue.([]interface{}); ok {
+			return stringSequenceFromInterfaceSlice(items)
+		}
+	}
+
+	return []string{value}, nil
+}
+
+func stringSequenceFromInterfaceSlice(items []interface{}) ([]string, error) {
+	result := make([]string, 0, len(items))
+	for index, item := range items {
+		value, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("sequence item %d must be string", index)
+		}
+		result = append(result, value)
+	}
+	return result, nil
 }
 
 func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []string) {
