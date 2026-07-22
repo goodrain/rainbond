@@ -122,6 +122,31 @@ type resourceSyncComponentK8sAttributeDao struct {
 	deleted    []string
 }
 
+func (d *resourceSyncComponentK8sAttributeDao) GetByComponentIDAndName(componentID, name string) (*dbmodel.ComponentK8sAttributes, error) {
+	if d.attributes == nil {
+		return nil, nil
+	}
+	attr := d.attributes[name]
+	if attr == nil {
+		return nil, nil
+	}
+	copied := *attr
+	return &copied, nil
+}
+
+func (d *resourceSyncComponentK8sAttributeDao) UpdateModel(mo dbmodel.Interface) error {
+	attr, ok := mo.(*dbmodel.ComponentK8sAttributes)
+	if !ok {
+		return nil
+	}
+	if d.attributes == nil {
+		d.attributes = map[string]*dbmodel.ComponentK8sAttributes{}
+	}
+	copied := *attr
+	d.attributes[attr.Name] = &copied
+	return nil
+}
+
 func (d *resourceSyncComponentK8sAttributeDao) CreateOrUpdateAttributesInBatch(attributes []*dbmodel.ComponentK8sAttributes) error {
 	if d.attributes == nil {
 		d.attributes = map[string]*dbmodel.ComponentK8sAttributes{}
@@ -326,8 +351,8 @@ func TestServiceDependSyncsVirtualMachineSpecWhenVMDependencyChanges(t *testing.
 				},
 			}
 			db.SetTestManager(resourceSyncTestManager{
-				serviceDao: serviceDao,
-				eventDao:   &resourceSyncEventDao{},
+				serviceDao:  serviceDao,
+				eventDao:    &resourceSyncEventDao{},
 				relationDao: &resourceSyncRelationDao{},
 			})
 			defer db.SetTestManager(nil)

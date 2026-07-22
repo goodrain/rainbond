@@ -7889,9 +7889,14 @@
       "interface_type": "workflow",
       "interface": "worker/appm/conversion.getMainContainer",
       "code_paths": [
+        "api/handler/k8s_attribute.go",
         "worker/appm/conversion/version.go"
       ],
       "tests": [
+        {
+          "path": "api/handler/k8s_attribute_test.go",
+          "selector": "TestUpdateK8sAttributeUpdatesSaveType"
+        },
         {
           "path": "worker/appm/conversion/version_cmd_args_test.go",
           "selector": "TestParseStringSequenceAttribute"

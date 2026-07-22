@@ -422,7 +422,7 @@
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
-| rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
+| rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
 | rainbond.worker.conversion.pod-security-context | 组件 Pod 安全上下文属性 | active | regression | worker.appm.conversion.createPodSecurityContext | worker/appm/conversion/version_security_context_test.go::TestCreatePodSecurityContextUsesK8sAttribute |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
@@ -4644,8 +4644,8 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `worker/appm/conversion.getMainContainer`
-- 代码路径: `worker/appm/conversion/version.go`
-- 测试路径: `worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`, `worker/appm/conversion/version.go`
+- 测试路径: `api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType`, `worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute`
 
 ### 根据组件类型创建 DaemonSet 工作负载
 
