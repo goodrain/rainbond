@@ -1,0 +1,173 @@
+meta:
+  name: cmd-args-yaml-attributes
+  version: "1.0"
+  repo: "/Users/zhangqihang/MyWork/workrc"
+  branch: "v6.9.5-dev"
+  design_doc: "/Users/zhangqihang/MyWork/workrc/rainbond/docs/plans/2026-07-22-cmd-args-yaml-design.md"
+
+sprints:
+  - id: sprint-1
+    name: Region cmd/args parser contract
+    commits:
+      - id: commit-1
+        message: "fix: parse cmd args attributes as yaml arrays"
+        repo: "/Users/zhangqihang/MyWork/workrc/rainbond"
+        tasks: [task-1.1, task-1.2, task-1.3]
+    tasks:
+      - id: task-1.1
+        name: Add failing parser tests
+        status: pending
+        files:
+          create:
+            - path: "worker/appm/conversion/version_cmd_args_test.go"
+          modify:
+            - path: "test-manifest.json"
+            - path: "test-manifest.md"
+        steps:
+          - action: write-test
+            description: >
+              Add table-driven tests for parsing Kubernetes cmd/args attributes:
+              YAML sequence preserves one shell string with spaces, JSON sequence
+              remains supported, and legacy plain string becomes one argv element.
+            run: "go test ./worker/appm/conversion -run TestParseStringSequenceAttribute -v"
+            expect: "FAIL before implementation"
+        acceptance:
+          - cmd: "python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: "PASS"
+      - id: task-1.2
+        name: Implement YAML/JSON sequence parsing
+        status: pending
+        files:
+          modify:
+            - path: "worker/appm/conversion/version.go"
+              lines: "480-499"
+        steps:
+          - action: implement
+            description: >
+              Add parseStringSequenceAttribute(value string) ([]string, error).
+              It parses JSON arrays first, then YAML arrays; if parsing yields a
+              scalar or invalid syntax, trim and return []string{value}; if any
+              array item is not a string, return an error.
+            run: "go test ./worker/appm/conversion -run TestParseStringSequenceAttribute -v"
+            expect: "PASS"
+      - id: task-1.3
+        name: Wire parser into container conversion
+        status: pending
+        files:
+          modify:
+            - path: "worker/appm/conversion/version.go"
+              lines: "480-499"
+        steps:
+          - action: implement
+            description: >
+              Replace strings.Split fallback for K8sAttributeNameCmd and
+              K8sAttributeNameArgs with parseStringSequenceAttribute.
+            run: "go test ./worker/appm/conversion -run TestParseStringSequenceAttribute -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./worker/appm/conversion -run 'TestParseStringSequenceAttribute|TestCreateHostNetworkUsesK8sAttribute' -v"
+            expect: "PASS"
+
+  - id: sprint-2
+    name: Console validation and persistence
+    commits:
+      - id: commit-2
+        message: "fix: validate cmd args yaml attributes"
+        repo: "/Users/zhangqihang/MyWork/workrc/rainbond-console"
+        tasks: [task-2.1, task-2.2, task-2.3]
+    tasks:
+      - id: task-2.1
+        name: Add failing console service tests
+        status: pending
+        files:
+          modify:
+            - path: "console/tests/k8s_attribute_service_test.py"
+          modify_manifest:
+            - path: "test-manifest.json"
+            - path: "test-manifest.md"
+        steps:
+          - action: write-test
+            description: >
+              Test create/update for cmd and args normalizes list values to YAML,
+              accepts YAML sequence strings, forwards save_type=yaml to region,
+              and rejects non-list YAML values.
+            run: "pytest console/tests/k8s_attribute_service_test.py -k cmd_args -q"
+            expect: "FAIL before implementation"
+      - id: task-2.2
+        name: Implement cmd/args normalization
+        status: pending
+        files:
+          modify:
+            - path: "console/services/k8s_attribute.py"
+              lines: "15-80"
+        steps:
+          - action: implement
+            description: >
+              Add normalize_sequence_attribute helper for names cmd/args. Store
+              YAML sequence strings with save_type=yaml, preserve valid YAML
+              sequence strings, serialize Python lists with yaml.safe_dump, and
+              raise AbortRequest/ServiceHandleException-compatible errors for
+              non-string array items or scalar content.
+            run: "pytest console/tests/k8s_attribute_service_test.py -k cmd_args -q"
+            expect: "PASS"
+      - id: task-2.3
+        name: Save detected compose command and args as YAML
+        status: pending
+        files:
+          modify:
+            - path: "console/services/app_check_service.py"
+              lines: "387-391,537-543"
+        steps:
+          - action: implement
+            description: >
+              Change internal __save_k8s_attribute calls for args/cmd to use
+              save_type=yaml and YAML sequence strings, leaving service.cmd
+              display behavior unchanged.
+            run: "pytest console/tests/k8s_attribute_service_test.py -k cmd_args -q"
+            expect: "PASS"
+        acceptance:
+          - cmd: "python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: "PASS"
+
+  - id: sprint-3
+    name: UI Kubernetes attribute editor
+    commits:
+      - id: commit-3
+        message: "fix: edit cmd args as yaml attributes"
+        repo: "/Users/zhangqihang/MyWork/workrc/rainbond-ui"
+        tasks: [task-3.1, task-3.2]
+    tasks:
+      - id: task-3.1
+        name: Switch cmd/args to YAML editor
+        status: pending
+        files:
+          modify:
+            - path: "src/pages/Component/kubernets.js"
+              lines: "25-80,330-470,580-630"
+        steps:
+          - action: implement
+            description: >
+              Add args to DEFAULT_ATTRIBUTE_FIELDS, add cmd and args to
+              YAML_FIELDS, remove cmd from STRING_FIELDS, seed useful YAML
+              examples, and ensure editing existing save_type=yaml values opens
+              CodeMirrorForm.
+            run: "node -e \"require('./src/pages/Component/kubernetsAttributeHelpers')\""
+            expect: "PASS"
+      - id: task-3.2
+        name: Update prompt text
+        status: pending
+        files:
+          modify:
+            - path: "src/locales/zh-CN/appOverview.js"
+            - path: "src/locales/en-US/appOverview.js"
+        steps:
+          - action: implement
+            description: >
+              Update cmd/args prompt copy to explain YAML array semantics and
+              that each YAML item is one Kubernetes argv element with no space
+              splitting.
+            run: "yarn build"
+            expect: "PASS"
+        acceptance:
+          - cmd: "yarn build"
+            expect: "PASS"

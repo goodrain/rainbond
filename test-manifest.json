@@ -7883,6 +7883,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.conversion.cmd-args-yaml",
+      "title": "Parse component cmd and args attributes as YAML arrays",
+      "title_zh": "Parse component cmd and args attributes as YAML arrays",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.getMainContainer",
+      "code_paths": [
+        "api/handler/k8s_attribute.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_test.go",
+          "selector": "TestUpdateK8sAttributeUpdatesSaveType"
+        },
+        {
+          "path": "worker/appm/conversion/version_cmd_args_test.go",
+          "selector": "TestParseStringSequenceAttribute"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.conversion.daemonset-workload",
       "title": "Create DaemonSet workload from service type",
       "title_zh": "\u6839\u636e\u7ec4\u4ef6\u7c7b\u578b\u521b\u5efa DaemonSet \u5de5\u4f5c\u8d1f\u8f7d",
