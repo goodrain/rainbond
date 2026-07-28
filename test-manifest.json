@@ -2467,6 +2467,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.reject-duplicate-tcp-nodeport",
+      "title": "Reject duplicate TCP NodePort bindings",
+      "title_zh": "Reject duplicate TCP NodePort bindings",
+      "interface_type": "workflow",
+      "interface": "TCP NodePort binding",
+      "code_paths": [
+        "db/mysql/dao/gateway.go",
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/gateway_test.go",
+          "selector": "TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.helm-release.app-version-format",
       "title": "Format Helm application versions for history output",
       "title_zh": "\u4e3a Helm \u5386\u53f2\u8f93\u51fa\u683c\u5f0f\u5316\u5e94\u7528\u7248\u672c\u53f7",

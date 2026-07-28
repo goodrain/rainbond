@@ -125,6 +125,7 @@ func (g Struct) GetHTTPBindDomains(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, hosts)
 }
 
+// GetTCPBindDomains returns the NodePorts bound to a component's TCP routes.
 func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
@@ -186,12 +187,12 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	for _, v := range list.Items {
 		httpRoute := v.Spec.HTTP[0].DeepCopy()
 		labels := v.Labels
-		service_alias := ""
+		serviceAliases := ""
 		regionAppID := ""
 		enabled := false // Default to enabled if not specified
 		for labelK, labelV := range labels {
 			if labelV == "service_alias" {
-				service_alias = service_alias + "-" + labelK
+				serviceAliases = serviceAliases + "-" + labelK
 			}
 			if labelK == "app_id" {
 				regionAppID = labelV
@@ -200,7 +201,7 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 				enabled = labelV == "true"
 			}
 		}
-		httpRoute.Name = regionAppID + "|" + v.Name + "|" + service_alias
+		httpRoute.Name = regionAppID + "|" + v.Name + "|" + serviceAliases
 		resp = append(resp, &routeResponse{
 			ApisixRouteHTTP: httpRoute,
 			Enabled:         enabled,
@@ -441,8 +442,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	serviceName := apisixRouteStream.Backend.ServiceName
 	serviceAlias := serviceName
 	resolvedServiceID := serviceID
+	autoAllocatePort := apisixRouteStream.Match.IngressPort == 0
 	logrus.Infof("apisixRouteStream.Match.IngressPort is %v", apisixRouteStream.Match.IngressPort)
-	if apisixRouteStream.Match.IngressPort == 0 {
+	if autoAllocatePort {
 		logrus.Infof("change ingressPort")
 		h := handler.GetGatewayHandler()
 		res, err := h.GetAvailablePort("0.0.0.0", true)
@@ -554,6 +556,21 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		spec.Selector = kbutil.GenerateKubeBlocksSelector(rbdService.K8sComponentName)
 		logrus.Infof("Using KubeBlocks selector for service %s (k8s_component_name: %s)", serviceName, rbdService.K8sComponentName)
 	}
+	if !autoAllocatePort {
+		rules, err := db.GetManager().TCPRuleDao().GetUsedPortsByIP("0.0.0.0")
+		if err != nil {
+			logrus.Errorf("get used TCP ports error: %v", err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteCreate)
+			return
+		}
+		for _, rule := range rules {
+			sameOwner := resolvedServiceID != "" && rule.ServiceID == resolvedServiceID
+			if rule.Port == int(apisixRouteStream.Match.IngressPort) && !sameOwner {
+				httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+				return
+			}
+		}
+	}
 
 	// Try to get the existing service first
 	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
@@ -589,6 +606,10 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			_, err = k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
 			if err != nil {
 				if strings.Contains(err.Error(), "provided port is already allocated") {
+					if !autoAllocatePort {
+						httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+						return
+					}
 					// 如果端口已被占用，增加端口号并重新尝试
 					logrus.Infof("NodePort %d is already allocated, trying next port...", nodePort)
 					nodePort++
@@ -756,6 +777,7 @@ func removeLeadingDigits(name string) string {
 	return strings.Join(parts[:len(parts)-1], "-")
 }
 
+// CheckCertManager reports whether the cert-manager Certificate CRD is installed.
 func (g Struct) CheckCertManager(w http.ResponseWriter, r *http.Request) {
 	// 创建 Kubernetes 客户端
 	kubeConfig := config.GetConfigOrDie()
@@ -860,7 +882,7 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apisixTls := &v2.ApisixTls{
+	apisixTLS := &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
 			Kind:       util.ApisixTLS,
 			APIVersion: util.APIVersion,
@@ -882,7 +904,7 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 
 	// Create the ApisixTls resource
 	c := k8s.Default().ApiSixClient.ApisixV2()
-	_, err = c.ApisixTlses(tenant.Namespace).Create(r.Context(), apisixTls, v1.CreateOptions{})
+	_, err = c.ApisixTlses(tenant.Namespace).Create(r.Context(), apisixTLS, v1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		logrus.Errorf("create certificate error: %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create certificate error: %v", err))
@@ -1041,6 +1063,7 @@ func (g Struct) GetCertManager(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, certInfoList)
 }
 
+// DeleteCertManager deletes cert-manager resources for a route or domain set.
 func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	// 从上下文中获取租户信息
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)

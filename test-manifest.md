@@ -138,6 +138,7 @@
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
+| rainbond.gateway.reject-duplicate-tcp-nodeport | Reject duplicate TCP NodePort bindings | active | regression | TCP NodePort binding | db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule<br>api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.classify-resources | 按资源类型归类 Helm 发布资源 | active | regression | api/handler.splitHelmReleaseResources | api/handler/helm_release_test.go::TestSplitHelmReleaseResourcesClassifiesKinds |
@@ -1796,6 +1797,16 @@
 - 业务入口: `api/handler.reassignConflictingTCPRulePorts`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts`
+
+### Reject duplicate TCP NodePort bindings
+
+- Capability ID: `rainbond.gateway.reject-duplicate-tcp-nodeport`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `TCP NodePort binding`
+- 代码路径: `db/mysql/dao/gateway.go`, `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule`, `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService`
 
 ### 为 Helm 历史输出格式化应用版本号
 
