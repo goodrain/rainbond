@@ -465,6 +465,15 @@ func isTransientVMStartError(err error) bool {
 	return err != nil && (k8sErrors.IsConflict(err) || k8sErrors.IsNotFound(err))
 }
 
+func isMissingVMRootImportSpecSyncError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "validate vm boot path failure") &&
+		strings.Contains(message, "missing imported root data volume")
+}
+
 func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVersion string, vm *v1.VirtualMachine) error {
 	currentVM := vm
 	var lastErr error
@@ -480,7 +489,7 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 		if currentVM == nil {
 			return s.enqueueVMStartTask(sss, deployVersion)
 		}
-		if currentVM.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+		if isVMStartRequestedOrRunning(currentVM.Status.PrintableStatus) {
 			return nil
 		}
 		if err := s.kubevirtClient.VirtualMachine(currentVM.Namespace).Start(context.Background(), currentVM.Name, &v1.StartOptions{}); err != nil {
@@ -503,13 +512,16 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 	if vm == nil {
 		return s.enqueueVMStartTask(sss, deployVersion)
 	}
-	if vm.Status.PrintableStatus != v1.VirtualMachineStatusStopped {
+	if isVMStartRequestedOrRunning(vm.Status.PrintableStatus) {
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
 	if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 		if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
-			_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
-			return err
+			if !isMissingVMRootImportSpecSyncError(err) {
+				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+				return err
+			}
+			logrus.Warnf("skip vm spec sync before start for existing vm with missing imported root disk: service_id=%s err=%v", sss.ServiceID, err)
 		}
 	}
 	if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
@@ -517,6 +529,20 @@ func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.Start
 		return err
 	}
 	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+}
+
+func isVMStartRequestedOrRunning(status v1.VirtualMachinePrintableStatus) bool {
+	switch status {
+	case v1.VirtualMachineStatusProvisioning,
+		v1.VirtualMachineStatusStarting,
+		v1.VirtualMachineStatusRunning,
+		v1.VirtualMachineStatusPaused,
+		v1.VirtualMachineStatusMigrating,
+		v1.VirtualMachineStatusWaitingForVolumeBinding:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
@@ -532,8 +558,11 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
 		if s.syncVirtualMachineSpecHook != nil || s.dbmanager != nil {
 			if err := s.syncVirtualMachineSpecAfterResourceUpdate(sss.ServiceID); err != nil {
-				_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
-				return err
+				if !isMissingVMRootImportSpecSyncError(err) {
+					_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+					return err
+				}
+				logrus.Warnf("skip vm spec sync before restart-start for existing vm with missing imported root disk: service_id=%s err=%v", sss.ServiceID, err)
 			}
 		}
 		if err := s.ensureVMStarted(sss, deployVersion, vm); err != nil {
@@ -865,7 +894,10 @@ func isVMRestoreDataVolumeTemplate(template v1.DataVolumeTemplateSpec) bool {
 	if strings.TrimSpace(annotations[appmvolume.VMArtifactImageAnnotation]) != "" {
 		return true
 	}
-	return strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != ""
+	if strings.TrimSpace(annotations[appmvolume.VMArtifactServiceAnnotation]) != "" {
+		return true
+	}
+	return template.Spec.Source != nil && template.Spec.Source.Registry != nil
 }
 
 func resolveVMDataVolumeRestoreStatus(namespace string, details []vmDataVolumeDetail) *apimodel.VMRestore {

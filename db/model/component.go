@@ -59,6 +59,8 @@ const (
 	K8sAttributeNameENVFromSource = "envFromSource"
 	// K8sAttributeNameSecurityContext -
 	K8sAttributeNameSecurityContext = "securityContext"
+	// K8sAttributeNamePodSecurityContext -
+	K8sAttributeNamePodSecurityContext = "podSecurityContext"
 	// K8sAttributeNameReadinessProbe -
 	K8sAttributeNameReadinessProbe = "readinessProbe"
 	// K8sAttributeNameLiveNessProbe -

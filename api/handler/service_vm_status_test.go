@@ -284,6 +284,64 @@ func TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes(t *testing.T) 
 	}
 }
 
+// capability_id: rainbond.vm-template-import.registry-restore-progress
+func TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes(t *testing.T) {
+	registryURL := "docker://goodrain.me/ceshi:test-zqh"
+	action := &ServiceAction{
+		getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+			return &kubevirtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-zqh",
+					Namespace: "ceshi",
+				},
+				Spec: kubevirtv1.VirtualMachineSpec{
+					DataVolumeTemplates: []kubevirtv1.DataVolumeTemplateSpec{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "manual-root",
+							},
+							Spec: cdiv1.DataVolumeSpec{
+								Source: &cdiv1.DataVolumeSource{
+									Registry: &cdiv1.DataVolumeSourceRegistry{
+										URL: &registryURL,
+									},
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		},
+		getDataVolumeDetailsByNamesHook: func(namespace string, names []string) ([]vmDataVolumeDetail, error) {
+			if namespace != "ceshi" {
+				t.Fatalf("expected namespace ceshi, got %q", namespace)
+			}
+			if len(names) != 1 || names[0] != "manual-root" {
+				t.Fatalf("expected registry import data volume manual-root, got %#v", names)
+			}
+			return []vmDataVolumeDetail{
+				{
+					Name:     "manual-root",
+					Phase:    "Failed",
+					Progress: "N/A",
+					Message:  "pull image failed",
+				},
+			}, nil
+		},
+	}
+
+	status := action.resolveVMDataVolumeRestore("service-a")
+	if status == nil {
+		t.Fatal("expected registry import data volume restore status")
+	}
+	if status.Status != "failure" {
+		t.Fatalf("expected failure restore status, got %q", status.Status)
+	}
+	if status.Message != "manual-root: pull image failed" {
+		t.Fatalf("expected registry import failure message, got %q", status.Message)
+	}
+}
+
 func TestResolveVMTransitionStatusReturnsStartingForPendingProvisioningVMI(t *testing.T) {
 	vm := &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
