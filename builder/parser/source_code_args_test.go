@@ -1,11 +1,60 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/types"
 )
+
+func TestShouldListMultiModuleServices(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "Dockerfile"), []byte("FROM eclipse-temurin:17\n"), 0o644); err != nil {
+		t.Fatalf("write root Dockerfile: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "pom.xml"), []byte("<project><modules><module>service-a</module></modules></project>\n"), 0o644); err != nil {
+		t.Fatalf("write root pom.xml: %v", err)
+	}
+	detectedLang, err := code.GetLangType(root)
+	if err != nil {
+		t.Fatalf("detect project language: %v", err)
+	}
+	if detectedLang != code.Lang("dockerfile,Java-maven") {
+		t.Fatalf("detected language = %q, want dockerfile,Java-maven", detectedLang)
+	}
+
+	tests := []struct {
+		name string
+		lang code.Lang
+		want bool
+	}{
+		{name: "root Dockerfile keeps project-level build choice", lang: detectedLang, want: false},
+		{name: "plain Maven still lists modules", lang: code.JavaMaven, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldListMultiModuleServices(root, tt.lang); got != tt.want {
+				t.Fatalf("shouldListMultiModuleServices(%q) = %t, want %t", tt.lang, got, tt.want)
+			}
+		})
+	}
+
+	t.Run("nested Dockerfile preserves Maven module listing", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.Mkdir(filepath.Join(root, "service-a"), 0o755); err != nil {
+			t.Fatalf("create module directory: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "service-a", "Dockerfile"), []byte("FROM eclipse-temurin:17\n"), 0o644); err != nil {
+			t.Fatalf("write nested Dockerfile: %v", err)
+		}
+		if !shouldListMultiModuleServices(root, code.Lang("dockerfile,Java-maven")) {
+			t.Fatal("nested Dockerfile should not replace Maven multi-module detection")
+		}
+	})
+}
 
 // capability_id: rainbond.source-args.multi-language
 func TestGetArgs_MultiLanguage(t *testing.T) {
