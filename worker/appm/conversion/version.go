@@ -175,6 +175,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
 		bootPath := resolveVMBootPath(as.ExtensionSet, vmDataVolumeTemplates)
+		if err := validateVMBootPath(as.ExtensionSet, bootPath); err != nil {
+			return fmt.Errorf("validate vm boot path failure: %v", err)
+		}
 		volumes := dv.GetVMVolume()
 		var rootBlankDataVolumeName string
 		volumes, vmDataVolumeTemplates, rootBlankDataVolumeName = prepareVMImageBootVolumes(
@@ -310,6 +313,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		if len(aliases) == 0 {
 			aliases = append(aliases, createHostAliases(as)...)
 		}
+		podSecurityContext, err := createPodSecurityContext(as, dbmanager)
+		if err != nil {
+			return fmt.Errorf("create pod security context %v", err)
+		}
 		podtmpSpec = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      labels,
@@ -347,6 +354,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				ShareProcessNamespace: util.Bool(createShareProcessNamespace(as, dbmanager)),
 				DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
 				HostIPC:               createHostIPC(as, dbmanager),
+				SecurityContext:       podSecurityContext,
 			},
 		}
 	}
@@ -470,12 +478,12 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by cmd attribute error: %v", err)
 	}
 	if cmdAttribute != nil {
-		var cmdList []string
-		if err := json.Unmarshal([]byte(cmdAttribute.AttributeValue), &cmdList); err == nil {
+		cmdList, err := parseStringSequenceAttribute(cmdAttribute.AttributeValue)
+		if err != nil {
+			return nil, fmt.Errorf("parse cmd attribute error: %v", err)
+		}
+		if len(cmdList) > 0 {
 			c.Command = cmdList
-		} else {
-			// fallback: old format stored as space-separated string
-			c.Command = strings.Split(cmdAttribute.AttributeValue, " ")
 		}
 	}
 	argsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameArgs)
@@ -483,11 +491,12 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get by args attribute error: %v", err)
 	}
 	if argsAttribute != nil {
-		var argsList []string
-		if err := json.Unmarshal([]byte(argsAttribute.AttributeValue), &argsList); err == nil {
+		argsList, err := parseStringSequenceAttribute(argsAttribute.AttributeValue)
+		if err != nil {
+			return nil, fmt.Errorf("parse args attribute error: %v", err)
+		}
+		if len(argsList) > 0 {
 			c.Args = argsList
-		} else {
-			c.Args = strings.Split(argsAttribute.AttributeValue, " ")
 		}
 	}
 	workingDirAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameWorkingDir)
@@ -505,6 +514,39 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		c.Lifecycle = lifeCycle
 	}
 	return c, nil
+}
+
+func parseStringSequenceAttribute(attributeValue string) ([]string, error) {
+	value := strings.TrimSpace(attributeValue)
+	if value == "" {
+		return nil, nil
+	}
+
+	var jsonItems []interface{}
+	if err := json.Unmarshal([]byte(value), &jsonItems); err == nil {
+		return stringSequenceFromInterfaceSlice(jsonItems)
+	}
+
+	var yamlValue interface{}
+	if err := yaml.Unmarshal([]byte(value), &yamlValue); err == nil {
+		if items, ok := yamlValue.([]interface{}); ok {
+			return stringSequenceFromInterfaceSlice(items)
+		}
+	}
+
+	return []string{value}, nil
+}
+
+func stringSequenceFromInterfaceSlice(items []interface{}) ([]string, error) {
+	result := make([]string, 0, len(items))
+	for index, item := range items {
+		value, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf("sequence item %d must be string", index)
+		}
+		result = append(result, value)
+	}
+	return result, nil
 }
 
 func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []string) {
@@ -970,13 +1012,6 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	}
 	res, _ := createResourcesBySetting(as.ContainerMemory, cpuRequest, cpuLimit, int64(as.ContainerGPU), false)
 	return *res
-}
-
-func getGPULableKey() corev1.ResourceName {
-	if os.Getenv("GPU_LABLE_KEY") != "" {
-		return corev1.ResourceName(os.Getenv("GPU_LABLE_KEY"))
-	}
-	return "rainbond.com/gpu-mem"
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {
@@ -1590,9 +1625,10 @@ func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
 type vmBootPath string
 
 const (
-	vmBootPathISOInstaller     vmBootPath = "iso-installer"
-	vmBootPathVMImageRootDisk  vmBootPath = "vmimage-rootdisk"
-	vmBootPathImportedRootDisk vmBootPath = "imported-rootdisk"
+	vmBootPathISOInstaller      vmBootPath = "iso-installer"
+	vmBootPathVMImageRootDisk   vmBootPath = "vmimage-rootdisk"
+	vmBootPathImportedRootDisk  vmBootPath = "imported-rootdisk"
+	vmBootPathMissingRootImport vmBootPath = "missing-root-import"
 )
 
 func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.DataVolumeTemplateSpec) vmBootPath {
@@ -1602,7 +1638,14 @@ func resolveVMBootPath(extensionSet map[string]string, templates []kubevirtv1.Da
 	if vmBootSourceUsesCDRom(extensionSet) {
 		return vmBootPathISOInstaller
 	}
-	return vmBootPathVMImageRootDisk
+	return vmBootPathMissingRootImport
+}
+
+func validateVMBootPath(extensionSet map[string]string, path vmBootPath) error {
+	if path != vmBootPathMissingRootImport {
+		return nil
+	}
+	return fmt.Errorf("missing imported root data volume for vm boot source format %q", vmBootSourceFormat(extensionSet))
 }
 
 func vmImageDiskDevice(extensionSet map[string]string) kubevirtv1.DiskDevice {
@@ -2233,6 +2276,28 @@ func createSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.Sec
 		}
 	}
 	return &securityContext, nil
+}
+
+func createPodSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.PodSecurityContext, error) {
+	psc, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNamePodSecurityContext)
+	if err != nil {
+		logrus.Debug("get by podSecurityContext attribute error", err)
+		return nil, err
+	}
+	if psc == nil || strings.TrimSpace(psc.AttributeValue) == "" {
+		return nil, nil
+	}
+	var podSecurityContext corev1.PodSecurityContext
+	podSecurityContextJSON, err := yaml.YAMLToJSON([]byte(psc.AttributeValue))
+	if err != nil {
+		logrus.Debug("podSecurityContext yaml to json error", err)
+		return nil, err
+	}
+	if err := json.Unmarshal(podSecurityContextJSON, &podSecurityContext); err != nil {
+		logrus.Debug("podSecurityContext json unmarshal error", err)
+		return nil, err
+	}
+	return &podSecurityContext, nil
 }
 
 func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements, OverScoreRate string) (res corev1.ResourceRequirements) {

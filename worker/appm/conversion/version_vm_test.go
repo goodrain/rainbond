@@ -1,6 +1,7 @@
 package conversion
 
 import (
+	"strings"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -242,7 +243,7 @@ func TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank(t *testing.T) {
 	}
 }
 
-func TestResolveVMBootPathUsesVMImageRootDiskForQCOW2WithoutImportedRoot(t *testing.T) {
+func TestResolveVMBootPathRequiresImportedRootDiskForQCOW2(t *testing.T) {
 	templates := []kubevirtv1.DataVolumeTemplateSpec{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -257,8 +258,8 @@ func TestResolveVMBootPathUsesVMImageRootDiskForQCOW2WithoutImportedRoot(t *test
 		},
 	}
 
-	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, templates); got != vmBootPathVMImageRootDisk {
-		t.Fatalf("expected qcow2 root-disk boot path, got %q", got)
+	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, templates); got != vmBootPathMissingRootImport {
+		t.Fatalf("expected qcow2 boot path to require imported root disk, got %q", got)
 	}
 }
 
@@ -279,6 +280,16 @@ func TestResolveVMBootPathUsesImportedRootDiskWhenDataVolumeAlreadyImported(t *t
 
 	if got := resolveVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, templates); got != vmBootPathImportedRootDisk {
 		t.Fatalf("expected imported root-disk boot path, got %q", got)
+	}
+}
+
+func TestValidateVMBootPathRejectsMissingRootImport(t *testing.T) {
+	err := validateVMBootPath(map[string]string{"vm_boot_source_format": "qcow2"}, vmBootPathMissingRootImport)
+	if err == nil {
+		t.Fatal("expected qcow2 boot path without imported root disk to be rejected")
+	}
+	if !strings.Contains(err.Error(), "missing imported root data volume") {
+		t.Fatalf("expected missing root import error, got %v", err)
 	}
 }
 

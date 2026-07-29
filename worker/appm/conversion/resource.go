@@ -19,8 +19,6 @@
 package conversion
 
 import (
-	"fmt"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -36,15 +34,6 @@ func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimi
 	if setCPULimit > 0 {
 		limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPULimit, resource.DecimalSI)
 	}
-	if setGPULimit > 0 {
-		gpuLimit, err := resource.ParseQuantity(fmt.Sprintf("%d", setGPULimit))
-		if err != nil {
-			logrus.Errorf("gpu request is invalid")
-		} else {
-			limits[getGPULableKey()] = gpuLimit
-		}
-	}
-
 	if setCPURequest > 0 {
 		request[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPURequest, resource.DecimalSI)
 	}

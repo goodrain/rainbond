@@ -132,6 +132,9 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 	if err != nil {
 		return err
 	}
+	if k8sAttributes.SaveType != "" {
+		attr.SaveType = k8sAttributes.SaveType
+	}
 	attr.AttributeValue = k8sAttributes.AttributeValue
 	if err := s.getDBManager().ComponentK8sAttributeDao().UpdateModel(attr); err != nil {
 		return err

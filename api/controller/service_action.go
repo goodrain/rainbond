@@ -41,6 +41,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func vmOperationFailureMessage(action string, err error) string {
+	if err == nil {
+		return fmt.Sprintf("%s vm error", action)
+	}
+	return fmt.Sprintf("%s vm error, %v", action, err)
+}
+
 // StartService StartService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/start  v2 startService
 //
@@ -103,7 +110,8 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	}
 	if service.IsVM() {
 		if err := handler.GetServiceManager().StartOrCreateVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
-			httputil.ReturnError(r, w, 500, "get service info error.")
+			logrus.Errorf("start vm service %s failure: %v", serviceID, err)
+			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("start", err))
 			return
 		}
 		httputil.ReturnSuccess(r, w, sEvent)
@@ -147,7 +155,8 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	defer event.CloseManager()
 	if service.IsVM() {
 		if err := handler.GetServiceManager().StopVM(r.Context(), serviceID); err != nil {
-			httputil.ReturnError(r, w, 500, "get service info error.")
+			logrus.Errorf("stop vm service %s failure: %v", serviceID, err)
+			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("stop", err))
 			return
 		}
 		httputil.ReturnSuccess(r, w, sEvent)
@@ -231,7 +240,8 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 
 	if service.IsVM() {
 		if err := handler.GetServiceManager().RestartVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
-			httputil.ReturnError(r, w, 500, "get service info error.")
+			logrus.Errorf("restart vm service %s failure: %v", serviceID, err)
+			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("restart", err))
 			return
 		}
 		httputil.ReturnSuccess(r, w, sEvent)
@@ -498,7 +508,8 @@ func (t *TenantStruct) PauseService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
 	if err := handler.GetServiceManager().PauseUNPauseService(serviceID, "pause"); err != nil {
-		httputil.ReturnError(r, w, 500, "get service info error.")
+		logrus.Errorf("pause vm service %s failure: %v", serviceID, err)
+		httputil.ReturnError(r, w, 500, vmOperationFailureMessage("pause", err))
 		return
 	}
 	err := db.GetManager().ServiceEventDao().SetEventStatus(r.Context(), dbmodel.EventStatusSuccess)
@@ -514,7 +525,8 @@ func (t *TenantStruct) UNPauseService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
 	if err := handler.GetServiceManager().PauseUNPauseService(serviceID, "unpause"); err != nil {
-		httputil.ReturnError(r, w, 500, "get service info error.")
+		logrus.Errorf("unpause vm service %s failure: %v", serviceID, err)
+		httputil.ReturnError(r, w, 500, vmOperationFailureMessage("unpause", err))
 		return
 	}
 	err := db.GetManager().ServiceEventDao().SetEventStatus(r.Context(), dbmodel.EventStatusSuccess)
