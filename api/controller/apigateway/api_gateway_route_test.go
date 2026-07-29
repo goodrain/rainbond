@@ -61,12 +61,17 @@ func (d *tcpRouteTenantServiceDao) GetServiceByID(serviceID string) (*dbmodel.Te
 
 type tcpRouteRuleDao struct {
 	dbdao.TCPRuleDao
-	added *dbmodel.TCPRule
+	added     *dbmodel.TCPRule
+	usedRules []*dbmodel.TCPRule
 }
 
 func (d *tcpRouteRuleDao) AddModel(m dbmodel.Interface) error {
 	d.added = m.(*dbmodel.TCPRule)
 	return nil
+}
+
+func (d *tcpRouteRuleDao) GetUsedPortsByIP(string) ([]*dbmodel.TCPRule, error) {
+	return d.usedRules, nil
 }
 
 func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service) (*kubernetes.Clientset, func()) {
@@ -330,6 +335,78 @@ func TestCreateTCPRouteUsesRainbondServiceAliasFromBackendServiceLabels(t *testi
 	}
 	if got := ruleDao.added.ServiceID; got != serviceID {
 		t.Fatalf("expected TCP rule service_id %q, got %q", serviceID, got)
+	}
+}
+
+// capability_id: rainbond.gateway.reject-duplicate-tcp-nodeport
+func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
+	const (
+		namespace     = "default"
+		tenantID      = "tenant-id"
+		serviceID     = "service-b"
+		serviceAlias  = "service-b-alias"
+		serviceName   = "service-b-name"
+		requestedPort = int32(30000)
+	)
+
+	services := map[string]*corev1.Service{}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{usedRules: []*dbmodel.TCPRule{
+		{
+			UUID:      "rule-a",
+			ServiceID: "service-a",
+			IP:        "0.0.0.0",
+			Port:      int(requestedPort),
+		},
+	}}
+	db.SetTestManager(tcpRouteTestManager{
+		tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+			serviceID: {
+				ServiceID:    serviceID,
+				ServiceAlias: serviceAlias,
+				TenantID:     tenantID,
+			},
+		}},
+		tcpRuleDao: ruleDao,
+	})
+	defer db.SetTestManager(nil)
+
+	streamRoute := v2.ApisixRouteStream{
+		Name:     "tcp",
+		Protocol: "tcp",
+		Match: v2.ApisixRouteStreamMatch{
+			IngressPort: requestedPort,
+		},
+		Backend: v2.ApisixRouteStreamBackend{
+			ServiceName: serviceName,
+			ServicePort: intstr.FromInt(9090),
+		},
+	}
+	body, err := json.Marshal(streamRoute)
+	if err != nil {
+		t.Fatalf("marshal route: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/?service_id="+serviceID, bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		UUID:      tenantID,
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if ruleDao.added != nil {
+		t.Fatalf("expected conflicting TCP rule not to be persisted, got %#v", ruleDao.added)
+	}
+	if _, ok := services[serviceName+"-30000"]; ok {
+		t.Fatal("expected conflicting NodePort service not to be created")
 	}
 }
 
