@@ -1073,15 +1073,17 @@ func GetImageFirstPart(str string) (string, string) {
 	return imageDomain, imageName
 }
 
-// buildKitTomlContent renders the buildkitd.toml payload. With no mirrors it is
-// byte-for-byte identical to the historical inline string so existing builds are
-// unaffected. Mirrors are applied only to docker.io. A mirror written with an
-// "http://" prefix is treated as a plain-HTTP endpoint: its host is added to the
-// docker.io mirrors array and an extra `[registry."<host>"] http = true` section
-// is emitted, because BuildKit decides TLS for a mirror endpoint independently of
-// the upstream registry.
+// buildKitTomlContent renders the buildkitd.toml payload. Rainbond's built-in
+// registry uses plain HTTP, while user-provided external registries use HTTPS.
+// Mirrors are applied only to docker.io. A mirror written with an "http://"
+// prefix is treated as a plain-HTTP endpoint: its host is added to the docker.io
+// mirrors array and an extra `[registry."<host>"] http = true` section is emitted,
+// because BuildKit decides TLS for a mirror endpoint independently of the
+// upstream registry.
 func buildKitTomlContent(imageDomain string, mirrors []string) string {
-	configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true", imageDomain)
+	isBuiltInRegistry := imageDomain == constants.DefImageRepository ||
+		strings.HasPrefix(imageDomain, constants.DefImageRepository+":")
+	configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = %t", imageDomain, isBuiltInRegistry)
 
 	hosts := make([]string, 0, len(mirrors))
 	httpHosts := make([]string, 0)

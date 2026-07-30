@@ -28,51 +28,65 @@ func TestBuildKitTomlContent(t *testing.T) {
 	imageDomain := "goodrain.me"
 
 	tests := []struct {
-		name    string
-		mirrors []string
-		want    string
+		name        string
+		imageDomain string
+		mirrors     []string
+		want        string
 	}{
 		{
 			// zero-regression guard: empty mirrors MUST byte-for-byte match
-			// the historical inline content.
-			name:    "empty mirrors keeps legacy content unchanged",
-			mirrors: nil,
-			want:    "debug = true\n[registry.\"goodrain.me\"]\n  http = true",
+			// the historical inline content for Rainbond's built-in registry.
+			name:        "empty mirrors keeps built-in registry content unchanged",
+			imageDomain: imageDomain,
+			mirrors:     nil,
+			want:        "debug = true\n[registry.\"goodrain.me\"]\n  http = true",
 		},
 		{
-			name:    "empty slice behaves like nil",
-			mirrors: []string{},
-			want:    "debug = true\n[registry.\"goodrain.me\"]\n  http = true",
+			name:        "built-in registry with port uses http",
+			imageDomain: "goodrain.me:5443",
+			mirrors:     []string{},
+			want:        "debug = true\n[registry.\"goodrain.me:5443\"]\n  http = true",
 		},
 		{
-			name:    "single https mirror",
-			mirrors: []string{"docker.1ms.run"},
+			name:        "trusted external registry uses https",
+			imageDomain: "registry.example.com",
+			mirrors:     nil,
+			want:        "debug = true\n[registry.\"registry.example.com\"]\n  http = false",
+		},
+		{
+			name:        "single https mirror",
+			imageDomain: imageDomain,
+			mirrors:     []string{"docker.1ms.run"},
 			want: "debug = true\n[registry.\"goodrain.me\"]\n  http = true\n" +
 				"[registry.\"docker.io\"]\n  mirrors = [\"docker.1ms.run\"]",
 		},
 		{
-			name:    "multiple mirrors",
-			mirrors: []string{"docker.1ms.run", "mirror.example.com"},
+			name:        "multiple mirrors",
+			imageDomain: imageDomain,
+			mirrors:     []string{"docker.1ms.run", "mirror.example.com"},
 			want: "debug = true\n[registry.\"goodrain.me\"]\n  http = true\n" +
 				"[registry.\"docker.io\"]\n  mirrors = [\"docker.1ms.run\", \"mirror.example.com\"]",
 		},
 		{
-			name:    "http mirror emits http=true section and strips scheme in mirrors array",
-			mirrors: []string{"http://mirror.internal:5000"},
+			name:        "http mirror emits http=true section and strips scheme in mirrors array",
+			imageDomain: imageDomain,
+			mirrors:     []string{"http://mirror.internal:5000"},
 			want: "debug = true\n[registry.\"goodrain.me\"]\n  http = true\n" +
 				"[registry.\"docker.io\"]\n  mirrors = [\"mirror.internal:5000\"]\n" +
 				"[registry.\"mirror.internal:5000\"]\n  http = true",
 		},
 		{
-			name:    "mixed http and https mirrors",
-			mirrors: []string{"docker.1ms.run", "http://mirror.internal:5000"},
+			name:        "mixed http and https mirrors",
+			imageDomain: imageDomain,
+			mirrors:     []string{"docker.1ms.run", "http://mirror.internal:5000"},
 			want: "debug = true\n[registry.\"goodrain.me\"]\n  http = true\n" +
 				"[registry.\"docker.io\"]\n  mirrors = [\"docker.1ms.run\", \"mirror.internal:5000\"]\n" +
 				"[registry.\"mirror.internal:5000\"]\n  http = true",
 		},
 		{
-			name:    "whitespace and empty entries are ignored",
-			mirrors: []string{" docker.1ms.run ", "", "   "},
+			name:        "whitespace and empty entries are ignored",
+			imageDomain: imageDomain,
+			mirrors:     []string{" docker.1ms.run ", "", "   "},
 			want: "debug = true\n[registry.\"goodrain.me\"]\n  http = true\n" +
 				"[registry.\"docker.io\"]\n  mirrors = [\"docker.1ms.run\"]",
 		},
@@ -80,7 +94,7 @@ func TestBuildKitTomlContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildKitTomlContent(imageDomain, tt.mirrors)
+			got := buildKitTomlContent(tt.imageDomain, tt.mirrors)
 			if got != tt.want {
 				t.Fatalf("buildKitTomlContent() mismatch:\n got: %q\nwant: %q", got, tt.want)
 			}
@@ -88,10 +102,10 @@ func TestBuildKitTomlContent(t *testing.T) {
 	}
 }
 
-// Guard: the empty-mirror output must equal the exact legacy expression so a
-// refactor can never silently change the existing ConfigMap payload.
+// Guard: the built-in registry must retain its exact legacy expression so a
+// refactor can never silently break Rainbond's plain-HTTP registry.
 func TestBuildKitTomlContentLegacyEquivalence(t *testing.T) {
-	for _, imageDomain := range []string{"goodrain.me", "registry.cn-hangzhou.aliyuncs.com"} {
+	for _, imageDomain := range []string{"goodrain.me", "goodrain.me:5443"} {
 		legacy := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = true", imageDomain)
 		got := buildKitTomlContent(imageDomain, nil)
 		if got != legacy {
