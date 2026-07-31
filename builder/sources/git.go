@@ -153,6 +153,28 @@ func getShowURL(rurl string) string {
 	return ""
 }
 
+func newGitCloneHTTPClient(repositoryURL string, timeout int) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = http.ProxyFromEnvironment
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
+	if strings.Contains(repositoryURL, "github.com") {
+		if rawProxyURL := os.Getenv("GITHUB_PROXY"); rawProxyURL != "" {
+			proxyURL, err := url.Parse(rawProxyURL)
+			if err != nil {
+				logrus.Error(err)
+			} else {
+				transport.Proxy = http.ProxyURL(proxyURL)
+			}
+		}
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   time.Minute * time.Duration(timeout),
+	}
+}
+
 // gitCloneInternal git clone code 内部实现（不加锁）
 func gitCloneInternal(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
@@ -202,22 +224,7 @@ Loop:
 		opts.Auth = sshAuth
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	} else {
-		// only proxy github
-		// but when setting, other request will be proxyed
-		customClient := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-			Timeout: time.Minute * time.Duration(timeout),
-		}
-		if strings.Contains(csi.RepositoryURL, "github.com") && os.Getenv("GITHUB_PROXY") != "" {
-			proxyURL, err := url.Parse(os.Getenv("GITHUB_PROXY"))
-			if err == nil {
-				customClient.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL), TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-			} else {
-				logrus.Error(err)
-			}
-		}
+		customClient := newGitCloneHTTPClient(csi.RepositoryURL, timeout)
 		if csi.User != "" && csi.Password != "" {
 			httpAuth := &githttp.BasicAuth{
 				Username: csi.User,

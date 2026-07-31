@@ -256,6 +256,7 @@
 | rainbond.source-repo.clone | 克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitClone |
 | rainbond.source-repo.clone-by-tag | 按标签克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitCloneByTag |
 | rainbond.source-repo.git-ref-name | 将分支和标签输入映射为 git 引用名 | active | regression | builder/sources.getBranch | builder/sources/git_test.go::TestGetBranch |
+| rainbond.source-repo.https-proxy | 通过标准代理拉取 HTTPS Git 仓库 | active | regression | builder/sources.newGitCloneHTTPClient | builder/sources/git_test.go::TestNewGitCloneHTTPClientProxy |
 | rainbond.source-repo.pull | 拉取 Git 源码仓库 | active | integration | builder/sources.GitPull | builder/sources/git_test.go::TestGitPull |
 | rainbond.source-repo.pull-or-clone | 拉取或克隆 Git 源码仓库 | active | integration | builder/sources.GitCloneOrPull | builder/sources/git_test.go::TestGitPullOrClone |
 | rainbond.source-repo.show-url | 从仓库展示地址中去除凭据 | active | regression | builder/sources.getShowURL | builder/sources/git_test.go::TestGetShowURL |
@@ -2976,6 +2977,16 @@
 - 业务入口: `builder/sources.getBranch`
 - 代码路径: `builder/sources/git.go`
 - 测试路径: `builder/sources/git_test.go::TestGetBranch`
+
+### 通过标准代理拉取 HTTPS Git 仓库
+
+- Capability ID: `rainbond.source-repo.https-proxy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sources.newGitCloneHTTPClient`
+- 代码路径: `builder/sources/git.go`
+- 测试路径: `builder/sources/git_test.go::TestNewGitCloneHTTPClientProxy`
 
 ### 拉取 Git 源码仓库
 

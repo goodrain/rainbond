@@ -20,6 +20,8 @@ package sources
 
 import (
 	"io"
+	"net/http"
+	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,6 +29,65 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/goodrain/rainbond/event"
 )
+
+// capability_id: rainbond.source-repo.https-proxy
+func TestNewGitCloneHTTPClientProxy(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://proxy.example.com:3128")
+	t.Setenv("NO_PROXY", "internal.example.com")
+	t.Setenv("GITHUB_PROXY", "http://github-proxy.example.com:8080")
+
+	tests := []struct {
+		name       string
+		repository string
+		target     string
+		wantProxy  string
+	}{
+		{
+			name:       "gitlab uses standard HTTPS proxy",
+			repository: "https://gitlab.example.com/team/app.git",
+			target:     "https://gitlab.example.com/team/app.git",
+			wantProxy:  "http://proxy.example.com:3128",
+		},
+		{
+			name:       "NO_PROXY keeps matching repository direct",
+			repository: "https://internal.example.com/team/app.git",
+			target:     "https://internal.example.com/team/app.git",
+		},
+		{
+			name:       "GitHub-specific proxy keeps precedence",
+			repository: "https://github.com/goodrain/rainbond.git",
+			target:     "https://github.com/goodrain/rainbond.git",
+			wantProxy:  "http://github-proxy.example.com:8080",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gitClient := newGitCloneHTTPClient(tt.repository, 2)
+			transport, ok := gitClient.Transport.(*http.Transport)
+			if !ok {
+				t.Fatalf("transport type = %T, want *http.Transport", gitClient.Transport)
+			}
+			targetURL, err := url.Parse(tt.target)
+			if err != nil {
+				t.Fatalf("parse target URL: %v", err)
+			}
+			proxyURL, err := transport.Proxy(&http.Request{URL: targetURL})
+			if err != nil {
+				t.Fatalf("resolve proxy: %v", err)
+			}
+			if tt.wantProxy == "" {
+				if proxyURL != nil {
+					t.Fatalf("proxy = %q, want direct connection", proxyURL)
+				}
+				return
+			}
+			if proxyURL == nil || proxyURL.String() != tt.wantProxy {
+				t.Fatalf("proxy = %v, want %q", proxyURL, tt.wantProxy)
+			}
+		})
+	}
+}
 
 // capability_id: rainbond.source-repo.clone
 func TestGitClone(t *testing.T) {
@@ -44,6 +105,7 @@ func TestGitClone(t *testing.T) {
 	commit, err := GetLastCommit(res)
 	t.Logf("%+v %+v", commit, err)
 }
+
 // capability_id: rainbond.source-repo.clone-by-tag
 func TestGitCloneByTag(t *testing.T) {
 	t.Skip("requires external git network access")
