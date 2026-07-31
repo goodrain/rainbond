@@ -4330,24 +4330,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.source-args.normalize-multi-module-lang",
-      "title": "Normalize multi-module Java language in service info",
-      "title_zh": "\u89c4\u8303\u5316\u591a\u6a21\u5757 Java \u9879\u76ee\u7684\u8bed\u8a00\u7c7b\u578b",
-      "interface_type": "workflow",
-      "interface": "builder/parser.SourceCodeParse.GetServiceInfo",
-      "code_paths": [
-        "builder/parser/source_code.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/source_code_args_test.go",
-          "selector": "TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.source-detect.dockerfile-subdir",
       "title": "Detect Dockerfile in nested source directory",
       "title_zh": "\u8bc6\u522b\u5b50\u76ee\u5f55\u4e2d\u7684 Dockerfile",
@@ -4414,6 +4396,24 @@
         {
           "path": "builder/parser/code/language_matrix_test.go",
           "selector": "TestGetLangType_SupportedSourceBuildLanguages"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-detect.multi-module-dockerfile",
+      "title": "Preserve Dockerfile detection for Maven modules",
+      "title_zh": "Preserve Dockerfile detection for Maven modules",
+      "interface_type": "workflow",
+      "interface": "builder/parser.SourceCodeParse.GetServiceInfo",
+      "code_paths": [
+        "builder/parser/source_code.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/source_code_args_test.go",
+          "selector": "TestGetServiceInfo_MultiModulesPreserveDockerfileDetection"
         }
       ],
       "test_type": "regression",

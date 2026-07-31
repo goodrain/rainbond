@@ -1,60 +1,11 @@
 package parser
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/types"
 )
-
-func TestShouldListMultiModuleServices(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "Dockerfile"), []byte("FROM eclipse-temurin:17\n"), 0o644); err != nil {
-		t.Fatalf("write root Dockerfile: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "pom.xml"), []byte("<project><modules><module>service-a</module></modules></project>\n"), 0o644); err != nil {
-		t.Fatalf("write root pom.xml: %v", err)
-	}
-	detectedLang, err := code.GetLangType(root)
-	if err != nil {
-		t.Fatalf("detect project language: %v", err)
-	}
-	if detectedLang != code.Lang("dockerfile,Java-maven") {
-		t.Fatalf("detected language = %q, want dockerfile,Java-maven", detectedLang)
-	}
-
-	tests := []struct {
-		name string
-		lang code.Lang
-		want bool
-	}{
-		{name: "root Dockerfile keeps project-level build choice", lang: detectedLang, want: false},
-		{name: "plain Maven still lists modules", lang: code.JavaMaven, want: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := shouldListMultiModuleServices(root, tt.lang); got != tt.want {
-				t.Fatalf("shouldListMultiModuleServices(%q) = %t, want %t", tt.lang, got, tt.want)
-			}
-		})
-	}
-
-	t.Run("nested Dockerfile preserves Maven module listing", func(t *testing.T) {
-		root := t.TempDir()
-		if err := os.Mkdir(filepath.Join(root, "service-a"), 0o755); err != nil {
-			t.Fatalf("create module directory: %v", err)
-		}
-		if err := os.WriteFile(filepath.Join(root, "service-a", "Dockerfile"), []byte("FROM eclipse-temurin:17\n"), 0o644); err != nil {
-			t.Fatalf("write nested Dockerfile: %v", err)
-		}
-		if !shouldListMultiModuleServices(root, code.Lang("dockerfile,Java-maven")) {
-			t.Fatal("nested Dockerfile should not replace Maven multi-module detection")
-		}
-	})
-}
 
 // capability_id: rainbond.source-args.multi-language
 func TestGetArgs_MultiLanguage(t *testing.T) {
@@ -154,24 +105,33 @@ func TestSourceCodeParseApplyCNBDefaultPorts_JavaWarUses8080(t *testing.T) {
 	}
 }
 
-// capability_id: rainbond.source-args.normalize-multi-module-lang
-func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
+// capability_id: rainbond.source-detect.multi-module-dockerfile
+func TestGetServiceInfo_MultiModulesPreserveDockerfileDetection(t *testing.T) {
 	d := &SourceCodeParse{
-		ports:    make(map[int]*types.Port),
-		volumes:  make(map[string]*types.Volume),
-		envs:     make(map[string]*types.Env),
-		image:    Image{},
-		Lang:     code.Lang("dockerfile,Java-maven"),
-		isMulti:  true,
-		services: []*types.Service{{Name: "api", Cname: "api", Packaging: "jar"}},
+		ports:       make(map[int]*types.Port),
+		volumes:     make(map[string]*types.Volume),
+		envs:        make(map[string]*types.Env),
+		image:       Image{},
+		Lang:        code.Lang("dockerfile,Java-maven"),
+		dockerfiles: []string{"Dockerfile"},
+		isMulti:     true,
+		services: []*types.Service{
+			{Name: "service-a", Cname: "service-a", Packaging: "jar"},
+			{Name: "service-b", Cname: "service-b", Packaging: "jar"},
+		},
 	}
 
 	got := d.GetServiceInfo()
-	if len(got) != 1 {
-		t.Fatalf("GetServiceInfo() returned %d services, want 1", len(got))
+	if len(got) != 2 {
+		t.Fatalf("GetServiceInfo() returned %d services, want 2", len(got))
 	}
-	if got[0].Lang != code.JavaMaven {
-		t.Fatalf("GetServiceInfo()[0].Lang = %q, want %q", got[0].Lang, code.JavaMaven)
+	for _, info := range got {
+		if info.Lang != code.Lang("dockerfile,Java-maven") {
+			t.Fatalf("service %q language = %q, want dockerfile,Java-maven", info.Name, info.Lang)
+		}
+		if len(info.Dockerfiles) != 1 || info.Dockerfiles[0] != "Dockerfile" {
+			t.Fatalf("service %q Dockerfiles = %v, want [Dockerfile]", info.Name, info.Dockerfiles)
+		}
 	}
 }
 
