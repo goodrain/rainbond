@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/goodrain/rainbond/api/model"
 )
 
 type kubeletFilesystemStats struct {
@@ -42,6 +44,19 @@ func (n *nodesHandle) getNodeFilesystemStats(ctx context.Context, nodeName strin
 		return nodeFilesystemStats{}, err
 	}
 	return parseNodeFilesystemStats(raw)
+}
+
+func (n *nodesHandle) setNodeFilesystemStats(ctx context.Context, nodeName string, resource *model.Resource) error {
+	stats, err := n.getNodeFilesystemStats(ctx, nodeName)
+	if err != nil {
+		return err
+	}
+
+	resource.CapDisk = stats.root.capacityBytes
+	resource.ReqDisk = stats.root.usedBytes
+	resource.CapContainerDisk = stats.container.capacityBytes
+	resource.ReqContainerDisk = stats.container.usedBytes
+	return nil
 }
 
 func parseNodeFilesystemStats(raw []byte) (nodeFilesystemStats, error) {

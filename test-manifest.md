@@ -235,11 +235,11 @@
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
 | rainbond.source-args.multi-language | 为多语言项目解析源码构建参数 | active | regression | builder/parser.SourceCodeParse.GetArgs | builder/parser/source_code_args_test.go::TestGetArgs_MultiLanguage |
-| rainbond.source-args.normalize-multi-module-lang | 规范化多模块 Java 项目的语言类型 | active | regression | builder/parser.SourceCodeParse.GetServiceInfo | builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage |
 | rainbond.source-detect.dockerfile-subdir | 识别子目录中的 Dockerfile | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_DetectsDockerfileInSubDirectory |
 | rainbond.source-detect.hidden-dockerfiles | 识别隐藏目录中的 Dockerfile | active | regression | builder/parser/code.FindDockerfiles | builder/parser/code/lang_test.go::TestFindDockerfilesInHiddenDirs |
 | rainbond.source-detect.ignore-excluded-dirs | 扫描 Dockerfile 时忽略排除目录 | active | regression | builder/parser/code.FindDockerfiles | builder/parser/code/lang_test.go::TestFindDockerfilesIgnoreSpecificDirs |
 | rainbond.source-detect.language-matrix | 识别支持的源码构建语言矩阵 | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_SupportedSourceBuildLanguages |
+| rainbond.source-detect.multi-module-dockerfile | Preserve Dockerfile detection for Maven modules | active | regression | builder/parser.SourceCodeParse.GetServiceInfo | builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesPreserveDockerfileDetection |
 | rainbond.source-detect.nodejs-over-static | 存在 package.json 时优先识别为 Node.js | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_NodeJsWinsOverStaticWhenPackageJsonExists |
 | rainbond.source-discovery.etcd-config | 配置 parser 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | builder/parser/discovery.NewEtcd | builder/parser/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.source-discovery.unsupported-type | 对不支持的 parser 发现类型返回空发现器 | active | regression | builder/parser/discovery.NewDiscoverier | builder/parser/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
@@ -2769,16 +2769,6 @@
 - 代码路径: `builder/parser/source_code.go`
 - 测试路径: `builder/parser/source_code_args_test.go::TestGetArgs_MultiLanguage`
 
-### 规范化多模块 Java 项目的语言类型
-
-- Capability ID: `rainbond.source-args.normalize-multi-module-lang`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `workflow`
-- 业务入口: `builder/parser.SourceCodeParse.GetServiceInfo`
-- 代码路径: `builder/parser/source_code.go`
-- 测试路径: `builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage`
-
 ### 识别子目录中的 Dockerfile
 
 - Capability ID: `rainbond.source-detect.dockerfile-subdir`
@@ -2818,6 +2808,16 @@
 - 业务入口: `builder/parser/code.GetLangType`
 - 代码路径: `builder/parser/code/lang.go`
 - 测试路径: `builder/parser/code/language_matrix_test.go::TestGetLangType_SupportedSourceBuildLanguages`
+
+### Preserve Dockerfile detection for Maven modules
+
+- Capability ID: `rainbond.source-detect.multi-module-dockerfile`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser.SourceCodeParse.GetServiceInfo`
+- 代码路径: `builder/parser/source_code.go`
+- 测试路径: `builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesPreserveDockerfileDetection`
 
 ### 存在 package.json 时优先识别为 Node.js
 

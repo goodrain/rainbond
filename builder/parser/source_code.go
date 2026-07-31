@@ -527,9 +527,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 
 	// multi services
 	m := multi.NewMultiServiceI(lang.String())
-	// A root Dockerfile builds the repository as one unit, so keep the
-	// project-level language choices instead of expanding Maven modules.
-	if m != nil && shouldListMultiModuleServices(buildInfo.GetCodeBuildAbsPath(), lang) {
+	if m != nil {
 		logrus.Infof("Lang: %s; start listing multi modules", lang.String())
 		services, err := m.ListModules(buildInfo.GetCodeBuildAbsPath())
 		if err != nil {
@@ -793,7 +791,6 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
-		serviceInfo.Lang = normalizeMultiModuleLanguage(serviceInfo.Lang)
 		for idx := range d.services {
 			svc := d.services[idx]
 			info := serviceInfo
@@ -816,26 +813,6 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 
 	return res
-}
-
-func normalizeMultiModuleLanguage(lang code.Lang) code.Lang {
-	for _, part := range strings.Split(string(lang), ",") {
-		if strings.TrimSpace(part) == string(code.JavaMaven) {
-			return code.JavaMaven
-		}
-	}
-	return lang
-}
-
-func shouldListMultiModuleServices(buildPath string, lang code.Lang) bool {
-	for _, part := range strings.Split(string(lang), ",") {
-		if strings.TrimSpace(part) != string(code.Dockerfile) {
-			continue
-		}
-		info, err := os.Stat(filepath.Join(buildPath, "Dockerfile"))
-		return err != nil || info.IsDir()
-	}
-	return true
 }
 
 func removeQuotes(value string) string {
