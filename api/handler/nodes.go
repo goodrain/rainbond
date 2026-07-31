@@ -102,6 +102,9 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 			logrus.Error("get node info handle error:", err)
 			return res, err
 		}
+		if err := n.setNodeFilesystemStats(ctx, node.Name, &nodeInfo.Resource); err != nil {
+			logrus.Warnf("get kubelet filesystem stats for node %s: %v", node.Name, err)
+		}
 		res = append(res, nodeInfo)
 	}
 	return res, nil
@@ -149,14 +152,8 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 		logrus.Error("get node info handle error:", err)
 		return res, err
 	}
-	filesystemStats, err := n.getNodeFilesystemStats(ctx, nodeName)
-	if err != nil {
+	if err := n.setNodeFilesystemStats(ctx, nodeName, &res.Resource); err != nil {
 		logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodeName, err)
-	} else {
-		res.Resource.CapDisk = filesystemStats.root.capacityBytes
-		res.Resource.ReqDisk = filesystemStats.root.usedBytes
-		res.Resource.CapContainerDisk = filesystemStats.container.capacityBytes
-		res.Resource.ReqContainerDisk = filesystemStats.container.usedBytes
 	}
 	return res, nil
 }
