@@ -4730,6 +4730,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.https-proxy",
+      "title": "Route HTTPS Git clones through standard proxy settings",
+      "title_zh": "\u901a\u8fc7\u6807\u51c6\u4ee3\u7406\u62c9\u53d6 HTTPS Git \u4ed3\u5e93",
+      "interface_type": "package_function",
+      "interface": "builder/sources.newGitCloneHTTPClient",
+      "code_paths": [
+        "builder/sources/git.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/git_test.go",
+          "selector": "TestNewGitCloneHTTPClientProxy"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-repo.pull",
       "title": "Pull git repository source",
       "title_zh": "\u62c9\u53d6 Git \u6e90\u7801\u4ed3\u5e93",
