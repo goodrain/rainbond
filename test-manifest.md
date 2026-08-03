@@ -138,6 +138,7 @@
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
+| rainbond.gateway.reject-duplicate-tcp-nodeport | Reject duplicate TCP NodePort bindings | active | regression | TCP NodePort binding | db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule<br>api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.classify-resources | 按资源类型归类 Helm 发布资源 | active | regression | api/handler.splitHelmReleaseResources | api/handler/helm_release_test.go::TestSplitHelmReleaseResourcesClassifiesKinds |
@@ -234,11 +235,11 @@
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
 | rainbond.source-args.multi-language | 为多语言项目解析源码构建参数 | active | regression | builder/parser.SourceCodeParse.GetArgs | builder/parser/source_code_args_test.go::TestGetArgs_MultiLanguage |
-| rainbond.source-args.normalize-multi-module-lang | 规范化多模块 Java 项目的语言类型 | active | regression | builder/parser.SourceCodeParse.GetServiceInfo | builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage |
 | rainbond.source-detect.dockerfile-subdir | 识别子目录中的 Dockerfile | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_DetectsDockerfileInSubDirectory |
 | rainbond.source-detect.hidden-dockerfiles | 识别隐藏目录中的 Dockerfile | active | regression | builder/parser/code.FindDockerfiles | builder/parser/code/lang_test.go::TestFindDockerfilesInHiddenDirs |
 | rainbond.source-detect.ignore-excluded-dirs | 扫描 Dockerfile 时忽略排除目录 | active | regression | builder/parser/code.FindDockerfiles | builder/parser/code/lang_test.go::TestFindDockerfilesIgnoreSpecificDirs |
 | rainbond.source-detect.language-matrix | 识别支持的源码构建语言矩阵 | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_SupportedSourceBuildLanguages |
+| rainbond.source-detect.multi-module-dockerfile | Preserve Dockerfile detection for Maven modules | active | regression | builder/parser.SourceCodeParse.GetServiceInfo | builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesPreserveDockerfileDetection |
 | rainbond.source-detect.nodejs-over-static | 存在 package.json 时优先识别为 Node.js | active | regression | builder/parser/code.GetLangType | builder/parser/code/language_matrix_test.go::TestGetLangType_NodeJsWinsOverStaticWhenPackageJsonExists |
 | rainbond.source-discovery.etcd-config | 配置 parser 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | builder/parser/discovery.NewEtcd | builder/parser/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.source-discovery.unsupported-type | 对不支持的 parser 发现类型返回空发现器 | active | regression | builder/parser/discovery.NewDiscoverier | builder/parser/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
@@ -256,6 +257,7 @@
 | rainbond.source-repo.clone | 克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitClone |
 | rainbond.source-repo.clone-by-tag | 按标签克隆 Git 源码仓库 | active | integration | builder/sources.GitClone | builder/sources/git_test.go::TestGitCloneByTag |
 | rainbond.source-repo.git-ref-name | 将分支和标签输入映射为 git 引用名 | active | regression | builder/sources.getBranch | builder/sources/git_test.go::TestGetBranch |
+| rainbond.source-repo.https-proxy | 通过标准代理拉取 HTTPS Git 仓库 | active | regression | builder/sources.newGitCloneHTTPClient | builder/sources/git_test.go::TestNewGitCloneHTTPClientProxy |
 | rainbond.source-repo.pull | 拉取 Git 源码仓库 | active | integration | builder/sources.GitPull | builder/sources/git_test.go::TestGitPull |
 | rainbond.source-repo.pull-or-clone | 拉取或克隆 Git 源码仓库 | active | integration | builder/sources.GitCloneOrPull | builder/sources/git_test.go::TestGitPullOrClone |
 | rainbond.source-repo.show-url | 从仓库展示地址中去除凭据 | active | regression | builder/sources.getShowURL | builder/sources/git_test.go::TestGetShowURL |
@@ -1797,6 +1799,16 @@
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts`
 
+### Reject duplicate TCP NodePort bindings
+
+- Capability ID: `rainbond.gateway.reject-duplicate-tcp-nodeport`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `TCP NodePort binding`
+- 代码路径: `db/mysql/dao/gateway.go`, `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule`, `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService`
+
 ### 为 Helm 历史输出格式化应用版本号
 
 - Capability ID: `rainbond.helm-release.app-version-format`
@@ -2757,16 +2769,6 @@
 - 代码路径: `builder/parser/source_code.go`
 - 测试路径: `builder/parser/source_code_args_test.go::TestGetArgs_MultiLanguage`
 
-### 规范化多模块 Java 项目的语言类型
-
-- Capability ID: `rainbond.source-args.normalize-multi-module-lang`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `workflow`
-- 业务入口: `builder/parser.SourceCodeParse.GetServiceInfo`
-- 代码路径: `builder/parser/source_code.go`
-- 测试路径: `builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage`
-
 ### 识别子目录中的 Dockerfile
 
 - Capability ID: `rainbond.source-detect.dockerfile-subdir`
@@ -2806,6 +2808,16 @@
 - 业务入口: `builder/parser/code.GetLangType`
 - 代码路径: `builder/parser/code/lang.go`
 - 测试路径: `builder/parser/code/language_matrix_test.go::TestGetLangType_SupportedSourceBuildLanguages`
+
+### Preserve Dockerfile detection for Maven modules
+
+- Capability ID: `rainbond.source-detect.multi-module-dockerfile`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser.SourceCodeParse.GetServiceInfo`
+- 代码路径: `builder/parser/source_code.go`
+- 测试路径: `builder/parser/source_code_args_test.go::TestGetServiceInfo_MultiModulesPreserveDockerfileDetection`
 
 ### 存在 package.json 时优先识别为 Node.js
 
@@ -2976,6 +2988,16 @@
 - 业务入口: `builder/sources.getBranch`
 - 代码路径: `builder/sources/git.go`
 - 测试路径: `builder/sources/git_test.go::TestGetBranch`
+
+### 通过标准代理拉取 HTTPS Git 仓库
+
+- Capability ID: `rainbond.source-repo.https-proxy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sources.newGitCloneHTTPClient`
+- 代码路径: `builder/sources/git.go`
+- 测试路径: `builder/sources/git_test.go::TestNewGitCloneHTTPClientProxy`
 
 ### 拉取 Git 源码仓库
 

@@ -2467,6 +2467,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.reject-duplicate-tcp-nodeport",
+      "title": "Reject duplicate TCP NodePort bindings",
+      "title_zh": "Reject duplicate TCP NodePort bindings",
+      "interface_type": "workflow",
+      "interface": "TCP NodePort binding",
+      "code_paths": [
+        "db/mysql/dao/gateway.go",
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/gateway_test.go",
+          "selector": "TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.helm-release.app-version-format",
       "title": "Format Helm application versions for history output",
       "title_zh": "\u4e3a Helm \u5386\u53f2\u8f93\u51fa\u683c\u5f0f\u5316\u5e94\u7528\u7248\u672c\u53f7",
@@ -4307,24 +4330,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.source-args.normalize-multi-module-lang",
-      "title": "Normalize multi-module Java language in service info",
-      "title_zh": "\u89c4\u8303\u5316\u591a\u6a21\u5757 Java \u9879\u76ee\u7684\u8bed\u8a00\u7c7b\u578b",
-      "interface_type": "workflow",
-      "interface": "builder/parser.SourceCodeParse.GetServiceInfo",
-      "code_paths": [
-        "builder/parser/source_code.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/parser/source_code_args_test.go",
-          "selector": "TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.source-detect.dockerfile-subdir",
       "title": "Detect Dockerfile in nested source directory",
       "title_zh": "\u8bc6\u522b\u5b50\u76ee\u5f55\u4e2d\u7684 Dockerfile",
@@ -4391,6 +4396,24 @@
         {
           "path": "builder/parser/code/language_matrix_test.go",
           "selector": "TestGetLangType_SupportedSourceBuildLanguages"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-detect.multi-module-dockerfile",
+      "title": "Preserve Dockerfile detection for Maven modules",
+      "title_zh": "Preserve Dockerfile detection for Maven modules",
+      "interface_type": "workflow",
+      "interface": "builder/parser.SourceCodeParse.GetServiceInfo",
+      "code_paths": [
+        "builder/parser/source_code.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/source_code_args_test.go",
+          "selector": "TestGetServiceInfo_MultiModulesPreserveDockerfileDetection"
         }
       ],
       "test_type": "regression",
@@ -4701,6 +4724,24 @@
         {
           "path": "builder/sources/git_test.go",
           "selector": "TestGetBranch"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.source-repo.https-proxy",
+      "title": "Route HTTPS Git clones through standard proxy settings",
+      "title_zh": "\u901a\u8fc7\u6807\u51c6\u4ee3\u7406\u62c9\u53d6 HTTPS Git \u4ed3\u5e93",
+      "interface_type": "package_function",
+      "interface": "builder/sources.newGitCloneHTTPClient",
+      "code_paths": [
+        "builder/sources/git.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/git_test.go",
+          "selector": "TestNewGitCloneHTTPClientProxy"
         }
       ],
       "test_type": "regression",

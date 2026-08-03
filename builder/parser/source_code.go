@@ -791,7 +791,6 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
-		serviceInfo.Lang = normalizeMultiModuleLanguage(serviceInfo.Lang)
 		for idx := range d.services {
 			svc := d.services[idx]
 			info := serviceInfo
@@ -814,15 +813,6 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	}
 
 	return res
-}
-
-func normalizeMultiModuleLanguage(lang code.Lang) code.Lang {
-	for _, part := range strings.Split(string(lang), ",") {
-		if strings.TrimSpace(part) == string(code.JavaMaven) {
-			return code.JavaMaven
-		}
-	}
-	return lang
 }
 
 func removeQuotes(value string) string {
