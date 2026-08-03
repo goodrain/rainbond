@@ -62,7 +62,7 @@ type vmDiskLayoutItem struct {
 
 func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret,
 	guestFiles []volume.VMGuestFile) (vmRuntimeConfig, error) {
-	interfaceModel := resolveVMInterfaceModel(extensionSet)
+	interfaceModel := resolveVMInterfaceModel()
 	cfg := vmRuntimeConfig{
 		Networks: []kubevirtv1.Network{
 			{
@@ -303,11 +303,8 @@ func parsePositiveInt(value string) int {
 	return count
 }
 
-func resolveVMInterfaceModel(extensionSet map[string]string) string {
-	if looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) {
-		return "virtio"
-	}
-	return "e1000"
+func resolveVMInterfaceModel() string {
+	return "virtio"
 }
 
 func looksLikeLinuxGuestHint(value string) bool {
