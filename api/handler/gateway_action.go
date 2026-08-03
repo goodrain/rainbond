@@ -54,13 +54,14 @@ import (
 
 // GatewayAction -
 type GatewayAction struct {
-	dbmanager     db.Manager
-	mqclient      client.MQClient
-	gatewayClient *gateway.GatewayV1beta1Client
-	kubeClient    kubernetes.Interface
-	kubeClientset *kubernetes.Clientset
-	config        *rest.Config
-	apisixClient  *apisixversioned.Clientset
+	dbmanager             db.Manager
+	mqclient              client.MQClient
+	gatewayClient         *gateway.GatewayV1beta1Client
+	kubeClient            kubernetes.Interface
+	kubeClientset         *kubernetes.Clientset
+	config                *rest.Config
+	apisixClient          apisixversioned.Interface
+	domainConflictChecker func(context.Context, []v2.HostType, string, string) error
 }
 
 // CreateGatewayManager creates gateway manager.
@@ -77,7 +78,7 @@ func CreateGatewayManager() *GatewayAction {
 }
 
 // GetClient -
-func (g *GatewayAction) GetClient() *apisixversioned.Clientset {
+func (g *GatewayAction) GetClient() apisixversioned.Interface {
 	return g.apisixClient
 }
 
@@ -145,134 +146,150 @@ func (g *GatewayAction) BatchGetGatewayHTTPRoute(namespace, appID string) ([]*ap
 
 // AddGatewayCertificate create gateway certificate
 func (g *GatewayAction) AddGatewayCertificate(req *apimodel.GatewayCertificate) error {
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       apimodel.Secret,
-			APIVersion: controller.APIVersionSecret,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
-		Data: map[string][]byte{
-			"tls.crt": []byte(req.Certificate),
-			"tls.key": []byte(req.PrivateKey),
-		},
-		Type: corev1.SecretTypeTLS,
-	}
-	_, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	if err != nil {
-		if k8serror.IsAlreadyExists(err) {
-			_, err = g.kubeClient.CoreV1().Secrets(req.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
-			if err != nil {
-				logrus.Errorf("update gateway certificate secret failure: %v", err)
-				return err
-			}
-		}
-		logrus.Errorf("add gateway certificate secret failure: %v", err)
-		return err
-	}
-	return nil
+	return g.reconcileGatewayCertificate(req)
 }
 
 // UpdateGatewayCertificate update gateway certificate
 func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificate) error {
-	secret, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
-	if err != nil {
-		if k8serror.IsNotFound(err) {
-			secret, err = g.kubeClient.CoreV1().Secrets(req.Namespace).Create(context.Background(), &corev1.Secret{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       apimodel.Secret,
-					APIVersion: controller.APIVersionSecret,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      req.Name,
-					Namespace: req.Namespace,
-				},
-				Data: map[string][]byte{
-					"tls.crt": []byte(req.Certificate),
-					"tls.key": []byte(req.PrivateKey),
-				},
-				Type: corev1.SecretTypeTLS,
-			}, metav1.CreateOptions{})
-			if err != nil {
-				logrus.Errorf("get gateway certificate secret, add failure: %v", err)
-				return err
-			}
-			return nil
+	return g.reconcileGatewayCertificate(req)
+}
+
+func (g *GatewayAction) reconcileGatewayCertificate(req *apimodel.GatewayCertificate) (retErr error) {
+	ctx := context.Background()
+	secrets := g.kubeClient.CoreV1().Secrets(req.Namespace)
+	desiredData := map[string][]byte{
+		corev1.TLSCertKey:       []byte(req.Certificate),
+		corev1.TLSPrivateKeyKey: []byte(req.PrivateKey),
+	}
+
+	currentSecret, err := secrets.Get(ctx, req.Name, metav1.GetOptions{})
+	var previousSecret *corev1.Secret
+	var persistedSecret *corev1.Secret
+	secretCreated := false
+	switch {
+	case k8serror.IsNotFound(err):
+		persistedSecret, err = secrets.Create(ctx, &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       apimodel.Secret,
+				APIVersion: controller.APIVersionSecret,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+			Data: desiredData,
+			Type: corev1.SecretTypeTLS,
+		}, metav1.CreateOptions{})
+		if err != nil {
+			logrus.Errorf("create gateway certificate secret failure: %v", err)
+			return err
 		}
-		logrus.Errorf("update gateway certificate secret, get failure: %v", err)
+		secretCreated = true
+	case err != nil:
+		logrus.Errorf("get gateway certificate secret failure: %v", err)
 		return err
+	default:
+		previousSecret = currentSecret.DeepCopy()
+		updatedSecret := currentSecret.DeepCopy()
+		updatedSecret.Data = desiredData
+		updatedSecret.Type = corev1.SecretTypeTLS
+		persistedSecret, err = secrets.Update(ctx, updatedSecret, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("update gateway certificate secret failure: %v", err)
+			return err
+		}
 	}
-	certificate := make(map[string][]byte)
-	certificate["tls.crt"] = []byte(req.Certificate)
-	certificate["tls.key"] = []byte(req.PrivateKey)
-	secret.Data = certificate
-	secret, err = g.kubeClient.CoreV1().Secrets(req.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
-	if err != nil {
-		logrus.Errorf("update gateway certificate secret, update failure: %v", err)
-		return err
-	}
-	hosts, err := apiutil.GetCertificateDomains(secret)
+
+	defer func() {
+		if retErr == nil {
+			return
+		}
+		var rollbackErr error
+		if secretCreated {
+			rollbackErr = secrets.Delete(ctx, req.Name, metav1.DeleteOptions{})
+			if k8serror.IsNotFound(rollbackErr) {
+				rollbackErr = nil
+			}
+		} else {
+			previousSecret.ResourceVersion = persistedSecret.ResourceVersion
+			_, rollbackErr = secrets.Update(ctx, previousSecret, metav1.UpdateOptions{})
+		}
+		if rollbackErr != nil {
+			logrus.Errorf("rollback gateway certificate secret failure: %v", rollbackErr)
+			retErr = fmt.Errorf("%w; rollback gateway certificate secret: %v", retErr, rollbackErr)
+		}
+	}()
+
+	hosts, err := apiutil.GetCertificateDomains(persistedSecret)
 	if err != nil {
 		logrus.Errorf("get certificate domains failure: %v", err)
 		return err
 	}
-
-	// Check for domain conflicts across all namespaces
-	if err := apiutil.CheckDomainConflict(context.Background(), hosts, req.Namespace, req.Name); err != nil {
+	domainConflictChecker := g.domainConflictChecker
+	if domainConflictChecker == nil {
+		domainConflictChecker = apiutil.CheckDomainConflict
+	}
+	if err := domainConflictChecker(ctx, hosts, req.Namespace, req.Name); err != nil {
 		logrus.Errorf("domain conflict detected: %s", err.Error())
 		return err
 	}
 
-	oldApisixTls, err := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
-	if err != nil {
-		if k8serror.IsNotFound(err) {
-			_, err = g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Create(context.Background(), &v2.ApisixTls{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       apiutil.ApisixTLS,
-					APIVersion: apiutil.APIVersion,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      req.Name,
-					Namespace: req.Namespace,
-				},
-				Spec: &v2.ApisixTlsSpec{
-					IngressClassName: "apisix",
-					Hosts:            hosts,
-					Secret: v2.ApisixSecret{
-						Name:      req.Name,
-						Namespace: req.Namespace,
-					},
-				},
-			}, metav1.CreateOptions{})
-			if err != nil {
-				logrus.Errorf("update gateway certificate apisix tls, add failure: %v", err)
-				return err
-			}
-			return nil
-		}
-		logrus.Errorf("update gateway certificate apisix tls, get failure: %v", err)
-		return err
+	desiredSpec := &v2.ApisixTlsSpec{
+		IngressClassName: "apisix",
+		Hosts:            hosts,
+		Secret: v2.ApisixSecret{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
 	}
-	oldApisixTls.Spec.Hosts = hosts
-	_, err = g.apisixClient.ApisixV2().ApisixTlses(req.Namespace).Update(context.Background(), oldApisixTls, metav1.UpdateOptions{})
-	if err != nil {
+	apisixTlses := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace)
+	apisixTls, err := apisixTlses.Get(ctx, req.Name, metav1.GetOptions{})
+	switch {
+	case k8serror.IsNotFound(err):
+		_, err = apisixTlses.Create(ctx, &v2.ApisixTls{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       apiutil.ApisixTLS,
+				APIVersion: apiutil.APIVersion,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Name,
+				Namespace: req.Namespace,
+			},
+			Spec: desiredSpec,
+		}, metav1.CreateOptions{})
+		if err != nil {
+			logrus.Errorf("create gateway certificate apisix tls failure: %v", err)
+			return err
+		}
+	case err != nil:
+		logrus.Errorf("get gateway certificate apisix tls failure: %v", err)
 		return err
+	default:
+		if apisixTls.Spec == nil {
+			apisixTls.Spec = desiredSpec
+		} else {
+			apisixTls.Spec.IngressClassName = desiredSpec.IngressClassName
+			apisixTls.Spec.Hosts = desiredSpec.Hosts
+			apisixTls.Spec.Secret = desiredSpec.Secret
+		}
+		if _, err = apisixTlses.Update(ctx, apisixTls, metav1.UpdateOptions{}); err != nil {
+			logrus.Errorf("update gateway certificate apisix tls failure: %v", err)
+			return err
+		}
 	}
 	return nil
 }
 
 // DeleteGatewayCertificate delete gateway certificate
 func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
-	err := g.kubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
-	if err != nil && !k8serror.IsNotFound(err) {
-		logrus.Errorf("delete gateway certificate secret failure: %v", err)
-		return err
-	}
-	err = g.apisixClient.ApisixV2().ApisixTlses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	err := g.apisixClient.ApisixV2().ApisixTlses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		logrus.Errorf("delete gateway certificate apisix tls failure: %v", err)
+		return err
+	}
+	err = g.kubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !k8serror.IsNotFound(err) {
+		logrus.Errorf("delete gateway certificate secret failure: %v", err)
 		return err
 	}
 	return nil
