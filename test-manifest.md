@@ -136,6 +136,7 @@
 | rainbond.framework-detect.version-normalization | 规范化框架依赖版本号 | active | regression | builder/parser/code.cleanVersion | builder/parser/code/framework_test.go::TestCleanVersion |
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
+| rainbond.gateway.certificate-resource-consistency | Keep gateway certificate resources consistent | active | regression | api/handler.GatewayAction.AddGatewayCertificate | api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
 | rainbond.gateway.reject-duplicate-tcp-nodeport | Reject duplicate TCP NodePort bindings | active | regression | TCP NodePort binding | db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule<br>api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService |
@@ -1778,6 +1779,16 @@
 - 业务入口: `api/handler.selectAvailablePort`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestSelectAvailablePort`
+
+### Keep gateway certificate resources consistent
+
+- Capability ID: `rainbond.gateway.certificate-resource-consistency`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.GatewayAction.AddGatewayCertificate`
+- 代码路径: `api/handler/gateway_action.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency`
 
 ### 删除网关 HTTPRoute 时记录组件事件
 
