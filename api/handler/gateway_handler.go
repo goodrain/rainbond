@@ -80,7 +80,7 @@ type GatewayHandler interface {
 // APIGatewayHandler api gateway handler
 type APIGatewayHandler interface {
 	// Don't imitate me for lazy writing
-	GetClient() *apisixversioned.Clientset
+	GetClient() apisixversioned.Interface
 	GetK8sClient() kubernetes.Interface
 	CreateCert(namespace, domain string) error
 }
