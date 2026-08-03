@@ -105,24 +105,33 @@ func TestSourceCodeParseApplyCNBDefaultPorts_JavaWarUses8080(t *testing.T) {
 	}
 }
 
-// capability_id: rainbond.source-args.normalize-multi-module-lang
-func TestGetServiceInfo_MultiModulesNormalizeJavaMavenLanguage(t *testing.T) {
+// capability_id: rainbond.source-detect.multi-module-dockerfile
+func TestGetServiceInfo_MultiModulesPreserveDockerfileDetection(t *testing.T) {
 	d := &SourceCodeParse{
-		ports:    make(map[int]*types.Port),
-		volumes:  make(map[string]*types.Volume),
-		envs:     make(map[string]*types.Env),
-		image:    Image{},
-		Lang:     code.Lang("dockerfile,Java-maven"),
-		isMulti:  true,
-		services: []*types.Service{{Name: "api", Cname: "api", Packaging: "jar"}},
+		ports:       make(map[int]*types.Port),
+		volumes:     make(map[string]*types.Volume),
+		envs:        make(map[string]*types.Env),
+		image:       Image{},
+		Lang:        code.Lang("dockerfile,Java-maven"),
+		dockerfiles: []string{"Dockerfile"},
+		isMulti:     true,
+		services: []*types.Service{
+			{Name: "service-a", Cname: "service-a", Packaging: "jar"},
+			{Name: "service-b", Cname: "service-b", Packaging: "jar"},
+		},
 	}
 
 	got := d.GetServiceInfo()
-	if len(got) != 1 {
-		t.Fatalf("GetServiceInfo() returned %d services, want 1", len(got))
+	if len(got) != 2 {
+		t.Fatalf("GetServiceInfo() returned %d services, want 2", len(got))
 	}
-	if got[0].Lang != code.JavaMaven {
-		t.Fatalf("GetServiceInfo()[0].Lang = %q, want %q", got[0].Lang, code.JavaMaven)
+	for _, info := range got {
+		if info.Lang != code.Lang("dockerfile,Java-maven") {
+			t.Fatalf("service %q language = %q, want dockerfile,Java-maven", info.Name, info.Lang)
+		}
+		if len(info.Dockerfiles) != 1 || info.Dockerfiles[0] != "Dockerfile" {
+			t.Fatalf("service %q Dockerfiles = %v, want [Dockerfile]", info.Name, info.Dockerfiles)
+		}
 	}
 }
 

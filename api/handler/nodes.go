@@ -9,7 +9,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -21,7 +20,6 @@ import (
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -104,6 +102,9 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 			logrus.Error("get node info handle error:", err)
 			return res, err
 		}
+		if err := n.setNodeFilesystemStats(ctx, node.Name, &nodeInfo.Resource); err != nil {
+			logrus.Warnf("get kubelet filesystem stats for node %s: %v", node.Name, err)
+		}
 		res = append(res, nodeInfo)
 	}
 	return res, nil
@@ -151,83 +152,8 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 		logrus.Error("get node info handle error:", err)
 		return res, err
 	}
-	address := node.Status.Addresses
-	var ip string
-	for _, addr := range address {
-		if addr.Type == NodeInternalIP {
-			ip = addr.Address
-		}
-	}
-
-	query := fmt.Sprintf(`node_filesystem_size_bytes{mountpoint="/", instance=~"%v:.*"}`, ip)
-	nodeGenCap := n.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`node_filesystem_avail_bytes{mountpoint="/", instance=~"%v:.*"}`, ip)
-	nodeGenAvail := n.prometheusCli.GetMetric(query, time.Now())
-
-	var diskCap uint64
-	var diskAvail uint64
-	for _, dcap := range nodeGenCap.MetricData.MetricValues {
-		diskCap = uint64(dcap.Sample.Value())
-		if container := dcap.Metadata["container"]; container == "prometheus-node-exporter" {
-			break
-		}
-	}
-	for _, avail := range nodeGenAvail.MetricData.MetricValues {
-		diskAvail = uint64(avail.Sample.Value())
-		if container := avail.Metadata["container"]; container == "prometheus-node-exporter" {
-			break
-		}
-	}
-
-	query = fmt.Sprintf(`node_filesystem_size_bytes{mountpoint="/var/lib/container", instance=~"%v:.*"}`, ip)
-	nodeContainerCap := n.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`node_filesystem_avail_bytes{mountpoint="/var/lib/container", instance=~"%v:.*"}`, ip)
-	nodeContainerAvail := n.prometheusCli.GetMetric(query, time.Now())
-
-	var containerDiskCap uint64
-	var containerDiskAvail uint64
-	for _, cap := range nodeContainerCap.MetricData.MetricValues {
-		containerDiskCap = uint64(cap.Sample.Value())
-		if container := cap.Metadata["container"]; container == "prometheus-node-exporter" {
-			break
-		}
-	}
-	for _, avail := range nodeContainerAvail.MetricData.MetricValues {
-		containerDiskAvail = uint64(avail.Sample.Value())
-		if container := avail.Metadata["container"]; container == "prometheus-node-exporter" {
-			break
-		}
-	}
-	if containerDiskCap == 0 {
-		containerDiskCap = diskCap
-	}
-	if containerDiskAvail == 0 {
-		containerDiskAvail = diskAvail
-	}
-
-	res.Resource.CapDisk = diskCap
-	res.Resource.ReqDisk = diskCap - diskAvail
-	res.Resource.CapContainerDisk = containerDiskCap
-	res.Resource.ReqContainerDisk = containerDiskCap - containerDiskAvail
-
-	if res.Resource.CapDisk == 0 {
-		var diskStatus *disk.UsageStat
-		if runtime.GOOS != "windows" {
-			diskStatus, _ = disk.Usage("/")
-		} else {
-			diskStatus, _ = disk.Usage(`z:\\`)
-		}
-		var diskCap, reqDisk uint64
-		if diskStatus != nil {
-			diskCap = diskStatus.Total
-			reqDisk = diskStatus.Used
-		}
-		res.Resource.CapDisk = diskCap
-		res.Resource.ReqDisk = reqDisk
-		res.Resource.CapContainerDisk = diskCap
-		res.Resource.ReqContainerDisk = reqDisk
+	if err := n.setNodeFilesystemStats(ctx, nodeName, &res.Resource); err != nil {
+		logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodeName, err)
 	}
 	return res, nil
 }

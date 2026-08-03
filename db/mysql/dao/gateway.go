@@ -20,8 +20,9 @@ package dao
 
 import (
 	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"reflect"
+
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
@@ -435,28 +436,34 @@ type TCPRuleDaoTmpl struct {
 
 // AddModel adds model.TCPRule
 func (t *TCPRuleDaoTmpl) AddModel(mo model.Interface) error {
-	tcpRule := mo.(*model.TCPRule)
-	var oldTCPRule model.TCPRule
-	// 查找是否已经存在符合条件的 TCPRule
-	err := t.DB.Where("uuid = ? or (ip = ? and port = ?)", tcpRule.UUID, tcpRule.IP, tcpRule.Port).First(&oldTCPRule).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		// 如果查询出错，返回错误
-		return err
+	tcpRule, ok := mo.(*model.TCPRule)
+	if !ok {
+		return fmt.Errorf("failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
 	}
 
-	if err == nil {
-		// 如果找到了，先删除原记录
-		if delErr := t.DB.Delete(&oldTCPRule).Error; delErr != nil {
-			return delErr
+	var portOwner model.TCPRule
+	err := t.DB.Where("ip = ? and port = ?", tcpRule.IP, tcpRule.Port).First(&portOwner).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if err == nil && (tcpRule.UUID == "" || portOwner.UUID != tcpRule.UUID) {
+		return errors.Wrapf(bcode.ErrPortExists, "tcp port %s:%d is owned by service %s", tcpRule.IP, tcpRule.Port, portOwner.ServiceID)
+	}
+
+	if tcpRule.UUID != "" {
+		var existing model.TCPRule
+		err = t.DB.Where("uuid = ?", tcpRule.UUID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if err == nil {
+			tcpRule.ID = existing.ID
+			tcpRule.CreatedAt = existing.CreatedAt
+			return t.DB.Save(tcpRule).Error
 		}
 	}
 
-	// 无论是否删除成功，都重新创建新记录
-	if err := t.DB.Create(tcpRule).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return t.DB.Create(tcpRule).Error
 }
 
 // UpdateModel updates model.TCPRule
