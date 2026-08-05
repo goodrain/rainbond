@@ -225,6 +225,137 @@ func TestInjectConfigFile(t *testing.T) {
 	})
 }
 
+// capability_id: rainbond.cnb.npmrc-registry-parse
+func TestNpmRegistryFromNpmrc(t *testing.T) {
+	tests := []struct{ name, content, want string }{
+		{"simple", "registry=https://registry.npmmirror.com\n", "https://registry.npmmirror.com"},
+		{"no trailing newline", "registry=https://registry.npmmirror.com", "https://registry.npmmirror.com"},
+		{"surrounding space", "  registry = https://registry.npmmirror.com  \n", "https://registry.npmmirror.com"},
+		{"quoted", `registry="https://registry.npmmirror.com"`, "https://registry.npmmirror.com"},
+		{"among other keys", "shamefully-hoist=true\nregistry=https://nexus.internal/repo\nstrict-peer-dependencies=false\n", "https://nexus.internal/repo"},
+		{"comments skipped", "# registry=https://wrong.example\n; registry=https://wrong.example\nregistry=https://right.example\n", "https://right.example"},
+		{"scoped only", "@myorg:registry=https://nexus.internal/repo\n", ""},
+		{"no registry key", "shamefully-hoist=true\n", ""},
+		{"empty", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := npmRegistryFromNpmrc(tt.content); got != tt.want {
+				t.Errorf("npmRegistryFromNpmrc(%q) = %q; want %q", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.cnb.npm-global-registry
+func TestResolveNpmRegistry(t *testing.T) {
+	t.Setenv("ENABLE_CHINA_MIRROR", "true")
+
+	t.Run("project npmrc wins over platform default", func(t *testing.T) {
+		dir := newNodeDir(t)
+		os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("registry=https://nexus.internal/repo\n"), 0644)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{"CNB_MIRROR_SOURCE": "project"}}
+		if got := resolveNpmRegistry(re); got != "https://nexus.internal/repo" {
+			t.Errorf("got %q; want the project registry", got)
+		}
+	})
+
+	t.Run("explicit env wins over project npmrc", func(t *testing.T) {
+		dir := newNodeDir(t)
+		os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("registry=https://nexus.internal/repo\n"), 0644)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{"CNB_NPM_REGISTRY": "https://explicit.example"}}
+		if got := resolveNpmRegistry(re); got != "https://explicit.example" {
+			t.Errorf("got %q; want the explicit override", got)
+		}
+	})
+
+	t.Run("BP_NODE_PROJECT_PATH npmrc preferred over root", func(t *testing.T) {
+		dir := newNodeDir(t)
+		os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("registry=https://root.example\n"), 0644)
+		sub := filepath.Join(dir, "frontend")
+		os.MkdirAll(sub, 0755)
+		os.WriteFile(filepath.Join(sub, ".npmrc"), []byte("registry=https://sub.example\n"), 0644)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{"BP_NODE_PROJECT_PATH": "frontend"}}
+		if got := resolveNpmRegistry(re); got != "https://sub.example" {
+			t.Errorf("got %q; want the subdirectory registry", got)
+		}
+	})
+
+	t.Run("falls back to CNB_MIRROR_NPMRC", func(t *testing.T) {
+		dir := newNodeDir(t)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{"CNB_MIRROR_NPMRC": "registry=https://custom.example\n"}}
+		if got := resolveNpmRegistry(re); got != "https://custom.example" {
+			t.Errorf("got %q; want the CNB_MIRROR_NPMRC registry", got)
+		}
+	})
+
+	t.Run("falls back to china mirror default", func(t *testing.T) {
+		dir := newNodeDir(t)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
+		if got := resolveNpmRegistry(re); got != "https://registry.npmmirror.com" {
+			t.Errorf("got %q; want the default mirror", got)
+		}
+	})
+
+	t.Run("project npmrc without registry key falls through", func(t *testing.T) {
+		dir := newNodeDir(t)
+		os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("shamefully-hoist=true\n"), 0644)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
+		if got := resolveNpmRegistry(re); got != "https://registry.npmmirror.com" {
+			t.Errorf("got %q; want the default mirror", got)
+		}
+	})
+
+	t.Run("china mirror disabled yields nothing", func(t *testing.T) {
+		t.Setenv("ENABLE_CHINA_MIRROR", "false")
+		dir := newNodeDir(t)
+		re := &build.Request{SourceDir: dir, BuildEnvs: map[string]string{}}
+		if got := resolveNpmRegistry(re); got != "" {
+			t.Errorf("got %q; want empty", got)
+		}
+	})
+}
+
+// capability_id: rainbond.cnb.npm-global-registry
+// NPM_CONFIG_REGISTRY must reach the buildpack process: npm ignores the project
+// .npmrc during `npm install -g pnpm@...`, so the env var is the only lever.
+func TestNodejsNpmRegistryAnnotation(t *testing.T) {
+	t.Setenv("ENABLE_CHINA_MIRROR", "true")
+	dir := newNodeDir(t)
+	os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("registry=https://registry.npmmirror.com\n"), 0644)
+
+	annotations := (&Builder{}).buildPlatformAnnotations(&build.Request{
+		SourceDir: dir,
+		BuildEnvs: map[string]string{"CNB_MIRROR_SOURCE": "project", "CNB_FRAMEWORK": "vite"},
+	})
+
+	if got := annotations["cnb-npm-config-registry"]; got != "https://registry.npmmirror.com" {
+		t.Fatalf("cnb-npm-config-registry = %q; want the project registry", got)
+	}
+	if got := annotationKeyToBPEnv("cnb-npm-config-registry"); got != "NPM_CONFIG_REGISTRY" {
+		t.Fatalf("annotation maps to env %q; want NPM_CONFIG_REGISTRY", got)
+	}
+
+	volume, _ := (&Builder{}).createPlatformVolume(annotations, nil)
+	if volume == nil {
+		t.Fatal("expected a platform volume")
+	}
+	var found bool
+	for _, source := range volume.VolumeSource.Projected.Sources {
+		if source.DownwardAPI == nil {
+			continue
+		}
+		for _, item := range source.DownwardAPI.Items {
+			if item.Path == "env/NPM_CONFIG_REGISTRY" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("platform volume missing env/NPM_CONFIG_REGISTRY")
+	}
+}
+
 // --- platform.go ---
 
 // capability_id: rainbond.cnb.annotation-key-encode

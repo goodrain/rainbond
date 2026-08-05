@@ -1160,6 +1160,47 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb.npm-global-registry",
+      "title": "Export NPM_CONFIG_REGISTRY for global npm installs",
+      "title_zh": "\u4e3a\u5168\u5c40 npm \u5b89\u88c5\u5bfc\u51fa NPM_CONFIG_REGISTRY",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.resolveNpmRegistry",
+      "code_paths": [
+        "builder/build/cnb/lang_nodejs.go",
+        "builder/build/cnb/platform.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/cnb_test.go",
+          "selector": "TestResolveNpmRegistry"
+        },
+        {
+          "path": "builder/build/cnb/cnb_test.go",
+          "selector": "TestNodejsNpmRegistryAnnotation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb.npmrc-registry-parse",
+      "title": "Parse default registry key from .npmrc content",
+      "title_zh": "\u4ece .npmrc \u5185\u5bb9\u4e2d\u89e3\u6790\u9ed8\u8ba4 registry \u914d\u7f6e\u9879",
+      "interface_type": "package_function",
+      "interface": "builder/build/cnb.npmRegistryFromNpmrc",
+      "code_paths": [
+        "builder/build/cnb/lang_nodejs.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/cnb_test.go",
+          "selector": "TestNpmRegistryFromNpmrc"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb.offline-mode",
       "title": "Resolve offline mode CNB image behavior",
       "title_zh": "\u89e3\u6790\u79bb\u7ebf\u6a21\u5f0f\u4e0b\u7684 CNB \u955c\u50cf\u884c\u4e3a",
