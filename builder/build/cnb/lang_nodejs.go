@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/util"
@@ -45,6 +46,10 @@ func (n *nodejsConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	}
 
 	applyDependencyMirrorAnnotation(annotations)
+
+	// Registry for global npm tooling. The project .npmrc cannot cover this,
+	// see resolveNpmRegistry.
+	setAnnotationValue(annotations, "cnb-npm-config-registry", resolveNpmRegistry(re))
 
 	// Build script
 	if v, ok := re.BuildEnvs["CNB_BUILD_SCRIPT"]; ok && v != "" {
@@ -113,6 +118,78 @@ func (n *nodejsConfig) InjectMirrorConfig(re *build.Request) error {
 // CustomOrder returns nil — Node.js projects use the default builder order.
 func (n *nodejsConfig) CustomOrder(re *build.Request) []orderBuildpack {
 	return nil
+}
+
+// resolveNpmRegistry returns the registry npm should use for global installs.
+//
+// The pnpm buildpack bootstraps itself with `npm install -g pnpm@<version>`, and
+// npm deliberately ignores the per-project .npmrc in global mode. So the mirror
+// configured for the project — whether written by InjectMirrorConfig or committed
+// by the user — never applies to that bootstrap, which then falls back to
+// registry.npmjs.org. That fails on China networks and is unreachable in
+// air-gapped clusters, even though the project mirror itself is fine.
+//
+// Exporting NPM_CONFIG_REGISTRY closes the gap: environment variables are the one
+// config source npm still honours in global mode. This mirrors how Go builds
+// receive GOPROXY (see lang_golang.go).
+//
+// Priority: CNB_NPM_REGISTRY > project .npmrc > CNB_MIRROR_NPMRC > China mirror default.
+// The project .npmrc is preferred over any platform default because npm ranks
+// environment variables *above* the project .npmrc: a value that disagreed with the
+// project would silently redirect the whole install, not just the bootstrap.
+func resolveNpmRegistry(re *build.Request) string {
+	if registry := firstNonEmptyEnv(re.BuildEnvs, "CNB_NPM_REGISTRY", "BUILD_NPM_REGISTRY"); registry != "" {
+		return strings.TrimSpace(registry)
+	}
+	if registry := npmRegistryFromNpmrc(readProjectNpmrc(re)); registry != "" {
+		return registry
+	}
+	if registry := npmRegistryFromNpmrc(re.BuildEnvs["CNB_MIRROR_NPMRC"]); registry != "" {
+		return registry
+	}
+	if util.GetenvDefault("ENABLE_CHINA_MIRROR", "true") != "true" {
+		return ""
+	}
+	return npmRegistryFromNpmrc(util.GetenvDefault("DEFAULT_NPMRC", DefaultNpmrcContent))
+}
+
+// readProjectNpmrc reads the .npmrc that the Node.js buildpacks will see.
+// BP_NODE_PROJECT_PATH moves the project root into a subdirectory, so look
+// there first and fall back to the source root.
+func readProjectNpmrc(re *build.Request) string {
+	if re.SourceDir == "" {
+		return ""
+	}
+	dirs := make([]string, 0, 2)
+	if sub := strings.TrimSpace(re.BuildEnvs["BP_NODE_PROJECT_PATH"]); sub != "" {
+		dirs = append(dirs, filepath.Join(re.SourceDir, sub))
+	}
+	dirs = append(dirs, re.SourceDir)
+
+	for _, dir := range dirs {
+		if data, err := os.ReadFile(filepath.Join(dir, ".npmrc")); err == nil {
+			return string(data)
+		}
+	}
+	return ""
+}
+
+// npmRegistryFromNpmrc extracts the default `registry=` value from .npmrc content.
+// Scoped entries (`@scope:registry=`) are ignored: they do not apply to the
+// unscoped packages installed during bootstrap.
+func npmRegistryFromNpmrc(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "registry" {
+			continue
+		}
+		return strings.Trim(strings.TrimSpace(value), `"'`)
+	}
+	return ""
 }
 
 // injectConfigFile injects a single config file (.npmrc or .yarnrc).
