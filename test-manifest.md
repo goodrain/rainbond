@@ -68,6 +68,8 @@
 | rainbond.cnb.mirror-config | 按来源模式注入 CNB 镜像配置 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfig |
 | rainbond.cnb.mirror-config-write-error | 传播 CNB 镜像配置写入失败 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfigWriteError |
 | rainbond.cnb.new-builder | 创建 CNB 构建器实例 | active | regression | builder/build/cnb.NewBuilder | builder/build/cnb/cnb_test.go::TestNewBuilder |
+| rainbond.cnb.npm-global-registry | 为全局 npm 安装导出 NPM_CONFIG_REGISTRY | active | regression | builder/build/cnb.resolveNpmRegistry | builder/build/cnb/cnb_test.go::TestResolveNpmRegistry<br>builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation |
+| rainbond.cnb.npmrc-registry-parse | 从 .npmrc 内容中解析默认 registry 配置项 | active | unit | builder/build/cnb.npmRegistryFromNpmrc | builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc |
 | rainbond.cnb.offline-mode | 解析离线模式下的 CNB 镜像行为 | active | regression | builder/build/cnb offline mode helpers | builder/build/cnb/cnb_test.go::TestIsOfflineMode<br>builder/build/cnb/cnb_test.go::TestGetCNBBuilderImageOffline<br>builder/build/cnb/cnb_test.go::TestGetCNBRunImageOffline |
 | rainbond.cnb.order-toml | 写入自定义 CNB order 定义 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrder |
 | rainbond.cnb.order-write-failure | CNB order 文件写入失败时返回空标记 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure |
@@ -97,6 +99,7 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
+| rainbond.dockerfile-build.proxy-env-inheritance | Dockerfile BuildKit proxy environment inheritance | active | regression | builder/build.buildKitProxyEnvVars | builder/build/dockerfile_build_test.go::TestBuildKitProxyEnvVars |
 | rainbond.dockerfile-build.registry-mirror-toml | Render BuildKit TOML with optional registry mirrors | active | regression | builder/sources.buildKitTomlContent | builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent<br>builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence |
 | rainbond.dockerfile.line-info | 跟踪 Dockerfile AST 的行号信息 | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestLineInformation |
 | rainbond.dockerfile.parse-fixtures | 将标准 Dockerfile 示例解析为稳定 AST | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestTestData |
@@ -1100,6 +1103,26 @@
 - 代码路径: `builder/build/cnb/build.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestNewBuilder`
 
+### 为全局 npm 安装导出 NPM_CONFIG_REGISTRY
+
+- Capability ID: `rainbond.cnb.npm-global-registry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.resolveNpmRegistry`
+- 代码路径: `builder/build/cnb/lang_nodejs.go`, `builder/build/cnb/platform.go`
+- 测试路径: `builder/build/cnb/cnb_test.go::TestResolveNpmRegistry`, `builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation`
+
+### 从 .npmrc 内容中解析默认 registry 配置项
+
+- Capability ID: `rainbond.cnb.npmrc-registry-parse`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `builder/build/cnb.npmRegistryFromNpmrc`
+- 代码路径: `builder/build/cnb/lang_nodejs.go`
+- 测试路径: `builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc`
+
 ### 解析离线模式下的 CNB 镜像行为
 
 - Capability ID: `rainbond.cnb.offline-mode`
@@ -1389,6 +1412,16 @@
 - 业务入口: `builder/parser/code.ConfigFiles.GetRelevantConfigFile`
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
+
+### Dockerfile BuildKit proxy environment inheritance
+
+- Capability ID: `rainbond.dockerfile-build.proxy-env-inheritance`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build.buildKitProxyEnvVars`
+- 代码路径: `builder/build/dockerfile_build.go`
+- 测试路径: `builder/build/dockerfile_build_test.go::TestBuildKitProxyEnvVars`
 
 ### Render BuildKit TOML with optional registry mirrors
 

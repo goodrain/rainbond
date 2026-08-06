@@ -1767,6 +1767,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.dockerfile-build.proxy-env-inheritance",
+      "title": "Dockerfile BuildKit proxy environment inheritance",
+      "title_zh": "Dockerfile BuildKit proxy environment inheritance",
+      "interface_type": "workflow",
+      "interface": "builder/build.buildKitProxyEnvVars",
+      "code_paths": [
+        "builder/build/dockerfile_build.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/dockerfile_build_test.go",
+          "selector": "TestBuildKitProxyEnvVars"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.dockerfile-build.registry-mirror-toml",
       "title": "Render BuildKit TOML with optional registry mirrors",
       "title_zh": "Render BuildKit TOML with optional registry mirrors",
