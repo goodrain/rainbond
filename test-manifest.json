@@ -7957,6 +7957,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.appm.vm-default-interface-virtio",
+      "title": "Use VirtIO network interfaces for every virtual machine",
+      "title_zh": "所有虚拟机统一使用 VirtIO 网络接口",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.resolveVMInterfaceModel",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestBuildVMRuntimeConfigRandomNetwork"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.appm.vm-memory-hotplug-headroom",
       "title": "Default VM memory hotplug headroom",
       "title_zh": "\u9ed8\u8ba4\u865a\u62df\u673a\u5185\u5b58\u70ed\u63d2\u62d4\u4e0a\u9650\u9884\u7559",

@@ -424,6 +424,7 @@
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
+| rainbond.worker.appm.vm-default-interface-virtio | 所有虚拟机统一使用 VirtIO 网络接口 | active | regression | worker/appm/conversion.resolveVMInterfaceModel | worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
@@ -4659,6 +4660,16 @@
 - 业务入口: `worker/appm/conversion.appendVMContainerDiskCDROMs`
 - 代码路径: `worker/appm/conversion/vm_runtime.go`, `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage`, `worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk`
+
+### 所有虚拟机统一使用 VirtIO 网络接口
+
+- Capability ID: `rainbond.worker.appm.vm-default-interface-virtio`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.resolveVMInterfaceModel`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork`, `worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio`
 
 ### 默认虚拟机内存热插拔上限预留
 
