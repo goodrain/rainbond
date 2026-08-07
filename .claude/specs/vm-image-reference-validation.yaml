@@ -193,8 +193,8 @@ sprints:
             code: |
               <Form.Item label={formatMessage({ id: 'Vm.createVm.imgName' })}
                 extra={formatMessage({ id: 'Vm.createVm.imageNameHint' })}>
-            'Vm.createVm.imageNameHint': 'This name is displayed in the image catalog. Rainbond generates the internal image identifier automatically.',
-            'Vm.createVm.imageNameHint': '该名称仅用于镜像目录展示，Rainbond 会自动生成内部镜像标识。',
+              'Vm.createVm.imageNameHint': 'This name is displayed in the image catalog. Rainbond generates the internal image identifier automatically.',
+              'Vm.createVm.imageNameHint': '该名称仅用于镜像目录展示，Rainbond 会自动生成内部镜像标识。',
             run: "yarn test ImageVirtualMachineForm --runInBand"
             expect: PASS
           - action: verify
