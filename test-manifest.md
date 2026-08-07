@@ -368,6 +368,8 @@
 | rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
 | rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage |
+| rainbond.vm-import.registry-reference-validation | Reject malformed VM registry image references | active | regression | worker/appm/volume.normalizeVMRegistryImportURL | worker/appm/volume/vm_import_test.go::TestNormalizeVMRegistryImportURLRejectsInvalidReference |
+| rainbond.vm-import.validation-aborts-vm-definition | Abort VM definition for invalid registry imports | active | regression | worker/appm/conversion.createVolumes | worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
@@ -4102,6 +4104,26 @@
 - 业务入口: `worker/appm/volume.BuildVMDataVolumeTemplate`
 - 代码路径: `worker/appm/volume/vm_import.go`
 - 测试路径: `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate`, `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing`, `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage`
+
+### Reject malformed VM registry image references
+
+- Capability ID: `rainbond.vm-import.registry-reference-validation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.normalizeVMRegistryImportURL`
+- 代码路径: `worker/appm/volume/vm_import.go`, `worker/appm/volume/share-file.go`
+- 测试路径: `worker/appm/volume/vm_import_test.go::TestNormalizeVMRegistryImportURLRejectsInvalidReference`
+
+### Abort VM definition for invalid registry imports
+
+- Capability ID: `rainbond.vm-import.validation-aborts-vm-definition`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.createVolumes`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/volume/share-file.go`, `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport`
 
 ### 初始化安装光盘未删除时屏蔽热更新能力
 

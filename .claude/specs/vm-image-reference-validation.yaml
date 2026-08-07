@@ -26,7 +26,7 @@ sprints:
     tasks:
       - id: task-1.1
         name: Reject malformed registry sources before DataVolume creation
-        status: pending
+        status: completed
         files:
           modify:
             - path: rainbond/worker/appm/volume/vm_import.go

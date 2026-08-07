@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ type volumeManagerStub struct {
 	db.Manager
 	configFileDao dbdao.TenantServiceConfigFileDao
 	volumeDao     dbdao.TenantServiceVolumeDao
+	attributeDao  dbdao.ComponentK8sAttributeDao
 }
 
 func (m volumeManagerStub) TenantServiceConfigFileDao() dbdao.TenantServiceConfigFileDao {
@@ -26,6 +28,23 @@ func (m volumeManagerStub) TenantServiceConfigFileDao() dbdao.TenantServiceConfi
 
 func (m volumeManagerStub) TenantServiceVolumeDao() dbdao.TenantServiceVolumeDao {
 	return m.volumeDao
+}
+
+func (m volumeManagerStub) ComponentK8sAttributeDao() dbdao.ComponentK8sAttributeDao {
+	return m.attributeDao
+}
+
+type componentK8sAttributeDaoStub struct {
+	dbdao.ComponentK8sAttributeDao
+	attribute *dbmodel.ComponentK8sAttributes
+	err       error
+}
+
+func (d componentK8sAttributeDaoStub) GetByComponentIDAndName(_, _ string) (*dbmodel.ComponentK8sAttributes, error) {
+	if d.err != nil {
+		return nil, d.err
+	}
+	return d.attribute, nil
 }
 
 type tenantServiceVolumeDaoStub struct {
@@ -277,6 +296,48 @@ func TestNewVolumeManagerUsesSelectedStorageClassForVMDisks(t *testing.T) {
 	}
 	if define.vmDisk[0].DiskDevice.Disk.Bus != kubevirtv1.DiskBusSATA {
 		t.Fatalf("expected root vm disk to keep sata bus, got %q", define.vmDisk[0].DiskDevice.Disk.Bus)
+	}
+}
+
+func TestShareFileVolumeCreateVolumeRejectsInvalidVMRegistryImportWithoutMutation(t *testing.T) {
+	as := newVMAppServiceForVolumeTest()
+	serviceVolume := &dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 9},
+		ServiceID:      "service-1",
+		VolumeName:     "disk",
+		VolumePath:     "/disk",
+		VolumeType:     "nfs-storage",
+		AccessMode:     "RWX",
+		VolumeCapacity: 20,
+	}
+	manager := volumeManagerStub{
+		attributeDao: componentK8sAttributeDaoStub{
+			attribute: &dbmodel.ComponentK8sAttributes{
+				AttributeValue: `{"disk":{"volume_name":"disk","image_url":"ceshi:DBServer(TongYong)","source_type":"registry"}}`,
+			},
+		},
+	}
+
+	shareVolume, ok := NewVolumeManager(as, serviceVolume, nil, nil, nil, nil, manager, false).(*ShareFileVolume)
+	if !ok {
+		t.Fatalf("expected VM storage volume to use ShareFileVolume")
+	}
+	define := &Define{as: as}
+	err := shareVolume.CreateVolume(define)
+	if err == nil {
+		t.Fatal("expected invalid VM registry import to fail volume creation")
+	}
+	if !strings.Contains(err.Error(), "invalid VM registry image reference") {
+		t.Fatalf("expected invalid registry error, got %v", err)
+	}
+	if !errors.Is(err, ErrInvalidVMRegistryImport) {
+		t.Fatalf("expected invalid VM registry import sentinel, got %v", err)
+	}
+	if len(as.GetClaims()) != 0 || len(as.GetClaimsManually()) != 0 {
+		t.Fatalf("expected failed VM import to leave claims untouched, claims=%#v manualClaims=%#v", as.GetClaims(), as.GetClaimsManually())
+	}
+	if len(define.GetVMDataVolumeTemplates()) != 0 || len(define.GetVMVolume()) != 0 || len(define.GetVMDisk()) != 0 {
+		t.Fatalf("expected failed VM import to leave definition untouched, templates=%#v volumes=%#v disks=%#v", define.GetVMDataVolumeTemplates(), define.GetVMVolume(), define.GetVMDisk())
 	}
 }
 

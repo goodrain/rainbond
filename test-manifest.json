@@ -6788,6 +6788,45 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-import.registry-reference-validation",
+      "title": "Reject malformed VM registry image references",
+      "title_zh": "Reject malformed VM registry image references",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.normalizeVMRegistryImportURL",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go",
+        "worker/appm/volume/share-file.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vm_import_test.go",
+          "selector": "TestNormalizeVMRegistryImportURLRejectsInvalidReference"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-import.validation-aborts-vm-definition",
+      "title": "Abort VM definition for invalid registry imports",
+      "title_zh": "Abort VM definition for invalid registry imports",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.createVolumes",
+      "code_paths": [
+        "worker/appm/conversion/version.go",
+        "worker/appm/volume/share-file.go",
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/version_vm_import_test.go",
+          "selector": "TestCreateVolumesRejectsInvalidVMRegistryImport"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.capability-requires-installer-media-removal",
       "title": "Block live update capability until installer media is removed",
       "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
