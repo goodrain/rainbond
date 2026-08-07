@@ -1,0 +1,209 @@
+meta:
+  name: vm-image-reference-validation
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc
+  branch: v6.9.8-dev
+  design_doc: rainbond/docs/plans/2026-08-07-vm-image-reference-validation-design.md
+  user_journey: "A user may name an imported VM image DBServer(TongYong), sees that label in the catalog, and receives a safe internally generated OCI image tag."
+
+sprints:
+  - id: sprint-1
+    name: Registry import safety
+    commits:
+      - id: commit-1
+        message: "fix: reject invalid vm registry imports"
+        repo: rainbond
+        tasks: [task-1.1]
+      - id: commit-2
+        message: "fix: generate safe vm image tags"
+        repo: rainbond-console
+        tasks: [task-2.1, task-2.2]
+      - id: commit-3
+        message: "fix: clarify vm image display names"
+        repo: rainbond-ui
+        tasks: [task-3.1]
+
+    tasks:
+      - id: task-1.1
+        name: Reject malformed registry sources before DataVolume creation
+        status: pending
+        files:
+          modify:
+            - path: rainbond/worker/appm/volume/vm_import.go
+              lines: "123-375"
+            - path: rainbond/worker/appm/volume/share-file.go
+              lines: "51-145"
+            - path: rainbond/worker/appm/volume/vm_import_test.go
+              lines: "100-205"
+        steps:
+          - action: write-test
+            description: "Add a capability-marked table-driven test proving a valid registry image still produces a template and an image tag containing parentheses returns an error."
+            code: |
+              // capability_id: rainbond.vm-import.registry-reference-validation
+              func TestNormalizeVMRegistryImportURLRejectsInvalidReference(t *testing.T) {
+                  _, err := normalizeVMRegistryImportURL("ceshi:DBServer(TongYong)")
+                  if err == nil { t.Fatal("expected invalid OCI reference error") }
+              }
+            run: "go test ./worker/appm/volume -run 'TestNormalizeVMRegistryImportURLRejectsInvalidReference|TestBuildVMRegistryImportDataVolumeTemplate' -v"
+            expect: FAIL
+          - action: implement
+            description: "Make registry URL normalization return an error after host expansion and validate it with github.com/docker/distribution/reference. Propagate the error through buildVMVolumeSource and ShareFileVolume.CreateVolume instead of appending an invalid DataVolume template."
+            code: |
+              func normalizeVMRegistryImportURL(imageURL string) (string, error) {
+                  // trim docker://, prefix the configured registry for short names
+                  // reject non-registry schemes and parse the final value
+                  if _, err := reference.ParseAnyReference(url); err != nil {
+                      return "", fmt.Errorf("invalid VM registry image reference %q: %w", imageURL, err)
+                  }
+                  return "docker://" + url, nil
+              }
+            run: "go test ./worker/appm/volume -run 'TestNormalizeVMRegistryImportURL|TestBuildVMRegistryImportDataVolumeTemplate' -v"
+            expect: PASS
+          - action: verify
+            description: "Run package tests, Go build/vet, manifest validation, and gofmt. Register the new capability in the manifest."
+            run: "gofmt -w worker/appm/volume/vm_import.go worker/appm/volume/share-file.go worker/appm/volume/vm_import_test.go && go test ./worker/appm/volume && go build ./... && go vet ./... && python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./worker/appm/volume -run TestNormalizeVMRegistryImportURLRejectsInvalidReference -v"
+            expect: PASS
+          - cmd: "git -C rainbond diff --check"
+            expect: "no output"
+        references:
+          - path: rainbond/worker/appm/volume/vm_import.go:123-136
+            note: "Registry URL normalization boundary"
+          - path: rainbond/worker/appm/volume/share-file.go:111-114
+            note: "Volume creation error propagation"
+
+      - id: task-2.1
+        name: Generate a safe internal runtime tag from a VM display name
+        status: pending
+        files:
+          modify:
+            - path: rainbond-console/console/services/vm_boot_source.py
+              lines: "1-39"
+            - path: rainbond-console/console/views/app_create/vm_run.py
+              lines: "138-175"
+            - path: rainbond-console/console/tests/vm_asset_instantiation_test.py
+              lines: "1-220"
+        steps:
+          - action: write-test
+            description: "Write regression tests that allow DBServer(TongYong) as the stored asset name while asserting its runtime reference is a lower-case legal tag and the same tenant/name produces the same reference."
+            code: |
+              def test_build_vm_runtime_image_name_separates_display_name_from_tag(self):
+                  tenant = SimpleNamespace(namespace="tenant-ns")
+                  image = build_vm_runtime_image_name(tenant, "DBServer(TongYong)")
+                  self.assertRegex(image, r"^tenant-ns:vm-dbserver-tongyong-[0-9a-f]{12}$")
+            run: "pytest console/tests/vm_asset_instantiation_test.py console/tests/virtual_machine_service_test.py -k 'runtime_image_name or parenthes'"
+            expect: FAIL
+          - action: implement
+            description: "Replace direct namespace:image_name concatenation with one pure helper. The helper lowercases only the internal tag slug, replaces unsupported characters with one dash, falls back to vm, limits the slug, and appends 12 SHA-256 hex characters based on namespace plus original display name."
+            code: |
+              def build_vm_runtime_image_name(tenant, image_name):
+                  namespace = getattr(tenant, "namespace", "") or getattr(tenant, "tenant_name", "") or getattr(tenant, "tenant_id", "") or "vm"
+                  display_name = str(image_name or "vm-image")
+                  slug = re.sub(r"[^a-z0-9]+", "-", display_name.lower()).strip("-") or "vm"
+                  digest = hashlib.sha256((namespace + "\\x00" + display_name).encode("utf-8")).hexdigest()[:12]
+                  return "{}:vm-{}-{}".format(namespace, slug[:110].rstrip("-") or "vm", digest)
+            run: "pytest console/tests/vm_asset_instantiation_test.py console/tests/virtual_machine_service_test.py -k 'runtime_image_name or parenthes'"
+            expect: PASS
+          - action: verify
+            description: "Format changed Python files, run focused VM tests, full Console check and manifest validation. Register the capability."
+            run: "make format && pytest console/tests/vm_asset_instantiation_test.py console/tests/virtual_machine_service_test.py && make check && python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/vm_asset_instantiation_test.py -k parenthes"
+            expect: PASS
+        references:
+          - path: rainbond-console/console/views/app_create/vm_run.py:147-175
+            note: "Current unsafe string concatenation"
+          - path: rainbond-console/console/services/vm_boot_source.py:31-39
+            note: "Shared runtime image helper"
+
+      - id: task-2.2
+        name: Reject malformed registry disk import attributes in Console
+        status: pending
+        files:
+          modify:
+            - path: rainbond-console/console/services/vm_boot_source.py
+              lines: "1-39"
+            - path: rainbond-console/console/services/virtual_machine.py
+              lines: "475-492,1018-1037"
+            - path: rainbond-console/console/tests/virtual_machine_service_test.py
+              lines: "740-830"
+        steps:
+          - action: write-test
+            description: "Add a test that save_vm_disk_imports raises ValueError and creates no attribute when a registry source contains DBServer(TongYong); retain the existing valid registry test."
+            code: |
+              def test_save_vm_disk_imports_rejects_invalid_registry_reference(self):
+                  with self.assertRaises(ValueError):
+                      vms.save_vm_disk_imports("tenant-a", "service-a", [{
+                          "volume_name": "disk", "source_type": "registry",
+                          "image_url": "tenant-a:DBServer(TongYong)"}])
+            run: "pytest console/tests/virtual_machine_service_test.py -k 'disk_imports and invalid'"
+            expect: FAIL
+          - action: implement
+            description: "Add a pure Console validator which removes docker://, rejects other schemes, parses docker_image.reference.Reference, and is invoked for every registry disk import before persistence. Keep HTTP imports unchanged."
+            code: |
+              def validate_vm_registry_image_reference(image_url):
+                  value = str(image_url or "").strip()
+                  if value.lower().startswith("docker://"):
+                      value = value[len("docker://"):]
+                  if not value or "://" in value:
+                      raise ValueError("invalid VM registry image reference")
+                  try:
+                      reference.Reference.parse(value)
+                  except Exception:
+                      raise ValueError("invalid VM registry image reference")
+                  return value
+            run: "pytest console/tests/virtual_machine_service_test.py -k disk_imports"
+            expect: PASS
+          - action: verify
+            description: "Re-run the focused VM suite and console manifest validator after formatting."
+            run: "make format && pytest console/tests/vm_asset_instantiation_test.py console/tests/virtual_machine_service_test.py && make check && python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/virtual_machine_service_test.py -k invalid_registry_reference"
+            expect: PASS
+        references:
+          - path: rainbond-console/console/services/virtual_machine.py:1018-1037
+            note: "Disk import persistence boundary"
+
+      - id: task-3.1
+        name: Explain that VM image name is a display name
+        status: pending
+        files:
+          modify:
+            - path: rainbond-ui/src/components/ImageVirtualMachineForm/index.js
+              lines: "1055-1101"
+            - path: rainbond-ui/src/locales/zh-CN/team.js
+              lines: "730-825"
+            - path: rainbond-ui/src/locales/en-US/team.js
+              lines: "730-825"
+            - path: rainbond-ui/src/components/ImageVirtualMachineForm
+              lines: "node test file"
+        steps:
+          - action: write-test
+            description: "Add or extend the repository-native node test to assert both URL and upload fields render the display-name hint i18n key."
+            code: |
+              expect(source).toMatch(/Vm\.createVm\.imageNameHint/)
+            run: "yarn test ImageVirtualMachineForm --runInBand"
+            expect: FAIL
+          - action: implement
+            description: "Add a Form.Item extra message with a single shared i18n key and define concise Chinese and English translations. Do not restrict the display-name field with OCI tag rules."
+            code: |
+              <Form.Item label={formatMessage({ id: 'Vm.createVm.imgName' })}
+                extra={formatMessage({ id: 'Vm.createVm.imageNameHint' })}>
+            'Vm.createVm.imageNameHint': 'This name is displayed in the image catalog. Rainbond generates the internal image identifier automatically.',
+            'Vm.createVm.imageNameHint': '该名称仅用于镜像目录展示，Rainbond 会自动生成内部镜像标识。',
+            run: "yarn test ImageVirtualMachineForm --runInBand"
+            expect: PASS
+          - action: verify
+            description: "Run the relevant node test and mandatory production build."
+            run: "yarn test ImageVirtualMachineForm --runInBand && yarn build"
+            expect: PASS
+        acceptance:
+          - cmd: "yarn build"
+            expect: PASS
+        references:
+          - path: rainbond-ui/src/components/ImageVirtualMachineForm/index.js:1055-1101
+            note: "URL and upload display-name fields"
