@@ -54,6 +54,38 @@ type cnbSeedVersion struct {
 	Default bool
 }
 
+const (
+	defaultMaxOpenConns    = 50
+	defaultMaxIdleConns    = 10
+	defaultConnMaxLifetime = 5 * time.Minute
+)
+
+type databasePoolConfig struct {
+	maxOpenConns    int
+	maxIdleConns    int
+	connMaxLifetime time.Duration
+}
+
+func databasePoolConfigFromEnv() databasePoolConfig {
+	config := databasePoolConfig{
+		maxOpenConns:    positiveIntFromEnv("DB_MAX_OPEN_CONNS", defaultMaxOpenConns),
+		maxIdleConns:    positiveIntFromEnv("DB_MAX_IDLE_CONNS", defaultMaxIdleConns),
+		connMaxLifetime: time.Duration(positiveIntFromEnv("DB_CONN_MAX_LIFE_TIME", int(defaultConnMaxLifetime/time.Minute))) * time.Minute,
+	}
+	if config.maxIdleConns > config.maxOpenConns {
+		config.maxIdleConns = config.maxOpenConns
+	}
+	return config
+}
+
+func positiveIntFromEnv(key string, fallback int) int {
+	value, err := strconv.Atoi(os.Getenv(key))
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
+}
+
 // CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
@@ -82,32 +114,12 @@ func CreateManager(config config.Config) (*Manager, error) {
 			}
 		}
 
-		// 设置连接池参数
-		maxOpenConns := 2500
-		maxIdleConns := 500
-		maxLifeTime := 5
-		if os.Getenv("DB_MAX_OPEN_CONNS") != "" {
-			openCon, err := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNS"))
-			if err == nil {
-				maxOpenConns = openCon
-			}
-		}
-		if os.Getenv("DB_MAX_IDLE_CONNS") != "" {
-			idleCon, err := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNS"))
-			if err == nil {
-				maxIdleConns = idleCon
-			}
-		}
-		if os.Getenv("DB_CONN_MAX_LIFE_TIME") != "" {
-			lifeTime, err := strconv.Atoi(os.Getenv("DB_CONN_MAX_LIFE_TIME"))
-			if err == nil {
-				maxLifeTime = lifeTime
-			}
-		}
-		// 配置连接池参数
-		sqlDB.SetMaxOpenConns(maxOpenConns)                                // 设置最大打开连接数
-		sqlDB.SetMaxIdleConns(maxIdleConns)                                // 设置最大空闲连接数
-		sqlDB.SetConnMaxLifetime(time.Duration(maxLifeTime) * time.Minute) //
+		poolConfig := databasePoolConfigFromEnv()
+		sqlDB.SetMaxOpenConns(poolConfig.maxOpenConns)
+		sqlDB.SetMaxIdleConns(poolConfig.maxIdleConns)
+		sqlDB.SetConnMaxLifetime(poolConfig.connMaxLifetime)
+		logrus.Infof("database connection pool configured: max open=%d, max idle=%d, max lifetime=%s",
+			poolConfig.maxOpenConns, poolConfig.maxIdleConns, poolConfig.connMaxLifetime)
 	}
 	if config.DBType == "cockroachdb" {
 		var err error
