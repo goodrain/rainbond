@@ -211,7 +211,12 @@ func TestPopulatePodContainerMemoryUsesOneNamespaceScopedExactQuery(t *testing.T
 }
 
 func TestPopulatePodContainerMemoryUsesEqualityMatcherForOnePod(t *testing.T) {
-	prom := &recordingPrometheus{}
+	prom := &recordingPrometheus{metric: func(string) promcli.Metric {
+		return vectorMetric(metricValue(map[string]string{
+			"pod":       "component-a.0",
+			"container": "main",
+		}, 128))
+	}}
 	action := &ServiceAction{prometheusCli: prom}
 	pods := []*K8sPodInfo{
 		{PodName: "component-a.0", Container: map[string]map[string]string{"main": {"memory_usage": "0"}}},
@@ -221,6 +226,42 @@ func TestPopulatePodContainerMemoryUsesEqualityMatcherForOnePod(t *testing.T) {
 
 	require.Len(t, prom.queries, 1)
 	assert.Equal(t, `max(container_memory_rss{namespace="tenant-ns",pod="component-a.0"}) by (pod,container)`, prom.queries[0])
+}
+
+func TestPopulatePodContainerMemoryFallsBackWhenNamespaceDoesNotMatchMetrics(t *testing.T) {
+	prom := &recordingPrometheus{metric: func(expr string) promcli.Metric {
+		if strings.Contains(expr, `namespace="stale-namespace"`) {
+			return promcli.Metric{}
+		}
+		return vectorMetric(metricValue(map[string]string{
+			"pod":       "component-a.0",
+			"container": "main",
+		}, 256))
+	}}
+	action := &ServiceAction{prometheusCli: prom}
+	pods := []*K8sPodInfo{
+		{PodName: "component-a.0", Container: map[string]map[string]string{"main": {"memory_usage": "0"}}},
+	}
+
+	action.populatePodContainerMemory("stale-namespace", pods)
+
+	require.Len(t, prom.queries, 2)
+	assert.Equal(t, `max(container_memory_rss{namespace="stale-namespace",pod="component-a.0"}) by (pod,container)`, prom.queries[0])
+	assert.Equal(t, `max(container_memory_rss{pod="component-a.0"}) by (pod,container)`, prom.queries[1])
+	assert.Equal(t, "256", pods[0].Container["main"]["memory_usage"])
+}
+
+func TestGetPodContainerMemoryDoesNotRetryPrometheusErrors(t *testing.T) {
+	prom := &recordingPrometheus{metric: func(string) promcli.Metric {
+		return promcli.Metric{Error: "query timeout"}
+	}}
+	action := &ServiceAction{prometheusCli: prom}
+
+	usage, err := action.getPodContainerMemory("tenant-ns", []string{"component-a.0"})
+
+	assert.Empty(t, usage)
+	assert.EqualError(t, err, "query pod container memory: query timeout")
+	assert.Len(t, prom.queries, 1)
 }
 
 func TestPopulatePodContainerMemorySkipsPrometheusWithoutPods(t *testing.T) {

@@ -3201,12 +3201,29 @@ func (s *ServiceAction) getPodContainerMemory(namespace string, podNames []strin
 		rawPodNames = append(rawPodNames, podName)
 	}
 	sort.Strings(rawPodNames)
-	labels := []string{buildExactPrometheusLabelMatcher("pod", rawPodNames)}
+	podMatcher := buildExactPrometheusLabelMatcher("pod", rawPodNames)
+	labels := []string{podMatcher}
 	if namespace != "" {
 		labels = append([]string{fmt.Sprintf(`namespace=%q`, namespace)}, labels...)
 	}
-	query := fmt.Sprintf(`max(container_memory_rss{%s}) by (pod,container)`, strings.Join(labels, ","))
-	metric := s.prometheusCli.GetMetric(query, time.Now())
+	queryMetric := func(queryLabels []string) (prometheus.Metric, error) {
+		query := fmt.Sprintf(`max(container_memory_rss{%s}) by (pod,container)`, strings.Join(queryLabels, ","))
+		metric := s.prometheusCli.GetMetric(query, time.Now())
+		if metric.Error != "" {
+			return metric, fmt.Errorf("query pod container memory: %s", metric.Error)
+		}
+		return metric, nil
+	}
+	metric, err := queryMetric(labels)
+	if err != nil {
+		return memoryUsageMap, err
+	}
+	if namespace != "" && len(metric.MetricData.MetricValues) == 0 {
+		metric, err = queryMetric([]string{podMatcher})
+		if err != nil {
+			return memoryUsageMap, err
+		}
+	}
 
 	for _, re := range metric.MetricData.MetricValues {
 		var containerName = re.Metadata["container"]
@@ -3233,7 +3250,11 @@ func (s *ServiceAction) populatePodContainerMemory(namespace string, pods []*K8s
 			podNames = append(podNames, pod.PodName)
 		}
 	}
-	containerMemInfo, _ := s.getPodContainerMemory(namespace, podNames)
+	containerMemInfo, err := s.getPodContainerMemory(namespace, podNames)
+	if err != nil {
+		logrus.Warnf("get pod container memory failed, namespace: %s, error: %v", namespace, err)
+		return
+	}
 	for _, pod := range pods {
 		if pod == nil {
 			continue
