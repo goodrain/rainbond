@@ -12,6 +12,7 @@ import (
 	"time"
 
 	promcli "github.com/goodrain/rainbond/api/client/prometheus"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +29,38 @@ type recordingPrometheus struct {
 	queries []string
 	metrics map[string]promcli.Metric
 	metric  func(string) promcli.Metric
+}
+
+type coordinatedServiceResourceRuntime struct {
+	diskStarted   <-chan struct{}
+	releaseDisk   chan<- struct{}
+	wasConcurrent chan<- bool
+}
+
+func (r *coordinatedServiceResourceRuntime) GetStatuss(string) map[string]string {
+	concurrent := false
+	select {
+	case <-r.diskStarted:
+		concurrent = true
+	case <-time.After(time.Second):
+	}
+	r.wasConcurrent <- concurrent
+	return map[string]string{"component-a": "running"}
+}
+
+func (r *coordinatedServiceResourceRuntime) IsClosedStatus(status string) bool {
+	return status == "closed"
+}
+
+func (r *coordinatedServiceResourceRuntime) GetMultiServicePods([]string) (*pb.MultiServiceAppPodList, error) {
+	close(r.releaseDisk)
+	return &pb.MultiServiceAppPodList{ServicePods: map[string]*pb.ServiceAppPodList{
+		"component-a": {
+			NewPods: []*pb.ServiceAppPod{{Containers: map[string]*pb.Container{
+				"main": {MemoryRequest: 64 * 1024 * 1024, CpuRequest: 200},
+			}}},
+		},
+	}}, nil
 }
 
 func (p *recordingPrometheus) GetMetric(expr string, _ time.Time) promcli.Metric {
@@ -77,8 +110,18 @@ func TestGetDiskUsageScopesPrometheusQueryToRequestedApplications(t *testing.T) 
 	usage := action.getDiskUsage([]string{"app-b", "app-a", "app-a"})
 
 	require.Len(t, prom.queries, 1)
-	assert.Equal(t, `app_resource_appfs{app_id=~"^(app-a|app-b)$"}`, prom.queries[0])
+	assert.Equal(t, `max(app_resource_appfs{app_id=~"^(app-a|app-b)$"}) by(app_id)`, prom.queries[0])
 	assert.Equal(t, float64(42), usage["app-a"])
+}
+
+func TestGetDiskUsageUsesEqualityMatcherForOneApplication(t *testing.T) {
+	prom := &recordingPrometheus{}
+	action := &ApplicationAction{promClient: prom}
+
+	action.getDiskUsage([]string{"app.a"})
+
+	require.Len(t, prom.queries, 1)
+	assert.Equal(t, `max(app_resource_appfs{app_id="app.a"}) by(app_id)`, prom.queries[0])
 }
 
 func TestGetDiskUsageSkipsPrometheusForEmptyApplicationList(t *testing.T) {
@@ -112,6 +155,41 @@ func TestGetServicesDiskDeprecatedSkipsPrometheusForEmptyComponentList(t *testin
 	assert.Empty(t, prom.queries)
 }
 
+func TestGetServicesDiskDeprecatedUsesEqualityMatcherForOneComponent(t *testing.T) {
+	prom := &recordingPrometheus{}
+
+	GetServicesDiskDeprecated([]string{"component.a"}, prom)
+
+	require.Len(t, prom.queries, 1)
+	assert.Equal(t, `max(app_resource_appfs{service_id="component.a"}) by(service_id)`, prom.queries[0])
+}
+
+func TestGetServicesResourcesQueriesDiskConcurrentlyWithRuntime(t *testing.T) {
+	diskStarted := make(chan struct{})
+	releaseDisk := make(chan struct{})
+	wasConcurrent := make(chan bool, 1)
+	prom := &recordingPrometheus{metric: func(string) promcli.Metric {
+		close(diskStarted)
+		<-releaseDisk
+		return vectorMetric(metricValue(map[string]string{"service_id": "component-a"}, 2048))
+	}}
+	runtime := &coordinatedServiceResourceRuntime{
+		diskStarted:   diskStarted,
+		releaseDisk:   releaseDisk,
+		wasConcurrent: wasConcurrent,
+	}
+	request := &apimodel.ServicesResources{}
+	request.Body.ServiceIDs = []string{"component-a"}
+
+	resources, err := getServicesResources(request, runtime, prom)
+
+	require.NoError(t, err)
+	assert.True(t, <-wasConcurrent)
+	assert.Equal(t, int64(64), resources["component-a"]["memory"])
+	assert.Equal(t, int64(200), resources["component-a"]["cpu"])
+	assert.Equal(t, float64(2), resources["component-a"]["disk"])
+}
+
 func TestPopulatePodContainerMemoryUsesOneNamespaceScopedExactQuery(t *testing.T) {
 	prom := &recordingPrometheus{metric: func(string) promcli.Metric {
 		return vectorMetric(metricValue(map[string]string{
@@ -128,8 +206,21 @@ func TestPopulatePodContainerMemoryUsesOneNamespaceScopedExactQuery(t *testing.T
 	action.populatePodContainerMemory("tenant-ns", pods)
 
 	require.Len(t, prom.queries, 1)
-	assert.Equal(t, `container_memory_rss{namespace="tenant-ns",pod=~"^(component-a\.0|component-b)$"}`, prom.queries[0])
+	assert.Equal(t, `max(container_memory_rss{namespace="tenant-ns",pod=~"^(component-a\.0|component-b)$"}) by (pod,container)`, prom.queries[0])
 	assert.Equal(t, "128", pods[1].Container["main"]["memory_usage"])
+}
+
+func TestPopulatePodContainerMemoryUsesEqualityMatcherForOnePod(t *testing.T) {
+	prom := &recordingPrometheus{}
+	action := &ServiceAction{prometheusCli: prom}
+	pods := []*K8sPodInfo{
+		{PodName: "component-a.0", Container: map[string]map[string]string{"main": {"memory_usage": "0"}}},
+	}
+
+	action.populatePodContainerMemory("tenant-ns", pods)
+
+	require.Len(t, prom.queries, 1)
+	assert.Equal(t, `max(container_memory_rss{namespace="tenant-ns",pod="component-a.0"}) by (pod,container)`, prom.queries[0])
 }
 
 func TestPopulatePodContainerMemorySkipsPrometheusWithoutPods(t *testing.T) {
@@ -139,6 +230,18 @@ func TestPopulatePodContainerMemorySkipsPrometheusWithoutPods(t *testing.T) {
 	action.populatePodContainerMemory("tenant-ns", nil)
 
 	assert.Empty(t, prom.queries)
+}
+
+func TestResolvePodMetricsNamespaceUsesTenantNamespaceForRainbondComponent(t *testing.T) {
+	assert.Equal(t, "team-ns", resolvePodMetricsNamespace("tenant-uuid", "tenant-uuid", "team-ns"))
+}
+
+func TestResolvePodMetricsNamespacePreservesImportedComponentNamespace(t *testing.T) {
+	assert.Equal(t, "imported-ns", resolvePodMetricsNamespace("imported-ns", "tenant-uuid", "team-ns"))
+}
+
+func TestResolvePodMetricsNamespaceFallsBackToUnscopedQuery(t *testing.T) {
+	assert.Empty(t, resolvePodMetricsNamespace("tenant-uuid", "tenant-uuid", ""))
 }
 
 func TestListNodesAggregatesRequestedResourcesWithThreePrometheusQueries(t *testing.T) {

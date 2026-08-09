@@ -107,6 +107,7 @@ type ServiceAction struct {
 	getDataVolumePhasesByNamesHook           func(namespace string, names []string) (map[string]string, error)
 	getDataVolumeDetailsByNamesHook          func(namespace string, names []string) ([]vmDataVolumeDetail, error)
 	isVMLiveUpdateClusterConfiguredHook      func(ctx context.Context) bool
+	resolveTenantNamespaceHook               func(tenantID string) (string, error)
 	loadVMRuntimeDeviceExtensionSetHook      func(componentID string) (map[string]string, error)
 	loadVMRuntimeSpecExtensionSetHook        func(componentID string) (map[string]string, error)
 	hotplugVMDataDiskHook                    func(tenantID string, volume *dbmodel.TenantServiceVolume) error
@@ -141,6 +142,16 @@ func CreateManager() *ServiceAction {
 		dbmanager:      db.GetManager(),
 		registryCli:    hubregistry.Default().RegistryCli,
 		config:         k8s.Default().RestConfig,
+		resolveTenantNamespaceHook: func(tenantID string) (string, error) {
+			tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+			if err != nil {
+				return "", err
+			}
+			if tenant == nil {
+				return "", nil
+			}
+			return tenant.Namespace, nil
+		},
 	}
 }
 
@@ -1806,12 +1817,8 @@ func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface)
 		rawIDs = append(rawIDs, id)
 	}
 	sort.Strings(rawIDs)
-	matchers := make([]string, 0, len(rawIDs))
-	for _, id := range rawIDs {
-		matchers = append(matchers, regexp.QuoteMeta(id))
-	}
 	//query disk used in prometheus
-	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"^(%s)$"}) by(service_id)`, strings.Join(matchers, "|"))
+	query := fmt.Sprintf(`max(app_resource_appfs{%s}) by(service_id)`, buildExactPrometheusLabelMatcher("service_id", rawIDs))
 	metric := prometheusCli.GetMetric(query, time.Now())
 	for _, re := range metric.MetricData.MetricValues {
 		var serviceID = re.Metadata["service_id"]
@@ -2717,7 +2724,14 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 	if services.IsKubeBlocksComponent() {
 		return sl, nil
 	}
-	status := s.statusCli.GetStatus(serviceID)
+	status, deployInfo, deployInfoErr := fetchServiceRuntimeState(
+		func() string {
+			return s.statusCli.GetStatus(serviceID)
+		},
+		func() (*pb.DeployInfo, error) {
+			return s.statusCli.GetServiceDeployInfo(serviceID)
+		},
+	)
 	if status != "" {
 		sl.CurStatus = status
 		sl.StatusCN = TransStatus(status)
@@ -2729,13 +2743,34 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 		}
 		sl.VMRestore = s.resolveVMDataVolumeRestore(serviceID)
 	}
-	di, err := s.statusCli.GetServiceDeployInfo(serviceID)
-	if err != nil {
-		logrus.Warningf("service id: %s; failed to get deploy info: %v", serviceID, err)
+	if deployInfoErr != nil {
+		logrus.Warningf("service id: %s; failed to get deploy info: %v", serviceID, deployInfoErr)
 	} else {
-		sl.StartTime = di.GetStartTime()
+		sl.StartTime = deployInfo.GetStartTime()
 	}
 	return sl, nil
+}
+
+func fetchServiceRuntimeState(getStatus func() string,
+	getDeployInfo func() (*pb.DeployInfo, error)) (string, *pb.DeployInfo, error) {
+	statusResult := make(chan string, 1)
+	type deployInfoResult struct {
+		info *pb.DeployInfo
+		err  error
+	}
+	deployResult := make(chan deployInfoResult, 1)
+
+	go func() {
+		statusResult <- getStatus()
+	}()
+	go func() {
+		info, err := getDeployInfo()
+		deployResult <- deployInfoResult{info: info, err: err}
+	}()
+
+	status := <-statusResult
+	deploy := <-deployResult
+	return status, deploy.info, deploy.err
 }
 
 // GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
@@ -3058,7 +3093,15 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	oldpods := convpod(pods.OldPods)
 	namespace := ""
 	if svc != nil {
-		namespace = svc.Namespace
+		tenantNamespace := ""
+		if (svc.Namespace == "" || svc.Namespace == svc.TenantID) && s.resolveTenantNamespaceHook != nil {
+			var tenantErr error
+			tenantNamespace, tenantErr = s.resolveTenantNamespaceHook(svc.TenantID)
+			if tenantErr != nil {
+				logrus.Warnf("get tenant namespace for pod metrics failed, tenant id: %s, error: %v", svc.TenantID, tenantErr)
+			}
+		}
+		namespace = resolvePodMetricsNamespace(svc.Namespace, svc.TenantID, tenantNamespace)
 	}
 	s.populatePodContainerMemory(namespace, append(newpods, oldpods...))
 	if svc != nil && svc.IsVM() {
@@ -3124,6 +3167,24 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 	return s.getPodContainerMemory("", podNames)
 }
 
+func resolvePodMetricsNamespace(serviceNamespace, tenantID, tenantNamespace string) string {
+	if serviceNamespace != "" && serviceNamespace != tenantID {
+		return serviceNamespace
+	}
+	return tenantNamespace
+}
+
+func buildExactPrometheusLabelMatcher(label string, values []string) string {
+	if len(values) == 1 {
+		return fmt.Sprintf(`%s=%q`, label, values[0])
+	}
+	matchers := make([]string, 0, len(values))
+	for _, value := range values {
+		matchers = append(matchers, regexp.QuoteMeta(value))
+	}
+	return fmt.Sprintf(`%s=~"^(%s)$"`, label, strings.Join(matchers, "|"))
+}
+
 func (s *ServiceAction) getPodContainerMemory(namespace string, podNames []string) (map[string]map[string]string, error) {
 	memoryUsageMap := make(map[string]map[string]string, 10)
 	uniquePodNames := make(map[string]struct{}, len(podNames))
@@ -3140,15 +3201,11 @@ func (s *ServiceAction) getPodContainerMemory(namespace string, podNames []strin
 		rawPodNames = append(rawPodNames, podName)
 	}
 	sort.Strings(rawPodNames)
-	matchers := make([]string, 0, len(rawPodNames))
-	for _, podName := range rawPodNames {
-		matchers = append(matchers, regexp.QuoteMeta(podName))
-	}
-	labels := []string{fmt.Sprintf(`pod=~"^(%s)$"`, strings.Join(matchers, "|"))}
+	labels := []string{buildExactPrometheusLabelMatcher("pod", rawPodNames)}
 	if namespace != "" {
 		labels = append([]string{fmt.Sprintf(`namespace=%q`, namespace)}, labels...)
 	}
-	query := fmt.Sprintf(`container_memory_rss{%s}`, strings.Join(labels, ","))
+	query := fmt.Sprintf(`max(container_memory_rss{%s}) by (pod,container)`, strings.Join(labels, ","))
 	metric := s.prometheusCli.GetMetric(query, time.Now())
 
 	for _, re := range metric.MetricData.MetricValues {
