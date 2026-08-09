@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"os"
-	"regexp"
 	"sigs.k8s.io/yaml"
 	"sort"
 	"strconv"
@@ -827,12 +826,12 @@ func (a *ApplicationAction) getDiskUsage(appIDs []string) map[string]float64 {
 		return appDisk
 	}
 
-	matchers := make([]string, 0, len(uniqueIDs))
+	rawIDs := make([]string, 0, len(uniqueIDs))
 	for appID := range uniqueIDs {
-		matchers = append(matchers, regexp.QuoteMeta(appID))
+		rawIDs = append(rawIDs, appID)
 	}
-	sort.Strings(matchers)
-	query := fmt.Sprintf(`app_resource_appfs{app_id=~"^(%s)$"}`, strings.Join(matchers, "|"))
+	sort.Strings(rawIDs)
+	query := fmt.Sprintf(`max(app_resource_appfs{%s}) by(app_id)`, buildExactPrometheusLabelMatcher("app_id", rawIDs))
 	metric := a.promClient.GetMetric(query, time.Now())
 	for _, m := range metric.MetricData.MetricValues {
 		appID := m.Metadata["app_id"]

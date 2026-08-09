@@ -596,19 +596,42 @@ func (t *TenantAction) GetAllocatableResources(ctx context.Context) (*ClusterRes
 
 // GetServicesResources Gets the resource usage of the specified service.
 func (t *TenantAction) GetServicesResources(tr *apimodel.ServicesResources) (re map[string]map[string]interface{}, err error) {
-	status := t.statusCli.GetStatuss(strings.Join(tr.Body.ServiceIDs, ","))
+	return getServicesResources(tr, t.statusCli, t.prometheusCli)
+}
+
+type serviceResourceRuntime interface {
+	GetStatuss(serviceIDs string) map[string]string
+	IsClosedStatus(status string) bool
+	GetMultiServicePods(serviceIDs []string) (*pb.MultiServiceAppPodList, error)
+}
+
+func getServicesResources(tr *apimodel.ServicesResources, statusCli serviceResourceRuntime,
+	prometheusCli prometheus.Interface) (map[string]map[string]interface{}, error) {
+	disksResult := make(chan map[string]float64, 1)
+	go func() {
+		disksResult <- GetServicesDiskDeprecated(tr.Body.ServiceIDs, prometheusCli)
+	}()
+
+	status := statusCli.GetStatuss(strings.Join(tr.Body.ServiceIDs, ","))
 	var running, closed []string
 	for k, v := range status {
-		if !t.statusCli.IsClosedStatus(v) {
+		if !statusCli.IsClosedStatus(v) {
 			running = append(running, k)
 		} else {
 			closed = append(closed, k)
 		}
 	}
 
-	podList, err := t.statusCli.GetMultiServicePods(running)
-	if err != nil {
-		return nil, err
+	podList := &pb.MultiServiceAppPodList{}
+	if len(running) > 0 {
+		var err error
+		podList, err = statusCli.GetMultiServicePods(running)
+		if err != nil {
+			return nil, err
+		}
+		if podList == nil {
+			podList = &pb.MultiServiceAppPodList{}
+		}
 	}
 
 	res := make(map[string]map[string]interface{})
@@ -629,7 +652,7 @@ func (t *TenantAction) GetServicesResources(tr *apimodel.ServicesResources) (re 
 		res[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
 
-	disks := GetServicesDiskDeprecated(tr.Body.ServiceIDs, t.prometheusCli)
+	disks := <-disksResult
 	for serviceID, disk := range disks {
 		if _, ok := res[serviceID]; ok {
 			res[serviceID]["disk"] = disk / 1024
