@@ -910,6 +910,18 @@ func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesR
 	if err != nil {
 		return nil, err
 	}
+
+	var rainbondApps []*model.Application
+	for _, app := range apps {
+		if app.AppType != model.AppTypeHelm {
+			rainbondApps = append(rainbondApps, app)
+		}
+	}
+	rainbondAppStatuses, rainbondErr := r.listRainbondAppStatuses(rainbondApps)
+	if rainbondErr != nil {
+		logrus.Errorf("list rainbond app statuses failed: %v", rainbondErr)
+	}
+
 	var appStatuses []*pb.AppStatus
 	for _, app := range apps {
 		if app.AppType == model.AppTypeHelm {
@@ -921,14 +933,137 @@ func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesR
 			appStatuses = append(appStatuses, helmAppStatus)
 			continue
 		}
-		appStatus, err := r.getRainbondAppStatus(app)
-		if err != nil {
+		if rainbondErr != nil {
 			logrus.Errorf("get rainbond app (%s)[%s] failed", app.AppName, app.AppID)
 			continue
 		}
-		appStatuses = append(appStatuses, appStatus)
+		appStatuses = append(appStatuses, rainbondAppStatuses[app.AppID])
 	}
 	return &pb.AppStatuses{
 		AppStatuses: appStatuses,
 	}, nil
+}
+
+type appResourceUsage struct {
+	cpu      int64
+	memory   int64
+	podCount int
+}
+
+func (r *RuntimeServer) listRainbondAppStatuses(apps []*model.Application) (map[string]*pb.AppStatus, error) {
+	result := make(map[string]*pb.AppStatus, len(apps))
+	if len(apps) == 0 {
+		return result, nil
+	}
+
+	appIDs := make([]string, 0, len(apps))
+	requestedAppIDs := make(map[string]struct{}, len(apps))
+	for _, app := range apps {
+		appIDs = append(appIDs, app.AppID)
+		requestedAppIDs[app.AppID] = struct{}{}
+	}
+	services, err := db.GetManager().TenantServiceDao().ListByAppIDs(appIDs)
+	if err != nil {
+		return nil, err
+	}
+	serviceIDsByApp := make(map[string][]string, len(apps))
+	allServiceIDs := make([]string, 0, len(services))
+	requestedServiceIDs := make(map[string]struct{}, len(services))
+	for _, service := range services {
+		if service == nil {
+			continue
+		}
+		serviceIDsByApp[service.AppID] = append(serviceIDsByApp[service.AppID], service.ServiceID)
+		if _, exists := requestedServiceIDs[service.ServiceID]; !exists {
+			requestedServiceIDs[service.ServiceID] = struct{}{}
+			allServiceIDs = append(allServiceIDs, service.ServiceID)
+		}
+	}
+	componentStatuses := make(map[string]string, len(allServiceIDs))
+	if len(allServiceIDs) > 0 {
+		componentStatuses = r.store.GetAppServiceStatuses(allServiceIDs)
+	}
+
+	listers := r.store.Lister()
+	if listers == nil || listers.Pod == nil {
+		return nil, fmt.Errorf("pod informer lister is unavailable")
+	}
+	pods, err := listers.Pod.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	resourcesByAppID, resourcesByServiceID := indexPodResourceUsage(pods, requestedAppIDs, requestedServiceIDs)
+
+	for _, app := range apps {
+		serviceIDs := serviceIDsByApp[app.AppID]
+		appComponentStatuses := make(map[string]string, len(serviceIDs))
+		for _, serviceID := range serviceIDs {
+			if status, ok := componentStatuses[serviceID]; ok {
+				appComponentStatuses[serviceID] = status
+			}
+		}
+
+		usage, hasAppIDPods := resourcesByAppID[app.AppID]
+		if !hasAppIDPods || usage.podCount == 0 {
+			usage = appResourceUsage{}
+			seenServiceIDs := make(map[string]struct{}, len(serviceIDs))
+			for _, serviceID := range serviceIDs {
+				if serviceID == "" {
+					continue
+				}
+				if _, seen := seenServiceIDs[serviceID]; seen {
+					continue
+				}
+				seenServiceIDs[serviceID] = struct{}{}
+				serviceUsage := resourcesByServiceID[serviceID]
+				usage.cpu += serviceUsage.cpu
+				usage.memory += serviceUsage.memory
+				usage.podCount += serviceUsage.podCount
+			}
+		}
+
+		result[app.AppID] = &pb.AppStatus{
+			Status:    store.AggregateAppStatus(appComponentStatuses).String(),
+			SetCPU:    true,
+			Cpu:       usage.cpu,
+			SetMemory: true,
+			Memory:    usage.memory,
+			AppId:     app.AppID,
+			AppName:   app.AppName,
+		}
+	}
+	return result, nil
+}
+
+func indexPodResourceUsage(pods []*corev1.Pod, requestedAppIDs, requestedServiceIDs map[string]struct{}) (map[string]appResourceUsage, map[string]appResourceUsage) {
+	resourcesByAppID := make(map[string]appResourceUsage)
+	resourcesByServiceID := make(map[string]appResourceUsage)
+	for _, pod := range pods {
+		if pod == nil {
+			continue
+		}
+		usage := appResourceUsage{podCount: 1}
+		for _, container := range pod.Spec.Containers {
+			usage.cpu += container.Resources.Limits.Cpu().MilliValue()
+			usage.memory += container.Resources.Limits.Memory().Value() / 1024 / 1024
+		}
+		if appID := pod.Labels["app_id"]; appID != "" {
+			if _, requested := requestedAppIDs[appID]; requested {
+				resourcesByAppID[appID] = addAppResourceUsage(resourcesByAppID[appID], usage)
+			}
+		}
+		if serviceID := pod.Labels["service_id"]; serviceID != "" {
+			if _, requested := requestedServiceIDs[serviceID]; requested {
+				resourcesByServiceID[serviceID] = addAppResourceUsage(resourcesByServiceID[serviceID], usage)
+			}
+		}
+	}
+	return resourcesByAppID, resourcesByServiceID
+}
+
+func addAppResourceUsage(current, delta appResourceUsage) appResourceUsage {
+	current.cpu += delta.cpu
+	current.memory += delta.memory
+	current.podCount += delta.podCount
+	return current
 }

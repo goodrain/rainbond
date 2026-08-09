@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/goodrain/rainbond/api/model"
 
@@ -70,23 +71,25 @@ type NodesHandler interface {
 // NewNodesHandler -
 func NewNodesHandler() NodesHandler {
 	return &nodesHandle{
-		namespace:     configs.Default().PublicConfig.RbdNamespace,
-		clientset:     k8s.Default().Clientset,
-		config:        k8s.Default().RestConfig,
-		mapper:        k8s.Default().Mapper,
-		prometheusCli: prom.Default().PrometheusCli,
+		namespace:                  configs.Default().PublicConfig.RbdNamespace,
+		clientset:                  k8s.Default().Clientset,
+		config:                     k8s.Default().RestConfig,
+		mapper:                     k8s.Default().Mapper,
+		prometheusCli:              prom.Default().PrometheusCli,
+		nodeFilesystemStatsTimeout: defaultNodeFilesystemStatsTimeout,
 	}
 }
 
 type nodesHandle struct {
-	namespace        string
-	clientset        *kubernetes.Clientset
-	clusterInfoCache *model.ClusterResource
-	cacheTime        time.Time
-	config           *rest.Config
-	mapper           meta.RESTMapper
-	client           client.Client
-	prometheusCli    prometheus.Interface
+	namespace                  string
+	clientset                  *kubernetes.Clientset
+	clusterInfoCache           *model.ClusterResource
+	cacheTime                  time.Time
+	config                     *rest.Config
+	mapper                     meta.RESTMapper
+	client                     client.Client
+	prometheusCli              prometheus.Interface
+	nodeFilesystemStatsTimeout time.Duration
 }
 
 // ListNodes -
@@ -97,16 +100,15 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 		return nil, err
 	}
 	for _, node := range nodeList.Items {
-		nodeInfo, err := n.HandleNodeInfo(node)
+		nodeInfo, err := n.handleNodeInfo(node, false)
 		if err != nil {
 			logrus.Error("get node info handle error:", err)
 			return res, err
 		}
-		if err := n.setNodeFilesystemStats(ctx, node.Name, &nodeInfo.Resource); err != nil {
-			logrus.Warnf("get kubelet filesystem stats for node %s: %v", node.Name, err)
-		}
 		res = append(res, nodeInfo)
 	}
+	n.setNodesFilesystemStats(ctx, res)
+	n.setNodesRequestedResources(res)
 	return res, nil
 }
 
@@ -160,6 +162,10 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 
 // HandleNode -
 func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err error) {
+	return n.handleNodeInfo(node, true)
+}
+
+func (n *nodesHandle) handleNodeInfo(node v1.Node, includeRequestedResources bool) (nodeinfo model.NodeInfo, err error) {
 	var condition model.NodeCondition
 	for _, addr := range node.Status.Addresses {
 		switch addr.Type {
@@ -193,21 +199,8 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 		}
 	}
 	sort.Strings(roles)
-	// req resource from Prometheus
-	var query string
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{node_name="%v"}) by (instance)`, node.Name)
-	podMemoryMetric := n.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_cpu{node_name="%v"}) by (instance)`, node.Name)
-	podCPUMetric := n.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_ephemeral_storage{node_name="%v"}) by (instance)`, node.Name)
-	podEphemeralStorageMetric := n.prometheusCli.GetMetric(query, time.Now())
-
-	for i, memory := range podMemoryMetric.MetricData.MetricValues {
-		nodeinfo.Resource.ReqMemory = int(memory.Sample.Value()) / 1024 / 1024
-		nodeinfo.Resource.ReqCPU = float32(podCPUMetric.MetricData.MetricValues[i].Sample.Value()) / 1000
-		nodeinfo.Resource.ReqStorageEq = float32(podEphemeralStorageMetric.MetricData.MetricValues[i].Sample.Value()) / 1024 / 1024
+	if includeRequestedResources {
+		n.setNodeRequestedResources(node.Name, &nodeinfo.Resource)
 	}
 	// cap resource
 	nodeinfo.Resource.CapMemory = int(node.Status.Capacity.Memory().Value()) / 1024 / 1024
@@ -225,6 +218,133 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 	nodeinfo.Roles = roles
 
 	return nodeinfo, nil
+}
+
+func (n *nodesHandle) setNodeRequestedResources(nodeName string, resource *model.Resource) {
+	queries := []prometheusQuery[func(float64)]{
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{node_name="%v"}) by (instance)`, nodeName),
+			apply: func(value float64) {
+				resource.ReqMemory = int(value) / 1024 / 1024
+			},
+		},
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_cpu{node_name="%v"}) by (instance)`, nodeName),
+			apply: func(value float64) {
+				resource.ReqCPU = float32(value) / 1000
+			},
+		},
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_ephemeral_storage{node_name="%v"}) by (instance)`, nodeName),
+			apply: func(value float64) {
+				resource.ReqStorageEq = float32(value) / 1024 / 1024
+			},
+		},
+	}
+	metrics := n.queryMetrics(queriesToExpressions(queries))
+	for i, query := range queries {
+		metric := metrics[i]
+		for _, value := range metric.MetricData.MetricValues {
+			if value.Sample != nil {
+				query.apply(value.Sample.Value())
+				break
+			}
+		}
+	}
+}
+
+func (n *nodesHandle) setNodesFilesystemStats(ctx context.Context, nodes []model.NodeInfo) {
+	const maxWorkers = 8
+	workerCount := maxWorkers
+	if len(nodes) < workerCount {
+		workerCount = len(nodes)
+	}
+	if workerCount == 0 {
+		return
+	}
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				if err := n.setNodeFilesystemStats(ctx, nodes[index].Name, &nodes[index].Resource); err != nil {
+					logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodes[index].Name, err)
+				}
+			}
+		}()
+	}
+	for i := range nodes {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+}
+
+func (n *nodesHandle) setNodesRequestedResources(nodes []model.NodeInfo) {
+	nodeIndexes := make(map[string]int, len(nodes))
+	for i := range nodes {
+		nodeIndexes[nodes[i].Name] = i
+	}
+	queries := []prometheusQuery[func(*model.Resource, float64)]{
+		{
+			expr: `sum(rbd_api_exporter_cluster_pod_memory) by (node_name, instance)`,
+			apply: func(resource *model.Resource, value float64) {
+				resource.ReqMemory = int(value) / 1024 / 1024
+			},
+		},
+		{
+			expr: `sum(rbd_api_exporter_cluster_pod_cpu) by (node_name, instance)`,
+			apply: func(resource *model.Resource, value float64) {
+				resource.ReqCPU = float32(value) / 1000
+			},
+		},
+		{
+			expr: `sum(rbd_api_exporter_cluster_pod_ephemeral_storage) by (node_name, instance)`,
+			apply: func(resource *model.Resource, value float64) {
+				resource.ReqStorageEq = float32(value) / 1024 / 1024
+			},
+		},
+	}
+	metrics := n.queryMetrics(queriesToExpressions(queries))
+	for i, query := range queries {
+		metric := metrics[i]
+		for _, value := range metric.MetricData.MetricValues {
+			index, ok := nodeIndexes[value.Metadata["node_name"]]
+			if !ok || value.Sample == nil {
+				continue
+			}
+			query.apply(&nodes[index].Resource, value.Sample.Value())
+		}
+	}
+}
+
+type prometheusQuery[T any] struct {
+	expr  string
+	apply T
+}
+
+func queriesToExpressions[T any](queries []prometheusQuery[T]) []string {
+	expressions := make([]string, len(queries))
+	for i := range queries {
+		expressions[i] = queries[i].expr
+	}
+	return expressions
+}
+
+func (n *nodesHandle) queryMetrics(expressions []string) []prometheus.Metric {
+	metrics := make([]prometheus.Metric, len(expressions))
+	var wg sync.WaitGroup
+	for i := range expressions {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			metrics[index] = n.prometheusCli.GetMetric(expressions[index], time.Now())
+		}(i)
+	}
+	wg.Wait()
+	return metrics
 }
 
 // NodeAction -

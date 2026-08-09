@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"os"
+	"regexp"
 	"sigs.k8s.io/yaml"
 	"sort"
 	"strconv"
@@ -810,30 +811,69 @@ func (a *ApplicationAction) convertPods(pods []*pb.AppService_Pod) []*model.AppP
 	return res
 }
 
-func (a *ApplicationAction) getDiskUsage() map[string]float64 {
+func (a *ApplicationAction) getDiskUsage(appIDs []string) map[string]float64 {
 	appDisk := make(map[string]float64)
-	query := fmt.Sprintf(`app_resource_appfs`)
+	if len(appIDs) == 0 {
+		return appDisk
+	}
+
+	uniqueIDs := make(map[string]struct{}, len(appIDs))
+	for _, appID := range appIDs {
+		if appID != "" {
+			uniqueIDs[appID] = struct{}{}
+		}
+	}
+	if len(uniqueIDs) == 0 {
+		return appDisk
+	}
+
+	matchers := make([]string, 0, len(uniqueIDs))
+	for appID := range uniqueIDs {
+		matchers = append(matchers, regexp.QuoteMeta(appID))
+	}
+	sort.Strings(matchers)
+	query := fmt.Sprintf(`app_resource_appfs{app_id=~"^(%s)$"}`, strings.Join(matchers, "|"))
 	metric := a.promClient.GetMetric(query, time.Now())
 	for _, m := range metric.MetricData.MetricValues {
 		appID := m.Metadata["app_id"]
-		appDisk[appID] = m.Sample.Value()
+		if m.Sample != nil {
+			appDisk[appID] = m.Sample.Value()
+		}
 	}
 	return appDisk
 }
 
 // BatchBindService -
 func (a *ApplicationAction) BatchBindService(appID string, req model.BindServiceRequest) error {
-	var serviceIDs []string
-	for _, sid := range req.ServiceIDs {
-		if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
-			if err == gorm.ErrRecordNotFound {
-				continue
-			}
-			return err
-		}
-		serviceIDs = append(serviceIDs, sid)
+	return batchBindService(db.GetManager().TenantServiceDao(), appID, req)
+}
+
+type applicationBindServiceDAO interface {
+	GetServicesByServiceIDs(serviceIDs []string) ([]*dbmodel.TenantServices, error)
+	BindAppByServiceIDs(appID string, serviceIDs []string) error
+}
+
+func batchBindService(tenantServiceDao applicationBindServiceDAO, appID string, req model.BindServiceRequest) error {
+	if len(req.ServiceIDs) == 0 {
+		return tenantServiceDao.BindAppByServiceIDs(appID, nil)
 	}
-	return db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, serviceIDs)
+	services, err := tenantServiceDao.GetServicesByServiceIDs(req.ServiceIDs)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	existingServiceIDs := make(map[string]struct{}, len(services))
+	for _, service := range services {
+		if service != nil {
+			existingServiceIDs[service.ServiceID] = struct{}{}
+		}
+	}
+	serviceIDs := make([]string, 0, len(req.ServiceIDs))
+	for _, serviceID := range req.ServiceIDs {
+		if _, exists := existingServiceIDs[serviceID]; exists {
+			serviceIDs = append(serviceIDs, serviceID)
+		}
+	}
+	return tenantServiceDao.BindAppByServiceIDs(appID, serviceIDs)
 }
 
 // ListHelmAppReleases returns the list of the helm app.
@@ -1011,7 +1051,7 @@ func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string
 	if err != nil {
 		return nil, err
 	}
-	appsDiskUsage := a.getDiskUsage()
+	appsDiskUsage := a.getDiskUsage(appIDs)
 	for _, appStatus := range appStatuses.AppStatuses {
 		diskUsage := appsDiskUsage[appStatus.AppId]
 		var cpu *int64

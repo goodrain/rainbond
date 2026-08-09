@@ -26,6 +26,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1790,8 +1792,26 @@ func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface)
 	}
 
 	result := make(map[string]float64)
+	uniqueIDs := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if id != "" {
+			uniqueIDs[id] = struct{}{}
+		}
+	}
+	if len(uniqueIDs) == 0 {
+		return result
+	}
+	rawIDs := make([]string, 0, len(uniqueIDs))
+	for id := range uniqueIDs {
+		rawIDs = append(rawIDs, id)
+	}
+	sort.Strings(rawIDs)
+	matchers := make([]string, 0, len(rawIDs))
+	for _, id := range rawIDs {
+		matchers = append(matchers, regexp.QuoteMeta(id))
+	}
 	//query disk used in prometheus
-	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
+	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"^(%s)$"}) by(service_id)`, strings.Join(matchers, "|"))
 	metric := prometheusCli.GetMetric(query, time.Now())
 	for _, re := range metric.MetricData.MetricValues {
 		var serviceID = re.Metadata["service_id"]
@@ -3016,7 +3036,6 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	}
 	convpod := func(pods []*pb.ServiceAppPod) []*K8sPodInfo {
 		var podsInfoList []*K8sPodInfo
-		var podNames []string
 		for _, v := range pods {
 			var podInfo K8sPodInfo
 			podInfo.PodName = v.PodName
@@ -3031,21 +3050,17 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 				}
 			}
 			podInfo.Container = containerInfos
-			podNames = append(podNames, v.PodName)
 			podsInfoList = append(podsInfoList, &podInfo)
-		}
-		containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-		for _, c := range podsInfoList {
-			for k := range c.Container {
-				if info, exist := containerMemInfo[c.PodName][k]; exist {
-					c.Container[k]["memory_usage"] = info
-				}
-			}
 		}
 		return podsInfoList
 	}
 	newpods := convpod(pods.NewPods)
 	oldpods := convpod(pods.OldPods)
+	namespace := ""
+	if svc != nil {
+		namespace = svc.Namespace
+	}
+	s.populatePodContainerMemory(namespace, append(newpods, oldpods...))
 	if svc != nil && svc.IsVM() {
 		excluded := s.cleanupCompletedVMLauncherPods(serviceID)
 		newpods = filterK8sPodInfos(newpods, excluded)
@@ -3106,9 +3121,34 @@ func (s *ServiceAction) GetComponentPodNums(ctx context.Context, componentIDs []
 
 // GetPodContainerMemory Use Prometheus to query memory resources
 func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map[string]string, error) {
+	return s.getPodContainerMemory("", podNames)
+}
+
+func (s *ServiceAction) getPodContainerMemory(namespace string, podNames []string) (map[string]map[string]string, error) {
 	memoryUsageMap := make(map[string]map[string]string, 10)
-	queryName := strings.Join(podNames, "|")
-	query := fmt.Sprintf(`container_memory_rss{pod=~"%s"}`, queryName)
+	uniquePodNames := make(map[string]struct{}, len(podNames))
+	for _, podName := range podNames {
+		if podName != "" {
+			uniquePodNames[podName] = struct{}{}
+		}
+	}
+	if len(uniquePodNames) == 0 {
+		return memoryUsageMap, nil
+	}
+	rawPodNames := make([]string, 0, len(uniquePodNames))
+	for podName := range uniquePodNames {
+		rawPodNames = append(rawPodNames, podName)
+	}
+	sort.Strings(rawPodNames)
+	matchers := make([]string, 0, len(rawPodNames))
+	for _, podName := range rawPodNames {
+		matchers = append(matchers, regexp.QuoteMeta(podName))
+	}
+	labels := []string{fmt.Sprintf(`pod=~"^(%s)$"`, strings.Join(matchers, "|"))}
+	if namespace != "" {
+		labels = append([]string{fmt.Sprintf(`namespace=%q`, namespace)}, labels...)
+	}
+	query := fmt.Sprintf(`container_memory_rss{%s}`, strings.Join(labels, ","))
 	metric := s.prometheusCli.GetMetric(query, time.Now())
 
 	for _, re := range metric.MetricData.MetricValues {
@@ -3127,6 +3167,26 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 		}
 	}
 	return memoryUsageMap, nil
+}
+
+func (s *ServiceAction) populatePodContainerMemory(namespace string, pods []*K8sPodInfo) {
+	podNames := make([]string, 0, len(pods))
+	for _, pod := range pods {
+		if pod != nil {
+			podNames = append(podNames, pod.PodName)
+		}
+	}
+	containerMemInfo, _ := s.getPodContainerMemory(namespace, podNames)
+	for _, pod := range pods {
+		if pod == nil {
+			continue
+		}
+		for containerName := range pod.Container {
+			if info, exists := containerMemInfo[pod.PodName][containerName]; exists {
+				pod.Container[containerName]["memory_usage"] = info
+			}
+		}
+	}
 }
 
 // TransServieToDelete trans service info to delete table

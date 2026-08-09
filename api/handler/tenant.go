@@ -27,10 +27,10 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/fields"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
@@ -63,6 +63,7 @@ type TenantAction struct {
 	kubeClient                *kubernetes.Clientset
 	cacheClusterResourceStats *ClusterResourceStats
 	cacheTime                 time.Time
+	cacheMu                   sync.Mutex
 	prometheusCli             prometheus.Interface
 	k8sClient                 k8sclient.Client
 	resources                 map[string]k8sclient.Object
@@ -84,27 +85,105 @@ func CreateTenManager() *TenantAction {
 	}
 }
 
+const (
+	maxTenantResourceWorkers           = 8
+	maxIndividualTenantResourceQueries = 64
+)
+
+type tenantResourceFetcher func(string) (*pb.TenantResource, error)
+
+func fetchTenantResources(tenantIDs []string, fetch tenantResourceFetcher) map[string]*pb.TenantResource {
+	uniqueIDs := uniqueTenantIDs(tenantIDs)
+	resources := make(map[string]*pb.TenantResource, len(uniqueIDs))
+	if len(uniqueIDs) == 0 {
+		return resources
+	}
+
+	workerCount := maxTenantResourceWorkers
+	if len(uniqueIDs) < workerCount {
+		workerCount = len(uniqueIDs)
+	}
+	jobs := make(chan string)
+	var resultMu sync.Mutex
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for tenantID := range jobs {
+				resource, err := fetch(tenantID)
+				if err != nil {
+					logrus.Errorf("get tenant %s resource failure %s", tenantID, err.Error())
+					continue
+				}
+				if resource != nil {
+					resultMu.Lock()
+					resources[tenantID] = resource
+					resultMu.Unlock()
+				}
+			}
+		}()
+	}
+	for _, tenantID := range uniqueIDs {
+		jobs <- tenantID
+	}
+	close(jobs)
+	wg.Wait()
+	return resources
+}
+
+func uniqueTenantIDs(tenantIDs []string) []string {
+	uniqueIDs := make([]string, 0, len(tenantIDs))
+	seen := make(map[string]struct{}, len(tenantIDs))
+	for _, tenantID := range tenantIDs {
+		if tenantID == "" {
+			continue
+		}
+		if _, ok := seen[tenantID]; ok {
+			continue
+		}
+		seen[tenantID] = struct{}{}
+		uniqueIDs = append(uniqueIDs, tenantID)
+	}
+	return uniqueIDs
+}
+
+func (t *TenantAction) getRequestedTenantResources(tenantIDs []string) map[string]*pb.TenantResource {
+	uniqueIDs := uniqueTenantIDs(tenantIDs)
+	if len(uniqueIDs) <= maxIndividualTenantResourceQueries {
+		return fetchTenantResources(uniqueIDs, t.statusCli.GetTenantResource)
+	}
+	requested := make(map[string]struct{}, len(uniqueIDs))
+	for _, tenantID := range uniqueIDs {
+		requested[tenantID] = struct{}{}
+	}
+	resources := make(map[string]*pb.TenantResource, len(uniqueIDs))
+	allResources, err := t.statusCli.GetAllTenantResource()
+	if err != nil {
+		logrus.Errorf("get all tenant resource failure %s", err.Error())
+		return resources
+	}
+	if allResources == nil {
+		return resources
+	}
+	for tenantID, resource := range allResources.Resources {
+		if _, ok := requested[tenantID]; ok {
+			resources[tenantID] = resource
+		}
+	}
+	return resources
+}
+
 // BindTenantsResource query tenant resource used and sort
 func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) apimodel.TenantList {
 	var list apimodel.TenantList
-	var resources = make(map[string]*pb.TenantResource, len(source))
-	if len(source) == 1 {
-		re, err := t.statusCli.GetTenantResource(source[0].UUID)
-		if err != nil {
-			logrus.Errorf("get tenant %s resource failure %s", source[0].UUID, err.Error())
-		}
-		if re != nil {
-			resources[source[0].UUID] = re
-		}
-	} else {
-		res, err := t.statusCli.GetAllTenantResource()
-		if err != nil {
-			logrus.Errorf("get all tenant resource failure %s", err.Error())
-		}
-		if res != nil {
-			resources = res.Resources
+	tenantIDs := make([]string, 0, len(source))
+	for _, tenant := range source {
+		if tenant != nil {
+			tenantIDs = append(tenantIDs, tenant.UUID)
 		}
 	}
+	resources := t.getRequestedTenantResources(tenantIDs)
 	for i, ten := range source {
 		var item = &apimodel.TenantAndResource{
 			Tenants: *source[i],
@@ -320,24 +399,7 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
-	var resources = make(map[string]*pb.TenantResource, len(ids))
-	if len(ids) == 1 {
-		re, err := t.statusCli.GetTenantResource(ids[0])
-		if err != nil {
-			logrus.Errorf("get tenant %s resource failure %s", ids[0], err.Error())
-		}
-		if re != nil {
-			resources[ids[0]] = re
-		}
-	} else {
-		res, err := t.statusCli.GetAllTenantResource()
-		if err != nil {
-			logrus.Errorf("get all tenant resource failure %s", err.Error())
-		}
-		if res != nil {
-			resources = res.Resources
-		}
-	}
+	resources := t.getRequestedTenantResources(ids)
 	for _, tenantID := range ids {
 		var limitMemory, limitCPU, limitStorage int64
 		if l, ok := limits[tenantID]; ok && l != nil {
@@ -420,6 +482,9 @@ func (t *TenantAction) GetTenantResource(tenantID string) (ts TenantResourceStat
 // PodResourceInformation -
 type PodResourceInformation struct {
 	NodeName         string
+	Namespace        string
+	PodName          string
+	PodUID           string
 	ServiceID        string
 	AppID            string
 	Memory           int64
@@ -449,7 +514,32 @@ type ClusterResourceStats struct {
 	AllPods       int64
 }
 
+func podResourceInformationFromPod(pod *v1.Pod) PodResourceInformation {
+	info := PodResourceInformation{
+		NodeName:        pod.Spec.NodeName,
+		Namespace:       pod.Namespace,
+		PodName:         pod.Name,
+		PodUID:          string(pod.UID),
+		ResourceVersion: pod.ResourceVersion,
+	}
+	if componentID, ok := pod.Labels["service_id"]; ok {
+		info.ServiceID = componentID
+	}
+	if appID, ok := pod.Labels["app_id"]; ok {
+		info.AppID = appID
+	}
+	for _, container := range pod.Spec.Containers {
+		info.Memory += container.Resources.Requests.Memory().Value()
+		info.CPU += container.Resources.Requests.Cpu().MilliValue()
+		info.StorageEphemeral += container.Resources.Requests.StorageEphemeral().Value()
+	}
+	return info
+}
+
 func (t *TenantAction) initClusterResource(ctx context.Context) error {
+	t.cacheMu.Lock()
+	defer t.cacheMu.Unlock()
+
 	if t.cacheClusterResourceStats == nil || t.cacheTime.Add(time.Minute*3).Before(time.Now()) {
 		var crs ClusterResourceStats
 		nodes, err := t.kubeClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -457,14 +547,14 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 			logrus.Errorf("get cluster nodes failure %s", err.Error())
 			return err
 		}
-		usedNodeList := make([]v1.Node, len(nodes.Items))
-		for i, node := range nodes.Items {
+		usedNodeNames := make(map[string]struct{}, len(nodes.Items))
+		for _, node := range nodes.Items {
 			// check if node contains taints
 			if containsTaints(&node) {
 				logrus.Debugf("[GetClusterInfo] node(%s) contains NoSchedule taints", node.GetName())
 				continue
 			}
-			usedNodeList[i] = node
+			usedNodeNames[node.Name] = struct{}{}
 			for _, c := range node.Status.Conditions {
 				if c.Type == v1.NodeReady && c.Status != v1.ConditionTrue {
 					continue
@@ -474,36 +564,19 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 			crs.AllCPU += node.Status.Allocatable.Cpu().MilliValue()
 		}
 		var nodePodsList []PodResourceInformation
-		for i := range usedNodeList {
-			node := usedNodeList[i]
-			time.Sleep(50 * time.Microsecond)
-			labelSelector := "creator=Rainbond"
-			podList, err := t.kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-				FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}).String(),
-				LabelSelector: labelSelector,
-			})
-			if err != nil {
-				logrus.Errorf("get node %v pods error:%v", node.Name, err)
+		podList, err := t.kubeClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+			LabelSelector: "creator=Rainbond",
+		})
+		if err != nil {
+			logrus.Errorf("get cluster pods error: %v", err)
+			return err
+		}
+		for _, pod := range podList.Items {
+			if _, ok := usedNodeNames[pod.Spec.NodeName]; !ok {
 				continue
 			}
-			crs.AllPods += int64(len(podList.Items))
-			for _, pod := range podList.Items {
-				var nodePod PodResourceInformation
-				nodePod.NodeName = node.Name
-				if componentID, ok := pod.Labels["service_id"]; ok {
-					nodePod.ServiceID = componentID
-				}
-				if appID, ok := pod.Labels["app_id"]; ok {
-					nodePod.AppID = appID
-				}
-				nodePod.ResourceVersion = pod.ResourceVersion
-				for _, c := range pod.Spec.Containers {
-					nodePod.Memory += c.Resources.Requests.Memory().Value()
-					nodePod.CPU += c.Resources.Requests.Cpu().MilliValue()
-					nodePod.StorageEphemeral += c.Resources.Requests.StorageEphemeral().Value()
-				}
-				nodePodsList = append(nodePodsList, nodePod)
-			}
+			crs.AllPods++
+			nodePodsList = append(nodePodsList, podResourceInformationFromPod(&pod))
 		}
 		crs.NodePods = nodePodsList
 		t.cacheClusterResourceStats = &crs
@@ -518,20 +591,7 @@ func (t *TenantAction) GetAllocatableResources(ctx context.Context) (*ClusterRes
 	if t.initClusterResource(ctx) != nil {
 		return &crs, nil
 	}
-	ts, err := t.statusCli.GetAllTenantResource()
-	if err != nil {
-		logrus.Errorf("get tenant resource failure %s", err.Error())
-	}
-	re := t.cacheClusterResourceStats
-	if ts != nil {
-		crs.RequestCPU = 0
-		crs.RequestMemory = 0
-		for _, re := range ts.Resources {
-			crs.RequestCPU += re.CpuRequest
-			crs.RequestMemory += re.MemoryRequest
-		}
-	}
-	return re, nil
+	return t.cacheClusterResourceStats, nil
 }
 
 // GetServicesResources Gets the resource usage of the specified service.
