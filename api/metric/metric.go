@@ -74,19 +74,19 @@ func NewExporter() *Exporter {
 			Subsystem: exporter,
 			Name:      "cluster_pod_memory",
 			Help:      "rainbond cluster pod memory",
-		}, []string{"node_name", "app_id", "service_id", "resource_version"}),
+		}, []string{"node_name", "app_id", "service_id", "pod_uid"}),
 		clusterPodCPU: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "cluster_pod_cpu",
 			Help:      "rainbond cluster pod CPU",
-		}, []string{"node_name", "app_id", "service_id", "resource_version"}),
+		}, []string{"node_name", "app_id", "service_id", "pod_uid"}),
 		clusterPodStorageEphemeral: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "cluster_pod_ephemeral_storage",
 			Help:      "rainbond cluster pod StorageEphemeral",
-		}, []string{"node_name", "app_id", "service_id", "resource_version"}),
+		}, []string{"node_name", "app_id", "service_id", "pod_uid"}),
 	}
 }
 
@@ -105,6 +105,21 @@ type Exporter struct {
 // RequestInc request inc
 func (e *Exporter) RequestInc(code int, path string) {
 	e.apiRequest.WithLabelValues(fmt.Sprintf("%d", code), path).Inc()
+}
+
+func (e *Exporter) setClusterPodMetrics(pods []handler.PodResourceInformation) {
+	e.clusterPodMemory.Reset()
+	e.clusterPodCPU.Reset()
+	e.clusterPodStorageEphemeral.Reset()
+	for _, pod := range pods {
+		podUID := pod.PodUID
+		if podUID == "" {
+			podUID = "namespace_name:" + pod.Namespace + "/" + pod.PodName
+		}
+		e.clusterPodMemory.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, podUID).Set(float64(pod.Memory))
+		e.clusterPodCPU.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, podUID).Set(float64(pod.CPU))
+		e.clusterPodStorageEphemeral.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, podUID).Set(float64(pod.StorageEphemeral))
+	}
 }
 
 // Describe implements prometheus.Collector.
@@ -141,14 +156,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		e.clusterMemoryTotal.Set(float64(resource.AllMemory))
 		e.clusterCPUTotal.Set(float64(resource.AllCPU))
 		e.clusterPodsNumber.Set(float64(resource.AllPods))
-		e.clusterPodMemory.Reset()
-		e.clusterPodCPU.Reset()
-		e.clusterPodStorageEphemeral.Reset()
-		for _, pod := range resource.NodePods {
-			e.clusterPodMemory.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.Memory))
-			e.clusterPodCPU.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.CPU))
-			e.clusterPodStorageEphemeral.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.StorageEphemeral))
-		}
+		e.setClusterPodMetrics(resource.NodePods)
 	}
 	e.tenantLimit.Collect(ch)
 	e.clusterMemoryTotal.Collect(ch)

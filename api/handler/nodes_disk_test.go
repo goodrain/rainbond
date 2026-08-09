@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,6 +92,72 @@ func TestListNodesIncludesKubeletFilesystemStats(t *testing.T) {
 	assert.Equal(t, uint64(750), nodes[0].Resource.ReqDisk)
 	assert.Equal(t, uint64(2000), nodes[0].Resource.CapContainerDisk)
 	assert.Equal(t, uint64(1600), nodes[0].Resource.ReqContainerDisk)
+}
+
+func TestListNodesDegradesFilesystemStatsAfterTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/nodes":
+			_, err := w.Write([]byte(`{
+				"apiVersion": "v1",
+				"kind": "NodeList",
+				"items": [{
+					"metadata": {"name": "worker-1"},
+					"status": {
+						"capacity": {"cpu": "4", "memory": "8Gi", "ephemeral-storage": "100Gi"},
+						"nodeInfo": {"architecture": "amd64", "operatingSystem": "linux"}
+					}
+				}]
+			}`))
+			require.NoError(t, err)
+		case "/api/v1/nodes/worker-1/proxy/stats/summary":
+			<-r.Context().Done()
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	clientset, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+
+	handler := &nodesHandle{
+		clientset:                  clientset,
+		prometheusCli:              noopPrometheus{},
+		nodeFilesystemStatsTimeout: 20 * time.Millisecond,
+	}
+	startedAt := time.Now()
+	nodes, err := handler.ListNodes(context.Background())
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	assert.Less(t, time.Since(startedAt), 500*time.Millisecond)
+	assert.Zero(t, nodes[0].Resource.CapDisk)
+	assert.Zero(t, nodes[0].Resource.ReqDisk)
+	assert.Zero(t, nodes[0].Resource.CapContainerDisk)
+	assert.Zero(t, nodes[0].Resource.ReqContainerDisk)
+}
+
+func TestGetNodeFilesystemStatsRespectsShorterCallerDeadline(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	clientset, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+
+	handler := &nodesHandle{
+		clientset:                  clientset,
+		nodeFilesystemStatsTimeout: time.Second,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	startedAt := time.Now()
+	_, err = handler.getNodeFilesystemStats(ctx, "worker-1")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(startedAt), 500*time.Millisecond)
 }
 
 func TestParseNodeFilesystemStatsUsesKubeletReportedFilesystems(t *testing.T) {

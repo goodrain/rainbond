@@ -1460,17 +1460,12 @@ func (a *appRuntimeStore) HandleOperatorManagedService(app *v1.OperatorManaged) 
 	var serviceList []*pb.ManagedService
 	for _, svc := range svcs {
 		var ports []string
-		labelMap := svc.Spec.Selector
-		var labelSelector []string
-		for labelKey, labelValue := range labelMap {
-			labelSelector = append(labelSelector, labelKey+"="+labelValue)
-		}
 		var relation []string
-		pods, err := a.k8sClient.Clientset.CoreV1().Pods(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
+		pods, err := a.ListPods(svc.GetNamespace(), labels.SelectorFromSet(svc.Spec.Selector))
 		if err != nil {
 			logrus.Errorf("Failed to find pod according to the selector of the service created by the operator: %v", err)
-		} else if len(pods.Items) != 0 {
-			if or := pods.Items[0].OwnerReferences; or != nil {
+		} else if len(pods) != 0 {
+			if or := pods[0].OwnerReferences; or != nil {
 				if or[0].Kind == model2.Deployment {
 					name := strings.Split(or[0].Name, "-")
 					relation = append(relation, strings.Join(name[:len(name)-1], "-"))
@@ -1497,12 +1492,13 @@ func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManage
 	deploys := app.GetDeployment()
 	var deployList []*pb.ManagedDeployment
 	if deploys != nil && len(deploys) > 0 {
-		operatorPods, err := a.k8sClient.Clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
+		operatorPods, err := a.ListPods(deploys[0].GetNamespace(), labels.Everything())
 		if err != nil {
 			logrus.Errorf("get pod by label appid failure: %v", err)
 		} else {
+			podValues := podPointersToValues(operatorPods)
 			for _, deploy := range deploys {
-				podList, images := ExtractPodData(operatorPods.Items, deploy.GetName())
+				podList, images := ExtractPodData(podValues, deploy.GetName())
 				deployList = append(deployList, &pb.ManagedDeployment{
 					Name:          deploy.GetName(),
 					Image:         images,
@@ -1520,12 +1516,13 @@ func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManag
 	statefulSets := app.GetStatefulSet()
 	var stsList []*pb.ManagedStatefulSet
 	if statefulSets != nil && len(statefulSets) > 0 {
-		operatorPods, err := a.k8sClient.Clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
+		operatorPods, err := a.ListPods(statefulSets[0].GetNamespace(), labels.Everything())
 		if err != nil {
 			logrus.Errorf("sts get pod by label appid failure: %v", err)
 		} else {
+			podValues := podPointersToValues(operatorPods)
 			for _, sts := range statefulSets {
-				podList, images := ExtractPodData(operatorPods.Items, sts.GetName())
+				podList, images := ExtractPodData(podValues, sts.GetName())
 				stsList = append(stsList, &pb.ManagedStatefulSet{
 					Name:          sts.GetName(),
 					Image:         images,
@@ -1537,6 +1534,16 @@ func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManag
 		}
 	}
 	return stsList
+}
+
+func podPointersToValues(pods []*corev1.Pod) []corev1.Pod {
+	result := make([]corev1.Pod, 0, len(pods))
+	for _, pod := range pods {
+		if pod != nil {
+			result = append(result, *pod)
+		}
+	}
+	return result
 }
 
 // ExtractPodData processing pod data
@@ -1607,6 +1614,11 @@ func getAppStatus(componentStatuses map[string]string) pb.AppStatus_Status {
 	}
 
 	return appStatus
+}
+
+// AggregateAppStatus aggregates component statuses using the same rules as GetAppStatus.
+func AggregateAppStatus(componentStatuses map[string]string) pb.AppStatus_Status {
+	return getAppStatus(componentStatuses)
 }
 
 func appNil(statuses []string) bool {

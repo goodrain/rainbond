@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
@@ -132,6 +133,7 @@ type clusterAction struct {
 	clientset        *kubernetes.Clientset
 	clusterInfoCache *model.ClusterResource
 	cacheTime        time.Time
+	cacheMu          sync.Mutex
 	config           *rest.Config
 	mapper           meta.RESTMapper
 	grctlImage       string
@@ -144,10 +146,13 @@ type clusterAction struct {
 	mqclient         mqclient.MQClient
 }
 
-type nodePod struct {
-	Memory           prometheus.MetricValue
-	CPU              prometheus.MetricValue
-	EphemeralStorage prometheus.MetricValue
+type clusterNodePodResources struct {
+	PodNumber        int64
+	Memory           int64
+	CPU              int64
+	EphemeralStorage int64
+	RainbondMemory   int64
+	RainbondCPU      int64
 }
 
 // GetClusterInfo -
@@ -157,6 +162,8 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		// default is 30 seconds
 		timeout = 30
 	}
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	if c.clusterInfoCache != nil && c.cacheTime.Add(time.Second*time.Duration(timeout)).After(time.Now()) {
 		return c.clusterInfoCache, nil
 	}
@@ -181,38 +188,13 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 	var instance string
 	var runPodNumber int
 	for _, podNum := range podNumber.MetricData.MetricValues {
+		if podNum.Sample == nil {
+			continue
+		}
 		instance = podNum.Metadata["instance"]
 		runPodNumber = int(podNum.Sample.Value())
 	}
-
-	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_memory{instance="%v"}`, instance)
-	podMemoryMetric := c.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_cpu{instance="%v"}`, instance)
-	podCPUMetric := c.prometheusCli.GetMetric(query, time.Now())
-
-	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_ephemeral_storage{instance="%v"}`, instance)
-	podEphemeralStorageMetric := c.prometheusCli.GetMetric(query, time.Now())
-
-	nodeMap := make(map[string][]nodePod)
-	for i, memory := range podMemoryMetric.MetricData.MetricValues {
-		if nodePodList, ok := nodeMap[memory.Metadata["node_name"]]; ok {
-			nodePodList = append(nodePodList, nodePod{
-				Memory:           memory,
-				CPU:              podCPUMetric.MetricData.MetricValues[i],
-				EphemeralStorage: podEphemeralStorageMetric.MetricData.MetricValues[i],
-			})
-			nodeMap[memory.Metadata["node_name"]] = nodePodList
-			continue
-		}
-		nodeMap[memory.Metadata["node_name"]] = []nodePod{
-			{
-				Memory:           memory,
-				CPU:              podCPUMetric.MetricData.MetricValues[i],
-				EphemeralStorage: podEphemeralStorageMetric.MetricData.MetricValues[i],
-			},
-		}
-	}
+	nodeMap := c.getClusterPodResources(instance)
 
 	for i := range nodes {
 		node := nodes[i]
@@ -230,27 +212,20 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		}
 		nodeAllocatableResource := model.NewResource(node.Status.Allocatable)
 		if nodePods, ok := nodeMap[node.Name]; ok {
-			for _, pod := range nodePods {
-				memory := int64(pod.Memory.Sample.Value())
-				cpu := int64(pod.CPU.Sample.Value())
-				ephemeralStorage := int64(pod.EphemeralStorage.Sample.Value())
-				nodeAllocatableResource.AllowedPodNumber--
-				nodeAllocatableResource.Memory -= memory
-				nodeAllocatableResource.MilliCPU -= cpu
-				nodeAllocatableResource.EphemeralStorage -= ephemeralStorage
-				if isNodeReady(node) {
-					healthcpuR += cpu
-					healthmemR += memory
-				} else {
-					unhealthCPUR += cpu
-					unhealthMemR += memory
-				}
-				if _, ok := pod.Memory.Metadata["service_id"]; ok {
-					rbdMemR += memory
-					rbdCPUR += cpu
-				}
-				nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
+			nodeAllocatableResource.AllowedPodNumber -= int(nodePods.PodNumber)
+			nodeAllocatableResource.Memory -= nodePods.Memory
+			nodeAllocatableResource.MilliCPU -= nodePods.CPU
+			nodeAllocatableResource.EphemeralStorage -= nodePods.EphemeralStorage
+			if isNodeReady(node) {
+				healthcpuR += nodePods.CPU
+				healthmemR += nodePods.Memory
+			} else {
+				unhealthCPUR += nodePods.CPU
+				unhealthMemR += nodePods.Memory
 			}
+			rbdMemR += nodePods.RainbondMemory
+			rbdCPUR += nodePods.RainbondCPU
+			nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
 			// Gets the node resource with the maximum remaining scheduling memory
 			if maxAllocatableMemory == nil {
 				maxAllocatableMemory = nodeAllocatableResource
@@ -308,6 +283,68 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 	c.clusterInfoCache = result
 	c.cacheTime = time.Now()
 	return result, nil
+}
+
+func (c *clusterAction) getClusterPodResources(instance string) map[string]*clusterNodePodResources {
+	queries := []struct {
+		expr  string
+		apply func(*clusterNodePodResources, float64)
+	}{
+		{
+			expr: fmt.Sprintf(`count(rbd_api_exporter_cluster_pod_memory{instance="%v"}) by (node_name)`, instance),
+			apply: func(resources *clusterNodePodResources, value float64) {
+				resources.PodNumber = int64(value)
+			},
+		},
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{instance="%v"}) by (node_name)`, instance),
+			apply: func(resources *clusterNodePodResources, value float64) {
+				resources.Memory = int64(value)
+				resources.RainbondMemory = int64(value)
+			},
+		},
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_cpu{instance="%v"}) by (node_name)`, instance),
+			apply: func(resources *clusterNodePodResources, value float64) {
+				resources.CPU = int64(value)
+				resources.RainbondCPU = int64(value)
+			},
+		},
+		{
+			expr: fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_ephemeral_storage{instance="%v"}) by (node_name)`, instance),
+			apply: func(resources *clusterNodePodResources, value float64) {
+				resources.EphemeralStorage = int64(value)
+			},
+		},
+	}
+
+	metrics := make([]prometheus.Metric, len(queries))
+	var wg sync.WaitGroup
+	for i := range queries {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			metrics[index] = c.prometheusCli.GetMetric(queries[index].expr, time.Now())
+		}(i)
+	}
+	wg.Wait()
+
+	result := make(map[string]*clusterNodePodResources)
+	for i, metric := range metrics {
+		for _, value := range metric.MetricData.MetricValues {
+			nodeName := value.Metadata["node_name"]
+			if nodeName == "" || value.Sample == nil {
+				continue
+			}
+			resources := result[nodeName]
+			if resources == nil {
+				resources = &clusterNodePodResources{}
+				result[nodeName] = resources
+			}
+			queries[i].apply(resources, value.Sample.Value())
+		}
+	}
+	return result
 }
 
 func (c *clusterAction) listNodes(ctx context.Context) ([]*corev1.Node, error) {
