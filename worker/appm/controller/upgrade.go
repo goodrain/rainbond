@@ -98,21 +98,25 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 	nowConfigMaps := nowApp.GetConfigMaps()
 	newConfigMaps := newapp.GetConfigMaps()
 	var nowConfigMapMaps = make(map[string]*corev1.ConfigMap, len(nowConfigMaps))
-	legacyConfigMaps := make(map[string]struct{})
 	for i, now := range nowConfigMaps {
 		nowConfigMapMaps[now.Name] = nowConfigMaps[i]
 	}
-	for _, desired := range newConfigMaps {
-		if legacyName := desired.Annotations[v1.ConfigFileLegacyNameAnnotation]; legacyName != "" && legacyName != desired.Name {
-			legacyConfigMaps[legacyName] = struct{}{}
-		}
-	}
 	var errs []error
 	for _, new := range newConfigMaps {
-		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
+		if new.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeDependent {
 			nowConfigMapMaps[new.Name] = nil
+			_, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Get(s.ctx, new.Name, metav1.GetOptions{})
+			if errors.IsNotFound(err) {
+				_, err = s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
+			}
+			if err != nil {
+				logrus.Errorf("ensure dependency configmap failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("ensure dependency configmap %s failure: %s", new.Name, err.Error()))
+			}
+			continue
+		}
+		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
-			new.ResourceVersion = nowConfig.ResourceVersion
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
@@ -120,6 +124,7 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 				continue
 			}
 			nowApp.SetConfigMap(newc)
+			nowConfigMapMaps[new.Name] = nil
 			logrus.Debugf("update configmap %s for service %s", new.Name, newapp.ServiceID)
 		} else {
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
@@ -146,8 +151,8 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 	}
 	for name, handle := range nowConfigMapMaps {
 		if handle != nil {
-			if _, preserve := legacyConfigMaps[name]; preserve {
-				logrus.Debugf("preserve legacy dependency configmap %s for service %s", name, newapp.ServiceID)
+			if handle.Labels["service_id"] != "" && handle.Labels["service_id"] != nowApp.ServiceID {
+				logrus.Debugf("preserve configmap %s owned by service %s", name, handle.Labels["service_id"])
 				continue
 			}
 			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {

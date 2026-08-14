@@ -93,7 +93,7 @@
 | rainbond.compose.parse-warnings | 解析 docker compose 并返回降级告警 | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithWarnings |
 | rainbond.compose.preserve-volume-source-path | Preserve docker compose volume source paths | active | regression | builder/parser/compose.loadV3Volumes | builder/parser/compose/version_detect_test.go::TestLoadV3VolumesPreservesSourcePathUnderscores |
 | rainbond.compose.yaml-anchor-support | 支持 docker compose 中的 YAML anchors | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors |
-| rainbond.config-file.dependent-configmap-ownership | Dependent config maps keep consumer ownership | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeIsolatesConsumers<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesConsumerIdentity<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapPreservesLegacyDependencyConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision |
+| rainbond.config-file.dependent-configmap-ownership | 依赖配置文件保持提供方所有权 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision |
 | rainbond.config-file.k8s-volume-name-safe | Keep config-file Kubernetes volume names DNS-safe | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName |
 | rainbond.config-files.detect | 识别源码目录中的 npm 和 yarn 配置文件 | active | regression | builder/parser/code.DetectConfigFiles | builder/parser/code/config_files_test.go::TestDetectConfigFiles_Npmrc<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcClassic<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcYml<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_Multiple<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_None |
 | rainbond.config-files.has-any | 检测源码中是否存在包管理器配置文件 | active | regression | builder/parser/code.ConfigFiles.HasAnyConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_HasAnyConfigFile |
@@ -1356,7 +1356,7 @@
 - 代码路径: `builder/parser/docker_compose.go`
 - 测试路径: `builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors`
 
-### Dependent config maps keep consumer ownership
+### 依赖配置文件保持提供方所有权
 
 - Capability ID: `rainbond.config-file.dependent-configmap-ownership`
 - 状态: `active`
@@ -1364,7 +1364,7 @@
 - 接口类型: `workflow`
 - 业务入口: `worker/appm/volume.ConfigFileVolume.CreateDependVolume`
 - 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/controller/upgrade.go`, `worker/appm/types/v1/labels.go`
-- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeIsolatesConsumers`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesConsumerIdentity`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapPreservesLegacyDependencyConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision`
 
 ### Keep config-file Kubernetes volume names DNS-safe
 

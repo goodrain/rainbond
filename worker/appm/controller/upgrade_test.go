@@ -56,7 +56,6 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 	tests := []struct {
 		name        string
 		setup       func(client *k8sfake.Clientset, nowApp, newApp *appmtypes.AppService)
-		verify      func(t *testing.T, client *k8sfake.Clientset)
 		wantErr     bool
 		wantContain []string
 	}{
@@ -77,20 +76,15 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 				existing := configMapForTest("cm-shared")
 				nowApp.SetConfigMap(existing)
 				newApp.SetConfigMap(configMapForTest("cm-shared"))
-				// Pre-create the configmap so the failed update can be checked
-				// for destructive cleanup side effects.
+				// pre-create the configmap in the fake tracker so the failed
+				// update leaves a real object behind; the best-effort delete
+				// path then finds it and stays quiet (no not-found log noise).
 				if _, err := client.CoreV1().ConfigMaps("default").Create(context.Background(), configMapForTest("cm-shared"), metav1.CreateOptions{}); err != nil {
 					panic(err)
 				}
 				client.PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("update boom")
 				})
-			},
-			verify: func(t *testing.T, client *k8sfake.Clientset) {
-				t.Helper()
-				if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), "cm-shared", metav1.GetOptions{}); err != nil {
-					t.Fatalf("expected failed update to preserve current configmap, got %v", err)
-				}
 			},
 			wantErr:     true,
 			wantContain: []string{"update boom"},
@@ -153,37 +147,80 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 					}
 				}
 			}
-			if tt.verify != nil {
-				tt.verify(t, client)
-			}
 		})
 	}
 }
 
 // capability_id: rainbond.config-file.dependent-configmap-ownership
-func TestUpgradeConfigMapPreservesLegacyDependencyConfigMap(t *testing.T) {
+func TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider(t *testing.T) {
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
-	legacy := configMapForTest("vm-cfg-legacy-provider")
-	legacy.Labels = map[string]string{"creator": "Rainbond", "service_id": "consumer-service"}
-	desired := configMapForTest("vm-cfg-consumer-copy")
-	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "consumer-service"}
-	desired.Annotations = map[string]string{
-		appmtypes.ConfigFileScopeAnnotation:      appmtypes.ConfigFileScopeDependent,
-		appmtypes.ConfigFileLegacyNameAnnotation: legacy.Name,
-	}
+	existing := configMapForTest("vm-cfg-provider")
+	existing.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	existing.Data = map[string]string{"application.yaml": "owner=provider\n"}
+	desired := existing.DeepCopy()
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	desired.Data = map[string]string{"application.yaml": "owner=consumer-rendered\n"}
 
-	client := k8sfake.NewSimpleClientset(namespace, legacy.DeepCopy())
-	nowApp := newAppWithConfigMaps(namespace, legacy.DeepCopy())
+	client := k8sfake.NewSimpleClientset(namespace, existing.DeepCopy())
+	nowApp := newAppWithConfigMaps(namespace)
+	nowApp.ServiceID = "consumer-service"
 	newApp := newAppWithConfigMaps(namespace, desired)
+	newApp.ServiceID = "consumer-service"
 	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
 	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
-		t.Fatalf("upgrade dependent configmap: %v", err)
+		t.Fatalf("reference existing dependency configmap: %v", err)
 	}
-	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), legacy.Name, metav1.GetOptions{}); err != nil {
-		t.Fatalf("expected legacy provider configmap to be preserved, got %v", err)
+	unchanged, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get provider configmap: %v", err)
 	}
-	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), desired.Name, metav1.GetOptions{}); err != nil {
-		t.Fatalf("expected isolated consumer configmap to be created, got %v", err)
+	if unchanged.Data["application.yaml"] != "owner=provider\n" {
+		t.Fatalf("expected consumer upgrade not to update provider configmap, got %#v", unchanged.Data)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	desired := configMapForTest("vm-cfg-provider")
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	client := k8sfake.NewSimpleClientset(namespace)
+	nowApp := newAppWithConfigMaps(namespace)
+	nowApp.ServiceID = "consumer-service"
+	newApp := newAppWithConfigMaps(namespace, desired)
+	newApp.ServiceID = "consumer-service"
+
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("create missing dependency configmap: %v", err)
+	}
+	created, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), desired.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get dependency configmap created for provider: %v", err)
+	}
+	if created.Labels["service_id"] != "provider-service" {
+		t.Fatalf("expected dependency configmap to belong to provider, got %#v", created.Labels)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapDoesNotDeleteProviderDependency(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	providerConfigMap := configMapForTest("vm-cfg-provider")
+	providerConfigMap.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	client := k8sfake.NewSimpleClientset(namespace, providerConfigMap.DeepCopy())
+	nowApp := newAppWithConfigMaps(namespace, providerConfigMap.DeepCopy())
+	nowApp.ServiceID = "consumer-service"
+	newApp := newAppWithConfigMaps(namespace)
+	newApp.ServiceID = "consumer-service"
+
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("upgrade consumer without dependency: %v", err)
+	}
+	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), providerConfigMap.Name, metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected consumer not to delete provider configmap, got %v", err)
 	}
 }
 

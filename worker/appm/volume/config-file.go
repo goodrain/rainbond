@@ -59,10 +59,6 @@ func formatVMGuestFileMode(mode *int32) string {
 	return fmt.Sprintf("%04o", *mode)
 }
 
-func dependentConfigMapIdentity(dependServiceID, volumeName string) string {
-	return fmt.Sprintf("%s:%s", strings.TrimSpace(dependServiceID), strings.TrimSpace(volumeName))
-}
-
 // CreateVolume config file volume create volume
 func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	// environment variables
@@ -143,17 +139,30 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	if err != nil {
 		return fmt.Errorf("error getting TenantServiceConfigFile according to volumeName(%s): %v", v.smr.VolumeName, err)
 	}
+	provider, err := v.dbmanager.TenantServiceDao().GetServiceByID(v.smr.DependServiceID)
+	if err != nil {
+		return fmt.Errorf("error getting config file provider service(%s): %v", v.smr.DependServiceID, err)
+	}
+	workloads, err := v.dbmanager.TenantServiceDao().GetWorkloadNameByIDs([]string{v.smr.DependServiceID})
+	if err != nil {
+		return fmt.Errorf("error getting config file provider workload(%s): %v", v.smr.DependServiceID, err)
+	}
+	if provider == nil || len(workloads) == 0 {
+		return fmt.Errorf("config file provider service(%s) not found", v.smr.DependServiceID)
+	}
+	providerLabels := v.as.GetCommonLabels()
+	providerLabels["service_id"] = v.smr.DependServiceID
+	providerLabels["service_alias"] = provider.ServiceAlias
+	providerLabels["app_id"] = provider.AppID
+	providerLabels["rainbond_app"] = workloads[0].K8sApp
 
-	legacyName := stableConfigMapName(v.smr.DependServiceID, v.smr.VolumeName)
-	dependentIdentity := dependentConfigMapIdentity(v.smr.DependServiceID, v.smr.VolumeName)
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stableConfigMapName(v.as.ServiceID, dependentIdentity),
+			Name:      stableConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
 			Namespace: v.as.GetNamespace(),
-			Labels:    v.as.GetCommonLabels(),
+			Labels:    providerLabels,
 			Annotations: map[string]string{
-				appmtypes.ConfigFileScopeAnnotation:      appmtypes.ConfigFileScopeDependent,
-				appmtypes.ConfigFileLegacyNameAnnotation: legacyName,
+				appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent,
 			},
 		},
 		Data: make(map[string]string),
@@ -161,7 +170,7 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
 	if v.as.GetVirtualMachine() != nil {
-		volumeLabel := stableVMConfigVolumeLabel(v.as.ServiceID, dependentIdentity)
+		volumeLabel := stableVMConfigVolumeLabel(v.smr.DependServiceID, v.smr.VolumeName)
 		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
 			Name: cmap.Name,
 			VolumeSource: kubevirtv1.VolumeSource{

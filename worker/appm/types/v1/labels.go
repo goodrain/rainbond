@@ -20,13 +20,10 @@ package v1
 
 const (
 	// ConfigFileScopeAnnotation identifies whether a ConfigMap belongs to the
-	// component itself or is a consumer-specific copy of a dependency.
+	// component itself or was created on its behalf by a dependent component.
 	ConfigFileScopeAnnotation = "rainbond.io/config-file-scope"
-	// ConfigFileLegacyNameAnnotation keeps the provider ConfigMap alive while
-	// legacy consumers move to their own ConfigMaps.
-	ConfigFileLegacyNameAnnotation = "rainbond.io/config-file-legacy-name"
-	ConfigFileScopeOwned           = "owned"
-	ConfigFileScopeDependent       = "dependent"
+	ConfigFileScopeOwned      = "owned"
+	ConfigFileScopeDependent  = "dependent"
 )
 
 // GetCommonLabels get common labels
