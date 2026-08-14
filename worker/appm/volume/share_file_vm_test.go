@@ -190,6 +190,9 @@ func TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName(t *testi
 	if len(as.GetConfigMaps()) != 1 || as.GetConfigMaps()[0].Data["web.conf"] != "server {}\n" {
 		t.Fatalf("expected configmap to preserve web.conf content, got %#v", as.GetConfigMaps())
 	}
+	if as.GetConfigMaps()[0].Annotations[appmtypes.ConfigFileScopeAnnotation] != appmtypes.ConfigFileScopeOwned {
+		t.Fatalf("expected owned configmap scope, got %#v", as.GetConfigMaps()[0].Annotations)
+	}
 }
 
 // capability_id: rainbond.config-file.k8s-volume-name-safe
@@ -248,6 +251,132 @@ func TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName(t 
 	}
 	if define.GetVolumeMounts()[0].SubPath != "web.conf" {
 		t.Fatalf("expected dependent subPath to preserve file name, got %q", define.GetVolumeMounts()[0].SubPath)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestConfigFileVolumeCreateDependVolumeIsolatesConsumers(t *testing.T) {
+	const (
+		providerID = "provider-service"
+		volumeName = "application.yaml"
+	)
+
+	createForConsumer := func(t *testing.T, consumerID, target string) *corev1.ConfigMap {
+		t.Helper()
+		as := newDeploymentAppServiceForVolumeTest()
+		as.ServiceID = consumerID
+		as.ServiceAlias = consumerID
+		depVolume := &dbmodel.TenantServiceVolume{
+			ServiceID:  providerID,
+			VolumeName: volumeName,
+			VolumePath: "/source/application.yaml",
+			VolumeType: dbmodel.ConfigFileVolumeType.String(),
+		}
+		mountRelation := &dbmodel.TenantServiceMountRelation{
+			ServiceID:       consumerID,
+			DependServiceID: providerID,
+			VolumeName:      volumeName,
+			VolumePath:      "/app/config/application.yaml",
+			VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+		}
+		manager := volumeManagerStub{
+			volumeDao: tenantServiceVolumeDaoStub{volume: depVolume},
+			configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+				ServiceID:   providerID,
+				VolumeName:  volumeName,
+				FileContent: "target=${TARGET}\n",
+			}},
+		}
+
+		configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, []corev1.EnvVar{
+			{Name: "TARGET", Value: target},
+		}, nil, manager, true).(*ConfigFileVolume)
+		if err := configVolume.CreateDependVolume(&Define{as: as}); err != nil {
+			t.Fatalf("create dependent config-file volume: %v", err)
+		}
+		if len(as.GetConfigMaps()) != 1 {
+			t.Fatalf("expected one consumer configmap, got %#v", as.GetConfigMaps())
+		}
+		return as.GetConfigMaps()[0]
+	}
+
+	consumerA := createForConsumer(t, "consumer-a", "service-a")
+	consumerARepeat := createForConsumer(t, "consumer-a", "service-a")
+	consumerB := createForConsumer(t, "consumer-b", "service-b")
+	legacyProviderName := stableConfigMapName(providerID, volumeName)
+
+	if consumerA.Name == legacyProviderName {
+		t.Fatalf("expected dependent configmap %q to differ from provider configmap", consumerA.Name)
+	}
+	if consumerA.Name != consumerARepeat.Name {
+		t.Fatalf("expected consumer configmap name to be stable, got %q and %q", consumerA.Name, consumerARepeat.Name)
+	}
+	if consumerA.Name == consumerB.Name {
+		t.Fatalf("expected consumers to use isolated configmaps, both got %q", consumerA.Name)
+	}
+	if consumerA.Labels["service_id"] != "consumer-a" || consumerB.Labels["service_id"] != "consumer-b" {
+		t.Fatalf("expected configmaps to belong to their consumers, got labels A=%#v B=%#v", consumerA.Labels, consumerB.Labels)
+	}
+	if consumerA.Data[volumeName] != "target=service-a\n" || consumerB.Data[volumeName] != "target=service-b\n" {
+		t.Fatalf("expected each consumer to keep its rendered config, got A=%#v B=%#v", consumerA.Data, consumerB.Data)
+	}
+	if consumerA.Annotations[appmtypes.ConfigFileLegacyNameAnnotation] != legacyProviderName {
+		t.Fatalf("expected legacy provider configmap %q to be retained during migration, got annotations %#v", legacyProviderName, consumerA.Annotations)
+	}
+	if consumerA.Annotations[appmtypes.ConfigFileScopeAnnotation] != appmtypes.ConfigFileScopeDependent {
+		t.Fatalf("expected dependent configmap scope annotation, got %#v", consumerA.Annotations)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestConfigFileVolumeCreateDependVolumeForVMUsesConsumerIdentity(t *testing.T) {
+	const (
+		consumerID = "vm-consumer"
+		providerID = "config-provider"
+		volumeName = "rainbond.env"
+	)
+	as := newVMAppServiceForVolumeTest()
+	as.ServiceID = consumerID
+	depVolume := &dbmodel.TenantServiceVolume{
+		ServiceID:  providerID,
+		VolumeName: volumeName,
+		VolumePath: "/source/rainbond.env",
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}
+	mountRelation := &dbmodel.TenantServiceMountRelation{
+		ServiceID:       consumerID,
+		DependServiceID: providerID,
+		VolumeName:      volumeName,
+		VolumePath:      "/rainbond/env/rainbond.env",
+		VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+	}
+	manager := volumeManagerStub{
+		volumeDao: tenantServiceVolumeDaoStub{volume: depVolume},
+		configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+			ServiceID:   providerID,
+			VolumeName:  volumeName,
+			FileContent: "DEMO=true\n",
+		}},
+	}
+
+	configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true).(*ConfigFileVolume)
+	define := &Define{as: as}
+	if err := configVolume.CreateDependVolume(define); err != nil {
+		t.Fatalf("create dependent vm config-file volume: %v", err)
+	}
+	if len(as.GetConfigMaps()) != 1 || len(define.GetVMVolume()) != 1 {
+		t.Fatalf("expected one configmap and one vm volume, got configmaps=%#v volumes=%#v", as.GetConfigMaps(), define.GetVMVolume())
+	}
+	configMap := as.GetConfigMaps()[0]
+	if configMap.Name == stableConfigMapName(providerID, volumeName) {
+		t.Fatalf("expected vm consumer configmap to differ from provider configmap, got %q", configMap.Name)
+	}
+	if define.GetVMVolume()[0].Name != configMap.Name {
+		t.Fatalf("expected vm volume %q to reference configmap %q", define.GetVMVolume()[0].Name, configMap.Name)
+	}
+	wantLabel := stableVMConfigVolumeLabel(consumerID, dependentConfigMapIdentity(providerID, volumeName))
+	if define.GetVMVolume()[0].ConfigMap.VolumeLabel != wantLabel {
+		t.Fatalf("expected consumer-specific VM volume label %q, got %q", wantLabel, define.GetVMVolume()[0].ConfigMap.VolumeLabel)
 	}
 }
 

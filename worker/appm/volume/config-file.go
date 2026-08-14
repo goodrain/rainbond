@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util"
+	appmtypes "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,6 +59,10 @@ func formatVMGuestFileMode(mode *int32) string {
 	return fmt.Sprintf("%04o", *mode)
 }
 
+func dependentConfigMapIdentity(dependServiceID, volumeName string) string {
+	return fmt.Sprintf("%s:%s", strings.TrimSpace(dependServiceID), strings.TrimSpace(volumeName))
+}
+
 // CreateVolume config file volume create volume
 func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	// environment variables
@@ -82,9 +87,10 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stableVMConfigMapName(v.as.ServiceID, v.svm.VolumeName),
-			Namespace: v.as.GetNamespace(),
-			Labels:    v.as.GetCommonLabels(),
+			Name:        stableConfigMapName(v.as.ServiceID, v.svm.VolumeName),
+			Namespace:   v.as.GetNamespace(),
+			Labels:      v.as.GetCommonLabels(),
+			Annotations: map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned},
 		},
 		Data: make(map[string]string),
 	}
@@ -138,18 +144,24 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 		return fmt.Errorf("error getting TenantServiceConfigFile according to volumeName(%s): %v", v.smr.VolumeName, err)
 	}
 
+	legacyName := stableConfigMapName(v.smr.DependServiceID, v.smr.VolumeName)
+	dependentIdentity := dependentConfigMapIdentity(v.smr.DependServiceID, v.smr.VolumeName)
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stableVMConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
+			Name:      stableConfigMapName(v.as.ServiceID, dependentIdentity),
 			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
+			Annotations: map[string]string{
+				appmtypes.ConfigFileScopeAnnotation:      appmtypes.ConfigFileScopeDependent,
+				appmtypes.ConfigFileLegacyNameAnnotation: legacyName,
+			},
 		},
 		Data: make(map[string]string),
 	}
 	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
 	if v.as.GetVirtualMachine() != nil {
-		volumeLabel := stableVMConfigVolumeLabel(v.smr.DependServiceID, v.smr.VolumeName)
+		volumeLabel := stableVMConfigVolumeLabel(v.as.ServiceID, dependentIdentity)
 		define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{
 			Name: cmap.Name,
 			VolumeSource: kubevirtv1.VolumeSource{
@@ -181,7 +193,9 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	return nil
 }
 
-func stableVMConfigMapName(serviceID, volumeName string) string {
+// stableConfigMapName keeps the legacy vm-cfg prefix so existing workloads can
+// migrate without renaming their provider ConfigMaps during this fix.
+func stableConfigMapName(serviceID, volumeName string) string {
 	serviceID = strings.TrimSpace(serviceID)
 	volumeName = strings.TrimSpace(volumeName)
 	if serviceID == "" || volumeName == "" {

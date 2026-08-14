@@ -18,7 +18,18 @@
 
 package v1
 
-//GetCommonLabels get common labels
+const (
+	// ConfigFileScopeAnnotation identifies whether a ConfigMap belongs to the
+	// component itself or is a consumer-specific copy of a dependency.
+	ConfigFileScopeAnnotation = "rainbond.io/config-file-scope"
+	// ConfigFileLegacyNameAnnotation keeps the provider ConfigMap alive while
+	// legacy consumers move to their own ConfigMaps.
+	ConfigFileLegacyNameAnnotation = "rainbond.io/config-file-legacy-name"
+	ConfigFileScopeOwned           = "owned"
+	ConfigFileScopeDependent       = "dependent"
+)
+
+// GetCommonLabels get common labels
 func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]string {
 	var resultLabel = make(map[string]string)
 	for _, l := range labels {

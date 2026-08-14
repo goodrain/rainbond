@@ -56,6 +56,7 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 	tests := []struct {
 		name        string
 		setup       func(client *k8sfake.Clientset, nowApp, newApp *appmtypes.AppService)
+		verify      func(t *testing.T, client *k8sfake.Clientset)
 		wantErr     bool
 		wantContain []string
 	}{
@@ -76,15 +77,20 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 				existing := configMapForTest("cm-shared")
 				nowApp.SetConfigMap(existing)
 				newApp.SetConfigMap(configMapForTest("cm-shared"))
-				// pre-create the configmap in the fake tracker so the failed
-				// update leaves a real object behind; the best-effort delete
-				// path then finds it and stays quiet (no not-found log noise).
+				// Pre-create the configmap so the failed update can be checked
+				// for destructive cleanup side effects.
 				if _, err := client.CoreV1().ConfigMaps("default").Create(context.Background(), configMapForTest("cm-shared"), metav1.CreateOptions{}); err != nil {
 					panic(err)
 				}
 				client.PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("update boom")
 				})
+			},
+			verify: func(t *testing.T, client *k8sfake.Clientset) {
+				t.Helper()
+				if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), "cm-shared", metav1.GetOptions{}); err != nil {
+					t.Fatalf("expected failed update to preserve current configmap, got %v", err)
+				}
 			},
 			wantErr:     true,
 			wantContain: []string{"update boom"},
@@ -147,7 +153,99 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 					}
 				}
 			}
+			if tt.verify != nil {
+				tt.verify(t, client)
+			}
 		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapPreservesLegacyDependencyConfigMap(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	legacy := configMapForTest("vm-cfg-legacy-provider")
+	legacy.Labels = map[string]string{"creator": "Rainbond", "service_id": "consumer-service"}
+	desired := configMapForTest("vm-cfg-consumer-copy")
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "consumer-service"}
+	desired.Annotations = map[string]string{
+		appmtypes.ConfigFileScopeAnnotation:      appmtypes.ConfigFileScopeDependent,
+		appmtypes.ConfigFileLegacyNameAnnotation: legacy.Name,
+	}
+
+	client := k8sfake.NewSimpleClientset(namespace, legacy.DeepCopy())
+	nowApp := newAppWithConfigMaps(namespace, legacy.DeepCopy())
+	newApp := newAppWithConfigMaps(namespace, desired)
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("upgrade dependent configmap: %v", err)
+	}
+	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), legacy.Name, metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected legacy provider configmap to be preserved, got %v", err)
+	}
+	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), desired.Name, metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected isolated consumer configmap to be created, got %v", err)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapReclaimsLegacyProviderConfigMap(t *testing.T) {
+	tests := []struct {
+		name              string
+		existingServiceID string
+	}{
+		{name: "legacy consumer owned provider name", existingServiceID: "consumer-service"},
+		{name: "same service cache miss", existingServiceID: "provider-service"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			legacy := configMapForTest("vm-cfg-provider")
+			legacy.Labels = map[string]string{"creator": "Rainbond", "service_id": tt.existingServiceID}
+			legacy.Data = map[string]string{"application.yaml": "owner=old\n"}
+			desired := configMapForTest(legacy.Name)
+			desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+			desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned}
+			desired.Data = map[string]string{"application.yaml": "owner=provider\n"}
+
+			client := k8sfake.NewSimpleClientset(namespace, legacy.DeepCopy())
+			nowApp := newAppWithConfigMaps(namespace)
+			newApp := newAppWithConfigMaps(namespace, desired)
+			controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+			if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+				t.Fatalf("reconcile provider configmap after cache miss: %v", err)
+			}
+			updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), legacy.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("get reconciled provider configmap: %v", err)
+			}
+			if updated.Labels["service_id"] != "provider-service" || updated.Data["application.yaml"] != "owner=provider\n" {
+				t.Fatalf("expected provider to own updated configmap, got labels=%#v data=%#v", updated.Labels, updated.Data)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapDoesNotAdoptForeignCollision(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	foreign := configMapForTest("vm-cfg-provider")
+	foreign.Labels = map[string]string{"creator": "external", "service_id": "other-service"}
+	desired := configMapForTest(foreign.Name)
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned}
+
+	client := k8sfake.NewSimpleClientset(namespace, foreign.DeepCopy())
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	err := controller.upgradeConfigMap(newAppWithConfigMaps(namespace), *newAppWithConfigMaps(namespace, desired))
+	if err == nil {
+		t.Fatal("expected foreign configmap collision to fail")
+	}
+	unchanged, getErr := client.CoreV1().ConfigMaps("default").Get(context.Background(), foreign.Name, metav1.GetOptions{})
+	if getErr != nil {
+		t.Fatalf("get foreign configmap after failed upgrade: %v", getErr)
+	}
+	if unchanged.Labels["service_id"] != "other-service" || unchanged.Data["k"] != "v" {
+		t.Fatalf("expected foreign configmap to remain unchanged, got labels=%#v data=%#v", unchanged.Labels, unchanged.Data)
 	}
 }
 

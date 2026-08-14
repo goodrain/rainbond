@@ -1638,6 +1638,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.config-file.dependent-configmap-ownership",
+      "title": "Dependent config maps keep consumer ownership",
+      "title_zh": "Dependent config maps keep consumer ownership",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume.ConfigFileVolume.CreateDependVolume",
+      "code_paths": [
+        "worker/appm/volume/config-file.go",
+        "worker/appm/controller/upgrade.go",
+        "worker/appm/types/v1/labels.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateDependVolumeIsolatesConsumers"
+        },
+        {
+          "path": "worker/appm/volume/share_file_vm_test.go",
+          "selector": "TestConfigFileVolumeCreateDependVolumeForVMUsesConsumerIdentity"
+        },
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapPreservesLegacyDependencyConfigMap"
+        },
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapReclaimsLegacyProviderConfigMap"
+        },
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapDoesNotAdoptForeignCollision"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.config-file.k8s-volume-name-safe",
       "title": "Keep config-file Kubernetes volume names DNS-safe",
       "title_zh": "Keep config-file Kubernetes volume names DNS-safe",
