@@ -4036,6 +4036,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.region-api.configured-token-only",
+      "title": "Only configured region token is accepted",
+      "title_zh": "\u4ec5\u63a5\u53d7\u914d\u7f6e\u7684\u96c6\u7fa4 Token",
+      "interface_type": "package_function",
+      "interface": "api/middleware.FullToken",
+      "code_paths": [
+        "api/middleware/token.go"
+      ],
+      "tests": [
+        {
+          "path": "api/middleware/token_test.go",
+          "selector": "TestFullTokenAllowsOnlyConfiguredRegionToken"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.registry.delete-vm-image-manifest",
       "title": "Delete internal VM image manifest from registry",
       "title_zh": "Delete internal VM image manifest from registry",
@@ -7959,7 +7977,7 @@
     {
       "id": "rainbond.worker.appm.vm-default-interface-virtio",
       "title": "Use VirtIO network interfaces for every virtual machine",
-      "title_zh": "所有虚拟机统一使用 VirtIO 网络接口",
+      "title_zh": "\u6240\u6709\u865a\u62df\u673a\u7edf\u4e00\u4f7f\u7528 VirtIO \u7f51\u7edc\u63a5\u53e3",
       "interface_type": "workflow",
       "interface": "worker/appm/conversion.resolveVMInterfaceModel",
       "code_paths": [

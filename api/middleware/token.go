@@ -19,12 +19,13 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
-	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
 )
 
@@ -71,15 +72,19 @@ func FullToken(next http.Handler) http.Handler {
 			return
 		}
 		//logrus.Debugf("request uri is %s", r.RequestURI)
-		t := r.Header.Get("Authorization")
-		if tt := strings.Split(t, " "); len(tt) == 2 {
-			if handler.GetTokenIdenHandler().CheckToken(tt[1], r.RequestURI) {
-				next.ServeHTTP(w, r)
-				return
-			}
+		if matchesConfiguredToken(r.Header.Get("Authorization")) {
+			next.ServeHTTP(w, r)
+			return
 		}
 		util.CloseRequest(r)
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	return http.HandlerFunc(fn)
+}
+
+func matchesConfiguredToken(authorization string) bool {
+	configuredToken := os.Getenv("TOKEN")
+	auth := strings.Split(authorization, " ")
+	return configuredToken != "" && len(auth) == 2 &&
+		subtle.ConstantTimeCompare([]byte(auth[1]), []byte(configuredToken)) == 1
 }

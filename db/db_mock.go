@@ -886,62 +886,6 @@ func (mr *MockManagerMockRecorder) VersionInfoDaoTransactions(db interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VersionInfoDaoTransactions", reflect.TypeOf((*MockManager)(nil).VersionInfoDaoTransactions), db)
 }
 
-// RegionUserInfoDao mocks base method
-func (m *MockManager) RegionUserInfoDao() dao.RegionUserInfoDao {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegionUserInfoDao")
-	ret0, _ := ret[0].(dao.RegionUserInfoDao)
-	return ret0
-}
-
-// RegionUserInfoDao indicates an expected call of RegionUserInfoDao
-func (mr *MockManagerMockRecorder) RegionUserInfoDao() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegionUserInfoDao", reflect.TypeOf((*MockManager)(nil).RegionUserInfoDao))
-}
-
-// RegionUserInfoDaoTransactions mocks base method
-func (m *MockManager) RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegionUserInfoDaoTransactions", db)
-	ret0, _ := ret[0].(dao.RegionUserInfoDao)
-	return ret0
-}
-
-// RegionUserInfoDaoTransactions indicates an expected call of RegionUserInfoDaoTransactions
-func (mr *MockManagerMockRecorder) RegionUserInfoDaoTransactions(db interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegionUserInfoDaoTransactions", reflect.TypeOf((*MockManager)(nil).RegionUserInfoDaoTransactions), db)
-}
-
-// RegionAPIClassDao mocks base method
-func (m *MockManager) RegionAPIClassDao() dao.RegionAPIClassDao {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegionAPIClassDao")
-	ret0, _ := ret[0].(dao.RegionAPIClassDao)
-	return ret0
-}
-
-// RegionAPIClassDao indicates an expected call of RegionAPIClassDao
-func (mr *MockManagerMockRecorder) RegionAPIClassDao() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegionAPIClassDao", reflect.TypeOf((*MockManager)(nil).RegionAPIClassDao))
-}
-
-// RegionAPIClassDaoTransactions mocks base method
-func (m *MockManager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegionAPIClassDaoTransactions", db)
-	ret0, _ := ret[0].(dao.RegionAPIClassDao)
-	return ret0
-}
-
-// RegionAPIClassDaoTransactions indicates an expected call of RegionAPIClassDaoTransactions
-func (mr *MockManagerMockRecorder) RegionAPIClassDaoTransactions(db interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegionAPIClassDaoTransactions", reflect.TypeOf((*MockManager)(nil).RegionAPIClassDaoTransactions), db)
-}
-
 // NotificationEventDao mocks base method
 func (m *MockManager) NotificationEventDao() dao.NotificationEventDao {
 	m.ctrl.T.Helper()

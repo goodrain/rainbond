@@ -38,13 +38,8 @@ func InitAPIHandle() error {
 	defaultAppHandler = CreateAppManager()
 	defaultTenantHandler = CreateTenManager()
 	defaultHelmHandler = CreateHelmManager()
-	defaultCloudHandler = CreateCloudManager()
 	defaultAPPBackupHandler = group.CreateBackupHandle()
 	defaultEventHandler = CreateLogManager()
-	if err := CreateTokenIdenHandler(); err != nil {
-		logrus.Errorf("create token identification mannager error, %v", err)
-		return err
-	}
 	defaultGatewayHandler = CreateGatewayManager()
 	defaultAPIGatewayHandler = CreateGatewayManager()
 	def3rdPartySvcHandler = Create3rdPartySvcHandler()
@@ -113,13 +108,6 @@ var defaultHelmHandler HelmHandler
 // GetHelmManager get manager
 func GetHelmManager() HelmHandler {
 	return defaultHelmHandler
-}
-
-var defaultCloudHandler CloudHandler
-
-// GetCloudManager get manager
-func GetCloudManager() CloudHandler {
-	return defaultCloudHandler
 }
 
 var defaultEventHandler EventHandler
