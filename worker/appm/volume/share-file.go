@@ -95,7 +95,6 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			v.svm.VolumeCapacity,
 			labels,
 			annotations)
-		v.as.SetClaim(claim)
 		var importConfig *vmDiskImportConfig
 		if cfg, ok := importConfigs[v.svm.VolumeName]; ok {
 			logrus.Infof(
@@ -108,7 +107,11 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			)
 			importConfig = &cfg
 		}
-		vo, dvTemplate, manualClaim := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)
+		vo, dvTemplate, manualClaim, err := buildVMVolumeSource(claim, labels, annotations, volumeMountPath, importConfig)
+		if err != nil {
+			return fmt.Errorf("build VM volume source for volume %q: %w", v.svm.VolumeName, err)
+		}
+		v.as.SetClaim(claim)
 		if dvTemplate != nil {
 			define.vmDVTemplate = append(define.vmDVTemplate, *dvTemplate)
 		}

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util"
+	appmtypes "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,9 +83,10 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	}
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stableVMConfigMapName(v.as.ServiceID, v.svm.VolumeName),
-			Namespace: v.as.GetNamespace(),
-			Labels:    v.as.GetCommonLabels(),
+			Name:        stableConfigMapName(v.as.ServiceID, v.svm.VolumeName),
+			Namespace:   v.as.GetNamespace(),
+			Labels:      v.as.GetCommonLabels(),
+			Annotations: map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned},
 		},
 		Data: make(map[string]string),
 	}
@@ -137,12 +139,31 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	if err != nil {
 		return fmt.Errorf("error getting TenantServiceConfigFile according to volumeName(%s): %v", v.smr.VolumeName, err)
 	}
+	provider, err := v.dbmanager.TenantServiceDao().GetServiceByID(v.smr.DependServiceID)
+	if err != nil {
+		return fmt.Errorf("error getting config file provider service(%s): %v", v.smr.DependServiceID, err)
+	}
+	workloads, err := v.dbmanager.TenantServiceDao().GetWorkloadNameByIDs([]string{v.smr.DependServiceID})
+	if err != nil {
+		return fmt.Errorf("error getting config file provider workload(%s): %v", v.smr.DependServiceID, err)
+	}
+	if provider == nil || len(workloads) == 0 {
+		return fmt.Errorf("config file provider service(%s) not found", v.smr.DependServiceID)
+	}
+	providerLabels := v.as.GetCommonLabels()
+	providerLabels["service_id"] = v.smr.DependServiceID
+	providerLabels["service_alias"] = provider.ServiceAlias
+	providerLabels["app_id"] = provider.AppID
+	providerLabels["rainbond_app"] = workloads[0].K8sApp
 
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      stableVMConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
+			Name:      stableConfigMapName(v.smr.DependServiceID, v.smr.VolumeName),
 			Namespace: v.as.GetNamespace(),
-			Labels:    v.as.GetCommonLabels(),
+			Labels:    providerLabels,
+			Annotations: map[string]string{
+				appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent,
+			},
 		},
 		Data: make(map[string]string),
 	}
@@ -181,7 +202,9 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	return nil
 }
 
-func stableVMConfigMapName(serviceID, volumeName string) string {
+// stableConfigMapName keeps the legacy vm-cfg prefix so existing workloads can
+// migrate without renaming their provider ConfigMaps during this fix.
+func stableConfigMapName(serviceID, volumeName string) string {
 	serviceID = strings.TrimSpace(serviceID)
 	volumeName = strings.TrimSpace(volumeName)
 	if serviceID == "" || volumeName == "" {

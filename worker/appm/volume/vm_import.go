@@ -4,10 +4,11 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"path"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -28,6 +29,9 @@ const (
 
 	defaultVMArtifactPath = "disk.img.gz"
 )
+
+// ErrInvalidVMRegistryImport marks a registry import that must abort VM definition creation.
+var ErrInvalidVMRegistryImport = errors.New("invalid VM registry import")
 
 type vmDiskImportConfig struct {
 	VolumeName    string   `json:"volume_name"`
@@ -120,20 +124,41 @@ func inferVMDiskImportSourceType(imageURL, sourceURI string) string {
 	return ""
 }
 
-func normalizeVMRegistryImportURL(imageURL string) string {
+func normalizeVMRegistryImportURL(imageURL string) (string, error) {
 	url := strings.TrimSpace(imageURL)
 	if url == "" {
-		return ""
+		return "", fmt.Errorf("%w: invalid VM registry image reference: empty value", ErrInvalidVMRegistryImport)
 	}
 	if strings.HasPrefix(strings.ToLower(url), "docker://") {
 		url = strings.TrimSpace(url[len("docker://"):])
 	} else if strings.Contains(url, "://") {
-		return url
+		return "", fmt.Errorf("%w: invalid VM registry image reference %q: unsupported scheme", ErrInvalidVMRegistryImport, imageURL)
+	}
+	if url == "" {
+		return "", fmt.Errorf("%w: invalid VM registry image reference: empty value", ErrInvalidVMRegistryImport)
+	}
+	if hasInvalidVMRegistryImportPath(url) {
+		return "", fmt.Errorf("%w: invalid VM registry image reference %q: invalid path", ErrInvalidVMRegistryImport, imageURL)
 	}
 	if !hasRegistryHost(url) {
-		url = path.Join(vmRegistryImportHost(builder.REGISTRYDOMAIN), url)
+		url = vmRegistryImportHost(builder.REGISTRYDOMAIN) + "/" + url
 	}
-	return "docker://" + url
+	if _, err := reference.ParseAnyReference(url); err != nil {
+		return "", fmt.Errorf("%w: invalid VM registry image reference %q: %v", ErrInvalidVMRegistryImport, imageURL, err)
+	}
+	return "docker://" + url, nil
+}
+
+func hasInvalidVMRegistryImportPath(imageURL string) bool {
+	if strings.HasPrefix(imageURL, "/") {
+		return true
+	}
+	for _, segment := range strings.Split(imageURL, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func vmRegistryImportHost(registryDomain string) string {
@@ -207,10 +232,13 @@ func cloneStringMap(input map[string]string) map[string]string {
 }
 
 func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, volumePath string,
-	importConfig *vmDiskImportConfig) (kubevirtv1.Volume, *kubevirtv1.DataVolumeTemplateSpec, bool) {
+	importConfig *vmDiskImportConfig) (kubevirtv1.Volume, *kubevirtv1.DataVolumeTemplateSpec, bool, error) {
 	serviceID := labels["service_id"]
 	if importConfig != nil {
-		template := buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, *importConfig)
+		template, err := buildVMDiskImportDataVolumeTemplate(claim, labels, annotations, *importConfig)
+		if err != nil {
+			return kubevirtv1.Volume{}, nil, false, err
+		}
 		mode := importConfig.SourceType
 		if mode == "" {
 			mode = "http-import"
@@ -232,7 +260,7 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 					Name: claim.Name,
 				},
 			},
-		}, &template, false
+		}, &template, false, nil
 	}
 	if shouldUseVMBlankDataVolume(volumePath) {
 		template := buildVMBlankDataVolumeTemplate(claim, labels, annotations)
@@ -250,7 +278,7 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 					Name: claim.Name,
 				},
 			},
-		}, &template, false
+		}, &template, false, nil
 	}
 	logrus.Infof(
 		"vm volume source resolved: service_id=%s claim=%s volume_name=%s path=%s mode=manual-pvc",
@@ -269,7 +297,7 @@ func buildVMVolumeSource(claim *corev1.PersistentVolumeClaim, labels, annotation
 				Hotpluggable: false,
 			},
 		},
-	}, nil, true
+	}, nil, true, nil
 }
 
 func shouldUseVMBlankDataVolume(volumePath string) bool {
@@ -315,7 +343,7 @@ func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels,
 	}
 }
 
-func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) kubevirtv1.DataVolumeTemplateSpec {
+func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) (kubevirtv1.DataVolumeTemplateSpec, error) {
 	logrus.Infof(
 		"vm disk import template build: claim=%s service_id=%s volume_name=%s source_type=%s image_url=%s cert_configmap=%s extra_headers=%d",
 		claim.Name,
@@ -336,7 +364,10 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 	templateAnnotations := annotations
 	switch cfg.SourceType {
 	case vmDiskImportSourceTypeRegistry:
-		url := normalizeVMRegistryImportURL(cfg.ImageURL)
+		url, err := normalizeVMRegistryImportURL(cfg.ImageURL)
+		if err != nil {
+			return kubevirtv1.DataVolumeTemplateSpec{}, err
+		}
 		pullMethod := cdiv1.RegistryPullNode
 		source = &cdiv1.DataVolumeSource{
 			Registry: &cdiv1.DataVolumeSourceRegistry{
@@ -372,5 +403,5 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 				VolumeMode:       claim.Spec.VolumeMode,
 			},
 		},
-	}
+	}, nil
 }

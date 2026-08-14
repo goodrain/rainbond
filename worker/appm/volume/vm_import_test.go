@@ -9,6 +9,79 @@ import (
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
+// capability_id: rainbond.vm-import.registry-reference-validation
+func TestNormalizeVMRegistryImportURLRejectsInvalidReference(t *testing.T) {
+	originalRegistryDomain := builder.REGISTRYDOMAIN
+	builder.REGISTRYDOMAIN = "goodrain.me"
+	defer func() {
+		builder.REGISTRYDOMAIN = originalRegistryDomain
+	}()
+
+	tests := []struct {
+		name     string
+		imageURL string
+		wantURL  string
+		wantErr  bool
+	}{
+		{
+			name:     "valid fully qualified registry image",
+			imageURL: "docker://registry.example.com/team/windows-root:v1",
+			wantURL:  "docker://registry.example.com/team/windows-root:v1",
+		},
+		{
+			name:     "valid short internal registry image",
+			imageURL: "ceshi:dbserver-tongyong",
+			wantURL:  "docker://goodrain.me/ceshi:dbserver-tongyong",
+		},
+		{
+			name:     "parentheses in image tag",
+			imageURL: "ceshi:DBServer(TongYong)",
+			wantErr:  true,
+		},
+		{
+			name:     "non registry scheme",
+			imageURL: "https://example.com/windows-root.qcow2",
+			wantErr:  true,
+		},
+		{
+			name:    "empty image reference",
+			wantErr: true,
+		},
+		{
+			name:     "parent traversal segment",
+			imageURL: "ceshi/../dbserver:latest",
+			wantErr:  true,
+		},
+		{
+			name:     "current traversal segment",
+			imageURL: "ceshi/./dbserver:latest",
+			wantErr:  true,
+		},
+		{
+			name:     "empty path segment",
+			imageURL: "ceshi//dbserver:latest",
+			wantErr:  true,
+		},
+		{
+			name:     "leading slash",
+			imageURL: "/ceshi:dbserver-tongyong",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotURL, err := normalizeVMRegistryImportURL(tt.imageURL)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("normalizeVMRegistryImportURL(%q) error = %v, wantErr %t", tt.imageURL, err, tt.wantErr)
+			}
+			if err == nil && gotURL != tt.wantURL {
+				t.Fatalf("normalizeVMRegistryImportURL(%q) = %q, want %q", tt.imageURL, gotURL, tt.wantURL)
+			}
+		})
+	}
+}
+
 // capability_id: rainbond.vm-import.registry-datavolume
 func TestParseVMDiskImportConfigs(t *testing.T) {
 	raw := `{"data-1":{"image_url":"https://download/data-1.qcow2","format":"qcow2"}}`
@@ -70,7 +143,7 @@ func TestBuildVMDiskImportDataVolumeTemplate(t *testing.T) {
 	}
 	claim.Name = "manual-1"
 
-	template := buildVMDiskImportDataVolumeTemplate(
+	template, err := buildVMDiskImportDataVolumeTemplate(
 		claim,
 		map[string]string{"service_id": "svc-1"},
 		map[string]string{"volume_name": "data-1"},
@@ -79,6 +152,9 @@ func TestBuildVMDiskImportDataVolumeTemplate(t *testing.T) {
 			ImageURL:   "https://download/data-1.qcow2",
 		},
 	)
+	if err != nil {
+		t.Fatalf("build import data volume template: %v", err)
+	}
 
 	if template.Name != "manual-1" {
 		t.Fatalf("expected template name manual-1, got %q", template.Name)
@@ -114,7 +190,7 @@ func TestBuildVMRegistryImportDataVolumeTemplate(t *testing.T) {
 	}
 	claim.Name = "manual-root"
 
-	template := buildVMDiskImportDataVolumeTemplate(
+	template, err := buildVMDiskImportDataVolumeTemplate(
 		claim,
 		map[string]string{"service_id": "svc-vm"},
 		map[string]string{"volume_name": "disk"},
@@ -125,6 +201,9 @@ func TestBuildVMRegistryImportDataVolumeTemplate(t *testing.T) {
 			Format:     "qcow2",
 		},
 	)
+	if err != nil {
+		t.Fatalf("build registry import data volume template: %v", err)
+	}
 
 	if template.Spec.Source == nil || template.Spec.Source.Registry == nil {
 		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
@@ -146,7 +225,7 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 	claim.Name = "manual-root"
 	claim.Spec.StorageClassName = &storageClassName
 
-	template := buildVMDiskImportDataVolumeTemplate(
+	template, err := buildVMDiskImportDataVolumeTemplate(
 		claim,
 		map[string]string{"service_id": "svc-vm"},
 		map[string]string{"volume_name": "disk"},
@@ -157,6 +236,9 @@ func TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing(t *t
 			Format:     "qcow2",
 		},
 	)
+	if err != nil {
+		t.Fatalf("build registry import data volume template: %v", err)
+	}
 
 	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
 		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
@@ -178,7 +260,7 @@ func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShort
 	claim.Name = "manual-root"
 	claim.Spec.StorageClassName = &storageClassName
 
-	template := buildVMDiskImportDataVolumeTemplate(
+	template, err := buildVMDiskImportDataVolumeTemplate(
 		claim,
 		map[string]string{"service_id": "svc-vm"},
 		map[string]string{"volume_name": "disk"},
@@ -189,6 +271,9 @@ func TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShort
 			Format:     "qcow2",
 		},
 	)
+	if err != nil {
+		t.Fatalf("build registry import data volume template: %v", err)
+	}
 
 	if template.Spec.Source == nil || template.Spec.Source.Registry == nil || template.Spec.Source.Registry.URL == nil {
 		t.Fatalf("expected registry import source, got %#v", template.Spec.Source)
@@ -210,7 +295,7 @@ func TestBuildVMArtifactImportDataVolumeTemplateUsesHTTPArtifactService(t *testi
 	claim.Name = "manual-root"
 	claim.Spec.StorageClassName = &storageClassName
 
-	template := buildVMDiskImportDataVolumeTemplate(
+	template, err := buildVMDiskImportDataVolumeTemplate(
 		claim,
 		map[string]string{"service_id": "svc-vm"},
 		map[string]string{"volume_name": "disk"},
@@ -221,6 +306,9 @@ func TestBuildVMArtifactImportDataVolumeTemplateUsesHTTPArtifactService(t *testi
 			Format:     "raw.gz",
 		},
 	)
+	if err != nil {
+		t.Fatalf("build artifact import data volume template: %v", err)
+	}
 
 	if template.Spec.Source == nil || template.Spec.Source.HTTP == nil {
 		t.Fatalf("expected http import source, got %#v", template.Spec.Source)
@@ -256,13 +344,16 @@ func TestBuildVMVolumeSourceUsesBlankDataVolumeForDisk(t *testing.T) {
 	}
 	claim.Name = "manual-root"
 
-	volume, template, manual := buildVMVolumeSource(
+	volume, template, manual, err := buildVMVolumeSource(
 		claim,
 		map[string]string{"service_id": "svc-1"},
 		map[string]string{"volume_name": "disk"},
 		"/disk",
 		nil,
 	)
+	if err != nil {
+		t.Fatalf("build VM volume source: %v", err)
+	}
 
 	if manual {
 		t.Fatal("expected vm root disk to avoid manual pvc provisioning")
@@ -298,13 +389,16 @@ func TestBuildVMVolumeSourceUsesBlankDataVolumeForIndexedDiskPath(t *testing.T) 
 	}
 	claim.Name = "manual-data-1"
 
-	volume, template, manual := buildVMVolumeSource(
+	volume, template, manual, err := buildVMVolumeSource(
 		claim,
 		map[string]string{"service_id": "svc-1"},
 		map[string]string{"volume_name": "data-1"},
 		"/disk-1",
 		nil,
 	)
+	if err != nil {
+		t.Fatalf("build VM volume source: %v", err)
+	}
 
 	if manual {
 		t.Fatal("expected indexed vm disk path to use data volume template")
@@ -327,13 +421,16 @@ func TestBuildVMVolumeSourceKeepsCDRomAsPVCWithoutImport(t *testing.T) {
 	}
 	claim.Name = "manual-cdrom"
 
-	volume, template, manual := buildVMVolumeSource(
+	volume, template, manual, err := buildVMVolumeSource(
 		claim,
 		map[string]string{"service_id": "svc-1"},
 		map[string]string{"volume_name": "cdrom"},
 		"/cdrom",
 		nil,
 	)
+	if err != nil {
+		t.Fatalf("build VM volume source: %v", err)
+	}
 
 	if !manual {
 		t.Fatal("expected cdrom volume without import to keep manual pvc provisioning")

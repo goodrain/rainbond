@@ -103,6 +103,18 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 	}
 	var errs []error
 	for _, new := range newConfigMaps {
+		if new.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeDependent {
+			nowConfigMapMaps[new.Name] = nil
+			_, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Get(s.ctx, new.Name, metav1.GetOptions{})
+			if errors.IsNotFound(err) {
+				_, err = s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
+			}
+			if err != nil {
+				logrus.Errorf("ensure dependency configmap failure %s", err.Error())
+				errs = append(errs, fmt.Errorf("ensure dependency configmap %s failure: %s", new.Name, err.Error()))
+			}
+			continue
+		}
 		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
@@ -116,6 +128,18 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 			logrus.Debugf("update configmap %s for service %s", new.Name, newapp.ServiceID)
 		} else {
 			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
+			if errors.IsAlreadyExists(err) {
+				existing, getErr := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Get(s.ctx, new.Name, metav1.GetOptions{})
+				if getErr != nil {
+					err = getErr
+				} else if canAdoptConfigMap(existing, new) {
+					new.UID = existing.UID
+					new.ResourceVersion = existing.ResourceVersion
+					newc, err = s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
+				} else {
+					err = fmt.Errorf("configmap %q belongs to service %q", new.Name, existing.Labels["service_id"])
+				}
+			}
 			if err != nil {
 				logrus.Errorf("create config map failure %s", err.Error())
 				errs = append(errs, fmt.Errorf("create configmap %s failure: %s", new.Name, err.Error()))
@@ -127,6 +151,10 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 	}
 	for name, handle := range nowConfigMapMaps {
 		if handle != nil {
+			if handle.Labels["service_id"] != "" && handle.Labels["service_id"] != nowApp.ServiceID {
+				logrus.Debugf("preserve configmap %s owned by service %s", name, handle.Labels["service_id"])
+				continue
+			}
 			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
 				// delete of stale configmap is best-effort, never blocks the upgrade
 				logrus.Errorf("delete config map failure %s", err.Error())
@@ -135,6 +163,15 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 		}
 	}
 	return stderrors.Join(errs...)
+}
+
+func canAdoptConfigMap(existing, desired *corev1.ConfigMap) bool {
+	if existing.Labels["service_id"] != "" && existing.Labels["service_id"] == desired.Labels["service_id"] {
+		return true
+	}
+	return desired.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeOwned &&
+		existing.Annotations[v1.ConfigFileScopeAnnotation] == "" &&
+		existing.Labels["creator"] == "Rainbond"
 }
 
 // upgradeService reconciles the namespace Services from nowApp to newapp.

@@ -191,6 +191,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			Privileged: &privileged,
 		},
 	}
+	container.Env = append(container.Env, buildKitProxyEnvVars()...)
 	// 启用基于本地目录的 layer cache，使 apt-get update 等耗时层在同一组件的
 	// 重复构建中得到复用。/cache 已通过 createVolumeAndMount 挂载到宿主机的
 	// /opt/rainbond/cache，按 serviceID 区分缓存目录，默认开启无需开关。
@@ -252,6 +253,22 @@ func localBuildKitCacheArgs(serviceID string) []string {
 		"--import-cache", fmt.Sprintf("type=local,src=%s", cacheDir),
 		"--export-cache", fmt.Sprintf("type=local,dest=%s,mode=max", cacheDir),
 	}
+}
+
+var buildKitProxyEnvNames = []string{
+	"HTTP_PROXY",
+	"HTTPS_PROXY",
+	"NO_PROXY",
+}
+
+func buildKitProxyEnvVars() []corev1.EnvVar {
+	envs := make([]corev1.EnvVar, 0, len(buildKitProxyEnvNames))
+	for _, name := range buildKitProxyEnvNames {
+		if value := os.Getenv(name); value != "" {
+			envs = append(envs, corev1.EnvVar{Name: name, Value: value})
+		}
+	}
+	return envs
 }
 
 func (d *dockerfileBuild) createVolumeAndMount(secretName string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {

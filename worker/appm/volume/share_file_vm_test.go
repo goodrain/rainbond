@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,8 @@ type volumeManagerStub struct {
 	db.Manager
 	configFileDao dbdao.TenantServiceConfigFileDao
 	volumeDao     dbdao.TenantServiceVolumeDao
+	serviceDao    dbdao.TenantServiceDao
+	attributeDao  dbdao.ComponentK8sAttributeDao
 }
 
 func (m volumeManagerStub) TenantServiceConfigFileDao() dbdao.TenantServiceConfigFileDao {
@@ -28,9 +31,50 @@ func (m volumeManagerStub) TenantServiceVolumeDao() dbdao.TenantServiceVolumeDao
 	return m.volumeDao
 }
 
+func (m volumeManagerStub) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+func (m volumeManagerStub) ComponentK8sAttributeDao() dbdao.ComponentK8sAttributeDao {
+	return m.attributeDao
+}
+
+type componentK8sAttributeDaoStub struct {
+	dbdao.ComponentK8sAttributeDao
+	attribute *dbmodel.ComponentK8sAttributes
+	err       error
+}
+
+func (d componentK8sAttributeDaoStub) GetByComponentIDAndName(_, _ string) (*dbmodel.ComponentK8sAttributes, error) {
+	if d.err != nil {
+		return nil, d.err
+	}
+	return d.attribute, nil
+}
+
 type tenantServiceVolumeDaoStub struct {
 	dbdao.TenantServiceVolumeDao
 	volume *dbmodel.TenantServiceVolume
+}
+
+type tenantServiceDaoStub struct {
+	dbdao.TenantServiceDao
+	service *dbmodel.TenantServices
+}
+
+func (t tenantServiceDaoStub) GetServiceByID(string) (*dbmodel.TenantServices, error) {
+	return t.service, nil
+}
+
+func (t tenantServiceDaoStub) GetWorkloadNameByIDs([]string) ([]*dbmodel.ComponentWorkload, error) {
+	if t.service == nil {
+		return nil, nil
+	}
+	return []*dbmodel.ComponentWorkload{{
+		ComponentID:  t.service.ServiceID,
+		ServiceAlias: t.service.ServiceAlias,
+		K8sApp:       t.service.ServiceAlias,
+	}}, nil
 }
 
 func (t tenantServiceVolumeDaoStub) GetVolumeByServiceIDAndName(serviceID, name string) (*dbmodel.TenantServiceVolume, error) {
@@ -123,6 +167,9 @@ func newDeploymentAppServiceForVolumeTest() *appmtypes.AppService {
 
 // capability_id: rainbond.config-file.k8s-volume-name-safe
 func TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName(t *testing.T) {
+	if fallbackName := stableConfigMapName("", "web.conf"); fallbackName == "" {
+		t.Fatal("expected missing service identity to fall back to a generated configmap name")
+	}
 	as := newDeploymentAppServiceForVolumeTest()
 	serviceVolume := &dbmodel.TenantServiceVolume{
 		Model:      dbmodel.Model{ID: 5},
@@ -171,6 +218,9 @@ func TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName(t *testi
 	if len(as.GetConfigMaps()) != 1 || as.GetConfigMaps()[0].Data["web.conf"] != "server {}\n" {
 		t.Fatalf("expected configmap to preserve web.conf content, got %#v", as.GetConfigMaps())
 	}
+	if as.GetConfigMaps()[0].Annotations[appmtypes.ConfigFileScopeAnnotation] != appmtypes.ConfigFileScopeOwned {
+		t.Fatalf("expected owned configmap scope, got %#v", as.GetConfigMaps()[0].Annotations)
+	}
 }
 
 // capability_id: rainbond.config-file.k8s-volume-name-safe
@@ -192,7 +242,8 @@ func TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName(t 
 		VolumeType:      "config-file",
 	}
 	manager := volumeManagerStub{
-		volumeDao: tenantServiceVolumeDaoStub{volume: depVolume},
+		volumeDao:  tenantServiceVolumeDaoStub{volume: depVolume},
+		serviceDao: tenantServiceDaoStub{service: &dbmodel.TenantServices{ServiceID: "dep-service-1", ServiceAlias: "provider"}},
 		configFileDao: tenantServiceConfigFileDaoStub{
 			file: &dbmodel.TenantServiceConfigFile{
 				Model:       dbmodel.Model{CreatedAt: time.Now()},
@@ -229,6 +280,125 @@ func TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName(t 
 	}
 	if define.GetVolumeMounts()[0].SubPath != "web.conf" {
 		t.Fatalf("expected dependent subPath to preserve file name, got %q", define.GetVolumeMounts()[0].SubPath)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap(t *testing.T) {
+	const (
+		providerID = "provider-service"
+		volumeName = "application.yaml"
+	)
+
+	createForConsumer := func(t *testing.T, consumerID string) *corev1.ConfigMap {
+		t.Helper()
+		as := newDeploymentAppServiceForVolumeTest()
+		as.ServiceID = consumerID
+		as.ServiceAlias = consumerID
+		depVolume := &dbmodel.TenantServiceVolume{
+			ServiceID:  providerID,
+			VolumeName: volumeName,
+			VolumePath: "/source/application.yaml",
+			VolumeType: dbmodel.ConfigFileVolumeType.String(),
+		}
+		mountRelation := &dbmodel.TenantServiceMountRelation{
+			ServiceID:       consumerID,
+			DependServiceID: providerID,
+			VolumeName:      volumeName,
+			VolumePath:      "/app/config/application.yaml",
+			VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+		}
+		manager := volumeManagerStub{
+			volumeDao:  tenantServiceVolumeDaoStub{volume: depVolume},
+			serviceDao: tenantServiceDaoStub{service: &dbmodel.TenantServices{ServiceID: providerID, ServiceAlias: "provider-alias", AppID: "provider-app"}},
+			configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+				ServiceID:   providerID,
+				VolumeName:  volumeName,
+				FileContent: "target=provider\n",
+			}},
+		}
+
+		configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true).(*ConfigFileVolume)
+		if err := configVolume.CreateDependVolume(&Define{as: as}); err != nil {
+			t.Fatalf("create dependent config-file volume: %v", err)
+		}
+		if len(as.GetConfigMaps()) != 1 {
+			t.Fatalf("expected one consumer configmap, got %#v", as.GetConfigMaps())
+		}
+		return as.GetConfigMaps()[0]
+	}
+
+	consumerA := createForConsumer(t, "consumer-a")
+	consumerB := createForConsumer(t, "consumer-b")
+	wantName := stableConfigMapName(providerID, volumeName)
+
+	if consumerA.Name != wantName || consumerB.Name != wantName {
+		t.Fatalf("expected all consumers to reference provider configmap %q, got A=%q B=%q", wantName, consumerA.Name, consumerB.Name)
+	}
+	if consumerA.Labels["service_id"] != providerID || consumerA.Labels["service_alias"] != "provider-alias" {
+		t.Fatalf("expected configmap labels to belong to provider, got %#v", consumerA.Labels)
+	}
+	if consumerA.Labels["app_id"] != "provider-app" {
+		t.Fatalf("expected configmap app label to belong to provider, got %#v", consumerA.Labels)
+	}
+	if consumerA.Data[volumeName] != "target=provider\n" {
+		t.Fatalf("expected provider config content, got %#v", consumerA.Data)
+	}
+	if consumerA.Annotations[appmtypes.ConfigFileScopeAnnotation] != appmtypes.ConfigFileScopeDependent {
+		t.Fatalf("expected dependent configmap marker, got %#v", consumerA.Annotations)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity(t *testing.T) {
+	const (
+		consumerID = "vm-consumer"
+		providerID = "config-provider"
+		volumeName = "rainbond.env"
+	)
+	as := newVMAppServiceForVolumeTest()
+	as.ServiceID = consumerID
+	depVolume := &dbmodel.TenantServiceVolume{
+		ServiceID:  providerID,
+		VolumeName: volumeName,
+		VolumePath: "/source/rainbond.env",
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}
+	mountRelation := &dbmodel.TenantServiceMountRelation{
+		ServiceID:       consumerID,
+		DependServiceID: providerID,
+		VolumeName:      volumeName,
+		VolumePath:      "/rainbond/env/rainbond.env",
+		VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+	}
+	manager := volumeManagerStub{
+		volumeDao:  tenantServiceVolumeDaoStub{volume: depVolume},
+		serviceDao: tenantServiceDaoStub{service: &dbmodel.TenantServices{ServiceID: providerID, ServiceAlias: "provider-vm"}},
+		configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+			ServiceID:   providerID,
+			VolumeName:  volumeName,
+			FileContent: "DEMO=true\n",
+		}},
+	}
+
+	configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true).(*ConfigFileVolume)
+	define := &Define{as: as}
+	if err := configVolume.CreateDependVolume(define); err != nil {
+		t.Fatalf("create dependent vm config-file volume: %v", err)
+	}
+	if len(as.GetConfigMaps()) != 1 || len(define.GetVMVolume()) != 1 {
+		t.Fatalf("expected one configmap and one vm volume, got configmaps=%#v volumes=%#v", as.GetConfigMaps(), define.GetVMVolume())
+	}
+	configMap := as.GetConfigMaps()[0]
+	if configMap.Name != stableConfigMapName(providerID, volumeName) {
+		t.Fatalf("expected vm consumer to reference provider configmap, got %q", configMap.Name)
+	}
+	if define.GetVMVolume()[0].Name != configMap.Name {
+		t.Fatalf("expected vm volume %q to reference configmap %q", define.GetVMVolume()[0].Name, configMap.Name)
+	}
+	wantLabel := stableVMConfigVolumeLabel(providerID, volumeName)
+	if define.GetVMVolume()[0].ConfigMap.VolumeLabel != wantLabel {
+		t.Fatalf("expected provider VM volume label %q, got %q", wantLabel, define.GetVMVolume()[0].ConfigMap.VolumeLabel)
 	}
 }
 
@@ -277,6 +447,48 @@ func TestNewVolumeManagerUsesSelectedStorageClassForVMDisks(t *testing.T) {
 	}
 	if define.vmDisk[0].DiskDevice.Disk.Bus != kubevirtv1.DiskBusSATA {
 		t.Fatalf("expected root vm disk to keep sata bus, got %q", define.vmDisk[0].DiskDevice.Disk.Bus)
+	}
+}
+
+func TestShareFileVolumeCreateVolumeRejectsInvalidVMRegistryImportWithoutMutation(t *testing.T) {
+	as := newVMAppServiceForVolumeTest()
+	serviceVolume := &dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 9},
+		ServiceID:      "service-1",
+		VolumeName:     "disk",
+		VolumePath:     "/disk",
+		VolumeType:     "nfs-storage",
+		AccessMode:     "RWX",
+		VolumeCapacity: 20,
+	}
+	manager := volumeManagerStub{
+		attributeDao: componentK8sAttributeDaoStub{
+			attribute: &dbmodel.ComponentK8sAttributes{
+				AttributeValue: `{"disk":{"volume_name":"disk","image_url":"ceshi:DBServer(TongYong)","source_type":"registry"}}`,
+			},
+		},
+	}
+
+	shareVolume, ok := NewVolumeManager(as, serviceVolume, nil, nil, nil, nil, manager, false).(*ShareFileVolume)
+	if !ok {
+		t.Fatalf("expected VM storage volume to use ShareFileVolume")
+	}
+	define := &Define{as: as}
+	err := shareVolume.CreateVolume(define)
+	if err == nil {
+		t.Fatal("expected invalid VM registry import to fail volume creation")
+	}
+	if !strings.Contains(err.Error(), "invalid VM registry image reference") {
+		t.Fatalf("expected invalid registry error, got %v", err)
+	}
+	if !errors.Is(err, ErrInvalidVMRegistryImport) {
+		t.Fatalf("expected invalid VM registry import sentinel, got %v", err)
+	}
+	if len(as.GetClaims()) != 0 || len(as.GetClaimsManually()) != 0 {
+		t.Fatalf("expected failed VM import to leave claims untouched, claims=%#v manualClaims=%#v", as.GetClaims(), as.GetClaimsManually())
+	}
+	if len(define.GetVMDataVolumeTemplates()) != 0 || len(define.GetVMVolume()) != 0 || len(define.GetVMDisk()) != 0 {
+		t.Fatalf("expected failed VM import to leave definition untouched, templates=%#v volumes=%#v disks=%#v", define.GetVMDataVolumeTemplates(), define.GetVMVolume(), define.GetVMDisk())
 	}
 }
 
