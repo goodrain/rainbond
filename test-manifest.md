@@ -181,6 +181,9 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.lifecycle.service-reconcile-preserves-identity | Service reconciliation preserves allocated Kubernetes identity | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity |
+| rainbond.lifecycle.service-reconcile-rejects-foreign-owner | Service reconciliation rejects foreign ownership | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService |
+| rainbond.lifecycle.stop-preserves-service | Stopping a component preserves its generated Service identity | active | regression | worker/appm/controller.stopController.stopOne | worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService |
 | rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
 | rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
 | rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
@@ -2233,6 +2236,36 @@
 - 业务入口: `api/util/license.VerifySignature`
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
+
+### Service reconciliation preserves allocated Kubernetes identity
+
+- Capability ID: `rainbond.lifecycle.service-reconcile-preserves-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/controller.CreateKubeService`
+- 代码路径: `worker/appm/controller/kube-controller.go`
+- 测试路径: `worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity`
+
+### Service reconciliation rejects foreign ownership
+
+- Capability ID: `rainbond.lifecycle.service-reconcile-rejects-foreign-owner`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/controller.CreateKubeService`
+- 代码路径: `worker/appm/controller/kube-controller.go`
+- 测试路径: `worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService`
+
+### Stopping a component preserves its generated Service identity
+
+- Capability ID: `rainbond.lifecycle.stop-preserves-service`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.stopController.stopOne`
+- 代码路径: `worker/appm/controller/stop.go`
+- 测试路径: `worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService`
 
 ### Preserve bound manual PVC immutable spec fields during app upgrade
 

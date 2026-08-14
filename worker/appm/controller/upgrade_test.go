@@ -24,7 +24,14 @@ func configMapForTest(name string) *corev1.ConfigMap {
 
 func serviceForTest(name string) *corev1.Service {
 	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+			Labels: map[string]string{
+				"creator":    "Rainbond",
+				"service_id": "service-1",
+			},
+		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{Port: 80}},
 		},

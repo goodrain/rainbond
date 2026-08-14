@@ -20,40 +20,136 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
-//CreateKubeService create kube service
+const serviceIDLabel = "service_id"
+
+// CreateKubeService creates missing Services and reconciles existing Rainbond-owned Services.
 func CreateKubeService(client kubernetes.Interface, namespace string, services ...*corev1.Service) error {
-	var retryService []*corev1.Service
-	for i := range services {
-		createService := services[i]
-		if _, err := client.CoreV1().Services(namespace).Create(context.Background(), createService, metav1.CreateOptions{}); err != nil {
-			// Ignore if the Service is invalid with this error message:
-			// 	Service "kube-dns" is invalid: spec.clusterIP: Invalid value: "10.96.0.10": provided IP is already allocated
-			if !errors.IsAlreadyExists(err) && !errors.IsInvalid(err) {
-				retryService = append(retryService, createService)
-				continue
-			}
-			if _, err := client.CoreV1().Services(namespace).Update(context.Background(), createService, metav1.UpdateOptions{}); err != nil {
-				retryService = append(retryService, createService)
-				continue
-			}
+	for _, desired := range services {
+		if desired == nil || desired.Name == "" {
+			return fmt.Errorf("service name is required")
 		}
-	}
-	//second attempt
-	for _, service := range retryService {
-		_, err := client.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				continue
-			}
-			return err
+		if desired.Labels[serviceIDLabel] == "" {
+			return fmt.Errorf("service %s/%s has no %q ownership label", namespace, desired.Name, serviceIDLabel)
+		}
+		if err := ensureKubeService(client, namespace, desired); err != nil {
+			return fmt.Errorf("ensure service %s/%s: %w", namespace, desired.Name, err)
 		}
 	}
 	return nil
+}
+
+func ensureKubeService(client kubernetes.Interface, namespace string, desired *corev1.Service) error {
+	ctx := context.Background()
+	return retry.OnError(retry.DefaultRetry, isRetryableServiceEnsureError, func() error {
+		existing, err := client.CoreV1().Services(namespace).Get(ctx, desired.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			_, err = client.CoreV1().Services(namespace).Create(ctx, desired.DeepCopy(), metav1.CreateOptions{})
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		if err := validateServiceOwnership(existing, desired); err != nil {
+			return err
+		}
+		if err := validateClusterIPMode(existing, desired); err != nil {
+			return err
+		}
+
+		updated := reconciledService(existing, desired)
+		_, err = client.CoreV1().Services(namespace).Update(ctx, updated, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+func isRetryableServiceEnsureError(err error) bool {
+	return errors.IsAlreadyExists(err) || errors.IsConflict(err) || errors.IsNotFound(err)
+}
+
+func validateServiceOwnership(existing, desired *corev1.Service) error {
+	desiredServiceID := desired.Labels[serviceIDLabel]
+	existingServiceID := existing.Labels[serviceIDLabel]
+	if desiredServiceID == "" {
+		return fmt.Errorf("desired service has no %q ownership label", serviceIDLabel)
+	}
+	if existingServiceID != desiredServiceID {
+		return fmt.Errorf("existing service belongs to service %q, expected %q", existingServiceID, desiredServiceID)
+	}
+	return nil
+}
+
+func validateClusterIPMode(existing, desired *corev1.Service) error {
+	existingHeadless := existing.Spec.ClusterIP == corev1.ClusterIPNone
+	desiredHeadless := desired.Spec.ClusterIP == corev1.ClusterIPNone
+	if existingHeadless != desiredHeadless {
+		return fmt.Errorf("cluster IP mode is immutable: existing=%q desired=%q", existing.Spec.ClusterIP, desired.Spec.ClusterIP)
+	}
+	return nil
+}
+
+func reconciledService(existing, desired *corev1.Service) *corev1.Service {
+	updated := existing.DeepCopy()
+	desiredCopy := desired.DeepCopy()
+
+	updated.Labels = mergeStringMap(existing.Labels, desired.Labels)
+	updated.Annotations = mergeStringMap(existing.Annotations, desired.Annotations)
+	updated.Spec = desiredCopy.Spec
+	updated.Spec.ClusterIP = existing.Spec.ClusterIP
+	updated.Spec.ClusterIPs = append([]string(nil), existing.Spec.ClusterIPs...)
+	updated.Spec.IPFamilies = append([]corev1.IPFamily(nil), existing.Spec.IPFamilies...)
+	if existing.Spec.IPFamilyPolicy != nil {
+		policy := *existing.Spec.IPFamilyPolicy
+		updated.Spec.IPFamilyPolicy = &policy
+	}
+	if updated.Spec.Type == corev1.ServiceTypeLoadBalancer && updated.Spec.HealthCheckNodePort == 0 {
+		updated.Spec.HealthCheckNodePort = existing.Spec.HealthCheckNodePort
+	}
+	if updated.Spec.Type == corev1.ServiceTypeNodePort || updated.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		preserveAllocatedNodePorts(updated.Spec.Ports, existing.Spec.Ports)
+	}
+	return updated
+}
+
+func mergeStringMap(existing, desired map[string]string) map[string]string {
+	merged := make(map[string]string, len(existing)+len(desired))
+	for key, value := range existing {
+		merged[key] = value
+	}
+	for key, value := range desired {
+		merged[key] = value
+	}
+	return merged
+}
+
+func preserveAllocatedNodePorts(desired, existing []corev1.ServicePort) {
+	for desiredIndex := range desired {
+		if desired[desiredIndex].NodePort != 0 {
+			continue
+		}
+		for existingIndex := range existing {
+			if servicePortsShareIdentity(desired[desiredIndex], existing[existingIndex]) {
+				desired[desiredIndex].NodePort = existing[existingIndex].NodePort
+				break
+			}
+		}
+	}
+}
+
+func servicePortsShareIdentity(desired, existing corev1.ServicePort) bool {
+	if desired.Protocol != existing.Protocol {
+		return false
+	}
+	if desired.Name != "" || existing.Name != "" {
+		return desired.Name == existing.Name
+	}
+	return desired.Port == existing.Port
 }
