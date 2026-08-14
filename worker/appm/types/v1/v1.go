@@ -572,6 +572,9 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 
 // GetIngress get ingress
 func (a *AppService) GetIngress(canCopy bool) ([]*networkingv1.Ingress, []*betav1.Ingress) {
+	if len(a.ingresses) == 0 && len(a.betaIngresses) == 0 {
+		return nil, nil
+	}
 	if k8s.IsHighVersion() {
 		if canCopy {
 			cr := make([]*networkingv1.Ingress, len(a.ingresses))

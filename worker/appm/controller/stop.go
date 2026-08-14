@@ -96,20 +96,9 @@ func (s *stopController) Begin() {
 func (s *stopController) stopOne(app v1.AppService) error {
 
 	var zero int64
-	//step 1: delete services
-	if services := app.GetServices(true); services != nil {
-		for _, service := range services {
-			if service != nil && service.Name != "" {
-				err := s.manager.client.CoreV1().Services(app.GetNamespace()).Delete(s.ctx, service.Name, metav1.DeleteOptions{
-					GracePeriodSeconds: &zero,
-				})
-				if err != nil && !errors.IsNotFound(err) {
-					return fmt.Errorf("delete service failure:%s", err.Error())
-				}
-			}
-		}
-	}
-	//step 2: delete secrets
+	// Keep generated Services so their cluster IPs and DNS identities survive stop and restart.
+	// Component deletion is responsible for removing them through the service garbage collector.
+	// step 1: delete secrets
 	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
@@ -122,7 +111,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
-	//step 3: delete ingress
+	// step 2: delete ingress
 	if ingresses, betaIngresses := app.GetIngress(true); ingresses != nil || betaIngresses != nil {
 		if ingresses != nil {
 			for _, ingress := range ingresses {
@@ -145,7 +134,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 
 	}
-	//step 4: delete configmap
+	// step 3: delete configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
 			if config != nil && config.Name != "" {
@@ -185,7 +174,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 		s.manager.store.OnDeletes(vm)
 	}
-	//step 5: delete statefulset or deployment
+	// step 4: delete statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		err := s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Delete(s.ctx, statefulset.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
@@ -230,7 +219,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 		s.manager.store.OnDeletes(cronjob)
 	}
-	//step 6: delete all pod
+	// step 5: delete all pod
 	var gracePeriodSeconds int64
 	if pods := app.GetPods(true); pods != nil {
 		for _, pod := range pods {
@@ -244,7 +233,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
-	//step 7: deleta all hpa
+	// step 6: delete all hpa
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
 			err := s.manager.client.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(s.ctx, hpa.GetName(), metav1.DeleteOptions{})
@@ -261,7 +250,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
-	//step 8: delete CR resource
+	// step 7: delete CR resource
 	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
 		if sms := app.GetServiceMonitors(true); len(sms) > 0 {
 			smClient, err := s.manager.store.GetServiceMonitorClient()
@@ -279,7 +268,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 
-	//step 9: waiting endpoint ready
+	// step 8: waiting endpoint ready
 	app.Logger.Info("Delete all app model success, will waiting app closed", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }

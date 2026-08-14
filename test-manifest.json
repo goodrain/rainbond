@@ -3271,6 +3271,60 @@
       "status": "active"
     },
     {
+      "id": "rainbond.lifecycle.service-reconcile-preserves-identity",
+      "title": "Service reconciliation preserves allocated Kubernetes identity",
+      "title_zh": "Service reconciliation preserves allocated Kubernetes identity",
+      "interface_type": "package_function",
+      "interface": "worker/appm/controller.CreateKubeService",
+      "code_paths": [
+        "worker/appm/controller/kube-controller.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/kube-controller_test.go",
+          "selector": "TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.lifecycle.service-reconcile-rejects-foreign-owner",
+      "title": "Service reconciliation rejects foreign ownership",
+      "title_zh": "Service reconciliation rejects foreign ownership",
+      "interface_type": "package_function",
+      "interface": "worker/appm/controller.CreateKubeService",
+      "code_paths": [
+        "worker/appm/controller/kube-controller.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/kube-controller_test.go",
+          "selector": "TestCreateKubeServiceRejectsForeignService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.lifecycle.stop-preserves-service",
+      "title": "Stopping a component preserves its generated Service identity",
+      "title_zh": "Stopping a component preserves its generated Service identity",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.stopController.stopOne",
+      "code_paths": [
+        "worker/appm/controller/stop.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/stop_test.go",
+          "selector": "TestStopPreservesGeneratedService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
       "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",
