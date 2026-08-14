@@ -21,18 +21,16 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	"github.com/goodrain/rainbond/pkg/gogo"
-	"time"
 
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/goodrain/rainbond/db"
-	dbModel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -60,25 +58,6 @@ func (d *ConDB) Start(ctx context.Context) error {
 		logrus.Errorf("get db manager failed,%s", err.Error())
 		return err
 	}
-
-	// api database initialization
-	_ = gogo.Go(func(ctx context.Context) error {
-		timer := time.NewTimer(time.Second * 2)
-		defer timer.Stop()
-		for {
-			err := dbInit()
-			if err != nil {
-				logrus.Error("Initializing database failed, ", err)
-			} else {
-				logrus.Info("api database initialization success!")
-				return nil
-			}
-			select {
-			case <-timer.C:
-				timer.Reset(time.Second * 2)
-			}
-		}
-	})
 	return nil
 }
 
@@ -130,56 +109,4 @@ func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
 		User:       t.User,
 	}
 	return &er, nil
-}
-
-// GetBegin get db transaction
-func GetBegin() *gorm.DB {
-	return db.GetManager().Begin()
-}
-
-func dbInit() error {
-	logrus.Info("api database initialization starting...")
-	begin := GetBegin()
-	// Permissions set
-	var rac dbModel.RegionAPIClass
-	if err := begin.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			data := map[string]string{
-				"/v2/show":           "server_source",
-				"/v2/cluster":        "server_source",
-				"/v2/resources":      "server_source",
-				"/v2/builder":        "server_source",
-				"/v2/tenants":        "server_source",
-				"/v2/app":            "server_source",
-				"/v2/port":           "server_source",
-				"/v2/volume-options": "server_source",
-				"/api/v1":            "server_source",
-				"/v2/events":         "server_source",
-				"/v2/gateway/ips":    "server_source",
-				"/v2/gateway/ports":  "server_source",
-				"/v2/nodes":          "node_manager",
-				"/v2/job":            "node_manager",
-				"/v2/configs":        "node_manager",
-			}
-			tx := begin
-			var rollback bool
-			for k, v := range data {
-				if err := db.GetManager().RegionAPIClassDaoTransactions(tx).AddModel(&dbModel.RegionAPIClass{
-					ClassLevel: v,
-					Prefix:     k,
-				}); err != nil {
-					tx.Rollback()
-					rollback = true
-					break
-				}
-			}
-			if !rollback {
-				tx.Commit()
-			}
-		} else {
-			return err
-		}
-	}
-
-	return nil
 }

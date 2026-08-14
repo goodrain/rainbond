@@ -105,12 +105,6 @@ type Manager interface {
 	VersionInfoDao() dao.VersionInfoDao
 	VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao
 
-	RegionUserInfoDao() dao.RegionUserInfoDao
-	RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao
-
-	RegionAPIClassDao() dao.RegionAPIClassDao
-	RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao
-
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
 	AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao
