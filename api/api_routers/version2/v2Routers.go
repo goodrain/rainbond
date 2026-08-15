@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/api/middleware"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/component/eventlog"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	http2 "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -128,6 +129,8 @@ func (v2 *V2) eventsRouter() chi.Router {
 	r.Get("/myteam", controller.GetManager().MyTeamsEvents)
 	// get target's event content
 	r.Get("/{eventID}/log", controller.GetManager().EventLog)
+	// stream target's event content
+	r.Get("/{eventID}/stream", eventlog.Default().SocketServer.PushEventMessageSSE)
 	return r
 }
 

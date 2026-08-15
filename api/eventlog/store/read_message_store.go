@@ -48,43 +48,49 @@ func (h *readMessageStore) InsertMessage(message *db.EventLogMessage) {
 	if message == nil || message.EventID == "" {
 		return
 	}
-	h.lock.Lock()
-	defer h.lock.Unlock()
-	if ba, ok := h.barrels[message.EventID]; ok {
-		ba.insertMessage(message)
-	} else {
-		ba := h.pool.Get().(*readEventBarrel)
-		// 注入eventID和fileStore
-		ba.eventID = message.EventID
-		ba.fileStore = h.fileStore
-		ba.insertMessage(message)
-		h.barrels[message.EventID] = ba
-	}
+	ba := h.acquireBarrel(message.EventID, true)
+	defer h.releaseBarrel(ba)
+	ba.insertMessage(message)
 }
 func (h *readMessageStore) GetMonitorData() *db.MonitorData {
 	return nil
 }
 
 func (h *readMessageStore) SubChan(eventID, subID string) chan *db.EventLogMessage {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-	if ba, ok := h.barrels[eventID]; ok {
-		return ba.addSubChan(subID)
-	}
-	ba := h.pool.Get().(*readEventBarrel)
-	// 注入eventID和fileStore
-	ba.eventID = eventID
-	ba.fileStore = h.fileStore
-	ba.updateTime = time.Now()
-	h.barrels[eventID] = ba
+	ba := h.acquireBarrel(eventID, true)
+	defer h.releaseBarrel(ba)
 	return ba.addSubChan(subID)
 }
 func (h *readMessageStore) RealseSubChan(eventID, subID string) {
+	ba := h.acquireBarrel(eventID, false)
+	if ba == nil {
+		return
+	}
+	defer h.releaseBarrel(ba)
+	ba.delSubChan(subID)
+}
+
+func (h *readMessageStore) acquireBarrel(eventID string, create bool) *readEventBarrel {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if ba, ok := h.barrels[eventID]; ok {
-		ba.delSubChan(subID)
+	ba, ok := h.barrels[eventID]
+	if !ok && create {
+		ba = h.pool.Get().(*readEventBarrel)
+		ba.eventID = eventID
+		ba.fileStore = h.fileStore
+		ba.updateTime = time.Now()
+		h.barrels[eventID] = ba
 	}
+	if ba != nil {
+		ba.activeUsers++
+	}
+	return ba
+}
+
+func (h *readMessageStore) releaseBarrel(ba *readEventBarrel) {
+	h.lock.Lock()
+	ba.activeUsers--
+	h.lock.Unlock()
 }
 func (h *readMessageStore) Run() {
 	go h.Gc()
@@ -101,13 +107,16 @@ func (h *readMessageStore) Gc() {
 			return
 		}
 
-		if len(h.barrels) == 0 {
-			continue
-		}
-
 		var gcEvent []string
 		h.lock.Lock()
+		if len(h.barrels) == 0 {
+			h.lock.Unlock()
+			continue
+		}
 		for k, v := range h.barrels {
+			if v.activeUsers > 0 {
+				continue
+			}
 			// 改进GC策略：
 			// 1. 超时未活跃的barrel（1分钟）且无订阅者
 			if v.updateTime.Add(time.Minute * 1).Before(time.Now()) {

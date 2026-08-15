@@ -21,13 +21,14 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/api/eventlog/conf"
-	"github.com/goodrain/rainbond/api/eventlog/store"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/api/eventlog/conf"
+	"github.com/goodrain/rainbond/api/eventlog/db"
+	"github.com/goodrain/rainbond/api/eventlog/store"
 	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 
@@ -36,9 +37,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	_ "k8s.io/component-base/metrics/prometheus/version"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	_ "k8s.io/component-base/metrics/prometheus/version"
 )
 
 // SocketServer socket 服务
@@ -157,6 +158,80 @@ func (s *SocketServer) PushEventMessage(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+}
+
+type eventMessageStore interface {
+	WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage
+	RealseWebSocketMessageChan(mode, eventID, subID string)
+}
+
+// PushEventMessageSSE streams event log messages to an SSE client.
+func (s *SocketServer) PushEventMessageSSE(w http.ResponseWriter, r *http.Request) {
+	streamEventMessages(w, r, chi.URLParam(r, "eventID"), s.storemanager, s.context.Done(), 20*time.Second)
+}
+
+func streamEventMessages(w http.ResponseWriter, r *http.Request, eventID string, messageStore eventMessageStore, serverDone <-chan struct{}, heartbeatInterval time.Duration) {
+	if strings.TrimSpace(eventID) == "" {
+		http.Error(w, "Event ID can not be empty", http.StatusBadRequest)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	subscriberID := uuid.New().String()
+	messages := messageStore.WebSocketMessageChan("event", eventID, subscriberID)
+	defer messageStore.RealseWebSocketMessageChan("event", eventID, subscriberID)
+	if messages == nil {
+		http.Error(w, "Event stream unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	if _, err := fmt.Fprint(w, ": connected\n\n"); err != nil {
+		return
+	}
+	flusher.Flush()
+
+	heartbeat := time.NewTicker(heartbeatInterval)
+	defer heartbeat.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-serverDone:
+			return
+		case message, ok := <-messages:
+			if !ok {
+				return
+			}
+			if message == nil {
+				continue
+			}
+			payload, err := json.Marshal(message)
+			if err != nil {
+				return
+			}
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+				return
+			}
+			flusher.Flush()
+			if message.Step == "last" || message.Step == "callback" {
+				return
+			}
+		case <-heartbeat.C:
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
 }
 
 func (s *SocketServer) PushDockerLog(w http.ResponseWriter, r *http.Request) {
