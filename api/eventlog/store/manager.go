@@ -100,7 +100,7 @@ func NewManager(conf conf.EventStoreConf, log *logrus.Entry) (Manager, error) {
 		errChan:               make(chan error),
 	}
 	handle := NewStore("handle", storeManager)
-	read := NewStore("read", storeManager)
+	read := NewStore("read", storeManager).(*readMessageStore)
 	docker := NewStore("docker_log", storeManager)
 	newmonitor := NewStore("newmonitor", storeManager)
 	storeManager.handleMessageStore = handle
@@ -114,7 +114,7 @@ type storeManager struct {
 	cancel                 func()
 	context                context.Context
 	handleMessageStore     MessageStore
-	readMessageStore       MessageStore
+	readMessageStore       *readMessageStore
 	dockerLogStore         MessageStore
 	newmonitorMessageStore MessageStore
 	receiveChan            chan []byte
@@ -250,6 +250,13 @@ func (s *storeManager) WebSocketMessageChan(mode, eventID, subID string) chan *d
 		return ch
 	}
 	return nil
+}
+
+// EventStreamMessageChan returns an atomic event history snapshot and a live
+// channel dedicated to SSE. Legacy WebSocket and PubSub subscribers continue
+// to use WebSocketMessageChan and retain their existing replay semantics.
+func (s *storeManager) EventStreamMessageChan(eventID, subID string) ([]*db2.EventLogMessage, chan *db2.EventLogMessage) {
+	return s.readMessageStore.EventStreamMessageChan(eventID, subID)
 }
 
 func (s *storeManager) Run() error {
@@ -519,6 +526,10 @@ func (s *storeManager) RealseWebSocketMessageChan(mode string, eventID, subID st
 	if mode == "newmonitor" {
 		s.newmonitorMessageStore.RealseSubChan(eventID, subID)
 	}
+}
+
+func (s *storeManager) ReleaseEventStreamMessageChan(eventID, subID string) {
+	s.readMessageStore.RealseSubChan(eventID, subID)
 }
 
 func (s *storeManager) Stop() {

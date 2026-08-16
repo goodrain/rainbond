@@ -73,6 +73,22 @@ func newReadEventBarrelForTest(fileStore FileStore) *readEventBarrel {
 	}
 }
 
+func newReadMessageStoreForTest(fileStore FileStore) *readMessageStore {
+	messageStore := &readMessageStore{
+		barrels:   make(map[string]*readEventBarrel),
+		fileStore: fileStore,
+	}
+	messageStore.pool = &sync.Pool{
+		New: func() interface{} {
+			return &readEventBarrel{
+				subSocketChan: make(map[string]chan *db.EventLogMessage),
+				fileStore:     fileStore,
+			}
+		},
+	}
+	return messageStore
+}
+
 func TestReadEventBarrelReplaysHistoryBeforeLiveWithoutDuplicates(t *testing.T) {
 	history := &db.EventLogMessage{EventID: "event-1", Message: "history"}
 	live := &db.EventLogMessage{EventID: "event-1", Message: "live"}
@@ -171,20 +187,152 @@ func TestReadEventBarrelPreservesIdenticalLiveMessages(t *testing.T) {
 	assertMessage(t, ch, "same message")
 }
 
+func TestReadEventBarrelEventStreamSnapshotAndLiveAreAtomic(t *testing.T) {
+	history := &db.EventLogMessage{EventID: "event-1", Message: "same message"}
+	live := &db.EventLogMessage{EventID: "event-1", Message: "same message"}
+	fileStore := newBlockingReplayFileStore(history)
+	barrel := newReadEventBarrelForTest(fileStore)
+
+	type subscriptionResult struct {
+		history []*db.EventLogMessage
+		live    chan *db.EventLogMessage
+	}
+	subscription := make(chan subscriptionResult, 1)
+	go func() {
+		historyMessages, liveMessages := barrel.addEventStreamSubChan("sse-1")
+		subscription <- subscriptionResult{history: historyMessages, live: liveMessages}
+	}()
+	<-fileStore.readStarted
+
+	insertDone := make(chan struct{})
+	go func() {
+		barrel.insertMessage(live)
+		close(insertDone)
+	}()
+
+	select {
+	case <-fileStore.appendCalled:
+		t.Fatal("live message was persisted before the SSE history snapshot completed")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(fileStore.releaseRead)
+	result := <-subscription
+	<-insertDone
+
+	if len(result.history) != 1 || result.history[0].Message != "same message" {
+		t.Fatalf("history = %#v, want one preserved message", result.history)
+	}
+	assertMessage(t, result.live, "same message")
+	select {
+	case message := <-result.live:
+		t.Fatalf("received duplicate message across history/live boundary: %#v", message)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	barrel.delSubChan("sse-1")
+	if _, ok := <-result.live; ok {
+		t.Fatal("SSE live channel remains open after release")
+	}
+}
+
+func TestReadEventBarrelLegacySubscriptionStillReplaysThroughChannel(t *testing.T) {
+	history := &db.EventLogMessage{EventID: "event-1", Message: "legacy history"}
+	fileStore := newBlockingReplayFileStore(history)
+	barrel := newReadEventBarrelForTest(fileStore)
+
+	subscription := make(chan chan *db.EventLogMessage, 1)
+	go func() {
+		subscription <- barrel.addSubChan("websocket-1")
+	}()
+	<-fileStore.readStarted
+	close(fileStore.releaseRead)
+	legacyMessages := <-subscription
+
+	assertMessage(t, legacyMessages, "legacy history")
+	barrel.delSubChan("websocket-1")
+}
+
+func TestStoreManagerKeepsEventStreamAndLegacySubscriptionsSeparate(t *testing.T) {
+	history := &db.EventLogMessage{EventID: "event-1", Message: "history"}
+	fileStore := newBlockingReplayFileStore(history)
+	close(fileStore.releaseRead)
+	messageStore := newReadMessageStoreForTest(fileStore)
+	manager := &storeManager{readMessageStore: messageStore}
+
+	streamHistory, streamLive := manager.EventStreamMessageChan("event-1", "sse-1")
+	if len(streamHistory) != 1 || streamHistory[0].Message != "history" {
+		t.Fatalf("SSE history = %#v, want one history message", streamHistory)
+	}
+	select {
+	case message := <-streamLive:
+		t.Fatalf("SSE live channel unexpectedly replayed history: %#v", message)
+	default:
+	}
+	manager.ReleaseEventStreamMessageChan("event-1", "sse-1")
+	if _, ok := <-streamLive; ok {
+		t.Fatal("SSE live channel remains open after release")
+	}
+
+	legacy := manager.WebSocketMessageChan("event", "event-1", "websocket-1")
+	assertMessage(t, legacy, "history")
+	manager.RealseWebSocketMessageChan("event", "event-1", "websocket-1")
+	if _, ok := <-legacy; ok {
+		t.Fatal("legacy WebSocket channel remains open after release")
+	}
+}
+
+func TestReadMessageStoreEventStreamSubscriptionIsSafeFromGC(t *testing.T) {
+	fileStore := newBlockingReplayFileStore()
+	messageStore := newReadMessageStoreForTest(fileStore)
+
+	type subscriptionResult struct {
+		history []*db.EventLogMessage
+		live    chan *db.EventLogMessage
+	}
+	subscription := make(chan subscriptionResult, 1)
+	go func() {
+		history, live := messageStore.EventStreamMessageChan("event-1", "sse-1")
+		subscription <- subscriptionResult{history: history, live: live}
+	}()
+	<-fileStore.readStarted
+
+	messageStore.lock.Lock()
+	barrel := messageStore.barrels["event-1"]
+	activeUsers := barrel.activeUsers
+	messageStore.lock.Unlock()
+	if activeUsers != 1 {
+		t.Fatalf("active users during replay = %d, want 1 so GC cannot recycle the barrel", activeUsers)
+	}
+
+	close(fileStore.releaseRead)
+	result := <-subscription
+	messageStore.lock.Lock()
+	activeUsers = barrel.activeUsers
+	currentBarrel := messageStore.barrels["event-1"]
+	messageStore.lock.Unlock()
+	if activeUsers != 0 {
+		t.Fatalf("active users after subscription = %d, want 0", activeUsers)
+	}
+	if currentBarrel != barrel {
+		t.Fatal("event barrel was replaced while the SSE subscription was being registered")
+	}
+	barrel.subLock.Lock()
+	_, registered := barrel.subSocketChan["sse-1"]
+	barrel.subLock.Unlock()
+	if !registered {
+		t.Fatal("SSE subscriber was not registered before the barrel became eligible for GC checks")
+	}
+
+	messageStore.RealseSubChan("event-1", "sse-1")
+	if _, ok := <-result.live; ok {
+		t.Fatal("SSE live channel remains open after release")
+	}
+}
+
 func TestReadMessageStoreReplayDoesNotBlockOtherEvents(t *testing.T) {
 	fileStore := newBlockingReplayFileStore()
-	messageStore := &readMessageStore{
-		barrels:   make(map[string]*readEventBarrel),
-		fileStore: fileStore,
-	}
-	messageStore.pool = &sync.Pool{
-		New: func() interface{} {
-			return &readEventBarrel{
-				subSocketChan: make(map[string]chan *db.EventLogMessage),
-				fileStore:     fileStore,
-			}
-		},
-	}
+	messageStore := newReadMessageStoreForTest(fileStore)
 
 	subscription := make(chan chan *db.EventLogMessage, 1)
 	go func() {

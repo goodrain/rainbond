@@ -174,19 +174,26 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 }
 
 func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage) {
+	for _, message := range r.readLastMessages() {
+		ch <- message
+	}
+}
+
+func (r *readEventBarrel) readLastMessages() []*db.EventLogMessage {
 	if r.fileStore != nil && r.eventID != "" {
 		messages, err := r.fileStore.ReadLast(r.eventID, 1000)
 		if err != nil {
 			logrus.Errorf("Failed to read history for event %s: %v", r.eventID, err)
-		} else {
-			for _, m := range messages {
-				if m.Content == nil {
-					rebuildMessageContent(m)
-				}
-				ch <- m
+			return nil
+		}
+		for _, message := range messages {
+			if message.Content == nil {
+				rebuildMessageContent(message)
 			}
 		}
+		return messages
 	}
+	return nil
 }
 
 // 增加socket订阅
@@ -205,6 +212,23 @@ func (r *readEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.pushCashMessage(ch)
 	r.subSocketChan[subID] = ch
 	return ch
+}
+
+// addEventStreamSubChan atomically snapshots persisted history and registers a
+// live subscriber. History is returned separately so the SSE transport can
+// mark the replay boundary without changing legacy WebSocket/PubSub messages.
+func (r *readEventBarrel) addEventStreamSubChan(subID string) ([]*db.EventLogMessage, chan *db.EventLogMessage) {
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
+
+	if sub, ok := r.subSocketChan[subID]; ok {
+		return nil, sub
+	}
+
+	history := r.readLastMessages()
+	live := make(chan *db.EventLogMessage, 1024)
+	r.subSocketChan[subID] = live
+	return history, live
 }
 
 // 删除socket订阅
