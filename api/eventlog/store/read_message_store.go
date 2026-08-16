@@ -61,6 +61,13 @@ func (h *readMessageStore) SubChan(eventID, subID string) chan *db.EventLogMessa
 	defer h.releaseBarrel(ba)
 	return ba.addSubChan(subID)
 }
+
+func (h *readMessageStore) EventStreamMessageChan(eventID, subID string) ([]*db.EventLogMessage, chan *db.EventLogMessage) {
+	ba := h.acquireBarrel(eventID, true)
+	defer h.releaseBarrel(ba)
+	return ba.addEventStreamSubChan(subID)
+}
+
 func (h *readMessageStore) RealseSubChan(eventID, subID string) {
 	ba := h.acquireBarrel(eventID, false)
 	if ba == nil {

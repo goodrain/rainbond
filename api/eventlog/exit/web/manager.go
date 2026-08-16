@@ -161,13 +161,23 @@ func (s *SocketServer) PushEventMessage(w http.ResponseWriter, r *http.Request) 
 }
 
 type eventMessageStore interface {
-	WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage
-	RealseWebSocketMessageChan(mode, eventID, subID string)
+	EventStreamMessageChan(eventID, subID string) ([]*db.EventLogMessage, chan *db.EventLogMessage)
+	ReleaseEventStreamMessageChan(eventID, subID string)
 }
 
 // PushEventMessageSSE streams event log messages to an SSE client.
 func (s *SocketServer) PushEventMessageSSE(w http.ResponseWriter, r *http.Request) {
-	streamEventMessages(w, r, chi.URLParam(r, "eventID"), s.storemanager, s.context.Done(), 20*time.Second)
+	eventID := chi.URLParam(r, "eventID")
+	if strings.TrimSpace(eventID) == "" {
+		http.Error(w, "Event ID can not be empty", http.StatusBadRequest)
+		return
+	}
+	messageStore, ok := s.storemanager.(eventMessageStore)
+	if !ok {
+		http.Error(w, "Event stream unavailable", http.StatusInternalServerError)
+		return
+	}
+	streamEventMessages(w, r, eventID, messageStore, s.context.Done(), 20*time.Second)
 }
 
 func streamEventMessages(w http.ResponseWriter, r *http.Request, eventID string, messageStore eventMessageStore, serverDone <-chan struct{}, heartbeatInterval time.Duration) {
@@ -183,8 +193,8 @@ func streamEventMessages(w http.ResponseWriter, r *http.Request, eventID string,
 	}
 
 	subscriberID := uuid.New().String()
-	messages := messageStore.WebSocketMessageChan("event", eventID, subscriberID)
-	defer messageStore.RealseWebSocketMessageChan("event", eventID, subscriberID)
+	history, messages := messageStore.EventStreamMessageChan(eventID, subscriberID)
+	defer messageStore.ReleaseEventStreamMessageChan(eventID, subscriberID)
 	if messages == nil {
 		http.Error(w, "Event stream unavailable", http.StatusInternalServerError)
 		return
@@ -198,6 +208,47 @@ func streamEventMessages(w http.ResponseWriter, r *http.Request, eventID string,
 		return
 	}
 	flusher.Flush()
+
+	historyTerminal := false
+	for _, message := range history {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-serverDone:
+			return
+		default:
+		}
+		if message == nil {
+			continue
+		}
+		payload, err := json.Marshal(message)
+		if err != nil {
+			return
+		}
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+			return
+		}
+		flusher.Flush()
+		if message.Step == "last" || message.Step == "callback" {
+			historyTerminal = true
+			break
+		}
+	}
+
+	select {
+	case <-r.Context().Done():
+		return
+	case <-serverDone:
+		return
+	default:
+	}
+	if _, err := fmt.Fprint(w, "event: replay-complete\ndata: {}\n\n"); err != nil {
+		return
+	}
+	flusher.Flush()
+	if historyTerminal {
+		return
+	}
 
 	heartbeat := time.NewTicker(heartbeatInterval)
 	defer heartbeat.Stop()
