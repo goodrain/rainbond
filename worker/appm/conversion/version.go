@@ -21,6 +21,7 @@ package conversion
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -854,6 +855,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		vol := volume.NewVolumeManager(as, v, nil, version, envs, secrets, dbmanager, false)
 		if vol != nil {
 			if err = vol.CreateVolume(define); err != nil {
+				if as.GetVirtualMachine() != nil && errors.Is(err, volume.ErrInvalidVMRegistryImport) {
+					return nil, fmt.Errorf("create VM disk import volume %q: %w", v.VolumeName, err)
+				}
 				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
 				continue
 			}

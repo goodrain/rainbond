@@ -123,11 +123,7 @@ func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			// 长时请求豁免：日志流、插件后端代理（含 SSE / 长连接）使用更长的超时。
 			// 这里用每请求的局部变量，避免直接改写闭包捕获的 timeout 而污染后续所有请求。
-			effectiveTimeout := timeout
-			if strings.Contains(r.URL.Path, "logs") ||
-				strings.Contains(r.URL.Path, "/platform/backend/plugins/") {
-				effectiveTimeout = 1 * time.Hour
-			}
+			effectiveTimeout := requestTimeout(r.URL.Path, timeout)
 			ctx, cancel := context.WithTimeout(r.Context(), effectiveTimeout)
 			defer func() {
 				cancel()
@@ -141,4 +137,22 @@ func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 		}
 		return http.HandlerFunc(fn)
 	}
+}
+
+func requestTimeout(path string, defaultTimeout time.Duration) time.Duration {
+	if strings.Contains(path, "logs") ||
+		strings.Contains(path, "/platform/backend/plugins/") ||
+		isEventLogStreamPath(path) {
+		return time.Hour
+	}
+	return defaultTimeout
+}
+
+func isEventLogStreamPath(path string) bool {
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	return len(parts) == 4 &&
+		parts[0] == "v2" &&
+		parts[1] == "events" &&
+		parts[2] != "" &&
+		parts[3] == "stream"
 }

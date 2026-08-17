@@ -11,6 +11,7 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
+// capability_id: rainbond.worker.appm.vm-default-interface-virtio
 func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(nil, nil, nil, nil)
 	if err != nil {
@@ -25,8 +26,8 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	if len(cfg.Interfaces) != 1 {
 		t.Fatalf("expected 1 interface, got %d", len(cfg.Interfaces))
 	}
-	if cfg.Interfaces[0].Model != "e1000" {
-		t.Fatalf("expected unknown guest network to default to e1000, got %q", cfg.Interfaces[0].Model)
+	if cfg.Interfaces[0].Model != "virtio" {
+		t.Fatalf("expected unknown guest network to default to virtio, got %q", cfg.Interfaces[0].Model)
 	}
 	if cfg.Interfaces[0].Bridge == nil {
 		t.Fatalf("expected default bridge interface so VM guest uses pod IP")
@@ -42,7 +43,7 @@ func TestBuildVMRuntimeConfigRandomNetwork(t *testing.T) {
 	}
 }
 
-func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
+func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio(t *testing.T) {
 	cfg, err := buildVMRuntimeConfig(map[string]string{
 		"vm_os_name": "Windows Server 2022",
 	}, nil, nil, nil)
@@ -52,8 +53,8 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesE1000(t *testing.T) {
 	if len(cfg.Interfaces) != 1 {
 		t.Fatalf("expected 1 interface, got %d", len(cfg.Interfaces))
 	}
-	if cfg.Interfaces[0].Model != "e1000" {
-		t.Fatalf("expected windows random network to use e1000, got %q", cfg.Interfaces[0].Model)
+	if cfg.Interfaces[0].Model != "virtio" {
+		t.Fatalf("expected windows random network to use virtio, got %q", cfg.Interfaces[0].Model)
 	}
 	if cfg.Interfaces[0].Bridge == nil {
 		t.Fatalf("expected windows random network to use bridge binding")

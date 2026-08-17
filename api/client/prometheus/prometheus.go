@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,7 +35,7 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-//Options prometheus options
+// Options prometheus options
 type Options struct {
 	Endpoint string `json:"endpoint,omitempty" yaml:"endpoint"`
 }
@@ -43,7 +45,23 @@ type prometheus struct {
 	client apiv1.API
 }
 
-//NewPrometheus new prometheus monitor
+const defaultQueryTimeout = 3 * time.Second
+
+func queryTimeout() time.Duration {
+	value := strings.TrimSpace(os.Getenv("PROMETHEUS_QUERY_TIMEOUT"))
+	if value == "" {
+		return defaultQueryTimeout
+	}
+	if timeout, err := time.ParseDuration(value); err == nil && timeout > 0 {
+		return timeout
+	}
+	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	return defaultQueryTimeout
+}
+
+// NewPrometheus new prometheus monitor
 func NewPrometheus(options *Options) (Interface, error) {
 	if options.Endpoint == "" {
 		options.Endpoint = "http://rbd-monitor:9999"
@@ -67,8 +85,10 @@ func NewPrometheus(options *Options) (Interface, error) {
 
 func (p prometheus) GetMetric(expr string, ts time.Time) Metric {
 	var parsedResp Metric
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	defer cancel()
 
-	value, _, err := p.client.Query(context.Background(), expr, ts)
+	value, _, err := p.client.Query(ctx, expr, ts)
 	if err != nil {
 		parsedResp.Error = err.Error()
 	} else {
@@ -79,13 +99,15 @@ func (p prometheus) GetMetric(expr string, ts time.Time) Metric {
 }
 
 func (p prometheus) GetMetricOverTime(expr string, start, end time.Time, step time.Duration) Metric {
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	defer cancel()
 	timeRange := apiv1.Range{
 		Start: start,
 		End:   end,
 		Step:  step,
 	}
 
-	value, _, err := p.client.QueryRange(context.Background(), expr, timeRange)
+	value, _, err := p.client.QueryRange(ctx, expr, timeRange)
 
 	var parsedResp Metric
 	if err != nil {
@@ -97,12 +119,14 @@ func (p prometheus) GetMetricOverTime(expr string, start, end time.Time, step ti
 }
 
 func (p prometheus) GetMetadata(namespace string) []Metadata {
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	defer cancel()
+
 	var meta []Metadata
 
 	// Filter metrics available to members of this namespace
 	matchTarget := fmt.Sprintf("{namespace=\"%s\"}", namespace)
-	fmt.Println(matchTarget)
-	items, err := p.client.TargetsMetadata(context.Background(), matchTarget, "", "")
+	items, err := p.client.TargetsMetadata(ctx, matchTarget, "", "")
 	if err != nil {
 		logrus.Error(err)
 		return meta
@@ -126,11 +150,14 @@ func (p prometheus) GetMetadata(namespace string) []Metadata {
 }
 
 func (p prometheus) GetAppMetadata(namespace, appID string) []Metadata {
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	defer cancel()
+
 	var meta []Metadata
 
 	// Filter metrics available to members of this namespace
 	matchTarget := fmt.Sprintf("{namespace=\"%s\",app_id=\"%s\"}", namespace, appID)
-	items, err := p.client.TargetsMetadata(context.Background(), matchTarget, "", "")
+	items, err := p.client.TargetsMetadata(ctx, matchTarget, "", "")
 	if err != nil {
 		logrus.Error(err)
 		return meta
@@ -153,7 +180,7 @@ func (p prometheus) GetAppMetadata(namespace, appID string) []Metadata {
 }
 
 func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metadata {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
 	defer cancel()
 
 	var meta []Metadata
@@ -203,9 +230,12 @@ func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metada
 }
 
 func (p prometheus) GetMetricLabelSet(expr string, start, end time.Time) []map[string]string {
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	defer cancel()
+
 	var res []map[string]string
 
-	labelSet, _, err := p.client.Series(context.Background(), []string{expr}, start, end)
+	labelSet, _, err := p.client.Series(ctx, []string{expr}, start, end)
 	if err != nil {
 		logrus.Error(err)
 		return []map[string]string{}

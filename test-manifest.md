@@ -68,6 +68,8 @@
 | rainbond.cnb.mirror-config | 按来源模式注入 CNB 镜像配置 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfig |
 | rainbond.cnb.mirror-config-write-error | 传播 CNB 镜像配置写入失败 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfigWriteError |
 | rainbond.cnb.new-builder | 创建 CNB 构建器实例 | active | regression | builder/build/cnb.NewBuilder | builder/build/cnb/cnb_test.go::TestNewBuilder |
+| rainbond.cnb.npm-global-registry | 为全局 npm 安装导出 NPM_CONFIG_REGISTRY | active | regression | builder/build/cnb.resolveNpmRegistry | builder/build/cnb/cnb_test.go::TestResolveNpmRegistry<br>builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation |
+| rainbond.cnb.npmrc-registry-parse | 从 .npmrc 内容中解析默认 registry 配置项 | active | unit | builder/build/cnb.npmRegistryFromNpmrc | builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc |
 | rainbond.cnb.offline-mode | 解析离线模式下的 CNB 镜像行为 | active | regression | builder/build/cnb offline mode helpers | builder/build/cnb/cnb_test.go::TestIsOfflineMode<br>builder/build/cnb/cnb_test.go::TestGetCNBBuilderImageOffline<br>builder/build/cnb/cnb_test.go::TestGetCNBRunImageOffline |
 | rainbond.cnb.order-toml | 写入自定义 CNB order 定义 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrder |
 | rainbond.cnb.order-write-failure | CNB order 文件写入失败时返回空标记 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure |
@@ -179,6 +181,9 @@
 | rainbond.license.status-projection | 将许可证令牌投影为状态响应 | active | regression | api/util/license.TokenToStatus | api/util/license/rsa_license_test.go::TestTokenToStatus |
 | rainbond.license.validate-token | 校验许可证企业绑定与生效时间窗口 | active | regression | api/util/license.ValidateToken | api/util/license/rsa_license_test.go::TestValidateToken_Valid |
 | rainbond.license.verify-signature | 校验许可证 RSA 签名 | active | regression | api/util/license.VerifySignature | api/util/license/rsa_license_test.go::TestVerifySignature_Valid |
+| rainbond.lifecycle.service-reconcile-preserves-identity | Service reconciliation preserves allocated Kubernetes identity | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity |
+| rainbond.lifecycle.service-reconcile-rejects-foreign-owner | Service reconciliation rejects foreign ownership | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService |
+| rainbond.lifecycle.stop-preserves-service | Stopping a component preserves its generated Service identity | active | regression | worker/appm/controller.stopController.stopOne | worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService |
 | rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
 | rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
 | rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
@@ -217,6 +222,7 @@
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
+| rainbond.region-api.configured-token-only | 仅接受配置的集群 Token | active | regression | api/middleware.FullToken | api/middleware/token_test.go::TestFullTokenAllowsOnlyConfiguredRegionToken |
 | rainbond.registry.delete-vm-image-manifest | Delete internal VM image manifest from registry | active | regression | api/handler.ServiceAction.DeleteRegistryImageManifest | api/handler/registry_image_test.go::TestDeleteRegistryImageManifestDeletesInternalVMImage<br>api/handler/registry_image_test.go::TestDeleteRegistryImageManifestRejectsExternalRegistry<br>api/handler/registry_image_test.go::TestDeleteRegistryImageManifestTreatsMissingManifestAsDeleted |
 | rainbond.registry.manifest-exists-oci | 备份校验支持 OCI 镜像清单 | active | regression | builder/sources/registry.Registry.ManifestExists | builder/sources/registry/manifest_test.go::TestManifestExistsAcceptsOCIManifestTypes |
 | rainbond.resource-center.collect-ingress-services | 收集 Ingress 后端服务名 | active | regression | api/handler.collectIngressServiceNames | api/handler/resource_center_test.go::TestCollectIngressServiceNames |
@@ -424,6 +430,7 @@
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
+| rainbond.worker.appm.vm-default-interface-virtio | 所有虚拟机统一使用 VirtIO 网络接口 | active | regression | worker/appm/conversion.resolveVMInterfaceModel | worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
@@ -1099,6 +1106,26 @@
 - 业务入口: `builder/build/cnb.NewBuilder`
 - 代码路径: `builder/build/cnb/build.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestNewBuilder`
+
+### 为全局 npm 安装导出 NPM_CONFIG_REGISTRY
+
+- Capability ID: `rainbond.cnb.npm-global-registry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.resolveNpmRegistry`
+- 代码路径: `builder/build/cnb/lang_nodejs.go`, `builder/build/cnb/platform.go`
+- 测试路径: `builder/build/cnb/cnb_test.go::TestResolveNpmRegistry`, `builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation`
+
+### 从 .npmrc 内容中解析默认 registry 配置项
+
+- Capability ID: `rainbond.cnb.npmrc-registry-parse`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `builder/build/cnb.npmRegistryFromNpmrc`
+- 代码路径: `builder/build/cnb/lang_nodejs.go`
+- 测试路径: `builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc`
 
 ### 解析离线模式下的 CNB 镜像行为
 
@@ -2210,6 +2237,36 @@
 - 代码路径: `api/util/license/rsa_license.go`
 - 测试路径: `api/util/license/rsa_license_test.go::TestVerifySignature_Valid`
 
+### Service reconciliation preserves allocated Kubernetes identity
+
+- Capability ID: `rainbond.lifecycle.service-reconcile-preserves-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/controller.CreateKubeService`
+- 代码路径: `worker/appm/controller/kube-controller.go`
+- 测试路径: `worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity`
+
+### Service reconciliation rejects foreign ownership
+
+- Capability ID: `rainbond.lifecycle.service-reconcile-rejects-foreign-owner`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/controller.CreateKubeService`
+- 代码路径: `worker/appm/controller/kube-controller.go`
+- 测试路径: `worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService`
+
+### Stopping a component preserves its generated Service identity
+
+- Capability ID: `rainbond.lifecycle.stop-preserves-service`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.stopController.stopOne`
+- 代码路径: `worker/appm/controller/stop.go`
+- 测试路径: `worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService`
+
 ### Preserve bound manual PVC immutable spec fields during app upgrade
 
 - Capability ID: `rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec`
@@ -2589,6 +2646,16 @@
 - 业务入口: `builder/parser/code.ReadRainbondFile`
 - 代码路径: `builder/parser/code/rainbondfile.go`
 - 测试路径: `builder/parser/code/rainbondfile_test.go::TestReadRainbondFile`
+
+### 仅接受配置的集群 Token
+
+- Capability ID: `rainbond.region-api.configured-token-only`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/middleware.FullToken`
+- 代码路径: `api/middleware/token.go`
+- 测试路径: `api/middleware/token_test.go::TestFullTokenAllowsOnlyConfiguredRegionToken`
 
 ### Delete internal VM image manifest from registry
 
@@ -4659,6 +4726,16 @@
 - 业务入口: `worker/appm/conversion.appendVMContainerDiskCDROMs`
 - 代码路径: `worker/appm/conversion/vm_runtime.go`, `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage`, `worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk`
+
+### 所有虚拟机统一使用 VirtIO 网络接口
+
+- Capability ID: `rainbond.worker.appm.vm-default-interface-virtio`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.resolveVMInterfaceModel`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork`, `worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio`
 
 ### 默认虚拟机内存热插拔上限预留
 

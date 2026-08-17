@@ -110,6 +110,9 @@ type readEventBarrel struct {
 	subSocketChan map[string]chan *db.EventLogMessage
 	subLock       sync.Mutex
 	updateTime    time.Time
+	// activeUsers is guarded by readMessageStore.lock. It prevents the barrel
+	// from being recycled while an operation is waiting for subLock.
+	activeUsers int
 	// 新增字段
 	eventID   string    // 事件ID
 	fileStore FileStore // 文件存储
@@ -148,6 +151,9 @@ func (r *readEventBarrel) empty() {
 }
 
 func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
+
 	r.updateTime = time.Now()
 
 	// 1. 立即持久化到文件（不在内存累积）
@@ -158,9 +164,6 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 	}
 
 	// 2. 只转发给当前活跃的订阅者（不缓存）
-	r.subLock.Lock()
-	defer r.subLock.Unlock()
-
 	for _, v := range r.subSocketChan {
 		select {
 		case v <- message:
@@ -170,46 +173,62 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 	}
 }
 
-func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
-	// 先注册订阅通道，确保实时消息不会丢失
-	r.subLock.Lock()
-	r.subSocketChan[subID] = ch
-	r.subLock.Unlock()
+func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage) {
+	for _, message := range r.readLastMessages() {
+		ch <- message
+	}
+}
 
-	// 再从文件读取历史消息并推送
+func (r *readEventBarrel) readLastMessages() []*db.EventLogMessage {
 	if r.fileStore != nil && r.eventID != "" {
 		messages, err := r.fileStore.ReadLast(r.eventID, 1000)
 		if err != nil {
 			logrus.Errorf("Failed to read history for event %s: %v", r.eventID, err)
-		} else {
-			for _, m := range messages {
-				if m.Content == nil {
-					rebuildMessageContent(m)
-				}
-				select {
-				case ch <- m:
-				case <-time.After(5 * time.Second):
-					logrus.Warnf("Timeout pushing history for event %s", r.eventID)
-					return
-				}
+			return nil
+		}
+		for _, message := range messages {
+			if message.Content == nil {
+				rebuildMessageContent(message)
 			}
 		}
+		return messages
 	}
+	return nil
 }
 
 // 增加socket订阅
 func (r *readEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
+	defer r.subLock.Unlock()
+
 	if sub, ok := r.subSocketChan[subID]; ok {
-		r.subLock.Unlock()
 		return sub
 	}
-	r.subLock.Unlock()
 
 	ch := make(chan *db.EventLogMessage, 1024)
-	// 异步推送历史消息（从文件读取）
-	go r.pushCashMessage(ch, subID)
+	// Keep the per-event lock while reading and enqueueing history. Inserts use
+	// the same lock, so live messages can only follow the complete replay and
+	// cannot be returned by ReadLast and then delivered a second time as live.
+	r.pushCashMessage(ch)
+	r.subSocketChan[subID] = ch
 	return ch
+}
+
+// addEventStreamSubChan atomically snapshots persisted history and registers a
+// live subscriber. History is returned separately so the SSE transport can
+// mark the replay boundary without changing legacy WebSocket/PubSub messages.
+func (r *readEventBarrel) addEventStreamSubChan(subID string) ([]*db.EventLogMessage, chan *db.EventLogMessage) {
+	r.subLock.Lock()
+	defer r.subLock.Unlock()
+
+	if sub, ok := r.subSocketChan[subID]; ok {
+		return nil, sub
+	}
+
+	history := r.readLastMessages()
+	live := make(chan *db.EventLogMessage, 1024)
+	r.subSocketChan[subID] = live
+	return history, live
 }
 
 // 删除socket订阅

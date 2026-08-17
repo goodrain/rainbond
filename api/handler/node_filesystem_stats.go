@@ -3,9 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/goodrain/rainbond/api/model"
 )
+
+const defaultNodeFilesystemStatsTimeout = 3 * time.Second
 
 type kubeletFilesystemStats struct {
 	CapacityBytes  *uint64 `json:"capacityBytes"`
@@ -34,12 +37,19 @@ type nodeFilesystemStats struct {
 }
 
 func (n *nodesHandle) getNodeFilesystemStats(ctx context.Context, nodeName string) (nodeFilesystemStats, error) {
+	timeout := n.nodeFilesystemStatsTimeout
+	if timeout <= 0 {
+		timeout = defaultNodeFilesystemStatsTimeout
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	raw, err := n.clientset.CoreV1().RESTClient().Get().
 		Resource("nodes").
 		Name(nodeName).
 		SubResource("proxy").
 		Suffix("stats", "summary").
-		DoRaw(ctx)
+		DoRaw(queryCtx)
 	if err != nil {
 		return nodeFilesystemStats{}, err
 	}

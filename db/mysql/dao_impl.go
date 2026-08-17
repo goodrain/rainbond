@@ -360,34 +360,6 @@ func (m *Manager) LocalSchedulerDao() dao.LocalSchedulerDao {
 	}
 }
 
-// RegionUserInfoDao RegionUserInfoDao
-func (m *Manager) RegionUserInfoDao() dao.RegionUserInfoDao {
-	return &mysqldao.RegionUserInfoDaoImpl{
-		DB: m.db,
-	}
-}
-
-// RegionUserInfoDaoTransactions RegionUserInfoDaoTransactions
-func (m *Manager) RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao {
-	return &mysqldao.RegionUserInfoDaoImpl{
-		DB: db,
-	}
-}
-
-// RegionAPIClassDao RegionAPIClassDao
-func (m *Manager) RegionAPIClassDao() dao.RegionAPIClassDao {
-	return &mysqldao.RegionAPIClassDaoImpl{
-		DB: m.db,
-	}
-}
-
-// RegionAPIClassDaoTransactions RegionAPIClassDaoTransactions
-func (m *Manager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao {
-	return &mysqldao.RegionAPIClassDaoImpl{
-		DB: db,
-	}
-}
-
 // NotificationEventDao NotificationEventDao
 func (m *Manager) NotificationEventDao() dao.NotificationEventDao {
 	return &mysqldao.NotificationEventDaoImpl{

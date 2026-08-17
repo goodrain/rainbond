@@ -24,7 +24,14 @@ func configMapForTest(name string) *corev1.ConfigMap {
 
 func serviceForTest(name string) *corev1.Service {
 	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+			Labels: map[string]string{
+				"creator":    "Rainbond",
+				"service_id": "service-1",
+			},
+		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{Port: 80}},
 		},
@@ -148,6 +155,141 @@ func TestUpgradeConfigMapErrorAggregation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existing := configMapForTest("vm-cfg-provider")
+	existing.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	existing.Data = map[string]string{"application.yaml": "owner=provider\n"}
+	desired := existing.DeepCopy()
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	desired.Data = map[string]string{"application.yaml": "owner=consumer-rendered\n"}
+
+	client := k8sfake.NewSimpleClientset(namespace, existing.DeepCopy())
+	nowApp := newAppWithConfigMaps(namespace)
+	nowApp.ServiceID = "consumer-service"
+	newApp := newAppWithConfigMaps(namespace, desired)
+	newApp.ServiceID = "consumer-service"
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("reference existing dependency configmap: %v", err)
+	}
+	unchanged, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get provider configmap: %v", err)
+	}
+	if unchanged.Data["application.yaml"] != "owner=provider\n" {
+		t.Fatalf("expected consumer upgrade not to update provider configmap, got %#v", unchanged.Data)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	desired := configMapForTest("vm-cfg-provider")
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	client := k8sfake.NewSimpleClientset(namespace)
+	nowApp := newAppWithConfigMaps(namespace)
+	nowApp.ServiceID = "consumer-service"
+	newApp := newAppWithConfigMaps(namespace, desired)
+	newApp.ServiceID = "consumer-service"
+
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("create missing dependency configmap: %v", err)
+	}
+	created, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), desired.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get dependency configmap created for provider: %v", err)
+	}
+	if created.Labels["service_id"] != "provider-service" {
+		t.Fatalf("expected dependency configmap to belong to provider, got %#v", created.Labels)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapDoesNotDeleteProviderDependency(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	providerConfigMap := configMapForTest("vm-cfg-provider")
+	providerConfigMap.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	client := k8sfake.NewSimpleClientset(namespace, providerConfigMap.DeepCopy())
+	nowApp := newAppWithConfigMaps(namespace, providerConfigMap.DeepCopy())
+	nowApp.ServiceID = "consumer-service"
+	newApp := newAppWithConfigMaps(namespace)
+	newApp.ServiceID = "consumer-service"
+
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+		t.Fatalf("upgrade consumer without dependency: %v", err)
+	}
+	if _, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), providerConfigMap.Name, metav1.GetOptions{}); err != nil {
+		t.Fatalf("expected consumer not to delete provider configmap, got %v", err)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapReclaimsLegacyProviderConfigMap(t *testing.T) {
+	tests := []struct {
+		name              string
+		existingServiceID string
+	}{
+		{name: "legacy consumer owned provider name", existingServiceID: "consumer-service"},
+		{name: "same service cache miss", existingServiceID: "provider-service"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			legacy := configMapForTest("vm-cfg-provider")
+			legacy.Labels = map[string]string{"creator": "Rainbond", "service_id": tt.existingServiceID}
+			legacy.Data = map[string]string{"application.yaml": "owner=old\n"}
+			desired := configMapForTest(legacy.Name)
+			desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+			desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned}
+			desired.Data = map[string]string{"application.yaml": "owner=provider\n"}
+
+			client := k8sfake.NewSimpleClientset(namespace, legacy.DeepCopy())
+			nowApp := newAppWithConfigMaps(namespace)
+			newApp := newAppWithConfigMaps(namespace, desired)
+			controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+			if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+				t.Fatalf("reconcile provider configmap after cache miss: %v", err)
+			}
+			updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), legacy.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("get reconciled provider configmap: %v", err)
+			}
+			if updated.Labels["service_id"] != "provider-service" || updated.Data["application.yaml"] != "owner=provider\n" {
+				t.Fatalf("expected provider to own updated configmap, got labels=%#v data=%#v", updated.Labels, updated.Data)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-configmap-ownership
+func TestUpgradeConfigMapDoesNotAdoptForeignCollision(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	foreign := configMapForTest("vm-cfg-provider")
+	foreign.Labels = map[string]string{"creator": "external", "service_id": "other-service"}
+	desired := configMapForTest(foreign.Name)
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeOwned}
+
+	client := k8sfake.NewSimpleClientset(namespace, foreign.DeepCopy())
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	err := controller.upgradeConfigMap(newAppWithConfigMaps(namespace), *newAppWithConfigMaps(namespace, desired))
+	if err == nil {
+		t.Fatal("expected foreign configmap collision to fail")
+	}
+	unchanged, getErr := client.CoreV1().ConfigMaps("default").Get(context.Background(), foreign.Name, metav1.GetOptions{})
+	if getErr != nil {
+		t.Fatalf("get foreign configmap after failed upgrade: %v", getErr)
+	}
+	if unchanged.Labels["service_id"] != "other-service" || unchanged.Data["k"] != "v" {
+		t.Fatalf("expected foreign configmap to remain unchanged, got labels=%#v data=%#v", unchanged.Labels, unchanged.Data)
 	}
 }
 

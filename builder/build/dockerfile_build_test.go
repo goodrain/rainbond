@@ -1,9 +1,71 @@
 package build
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
+
+// capability_id: rainbond.dockerfile-build.proxy-env-inheritance
+func TestBuildKitProxyEnvVars(t *testing.T) {
+	tests := []struct {
+		name string
+		env  map[string]string
+		want map[string]string
+	}{
+		{
+			name: "inherits configured proxy variables only",
+			env: map[string]string{
+				"HTTP_PROXY":    "http://proxy.example:8080",
+				"HTTPS_PROXY":   "http://proxy.example:8443",
+				"NO_PROXY":      "localhost,127.0.0.1",
+				"UNRELATED_ENV": "must-not-be-propagated",
+			},
+			want: map[string]string{
+				"HTTP_PROXY":  "http://proxy.example:8080",
+				"HTTPS_PROXY": "http://proxy.example:8443",
+				"NO_PROXY":    "localhost,127.0.0.1",
+			},
+		},
+		{
+			name: "leaves buildkit environment unchanged without proxy configuration",
+			env: map[string]string{
+				"UNRELATED_ENV": "must-not-be-propagated",
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "skips empty proxy variables",
+			env: map[string]string{
+				"HTTP_PROXY":  "http://proxy.example:8080",
+				"HTTPS_PROXY": "",
+				"NO_PROXY":    "",
+			},
+			want: map[string]string{
+				"HTTP_PROXY": "http://proxy.example:8080",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
+				t.Setenv(name, "")
+			}
+			for name, value := range tt.env {
+				t.Setenv(name, value)
+			}
+
+			got := make(map[string]string)
+			for _, env := range buildKitProxyEnvVars() {
+				got[env.Name] = env.Value
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildKitProxyEnvVars() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
 
 // TestLocalBuildKitCacheArgsContainServiceID 验证生成的本地 layer cache 参数
 // 使用 buildctl 的 --import-cache / --export-cache（而非 buildx 的
