@@ -808,3 +808,25 @@ func (c *ClusterController) RegionReadiness(w http.ResponseWriter, r *http.Reque
 	}
 	httputil.ReturnSuccess(r, w, result)
 }
+
+// BootstrapAgentKubeconfig creates a ServiceAccount-backed kubeconfig for rainbond-agent.
+func (c *ClusterController) BootstrapAgentKubeconfig(w http.ResponseWriter, r *http.Request) {
+	var req handler.AgentKubeconfigBootstrapRequest
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	result, err := handler.GetClusterHandler().BootstrapAgentKubeconfig(r.Context(), &req)
+	if err != nil {
+		returnAgentKubeconfigBootstrapError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, result)
+}
+
+func returnAgentKubeconfigBootstrapError(r *http.Request, w http.ResponseWriter, err error) {
+	if _, ok := err.(httputil.ErrBadRequest); ok {
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httputil.ReturnError(r, w, http.StatusInternalServerError, err.Error())
+}
