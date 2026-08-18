@@ -15,7 +15,8 @@ WORKDIR /go/src/github.com/goodrain/rainbond
 
 RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev unzip zeromq-dev libsodium-dev && \
     sh scripts/prepare-dameng-go-driver.sh /tmp/dameng && \
-    go mod edit -require=dm@v0.0.0 -replace=dm=/tmp/dameng/dm && \
+    go mod edit -require=github.com/goodrain/dameng-driver@v0.0.0 -replace=github.com/goodrain/dameng-driver=/tmp/dameng/dm-driver && \
+    go mod edit -require=github.com/goodrain/dameng-gorm-dialect@v0.0.0 -replace=github.com/goodrain/dameng-gorm-dialect=/tmp/dameng/dm-dialect && \
     CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-worker ./cmd/worker
 
 FROM rainbond/alpine:3

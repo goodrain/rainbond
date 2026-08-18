@@ -1833,6 +1833,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.database.dameng-driver-bundle-preparation",
+      "title": "Prepare a minimal Dameng driver bundle from ISO",
+      "title_zh": "Prepare a minimal Dameng driver bundle from ISO",
+      "interface_type": "workflow",
+      "interface": "scripts/prepare-dameng-driver-bundle-from-iso.sh",
+      "code_paths": [
+        "scripts/prepare-dameng-driver-bundle-from-iso.sh",
+        "hack/contrib/docker/dameng-driver-bundle.Dockerfile"
+      ],
+      "tests": [
+        {
+          "path": "hack/contrib/docker/dameng_dockerfile_test.go",
+          "selector": "TestPrepareDamengDriverBundleFromISO"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.database.dameng-driver-image-guard",
       "title": "Reject DM configuration in a non-DM image",
       "title_zh": "Reject DM configuration in a non-DM image",
@@ -1867,6 +1886,28 @@
         }
       ],
       "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-go-dialect-module",
+      "title": "Prepare separate Dameng Go driver and GORM dialect modules",
+      "title_zh": "Prepare separate Dameng Go driver and GORM dialect modules",
+      "interface_type": "workflow",
+      "interface": "scripts/prepare-dameng-go-driver.sh",
+      "code_paths": [
+        "scripts/prepare-dameng-go-driver.sh",
+        "db/dameng/driver_dm.go",
+        "hack/contrib/docker/api/Dockerfile",
+        "hack/contrib/docker/worker/Dockerfile",
+        "hack/contrib/docker/chaos/Dockerfile"
+      ],
+      "tests": [
+        {
+          "path": "hack/contrib/docker/dameng_dockerfile_test.go",
+          "selector": "TestPrepareDamengGoDriverSeparatesDialectModule"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {

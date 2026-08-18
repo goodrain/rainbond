@@ -61,6 +61,9 @@ env:
   # dev 镜像统一打 dev-* tag，复用 release 的 registry/namespace，
   # 这样 console 的 Dockerfile（FROM ${IMAGE_NAMESPACE}/rainbond-ui）无需改动。
   VERSION: ${{ github.event.inputs.dev-tag }}
+  # Official DM8 x86_64 driver material; this private, digest-pinned image is a
+  # build-only context and never becomes part of a runtime configuration.
+  DAMENG_DRIVER_BUNDLE_IMAGE: registry.cn-hangzhou.aliyuncs.com/zhangqihang/rainbond-dameng-driver-bundle@sha256:a01b171b42c7cb44a1b727d7d397dbbed2b11b160fdb875d74cf7686efd5e9cd
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -144,16 +147,6 @@ jobs:
         with:
           ref: ${{ steps.ref.outputs.ref }}
 
-      - name: Validate Dameng driver bundle image
-        if: ${{ matrix.component.requires_dameng }}
-        env:
-          DAMENG_DRIVER_BUNDLE_IMAGE: ${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
-        run: |
-          test -n "$DAMENG_DRIVER_BUNDLE_IMAGE" || {
-            echo "::error::Repository variable DAMENG_DRIVER_BUNDLE_IMAGE is required for standard database images"
-            exit 1
-          }
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -169,6 +162,10 @@ jobs:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Verify Dameng driver bundle image
+        if: ${{ matrix.component.requires_dameng }}
+        run: docker buildx imagetools inspect "$DAMENG_DRIVER_BUNDLE_IMAGE" >/dev/null
 
       - name: Set release description
         run: |
@@ -187,7 +184,7 @@ jobs:
             RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
           context: .
           file: hack/contrib/docker/${{ matrix.component.name }}/Dockerfile
-          build-contexts: ${{ matrix.component.requires_dameng && format('dameng=docker-image://{0}', vars.DAMENG_DRIVER_BUNDLE_IMAGE) || '' }}
+          build-contexts: ${{ matrix.component.requires_dameng && format('dameng=docker-image://{0}', env.DAMENG_DRIVER_BUNDLE_IMAGE) || '' }}
           push: true
           cache-from: type=gha,scope=rbd-${{ matrix.component.name }}
           cache-to: type=gha,mode=max,scope=rbd-${{ matrix.component.name }}
@@ -331,15 +328,6 @@ jobs:
           repository: goodrain/rainbond-console
           ref: ${{ steps.ref.outputs.ref }}
 
-      - name: Validate Dameng driver bundle image
-        env:
-          DAMENG_DRIVER_BUNDLE_IMAGE: ${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
-        run: |
-          test -n "$DAMENG_DRIVER_BUNDLE_IMAGE" || {
-            echo "::error::Repository variable DAMENG_DRIVER_BUNDLE_IMAGE is required for standard database images"
-            exit 1
-          }
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -355,6 +343,9 @@ jobs:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Verify Dameng driver bundle image
+        run: docker buildx imagetools inspect "$DAMENG_DRIVER_BUNDLE_IMAGE" >/dev/null
 
       - name: Set release description
         run: |
@@ -379,7 +370,7 @@ jobs:
           context: .
           file: ./Dockerfile
           build-contexts: |
-            dameng=docker-image://${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
+            dameng=docker-image://${{ env.DAMENG_DRIVER_BUNDLE_IMAGE }}
           push: true
           cache-from: type=gha,scope=console
           cache-to: type=gha,mode=max,scope=console
