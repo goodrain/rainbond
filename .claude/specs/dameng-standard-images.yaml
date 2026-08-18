@@ -1,0 +1,199 @@
+meta:
+  name: dameng-standard-images
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc/rainbond
+  branch: v6.9.9-dev
+  design_doc: docs/plans/2026-08-18-dameng-standard-images-design.md
+  scope: "Standard rainbond and Console images always include licensed DM drivers; deployment and Operator contracts are unchanged."
+
+sprints:
+  - id: sprint-1
+    name: Standard Go service images
+    commits:
+      - id: core-standard-image-drivers
+        message: "fix: build standard core images with Dameng drivers"
+        tasks: [core-1.1, core-1.2]
+    tasks:
+      - id: core-1.1
+        name: Guard the standard Go Dockerfile contract
+        status: pending
+        files:
+          modify:
+            - path: hack/contrib/docker/dameng_dockerfile_test.go
+              lines: "1-70"
+        steps:
+          - action: write-test
+            description: "Replace the optional-variant assertion with coverage that every api/worker/chaos normal Dockerfile imports the named dameng context, prepares the Go bundle, builds with the dm tag, and contains no ENABLE_DM or UPX invocation."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengImages -v"
+            expect: FAIL
+        acceptance:
+          - cmd: "go test ./hack/contrib/docker -run TestStandardDamengImages -v"
+            expect: FAIL
+        references:
+          - path: hack/contrib/docker/dameng_dockerfile_test.go:1-68
+            note: "Existing optional image guard to replace."
+
+      - id: core-1.2
+        name: Build Go standard images with the driver bundle
+        status: pending
+        files:
+          modify:
+            - path: hack/contrib/docker/api/Dockerfile
+              lines: "1-47"
+            - path: hack/contrib/docker/worker/Dockerfile
+              lines: "1-48"
+            - path: hack/contrib/docker/chaos/Dockerfile
+              lines: "1-48"
+        steps:
+          - action: implement
+            description: "Add BuildKit syntax, copy go/ from the named dameng context into an ephemeral build directory, run the existing preparation script against it, add the local dm module replacement, and always compile with -tags dm. Remove ENABLE_DM and the compression stage/UPX path; copy binaries directly from compile. Install unzip explicitly. Do not copy DM driver archives into final images."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengImages -v"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./hack/contrib/docker -run TestStandardDamengImages -v"
+            expect: PASS
+          - cmd: "go build ./..."
+            expect: PASS
+          - cmd: "go vet ./..."
+            expect: PASS
+        references:
+          - path: scripts/prepare-dameng-go-driver.sh:1-104
+            note: "Official archive validation and local Go module preparation."
+          - path: db/dameng/driver_dm.go:1-17
+            note: "dm build-tag adapter compiled into standard core binaries."
+
+  - id: sprint-2
+    name: Standard Console image
+    commits:
+      - id: console-standard-image-drivers
+        message: "fix: build standard console image with Dameng drivers"
+        tasks: [console-2.1, console-2.2]
+    tasks:
+      - id: console-2.1
+        name: Guard the standard Console Dockerfile contract
+        status: pending
+        files:
+          modify:
+            - path: console/tests/dameng_driver_bundle_test.py
+              lines: "1-130"
+        steps:
+          - action: write-test
+            description: "Change the Dockerfile structure test to require the normal Dockerfile to use the named dameng context, copy the driver include directory, install dmPython/dmDjango, and retain only the DPI runtime library in the final image. Assert Dockerfile.dm is absent. Preserve preparation-script tests."
+            run: "pytest console/tests/dameng_driver_bundle_test.py -q"
+            expect: FAIL
+        acceptance:
+          - cmd: "pytest console/tests/dameng_driver_bundle_test.py -q"
+            expect: FAIL
+        references:
+          - path: Dockerfile.dm:1-127
+            note: "Current DM-only implementation that must be merged."
+          - path: Dockerfile:1-104
+            note: "Action-selected standard Dockerfile."
+
+      - id: console-2.2
+        name: Merge DM dependencies into the Console standard Dockerfile
+        status: pending
+        files:
+          modify:
+            - path: Dockerfile
+              lines: "1-126"
+          delete:
+            - path: Dockerfile.dm
+        steps:
+          - action: implement
+            description: "Merge the named-context DM layer into Dockerfile. Copy python/bin/libdmdpi.so, python/include, dmPython, and dmDjango from dameng; compile both drivers with DM_HOME set. In final stage retain libdmdpi.so, install libaio1, configure ld.so, and retain the existing MySQL packages/configuration. Delete Dockerfile.dm to eliminate a special deployment image."
+            run: "pytest console/tests/dameng_driver_bundle_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/dameng_driver_bundle_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        references:
+          - path: scripts/prepare_dameng_python_driver.sh:1-84
+            note: "Expected private driver source layout."
+          - path: goodrain_web/settings.py:91-132
+            note: "Runtime DB_TYPE selection remains unchanged."
+
+  - id: sprint-3
+    name: Formal Action driver input
+    commits:
+      - id: action-standard-image-driver-input
+        message: "ci: supply Dameng drivers to standard image builds"
+        tasks: [action-3.1, action-3.2]
+    tasks:
+      - id: action-3.1
+        name: Guard both formal Actions against missing DM build context
+        status: pending
+        files:
+          modify:
+            - path: hack/contrib/docker/dameng_dockerfile_test.go
+              lines: "new workflow assertion"
+        steps:
+          - action: write-test
+            description: "Add a static workflow test that reads dev-build.yml and release-v6.yml. It must require the DAMENG_DRIVER_BUNDLE_IMAGE variable validation and build-contexts named dameng=docker-image reference for rainbond-region and rainbond-allinone build-push actions."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengBuildWorkflows -v"
+            expect: FAIL
+        acceptance:
+          - cmd: "go test ./hack/contrib/docker -run TestStandardDamengBuildWorkflows -v"
+            expect: FAIL
+        references:
+          - path: .github/workflows/dev-build.yml:105-365
+            note: "Dev Action owns both core and Console builds."
+          - path: .github/workflows/release-v6.yml:64-280
+            note: "Release Action owns multi-architecture core and Console builds."
+
+      - id: action-3.2
+        name: Supply and validate the named driver image in both Actions
+        status: pending
+        files:
+          modify:
+            - path: .github/workflows/dev-build.yml
+              lines: "rainbond-region and rainbond-allinone jobs"
+            - path: .github/workflows/release-v6.yml
+              lines: "rainbond-region and rainbond-allinone jobs"
+        steps:
+          - action: implement
+            description: "Before each relevant build-push action, validate the non-empty repository variable DAMENG_DRIVER_BUNDLE_IMAGE without printing it. Add build-contexts: dameng=docker-image://${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }} to the standard core and Console build actions. The referenced image must be a multi-arch manifest matching the target platform; do not add an action input or a deployment-time switch."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengBuildWorkflows -v"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./hack/contrib/docker -run 'TestStandardDamengImages|TestStandardDamengBuildWorkflows' -v"
+            expect: PASS
+          - cmd: "go build ./... && go vet ./..."
+            expect: PASS
+        references:
+          - path: docs/plans/2026-08-18-dameng-standard-images-design.md:52-83
+            note: "Named context and architecture contract."
+
+  - id: sprint-4
+    name: Documentation and governance
+    commits:
+      - id: docs-standard-dameng-image-build
+        message: "docs: document Dameng standard image builds"
+        tasks: [docs-4.1]
+    tasks:
+      - id: docs-4.1
+        name: Document the private bundle and validate test manifests
+        status: pending
+        files:
+          create:
+            - path: docs/dameng-standard-image-build.md
+          modify:
+            - path: test-manifest.json
+            - path: test-manifest.md
+            - path: ../rainbond-console/test-manifest.json
+            - path: ../rainbond-console/test-manifest.md
+        steps:
+          - action: implement
+            description: "Document the exact artifact layout, immutable multi-arch OCI reference variable, normal Action behavior, and credential-free smoke checks. Register the new/changed capability markers with each repository manager and regenerate markdown; prune obsolete optional-image-only capability entries."
+            run: "make test-manifest-check && (cd ../rainbond-console && python3 scripts/validate_test_manifest.py)"
+            expect: PASS
+        acceptance:
+          - cmd: "make test-manifest-check"
+            expect: PASS
+          - cmd: "cd ../rainbond-console && python3 scripts/validate_test_manifest.py"
+            expect: PASS
+          - cmd: "git diff --check"
+            expect: PASS
+        references:
+          - path: docs/plans/2026-08-18-dameng-standard-images-design.md:1-222
+            note: "Approved build input and supported deployment model."
