@@ -1,0 +1,103 @@
+meta:
+  name: dameng-iso-bundle
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc/rainbond
+  branch: v6.9.9-dev
+  design_doc: docs/plans/2026-08-18-dameng-standard-images-design.md
+  scope: "Extract the minimal licensed DM driver build input from a local DM8 ISO and make ordinary image builds consume a fixed private OCI context."
+
+sprints:
+  - id: sprint-1
+    name: ISO extraction and bundle contract
+    commits:
+      - id: dameng-iso-bundle-contract
+        message: "build: add Dameng ISO driver bundle preparation"
+        tasks: [bundle-1.1, bundle-1.2]
+    tasks:
+      - id: bundle-1.1
+        name: Guard the minimal bundle layout
+        status: completed
+        files:
+          modify:
+            - path: hack/contrib/docker/dameng_dockerfile_test.go
+              lines: "1-210"
+        steps:
+          - action: write-test
+            description: "Add a fake ISO payload test. It must require only Go archives, dmPython, dmDjango3.0, and DPI runtime/include to be emitted; it must reject the full DM include tree."
+            run: "go test ./hack/contrib/docker -run TestPrepareDamengDriverBundleFromISO -v"
+            expect: FAIL
+      - id: bundle-1.2
+        name: Extract and package official driver inputs
+        status: completed
+        files:
+          create:
+            - path: scripts/prepare-dameng-driver-bundle-from-iso.sh
+            - path: hack/contrib/docker/dameng-driver-bundle.Dockerfile
+        steps:
+          - action: implement
+            description: "Read DMInstall.bin from the ISO with bsdtar, read its declared Makeself skip value, extract only the required files, and atomically create a driver context. Package the context with a scratch Dockerfile."
+            run: "go test ./hack/contrib/docker -run TestPrepareDamengDriverBundleFromISO -v"
+            expect: PASS
+
+  - id: sprint-2
+    name: Standard image and Action integration
+    commits:
+      - id: dameng-standard-bundle-integration
+        message: "fix: use minimal Dameng driver bundle in standard images"
+        tasks: [integration-2.1, integration-2.2]
+    tasks:
+      - id: integration-2.1
+        name: Use the official DPI layout in Console
+        status: completed
+        files:
+          modify:
+            - path: ../rainbond-console/Dockerfile
+            - path: ../rainbond-console/scripts/prepare_dameng_python_driver.sh
+            - path: ../rainbond-console/console/tests/dameng_driver_bundle_test.py
+        steps:
+          - action: write-test
+            description: "Change the Console bundle test from bin/include to the official dpi layout and require only the runtime library plus dependencies in the final stage."
+            run: "cd ../rainbond-console && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest console/tests/dameng_driver_bundle_test.py -q"
+            expect: FAIL
+          - action: implement
+            description: "Build dmPython against DM_HOME/dpi/include, retain DPI runtime/dependencies only, and keep MySQL packages intact."
+            run: "cd ../rainbond-console && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest console/tests/dameng_driver_bundle_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+      - id: integration-2.2
+        name: Hide the driver bundle reference from Action users
+        status: completed
+        files:
+          modify:
+            - path: .github/workflows/dev-build.yml
+            - path: .github/workflows/release-v6.yml
+            - path: hack/contrib/docker/dameng_dockerfile_test.go
+        steps:
+          - action: write-test
+            description: "Require both standard Action workflows to use the fixed private OCI reference, to validate it after registry login, and to avoid repository variables."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengBuildWorkflows -v"
+            expect: FAIL
+          - action: implement
+            description: "Set the non-secret bundle reference in workflow env, pass it through build-contexts, and validate its pullability without printing it."
+            run: "go test ./hack/contrib/docker -run TestStandardDamengBuildWorkflows -v"
+            expect: PASS
+
+  - id: sprint-3
+    name: Verification and delivery
+    commits:
+      - id: dameng-iso-bundle-docs
+        message: "docs: document Dameng ISO driver bundle build"
+        tasks: [verify-3.1]
+    tasks:
+      - id: verify-3.1
+        name: Record the reproducible local build contract
+        status: completed
+        files:
+          modify:
+            - path: docs/dameng-standard-image-build.md
+            - path: test-manifest.json
+            - path: ../rainbond-console/test-manifest.json
+        steps:
+          - action: implement
+            description: "Document ISO extraction, small OCI bundle publication, AMD64 scope, and credential-free smoke checks. Register changed capabilities."
+            run: "make test-manifest-check && (cd ../rainbond-console && python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json)"
+            expect: PASS

@@ -14,13 +14,13 @@ Secrets 均不得提交到源码仓库、写进 Actions 日志或放入镜像标
 
 ```text
 go/
-  dmgorm1.zip
-  # 或者 dm-go-driver.zip（部分版本名为 dm.zip）和 gorm_v1_dialect.zip
+  dm-go-driver.zip
+  gorm_v1_dialect.zip
 python/
-  bin/
+  dpi/
     libdmdpi.so
-  include/
-    ...
+    dependencies/
+    include/
   drivers/python/
     dmPython/
       ...
@@ -37,24 +37,28 @@ python/
 `rainbond-console` Git 历史。仓库中被忽略的 `third_party/dameng/` 只可用于受控的
 本地准备与故障排查，不能作为 Actions 的普通构建上下文。
 
-## 2. 一次性 Actions 配置
+## 2. 一次性 bundle 发布
 
-在发布仓库的 GitHub Actions **Repository variable** 中一次性设置：
+持有官方 ISO 的发布维护者在受控构建机上运行仓库脚本；完整 ISO 只作为一次性输入：
 
-```text
-DAMENG_DRIVER_BUNDLE_IMAGE=<PRIVATE_OCI_IMAGE_BY_IMMUTABLE_DIGEST>
+```bash
+bash scripts/prepare-dameng-driver-bundle-from-iso.sh \
+  <DM8_ISO_PATH> <PRIVATE_DRIVER_CONTEXT>
+
+docker buildx build --platform linux/amd64 --provenance=false --load \
+  --file hack/contrib/docker/dameng-driver-bundle.Dockerfile \
+  --tag <PRIVATE_DRIVER_IMAGE> <PRIVATE_DRIVER_CONTEXT>
+docker push <PRIVATE_DRIVER_IMAGE>
 ```
 
-变量只保存私有 OCI 镜像的不可变引用，不包含用户名、密码、令牌或数据库 DSN。CI
-访问私有仓库时继续使用既有受保护 Secrets；不要把它们转存到变量、Dockerfile、YAML
-或命令历史。变量为空时，标准镜像工作流应在 build 前失败，不能发布缺少达梦驱动的
-镜像。
+脚本从 `DMInstall.bin` 中选择性提取上述布局，而不是解压并上传完整 DM 安装树。它会
+拒绝缺失的官方材料，也不会复制体积很大的 `source/include` 目录。固定的、digest-pinned
+镜像引用在两个正式 Action 的顶层环境中维护；普通 Action 用户无需设置变量、选择驱动
+或提供 ISO。CI 仍通过已有的受保护 registry 登录信息访问私有仓库。
 
-### 发布前置条件
-
-Action 不会创建或发布达梦驱动 bundle。标准镜像构建开始前，发布方必须已在获授权的
-私有仓库中发布对应的多架构 bundle，并配置指向该 bundle 的不可变引用变量；任一条件
-缺失时，工作流必须失败，不能改用不含驱动的镜像或回退到其他源码分支。
+当前发布的 bundle 仅支持 `linux/amd64`。触发多架构 release 时，工作流会在 arm64
+构建前明确失败，直到发布同版本的 arm64 官方驱动 bundle；不能把 amd64 DPI 库混入
+arm64 运行镜像。
 
 ## 3. 标准镜像和正常 Actions
 
@@ -69,8 +73,8 @@ Action 不会创建或发布达梦驱动 bundle。标准镜像构建开始前，
 | Console | `rainbond-console/Dockerfile` | 安装 dmPython、dmDjango 和运行时 DPI 动态库。 |
 
 核心标准镜像包含达梦原生驱动时，按发布策略禁用 UPX。
-Console 最终镜像仅保留运行所需的 `libdmdpi.so` 和动态链接配置；编译头文件及驱动
-构建目录不会进入最终层。MySQL 客户端和原有 MySQL 驱动继续保留在这些标准镜像中。
+Console 最终镜像仅保留运行所需的 DPI 动态库和它的依赖；编译头文件及驱动构建目录不
+会进入最终层。MySQL 客户端和原有 MySQL 驱动继续保留在这些标准镜像中。
 
 ## 4. 运行时数据库选择
 
@@ -125,5 +129,5 @@ Ready；在 `DB_TYPE=dm` 下不应出现驱动缺失、动态库加载失败或�
 3. 等待受管组件完成重调谐并全部 Ready，再复查健康接口与日志。
 4. 保留独立达梦测试库以便按数据库管理员流程诊断或清理；回滚不会自动删除它。
 
-若失败发生在 Action 构建阶段，保留失败构建的脱敏日志，并将
-`DAMENG_DRIVER_BUNDLE_IMAGE` 指向上一个已验证的不可变私有 OCI 引用后重新构建。
+若失败发生在 Action 构建阶段，保留失败构建的脱敏日志。修复或回滚时只更新源码中
+固定的 OCI digest；不要把仓库登录凭据、数据库凭据或 ISO 下载地址写入工作流。

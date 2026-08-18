@@ -23,8 +23,9 @@ rainbond/.github/workflows/{dev-build,release-v6}.yml
 - Console 已经具备 `DB_TYPE=dm`、dmDjango 配置和通用数据库就绪检查。
 - 当前核心 Dockerfile 仅在 `ENABLE_DM=true` 时编译 DM 变体；当前 Console 的
   DM 安装步骤只在 `Dockerfile.dm`，而 Action 使用普通 `Dockerfile`。
-- 达梦官方驱动随达梦安装包提供，不能假定存在可公开、稳定且可在 CI 中直接
-  `go get` 或 `pip install` 的依赖地址。
+- 达梦官方驱动随达梦安装介质提供。DM8 ISO 中的 `DMInstall.bin` payload 包含 Go
+  archive、dmPython/dmDjango 源码、DPI 头文件和运行库，不能假定存在可公开、稳定且
+  可在 CI 中直接 `go get` 或 `pip install` 的依赖地址。
 
 ### 1.3 核心需求
 
@@ -39,10 +40,11 @@ rainbond/.github/workflows/{dev-build,release-v6}.yml
 
 ### 2.1 用户操作流程
 
-1. 发布维护者一次性在受限镜像仓库发布按架构划分的 `dameng-driver-bundle`，并在
-   GitHub Actions Repository Variables 中配置其不可变镜像引用。
-2. 发布维护者触发既有 `dev-build` 或 `release-v6`。工作流先校验该变量，再把驱动
-   bundle 作为 BuildKit 的命名上下文传给所有标准 Dockerfile。
+1. 发布维护者在持有官方 ISO 的受控构建机上运行仓库脚本。脚本只从 ISO 中提取 Go
+   driver archive、dmPython、dmDjango3.0 与 DPI 运行时/头文件，生成按架构划分的
+   `dameng-driver-bundle` OCI 镜像；完整 ISO 不进入 Git、最终镜像或每次 CI 构建。
+2. 发布维护者触发既有 `dev-build` 或 `release-v6`。工作流从源码中的固定 bundle
+   引用自动取得命名上下文，不要求触发者配置 Repository Variable 或选择驱动。
 3. 平台管理员使用标准 `rbd-api`、`rbd-worker`、`rbd-chaos` 和 Console 镜像，按
    已有临时组件覆盖方式设置 `DB_TYPE=dm` 与达梦连接信息。
 4. 管理员以 Deployment 就绪、核心健康接口、Console migration 和基础建表/查询
@@ -65,13 +67,16 @@ rainbond/.github/workflows/{dev-build,release-v6}.yml
 ### 3.1 系统架构图
 
 ```text
-官方达梦安装介质（受限、按架构）
+官方达梦安装 ISO（受限、按架构）
               |
               v
-    dameng-driver-bundle OCI 镜像
+ ISO 提取脚本（只保留最小驱动构建材料）
               |
               v
- GitHub Actions: build-contexts dameng=docker-image://<immutable reference>
+    私有 dameng-driver-bundle OCI 镜像
+              |
+              v
+ GitHub Actions: build-contexts dameng=docker-image://<fixed immutable reference>
               |                                      |
               v                                      v
  rbd-api / worker / chaos Dockerfile            Console Dockerfile
@@ -85,14 +90,14 @@ rainbond/.github/workflows/{dev-build,release-v6}.yml
 
 ### 3.2 核心流程
 
-工作流在 build 前检查与当前 `matrix.arch` 对应的驱动镜像变量。`dameng` 命名上下文
-根目录包含：
+`dameng` 命名上下文根目录包含：
 
 ```text
 go/dm-go-driver.zip
-go/gorm_v1_dialect.zip          # 或 go/dmgorm1.zip
-python/bin/libdmdpi.so
-python/include/                 # dmPython 编译所需头文件
+go/gorm_v1_dialect.zip
+python/dpi/libdmdpi.so
+python/dpi/dependencies/         # DPI 运行时依赖
+python/dpi/include/              # dmPython 编译所需头文件（不复制完整 DM include）
 python/drivers/python/dmPython/
 python/drivers/python/dmDjango/dmDjango3.0/
 ```
@@ -132,11 +137,11 @@ python/drivers/python/dmDjango/dmDjango3.0/
 1. 将 `ENABLE_DM` 条件分支删除，三个核心 Dockerfile 都通过命名 `dameng` 上下文
    取得官方 Go bundle 并以 `dm` build tag 构建；禁止 UPX 压缩这些二进制。
 2. 将 `Dockerfile.dm` 的驱动安装层合并到 Console 普通 Dockerfile；补齐 dmPython
-   所需 include 目录、`libaio`、DPI 运行库和 `ldconfig`。专用 Dockerfile 删除，
+   所需 DPI include、`libaio`、DPI 运行库和 `ldconfig`。专用 Dockerfile 删除，
    避免两套构建漂移。
-3. 在两个仓库的 `dev-build.yml` 与 `release-v6.yml` 对标准核心和 Console job 使用
-   `build-contexts`；工作流针对每个架构读取对应的仓库变量，变量为空时在构建前明确
-   失败，避免产出缺少 DM 驱动的“成功”镜像。
+3. 新增 ISO 到最小 OCI bundle 的可复现提取脚本和 `scratch` bundle Dockerfile。在
+   两个正式 Action 对标准核心和 Console job 使用固定的 `build-contexts` 引用；镜像
+   不可用时在登录 registry 后明确失败，避免产出缺少 DM 驱动的“成功”镜像。
 4. 新增结构化回归测试，断言普通 Dockerfile 和正式 Action 都消费命名上下文，且
    没有 `ENABLE_DM` 或专用 Dockerfile 分流。测试不读取官方驱动文件。
 
@@ -168,12 +173,20 @@ python/drivers/python/dmDjango/dmDjango3.0/
 - 验收标准：结构测试证明三个普通 Dockerfile 均需要 bundle，`go build`/`go vet`
   通过，MySQL 默认运行时配置未变。
 
-#### Task 1.2: 使核心正式 Action 注入驱动上下文
+#### Task 1.2: 从官方 ISO 生成最小驱动 OCI bundle
+- 仓库：rainbond
+- 文件：`scripts/prepare-dameng-driver-bundle-from-iso.sh`、
+  `hack/contrib/docker/dameng-driver-bundle.Dockerfile`
+- 实现内容：从官方 DM8 ISO 的 `DMInstall.bin` 选择性提取 Go、Python、DPI driver
+  材料；拒绝缺失文件；bundle Dockerfile 仅复制这些材料。
+- 验收标准：由伪造 ISO 的回归测试证明输出布局正确，且不复制完整 `source/include`。
+
+#### Task 1.3: 使核心正式 Action 自动注入驱动上下文
 - 仓库：rainbond
 - 文件：`.github/workflows/dev-build.yml`、`.github/workflows/release-v6.yml`、工作流测试。
-- 实现内容：每个核心构建 job 校验架构变量并传递 `build-contexts`。
-- 验收标准：静态测试证明两个发布入口都覆盖 api/worker/chaos，变量缺失时不可产出
-  缺驱动镜像。
+- 实现内容：每个核心构建 job 使用固定 bundle 引用并传递 `build-contexts`。
+- 验收标准：静态测试证明两个发布入口都覆盖 api/worker/chaos，bundle 不可用时不可
+  产出缺驱动镜像。
 
 ### Sprint 2: 标准 Console 镜像
 
@@ -184,10 +197,10 @@ python/drivers/python/dmDjango/dmDjango3.0/
 - 验收标准：测试断言普通 Dockerfile 安装 dmPython/dmDjango 且最终镜像包含 DPI；
   没有独立的部署镜像路线。
 
-#### Task 2.2: 使 Console 正式 Action 注入驱动上下文
+#### Task 2.2: 使 Console 正式 Action 自动注入驱动上下文
 - 仓库：rainbond
 - 文件：`.github/workflows/dev-build.yml`、`.github/workflows/release-v6.yml`、工作流测试。
-- 实现内容：给普通 Dockerfile 的 build job 注入并校验按架构的驱动 bundle。
+- 实现内容：给普通 Dockerfile 的 build job 注入并校验固定的驱动 bundle。
 - 验收标准：两个正式入口均通过 `build-contexts` 提供 `dameng`，无 bundle 时立即失败。
 
 ### Sprint 3: 构建验证与交付
@@ -195,7 +208,7 @@ python/drivers/python/dmDjango/dmDjango3.0/
 #### Task 3.1: 验证标准镜像
 - 仓库：rainbond、rainbond-console
 - 文件：`docs/dameng-standard-image-build.md`、测试清单。
-- 实现内容：记录 bundle 制作契约、Action 变量名、标准镜像验收命令与恢复方式。
+- 实现内容：记录 ISO 提取与 bundle 制作契约、标准镜像验收命令与恢复方式。
 - 验收标准：Go `go build ./...`、`go vet ./...`、相关测试和清单验证通过；Console
   相关 pytest/check 通过；使用受限 bundle 的实际构建完成后，标准镜像在 DM 和 MySQL
   两种配置下完成启动冒烟验证。
@@ -209,12 +222,13 @@ python/drivers/python/dmDjango/dmDjango3.0/
 | 核心镜像 | `rainbond/hack/contrib/docker/{api,worker,chaos}/Dockerfile` | 当前错误地把 DM 置于可选分支。 |
 | Console 标准镜像 | `rainbond-console/Dockerfile` | 由 rainbond Action checkout 后实际使用的 Dockerfile。 |
 | Console 专用镜像 | `rainbond-console/Dockerfile.dm` | 要合并并删除的重复实现。 |
+| ISO bundle 提取 | `rainbond/scripts/prepare-dameng-driver-bundle-from-iso.sh` | 官方 ISO 到最小 OCI 构建材料。 |
 | Go bundle 准备 | `rainbond/scripts/prepare-dameng-go-driver.sh` | 官方 Go archive 的输入契约与校验。 |
 
 ## 前置条件与风险
 
-1. 必须在受限 registry 中维护可信、可审计、按架构发布的 driver bundle；GitHub
-   Repository Variables 只保存镜像引用，镜像仓库凭据仍复用已有 Actions secrets。
+1. 必须在受限 registry 中维护可信、可审计、按架构发布的 driver bundle；镜像仓库
+   凭据复用已有 Actions secrets，源码中只保存不含凭据的固定 OCI 引用。
 2. 当前取得的是 x86_64 的官方介质。多架构 release 必须提供同版本 arm64 bundle，
    否则该架构构建会在校验步骤失败；不能把 x86_64 的 DPI 运行库塞进 arm64 镜像。
 3. 达梦驱动的再分发许可须由发布方确认。源码仓库和公开镜像不提交或公开驱动材料。
