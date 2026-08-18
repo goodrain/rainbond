@@ -151,6 +151,7 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           provenance: false
+          sbom: false
           tags: |
             rainbond/rbd-${{ matrix.component.name }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component.name }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
@@ -197,6 +198,7 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
@@ -234,6 +236,7 @@ jobs:
           file: ./Dockerfile
           push: true
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond-ui:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
   
@@ -305,6 +308,7 @@ jobs:
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}

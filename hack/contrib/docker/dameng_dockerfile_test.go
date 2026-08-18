@@ -98,6 +98,62 @@ func TestStandardDamengBuildWorkflows(t *testing.T) {
 	}
 }
 
+func TestBuildPushActionsDisableRegistryAttestations(t *testing.T) {
+	workflows := []struct {
+		name string
+		path string
+	}{
+		{name: "development", path: "../../../.github/workflows/dev-build.yml"},
+		{name: "release", path: "../../../.github/workflows/release-v6.yml"},
+	}
+
+	for _, workflow := range workflows {
+		t.Run(workflow.name, func(t *testing.T) {
+			contents, err := os.ReadFile(workflow.path)
+			if err != nil {
+				t.Fatalf("read workflow: %v", err)
+			}
+
+			steps := buildPushActionSteps(string(contents))
+			if len(steps) == 0 {
+				t.Fatal("workflow must contain docker/build-push-action@v6 steps")
+			}
+			for index, step := range steps {
+				for _, expected := range []string{"provenance: false", "sbom: false"} {
+					if !strings.Contains(step, expected) {
+						t.Fatalf("build-push step %d must set %s", index+1, expected)
+					}
+				}
+			}
+		})
+	}
+}
+
+func buildPushActionSteps(workflow string) []string {
+	lines := strings.Split(workflow, "\n")
+	var steps []string
+	for index, line := range lines {
+		if strings.TrimSpace(line) != "uses: docker/build-push-action@v6" {
+			continue
+		}
+
+		start := index
+		for start > 0 && !strings.HasPrefix(lines[start], "      - ") {
+			start--
+		}
+		if !strings.HasPrefix(lines[start], "      - ") {
+			continue
+		}
+
+		end := index + 1
+		for end < len(lines) && !strings.HasPrefix(lines[end], "      - ") {
+			end++
+		}
+		steps = append(steps, strings.Join(lines[start:end], "\n"))
+	}
+	return steps
+}
+
 func assertRegionDamengBuildScope(t *testing.T, job string) {
 	t.Helper()
 	for _, component := range []string{"api", "chaos", "worker"} {

@@ -192,6 +192,7 @@ jobs:
           cache-from: type=gha,scope=rbd-${{ matrix.component.name }}
           cache-to: type=gha,mode=max,scope=rbd-${{ matrix.component.name }}
           provenance: false
+          sbom: false
           tags: |
             rainbond/rbd-${{ matrix.component.name }}:${{ env.VERSION }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component.name }}:${{ env.VERSION }}
@@ -248,6 +249,7 @@ jobs:
           cache-from: type=gha,scope=operator
           cache-to: type=gha,mode=max,scope=operator
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond-operator:${{ env.VERSION }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}
@@ -297,6 +299,7 @@ jobs:
           cache-from: type=gha,scope=ui
           cache-to: type=gha,mode=max,scope=ui
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond-ui:${{ env.VERSION }}
 
@@ -381,6 +384,7 @@ jobs:
           cache-from: type=gha,scope=console
           cache-to: type=gha,mode=max,scope=console
           provenance: false
+          sbom: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}
             registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}
