@@ -20,17 +20,17 @@ RainbondCluster.regionDatabase/uiDatabase
 ### 1.2 现有基础
 
 - Rainbond 核心使用 `github.com/jinzhu/gorm` v1。
-- 达梦为 GORM v1 提供官方方言包，也提供官方 Go 驱动；GORM v1 仅推荐连接
-  `CASE_SENSITIVE=N` 的 DM 数据库。
+- 达梦为 GORM v1 提供官方方言包，也提供官方 Go 驱动；官方建议 GORM v1
+  使用 `CASE_SENSITIVE=N`，但本期先在现有 `CASE_SENSITIVE=Y` 测试库验证。
 - Console 使用 Django 5.2；达梦提供 dmPython 和 dmDjango 3.x 后端。
 - 当前 Operator 的 `Database` CR 类型没有数据库类型字段，预检查和工作负载
   参数均硬编码 MySQL。
 
 ### 1.3 核心需求
 
-平台管理员能够在 `RainbondCluster` 中显式将 `regionDatabase` 和
-`uiDatabase` 指向达梦，Operator 下发 `DB_TYPE=dm`，核心和 Console 使用达梦
-原生协议与驱动连接。已有 MySQL 与 SQLite 部署必须保持兼容。
+本期先提供镜像级达梦支持：管理员为受管组件手工覆盖 `DB_TYPE=dm` 与连接参数后，
+核心和 Console 使用达梦原生协议与驱动连接。已有 MySQL 与 SQLite 部署必须保持
+兼容。`RainbondCluster` 自动下发达梦配置属于后续 Operator 阶段。
 
 不在本次范围：把达梦伪装为 MySQL 协议、修改业务组件数据库插件、将数据库
 账号密码明文写入 Git、或将现有 MySQL 数据无验证地迁入达梦。
@@ -39,13 +39,12 @@ RainbondCluster.regionDatabase/uiDatabase
 
 ### 2.1 用户操作流程
 
-1. 平台管理员准备两个达梦 schema（`region` 与 `console`），并使用
-   `CASE_SENSITIVE=N` 的独立达梦实例/库。
-2. 管理员把非敏感连接信息和凭据引用写入 `RainbondCluster`，分别配置
-   `regionDatabase.type: dm` 和 `uiDatabase.type: dm`。
-3. Operator 使用达梦原生协议执行连通性检查，随后向 `rbd-api`、`rbd-worker`
-   传递 `--db-type=dm` 和 DM DSN，向 `rbd-app-ui` 传递 `DB_TYPE=dm` 及通用
-   `DB_*` 连接配置。
+1. 平台管理员使用现有测试达梦库准备 `region` 与 `console` schema；当前
+   `CASE_SENSITIVE=Y` 允许作为第一轮验证目标。
+2. 管理员在 `rbd-api`、`rbd-worker`、`rbd-app-ui` 的受管组件配置中手工覆盖
+   `DB_TYPE=dm` 与连接参数，再替换为带官方达梦驱动的测试镜像。
+3. 核心兼容读取旧 `--mysql` 连接参数并转换为达梦 DSN，Console 在 `DB_TYPE=dm`
+   时使用 dmDjango。
 4. Console 以 dmDjango 执行 Django migration；核心以 GORM 达梦方言创建、迁移
    region schema。管理员通过 `RainbondCluster.status.conditions`、工作负载就绪
    状态和平台健康检查确认结果。
@@ -58,7 +57,7 @@ RainbondCluster.regionDatabase/uiDatabase
 ### 2.3 外部系统交互
 
 - 达梦数据库：使用官方原生 Go/dmPython/dmDjango 驱动，不走 MySQL 协议。
-- Kubernetes：Operator 将数据库类型与连接信息渲染进受管组件。
+- Kubernetes：本期由管理员手工覆盖受管组件配置；后续由 Operator 自动渲染。
 - 镜像构建：DM 驱动由持证环境在构建时提供；驱动源码不提交到开源仓库。
 
 ## 三、整体架构设计
@@ -82,9 +81,9 @@ rainbond core: GORM v1 DM dialect  Console: dmDjango + dmPython
 
 ### 3.2 核心流程
 
-`Database.type` 缺省为 `mysql`，确保所有现有 CR 不变。`dm` 类型必须通过
-`dm://user:password@host:port/schema` 形式的 DSN 生成器，禁止沿用
-`user:password@tcp(host:port)/database`。
+核心接受 `DB_TYPE=dm`，并把已有 `--mysql` 参数的连接信息转换为
+`dm://user:password@host:port/schema`。这仅用于镜像验证的兼容入口；自动生成
+达梦 DSN 仍在后续 Operator 阶段完成。
 
 核心不再把连接字段命名为 `MysqlConnectionInfo`；改为中性的连接信息名称，
 同时保留旧 flag `--mysql` 作为兼容别名。核心仅接受白名单中的数据库类型。
@@ -102,7 +101,7 @@ Console 读取 `DB_TYPE`；MySQL 保留旧的 `MYSQL_*` 回退变量，DM 使用
 
 ### 4.2 数据关系
 
-扩展 Operator CR 的 `Database`：
+后续 Operator 阶段扩展 CR 的 `Database`：
 
 ```yaml
 regionDatabase:
@@ -128,12 +127,13 @@ uiDatabase:
 
 ### 5.1 接口列表
 
-无新增 HTTP API。扩展 Kubernetes CRD 的 `spec.regionDatabase.type` 与
-`spec.uiDatabase.type`，取值为 `mysql`（默认）或 `dm`。
+本期不新增 HTTP API 或 Kubernetes CRD。后续扩展 Kubernetes CRD 的
+`spec.regionDatabase.type` 与 `spec.uiDatabase.type`，取值为 `mysql`（默认）或
+`dm`。
 
 ### 5.2 请求/响应结构
 
-Operator 生成的组件配置契约：
+本期管理员手工覆盖的组件配置契约：
 
 | 组件 | MySQL（兼容） | DM |
 | --- | --- | --- |
@@ -152,9 +152,8 @@ Operator 生成的组件配置契约：
    `MODIFY COLUMN` 语句。
 3. Console 使用 dmDjango，启动前以 Django API 检查连通性，所有 MySQL 专属
    `GROUP_CONCAT` 原生查询改为 ORM 或经数据库类型选择的等价表达式。
-4. Operator 根据类型构造 DSN、执行预检查、渲染核心 flags 和 Console 环境变量。
-   凭据在错误和日志中脱敏。
-5. 修改 CRD、deepcopy、Helm/ROI 传递链路，并新增配置示例与迁移操作手册。
+4. 用户在组件配置中手工注入 `DB_TYPE=dm`；升级为 Operator 自动渲染时，再修改
+   CRD、预检查、Helm/ROI 传递链路。凭据在错误和日志中脱敏。
 
 ### 6.2 复用现有代码
 
@@ -172,13 +171,13 @@ Operator 生成的组件配置契约：
 - [ ] React (rainbond-ui): 不涉及 — 本期配置入口是 CR/YAML，没有用户 UI 触点。
 - [ ] Plugin frontend (enterprise-base): 不涉及。
 - [ ] Plugin backend (plugin-template): 不涉及。
-- [x] rainbond-operator: 需要 — CRD 类型、预检查、配置渲染、受管工作负载测试与镜像构建。
+- [ ] rainbond-operator: 本期不涉及 — 镜像验证由组件配置手工覆盖；CRD 自动配置后续实现。
 
 ### Sprint 1: 契约与核心驱动
 
 #### Task 1.1: 定义数据库类型和 DSN 契约
-- 仓库：rainbond-operator / rainbond
-- 文件：`api/v1alpha1/rainbondcluster_types.go`、`config/configs/db_config.go`、`db/config/config.go`
+- 仓库：rainbond
+- 文件：`config/configs/db_config.go`、`db/config/config.go`
 - 实现内容：类型白名单、MySQL 默认值、DM DSN、无密码日志。
 - 验收标准：单元测试覆盖默认 MySQL、DM、未知类型和含特殊字符凭据的脱敏日志。
 
@@ -186,9 +185,10 @@ Operator 生成的组件配置契约：
 - 仓库：rainbond
 - 文件：`db/`、`go.mod`、`Dockerfile`、DM 构建说明
 - 实现内容：注册官方 DM driver/dialect、实现 DM 的建表与 schema 修补分支。
-- 验收标准：在 `CASE_SENSITIVE=N` DM integration database 中完成建表、迁移、事务和 DAO 冒烟测试。
+- 验收标准：在现有 DM integration database 中完成建表、迁移、事务和 DAO 冒烟测试；记录
+  `CASE_SENSITIVE=Y` 的标识符兼容结果。
 
-### Sprint 2: Console 与 Operator
+### Sprint 2: Console
 
 #### Task 2.1: Console 连接和迁移支持
 - 仓库：rainbond-console
@@ -196,7 +196,7 @@ Operator 生成的组件配置契约：
 - 实现内容：DM 配置、dmDjango 安装、通用 readiness、DM 原生 SQL 等价实现。
 - 验收标准：Django `check`、`migrate`、创建/查询/事务冒烟测试通过，密码不出现在日志。
 
-#### Task 2.2: Operator 下发与预检查
+#### Task 2.2: Operator 下发与预检查（后续阶段）
 - 仓库：rainbond-operator
 - 文件：CR 类型/CRD、`controllers/cluster-mgr/precheck/database.go`、`controllers/handler/{api,worker,app-ui}.go`
 - 实现内容：按数据库类型检测、传递 `DB_TYPE=dm`、核心 DM flags、Console DB 环境变量。
@@ -205,7 +205,7 @@ Operator 生成的组件配置契约：
 ### Sprint 3: 集成验收与迁移文档
 
 #### Task 3.1: 验证和发布材料
-- 仓库：rainbond / rainbond-console / rainbond-operator
+- 仓库：rainbond / rainbond-console
 - 文件：测试、构建说明、运维文档
 - 实现内容：使用独立 DM 测试库执行全链路安装/升级验证，给出现有 MySQL 平台迁移、回滚和备份步骤。
 - 验收标准：Go build/vet/test、Console check/pytest、Operator test/build、DM 部署健康检查均通过。
@@ -219,14 +219,15 @@ Operator 生成的组件配置契约：
 | 核心 DB flags | `rainbond/config/configs/db_config.go` | 当前仅有 `--mysql`。 |
 | Console 数据库配置 | `rainbond-console/goodrain_web/settings.py` | 当前仅 SQLite/MySQL。 |
 | Console 启动数据库检查 | `rainbond-console/entrypoint.sh` | 当前依赖 MySQL CLI。 |
-| Operator CR 与 DSN | `rainbond-operator/api/v1alpha1/rainbondcluster_types.go` | 当前数据库类型/DSN 固定 MySQL。 |
-| Operator 预检查 | `rainbond-operator/controllers/cluster-mgr/precheck/database.go` | 当前固定 `sql.Open("mysql")`。 |
-| Operator 工作负载渲染 | `rainbond-operator/controllers/handler/{api,worker,app-ui}.go` | 当前下发 MySQL flag/env。 |
+| Operator CR 与 DSN | `rainbond-operator/api/v1alpha1/rainbondcluster_types.go` | 后续自动配置阶段的改动入口。 |
+| Operator 预检查 | `rainbond-operator/controllers/cluster-mgr/precheck/database.go` | 后续自动配置阶段需支持 `sql.Open("dm")`。 |
+| Operator 工作负载渲染 | `rainbond-operator/controllers/handler/{api,worker,app-ui}.go` | 后续自动配置阶段需下发达梦参数。 |
 
 ## 前置条件与风险
 
-1. 达梦官方 GORM v1 文档要求 `CASE_SENSITIVE=N`。当前测试实例如果为 `Y`，必须
-   新建符合条件的测试库；不能把它作为验收基线。
+1. 达梦官方 GORM v1 文档建议 `CASE_SENSITIVE=N`。本期以当前 `Y` 库进行首轮
+   验证；若 GORM 的混合引号策略暴露表名或字段名问题，记录为该设置下的已知限制，
+   并以实际集成结果决定是否修复或将正式支持基线收紧为 `N`。
 2. 官方 Go/dmDjango/dmPython 驱动随 DM 安装包分发，未在 Rainbond 源码中提供。
    在获得可再分发授权前，仓库只能提交构建接入点和驱动获取说明，不能提交驱动源码。
 3. 平台现有 MySQL 数据库不能直接切换。正式切换需先完成备份、SQL/数据迁移、离线

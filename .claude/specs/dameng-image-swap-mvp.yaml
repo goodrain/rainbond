@@ -1,0 +1,215 @@
+meta:
+  name: dameng-image-swap-mvp
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc/rainbond
+  branch: v6.9.9-dev
+  design_doc: docs/plans/2026-08-18-dameng-platform-database-design.md
+  scope: "rainbond and rainbond-console image-level verification; operator CR automation deferred"
+
+sprints:
+  - id: sprint-1
+    name: Core native DM connection
+    commits:
+      - id: core-config-and-dialect
+        message: "feat: add Dameng database driver support"
+        tasks: [core-1.1, core-1.2, core-1.3]
+    tasks:
+      - id: core-1.1
+        name: Read DB_TYPE without changing the MySQL default
+        status: pending
+        files:
+          modify:
+            - path: config/configs/db_config.go
+              lines: "1-40"
+            - path: config/configs/db_config_test.go
+              lines: "new"
+        steps:
+          - action: write-test
+            description: "Verify DB_TYPE=dm supplies the default, explicit --db-type keeps pflag precedence, and an unset value remains mysql."
+            run: "go test ./config/configs -run TestAddDBFlags -v"
+            expect: FAIL
+          - action: implement
+            description: "Use DB_TYPE only as the default passed to the db-type flag; do not read or log connection credentials from the environment."
+            run: "go test ./config/configs -run TestAddDBFlags -v"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./config/configs -run TestAddDBFlags -v"
+            expect: PASS
+        references:
+          - path: config/configs/db_config.go:1-16
+            note: "Existing core database flag registration."
+
+      - id: core-1.2
+        name: Normalize legacy connection information into a DM DSN
+        status: pending
+        files:
+          create:
+            - path: db/dameng/dsn.go
+            - path: db/dameng/dsn_test.go
+        steps:
+          - action: write-test
+            description: "Cover native dm URL passthrough, legacy user:password@tcp(host:port)/schema conversion, escaped credential characters, and invalid input."
+            run: "go test ./db/dameng -run TestNormalizeDSN -v"
+            expect: FAIL
+          - action: implement
+            description: "Implement NormalizeDSN with net/url and explicit validation; all errors must omit the original connection string."
+            run: "go test ./db/dameng -run TestNormalizeDSN -v"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./db/dameng -run TestNormalizeDSN -v"
+            expect: PASS
+        references:
+          - path: config/configs/db_config.go:12-15
+            note: "Legacy --mysql value supplied by the current Operator."
+
+      - id: core-1.3
+        name: Register the DM GORM v1 dialect in the DM image variant
+        status: pending
+        files:
+          create:
+            - path: db/dameng/driver_dm.go
+            - path: db/dameng/driver_stub.go
+            - path: scripts/prepare-dameng-go-driver.sh
+          modify:
+            - path: db/db.go
+              lines: "150-170"
+            - path: db/mysql/mysql.go
+              lines: "50-135,240-430"
+            - path: Dockerfile
+              lines: "build stage"
+            - path: .gitignore
+              lines: "end"
+        steps:
+          - action: write-test
+            description: "Verify dm is an allowed type and that the non-DM build returns a driver-not-built error without logging a DSN."
+            run: "go test ./db ./db/dameng -run 'Test.*Dameng' -v"
+            expect: FAIL
+          - action: implement
+            description: "Add a dm build-tag adapter. The image build invokes the preparation script with the official driver archives from an ignored local directory; no driver source is committed. Use CreateTable without MySQL table options and bypass MySQL-only schema patch/upsert paths for DM."
+            run: "go test ./db ./db/dameng -run 'Test.*Dameng' -v"
+            expect: PASS
+        acceptance:
+          - cmd: "go test ./db ./db/dameng -v"
+            expect: PASS
+          - cmd: "go build ./..."
+            expect: PASS
+          - cmd: "go vet ./..."
+            expect: PASS
+        references:
+          - path: db/db.go:156-176
+            note: "Database type allow-list."
+          - path: db/mysql/mysql.go:60-130
+            note: "GORM initialization and pool setup."
+          - path: db/mysql/mysql.go:245-435
+            note: "MySQL-only DDL and index/upsert code."
+
+  - id: sprint-2
+    name: Console native DM connection
+    commits:
+      - id: console-settings-and-image
+        message: "feat: add Dameng console database support"
+        tasks: [console-2.1, console-2.2, console-2.3]
+    tasks:
+      - id: console-2.1
+        name: Select dmDjango when DB_TYPE is dm
+        status: pending
+        files:
+          create:
+            - path: console/tests/database_settings_test.py
+          modify:
+            - path: goodrain_web/settings.py
+              lines: "91-130"
+        steps:
+          - action: write-test
+            description: "Reload settings under DB_TYPE=dm and assert ENGINE=dmDjango plus DB_* then MYSQL_* fallback resolution."
+            run: "pytest console/tests/database_settings_test.py -q"
+            expect: FAIL
+          - action: implement
+            description: "Add the dm branch without importing dmDjango during settings evaluation; keep SQLite and MySQL settings unchanged."
+            run: "pytest console/tests/database_settings_test.py -q"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/database_settings_test.py -q"
+            expect: PASS
+        references:
+          - path: goodrain_web/settings.py:91-130
+            note: "Existing SQLite and MySQL configuration."
+
+      - id: console-2.2
+        name: Make entrypoint database readiness backend-neutral
+        status: pending
+        files:
+          create:
+            - path: scripts/database_state.py
+            - path: console/tests/database_state_test.py
+          modify:
+            - path: entrypoint.sh
+              lines: "8-69"
+        steps:
+          - action: write-test
+            description: "Mock Django connection/introspection and cover unavailable, empty, and populated database states without a mysql client binary."
+            run: "pytest console/tests/database_state_test.py -q"
+            expect: FAIL
+          - action: implement
+            description: "Use Django's connection API for readiness and table count. The script must not print database credentials or DSNs."
+            run: "pytest console/tests/database_state_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/database_state_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        references:
+          - path: entrypoint.sh:8-69
+            note: "Current MySQL CLI and SQLite-specific branching."
+
+      - id: console-2.3
+        name: Build a private DM console image variant
+        status: pending
+        files:
+          create:
+            - path: scripts/prepare-dameng-python-driver.sh
+            - path: docs/dameng-image-build.md
+          modify:
+            - path: Dockerfile
+              lines: "15-95"
+            - path: .gitignore
+              lines: "end"
+        steps:
+          - action: write-test
+            description: "Verify the build preparation scripts reject missing driver directories without printing paths that contain credentials."
+            run: "bash scripts/prepare-dameng-python-driver.sh --help && bash scripts/prepare-dameng-go-driver.sh --help"
+            expect: FAIL
+          - action: implement
+            description: "Install dmPython and dmDjango only when ENABLE_DM=true, copy the required DPI runtime library, and fail the DM variant build if the official driver bundle is absent. Ignore all extracted vendor driver sources."
+            run: "bash scripts/prepare-dameng-python-driver.sh --help && bash scripts/prepare-dameng-go-driver.sh --help"
+            expect: PASS
+        acceptance:
+          - cmd: "docker build --build-arg ENABLE_DM=true -t rainbond-console:dm-test ."
+            expect: PASS
+        references:
+          - path: Dockerfile:20-86
+            note: "Python build and runtime image stages."
+
+  - id: sprint-3
+    name: Manual image verification
+    commits:
+      - id: docs-manual-dm-verification
+        message: "docs: add Dameng image verification guide"
+        tasks: [verify-3.1]
+    tasks:
+      - id: verify-3.1
+        name: Verify core and Console against the existing DM test database
+        status: pending
+        files:
+          create:
+            - path: docs/dameng-image-verification.md
+        steps:
+          - action: document
+            description: "Document image swap, RbdComponent env/arg overrides, schema initialization, health checks, rollback, and the CASE_SENSITIVE=Y compatibility observation. Use credential placeholders only."
+            run: "git diff --check"
+            expect: PASS
+        acceptance:
+          - cmd: "git diff --check"
+            expect: PASS
+        references:
+          - path: docs/plans/2026-08-18-dameng-platform-database-design.md:1-233
+            note: "Approved image-level scope and deferred Operator automation."
