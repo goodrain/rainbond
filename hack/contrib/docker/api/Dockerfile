@@ -1,8 +1,8 @@
+# syntax=docker/dockerfile:1.7
 FROM golang:1.25-alpine AS compile
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY
-ARG ENABLE_DM=false
 
 ENV CGO_ENABLED=1
 ENV GOARCH=${TARGETARCH}
@@ -10,27 +10,12 @@ ENV GOPROXY=${GOPROXY}
 ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
+COPY --from=dameng go/ /tmp/dameng/
 WORKDIR /go/src/github.com/goodrain/rainbond
-RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev zeromq-dev libsodium-dev && \
-    if [ "$ENABLE_DM" = "true" ]; then \
-        sh scripts/prepare-dameng-go-driver.sh && \
-        go mod edit -require=dm@v0.0.0 -replace=dm=./third_party/dameng/dm && \
-        CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api; \
-    else \
-        CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api; \
-    fi
-
-FROM ubuntu:24.04 AS compress
-ARG ENABLE_DM=false
-COPY --from=compile /run/rainbond-api /run/rainbond-api
-
-RUN if [ "$ENABLE_DM" = "true" ]; then \
-        :; \
-    else \
-        apt-get update && apt -y install upx && \
-        upx --best --lzma /run/rainbond-api; \
-    fi
-RUN mkdir -p /logs && touch /logs/request.log
+RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev unzip zeromq-dev libsodium-dev && \
+    sh scripts/prepare-dameng-go-driver.sh /tmp/dameng && \
+    go mod edit -require=dm@v0.0.0 -replace=dm=/tmp/dameng/dm && \
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api
 
 FROM rainbond/alpine:3
 ARG RELEASE_DESC
@@ -42,10 +27,9 @@ ENV RELEASE_DESC=${RELEASE_DESC}
 ENV RAINBOND_ERROR_REPORTING_DSN=${RAINBOND_ERROR_REPORTING_DSN}
 ENV RAINBOND_ERROR_REPORTING_REGION_DSN=${RAINBOND_ERROR_REPORTING_REGION_DSN}
 ENV RAINBOND_ERROR_REPORTING_BACKEND_DSN=${RAINBOND_ERROR_REPORTING_BACKEND_DSN}
-RUN apk add --no-cache libzmq libsodium
+RUN apk add --no-cache libzmq libsodium && mkdir -p /logs && touch /logs/request.log
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/api/entrypoint.sh /run/entrypoint.sh
-COPY --from=compress /run/rainbond-api /run/rainbond-api
-COPY --from=compress /logs/request.log /logs/request.log
+COPY --from=compile /run/rainbond-api /run/rainbond-api
 
 WORKDIR /run
 

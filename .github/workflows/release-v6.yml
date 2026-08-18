@@ -81,7 +81,17 @@ jobs:
     environment: release-v6
     strategy:
       matrix:
-        component: [api, chaos, worker, init-probe, mq]
+        component:
+          - name: api
+            requires_dameng: true
+          - name: chaos
+            requires_dameng: true
+          - name: worker
+            requires_dameng: true
+          - name: init-probe
+            requires_dameng: false
+          - name: mq
+            requires_dameng: false
         arch: [amd64, arm64]
         exclude:
           - arch: ${{ github.event.inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
@@ -91,6 +101,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
+
+      - name: Validate Dameng driver bundle image
+        if: ${{ matrix.component.requires_dameng }}
+        env:
+          DAMENG_DRIVER_BUNDLE_IMAGE: ${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
+        run: |
+          test -n "$DAMENG_DRIVER_BUNDLE_IMAGE" || {
+            echo "::error::Repository variable DAMENG_DRIVER_BUNDLE_IMAGE is required for standard database images"
+            exit 1
+          }
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -126,13 +146,14 @@ jobs:
             RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
             RAINBOND_POSTHOG_PROJECT_TOKEN=${{ secrets.RAINBOND_POSTHOG_PROJECT_TOKEN }}
           context: .
-          file: hack/contrib/docker/${{ matrix.component }}/Dockerfile
+          file: hack/contrib/docker/${{ matrix.component.name }}/Dockerfile
+          build-contexts: ${{ matrix.component.requires_dameng && format('dameng=docker-image://{0}', vars.DAMENG_DRIVER_BUNDLE_IMAGE) || '' }}
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           provenance: false
           tags: |
-            rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+            rainbond/rbd-${{ matrix.component.name }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component.name }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
 
   rainbond-operator:
     needs: rainbond-unit-test
@@ -233,6 +254,15 @@ jobs:
           repository: goodrain/rainbond-console
           ref: ${{ github.event.inputs.branch }}
 
+      - name: Validate Dameng driver bundle image
+        env:
+          DAMENG_DRIVER_BUNDLE_IMAGE: ${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
+        run: |
+          test -n "$DAMENG_DRIVER_BUNDLE_IMAGE" || {
+            echo "::error::Repository variable DAMENG_DRIVER_BUNDLE_IMAGE is required for standard database images"
+            exit 1
+          }
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -270,6 +300,8 @@ jobs:
             RAINBOND_ERROR_REPORTING_BACKEND_DSN=${{ secrets.RAINBOND_ERROR_REPORTING_BACKEND_DSN }}
           context: .
           file: ./Dockerfile
+          build-contexts: |
+            dameng=docker-image://${{ vars.DAMENG_DRIVER_BUNDLE_IMAGE }}
           outputs: ${{ github.event.inputs.outputs }}
           push: true
           provenance: false

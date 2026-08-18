@@ -103,7 +103,8 @@
 | rainbond.database.dameng-bootstrap-skip | Skip MySQL-only bootstrap for Dameng | active | regression | mysql.Manager.patchTable | db/mysql/mysql_dameng_test.go::TestDamengSkipsMySQLBootstrap<br>db/mysql/mysql_dameng_test.go::TestMySQLKeepsBootstrap |
 | rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
 | rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
-| rainbond.database.dameng-uncompressed-images | Skip UPX for Dameng image variants | active | regression | hack/contrib/docker API and Worker compression stages | hack/contrib/docker/dameng_dockerfile_test.go::TestDamengImagesSkipUPXCompression |
+| rainbond.database.dameng-standard-image-actions | 标准镜像工作流提供达梦驱动包 | active | regression | development and release image build workflows | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardDamengBuildWorkflows |
+| rainbond.database.dameng-standard-images | 标准区域镜像内置达梦驱动 | active | regression | standard rbd API, Worker, and Chaos Dockerfiles | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.db-type-environment-default | 数据库类型环境默认值 | active | unit | config/configs.AddDBFlags | config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue |
 | rainbond.dockerfile-build.proxy-env-inheritance | Dockerfile BuildKit proxy environment inheritance | active | regression | builder/build.buildKitProxyEnvVars | builder/build/dockerfile_build_test.go::TestBuildKitProxyEnvVars |
 | rainbond.dockerfile-build.registry-mirror-toml | Render BuildKit TOML with optional registry mirrors | active | regression | builder/sources.buildKitTomlContent | builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent<br>builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence |
@@ -1466,15 +1467,25 @@
 - 代码路径: `db/dameng/dsn.go`
 - 测试路径: `db/dameng/dsn_test.go::TestNormalizeDSN`
 
-### Skip UPX for Dameng image variants
+### 标准镜像工作流提供达梦驱动包
 
-- Capability ID: `rainbond.database.dameng-uncompressed-images`
+- Capability ID: `rainbond.database.dameng-standard-image-actions`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
-- 业务入口: `hack/contrib/docker API and Worker compression stages`
-- 代码路径: `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`
-- 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestDamengImagesSkipUPXCompression`
+- 业务入口: `development and release image build workflows`
+- 代码路径: `.github/workflows/dev-build.yml`, `.github/workflows/release-v6.yml`
+- 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardDamengBuildWorkflows`
+
+### 标准区域镜像内置达梦驱动
+
+- Capability ID: `rainbond.database.dameng-standard-images`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `standard rbd API, Worker, and Chaos Dockerfiles`
+- 代码路径: `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`, `hack/contrib/docker/chaos/Dockerfile`, `scripts/prepare-dameng-go-driver.sh`
+- 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX`
 
 ### 数据库类型环境默认值
 
