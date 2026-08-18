@@ -14,6 +14,7 @@ func TestDamengImagesSkipUPXCompression(t *testing.T) {
 	}{
 		{name: "api", path: "api/Dockerfile"},
 		{name: "worker", path: "worker/Dockerfile"},
+		{name: "chaos", path: "chaos/Dockerfile"},
 	}
 
 	for _, tt := range tests {
@@ -24,6 +25,16 @@ func TestDamengImagesSkipUPXCompression(t *testing.T) {
 			}
 
 			text := string(contents)
+			for _, expected := range []string{
+				"ARG ENABLE_DM=false",
+				"sh scripts/prepare-dameng-go-driver.sh",
+				"go mod edit -require=dm@v0.0.0 -replace=dm=./third_party/dameng/dm",
+				`-tags "dm sqlite_omit_load_extension netgo"`,
+			} {
+				if !strings.Contains(text, expected) {
+					t.Fatalf("Dockerfile must build a Dameng variant containing %q", expected)
+				}
+			}
 			compressStageIndex := strings.Index(text, "FROM ubuntu:24.04 AS compress")
 			if compressStageIndex < 0 {
 				t.Fatal("Dockerfile must have a compression stage")

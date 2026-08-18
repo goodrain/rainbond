@@ -11,7 +11,7 @@
 `third_party/dameng/dm`。该目录在 `.gitignore` 中，禁止加入 Git 或镜像以外的
 公开制品。
 
-构建 API 和 Worker 的达梦变体：
+构建 API、Worker 和 Chaos 的达梦变体：
 
 ```bash
 docker build --build-arg ENABLE_DM=true \
@@ -21,6 +21,10 @@ docker build --build-arg ENABLE_DM=true \
 docker build --build-arg ENABLE_DM=true \
   -f hack/contrib/docker/worker/Dockerfile \
   -t <PRIVATE_REGISTRY>/rbd-worker:dm-test .
+
+docker build --build-arg ENABLE_DM=true \
+  -f hack/contrib/docker/chaos/Dockerfile \
+  -t <PRIVATE_REGISTRY>/rbd-chaos:dm-test .
 ```
 
 未设置 `ENABLE_DM=true` 的构建保持原有 MySQL/SQLite 行为；若在该镜像设置

@@ -9,7 +9,7 @@
 
 ## 1. 前置条件
 
-1. 准备两个全新的达梦测试 schema：`region` 供 `rbd-api`/`rbd-worker` 使用，
+1. 准备两个全新的达梦测试 schema：`region` 供 `rbd-api`/`rbd-worker`/`rbd-chaos` 使用，
    `console` 供 Console 使用。不要用已有 MySQL 平台库直接切换或迁移。
 2. 在目标架构的受控构建机上准备与达梦服务端兼容的官方驱动包。驱动文件位于
    被 Git 忽略的 `third_party/dameng/`，不能提交到仓库或发布到公共制品。
@@ -23,7 +23,7 @@
    kubectl -n <RBD_NAMESPACE> get rbdcomponent <COMPONENT_NAME> -o yaml
    ```
 
-   应确认管理 `rbd-api`、`rbd-worker`，以及 Console 工作负载（通常为
+   应确认管理 `rbd-api`、`rbd-worker`、`rbd-chaos`，以及 Console 工作负载（通常为
    `rbd-app-ui`）的资源和其镜像/环境变量来源。仅改 Pod 或 Deployment 可用于
    短时测试，但会被 Operator 恢复；验证配置应保存在该集群实际支持的组件覆盖入口中。
 
@@ -40,6 +40,10 @@ docker build --build-arg ENABLE_DM=true \
 docker build --build-arg ENABLE_DM=true \
   -f hack/contrib/docker/worker/Dockerfile \
   -t <PRIVATE_REGISTRY>/rbd-worker:dm-test .
+
+docker build --build-arg ENABLE_DM=true \
+  -f hack/contrib/docker/chaos/Dockerfile \
+  -t <PRIVATE_REGISTRY>/rbd-chaos:dm-test .
 ```
 
 默认构建不传 `ENABLE_DM=true`，保持现有 MySQL/SQLite 行为及原有压缩流程。达梦
@@ -69,6 +73,7 @@ docker buildx build \
 | --- | --- | --- |
 | `rbd-api` | `<PRIVATE_REGISTRY>/rbd-api:dm-test` | `DB_TYPE=dm`；将受控配置中的既有 `--mysql` 兼容参数/Secret 引用改为达梦 `region` 测试库，并确保 API 启动参数为 `--db-type=dm`。 |
 | `rbd-worker` | `<PRIVATE_REGISTRY>/rbd-worker:dm-test` | `DB_TYPE=dm`；将既有 `--mysql` 兼容参数/Secret 引用改为与 API 相同的达梦 `region` 测试库，并确保启动参数为 `--db-type=dm`。 |
+| `rbd-chaos` | `<PRIVATE_REGISTRY>/rbd-chaos:dm-test` | `DB_TYPE=dm`；将既有 `--mysql` 兼容参数/Secret 引用改为同一达梦 `region` 测试库，并确保启动参数为 `--db-type=dm`。 |
 | Console 工作负载 | `<PRIVATE_REGISTRY>/rainbond-console:dm-test` | `DB_TYPE=dm`，并使用下方通用数据库环境变量。 |
 
 Console 的连接信息使用通用变量；密码必须引用已有 Secret，不能以 `value` 明文配置：
@@ -100,7 +105,7 @@ env:
 `DB_HOST`、`DB_PORT` 等变量自行拼接连接信息。不要把连接字符串复制到日志、命令行或
 文档中。确保 `region` 与 `console` 分别指向对应的独立测试 schema。
 
-按一次只替换一个组件的顺序执行：先 `rbd-api`，再 `rbd-worker`，最后 Console。
+按一次只替换一个组件的顺序执行：先 `rbd-api`，再 `rbd-worker`、`rbd-chaos`，最后 Console。
 每一步都等待新 Pod 就绪并保留前一个版本的镜像摘要。首次连接空库时，核心以 GORM
 初始化 `region` schema，Console 通过 Django migration 和默认 Region 初始化
 `console` schema。
@@ -124,7 +129,7 @@ kubectl -n <RBD_NAMESPACE> logs deployment/<COMPONENT_DEPLOYMENT> --tail=200
 
 - 新 Pod 使用预期镜像摘要、持续 Ready，且没有“未包含达梦支持”、驱动加载失败或数据库
   连接重试循环。
-- `rbd-api` 和 `rbd-worker` 都能连接同一个新 `region` schema；Console 能连接新
+- `rbd-api`、`rbd-worker` 和 `rbd-chaos` 都能连接同一个新 `region` schema；Console 能连接新
   `console` schema 并完成迁移与默认 Region 初始化。
 - 平台登录、集群信息读取及一次非破坏性基础操作可完成；数据库侧以受控客户端执行
   `SELECT 1` 并确认两个 schema 中存在预期表。
