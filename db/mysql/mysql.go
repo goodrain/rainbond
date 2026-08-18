@@ -20,14 +20,15 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 
 	"github.com/goodrain/rainbond/db/config"
+	"github.com/goodrain/rainbond/db/dameng"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 
@@ -82,32 +83,30 @@ func CreateManager(config config.Config) (*Manager, error) {
 			}
 		}
 
-		// 设置连接池参数
-		maxOpenConns := 2500
-		maxIdleConns := 500
-		maxLifeTime := 5
-		if os.Getenv("DB_MAX_OPEN_CONNS") != "" {
-			openCon, err := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNS"))
-			if err == nil {
-				maxOpenConns = openCon
+		configureConnectionPool(sqlDB)
+	}
+	if config.DBType == "dm" {
+		connectionInfo, err := dameng.NormalizeDSN(config.MysqlConnectionInfo)
+		if err != nil {
+			return nil, errors.New("invalid Dameng connection information")
+		}
+		db, err = gorm.Open("dm", connectionInfo)
+		if err != nil {
+			return nil, errors.New("unable to open Dameng database")
+		}
+
+		sqlDB := db.DB()
+		for {
+			if err := sqlDB.Ping(); err != nil {
+				logrus.Error("failed to connect to Dameng database")
+				time.Sleep(2 * time.Second)
+			} else {
+				logrus.Info("Dameng database connection successful")
+				break
 			}
 		}
-		if os.Getenv("DB_MAX_IDLE_CONNS") != "" {
-			idleCon, err := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNS"))
-			if err == nil {
-				maxIdleConns = idleCon
-			}
-		}
-		if os.Getenv("DB_CONN_MAX_LIFE_TIME") != "" {
-			lifeTime, err := strconv.Atoi(os.Getenv("DB_CONN_MAX_LIFE_TIME"))
-			if err == nil {
-				maxLifeTime = lifeTime
-			}
-		}
-		// 配置连接池参数
-		sqlDB.SetMaxOpenConns(maxOpenConns)                                // 设置最大打开连接数
-		sqlDB.SetMaxIdleConns(maxIdleConns)                                // 设置最大空闲连接数
-		sqlDB.SetConnMaxLifetime(time.Duration(maxLifeTime) * time.Minute) //
+
+		configureConnectionPool(sqlDB)
 	}
 	if config.DBType == "cockroachdb" {
 		var err error
@@ -246,29 +245,16 @@ func (m *Manager) CheckTable() {
 	m.initOne.Do(func() {
 		for _, md := range m.models {
 			if !m.db.HasTable(md) {
+				var err error
 				if m.config.DBType == "mysql" {
-					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create table %s to db success", md.TableName())
-					}
+					err = m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
+				} else {
+					err = m.db.CreateTable(md).Error
 				}
-				if m.config.DBType == "cockroachdb" { //cockroachdb
-					err := m.db.CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create cockroachdb table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create cockroachdb table %s to db success", md.TableName())
-					}
-				}
-				if m.config.DBType == "sqlite" {
-					err := m.db.CreateTable(md).Error
-					if err != nil {
-						logrus.Errorf("auto create sqlite table %s to db error."+err.Error(), md.TableName())
-					} else {
-						logrus.Infof("auto create sqlite table %s to db success", md.TableName())
-					}
+				if err != nil {
+					logrus.Errorf("auto create table %s to db error.%s", md.TableName(), err.Error())
+				} else {
+					logrus.Infof("auto create table %s to db success", md.TableName())
 				}
 			} else {
 				if err := m.db.AutoMigrate(md).Error; err != nil {
@@ -281,6 +267,13 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
+	if m.skipsMySQLBootstrap() {
+		// The current seed and schema-patch path uses MySQL-only DDL and
+		// gorm-bulk-upsert. Full DM DAO and seed compatibility is tracked
+		// separately; skipping it lets a freshly-created DM schema start.
+		logrus.Warn("skipping MySQL-only database bootstrap for Dameng")
+		return
+	}
 	count := -1
 	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
 		logrus.Errorf("backfill legacy language versions error: %s", err.Error())
@@ -338,6 +331,10 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
 		logrus.Errorf("alter table applications error: %s", err.Error())
 	}
+}
+
+func (m *Manager) skipsMySQLBootstrap() bool {
+	return m.config.DBType == "dm"
 }
 
 func (m *Manager) initLanguageVersion() {

@@ -2,6 +2,7 @@ FROM golang:1.25-alpine AS compile
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY
+ARG ENABLE_DM=false
 
 ENV CGO_ENABLED=1
 ENV GOARCH=${TARGETARCH}
@@ -12,13 +13,24 @@ COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
 
 RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev zeromq-dev libsodium-dev && \
-    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-worker ./cmd/worker;
+    if [ "$ENABLE_DM" = "true" ]; then \
+        sh scripts/prepare-dameng-go-driver.sh && \
+        go mod edit -require=dm@v0.0.0 -replace=dm=./third_party/dameng/dm && \
+        CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-worker ./cmd/worker; \
+    else \
+        CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-worker ./cmd/worker; \
+    fi
 
 FROM ubuntu:24.04 AS compress
+ARG ENABLE_DM=false
 COPY --from=compile /run/rainbond-worker /run/rainbond-worker
 
-RUN apt-get update && apt -y install upx && \
-    upx --best --lzma /run/rainbond-worker
+RUN if [ "$ENABLE_DM" = "true" ]; then \
+        :; \
+    else \
+        apt-get update && apt -y install upx && \
+        upx --best --lzma /run/rainbond-worker; \
+    fi
 
 FROM rainbond/alpine:3
 ARG RELEASE_DESC

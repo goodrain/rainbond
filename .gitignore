@@ -64,3 +64,6 @@ localcheck.sh
 go.work
 .agents/
 .claude/knowledge/
+
+# Proprietary Dameng Go driver and GORM dialect used only for private DM image builds.
+/third_party/dameng/

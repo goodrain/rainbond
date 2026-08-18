@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/db/config"
+	"github.com/goodrain/rainbond/db/dameng"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"
 	"github.com/jinzhu/gorm"
@@ -153,6 +154,7 @@ func init() {
 		"mysql":       {},
 		"cockroachdb": {},
 		"sqlite":      {},
+		"dm":          {},
 	}
 }
 
@@ -160,6 +162,9 @@ func init() {
 func CreateManager(config config.Config) (err error) {
 	if _, ok := supportDrivers[config.DBType]; !ok {
 		return fmt.Errorf("DB drivers: %s not supported", config.DBType)
+	}
+	if config.DBType == "dm" && !dameng.DriverBuilt() {
+		return dameng.ErrDriverNotBuilt
 	}
 	logrus.Info("db manager initialization starting...")
 	for {

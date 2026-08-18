@@ -93,12 +93,19 @@
 | rainbond.compose.parse-warnings | 解析 docker compose 并返回降级告警 | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithWarnings |
 | rainbond.compose.preserve-volume-source-path | Preserve docker compose volume source paths | active | regression | builder/parser/compose.loadV3Volumes | builder/parser/compose/version_detect_test.go::TestLoadV3VolumesPreservesSourcePathUnderscores |
 | rainbond.compose.yaml-anchor-support | 支持 docker compose 中的 YAML anchors | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors |
+| rainbond.config-file.dependent-configmap-ownership | 依赖配置文件保持提供方所有权 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision |
 | rainbond.config-file.k8s-volume-name-safe | Keep config-file Kubernetes volume names DNS-safe | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName |
 | rainbond.config-files.detect | 识别源码目录中的 npm 和 yarn 配置文件 | active | regression | builder/parser/code.DetectConfigFiles | builder/parser/code/config_files_test.go::TestDetectConfigFiles_Npmrc<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcClassic<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcYml<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_Multiple<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_None |
 | rainbond.config-files.has-any | 检测源码中是否存在包管理器配置文件 | active | regression | builder/parser/code.ConfigFiles.HasAnyConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_HasAnyConfigFile |
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
+| rainbond.database.dameng-bootstrap-skip | Skip MySQL-only bootstrap for Dameng | active | regression | mysql.Manager.patchTable | db/mysql/mysql_dameng_test.go::TestDamengSkipsMySQLBootstrap<br>db/mysql/mysql_dameng_test.go::TestMySQLKeepsBootstrap |
+| rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
+| rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
+| rainbond.database.dameng-uncompressed-images | Skip UPX for Dameng image variants | active | regression | hack/contrib/docker API and Worker compression stages | hack/contrib/docker/dameng_dockerfile_test.go::TestDamengImagesSkipUPXCompression |
+| rainbond.database.db-type-environment-default | 数据库类型环境默认值 | active | unit | config/configs.AddDBFlags | config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue |
+| rainbond.dockerfile-build.proxy-env-inheritance | Dockerfile BuildKit proxy environment inheritance | active | regression | builder/build.buildKitProxyEnvVars | builder/build/dockerfile_build_test.go::TestBuildKitProxyEnvVars |
 | rainbond.dockerfile-build.registry-mirror-toml | Render BuildKit TOML with optional registry mirrors | active | regression | builder/sources.buildKitTomlContent | builder/sources/buildkit_toml_test.go::TestBuildKitTomlContent<br>builder/sources/buildkit_toml_test.go::TestBuildKitTomlContentLegacyEquivalence |
 | rainbond.dockerfile.line-info | 跟踪 Dockerfile AST 的行号信息 | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestLineInformation |
 | rainbond.dockerfile.parse-fixtures | 将标准 Dockerfile 示例解析为稳定 AST | active | regression | util/dockerfile/parser.Parse | util/dockerfile/parser/parser_test.go::TestTestData |
@@ -371,6 +378,8 @@
 | rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
 | rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage |
+| rainbond.vm-import.registry-reference-validation | Reject malformed VM registry image references | active | regression | worker/appm/volume.normalizeVMRegistryImportURL | worker/appm/volume/vm_import_test.go::TestNormalizeVMRegistryImportURLRejectsInvalidReference |
+| rainbond.vm-import.validation-aborts-vm-definition | Abort VM definition for invalid registry imports | active | regression | worker/appm/conversion.createVolumes | worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
@@ -1357,6 +1366,16 @@
 - 代码路径: `builder/parser/docker_compose.go`
 - 测试路径: `builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors`
 
+### 依赖配置文件保持提供方所有权
+
+- Capability ID: `rainbond.config-file.dependent-configmap-ownership`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ConfigFileVolume.CreateDependVolume`
+- 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/controller/upgrade.go`, `worker/appm/types/v1/labels.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision`
+
 ### Keep config-file Kubernetes volume names DNS-safe
 
 - Capability ID: `rainbond.config-file.k8s-volume-name-safe`
@@ -1416,6 +1435,66 @@
 - 业务入口: `builder/parser/code.ConfigFiles.GetRelevantConfigFile`
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
+
+### Skip MySQL-only bootstrap for Dameng
+
+- Capability ID: `rainbond.database.dameng-bootstrap-skip`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `mysql.Manager.patchTable`
+- 代码路径: `db/mysql/mysql.go`
+- 测试路径: `db/mysql/mysql_dameng_test.go::TestDamengSkipsMySQLBootstrap`, `db/mysql/mysql_dameng_test.go::TestMySQLKeepsBootstrap`
+
+### Reject DM configuration in a non-DM image
+
+- Capability ID: `rainbond.database.dameng-driver-image-guard`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `db.CreateManager`
+- 代码路径: `db/db.go`, `db/dameng/driver_stub.go`
+- 测试路径: `db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver`
+
+### 达梦 DSN 规范化
+
+- Capability ID: `rainbond.database.dameng-dsn-normalization`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `db/dameng.NormalizeDSN`
+- 代码路径: `db/dameng/dsn.go`
+- 测试路径: `db/dameng/dsn_test.go::TestNormalizeDSN`
+
+### Skip UPX for Dameng image variants
+
+- Capability ID: `rainbond.database.dameng-uncompressed-images`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `hack/contrib/docker API and Worker compression stages`
+- 代码路径: `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`
+- 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestDamengImagesSkipUPXCompression`
+
+### 数据库类型环境默认值
+
+- Capability ID: `rainbond.database.db-type-environment-default`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `package_function`
+- 业务入口: `config/configs.AddDBFlags`
+- 代码路径: `config/configs/db_config.go`
+- 测试路径: `config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault`, `config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault`, `config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue`
+
+### Dockerfile BuildKit proxy environment inheritance
+
+- Capability ID: `rainbond.dockerfile-build.proxy-env-inheritance`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build.buildKitProxyEnvVars`
+- 代码路径: `builder/build/dockerfile_build.go`
+- 测试路径: `builder/build/dockerfile_build_test.go::TestBuildKitProxyEnvVars`
 
 ### Render BuildKit TOML with optional registry mirrors
 
@@ -4136,6 +4215,26 @@
 - 业务入口: `worker/appm/volume.BuildVMDataVolumeTemplate`
 - 代码路径: `worker/appm/volume/vm_import.go`
 - 测试路径: `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate`, `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing`, `worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage`
+
+### Reject malformed VM registry image references
+
+- Capability ID: `rainbond.vm-import.registry-reference-validation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.normalizeVMRegistryImportURL`
+- 代码路径: `worker/appm/volume/vm_import.go`, `worker/appm/volume/share-file.go`
+- 测试路径: `worker/appm/volume/vm_import_test.go::TestNormalizeVMRegistryImportURLRejectsInvalidReference`
+
+### Abort VM definition for invalid registry imports
+
+- Capability ID: `rainbond.vm-import.validation-aborts-vm-definition`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.createVolumes`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/volume/share-file.go`, `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport`
 
 ### 初始化安装光盘未删除时屏蔽热更新能力
 

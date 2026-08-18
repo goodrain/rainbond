@@ -1,6 +1,10 @@
 package configs
 
-import "github.com/spf13/pflag"
+import (
+	"os"
+
+	"github.com/spf13/pflag"
+)
 
 type DBConfig struct {
 	DBType           string `json:"db_type"`
@@ -9,7 +13,11 @@ type DBConfig struct {
 }
 
 func AddDBFlags(fs *pflag.FlagSet, dc *DBConfig) {
-	fs.StringVar(&dc.DBType, "db-type", "mysql", "db type mysql or etcd")
+	dbType := os.Getenv("DB_TYPE")
+	if dbType == "" {
+		dbType = "mysql"
+	}
+	fs.StringVar(&dc.DBType, "db-type", dbType, "db type mysql or etcd")
 	fs.StringVar(&dc.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.BoolVar(&dc.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 }

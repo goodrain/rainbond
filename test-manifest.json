@@ -1811,6 +1811,110 @@
       "status": "active"
     },
     {
+      "id": "rainbond.database.dameng-bootstrap-skip",
+      "title": "Skip MySQL-only bootstrap for Dameng",
+      "title_zh": "Skip MySQL-only bootstrap for Dameng",
+      "interface_type": "workflow",
+      "interface": "mysql.Manager.patchTable",
+      "code_paths": [
+        "db/mysql/mysql.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestDamengSkipsMySQLBootstrap"
+        },
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestMySQLKeepsBootstrap"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-driver-image-guard",
+      "title": "Reject DM configuration in a non-DM image",
+      "title_zh": "Reject DM configuration in a non-DM image",
+      "interface_type": "workflow",
+      "interface": "db.CreateManager",
+      "code_paths": [
+        "db/db.go",
+        "db/dameng/driver_stub.go"
+      ],
+      "tests": [
+        {
+          "path": "db/db_dameng_stub_test.go",
+          "selector": "TestCreateManagerDamengWithoutImageDriver"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-dsn-normalization",
+      "title": "Dameng DSN normalization",
+      "title_zh": "\u8fbe\u68a6 DSN \u89c4\u8303\u5316",
+      "interface_type": "package_function",
+      "interface": "db/dameng.NormalizeDSN",
+      "code_paths": [
+        "db/dameng/dsn.go"
+      ],
+      "tests": [
+        {
+          "path": "db/dameng/dsn_test.go",
+          "selector": "TestNormalizeDSN"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-uncompressed-images",
+      "title": "Skip UPX for Dameng image variants",
+      "title_zh": "Skip UPX for Dameng image variants",
+      "interface_type": "workflow",
+      "interface": "hack/contrib/docker API and Worker compression stages",
+      "code_paths": [
+        "hack/contrib/docker/api/Dockerfile",
+        "hack/contrib/docker/worker/Dockerfile"
+      ],
+      "tests": [
+        {
+          "path": "hack/contrib/docker/dameng_dockerfile_test.go",
+          "selector": "TestDamengImagesSkipUPXCompression"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.db-type-environment-default",
+      "title": "Database type environment default",
+      "title_zh": "\u6570\u636e\u5e93\u7c7b\u578b\u73af\u5883\u9ed8\u8ba4\u503c",
+      "interface_type": "package_function",
+      "interface": "config/configs.AddDBFlags",
+      "code_paths": [
+        "config/configs/db_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/db_config_test.go",
+          "selector": "TestAddDBFlagsUsesDBTypeEnvironmentDefault"
+        },
+        {
+          "path": "config/configs/db_config_test.go",
+          "selector": "TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault"
+        },
+        {
+          "path": "config/configs/db_config_test.go",
+          "selector": "TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
       "id": "rainbond.dockerfile-build.proxy-env-inheritance",
       "title": "Dockerfile BuildKit proxy environment inheritance",
       "title_zh": "Dockerfile BuildKit proxy environment inheritance",
