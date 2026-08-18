@@ -108,7 +108,7 @@ sprints:
     commits:
       - id: console-settings-and-image
         message: "feat: add Dameng console database support"
-        tasks: [console-2.1, console-2.2, console-2.3]
+        tasks: [console-2.1, console-2.2, console-2.3, console-2.4]
     tasks:
       - id: console-2.1
         name: Select dmDjango when DB_TYPE is dm
@@ -188,6 +188,34 @@ sprints:
         references:
           - path: Dockerfile:20-86
             note: "Python build and runtime image stages."
+
+      - id: console-2.4
+        name: Initialize the default region through Django for empty DM databases
+        status: pending
+        files:
+          create:
+            - path: scripts/init_default_region.py
+            - path: console/tests/default_region_init_test.py
+          modify:
+            - path: entrypoint.sh
+              lines: "50-65"
+        steps:
+          - action: write-test
+            description: "Mock RegionConfig access and cover initial creation plus the already-present path without importing or opening a SQLite file."
+            run: "pytest console/tests/default_region_init_test.py -q"
+            expect: FAIL
+          - action: implement
+            description: "Replace the DB_TYPE-specific default-region script selection with a backend-neutral Django ORM initializer. Preserve existing deployment defaults and never log credentials, certificate content, or connection strings."
+            run: "pytest console/tests/default_region_init_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        acceptance:
+          - cmd: "pytest console/tests/default_region_init_test.py -q && bash -n entrypoint.sh"
+            expect: PASS
+        references:
+          - path: entrypoint.sh:50-65
+            note: "Current MySQL/SQLite-specific default region initialization."
+          - path: console/models/main.py:963-1040
+            note: "RegionConfig model used by the initializer."
 
   - id: sprint-3
     name: Manual image verification
