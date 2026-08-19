@@ -52,9 +52,9 @@ on:
         required: false
         default: 'v6.8.1-release-amd64'
       run-unit-test:
-        description: '是否跑 Go 单测（region/all 时生效）'
+        description: '是否跑 Go 单测（region/all 时生效；开发联调默认关闭）'
         required: false
-        default: true
+        default: false
         type: boolean
 
 env:
