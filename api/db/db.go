@@ -52,6 +52,7 @@ func (d *ConDB) Start(ctx context.Context) error {
 	dbCfg := config.Config{
 		MysqlConnectionInfo: dbConfig.DBConnectionInfo,
 		DBType:              dbConfig.DBType,
+		SchemaMode:          dbConfig.SchemaMode,
 		ShowSQL:             dbConfig.ShowSQL,
 	}
 	if err := db.CreateManager(dbCfg); err != nil {

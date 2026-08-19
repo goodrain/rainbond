@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 )
 
 // capability_id: rainbond.database.dameng-standard-images
+// capability_id: rainbond.database.dameng-schema-lifecycle
 func TestStandardImagesIncludeDamengDriverWithoutUPX(t *testing.T) {
 	tests := []struct {
 		name string
@@ -65,6 +67,19 @@ func TestStandardImagesIncludeDamengDriverWithoutUPX(t *testing.T) {
 				}
 			}
 		})
+	}
+
+	apiDockerfile, err := os.ReadFile("api/Dockerfile")
+	if err != nil {
+		t.Fatalf("read API Dockerfile: %v", err)
+	}
+	for _, expected := range []string{
+		"-o /run/rainbond-db-migrate ./cmd/db-migrate",
+		"COPY --from=compile /run/rainbond-db-migrate /run/rainbond-db-migrate",
+	} {
+		if !strings.Contains(string(apiDockerfile), expected) {
+			t.Fatalf("API image must include the Dameng schema migration binary %q", expected)
+		}
 	}
 
 	driverAdapter, err := os.ReadFile("../../../db/dameng/driver_dm.go")
@@ -185,6 +200,10 @@ type dm struct {
 	db database
 }
 
+func (s dm) Quote(tableName string) string {
+	return tableName
+}
+
 func (s dm) currentDatabaseAndTable(tableName string) (string, string) {
 	return "REGION", tableName
 }
@@ -280,6 +299,25 @@ func dataTypeOf(sqlType string) string {
 			t.Fatalf("prepared Dameng GORM dialect must use the compatible HasTable query %q", expected)
 		}
 	}
+	// Compile the generated dialect against the same GORM v1 source used by
+	// Rainbond. The test creates a tiny local dependency graph so it does not
+	// make a network request from a temporary module just to verify source
+	// layout.
+	gormDirectory := localModuleDirectory(t, "github.com/jinzhu/gorm")
+	inflectionDirectory := localModuleDirectory(t, "github.com/jinzhu/inflection@v1.0.0")
+	localGormDirectory := filepath.Join(bundleDirectory, "gorm")
+	localInflectionDirectory := filepath.Join(bundleDirectory, "inflection")
+	copyTree(t, gormDirectory, localGormDirectory)
+	copyTree(t, inflectionDirectory, localInflectionDirectory)
+	if err := os.WriteFile(filepath.Join(localGormDirectory, "go.mod"), []byte("module github.com/jinzhu/gorm\n\ngo 1.25.0\n\nrequire github.com/jinzhu/inflection v1.0.0\n"), 0o600); err != nil {
+		t.Fatalf("write isolated GORM module definition: %v", err)
+	}
+	localGormReplacements := "\nreplace github.com/jinzhu/gorm => " + localGormDirectory + "\nreplace github.com/jinzhu/inflection => " + localInflectionDirectory + "\n"
+	dialectModulePath := filepath.Join(bundleDirectory, "dm-dialect", "go.mod")
+	if err := os.WriteFile(dialectModulePath, append(dialectModule, []byte(localGormReplacements)...), 0o600); err != nil {
+		t.Fatalf("write isolated Dameng dialect module definition: %v", err)
+	}
+
 	compatibilityTest := `package dm
 
 import "testing"
@@ -312,7 +350,7 @@ func TestRainbondCompatibilityHasTableAcceptsExistingEmptyTable(t *testing.T) {
 	}
 
 	consumerDirectory := t.TempDir()
-	consumerModule := "module dm-consumer\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/goodrain/dameng-driver v0.0.0\n\tgithub.com/goodrain/dameng-gorm-dialect v0.0.0\n)\n\nreplace github.com/goodrain/dameng-driver => " + filepath.Join(bundleDirectory, "dm-driver") + "\nreplace github.com/goodrain/dameng-gorm-dialect => " + filepath.Join(bundleDirectory, "dm-dialect") + "\n"
+	consumerModule := "module dm-consumer\n\ngo 1.25.0\n\nrequire (\n\tgithub.com/goodrain/dameng-driver v0.0.0\n\tgithub.com/goodrain/dameng-gorm-dialect v0.0.0\n)\n\nreplace github.com/goodrain/dameng-driver => " + filepath.Join(bundleDirectory, "dm-driver") + "\nreplace github.com/goodrain/dameng-gorm-dialect => " + filepath.Join(bundleDirectory, "dm-dialect") + localGormReplacements
 	if err := os.WriteFile(filepath.Join(consumerDirectory, "go.mod"), []byte(consumerModule), 0o600); err != nil {
 		t.Fatalf("write consumer go.mod: %v", err)
 	}
@@ -351,6 +389,52 @@ func writeZipFile(t *testing.T, path string, files map[string]string) {
 	}
 }
 
+func localModuleDirectory(t *testing.T, module string) string {
+	t.Helper()
+
+	command := exec.Command("go", "list", "-mod=mod", "-m", "-f", "{{.Dir}}", module)
+	command.Dir = "../../../"
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("locate local module %s: %v\n%s", module, err, output)
+	}
+
+	directory := strings.TrimSpace(string(output))
+	if directory == "" {
+		t.Fatalf("locate local module %s: empty directory", module)
+	}
+	return directory
+}
+
+func copyTree(t *testing.T, source, destination string) {
+	t.Helper()
+
+	err := filepath.Walk(source, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relativePath, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		targetPath := filepath.Join(destination, relativePath)
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, 0o755)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported module source file %s", path)
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(targetPath, contents, 0o600)
+	})
+	if err != nil {
+		t.Fatalf("copy module source %s: %v", source, err)
+	}
+}
+
 func fakeDamengInstaller(t *testing.T) []byte {
 	t.Helper()
 
@@ -377,15 +461,15 @@ func fakeDamengInstaller(t *testing.T) []byte {
 		}
 	}
 	files := map[string]string{
-		"source/include/not-required.h":                              "unrelated full DM include tree",
-		"source/drivers/go/dm-go-driver.zip":                         "go driver",
-		"source/drivers/go/gorm_v1_dialect.zip":                      "gorm dialect",
-		"source/drivers/dpi/libdmdpi.so":                             "dpi runtime",
-		"source/drivers/dpi/dependencies/libcrypto.so":               "dpi dependency",
-		"source/drivers/dpi/include/DPI.h":                           "dpi header",
-		"source/drivers/python/dmPython/setup.py":                    "dmPython source",
-		"source/drivers/python/dmDjango/dmDjango2.0/setup.py":        "old adapter",
-		"source/drivers/python/dmDjango/dmDjango3.0/setup.py":        "supported adapter",
+		"source/include/not-required.h":                       "unrelated full DM include tree",
+		"source/drivers/go/dm-go-driver.zip":                  "go driver",
+		"source/drivers/go/gorm_v1_dialect.zip":               "gorm dialect",
+		"source/drivers/dpi/libdmdpi.so":                      "dpi runtime",
+		"source/drivers/dpi/dependencies/libcrypto.so":        "dpi dependency",
+		"source/drivers/dpi/include/DPI.h":                    "dpi header",
+		"source/drivers/python/dmPython/setup.py":             "dmPython source",
+		"source/drivers/python/dmDjango/dmDjango2.0/setup.py": "old adapter",
+		"source/drivers/python/dmDjango/dmDjango3.0/setup.py": "supported adapter",
 	}
 	for name, contents := range files {
 		header := &tar.Header{Name: name, Mode: 0o644, Size: int64(len(contents))}

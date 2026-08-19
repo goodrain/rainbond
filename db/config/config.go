@@ -22,5 +22,6 @@ package config
 type Config struct {
 	MysqlConnectionInfo string
 	DBType              string
+	SchemaMode          string
 	ShowSQL             bool
 }

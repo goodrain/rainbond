@@ -21,8 +21,10 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,8 +50,16 @@ type Manager struct {
 	db      *gorm.DB
 	config  config.Config
 	initOne sync.Once
+	initErr error
 	models  []model.Interface
 }
+
+type schemaAction string
+
+const (
+	schemaMigrate schemaAction = "migrate"
+	schemaVerify  schemaAction = "verify"
+)
 
 type cnbSeedVersion struct {
 	Version string
@@ -146,8 +156,19 @@ func CreateManager(config config.Config) (*Manager, error) {
 	db.SetLogger(manager)
 	logrus.Info("register table model")
 	manager.RegisterTableModel()
-	logrus.Info("check table")
-	manager.CheckTable()
+	if manager.schemaAction() == schemaVerify {
+		logrus.Info("verify database schema")
+		if err := manager.VerifySchema(); err != nil {
+			_ = manager.CloseManager()
+			return nil, err
+		}
+	} else {
+		logrus.Info("check table")
+		if err := manager.CheckTable(); err != nil {
+			_ = manager.CloseManager()
+			return nil, err
+		}
+	}
 	logrus.Debug("mysql db driver create")
 	return manager, nil
 }
@@ -259,9 +280,30 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.EnterpriseOverScore{})
 }
 
-// CheckTable check and create tables
-func (m *Manager) CheckTable() {
+func (m *Manager) schemaAction() schemaAction {
+	if m.config.DBType == "dm" && strings.ToLower(m.config.SchemaMode) != string(schemaMigrate) {
+		return schemaVerify
+	}
+	return schemaMigrate
+}
+
+// VerifySchema checks that all registered tables exist without changing the schema.
+func (m *Manager) VerifySchema() error {
+	for _, md := range m.models {
+		if !m.db.HasTable(md) {
+			return fmt.Errorf("required database table %q is missing", md.TableName())
+		}
+	}
+	return nil
+}
+
+// CheckTable creates or migrates database tables according to the configured database dialect.
+func (m *Manager) CheckTable() error {
 	m.initOne.Do(func() {
+		if m.config.DBType == "dm" {
+			m.initErr = m.checkDamengTables()
+			return
+		}
 		for _, md := range m.models {
 			if !m.db.HasTable(md) {
 				var err error
@@ -281,17 +323,27 @@ func (m *Manager) CheckTable() {
 				}
 			}
 		}
-		m.patchTable()
+		m.initErr = m.patchTable()
 	})
+	return m.initErr
 }
 
-func (m *Manager) patchTable() {
-	if m.skipsMySQLBootstrap() {
-		// The current seed and schema-patch path uses MySQL-only DDL and
-		// gorm-bulk-upsert. Full DM DAO and seed compatibility is tracked
-		// separately; skipping it lets a freshly-created DM schema start.
-		logrus.Warn("skipping MySQL-only database bootstrap for Dameng")
-		return
+func (m *Manager) checkDamengTables() error {
+	for _, md := range m.models {
+		if m.db.HasTable(md) {
+			continue
+		}
+		if err := m.db.CreateTable(md).Error; err != nil {
+			return fmt.Errorf("initialize Dameng table %q: %w", md.TableName(), err)
+		}
+		logrus.Infof("auto create table %s to Dameng success", md.TableName())
+	}
+	return m.patchTable()
+}
+
+func (m *Manager) patchTable() error {
+	if m.config.DBType == "dm" {
+		return m.patchDamengTable()
 	}
 	count := -1
 	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
@@ -311,7 +363,7 @@ func (m *Manager) patchTable() {
 		m.updateLanguageVersions()
 	}
 	if m.config.DBType == "sqlite" {
-		return
+		return nil
 	}
 	if err := m.db.Exec("alter table tenant_services_envs modify column attr_value text;").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_envs error %s", err.Error())
@@ -350,10 +402,49 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
 		logrus.Errorf("alter table applications error: %s", err.Error())
 	}
+	return nil
 }
 
-func (m *Manager) skipsMySQLBootstrap() bool {
-	return m.config.DBType == "dm"
+func (m *Manager) patchDamengTable() error {
+	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
+		return fmt.Errorf("backfill legacy language versions: %w", err)
+	}
+	if err := deduplicateLanguageVersions(m.db); err != nil {
+		return fmt.Errorf("deduplicate language versions: %w", err)
+	}
+	if err := m.syncDamengLanguageVersions(); err != nil {
+		return fmt.Errorf("seed language versions: %w", err)
+	}
+	return nil
+}
+
+func (m *Manager) syncDamengLanguageVersions() error {
+	for _, version := range allSeedLanguageVersions() {
+		var existing model.EnterpriseLanguageVersion
+		err := m.db.Where("lang = ? AND version = ? AND build_strategy = ?", version.Lang, version.Version, version.BuildStrategy).First(&existing).Error
+		if err != nil {
+			if !gorm.IsRecordNotFoundError(err) {
+				return err
+			}
+			if err := m.db.Create(version).Error; err != nil {
+				return err
+			}
+			continue
+		}
+		if !version.System {
+			continue
+		}
+		existing.FirstChoice = version.FirstChoice
+		existing.FileName = version.FileName
+		existing.Show = version.Show
+		existing.System = version.System
+		existing.BuildStrategy = version.BuildStrategy
+		existing.IsAllowed = version.IsAllowed
+		if err := m.db.Save(&existing).Error; err != nil {
+			return err
+		}
+	}
+	return retireMissingSystemCNBVersions(m.db, cnbSeedLanguageVersions())
 }
 
 func (m *Manager) initLanguageVersion() {

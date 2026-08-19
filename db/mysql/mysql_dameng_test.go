@@ -2,26 +2,61 @@ package mysql
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
+
+	"github.com/goodrain/rainbond/db/config"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
-// capability_id: rainbond.database.dameng-bootstrap-skip
-func TestDamengSkipsMySQLBootstrap(t *testing.T) {
-	manager := &Manager{}
-	manager.config.DBType = "dm"
+// capability_id: rainbond.database.dameng-schema-lifecycle
+func TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify(t *testing.T) {
+	tests := []struct {
+		name   string
+		config config.Config
+		want   schemaAction
+	}{
+		{name: "mysql", config: config.Config{DBType: "mysql"}, want: schemaMigrate},
+		{name: "dameng default", config: config.Config{DBType: "dm"}, want: schemaVerify},
+		{name: "dameng migrate", config: config.Config{DBType: "dm", SchemaMode: "migrate"}, want: schemaMigrate},
+		{name: "dameng verify", config: config.Config{DBType: "dm", SchemaMode: "verify"}, want: schemaVerify},
+	}
 
-	if !manager.skipsMySQLBootstrap() {
-		t.Fatal("expected Dameng startup to skip MySQL-only bootstrap SQL")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := &Manager{config: tt.config}
+			if got := manager.schemaAction(); got != tt.want {
+				t.Fatalf("schema action = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
-// capability_id: rainbond.database.dameng-bootstrap-skip
-func TestMySQLKeepsBootstrap(t *testing.T) {
-	manager := &Manager{}
-	manager.config.DBType = "mysql"
+// capability_id: rainbond.database.dameng-schema-lifecycle
+func TestVerifyDamengSchemaReportsTheMissingModelTable(t *testing.T) {
+	db, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "schema-verify.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	defer db.Close()
+	db.LogMode(false)
 
-	if manager.skipsMySQLBootstrap() {
-		t.Fatal("expected MySQL startup to retain bootstrap SQL")
+	manager := &Manager{
+		db:     db,
+		config: config.Config{DBType: "dm", SchemaMode: "verify"},
+		models: []model.Interface{&model.KeyValue{}},
+	}
+	if err := manager.VerifySchema(); err == nil {
+		t.Fatal("expected a missing Dameng schema table to fail verification")
+	}
+
+	if err := db.CreateTable(&model.KeyValue{}).Error; err != nil {
+		t.Fatalf("create expected table: %v", err)
+	}
+	if err := manager.VerifySchema(); err != nil {
+		t.Fatalf("verify complete schema: %v", err)
 	}
 }
 

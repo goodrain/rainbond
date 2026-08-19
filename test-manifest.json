@@ -1811,28 +1811,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.database.dameng-bootstrap-skip",
-      "title": "Skip MySQL-only bootstrap for Dameng",
-      "title_zh": "Skip MySQL-only bootstrap for Dameng",
-      "interface_type": "workflow",
-      "interface": "mysql.Manager.patchTable",
-      "code_paths": [
-        "db/mysql/mysql.go"
-      ],
-      "tests": [
-        {
-          "path": "db/mysql/mysql_dameng_test.go",
-          "selector": "TestDamengSkipsMySQLBootstrap"
-        },
-        {
-          "path": "db/mysql/mysql_dameng_test.go",
-          "selector": "TestMySQLKeepsBootstrap"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.database.dameng-driver-bundle-preparation",
       "title": "Prepare a minimal Dameng driver bundle from ISO",
       "title_zh": "Prepare a minimal Dameng driver bundle from ISO",
@@ -1928,6 +1906,60 @@
         {
           "path": "db/mysql/mysql_dameng_test.go",
           "selector": "TestDamengOpenErrorRedactsConnectionCredentials"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-query-capabilities",
+      "title": "Use portable bound pagination in Dameng queries",
+      "title_zh": "\u8fbe\u68a6\u67e5\u8be2\u4f7f\u7528\u53ef\u79fb\u690d\u7684\u53c2\u6570\u5316\u5206\u9875",
+      "interface_type": "package_function",
+      "interface": "db/mysql/dao.paginationSQL",
+      "code_paths": [
+        "db/mysql/dao/pagination.go",
+        "db/mysql/dao/tenants.go",
+        "db/mysql/dao/event.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/pagination_test.go",
+          "selector": "TestPaginationSQLKeepsMySQLAndUsesDamengOffsetSyntax"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.database.dameng-schema-lifecycle",
+      "title": "Initialize and verify Dameng schemas without concurrent DDL",
+      "title_zh": "\u521d\u59cb\u5316\u5e76\u9a8c\u8bc1\u8fbe\u68a6 Schema\uff0c\u907f\u514d\u5e76\u53d1 DDL",
+      "interface_type": "workflow",
+      "interface": "db/mysql.Manager schema lifecycle",
+      "code_paths": [
+        "db/mysql/mysql.go",
+        "db/config/config.go",
+        "config/configs/db_config.go",
+        "cmd/db-migrate/main.go",
+        "hack/contrib/docker/api/Dockerfile"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify"
+        },
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestVerifyDamengSchemaReportsTheMissingModelTable"
+        },
+        {
+          "path": "config/configs/db_config_test.go",
+          "selector": "TestAddDBFlagsDefaultsDamengServicesToSchemaVerification"
+        },
+        {
+          "path": "hack/contrib/docker/dameng_dockerfile_test.go",
+          "selector": "TestStandardImagesIncludeDamengDriverWithoutUPX"
         }
       ],
       "test_type": "regression",

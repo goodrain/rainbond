@@ -362,7 +362,12 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 		return nil, count, err
 	}
 	count = len(re)
-	rows, err := t.DB.Raw("SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC LIMIT ?,?", serviceIDs, offset, length).Rows()
+	query := "SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC" + paginationSQL(t.DB.Dialect().GetName())
+	args := []interface{}{serviceIDs, offset, length}
+	if t.DB.Dialect().GetName() == "dm" {
+		args = []interface{}{serviceIDs, length, offset}
+	}
+	rows, err := t.DB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, count, err
 	}

@@ -16,7 +16,8 @@ RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev unzip zerom
     sh scripts/prepare-dameng-go-driver.sh /tmp/dameng && \
     go mod edit -require=github.com/goodrain/dameng-driver@v0.0.0 -replace=github.com/goodrain/dameng-driver=/tmp/dameng/dm-driver && \
     go mod edit -require=github.com/goodrain/dameng-gorm-dialect@v0.0.0 -replace=github.com/goodrain/dameng-gorm-dialect=/tmp/dameng/dm-dialect && \
-    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api && \
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -mod=mod -tags "dm sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-db-migrate ./cmd/db-migrate
 
 FROM rainbond/alpine:3
 ARG RELEASE_DESC
@@ -31,6 +32,7 @@ ENV RAINBOND_ERROR_REPORTING_BACKEND_DSN=${RAINBOND_ERROR_REPORTING_BACKEND_DSN}
 RUN apk add --no-cache libzmq libsodium && mkdir -p /logs && touch /logs/request.log
 COPY --from=compile /go/src/github.com/goodrain/rainbond/hack/contrib/docker/api/entrypoint.sh /run/entrypoint.sh
 COPY --from=compile /run/rainbond-api /run/rainbond-api
+COPY --from=compile /run/rainbond-db-migrate /run/rainbond-db-migrate
 
 WORKDIR /run
 

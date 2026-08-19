@@ -47,3 +47,17 @@ func TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue(t *testing.T) {
 		t.Fatalf("expected mysql default without DB_TYPE, got %q", config.DBType)
 	}
 }
+
+// capability_id: rainbond.database.dameng-schema-lifecycle
+func TestAddDBFlagsDefaultsDamengServicesToSchemaVerification(t *testing.T) {
+	t.Setenv("DB_TYPE", "dm")
+	t.Setenv("RBD_DB_SCHEMA_MODE", "")
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	config := &DBConfig{}
+	AddDBFlags(flags, config)
+
+	if config.SchemaMode != "verify" {
+		t.Fatalf("expected Dameng service schema mode to default to verify, got %q", config.SchemaMode)
+	}
+}

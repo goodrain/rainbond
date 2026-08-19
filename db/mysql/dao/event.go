@@ -20,6 +20,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/model"
@@ -250,9 +251,14 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
 		AND a.tenant_id IN (?)
 		ORDER BY
 			a.ID DESC
-		LIMIT ?, ?;
+		%s;
 	`
-	if err := c.DB.Raw(query, tenantIDs, offset, limit).Scan(&events).Error; err != nil {
+	query = fmt.Sprintf(query, paginationSQL(c.DB.Dialect().GetName()))
+	args := []interface{}{tenantIDs, offset, limit}
+	if c.DB.Dialect().GetName() == "dm" {
+		args = []interface{}{tenantIDs, limit, offset}
+	}
+	if err := c.DB.Raw(query, args...).Scan(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil
