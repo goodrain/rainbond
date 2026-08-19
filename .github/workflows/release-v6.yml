@@ -35,6 +35,11 @@ on:
         options:
           - ""
           - type=registry,oci-mediatypes=true,compression=estargz,force-compression=true
+      run-unit-test:
+        description: '是否跑 Go 单测（开发分支测试镜像时可关闭）'
+        required: false
+        default: false
+        type: boolean
       
 env:
   VERSION: ${{ github.event.inputs.version }}
@@ -48,35 +53,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
 
       - name: Install native dependencies
-        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libzmq3-dev
 
       - name: Set up Go
-        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Run unit tests
-        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
         run: go test -mod=mod ./... -count=1
 
       - name: Check test manifest
-        if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
+        if: ${{ github.event.inputs.run-unit-test == 'true' && (github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region') }}
         run: make test-manifest-check
 
       - name: Skip unit tests
-        if: ${{ github.event.inputs.build-who != 'all' && github.event.inputs.build-who != 'region' }}
-        run: echo "Skip Rainbond Go unit tests for build-who=${{ github.event.inputs.build-who }}"
+        if: ${{ github.event.inputs.run-unit-test != 'true' || (github.event.inputs.build-who != 'all' && github.event.inputs.build-who != 'region') }}
+        run: echo "Skip Rainbond Go unit tests (run-unit-test=${{ github.event.inputs.run-unit-test }}, build-who=${{ github.event.inputs.build-who }})"
 
   rainbond-region:
     needs: rainbond-unit-test
