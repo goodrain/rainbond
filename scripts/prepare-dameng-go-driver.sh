@@ -123,6 +123,58 @@ if ! grep -q 'sqlType = normalizeDamengDataType(sqlType)' "$staging_dialect_dir/
 	echo "Dameng GORM v1 dialect has an unsupported DataTypeOf implementation" >&2
 	exit 1
 fi
+# The official GORM v1 HasTable query applies SF_CHECK_PRIV_OPT and can return
+# zero for an existing table in a schema selected by the DM DSN. GORM then
+# attempts a duplicate CREATE TABLE. Use the system catalog directly instead.
+awk '
+  BEGIN {
+    replacement = "func (s dm) HasTable(tableName string) bool {\n" \
+      "\tcurrentDatabase, tableName := s.currentDatabaseAndTable(tableName)\n" \
+      "\tconst sql = `SELECT COUNT(*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES\n" \
+      "WHERE SCHEMAS.ID = TABLES.SCHID\n" \
+      "  AND SCHEMAS.TYPE$ = \047SCH\047\n" \
+      "  AND SCHEMAS.NAME = ?\n" \
+      "  AND TABLES.TYPE$ = \047SCHOBJ\047\n" \
+      "  AND TABLES.SUBTYPE$ IN (\047UTAB\047, \047STAB\047, \047VIEW\047, \047SYNOM\047)\n" \
+      "  AND TABLES.NAME = ?`\n\n" \
+      "\tvar count int\n" \
+      "\tif err := s.db.QueryRow(sql, currentDatabase, tableName).Scan(&count); err != nil {\n" \
+      "\t\treturn false\n" \
+      "\t}\n" \
+      "\treturn count > 0\n" \
+      "}"
+  }
+  $0 == "func (s dm) HasTable(tableName string) bool {" {
+    if (replaced) {
+      exit 1
+    }
+    print replacement
+    replaced = 1
+    skipping = 1
+    depth = 1
+    next
+  }
+  skipping {
+    opens = gsub(/\{/, "{", $0)
+    closes = gsub(/\}/, "}", $0)
+    depth += opens - closes
+    if (depth == 0) {
+      skipping = 0
+    }
+    next
+  }
+  { print }
+  END {
+    if (!replaced || skipping) {
+      exit 1
+    }
+  }
+' "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
+mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
+if ! grep -q "SELECT COUNT(\*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES" "$staging_dialect_dir/dialect_dm.go"; then
+	echo "Dameng GORM v1 dialect HasTable compatibility patch was not applied" >&2
+	exit 1
+fi
 cp "$(dirname "$0")/dameng_gorm_v1_compat.go" "$staging_dialect_dir/dameng_compat.go"
 cat > "$staging_dialect_dir/go.mod" <<'EOF'
 module github.com/goodrain/dameng-gorm-dialect

@@ -173,6 +173,31 @@ import (
 	_ "dm"
 )
 
+type row struct{}
+
+func (row) Scan(...interface{}) error { return nil }
+
+type database struct{}
+
+func (database) QueryRow(string, ...interface{}) row { return row{} }
+
+type dm struct {
+	db database
+}
+
+func (s dm) currentDatabaseAndTable(tableName string) (string, string) {
+	return "REGION", tableName
+}
+
+func (s dm) HasTable(tableName string) bool {
+	currentDatabase, tableName := s.currentDatabaseAndTable(tableName)
+	const sql = "SELECT COUNT(TABS.NAME) FROM SYS.SYSOBJECTS TABS WHERE TABS.NAME = ?"
+
+	var count int
+	s.db.QueryRow(sql, currentDatabase, tableName).Scan(&count)
+	return count > 0
+}
+
 func dataTypeOf(sqlType string) string {
 	if sqlType == "" {
 		panic(fmt.Sprintf("invalid sql type"))
@@ -237,6 +262,24 @@ func dataTypeOf(sqlType string) string {
 	}
 	if !strings.Contains(string(preparationScript), "sqlType = normalizeDamengDataType(sqlType)") {
 		t.Fatal("prepared Dameng GORM dialect must normalize MySQL-specific column types")
+	}
+	if strings.Contains(string(preparationScript), "python3") {
+		t.Fatal("prepared Dameng GORM dialect must not require an unbundled Python runtime")
+	}
+	preparedDialect, err := os.ReadFile(filepath.Join(bundleDirectory, "dm-dialect", "dialect_dm.go"))
+	if err != nil {
+		t.Fatalf("read prepared Dameng GORM dialect: %v", err)
+	}
+	for _, expected := range []string{
+		"func (s dm) HasTable(tableName string) bool",
+		"SELECT COUNT(*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES",
+		"SCHEMAS.TYPE$ = 'SCH'",
+		"TABLES.SUBTYPE$ IN ('UTAB', 'STAB', 'VIEW', 'SYNOM')",
+		"if err := s.db.QueryRow(sql, currentDatabase, tableName).Scan(&count); err != nil",
+	} {
+		if !strings.Contains(string(preparedDialect), expected) {
+			t.Fatalf("prepared Dameng GORM dialect must use the compatible HasTable query %q", expected)
+		}
 	}
 	compatibilityTest := `package dm
 
