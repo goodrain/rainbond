@@ -1911,6 +1911,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.database.dameng-open-error-cause",
+      "title": "Preserve a redacted Dameng connection failure cause",
+      "title_zh": "Preserve a redacted Dameng connection failure cause",
+      "interface_type": "package_function",
+      "interface": "db/mysql.damengOpenError",
+      "code_paths": [
+        "db/mysql/mysql.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestDamengOpenErrorPreservesDriverCause"
+        },
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestDamengOpenErrorRedactsConnectionCredentials"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.database.dameng-standard-image-actions",
       "title": "Supply Dameng bundle to standard image workflows",
       "title_zh": "\u6807\u51c6\u955c\u50cf\u5de5\u4f5c\u6d41\u63d0\u4f9b\u8fbe\u68a6\u9a71\u52a8\u5305",

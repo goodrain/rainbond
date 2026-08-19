@@ -105,6 +105,7 @@
 | rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
 | rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
 | rainbond.database.dameng-go-dialect-module | Prepare separate Dameng Go driver and GORM dialect modules | active | regression | scripts/prepare-dameng-go-driver.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengGoDriverSeparatesDialectModule |
+| rainbond.database.dameng-open-error-cause | Preserve a redacted Dameng connection failure cause | active | regression | db/mysql.damengOpenError | db/mysql/mysql_dameng_test.go:TestDamengOpenErrorPreservesDriverCause<br>db/mysql/mysql_dameng_test.go:TestDamengOpenErrorRedactsConnectionCredentials |
 | rainbond.database.dameng-standard-image-actions | 标准镜像工作流提供达梦驱动包 | active | regression | development and release image build workflows | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardDamengBuildWorkflows |
 | rainbond.database.dameng-standard-images | 标准区域镜像内置达梦驱动 | active | regression | standard rbd API, Worker, and Chaos Dockerfiles | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.db-type-environment-default | 数据库类型环境默认值 | active | unit | config/configs.AddDBFlags | config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue |
@@ -1488,6 +1489,16 @@
 - 业务入口: `scripts/prepare-dameng-go-driver.sh`
 - 代码路径: `scripts/prepare-dameng-go-driver.sh`, `db/dameng/driver_dm.go`, `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`, `hack/contrib/docker/chaos/Dockerfile`
 - 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengGoDriverSeparatesDialectModule`
+
+### Preserve a redacted Dameng connection failure cause
+
+- Capability ID: `rainbond.database.dameng-open-error-cause`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `db/mysql.damengOpenError`
+- 代码路径: `db/mysql/mysql.go`
+- 测试路径: `db/mysql/mysql_dameng_test.go:TestDamengOpenErrorPreservesDriverCause`, `db/mysql/mysql_dameng_test.go:TestDamengOpenErrorRedactsConnectionCredentials`
 
 ### 标准镜像工作流提供达梦驱动包
 

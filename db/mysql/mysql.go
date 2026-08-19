@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -92,7 +93,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 		}
 		db, err = gorm.Open("dm", connectionInfo)
 		if err != nil {
-			return nil, errors.New("unable to open Dameng database")
+			return nil, damengOpenError(err)
 		}
 
 		sqlDB := db.DB()
@@ -149,6 +150,24 @@ func CreateManager(config config.Config) (*Manager, error) {
 	manager.CheckTable()
 	logrus.Debug("mysql db driver create")
 	return manager, nil
+}
+
+var damengDSNCredentialsPattern = regexp.MustCompile(`(?i)(dm://[^:/\s]+:)[^@\s]*@`)
+
+type damengOpenFailure struct {
+	cause error
+}
+
+func (e damengOpenFailure) Error() string {
+	return "unable to open Dameng database: " + damengDSNCredentialsPattern.ReplaceAllString(e.cause.Error(), "${1}<redacted>@")
+}
+
+func (e damengOpenFailure) Unwrap() error {
+	return e.cause
+}
+
+func damengOpenError(err error) error {
+	return damengOpenFailure{cause: err}
 }
 
 // CloseManager 关闭管理器
