@@ -1872,7 +1872,7 @@
     },
     {
       "id": "rainbond.database.dameng-dsn-normalization",
-      "title": "Dameng DSN normalization",
+      "title": "Normalize Dameng DSNs and schema case",
       "title_zh": "\u8fbe\u68a6 DSN \u89c4\u8303\u5316",
       "interface_type": "package_function",
       "interface": "db/dameng.NormalizeDSN",

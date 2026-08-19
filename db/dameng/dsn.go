@@ -47,6 +47,10 @@ func normalizeLegacyDSN(connectionInfo string) (string, error) {
 	if !validHostPort(hostPort) || !validSchema(schema) {
 		return "", errInvalidDSN
 	}
+	// The official DM Go driver quotes the schema when opening a connection.
+	// Normalize legacy MySQL-style database names to DM's conventional uppercase
+	// identifiers so a typical /region DSN selects REGION rather than "region".
+	schema = strings.ToUpper(schema)
 
 	credentialSeparator := strings.IndexByte(credentials, ':')
 	if credentialSeparator <= 0 {

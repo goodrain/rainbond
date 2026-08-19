@@ -30,6 +30,17 @@ func TestNormalizeDSN(t *testing.T) {
 		}
 	})
 
+	t.Run("normalizes legacy schema case for Dameng", func(t *testing.T) {
+		got, err := NormalizeDSN("app-user:app-password@tcp(db.example.internal:5236)/region")
+		if err != nil {
+			t.Fatalf("normalize legacy schema: %v", err)
+		}
+		const want = "dm://app-user:app-password@db.example.internal:5236/REGION"
+		if got != want {
+			t.Fatalf("expected %q, got %q", want, got)
+		}
+	})
+
 	t.Run("escapes legacy credential characters", func(t *testing.T) {
 		got, err := NormalizeDSN("app-user:p@ss:word@tcp(db.example.internal:5236)/DMDB")
 		if err != nil {
