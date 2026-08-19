@@ -1487,7 +1487,7 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `scripts/prepare-dameng-go-driver.sh`
-- 代码路径: `scripts/prepare-dameng-go-driver.sh`, `db/dameng/driver_dm.go`, `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`, `hack/contrib/docker/chaos/Dockerfile`
+- 代码路径: `scripts/prepare-dameng-go-driver.sh`, `scripts/dameng_gorm_v1_compat.go`, `db/dameng/driver_dm.go`, `hack/contrib/docker/api/Dockerfile`, `hack/contrib/docker/worker/Dockerfile`, `hack/contrib/docker/chaos/Dockerfile`
 - 测试路径: `hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengGoDriverSeparatesDialectModule`
 
 ### Preserve a redacted Dameng connection failure cause

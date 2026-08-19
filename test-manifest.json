@@ -1896,6 +1896,7 @@
       "interface": "scripts/prepare-dameng-go-driver.sh",
       "code_paths": [
         "scripts/prepare-dameng-go-driver.sh",
+        "scripts/dameng_gorm_v1_compat.go",
         "db/dameng/driver_dm.go",
         "hack/contrib/docker/api/Dockerfile",
         "hack/contrib/docker/worker/Dockerfile",

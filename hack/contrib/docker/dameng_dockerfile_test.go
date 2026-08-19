@@ -166,7 +166,20 @@ func TestPrepareDamengGoDriverSeparatesDialectModule(t *testing.T) {
 		"dm/driver.go": "package dm\n",
 	})
 	writeZipFile(t, filepath.Join(bundleDirectory, "gorm_v1_dialect.zip"), map[string]string{
-		"dm/dialect_dm.go": "package dm\n\nimport _ \"dm\"\n",
+		"dm/dialect_dm.go": `package dm
+
+import (
+	"fmt"
+	_ "dm"
+)
+
+func dataTypeOf(sqlType string) string {
+	if sqlType == "" {
+		panic(fmt.Sprintf("invalid sql type"))
+	}
+	return sqlType
+}
+`,
 	})
 
 	prepare := exec.Command("sh", "../../../scripts/prepare-dameng-go-driver.sh", bundleDirectory)
@@ -179,6 +192,7 @@ func TestPrepareDamengGoDriverSeparatesDialectModule(t *testing.T) {
 		"dm-driver/driver.go",
 		"dm-dialect/go.mod",
 		"dm-dialect/dialect_dm.go",
+		"dm-dialect/dameng_compat.go",
 	} {
 		if _, err := os.Stat(filepath.Join(bundleDirectory, expectedPath)); err != nil {
 			t.Fatalf("prepared Go bundle must contain %s: %v", expectedPath, err)
@@ -202,6 +216,51 @@ func TestPrepareDamengGoDriverSeparatesDialectModule(t *testing.T) {
 	}
 	if !strings.Contains(string(driverModule), "module github.com/goodrain/dameng-driver") {
 		t.Fatal("prepared driver module must rewrite the official short module path")
+	}
+	compatibilityLayer, err := os.ReadFile(filepath.Join(bundleDirectory, "dm-dialect", "dameng_compat.go"))
+	if err != nil {
+		t.Fatalf("read generated Dameng compatibility layer: %v", err)
+	}
+	for _, expected := range []string{
+		"func normalizeDamengDataType",
+		`case "tinytext", "text", "mediumtext", "longtext":`,
+		`case "tinyblob", "blob", "mediumblob", "longblob":`,
+		"normalizeDamengDecimalPrecision",
+	} {
+		if !strings.Contains(string(compatibilityLayer), expected) {
+			t.Fatalf("Dameng compatibility layer must contain %q", expected)
+		}
+	}
+	preparationScript, err := os.ReadFile("../../../scripts/prepare-dameng-go-driver.sh")
+	if err != nil {
+		t.Fatalf("read Go driver preparation script: %v", err)
+	}
+	if !strings.Contains(string(preparationScript), "sqlType = normalizeDamengDataType(sqlType)") {
+		t.Fatal("prepared Dameng GORM dialect must normalize MySQL-specific column types")
+	}
+	compatibilityTest := `package dm
+
+import "testing"
+
+func TestRainbondCompatibilityTypes(t *testing.T) {
+	for input, expected := range map[string]string{
+		"longtext": "CLOB",
+		"mediumblob": "BLOB",
+		"decimal(65,30)": "DECIMAL(38,30)",
+	} {
+		if actual := normalizeDamengDataType(input); actual != expected {
+			t.Fatalf("normalize %s: got %s, want %s", input, actual, expected)
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(bundleDirectory, "dm-dialect", "dameng_compat_test.go"), []byte(compatibilityTest), 0o600); err != nil {
+		t.Fatalf("write generated Dameng compatibility test: %v", err)
+	}
+	dialectTest := exec.Command("go", "test", "-mod=mod", ".")
+	dialectTest.Dir = filepath.Join(bundleDirectory, "dm-dialect")
+	if output, err := dialectTest.CombinedOutput(); err != nil {
+		t.Fatalf("test generated Dameng compatibility module: %v\n%s", err, output)
 	}
 
 	consumerDirectory := t.TempDir()

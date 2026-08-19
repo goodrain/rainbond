@@ -109,6 +109,21 @@ find "$staging_driver_dir" -type f -name '*.go' -exec sh -c '
 ' sh {} \;
 LC_ALL=C sed "s#\"dm\"#\"${driver_module_path}\"#" "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
 mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
+awk '
+  { print }
+  /panic\(fmt\.Sprintf\("invalid sql type/ { inject = 1; next }
+  inject && /^[[:space:]]*}$/ {
+    print ""
+    print "\tsqlType = normalizeDamengDataType(sqlType)"
+    inject = 0
+  }
+' "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
+mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
+if ! grep -q 'sqlType = normalizeDamengDataType(sqlType)' "$staging_dialect_dir/dialect_dm.go"; then
+	echo "Dameng GORM v1 dialect has an unsupported DataTypeOf implementation" >&2
+	exit 1
+fi
+cp "$(dirname "$0")/dameng_gorm_v1_compat.go" "$staging_dialect_dir/dameng_compat.go"
 cat > "$staging_dialect_dir/go.mod" <<'EOF'
 module github.com/goodrain/dameng-gorm-dialect
 
