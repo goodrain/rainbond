@@ -73,7 +73,7 @@ Console capability: Django backend、迁移、Repository/Service 原生 SQL
 1. Core 连接数据库后根据类型选择方言能力。
 2. 达梦模式下，GORM 显式 MySQL 类型映射为达梦等价类型，再执行建表。
 3. 任一达梦建表或必要初始化失败时记录表名、SQL 错误并让组件不可就绪；不得继续提供看似正常的 API。
-4. 原生查询通过方言帮助函数生成分页、字符串聚合和索引检查语句。
+4. 原生查询仅对不兼容的字符串聚合、索引检查等语法生成方言分支；达梦已支持的 `LIMIT offset,count` 与 `CONCAT` 保持原样。
 5. Console 复用同一原则：Django ORM 保持原样，原生 SQL 按后端生成等价且参数化的语句。
 
 ## 四、数据模型设计
@@ -96,8 +96,9 @@ Console capability: Django backend、迁移、Repository/Service 原生 SQL
 | `tinyblob` / `blob` / `mediumblob` / `longblob` | `BLOB` | Core GORM 数据类型归一化 |
 | `decimal(p,s)` 且 `p > 38` | 截断至达梦支持的精度 | Core GORM 数据类型归一化 |
 | `ENGINE=InnoDB` / MySQL 字符集表选项 | 无 | 达梦建表路径不下发该选项 |
-| `LIMIT offset,count` | `LIMIT count OFFSET offset` | Core/Console 原生 SQL 帮助函数 |
-| `GROUP_CONCAT` / `CONCAT` | 达梦等价聚合/拼接表达式 | Console 查询帮助函数 |
+| `LIMIT offset,count` | MySQL 与达梦均支持 | 保留现有语句，不为方言适配而改写 |
+| `GROUP_CONCAT` | `LISTAGG` / `WM_CONCAT` | Console 查询帮助函数 |
+| `CONCAT` | MySQL 与达梦均支持；`||` 也可用 | 保留现有语句，按实际查询验证 |
 
 ## 五、API 设计
 
@@ -130,7 +131,7 @@ Console capability: Django backend、迁移、Repository/Service 原生 SQL
 ### 6.2 Console（rainbond-console）
 
 1. 保持 MySQL 的 Django `ENGINE`、选项和连接语义不变；仅 `DB_TYPE=dm` 使用达梦后端和 Schema 选项。
-2. 建立数据库能力帮助函数，替换 Repository、Service、View 中的 MySQL 专属分页、字符串聚合与拼接 SQL。
+2. 建立数据库能力帮助函数，仅替换 Repository、Service、View 中经真实达梦验证不兼容的字符串聚合等 SQL。
 3. 逐个审核所有 `cursor.execute`、`.raw()` 与底层连接调用：可改 ORM 的改 ORM；必须保留的使用参数绑定与方言分支。
 4. 处理达梦驱动异常的字符串化和日志记录，避免异常对象再次导致 JSON 序列化错误。
 5. 审核默认 Region 与升级脚本，消除绕过 Django 数据库配置而硬编码 MySQL 驱动的路径。
@@ -215,5 +216,5 @@ Console capability: Django backend、迁移、Repository/Service 原生 SQL
 | Core 长文本模型 | `rainbond/db/model/key_value.go:6` | `longtext` 导致关键状态表建表失败的代表 |
 | Console 达梦设置 | `rainbond-console/goodrain_web/settings.py` | Django 后端与 Schema 选择 |
 | Console 聚合查询 | `rainbond-console/console/services/service_services.py:266` | `GROUP_CONCAT` 差异 |
-| Console 分页查询 | `rainbond-console/console/views/app_config/app_env.py:100` | MySQL `LIMIT offset,count` 差异 |
+| Console 分页查询 | `rainbond-console/console/views/app_config/app_env.py:100` | 已验证达梦兼容，保留原语句 |
 | Operator 数据库配置 | `rainbond-operator/pkg/apis/rainbond/v1alpha1/*` | CRD 字段和调谐入口 |
