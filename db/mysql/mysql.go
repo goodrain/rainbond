@@ -21,6 +21,7 @@ package mysql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"sync"
@@ -45,10 +46,11 @@ import (
 
 // Manager db manager
 type Manager struct {
-	db      *gorm.DB
-	config  config.Config
-	initOne sync.Once
-	models  []model.Interface
+	db        *gorm.DB
+	config    config.Config
+	initOne   sync.Once
+	models    []model.Interface
+	schemaErr error
 }
 
 type cnbSeedVersion struct {
@@ -147,7 +149,10 @@ func CreateManager(config config.Config) (*Manager, error) {
 	logrus.Info("register table model")
 	manager.RegisterTableModel()
 	logrus.Info("check table")
-	manager.CheckTable()
+	if err := manager.CheckTable(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	logrus.Debug("mysql db driver create")
 	return manager, nil
 }
@@ -259,30 +264,44 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.EnterpriseOverScore{})
 }
 
-// CheckTable check and create tables
-func (m *Manager) CheckTable() {
+// CheckTable checks and creates tables. Dameng initialization fails closed so
+// the platform cannot report ready with a partially-created Region schema.
+func (m *Manager) CheckTable() error {
 	m.initOne.Do(func() {
 		for _, md := range m.models {
 			if !m.db.HasTable(md) {
-				var err error
+				var tableErr error
 				if m.config.DBType == "mysql" {
-					err = m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
+					tableErr = m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
 				} else {
-					err = m.db.CreateTable(md).Error
+					tableErr = m.db.CreateTable(md).Error
 				}
-				if err != nil {
-					logrus.Errorf("auto create table %s to db error.%s", md.TableName(), err.Error())
+				if tableErr != nil {
+					if m.schemaErr = m.schemaError(md.TableName(), tableErr); m.schemaErr != nil {
+						return
+					}
 				} else {
 					logrus.Infof("auto create table %s to db success", md.TableName())
 				}
 			} else {
-				if err := m.db.AutoMigrate(md).Error; err != nil {
-					logrus.Errorf("auto Migrate table %s to db error."+err.Error(), md.TableName())
+				if tableErr := m.db.AutoMigrate(md).Error; tableErr != nil {
+					if m.schemaErr = m.schemaError(md.TableName(), tableErr); m.schemaErr != nil {
+						return
+					}
 				}
 			}
 		}
 		m.patchTable()
 	})
+	return m.schemaErr
+}
+
+func (m *Manager) schemaError(table string, err error) error {
+	logrus.Errorf("auto migrate table %s to db error: %s", table, err)
+	if m.config.DBType != "dm" {
+		return nil
+	}
+	return fmt.Errorf("initialize Dameng schema table %s: %w", table, err)
 }
 
 func (m *Manager) patchTable() {
