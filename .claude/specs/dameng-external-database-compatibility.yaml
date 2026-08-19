@@ -1,0 +1,176 @@
+meta:
+  name: dameng-external-database-compatibility
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc
+  design_doc: rainbond/docs/plans/2026-08-19-dameng-external-database-compatibility-design.md
+  execution: direct
+  constraints:
+    - Preserve DB_TYPE=mysql and the unset DB_TYPE behavior byte-for-byte where tests cover it.
+    - Do not change rainbond-operator, CRDs, rainbond-ui, or plugin source.
+    - Do not store or render database credentials.
+    - Use a clean DM schema for acceptance; never use an experiment with failed DDL as evidence.
+
+sprints:
+  - id: sprint-1
+    name: Characterize compatibility boundaries
+    commits:
+      - id: compatibility-regressions
+        message: "test: cover Dameng database compatibility boundaries"
+        tasks: [console-result-keys, console-sql-capabilities, core-schema-boundaries]
+    tasks:
+      - id: console-result-keys
+        repo: rainbond-console
+        files:
+          modify:
+            - console/tests/database_connection_test.py
+            - test-manifest.json
+        steps:
+          - action: write-test
+            description: Assert that lowercase MySQL result labels remain unchanged and uppercase DM labels become the existing lowercase dictionary keys before addict.Dict attribute access.
+            run: "pytest console/tests/database_connection_test.py -q"
+            expect: FAIL
+      - id: console-sql-capabilities
+        repo: rainbond-console
+        files:
+          create:
+            - console/tests/database_capabilities_test.py
+          modify:
+            - test-manifest.json
+        steps:
+          - action: write-test
+            description: Specify vendor detection, value parameter binding, list aggregation, pagination and safe SQL identifier behavior for mysql and dm.
+            run: "pytest console/tests/database_capabilities_test.py -q"
+            expect: FAIL
+      - id: core-schema-boundaries
+        repo: rainbond
+        files:
+          create:
+            - db/mysql/dameng_schema_test.go
+          modify:
+            - test-manifest.json
+        steps:
+          - action: write-test
+            description: Specify that MySQL retains startup migration while DM distinguishes explicit initialize, idempotent re-run, and service-side schema verification.
+            run: "go test ./db/mysql ./db -run 'Test.*Dameng.*Schema' -v"
+            expect: FAIL
+
+  - id: sprint-2
+    name: Implement DM schema and query capabilities
+    commits:
+      - id: core-dm-schema
+        message: "fix: initialize and verify Dameng region schemas"
+        tasks: [core-schema-command, core-bootstrap, core-dao-audit]
+      - id: console-dm-workflows
+        message: "fix: support Dameng console database workflows"
+        tasks: [console-capability-layer, console-schema-command, console-sql-audit]
+    tasks:
+      - id: core-schema-command
+        repo: rainbond
+        files:
+          modify:
+            - db/db.go
+            - db/mysql/mysql.go
+          create:
+            - cmd/db-migrate/main.go
+        steps:
+          - action: implement
+            description: Separate connection, explicit migration and verification; services verify a DM schema without competing DDL and MySQL retains the existing startup behavior.
+            run: "go test ./db/mysql ./db -run 'Test.*Dameng.*Schema' -v"
+            expect: PASS
+      - id: core-bootstrap
+        repo: rainbond
+        files:
+          modify:
+            - db/mysql/mysql.go
+            - scripts/prepare-dameng-go-driver.sh
+        steps:
+          - action: implement
+            description: Normalize all generated DM DDL types, complete indexes and seed data with idempotent DM equivalents, and reject incomplete schemas with table-specific safe errors.
+            run: "go test ./db/mysql -v"
+            expect: PASS
+      - id: core-dao-audit
+        repo: rainbond
+        files:
+          modify:
+            - db/mysql/dao
+        steps:
+          - action: implement
+            description: Audit raw Core SQL; retain generic statements and add narrowly scoped capability helpers for actual MySQL-only statements.
+            run: "go test ./db/mysql/dao -v"
+            expect: PASS
+      - id: console-capability-layer
+        repo: rainbond-console
+        files:
+          create:
+            - console/utils/database.py
+          modify:
+            - console/repositories/base.py
+            - www/db/base.py
+        steps:
+          - action: implement
+            description: Centralize DM vendor checks, result-key normalization, bound values and expression selection without modifying MySQL outputs.
+            run: "pytest console/tests/database_connection_test.py console/tests/database_capabilities_test.py -q"
+            expect: PASS
+      - id: console-schema-command
+        repo: rainbond-console
+        files:
+          modify:
+            - entrypoint.sh
+            - console/management/commands/repair_legacy_schema.py
+            - scripts/database_state.py
+        steps:
+          - action: implement
+            description: Replace DM runtime makemigrations with an explicit, repeatable database preparation command followed by readiness verification; leave MySQL startup untouched.
+            run: "bash -n entrypoint.sh && pytest console/tests/database_state_test.py console/tests/legacy_schema_repair_test.py -q"
+            expect: PASS
+      - id: console-sql-audit
+        repo: rainbond-console
+        files:
+          modify:
+            - console/repositories
+            - console/services
+            - console/views
+            - www
+        steps:
+          - action: implement
+            description: Classify every cursor.execute, raw query and BaseConnection consumer; parameterize values and add DM alternatives only for unsupported SQL while retaining result contracts.
+            run: "pytest console/tests -q"
+            expect: PASS
+
+  - id: sprint-3
+    name: Verify clean database workflows
+    commits:
+      - id: dm-mysql-acceptance
+        message: "test: verify Dameng and MySQL platform workflows"
+        tasks: [go-verification, console-verification, clean-schema-acceptance]
+    tasks:
+      - id: go-verification
+        repo: rainbond
+        files:
+          modify:
+            - test-manifest.json
+        steps:
+          - action: verify
+            description: Run declared Go tests, go build and go vet with the repository's declared Go runtime, then validate the test manifest.
+            run: "go test ./db/... && go build ./... && go vet ./... && make test-manifest-check"
+            expect: PASS
+      - id: console-verification
+        repo: rainbond-console
+        files:
+          modify:
+            - test-manifest.json
+        steps:
+          - action: verify
+            description: Run the focused and full Console checks and validate its test manifest.
+            run: "make check && pytest && python3 scripts/validate_test_manifest.py"
+            expect: PASS
+      - id: clean-schema-acceptance
+        repo: workspace
+        files:
+          create:
+            - rainbond/docs/verification/dameng-external-db-acceptance.md
+        steps:
+          - action: verify
+            description: On a clean DM instance, initialize REGION and CONSOLE once, start the four services with DB_TYPE=dm, and exercise nginx create-check, application status and deletion; repeat service checks against an untouched MySQL baseline.
+            run: "documented non-secret commands"
+            expect: PASS
