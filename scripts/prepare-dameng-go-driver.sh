@@ -131,10 +131,7 @@ awk '
     replacement = "func (s dm) HasTable(tableName string) bool {\n" \
       "\tconst query = \042SELECT COUNT(*) FROM %s WHERE 1 = 0\042\n\n" \
       "\tvar count int\n" \
-      "\tif err := s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count); err != nil {\n" \
-      "\t\treturn false\n" \
-      "\t}\n" \
-      "\treturn count > 0\n" \
+      "\treturn s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count) == nil\n" \
       "}"
   }
   $0 == "func (s dm) HasTable(tableName string) bool {" {

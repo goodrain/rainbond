@@ -274,7 +274,7 @@ func dataTypeOf(sqlType string) string {
 		"func (s dm) HasTable(tableName string) bool",
 		"SELECT COUNT(*) FROM %s WHERE 1 = 0",
 		"s.Quote(tableName)",
-		"if err := s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count); err != nil",
+		"return s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count) == nil",
 	} {
 		if !strings.Contains(string(preparedDialect), expected) {
 			t.Fatalf("prepared Dameng GORM dialect must use the compatible HasTable query %q", expected)
@@ -293,6 +293,12 @@ func TestRainbondCompatibilityTypes(t *testing.T) {
 		if actual := normalizeDamengDataType(input); actual != expected {
 			t.Fatalf("normalize %s: got %s, want %s", input, actual, expected)
 		}
+	}
+}
+
+func TestRainbondCompatibilityHasTableAcceptsExistingEmptyTable(t *testing.T) {
+	if !((dm{db: database{}}).HasTable("tenants")) {
+		t.Fatal("HasTable must recognize an existing table even when it has no rows")
 	}
 }
 `
