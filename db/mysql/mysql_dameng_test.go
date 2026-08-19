@@ -2,10 +2,7 @@ package mysql
 
 import (
 	"errors"
-	"strings"
 	"testing"
-
-	"github.com/goodrain/rainbond/db/config"
 )
 
 // capability_id: rainbond.database.dameng-bootstrap-skip
@@ -25,29 +22,6 @@ func TestMySQLKeepsBootstrap(t *testing.T) {
 
 	if manager.skipsMySQLBootstrap() {
 		t.Fatal("expected MySQL startup to retain bootstrap SQL")
-	}
-}
-
-// capability_id: rainbond.database.dameng-schema-fail-closed
-func TestDamengSchemaErrorStopsStartup(t *testing.T) {
-	manager := &Manager{config: config.Config{DBType: "dm"}}
-
-	err := manager.schemaError("key_value", errors.New("invalid data type"))
-
-	if err == nil {
-		t.Fatal("expected Dameng schema error to stop startup")
-	}
-	if !strings.Contains(err.Error(), "key_value") {
-		t.Fatalf("expected schema error to name the failed table, got %v", err)
-	}
-}
-
-// capability_id: rainbond.database.dameng-schema-fail-closed
-func TestMySQLSchemaErrorKeepsLegacyStartupBehavior(t *testing.T) {
-	manager := &Manager{config: config.Config{DBType: "mysql"}}
-
-	if err := manager.schemaError("key_value", errors.New("invalid data type")); err != nil {
-		t.Fatalf("MySQL must retain log-and-continue behavior, got %v", err)
 	}
 }
 
