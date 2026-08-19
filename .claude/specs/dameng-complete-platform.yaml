@@ -1,0 +1,414 @@
+meta:
+  name: dameng-complete-platform
+  version: "1.0"
+  repo: /Users/zhangqihang/MyWork/workrc/rainbond
+  branch: v6.9.9-dev
+  design_doc: docs/plans/2026-08-19-dameng-complete-platform-design.md
+  execution: direct
+  constraints:
+    - Preserve the MySQL default path and its rendered manifest shape.
+    - Do not put database credentials in source, tests, logs, or status messages.
+    - Build final Core, Console, and Operator images only after all acceptance checks pass.
+
+sprints:
+  - id: sprint-1
+    name: Operator declaration and migration gate
+    commits:
+      - id: operator-database-type
+        message: "feat: configure Dameng databases through RainbondCluster"
+        tasks: [operator-1, operator-2, operator-3]
+    tasks:
+      - id: operator-1
+        name: Add a validated database type to the Cluster API
+        status: pending
+        repo: /Users/zhangqihang/MyWork/push/github/rainbond-operator
+        files:
+          modify:
+            - path: api/v1alpha1/rainbondcluster_types.go
+              lines: "90-97,266-269"
+            - path: config/crd/bases/rainbond.io_rainbondclusters.yaml
+              lines: "generated schema for regionDatabase/uiDatabase"
+            - path: controllers/cluster-mgr/precheck/database.go
+              lines: "1-52"
+          create:
+            - path: controllers/cluster-mgr/precheck/database_test.go
+        steps:
+          - action: write-test
+            description: "Cover default mysql, explicit dm, and rejection of an unknown type without connecting to a live database."
+            code: |
+              cases := []struct{ typ string; want string; valid bool }{
+                {"", "mysql", true}, {"mysql", "mysql", true}, {"dm", "dm", true}, {"postgres", "", false},
+              }
+            run: "go test ./api/v1alpha1 ./controllers/cluster-mgr/precheck -run 'Test.*DatabaseType' -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Add Database.Type, DefaultType(), Validate(), a redacted DataSource(), and type-aware precheck. MySQL retains sql.Open(mysql); DM validates TCP reachability only, so the Operator never needs the proprietary DM driver."
+            code: |
+              func (in *Database) TypeOrDefault() string {
+                  if in == nil || in.Type == "" { return "mysql" }
+                  return strings.ToLower(in.Type)
+              }
+            run: "make generate && gofmt -w api/v1alpha1 controllers/cluster-mgr/precheck"
+            expect: "generated CRD/deepcopy and formatted source"
+        acceptance:
+          - cmd: "go test ./api/v1alpha1 ./controllers/cluster-mgr/precheck -run 'Test.*DatabaseType' -v"
+            expect: "PASS"
+
+      - id: operator-2
+        name: Render type-safe Core and Console database configuration
+        status: pending
+        repo: /Users/zhangqihang/MyWork/push/github/rainbond-operator
+        files:
+          modify:
+            - path: controllers/handler/api.go
+              lines: "109-170"
+            - path: controllers/handler/worker.go
+              lines: "89-164"
+            - path: controllers/handler/chaos.go
+              lines: "120-190"
+            - path: controllers/handler/app-ui.go
+              lines: "130-244"
+            - path: controllers/handler/common.go
+              lines: "47-111"
+            - path: controllers/handler/api_test.go
+              lines: "existing deployment assertions"
+            - path: controllers/handler/app_ui_test.go
+              lines: "existing deployment assertions"
+        steps:
+          - action: write-test
+            description: "Add table-driven manifest assertions for absent Type/mysql and dm. Assert no credential values in errors, DB_TYPE=dm in all Region pods, and DB_* plus legacy MYSQL_* compatibility variables in App UI."
+            code: |
+              if got := envValue(deployment, "DB_TYPE"); got != "dm" {
+                  t.Fatalf("expected DB_TYPE=dm, got %q", got)
+              }
+            run: "go test ./controllers/handler -run 'Test.*Dameng' -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Centralize environment rendering. Preserve the exact MySQL --mysql argument and existing MYSQL_* variables. DM adds DB_TYPE=dm and generic DB_* values; Core still receives the compatible --mysql DSN until its flag is renamed in a future compatible release."
+            code: |
+              func databaseEnvs(db *rainbondv1alpha1.Database) []corev1.EnvVar {
+                  return []corev1.EnvVar{{Name: "DB_TYPE", Value: db.TypeOrDefault()}, /* DB_* values */}
+              }
+            run: "gofmt -w controllers/handler && go test ./controllers/handler -run 'Test.*Dameng|Test.*MySQL' -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./controllers/handler -v"
+            expect: "PASS"
+
+      - id: operator-3
+        name: Gate DM Region services on one owned migration Job
+        status: pending
+        repo: /Users/zhangqihang/MyWork/push/github/rainbond-operator
+        files:
+          modify:
+            - path: controllers/handler/api.go
+              lines: "50-108"
+            - path: controllers/handler/worker.go
+              lines: "45-88"
+            - path: controllers/handler/chaos.go
+              lines: "54-84"
+            - path: controllers/rbdcomponent_controller.go
+              lines: "60-190"
+          create:
+            - path: controllers/handler/dameng_migration.go
+            - path: controllers/handler/dameng_migration_test.go
+        steps:
+          - action: write-test
+            description: "Use a fake controller client to prove that the API handler creates exactly one Job, Worker/Chaos wait for it, completed Jobs unblock all three, failed Jobs surface a redacted condition, and a changed database/image hash produces a new Job name."
+            code: |
+              if got := migrationJobName(cluster, apiImage); got == migrationJobName(cluster, changedImage) {
+                  t.Fatal("migration job name must change when the image changes")
+              }
+            run: "go test ./controllers/handler -run TestDamengMigration -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Create a batch/v1 Job from the rbd-api image with command /run/rainbond-db-migrate. It must be owned by RainbondCluster, have backoffLimit=0, a finite deadline, a config/image hash name, and only safe status/error summaries. Handlers requeue until completion and never create their deployments before success."
+            code: |
+              job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+              job.Spec.Template.Spec.Containers[0].Command = []string{"/run/rainbond-db-migrate"}
+            run: "gofmt -w controllers/handler && go test ./controllers/handler -run TestDamengMigration -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./controllers/handler ./controllers -v"
+            expect: "PASS"
+
+  - id: sprint-2
+    name: Core schema ownership and dual-dialect data access
+    commits:
+      - id: core-dameng-schema
+        message: "fix: migrate Dameng schemas before region startup"
+        tasks: [core-1, core-2, core-3]
+    tasks:
+      - id: core-1
+        name: Split connection, migration, and verification
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond
+        files:
+          modify:
+            - path: db/db.go
+              lines: "162-181"
+            - path: db/mysql/mysql.go
+              lines: "62-304"
+            - path: config/configs/db_config.go
+              lines: "9-23"
+          create:
+            - path: cmd/db-migrate/main.go
+            - path: db/mysql/dameng_schema_test.go
+        steps:
+          - action: write-test
+            description: "Test a schema mode matrix: mysql keeps startup migration; dm migration performs DDL; dm service validates only and returns a table-specific error when absent; an existing empty table is detected as existing."
+            code: |
+              tests := []struct{ dbType, mode string; migrate, verify bool }{
+                  {"mysql", "", true, false}, {"dm", "migrate", true, false}, {"dm", "verify", false, true},
+              }
+            run: "go test ./db/mysql ./db -run 'Test.*Dameng.*Schema' -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Make OpenManager perform one bounded connection attempt. Expose MigrateSchema and VerifySchema. db.CreateManager selects dm verify mode only when RBD_DB_SCHEMA_MODE=verify. db-migrate parses existing public flags, calls MigrateSchema, closes the manager, and exits non-zero on any error."
+            code: |
+              if cfg.DBType == "dm" && os.Getenv("RBD_DB_SCHEMA_MODE") == "verify" {
+                  return manager.VerifySchema()
+              }
+            run: "gofmt -w db cmd/db-migrate && go test ./db/mysql ./db -run 'Test.*Dameng.*Schema' -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./db/mysql ./db -v"
+            expect: "PASS"
+
+      - id: core-2
+        name: Make full DM bootstrap idempotent
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond
+        files:
+          modify:
+            - path: db/mysql/mysql.go
+              lines: "305-478"
+            - path: db/mysql/seed_test.go
+              lines: "existing seed assertions"
+        steps:
+          - action: write-test
+            description: "Characterize all language-version seed rows and test that a second migration does not create duplicates. Cover DM-specific type mapping and the configured unique index."
+            code: |
+              if got, want := countLanguageVersions(db), len(allSeedLanguageVersions()); got != want {
+                  t.Fatalf("seed count = %d, want %d", got, want)
+              }
+            run: "go test ./db/mysql -run 'Test.*LanguageVersion|Test.*Dameng.*Migration' -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Replace skipsMySQLBootstrap with dialect-specific equivalents: idempotent GORM writes for seeds, DM-valid index discovery/creation, and only DM-valid DDL. Preserve all current MySQL bootstrap SQL unchanged in the MySQL branch."
+            code: |
+              case "dm":
+                  return m.upsertLanguageVersionsIndividually(versions)
+            run: "gofmt -w db/mysql && go test ./db/mysql -run 'Test.*LanguageVersion|Test.*Dameng.*Migration' -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./db/mysql -v"
+            expect: "PASS"
+
+      - id: core-3
+        name: Remove MySQL-only Region query assumptions
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond
+        files:
+          modify:
+            - path: db/mysql/dao/tenants.go
+              lines: "300-405"
+            - path: db/mysql/dao/event.go
+              lines: "230-260"
+          create:
+            - path: db/mysql/dao/dameng_pagination_test.go
+        steps:
+          - action: write-test
+            description: "Use sqlmock or a dialect helper test to assert MySQL retains LIMIT offset,length and DM renders LIMIT length OFFSET offset with bound values."
+            code: |
+              if got := paginationClause("dm", 20, 40); got != " LIMIT ? OFFSET ?" {
+                  t.Fatalf("unexpected DM pagination: %q", got)
+              }
+            run: "go test ./db/mysql/dao -run TestDamengPagination -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Introduce a small dialect helper at the DAO boundary and parameterize raw queries. Do not change MySQL SQL or results."
+            code: |
+              query, args := paginatedQuery(m.DB, baseQuery, offset, limit)
+            run: "gofmt -w db/mysql/dao && go test ./db/mysql/dao -run TestDamengPagination -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./db/mysql/dao -v"
+            expect: "PASS"
+
+      - id: core-4
+        name: Ship the migration binary in the DM-capable API image
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond
+        files:
+          modify:
+            - path: hack/contrib/docker/api/Dockerfile
+              lines: "12-30"
+            - path: hack/contrib/docker/dameng_dockerfile_test.go
+              lines: "existing API image assertions"
+        steps:
+          - action: write-test
+            description: "Assert that the API Dockerfile compiles and copies both rbd-api and rbd-db-migrate and retains the bundled driver preparation."
+            code: |
+              if !strings.Contains(dockerfile, "-o /run/rainbond-db-migrate ./cmd/db-migrate") {
+                  t.Fatal("API image must include rbd-db-migrate")
+              }
+            run: "go test ./hack/contrib/docker -run Test.*Dameng -v"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Build db-migrate in the API builder stage and copy it to the runtime stage without adding a new external driver source."
+            code: |
+              CGO_CFLAGS="..." go build ... -o /run/rainbond-db-migrate ./cmd/db-migrate
+            run: "go test ./hack/contrib/docker -run Test.*Dameng -v"
+            expect: "PASS"
+        acceptance:
+          - cmd: "go test ./hack/contrib/docker -run Test.*Dameng -v"
+            expect: "PASS"
+
+  - id: sprint-3
+    name: Console database compatibility
+    commits:
+      - id: console-dameng-sql
+        message: "fix: support Dameng queries in console workflows"
+        tasks: [console-1, console-2]
+    tasks:
+      - id: console-1
+        name: Add explicit Console database capabilities
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond-console
+        files:
+          create:
+            - path: console/utils/database.py
+            - path: console/tests/database_utils_test.py
+          modify:
+            - path: console/repositories/base.py
+              lines: "8-18"
+            - path: www/db/base.py
+              lines: "6-17"
+            - path: test-manifest.json
+              lines: "capabilities"
+        steps:
+          - action: write-test
+            description: "Test vendor selection, safe parameter forwarding, MySQL/DM pagination rendering, and list aggregation SQL."
+            code: |
+              assert pagination_sql('dm', 20, 40) == (' LIMIT %s OFFSET %s', [40, 20])
+            run: "pytest console/tests/database_utils_test.py -q"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Centralize vendor detection via django.db.connection.vendor, query parameters, pagination, and aggregate expression selection. Do not classify every non-MySQL driver as SQLite."
+            code: |
+              def is_dm(connection):
+                  return connection.vendor.lower() == 'dameng'
+            run: "python3 scripts/manage_test_manifest.py add console.database.dameng-query-capabilities ... && pytest console/tests/database_utils_test.py -q"
+            expect: "PASS"
+        acceptance:
+          - cmd: "python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json && pytest console/tests/database_utils_test.py -q"
+            expect: "PASS"
+
+      - id: console-2
+        name: Convert all database-specific Console SQL found by the audit
+        status: pending
+        repo: /Users/zhangqihang/MyWork/workrc/rainbond-console
+        files:
+          modify:
+            - path: console/services/service_services.py
+              lines: "259-273"
+            - path: console/repositories/app.py
+              lines: "182-235"
+            - path: console/repositories/user_role_repo.py
+              lines: "1-40"
+            - path: console/repositories/perm_repo.py
+              lines: "245-315"
+            - path: console/repositories/team_repo.py
+              lines: "80-110"
+            - path: console/services/app_config/plugin_service.py
+              lines: "20-55"
+            - path: console/services/plugin/app_plugin.py
+              lines: "145-175"
+            - path: console/services/market_app_service.py
+              lines: "1439-1470"
+            - path: console/services/app_config/domain_service.py
+              lines: "690-830"
+            - path: console/views/app_config/app_domain.py
+              lines: "1030-1225"
+            - path: console/views/app_config/app_env.py
+              lines: "80-180"
+            - path: openapi/views/enterprise_view.py
+              lines: "110-130"
+          create:
+            - path: console/tests/dameng_query_regression_test.py
+        steps:
+          - action: write-test
+            description: "Create regression tests for each audit class: quoted UUID filters, aggregation, pagination, collations/casts, plugin status, team permission, domain and environment listings. Assert SQL uses parameters and the existing result keys stay unchanged."
+            code: |
+              assert '"{}"' not in sql
+              cursor.execute.assert_called_once_with(sql, [service_id])
+            run: "pytest console/tests/dameng_query_regression_test.py -q"
+            expect: "FAIL before implementation; PASS after implementation"
+          - action: implement
+            description: "Replace string interpolation with Django parameters, use the capability helpers for DM syntax, and retain the original MySQL branch where necessary. Audit every production cursor.execute/.raw/BaseConnection call surfaced by the committed inventory command before marking complete."
+            code: |
+              cursor.execute('... WHERE service_id = %s', [service_id])
+            run: "make format && make check && pytest console/tests/dameng_query_regression_test.py -q"
+            expect: "PASS"
+        acceptance:
+          - cmd: "make check && pytest"
+            expect: "PASS"
+
+  - id: sprint-4
+    name: Clean-environment integration and final release
+    commits:
+      - id: dameng-integration-governance
+        message: "test: verify MySQL and Dameng platform startup"
+        tasks: [integration-1, integration-2]
+    tasks:
+      - id: integration-1
+        name: Add and run a clean-schema database acceptance matrix
+        status: pending
+        repos:
+          - /Users/zhangqihang/MyWork/workrc/rainbond
+          - /Users/zhangqihang/MyWork/workrc/rainbond-console
+          - /Users/zhangqihang/MyWork/push/github/rainbond-operator
+        files:
+          modify:
+            - path: rainbond/test-manifest.json
+              lines: "capabilities"
+            - path: rainbond-console/test-manifest.json
+              lines: "capabilities"
+          create:
+            - path: docs/verification/dameng-acceptance.md
+        steps:
+          - action: verify
+            description: "On a fresh DM test instance/schema, apply only RainbondCluster database declarations, wait for the migration Job, then verify API/Worker/Chaos/Console Ready, one nginx create-check terminal result, status lookup and delete. Repeat against an untouched MySQL baseline."
+            code: |
+              kubectl wait --for=condition=complete job/<migration-job> -n <namespace> --timeout=10m
+              kubectl wait --for=condition=available deploy/rbd-api deploy/rbd-worker deploy/rbd-app-ui -n <namespace> --timeout=10m
+            run: "documented non-secret acceptance commands"
+            expect: "all checks pass; no direct RbdComponent/Deployment edits"
+        acceptance:
+          - cmd: "python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: "PASS in each managed repository"
+
+      - id: integration-2
+        name: Build exactly one final compatible image set
+        status: pending
+        repos:
+          - /Users/zhangqihang/MyWork/workrc/rainbond
+          - /Users/zhangqihang/MyWork/workrc/rainbond-console
+          - /Users/zhangqihang/MyWork/push/github/rainbond-operator
+        files:
+          modify:
+            - path: rainbond/.github/workflows/release-v6.yml
+              lines: "workflow dispatch operator ref/build matrix"
+        steps:
+          - action: verify
+            description: "Resolve the current Core v6.9.9-dev versus Operator v6.9.8-dev branch mismatch with an explicit workflow input or aligned operator branch. Validate all selected components use one image tag and no test-only workflow skip alters normal release defaults."
+            code: |
+              operator_ref: ${{ github.event.inputs.operator-branch || github.event.inputs.branch }}
+            run: "workflow YAML validation plus final controlled release run"
+            expect: "Core, Console, and Operator image build uses the intended source branch and shared final tag"
+        acceptance:
+          - cmd: "go build ./... && go vet ./..."
+            expect: "PASS in Core and Operator with their declared Go toolchains"
+          - cmd: "make check && pytest"
+            expect: "PASS in Console"
