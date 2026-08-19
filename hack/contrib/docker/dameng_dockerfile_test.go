@@ -272,10 +272,9 @@ func dataTypeOf(sqlType string) string {
 	}
 	for _, expected := range []string{
 		"func (s dm) HasTable(tableName string) bool",
-		"SELECT COUNT(*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES",
-		"SCHEMAS.TYPE$ = 'SCH'",
-		"TABLES.SUBTYPE$ IN ('UTAB', 'STAB', 'VIEW', 'SYNOM')",
-		"if err := s.db.QueryRow(sql, currentDatabase, tableName).Scan(&count); err != nil",
+		"SELECT COUNT(*) FROM %s WHERE 1 = 0",
+		"s.Quote(tableName)",
+		"if err := s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count); err != nil",
 	} {
 		if !strings.Contains(string(preparedDialect), expected) {
 			t.Fatalf("prepared Dameng GORM dialect must use the compatible HasTable query %q", expected)
