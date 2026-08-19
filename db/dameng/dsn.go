@@ -24,7 +24,23 @@ func normalizeNativeDSN(connectionInfo string) (string, error) {
 	if err != nil || !strings.EqualFold(parsed.Scheme, "dm") || !validHostPort(parsed.Host) {
 		return "", errInvalidDSN
 	}
-	return connectionInfo, nil
+
+	schema := strings.TrimPrefix(parsed.Path, "/")
+	if schema == "" {
+		return connectionInfo, nil
+	}
+	if !validSchema(schema) {
+		return "", errInvalidDSN
+	}
+
+	query := parsed.Query()
+	if query.Get("schema") == "" {
+		query.Set("schema", strings.ToUpper(schema))
+	}
+	parsed.Path = ""
+	parsed.RawPath = ""
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
 }
 
 func normalizeLegacyDSN(connectionInfo string) (string, error) {
@@ -47,9 +63,8 @@ func normalizeLegacyDSN(connectionInfo string) (string, error) {
 	if !validHostPort(hostPort) || !validSchema(schema) {
 		return "", errInvalidDSN
 	}
-	// The official DM Go driver quotes the schema when opening a connection.
-	// Normalize legacy MySQL-style database names to DM's conventional uppercase
-	// identifiers so a typical /region DSN selects REGION rather than "region".
+	// The official DM Go driver only reads schema from a URL query parameter;
+	// its URL path is ignored. Normalize legacy database names to a schema query.
 	schema = strings.ToUpper(schema)
 
 	credentialSeparator := strings.IndexByte(credentials, ':')
@@ -66,7 +81,9 @@ func normalizeLegacyDSN(connectionInfo string) (string, error) {
 		Scheme: "dm",
 		User:   url.UserPassword(username, password),
 		Host:   hostPort,
-		Path:   "/" + schema,
+		RawQuery: url.Values{
+			"schema": []string{schema},
+		}.Encode(),
 	}).String(), nil
 }
 

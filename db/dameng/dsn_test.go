@@ -7,15 +7,16 @@ import (
 
 // capability_id: rainbond.database.dameng-dsn-normalization
 func TestNormalizeDSN(t *testing.T) {
-	t.Run("passes through native dm URL", func(t *testing.T) {
+	t.Run("converts native URL path to schema query", func(t *testing.T) {
 		const input = "dm://app-user:app-password@db.example.internal:5236/DMDB?logLevel=error"
 
 		got, err := NormalizeDSN(input)
 		if err != nil {
 			t.Fatalf("normalize native dm URL: %v", err)
 		}
-		if got != input {
-			t.Fatalf("expected native dm URL to pass through, got %q", got)
+		const want = "dm://app-user:app-password@db.example.internal:5236?logLevel=error&schema=DMDB"
+		if got != want {
+			t.Fatalf("expected %q, got %q", want, got)
 		}
 	})
 
@@ -24,7 +25,7 @@ func TestNormalizeDSN(t *testing.T) {
 		if err != nil {
 			t.Fatalf("normalize legacy DSN: %v", err)
 		}
-		const want = "dm://app-user:app-password@db.example.internal:5236/DMDB"
+		const want = "dm://app-user:app-password@db.example.internal:5236?schema=DMDB"
 		if got != want {
 			t.Fatalf("expected %q, got %q", want, got)
 		}
@@ -35,7 +36,7 @@ func TestNormalizeDSN(t *testing.T) {
 		if err != nil {
 			t.Fatalf("normalize legacy schema: %v", err)
 		}
-		const want = "dm://app-user:app-password@db.example.internal:5236/REGION"
+		const want = "dm://app-user:app-password@db.example.internal:5236?schema=REGION"
 		if got != want {
 			t.Fatalf("expected %q, got %q", want, got)
 		}
@@ -46,7 +47,7 @@ func TestNormalizeDSN(t *testing.T) {
 		if err != nil {
 			t.Fatalf("normalize legacy DSN with escaped credentials: %v", err)
 		}
-		const want = "dm://app-user:p%40ss%3Aword@db.example.internal:5236/DMDB"
+		const want = "dm://app-user:p%40ss%3Aword@db.example.internal:5236?schema=DMDB"
 		if got != want {
 			t.Fatalf("expected escaped credentials in %q, got %q", want, got)
 		}
