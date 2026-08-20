@@ -100,13 +100,14 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
+| rainbond.database.dameng-bulk-upsert | 达梦批量写入使用逐条创建或更新 | active | regression | gormbulkups.BulkUpsert | third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement |
 | rainbond.database.dameng-driver-bundle-preparation | Prepare a minimal Dameng driver bundle from ISO | active | regression | scripts/prepare-dameng-driver-bundle-from-iso.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengDriverBundleFromISO |
 | rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
 | rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
 | rainbond.database.dameng-go-dialect-module | Prepare separate Dameng Go driver and GORM dialect modules | active | regression | scripts/prepare-dameng-go-driver.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengGoDriverSeparatesDialectModule |
 | rainbond.database.dameng-open-error-cause | Preserve a redacted Dameng connection failure cause | active | regression | db/mysql.damengOpenError | db/mysql/mysql_dameng_test.go::TestDamengOpenErrorPreservesDriverCause<br>db/mysql/mysql_dameng_test.go::TestDamengOpenErrorRedactsConnectionCredentials |
 | rainbond.database.dameng-query-capabilities | 达梦查询使用可移植的参数化分页 | active | regression | db/mysql/dao.paginationSQL | db/mysql/dao/pagination_test.go::TestPaginationSQLKeepsMySQLAndUsesDamengOffsetSyntax |
-| rainbond.database.dameng-schema-lifecycle | 初始化并验证达梦 Schema，避免并发 DDL | active | regression | db/mysql.Manager schema lifecycle | db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify<br>db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification<br>hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
+| rainbond.database.dameng-schema-lifecycle | 初始化并验证达梦 Schema，避免并发 DDL | active | regression | db/mysql.Manager schema lifecycle | db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify<br>db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable<br>db/mysql/mysql_dameng_test.go::TestDamengTableCheckUsesExplicitSchemaCatalog<br>db/dameng/dsn_test.go::TestSchemaName<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification<br>hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.dameng-standard-image-actions | 标准镜像工作流提供达梦驱动包 | active | regression | development and release image build workflows | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardDamengBuildWorkflows |
 | rainbond.database.dameng-standard-images | 标准区域镜像内置达梦驱动 | active | regression | standard rbd API, Worker, and Chaos Dockerfiles | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.db-type-environment-default | 数据库类型环境默认值 | active | unit | config/configs.AddDBFlags | config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue |
@@ -1441,6 +1442,16 @@
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
 
+### 达梦批量写入使用逐条创建或更新
+
+- Capability ID: `rainbond.database.dameng-bulk-upsert`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `gormbulkups.BulkUpsert`
+- 代码路径: `go.mod`, `third_party/gorm-bulk-upsert/bulk_upsert.go`
+- 测试路径: `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement`
+
 ### Prepare a minimal Dameng driver bundle from ISO
 
 - Capability ID: `rainbond.database.dameng-driver-bundle-preparation`
@@ -1508,8 +1519,8 @@
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `db/mysql.Manager schema lifecycle`
-- 代码路径: `db/mysql/mysql.go`, `db/config/config.go`, `config/configs/db_config.go`, `cmd/db-migrate/main.go`, `hack/contrib/docker/api/Dockerfile`
-- 测试路径: `db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify`, `db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable`, `config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification`, `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX`
+- 代码路径: `db/dameng/dsn.go`, `db/mysql/mysql.go`, `db/config/config.go`, `config/configs/db_config.go`, `cmd/db-migrate/main.go`, `hack/contrib/docker/api/Dockerfile`
+- 测试路径: `db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify`, `db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable`, `db/mysql/mysql_dameng_test.go::TestDamengTableCheckUsesExplicitSchemaCatalog`, `db/dameng/dsn_test.go::TestSchemaName`, `config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification`, `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX`
 
 ### 标准镜像工作流提供达梦驱动包
 

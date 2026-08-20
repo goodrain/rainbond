@@ -327,7 +327,7 @@ exclude (
 
 // Pinned to kubernetes-1.23.12
 replace (
-	github.com/atcdot/gorm-bulk-upsert => github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357
+	github.com/atcdot/gorm-bulk-upsert => ./third_party/gorm-bulk-upsert
 	github.com/containerd/containerd => github.com/containerd/containerd v1.5.13
 	github.com/coreos/etcd => ./third_party/coreos-etcd
 	github.com/crossplane/crossplane-runtime => github.com/crossplane/crossplane-runtime v0.11.0

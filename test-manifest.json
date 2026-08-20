@@ -1975,6 +1975,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.database.dameng-bulk-upsert",
+      "title": "Use row-by-row writes for Dameng bulk upserts",
+      "title_zh": "达梦批量写入使用逐条创建或更新",
+      "interface_type": "package_function",
+      "interface": "gormbulkups.BulkUpsert",
+      "code_paths": [
+        "go.mod",
+        "third_party/gorm-bulk-upsert/bulk_upsert.go"
+      ],
+      "tests": [
+        {
+          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
+          "selector": "TestUsesDamengRowByRowUpsert"
+        },
+        {
+          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
+          "selector": "TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey"
+        },
+        {
+          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
+          "selector": "TestBulkUpsertKeepsMySQLStatement"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.database.dameng-standard-image-actions",
       "title": "Supply Dameng bundle to standard image workflows",
       "title_zh": "\u6807\u51c6\u955c\u50cf\u5de5\u4f5c\u6d41\u63d0\u4f9b\u8fbe\u68a6\u9a71\u52a8\u5305",
