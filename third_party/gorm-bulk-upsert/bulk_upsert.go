@@ -6,6 +6,7 @@
 package gormbulkups
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -38,27 +39,48 @@ func usesDamengRowByRowUpsert(dialect string) bool {
 
 func damengUpsertObjectSet(db *gorm.DB, objects []interface{}, chunkSize int, excludeColumns ...string) error {
 	for _, objSet := range splitObjects(objects, chunkSize) {
-		tx := db.Begin()
-		if tx.Error != nil {
-			return tx.Error
+		tx, ownsTransaction, err := damengUpsertTransaction(db)
+		if err != nil {
+			return err
 		}
 
 		for _, obj := range objSet {
 			if _, err := extractMapValue(obj, excludeColumns); err != nil {
-				tx.Rollback()
+				if ownsTransaction {
+					tx.Rollback()
+				}
 				return err
 			}
 			if err := damengUpsertObject(tx, obj); err != nil {
-				tx.Rollback()
+				if ownsTransaction {
+					tx.Rollback()
+				}
 				return err
 			}
 		}
 
-		if err := tx.Commit().Error; err != nil {
-			return err
+		if ownsTransaction {
+			if err := tx.Commit().Error; err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// damengUpsertTransaction returns the caller transaction unchanged when one
+// was supplied. A DAO may be part of a larger service transaction, and GORM
+// v1 cannot begin a transaction from an existing *sql.Tx.
+func damengUpsertTransaction(db *gorm.DB) (*gorm.DB, bool, error) {
+	if _, ok := db.CommonDB().(*sql.Tx); ok {
+		return db, false, nil
+	}
+
+	tx := db.Begin()
+	if err := tx.Error; err != nil {
+		return nil, false, err
+	}
+	return tx, true, nil
 }
 
 func damengUpsertObject(db *gorm.DB, object interface{}) error {

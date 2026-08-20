@@ -100,7 +100,7 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
-| rainbond.database.dameng-bulk-upsert | 达梦批量写入使用逐条创建或更新 | active | regression | gormbulkups.BulkUpsert | third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement |
+| rainbond.database.dameng-bulk-upsert | 达梦批量写入使用逐条创建或更新 | active | regression | gormbulkups.BulkUpsert | third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetReusesCallerTransaction<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement |
 | rainbond.database.dameng-driver-bundle-preparation | Prepare a minimal Dameng driver bundle from ISO | active | regression | scripts/prepare-dameng-driver-bundle-from-iso.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengDriverBundleFromISO |
 | rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
 | rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
@@ -1450,7 +1450,7 @@
 - 接口类型: `package_function`
 - 业务入口: `gormbulkups.BulkUpsert`
 - 代码路径: `go.mod`, `third_party/gorm-bulk-upsert/bulk_upsert.go`
-- 测试路径: `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement`
+- 测试路径: `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetReusesCallerTransaction`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement`
 
 ### Prepare a minimal Dameng driver bundle from ISO
 

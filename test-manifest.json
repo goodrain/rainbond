@@ -1995,6 +1995,10 @@
         },
         {
           "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
+          "selector": "TestDamengUpsertObjectSetReusesCallerTransaction"
+        },
+        {
+          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
           "selector": "TestBulkUpsertKeepsMySQLStatement"
         }
       ],
