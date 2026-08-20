@@ -402,6 +402,115 @@ func TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity(t *testing.
 	}
 }
 
+// capability_id: rainbond.config-file.dependent-source-key
+func TestConfigFileVolumeCreateDependVolumeUsesProviderFileKey(t *testing.T) {
+	const (
+		consumerID = "consumer-service"
+		providerID = "config-provider"
+		volumeName = "nginx-config"
+		sourcePath = "/source/nginx.conf"
+		targetPath = "/etc/nginx/conf.d/test1.conf"
+	)
+	as := newDeploymentAppServiceForVolumeTest()
+	as.ServiceID = consumerID
+	depVolume := &dbmodel.TenantServiceVolume{
+		ServiceID:  providerID,
+		VolumeName: volumeName,
+		VolumePath: sourcePath,
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}
+	mountRelation := &dbmodel.TenantServiceMountRelation{
+		ServiceID:       consumerID,
+		DependServiceID: providerID,
+		VolumeName:      volumeName,
+		VolumePath:      targetPath,
+		VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+	}
+	manager := volumeManagerStub{
+		volumeDao:  tenantServiceVolumeDaoStub{volume: depVolume},
+		serviceDao: tenantServiceDaoStub{service: &dbmodel.TenantServices{ServiceID: providerID, ServiceAlias: "provider"}},
+		configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+			ServiceID:   providerID,
+			VolumeName:  volumeName,
+			FileContent: "server {}\n",
+		}},
+	}
+
+	configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true).(*ConfigFileVolume)
+	define := &Define{as: as}
+	if err := configVolume.CreateDependVolume(define); err != nil {
+		t.Fatalf("create dependent deployment config-file volume: %v", err)
+	}
+	if len(as.GetConfigMaps()) != 1 || len(define.GetVolumes()) != 1 || len(define.GetVolumeMounts()) != 1 {
+		t.Fatalf("expected one configmap, volume and mount, got configmaps=%#v volumes=%#v mounts=%#v",
+			as.GetConfigMaps(), define.GetVolumes(), define.GetVolumeMounts())
+	}
+	configMap := as.GetConfigMaps()[0]
+	if configMap.Data["nginx.conf"] != "server {}\n" {
+		t.Fatalf("expected provider source key nginx.conf, got %#v", configMap.Data)
+	}
+	items := define.GetVolumes()[0].ConfigMap.Items
+	if len(items) != 1 || items[0].Key != "nginx.conf" || items[0].Path != "test1.conf" {
+		t.Fatalf("expected provider key nginx.conf mapped to consumer path test1.conf, got %#v", items)
+	}
+	mount := define.GetVolumeMounts()[0]
+	if mount.MountPath != targetPath || mount.SubPath != "test1.conf" {
+		t.Fatalf("expected consumer target path and subPath to be preserved, got %#v", mount)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-source-key
+func TestConfigFileVolumeCreateDependVolumeForVMUsesProviderFileKey(t *testing.T) {
+	const (
+		consumerID = "vm-consumer"
+		providerID = "config-provider"
+		volumeName = "runtime-config"
+		sourcePath = "/source/rainbond.env"
+		targetPath = "/etc/rainbond/runtime.env"
+	)
+	as := newVMAppServiceForVolumeTest()
+	as.ServiceID = consumerID
+	depVolume := &dbmodel.TenantServiceVolume{
+		ServiceID:  providerID,
+		VolumeName: volumeName,
+		VolumePath: sourcePath,
+		VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}
+	mountRelation := &dbmodel.TenantServiceMountRelation{
+		ServiceID:       consumerID,
+		DependServiceID: providerID,
+		VolumeName:      volumeName,
+		VolumePath:      targetPath,
+		VolumeType:      dbmodel.ConfigFileVolumeType.String(),
+	}
+	manager := volumeManagerStub{
+		volumeDao:  tenantServiceVolumeDaoStub{volume: depVolume},
+		serviceDao: tenantServiceDaoStub{service: &dbmodel.TenantServices{ServiceID: providerID, ServiceAlias: "provider-vm"}},
+		configFileDao: tenantServiceConfigFileDaoStub{file: &dbmodel.TenantServiceConfigFile{
+			ServiceID:   providerID,
+			VolumeName:  volumeName,
+			FileContent: "DEMO=true\n",
+		}},
+	}
+
+	configVolume := NewVolumeManager(as, depVolume, mountRelation, nil, nil, nil, manager, true).(*ConfigFileVolume)
+	define := &Define{as: as}
+	if err := configVolume.CreateDependVolume(define); err != nil {
+		t.Fatalf("create dependent vm config-file volume: %v", err)
+	}
+	if len(as.GetConfigMaps()) != 1 || len(define.GetVMGuestFiles()) != 1 {
+		t.Fatalf("expected one configmap and VM guest file, got configmaps=%#v guestFiles=%#v",
+			as.GetConfigMaps(), define.GetVMGuestFiles())
+	}
+	if as.GetConfigMaps()[0].Data["rainbond.env"] != "DEMO=true\n" {
+		t.Fatalf("expected provider source key rainbond.env, got %#v", as.GetConfigMaps()[0].Data)
+	}
+	guestFile := define.GetVMGuestFiles()[0]
+	if guestFile.SourceFile != "rainbond.env" || guestFile.TargetPath != targetPath {
+		t.Fatalf("expected provider source rainbond.env injected at consumer target %q, got %#v", targetPath, guestFile)
+	}
+}
+
 // capability_id: rainbond.vm-volume-selected-storage-class
 func TestNewVolumeManagerUsesSelectedStorageClassForVMDisks(t *testing.T) {
 	as := newVMAppServiceForVolumeTest()

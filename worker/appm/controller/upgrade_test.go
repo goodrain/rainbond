@@ -9,8 +9,10 @@ import (
 
 	appmtypes "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -183,6 +185,216 @@ func TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider(t *testing.
 	}
 	if unchanged.Data["application.yaml"] != "owner=provider\n" {
 		t.Fatalf("expected consumer upgrade not to update provider configmap, got %#v", unchanged.Data)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-source-key
+func TestUpgradeConfigMapMigratesOnlyLegacyDependentSourceKey(t *testing.T) {
+	tests := []struct {
+		name                 string
+		existingScope        string
+		wantSourceValue      string
+		wantSourceKeyPresent bool
+	}{
+		{
+			name:                 "legacy dependent key is retained and aliased",
+			existingScope:        appmtypes.ConfigFileScopeDependent,
+			wantSourceValue:      "existing-rendered-content\n",
+			wantSourceKeyPresent: true,
+		},
+		{
+			name:                 "provider owned configmap is not changed by consumer",
+			existingScope:        appmtypes.ConfigFileScopeOwned,
+			wantSourceKeyPresent: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			existing := configMapForTest("vm-cfg-provider")
+			existing.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+			existing.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: tt.existingScope}
+			existing.Data = map[string]string{"test1.conf": "existing-rendered-content\n"}
+			desired := configMapForTest(existing.Name)
+			desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+			desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+			desired.Data = map[string]string{"nginx.conf": "consumer-rendered-content\n"}
+
+			client := k8sfake.NewSimpleClientset(namespace, existing.DeepCopy())
+			nowApp := newAppWithConfigMaps(namespace)
+			nowApp.ServiceID = "consumer-service"
+			newApp := newAppWithConfigMaps(namespace, desired)
+			newApp.ServiceID = "consumer-service"
+			controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+			if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+				t.Fatalf("migrate dependent configmap: %v", err)
+			}
+			updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("get dependent configmap: %v", err)
+			}
+			if updated.Data["test1.conf"] != "existing-rendered-content\n" {
+				t.Fatalf("expected legacy key content to remain unchanged, got %#v", updated.Data)
+			}
+			sourceValue, sourceKeyPresent := updated.Data["nginx.conf"]
+			if sourceKeyPresent != tt.wantSourceKeyPresent || sourceValue != tt.wantSourceValue {
+				t.Fatalf("expected source key present=%v value=%q, got data=%#v",
+					tt.wantSourceKeyPresent, tt.wantSourceValue, updated.Data)
+			}
+			if sourceValue == desired.Data["nginx.conf"] {
+				t.Fatalf("expected consumer-rendered content not to overwrite provider configmap, got %#v", updated.Data)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-source-key
+func TestUpgradeConfigMapMigratesOnlyKnownLegacyConsumerConfigMap(t *testing.T) {
+	tests := []struct {
+		name                 string
+		creator              string
+		existingServiceID    string
+		knownByCurrentApp    bool
+		wantSourceKeyPresent bool
+	}{
+		{
+			name:                 "pre annotation consumer configmap",
+			creator:              "Rainbond",
+			existingServiceID:    "consumer-service",
+			knownByCurrentApp:    true,
+			wantSourceKeyPresent: true,
+		},
+		{
+			name:              "provider owned configmap without annotation",
+			creator:           "Rainbond",
+			existingServiceID: "provider-service",
+			knownByCurrentApp: true,
+		},
+		{
+			name:              "foreign configmap with consumer label",
+			creator:           "external",
+			existingServiceID: "consumer-service",
+			knownByCurrentApp: true,
+		},
+		{
+			name:              "untracked configmap with consumer label",
+			creator:           "Rainbond",
+			existingServiceID: "consumer-service",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			existing := configMapForTest("vm-cfg-0123456789abcdef")
+			existing.Labels = map[string]string{"creator": tt.creator, "service_id": tt.existingServiceID}
+			existing.Annotations = nil
+			existing.Data = map[string]string{"test1.conf": "legacy-existing-content\n"}
+			desired := configMapForTest(existing.Name)
+			desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+			desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+			desired.Data = map[string]string{"nginx.conf": "consumer-rendered-content\n"}
+
+			client := k8sfake.NewSimpleClientset(namespace, existing.DeepCopy())
+			nowApp := newAppWithConfigMaps(namespace)
+			nowApp.ServiceID = "consumer-service"
+			if tt.knownByCurrentApp {
+				nowApp.SetConfigMap(existing.DeepCopy())
+			}
+			newApp := newAppWithConfigMaps(namespace, desired)
+			newApp.ServiceID = "consumer-service"
+			controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+			if err := controller.upgradeConfigMap(nowApp, *newApp); err != nil {
+				t.Fatalf("reconcile legacy configmap: %v", err)
+			}
+			updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("get legacy configmap: %v", err)
+			}
+			if updated.Data["test1.conf"] != "legacy-existing-content\n" {
+				t.Fatalf("expected legacy content to remain unchanged, got %#v", updated.Data)
+			}
+			sourceValue, sourceKeyPresent := updated.Data["nginx.conf"]
+			if sourceKeyPresent != tt.wantSourceKeyPresent {
+				t.Fatalf("expected source key present=%v, got %#v", tt.wantSourceKeyPresent, updated.Data)
+			}
+			if sourceKeyPresent && sourceValue != "legacy-existing-content\n" {
+				t.Fatalf("expected source key to alias existing content, got %#v", updated.Data)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-source-key
+func TestUpgradeConfigMapRetriesDependentMigrationConflict(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existing := configMapForTest("vm-cfg-provider")
+	existing.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	existing.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	existing.Data = map[string]string{"test1.conf": "existing-rendered-content\n"}
+	desired := configMapForTest(existing.Name)
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	desired.Data = map[string]string{"nginx.conf": "consumer-rendered-content\n"}
+
+	client := k8sfake.NewSimpleClientset(namespace, existing.DeepCopy())
+	updateAttempts := 0
+	client.PrependReactor("update", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		updateAttempts++
+		if updateAttempts == 1 {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Resource: "configmaps"},
+				existing.Name,
+				errors.New("concurrent migration"),
+			)
+		}
+		return false, nil, nil
+	})
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(newAppWithConfigMaps(namespace), *newAppWithConfigMaps(namespace, desired)); err != nil {
+		t.Fatalf("migrate dependent configmap after conflict: %v", err)
+	}
+	if updateAttempts != 2 {
+		t.Fatalf("expected two migration update attempts, got %d", updateAttempts)
+	}
+	updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get migrated configmap: %v", err)
+	}
+	if updated.Data["nginx.conf"] != "existing-rendered-content\n" {
+		t.Fatalf("expected retried migration to preserve existing content, got %#v", updated.Data)
+	}
+}
+
+// capability_id: rainbond.config-file.dependent-source-key
+func TestUpgradeConfigMapHandlesDependentCreateRace(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	desired := configMapForTest("vm-cfg-provider")
+	desired.Labels = map[string]string{"creator": "Rainbond", "service_id": "provider-service"}
+	desired.Annotations = map[string]string{appmtypes.ConfigFileScopeAnnotation: appmtypes.ConfigFileScopeDependent}
+	desired.Data = map[string]string{"nginx.conf": "provider-content\n"}
+
+	client := k8sfake.NewSimpleClientset(namespace)
+	createAttempts := 0
+	client.PrependReactor("create", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		createAttempts++
+		if createAttempts == 1 {
+			if err := client.Tracker().Add(desired.DeepCopy()); err != nil {
+				t.Fatalf("add concurrently created configmap: %v", err)
+			}
+			return true, nil, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "configmaps"}, desired.Name)
+		}
+		return false, nil, nil
+	})
+	controller := &upgradeController{manager: &Manager{client: client}, ctx: context.Background()}
+	if err := controller.upgradeConfigMap(newAppWithConfigMaps(namespace), *newAppWithConfigMaps(namespace, desired)); err != nil {
+		t.Fatalf("ensure dependency configmap after create race: %v", err)
+	}
+	if createAttempts != 1 {
+		t.Fatalf("expected one create attempt before observing concurrent result, got %d", createAttempts)
+	}
+	created, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), desired.Name, metav1.GetOptions{})
+	if err != nil || created.Data["nginx.conf"] != "provider-content\n" {
+		t.Fatalf("expected concurrently created provider configmap, got configmap=%#v err=%v", created, err)
 	}
 }
 

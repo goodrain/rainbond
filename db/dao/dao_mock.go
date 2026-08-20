@@ -2761,16 +2761,16 @@ func (mr *MockTenantServiceMountRelationDaoMockRecorder) GetTenantServiceMountRe
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceMountRelationsByDepServiceAndVolumeName", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).GetTenantServiceMountRelationsByDepServiceAndVolumeName), serviceID, volumeName)
 }
 
-// DElTenantServiceMountRelationByServiceAndName mocks base method
-func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error {
-	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByServiceAndName", serviceID, mntDir)
+// DeleteTenantServiceMountRelation mocks base method
+func (m *MockTenantServiceMountRelationDao) DeleteTenantServiceMountRelation(serviceID, dependServiceID, volumeName string) error {
+	ret := m.ctrl.Call(m, "DeleteTenantServiceMountRelation", serviceID, dependServiceID, volumeName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DElTenantServiceMountRelationByServiceAndName indicates an expected call of DElTenantServiceMountRelationByServiceAndName
-func (mr *MockTenantServiceMountRelationDaoMockRecorder) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DElTenantServiceMountRelationByServiceAndName", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DElTenantServiceMountRelationByServiceAndName), serviceID, mntDir)
+// DeleteTenantServiceMountRelation indicates an expected call of DeleteTenantServiceMountRelation
+func (mr *MockTenantServiceMountRelationDaoMockRecorder) DeleteTenantServiceMountRelation(serviceID, dependServiceID, volumeName interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTenantServiceMountRelation", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DeleteTenantServiceMountRelation), serviceID, dependServiceID, volumeName)
 }
 
 // DELTenantServiceMountRelationByServiceID mocks base method

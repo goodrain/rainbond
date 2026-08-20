@@ -1288,16 +1288,15 @@ func (t *TenantServiceMountRelationDaoImpl) UpdateModel(mo model.Interface) erro
 	return nil
 }
 
-// DElTenantServiceMountRelationByServiceAndName DElTenantServiceMountRelationByServiceAndName
-func (t *TenantServiceMountRelationDaoImpl) DElTenantServiceMountRelationByServiceAndName(serviceID, name string) error {
+// DeleteTenantServiceMountRelation deletes one exact provider volume relation.
+func (t *TenantServiceMountRelationDaoImpl) DeleteTenantServiceMountRelation(serviceID, dependServiceID, volumeName string) error {
 	var relation model.TenantServiceMountRelation
-	if err := t.DB.Where("service_id=? and volume_name=? ", serviceID, name).Find(&relation).Error; err != nil {
+	query := t.DB.Where("service_id=? and dep_service_id=? and volume_name=?", serviceID, dependServiceID, volumeName)
+	if err := query.Find(&relation).Error; err != nil {
 		return err
 	}
-	if err := t.DB.Where("service_id=? and volume_name=? ", serviceID, name).Delete(&relation).Error; err != nil {
-		return err
-	}
-	return nil
+	return t.DB.Where("service_id=? and dep_service_id=? and volume_name=?", serviceID, dependServiceID, volumeName).
+		Delete(&relation).Error
 }
 
 // DElTenantServiceMountRelationByDepService del mount relation

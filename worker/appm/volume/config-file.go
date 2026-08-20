@@ -167,7 +167,8 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 		},
 		Data: make(map[string]string),
 	}
-	cmap.Data[path.Base(v.smr.VolumePath)] = util.ParseVariable(cf.FileContent, configs)
+	providerFileName := path.Base(depVol.VolumePath)
+	cmap.Data[providerFileName] = util.ParseVariable(cf.FileContent, configs)
 	v.as.SetConfigMap(cmap)
 	if v.as.GetVirtualMachine() != nil {
 		volumeLabel := stableVMConfigVolumeLabel(v.smr.DependServiceID, v.smr.VolumeName)
@@ -191,14 +192,14 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 		define.AddVMGuestFile(VMGuestFile{
 			VolumeName:  cmap.Name,
 			VolumeLabel: volumeLabel,
-			SourceFile:  path.Base(v.smr.VolumePath),
+			SourceFile:  providerFileName,
 			TargetPath:  v.smr.VolumePath,
 			Mode:        formatVMGuestFileMode(depVol.Mode),
 		})
 		return nil
 	}
 
-	define.SetVolumeCMap(cmap, path.Base(v.smr.VolumePath), v.smr.VolumePath, false, depVol.Mode)
+	define.SetVolumeCMap(cmap, providerFileName, v.smr.VolumePath, false, depVol.Mode)
 	return nil
 }
 
