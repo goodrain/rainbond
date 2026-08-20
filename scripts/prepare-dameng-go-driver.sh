@@ -129,9 +129,10 @@ fi
 awk '
   BEGIN {
     replacement = "func (s dm) HasTable(tableName string) bool {\n" \
-      "\tconst query = \042SELECT COUNT(*) FROM %s WHERE 1 = 0\042\n\n" \
+      "\tcurrentDatabase, tableName := s.currentDatabaseAndTable(tableName)\n" \
+      "\tconst query = \042SELECT COUNT(*) FROM %s.%s WHERE 1 = 0\042\n\n" \
       "\tvar count int\n" \
-      "\treturn s.db.QueryRow(fmt.Sprintf(query, s.Quote(tableName))).Scan(&count) == nil\n" \
+      "\treturn s.db.QueryRow(fmt.Sprintf(query, s.Quote(currentDatabase), s.Quote(tableName))).Scan(&count) == nil\n" \
       "}"
   }
   $0 == "func (s dm) HasTable(tableName string) bool {" {
@@ -161,7 +162,7 @@ awk '
   }
 ' "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
 mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
-if ! grep -q "SELECT COUNT(\*) FROM %s WHERE 1 = 0" "$staging_dialect_dir/dialect_dm.go"; then
+if ! grep -q "SELECT COUNT(\*) FROM %s.%s WHERE 1 = 0" "$staging_dialect_dir/dialect_dm.go"; then
 	echo "Dameng GORM v1 dialect HasTable compatibility patch was not applied" >&2
 	exit 1
 fi
