@@ -185,6 +185,7 @@ func TestPrepareDamengGoDriverSeparatesDialectModule(t *testing.T) {
 
 import (
 	"fmt"
+	"strings"
 	_ "dm"
 )
 
@@ -292,6 +293,8 @@ func dataTypeOf(sqlType string) string {
 	for _, expected := range []string{
 		"func (s dm) HasTable(tableName string) bool",
 		"currentDatabase, tableName := s.currentDatabaseAndTable(tableName)",
+		`currentDatabase = strings.Trim(currentDatabase, "\"")`,
+		`tableName = strings.Trim(tableName, "\"")`,
 		"SELECT COUNT(*) FROM %s.%s WHERE 1 = 0",
 		"s.Quote(currentDatabase)",
 		"return s.db.QueryRow(fmt.Sprintf(query, s.Quote(currentDatabase), s.Quote(tableName))).Scan(&count) == nil",
