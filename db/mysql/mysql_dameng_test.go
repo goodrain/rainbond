@@ -3,8 +3,10 @@ package mysql
 import (
 	"errors"
 	"path/filepath"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
@@ -57,6 +59,42 @@ func TestVerifyDamengSchemaReportsTheMissingModelTable(t *testing.T) {
 	}
 	if err := manager.VerifySchema(); err != nil {
 		t.Fatalf("verify complete schema: %v", err)
+	}
+}
+
+// capability_id: rainbond.database.dameng-schema-lifecycle
+func TestDamengTableCheckUsesExplicitSchemaCatalog(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create SQL mock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	db, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm database: %v", err)
+	}
+	defer db.Close()
+	db.LogMode(false)
+
+	manager := &Manager{
+		db:           db,
+		config:       config.Config{DBType: "dm"},
+		damengSchema: "REGION",
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(damengTableCatalogQuery)).
+		WithArgs("REGION", "tenants").
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(*)"}).AddRow(1))
+
+	exists, err := manager.hasTable(&model.Tenants{})
+	if err != nil {
+		t.Fatalf("check Dameng table: %v", err)
+	}
+	if !exists {
+		t.Fatal("expected the REGION.tenants catalog entry to be found")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("database expectations: %v", err)
 	}
 }
 

@@ -107,19 +107,28 @@ find "$staging_driver_dir" -type f -name '*.go' -exec sh -c '
 	LC_ALL=C sed "s#\"dm/#\"github.com/goodrain/dameng-driver/#g" "$file" > "$file.new"
 	mv "$file.new" "$file"
 ' sh {} \;
-LC_ALL=C sed "s#\"dm\"#\"${driver_module_path}\"#" "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
+# The dialect uses "dm" both as the SQL driver/GORM dialect name and as its
+# Go import path.  Only rewrite the import: changing RegisterDialect("dm", …)
+# makes gorm.Open("dm", …) fall back to its unsupported common dialect.
+LC_ALL=C sed "s#_ \"dm\"#_ \"${driver_module_path}\"#" "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
 mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
+if ! grep -q 'gorm.RegisterDialect("dm", &dm{})' "$staging_dialect_dir/dialect_dm.go"; then
+	echo "Dameng GORM v1 dialect must retain the dm registration name" >&2
+	exit 1
+fi
 awk '
   { print }
   /panic\(fmt\.Sprintf\("invalid sql type/ { inject = 1; next }
   inject && /^[[:space:]]*}$/ {
     print ""
     print "\tsqlType = normalizeDamengDataType(sqlType)"
+	print "\tadditionalType = normalizeDamengAdditionalType(sqlType, additionalType)"
     inject = 0
   }
 ' "$staging_dialect_dir/dialect_dm.go" > "$staging_dialect_dir/dialect_dm.go.new"
 mv "$staging_dialect_dir/dialect_dm.go.new" "$staging_dialect_dir/dialect_dm.go"
-if ! grep -q 'sqlType = normalizeDamengDataType(sqlType)' "$staging_dialect_dir/dialect_dm.go"; then
+if ! grep -q 'sqlType = normalizeDamengDataType(sqlType)' "$staging_dialect_dir/dialect_dm.go" || \
+	! grep -q 'additionalType = normalizeDamengAdditionalType(sqlType, additionalType)' "$staging_dialect_dir/dialect_dm.go"; then
 	echo "Dameng GORM v1 dialect has an unsupported DataTypeOf implementation" >&2
 	exit 1
 fi

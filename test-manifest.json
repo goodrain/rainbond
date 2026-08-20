@@ -1938,6 +1938,7 @@
       "interface_type": "workflow",
       "interface": "db/mysql.Manager schema lifecycle",
       "code_paths": [
+        "db/dameng/dsn.go",
         "db/mysql/mysql.go",
         "db/config/config.go",
         "config/configs/db_config.go",
@@ -1952,6 +1953,14 @@
         {
           "path": "db/mysql/mysql_dameng_test.go",
           "selector": "TestVerifyDamengSchemaReportsTheMissingModelTable"
+        },
+        {
+          "path": "db/mysql/mysql_dameng_test.go",
+          "selector": "TestDamengTableCheckUsesExplicitSchemaCatalog"
+        },
+        {
+          "path": "db/dameng/dsn_test.go",
+          "selector": "TestSchemaName"
         },
         {
           "path": "config/configs/db_config_test.go",

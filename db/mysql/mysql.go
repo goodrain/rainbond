@@ -47,11 +47,12 @@ import (
 
 // Manager db manager
 type Manager struct {
-	db      *gorm.DB
-	config  config.Config
-	initOne sync.Once
-	initErr error
-	models  []model.Interface
+	db           *gorm.DB
+	config       config.Config
+	damengSchema string
+	initOne      sync.Once
+	initErr      error
+	models       []model.Interface
 }
 
 type schemaAction string
@@ -69,6 +70,7 @@ type cnbSeedVersion struct {
 // CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
+	var damengSchema string
 	if config.DBType == "mysql" {
 		logrus.Info("mysql db driver create")
 		var err error
@@ -98,6 +100,10 @@ func CreateManager(config config.Config) (*Manager, error) {
 	}
 	if config.DBType == "dm" {
 		connectionInfo, err := dameng.NormalizeDSN(config.MysqlConnectionInfo)
+		if err != nil {
+			return nil, errors.New("invalid Dameng connection information")
+		}
+		damengSchema, err = dameng.SchemaName(connectionInfo)
 		if err != nil {
 			return nil, errors.New("invalid Dameng connection information")
 		}
@@ -148,9 +154,10 @@ func CreateManager(config config.Config) (*Manager, error) {
 	}
 	logrus.Info("db init success")
 	manager := &Manager{
-		db:      db,
-		config:  config,
-		initOne: sync.Once{},
+		db:           db,
+		config:       config,
+		damengSchema: damengSchema,
+		initOne:      sync.Once{},
 	}
 
 	db.SetLogger(manager)
@@ -290,7 +297,11 @@ func (m *Manager) schemaAction() schemaAction {
 // VerifySchema checks that all registered tables exist without changing the schema.
 func (m *Manager) VerifySchema() error {
 	for _, md := range m.models {
-		if !m.db.HasTable(md) {
+		exists, err := m.hasTable(md)
+		if err != nil {
+			return fmt.Errorf("check required database table %q: %w", md.TableName(), err)
+		}
+		if !exists {
 			return fmt.Errorf("required database table %q is missing", md.TableName())
 		}
 	}
@@ -330,7 +341,11 @@ func (m *Manager) CheckTable() error {
 
 func (m *Manager) checkDamengTables() error {
 	for _, md := range m.models {
-		if m.db.HasTable(md) {
+		exists, err := m.hasTable(md)
+		if err != nil {
+			return fmt.Errorf("check Dameng table %q: %w", md.TableName(), err)
+		}
+		if exists {
 			continue
 		}
 		if err := m.db.CreateTable(md).Error; err != nil {
@@ -339,6 +354,29 @@ func (m *Manager) checkDamengTables() error {
 		logrus.Infof("auto create table %s to Dameng success", md.TableName())
 	}
 	return m.patchTable()
+}
+
+const damengTableCatalogQuery = `SELECT COUNT(*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES
+WHERE SCHEMAS.ID = TABLES.SCHID
+  AND SCHEMAS.TYPE$ = 'SCH'
+  AND SCHEMAS.NAME = ?
+  AND TABLES.TYPE$ = 'SCHOBJ'
+  AND TABLES.SUBTYPE$ = 'UTAB'
+  AND TABLES.NAME = ?`
+
+// hasTable bypasses the official GORM v1 Dameng dialect's HasTable method.
+// That method applies a privilege predicate which can misreport an existing
+// table in an explicitly selected schema, leading to duplicate CREATE TABLE.
+func (m *Manager) hasTable(md model.Interface) (bool, error) {
+	if m.config.DBType != "dm" || m.damengSchema == "" {
+		return m.db.HasTable(md), nil
+	}
+
+	var count int
+	if err := m.db.Raw(damengTableCatalogQuery, m.damengSchema, md.TableName()).Row().Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (m *Manager) patchTable() error {

@@ -19,6 +19,25 @@ func NormalizeDSN(connectionInfo string) (string, error) {
 	return normalizeLegacyDSN(connectionInfo)
 }
 
+// SchemaName returns the explicit schema selected by a Rainbond Dameng DSN.
+// Rainbond uses separate schemas for Region and Console, so falling back to a
+// database user's default schema can silently verify or migrate the wrong one.
+func SchemaName(connectionInfo string) (string, error) {
+	normalized, err := NormalizeDSN(connectionInfo)
+	if err != nil {
+		return "", err
+	}
+	parsed, err := url.Parse(normalized)
+	if err != nil {
+		return "", errInvalidDSN
+	}
+	schema := parsed.Query().Get("schema")
+	if !validSchema(schema) {
+		return "", errInvalidDSN
+	}
+	return strings.ToUpper(schema), nil
+}
+
 func normalizeNativeDSN(connectionInfo string) (string, error) {
 	parsed, err := url.Parse(connectionInfo)
 	if err != nil || !strings.EqualFold(parsed.Scheme, "dm") || !validHostPort(parsed.Host) {

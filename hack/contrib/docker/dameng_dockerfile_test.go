@@ -189,6 +189,8 @@ import (
 	_ "dm"
 )
 
+// gorm.RegisterDialect("dm", &dm{})
+
 type row struct{}
 
 func (row) Scan(...interface{}) error { return nil }
@@ -219,6 +221,7 @@ func (s dm) HasTable(tableName string) bool {
 }
 
 func dataTypeOf(sqlType string) string {
+	additionalType := ""
 	if sqlType == "" {
 		panic(fmt.Sprintf("invalid sql type"))
 	}
@@ -291,6 +294,7 @@ func dataTypeOf(sqlType string) string {
 		t.Fatalf("read prepared Dameng GORM dialect: %v", err)
 	}
 	for _, expected := range []string{
+		`gorm.RegisterDialect("dm", &dm{})`,
 		"func (s dm) HasTable(tableName string) bool",
 		"currentDatabase, tableName := s.currentDatabaseAndTable(tableName)",
 		`currentDatabase = strings.Trim(currentDatabase, "\"")`,
@@ -302,6 +306,9 @@ func dataTypeOf(sqlType string) string {
 		if !strings.Contains(string(preparedDialect), expected) {
 			t.Fatalf("prepared Dameng GORM dialect must use the compatible HasTable query %q", expected)
 		}
+	}
+	if strings.Contains(string(preparedDialect), `gorm.RegisterDialect("github.com/goodrain/dameng-driver", &dm{})`) {
+		t.Fatal("prepared Dameng dialect must retain the dm GORM registration name")
 	}
 	// Compile the generated dialect against the same GORM v1 source used by
 	// Rainbond. The test creates a tiny local dependency graph so it does not
@@ -335,6 +342,12 @@ func TestRainbondCompatibilityTypes(t *testing.T) {
 		if actual := normalizeDamengDataType(input); actual != expected {
 			t.Fatalf("normalize %s: got %s, want %s", input, actual, expected)
 		}
+	}
+	if actual := normalizeDamengAdditionalType("BIT", "DEFAULT false"); actual != "DEFAULT 0" {
+		t.Fatalf("normalize BIT false default: got %s", actual)
+	}
+	if actual := normalizeDamengAdditionalType("BIT", "DEFAULT true"); actual != "DEFAULT 1" {
+		t.Fatalf("normalize BIT true default: got %s", actual)
 	}
 }
 

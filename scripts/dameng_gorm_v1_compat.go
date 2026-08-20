@@ -8,6 +8,7 @@ import (
 )
 
 var damengDecimalTypePattern = regexp.MustCompile(`(?i)^(decimal|numeric)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)$`)
+var damengBooleanDefaultPattern = regexp.MustCompile(`(?i)\bdefault\s+(true|false)\b`)
 
 // normalizeDamengDataType converts MySQL-specific GORM v1 type tags into
 // types accepted by Dameng before AutoMigrate emits CREATE TABLE statements.
@@ -23,6 +24,20 @@ func normalizeDamengDataType(sqlType string) string {
 	}
 
 	return normalizeDamengDecimalPrecision(trimmedType)
+}
+
+// normalizeDamengAdditionalType translates GORM's Go boolean literals to the
+// numeric defaults accepted by a Dameng BIT column.
+func normalizeDamengAdditionalType(sqlType, additionalType string) string {
+	if !strings.EqualFold(strings.TrimSpace(sqlType), "BIT") {
+		return additionalType
+	}
+	return damengBooleanDefaultPattern.ReplaceAllStringFunc(additionalType, func(match string) string {
+		if strings.HasSuffix(strings.ToLower(match), "true") {
+			return "DEFAULT 1"
+		}
+		return "DEFAULT 0"
+	})
 }
 
 func normalizeDamengDecimalPrecision(sqlType string) string {

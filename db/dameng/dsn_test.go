@@ -82,3 +82,22 @@ func TestNormalizeDSN(t *testing.T) {
 		}
 	})
 }
+
+// capability_id: rainbond.database.dameng-schema-lifecycle
+func TestSchemaName(t *testing.T) {
+	t.Run("reads normalized legacy schema", func(t *testing.T) {
+		schema, err := SchemaName("app-user:app-password@tcp(db.example.internal:5236)/region")
+		if err != nil {
+			t.Fatalf("read schema: %v", err)
+		}
+		if schema != "REGION" {
+			t.Fatalf("schema = %q, want REGION", schema)
+		}
+	})
+
+	t.Run("rejects an unqualified native DSN", func(t *testing.T) {
+		if _, err := SchemaName("dm://app-user:app-password@db.example.internal:5236"); err == nil {
+			t.Fatal("expected a schema-less Dameng DSN to be rejected")
+		}
+	})
+}
