@@ -468,6 +468,32 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-upgrade.cross-app-config-mount",
+      "title": "Preserve cross-application config-file mounts during upgrade",
+      "title_zh": "Preserve cross-application config-file mounts during upgrade",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.SyncComponentVolumeRels",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_sync_volume_relations_test.go",
+          "selector": "TestSyncComponentVolumeRelsPreservesCrossApplicationConfigFileMount"
+        },
+        {
+          "path": "api/handler/service_sync_volume_relations_test.go",
+          "selector": "TestSyncComponentVolumeRelsRejectsInvalidExternalProviders"
+        },
+        {
+          "path": "api/handler/service_sync_volume_relations_test.go",
+          "selector": "TestSyncComponentVolumeRelsReturnsExternalProviderLookupError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.application.check-port-k8s-service-name-duplicate",
       "title": "Reject duplicate Kubernetes service names across app ports",
       "title_zh": "\u6821\u9a8c\u5e94\u7528\u7aef\u53e3 Kubernetes Service \u540d\u79f0\u91cd\u590d",

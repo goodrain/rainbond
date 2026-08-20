@@ -3697,11 +3697,45 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 	if err != nil {
 		return err
 	}
-	var appComponentIDs []string
+	volumeComponentIDs := make(map[string]struct{})
 	for _, ac := range appComponents {
-		appComponentIDs = append(appComponentIDs, ac.ServiceID)
+		volumeComponentIDs[ac.ServiceID] = struct{}{}
 	}
-	existVolume, err := s.getExistVolumes(appComponentIDs)
+	// A component can mount a shared volume owned by a component in another
+	// application. Resolve those providers first so only components belonging
+	// to the same tenant are included when existing volumes are queried.
+	externalProviderIDs := make(map[string]struct{})
+	for _, component := range components {
+		for _, volumeRelation := range component.VolumeRelations {
+			providerID := volumeRelation.DependServiceID
+			if providerID == "" {
+				continue
+			}
+			if _, ok := volumeComponentIDs[providerID]; !ok {
+				externalProviderIDs[providerID] = struct{}{}
+			}
+		}
+	}
+	if len(externalProviderIDs) > 0 {
+		providerIDs := make([]string, 0, len(externalProviderIDs))
+		for providerID := range externalProviderIDs {
+			providerIDs = append(providerIDs, providerID)
+		}
+		providers, err := db.GetManager().TenantServiceDao().GetServiceByIDs(providerIDs)
+		if err != nil {
+			return err
+		}
+		for _, provider := range providers {
+			if _, requested := externalProviderIDs[provider.ServiceID]; requested && provider.TenantID == app.TenantID {
+				volumeComponentIDs[provider.ServiceID] = struct{}{}
+			}
+		}
+	}
+	componentIDsForVolumes := make([]string, 0, len(volumeComponentIDs))
+	for componentID := range volumeComponentIDs {
+		componentIDsForVolumes = append(componentIDsForVolumes, componentID)
+	}
+	existVolume, err := s.getExistVolumes(componentIDsForVolumes)
 	if err != nil {
 		return err
 	}
