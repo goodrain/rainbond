@@ -273,6 +273,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-config-group.list-by-service-portable-boolean",
+      "title": "Bind config group enabled predicate as a portable boolean",
+      "title_zh": "Bind config group enabled predicate as a portable boolean",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.AppConfigGroupDaoImpl.ListByServiceID",
+      "code_paths": [
+        "db/mysql/dao/application_config_group.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/application_config_group_test.go",
+          "selector": "TestAppConfigGroupDaoListByServiceIDBindsEnable"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-config-group.unbind-components",
       "title": "Remove component bindings from app config group",
       "title_zh": "\u79fb\u9664\u5e94\u7528\u914d\u7f6e\u7ec4\u7ec4\u4ef6\u7ed1\u5b9a",

@@ -19,6 +19,7 @@
 | rainbond.app-config-group.item-create | 创建应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.AddModel | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoAddModel |
 | rainbond.app-config-group.item-delete | 删除应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.DeleteConfigGroupItem | db/mysql/dao/application_config_group_test.go::TestDeleteConfigGroupItem |
 | rainbond.app-config-group.item-update | 更新应用配置项 | active | regression | db/mysql/dao.AppConfigGroupItemDaoImpl.UpdateModel | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoUpdateModel |
+| rainbond.app-config-group.list-by-service-portable-boolean | Bind config group enabled predicate as a portable boolean | active | regression | db/mysql/dao.AppConfigGroupDaoImpl.ListByServiceID | db/mysql/dao/application_config_group_test.go::TestAppConfigGroupDaoListByServiceIDBindsEnable |
 | rainbond.app-config-group.unbind-components | 移除应用配置组组件绑定 | active | regression | db/mysql/dao.AppConfigGroupServiceDaoImpl.DeleteConfigGroupService | db/mysql/dao/application_config_group_test.go::TestDeleteConfigGroupService |
 | rainbond.app-import.package-name-normalize | 从 Linux 文件名还原导入镜像包名 | active | regression | builder/exector.buildFromLinuxFileName | builder/exector/import_app_test.go::TestBuildFromLinuxFileName |
 | rainbond.app-import.propagate-image-push-error | Return imported image push errors during app import | active | regression | builder/exector.ensureImportedImagesPushed | builder/exector/import_app_test.go::TestEnsureImportedImagesPushedReturnsPushError |
@@ -635,6 +636,16 @@
 - 业务入口: `db/mysql/dao.AppConfigGroupItemDaoImpl.UpdateModel`
 - 代码路径: `db/mysql/dao/application_config_group.go`
 - 测试路径: `db/mysql/dao/application_config_group_test.go::TestAppConfigGroupItemDaoUpdateModel`
+
+### Bind config group enabled predicate as a portable boolean
+
+- Capability ID: `rainbond.app-config-group.list-by-service-portable-boolean`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.AppConfigGroupDaoImpl.ListByServiceID`
+- 代码路径: `db/mysql/dao/application_config_group.go`
+- 测试路径: `db/mysql/dao/application_config_group_test.go::TestAppConfigGroupDaoListByServiceIDBindsEnable`
 
 ### 移除应用配置组组件绑定
 

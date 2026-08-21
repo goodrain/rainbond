@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -8,6 +9,38 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
+
+// capability_id: rainbond.app-config-group.list-by-service-portable-boolean
+func TestAppConfigGroupDaoListByServiceIDBindsEnable(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sql mock: %v", err)
+	}
+	defer db.Close()
+
+	gdb, err := gorm.Open("mysql", db)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	query := regexp.QuoteMeta("SELECT app_config_group.* FROM `app_config_group` left join app_config_group_service on app_config_group.app_id = app_config_group_service.app_id and app_config_group.config_group_name = app_config_group_service.config_group_name WHERE (app_config_group_service.service_id = ? and enable = ?)")
+	mock.ExpectQuery(query).
+		WithArgs("service-id", true).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	dao := &AppConfigGroupDaoImpl{DB: gdb}
+	groups, err := dao.ListByServiceID("service-id")
+	if err != nil {
+		t.Fatalf("list config groups: %v", err)
+	}
+	if len(groups) != 0 {
+		t.Fatalf("expected no config groups, got %d", len(groups))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // Test AppConfigGroup Dao
 // capability_id: rainbond.app-config-group.create
