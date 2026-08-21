@@ -1,12 +1,11 @@
 package dao
 
 import (
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // AppConfigGroupDaoImpl -
@@ -14,7 +13,7 @@ type AppConfigGroupDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel -
+// AddModel -
 func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ApplicationConfigGroup)
 	var oldApp model.ApplicationConfigGroup
@@ -27,7 +26,7 @@ func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 	return bcode.ErrApplicationConfigGroupExist
 }
 
-//UpdateModel -
+// UpdateModel -
 func (a *AppConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
 	updateReq := mo.(*model.ApplicationConfigGroup)
 	return a.DB.Model(&model.ApplicationConfigGroup{}).Where("app_id = ? AND config_group_name = ?", updateReq.AppID, updateReq.ConfigGroupName).Update("enable", updateReq.Enable).Error
@@ -68,45 +67,28 @@ func (a *AppConfigGroupDaoImpl) GetConfigGroupsByAppID(appID string, page, pageS
 	return oldApp, total, nil
 }
 
-//DeleteConfigGroup -
+// DeleteConfigGroup -
 func (a *AppConfigGroupDaoImpl) DeleteConfigGroup(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ApplicationConfigGroup{}).Error
 }
 
-//BatchDeleteConfigGroup -
+// BatchDeleteConfigGroup -
 func (a *AppConfigGroupDaoImpl) BatchDeleteConfigGroup(appID string, configGroupNames []string) error {
 	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ApplicationConfigGroup{}).Error
 }
 
-//DeleteByAppID -
+// DeleteByAppID -
 func (a *AppConfigGroupDaoImpl) DeleteByAppID(appID string) error {
 	return a.DB.Where("app_id = ?", appID).Delete(model.ApplicationConfigGroup{}).Error
 }
 
 // CreateOrUpdateConfigGroupsInBatch -
 func (a *AppConfigGroupDaoImpl) CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error {
-	dbType := a.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cgroup := range cgroups {
-			if ok := a.DB.Where("ID=? ", cgroup.ID).Find(&cgroup).RecordNotFound(); !ok {
-				if err := a.DB.Model(&cgroup).Where("ID = ?", cgroup.ID).Update(cgroup).Error; err != nil {
-					logrus.Error("batch Update or update cgroup error:", err)
-					return err
-				}
-			} else {
-				if err := a.DB.Create(&cgroup).Error; err != nil {
-					logrus.Error("batch create cgroup error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, cg := range cgroups {
 		objects = append(objects, *cg)
 	}
-	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(a.DB, objects, 2000, "app_id", "config_group_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update config groups in batch")
 	}
 	return nil
@@ -117,7 +99,7 @@ type AppConfigGroupServiceDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel -
+// AddModel -
 func (a *AppConfigGroupServiceDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ConfigGroupService)
 	var oldApp model.ConfigGroupService
@@ -130,7 +112,7 @@ func (a *AppConfigGroupServiceDaoImpl) AddModel(mo model.Interface) error {
 	return bcode.ErrConfigGroupServiceExist
 }
 
-//UpdateModel -
+// UpdateModel -
 func (a *AppConfigGroupServiceDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
@@ -144,22 +126,22 @@ func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configG
 	return oldApp, nil
 }
 
-//DeleteConfigGroupService -
+// DeleteConfigGroupService -
 func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupService{}).Error
 }
 
-//BatchDeleteConfigGroupService -
+// BatchDeleteConfigGroupService -
 func (a *AppConfigGroupServiceDaoImpl) BatchDeleteConfigGroupService(appID string, configGroupNames []string) error {
 	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ConfigGroupService{}).Error
 }
 
-//DeleteEffectiveServiceByServiceID -
+// DeleteEffectiveServiceByServiceID -
 func (a *AppConfigGroupServiceDaoImpl) DeleteEffectiveServiceByServiceID(serviceID string) error {
 	return a.DB.Where("service_id = ?", serviceID).Delete(model.ConfigGroupService{}).Error
 }
 
-//DeleteByComponentIDs -
+// DeleteByComponentIDs -
 func (a *AppConfigGroupServiceDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return a.DB.Where("service_id in (?)", componentIDs).Delete(model.ConfigGroupService{}).Error
 }
@@ -171,28 +153,11 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteByAppID(appID string) error {
 
 // CreateOrUpdateConfigGroupServicesInBatch -
 func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error {
-	dbType := a.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cgservice := range cgservices {
-			if ok := a.DB.Where("ID=? ", cgservice.ID).Find(&cgservice).RecordNotFound(); !ok {
-				if err := a.DB.Model(&cgservice).Where("ID = ?", cgservice.ID).Update(cgservice).Error; err != nil {
-					logrus.Error("batch Update or update cgservice error:", err)
-					return err
-				}
-			} else {
-				if err := a.DB.Create(&cgservice).Error; err != nil {
-					logrus.Error("batch create cgservice error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, cgs := range cgservices {
 		objects = append(objects, *cgs)
 	}
-	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(a.DB, objects, 2000, "app_id", "config_group_name", "service_id"); err != nil {
 		return pkgerr.Wrap(err, "create or update config group services in batch")
 	}
 	return nil
@@ -203,7 +168,7 @@ type AppConfigGroupItemDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel -
+// AddModel -
 func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ConfigGroupItem)
 	var oldApp model.ConfigGroupItem
@@ -216,7 +181,7 @@ func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
 	return bcode.ErrConfigItemExist
 }
 
-//UpdateModel -
+// UpdateModel -
 func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
 	updateReq := mo.(*model.ConfigGroupItem)
 	return a.DB.Model(&model.ConfigGroupItem{}).
@@ -243,45 +208,28 @@ func (a *AppConfigGroupItemDaoImpl) ListByServiceID(sid string) ([]*model.Config
 	return items, nil
 }
 
-//DeleteConfigGroupItem -
+// DeleteConfigGroupItem -
 func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupItem{}).Error
 }
 
-//BatchDeleteConfigGroupItem -
+// BatchDeleteConfigGroupItem -
 func (a *AppConfigGroupItemDaoImpl) BatchDeleteConfigGroupItem(appID string, configGroupNames []string) error {
 	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ConfigGroupItem{}).Error
 }
 
-//DeleteByAppID -
+// DeleteByAppID -
 func (a *AppConfigGroupItemDaoImpl) DeleteByAppID(appID string) error {
 	return a.DB.Where("app_id = ?", appID).Delete(model.ConfigGroupItem{}).Error
 }
 
 // CreateOrUpdateConfigGroupItemsInBatch -
 func (a *AppConfigGroupItemDaoImpl) CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error {
-	dbType := a.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cgitem := range cgitems {
-			if ok := a.DB.Where("ID=? ", cgitem.ID).Find(&cgitem).RecordNotFound(); !ok {
-				if err := a.DB.Model(&cgitem).Where("ID = ?", cgitem.ID).Update(cgitem).Error; err != nil {
-					logrus.Error("batch Update or update cgitem error:", err)
-					return err
-				}
-			} else {
-				if err := a.DB.Create(&cgitem).Error; err != nil {
-					logrus.Error("batch create cgitem error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, cgi := range cgitems {
 		objects = append(objects, *cgi)
 	}
-	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(a.DB, objects, 2000, "app_id", "config_group_name", "item_key"); err != nil {
 		return pkgerr.Wrap(err, "create or update config group items in batch")
 	}
 	return nil

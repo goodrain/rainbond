@@ -479,6 +479,10 @@
 | rainbond.worker.volume-provider.pvc-identifiers | 根据 PVC 名称解析 Pod 名与卷 ID | active | regression | worker/master/volumes/provider.getVolumeIDByPVCName | worker/master/volumes/provider/rainbondsslc_test.go::TestGetVolumeIDByPVCName |
 | rainbond.worker.volume-provider.select-node | 按可用内存选择存储节点 | active | integration | worker/master/volumes/provider.rainbondsslcProvisioner.selectNode | worker/master/volumes/provider/rainbondsslc_test.go::TestSelectNode |
 | rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType<br>db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode |
+| region.database.portable-bulk-upsert | 可移植批量写入边界 | active | regression | db/portable.BulkUpsert | db/portable/upsert_test.go::TestBulkUpsertUsesCallerTransactionAndDeclaredConflictColumns,TestBulkUpsertKeepsExistingMySQLFastPath,TestBulkUpsertTreatsUnchangedRowsAsExisting,TestBulkUpsertUsesCallerRollback |
+| region.database.portable-dao-upsert-identities | DAO 批量写入业务唯一键 | active | regression | db/mysql/dao batch upsert methods | db/mysql/dao/bulk_upsert_portability_test.go::TestPortableBatchUpsertsUseBusinessIdentity |
+| region.database.portable-model-types | 数据库模型使用可移植文本类型 | active | regression | db/model field type declarations | db/model/database_portability_test.go::TestModelTagsDoNotUseVendorSpecificTextTypes |
+| region.database.portable-pagination | 可移植运行时查询语法 | active | regression | db/mysql/dao runtime queries | db/mysql/dao/query_portability_test.go::TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination |
 
 ## 详情
 
@@ -5231,3 +5235,43 @@
 - 业务入口: `worker/util.TransStorageClass2RBDVolumeType`
 - 代码路径: `worker/util/volumetype.go`, `db/mysql/dao/volume_type.go`
 - 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`, `db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode`
+
+### 可移植批量写入边界
+
+- Capability ID: `region.database.portable-bulk-upsert`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `db/portable.BulkUpsert`
+- 代码路径: `db/portable/upsert.go`
+- 测试路径: `db/portable/upsert_test.go::TestBulkUpsertUsesCallerTransactionAndDeclaredConflictColumns,TestBulkUpsertKeepsExistingMySQLFastPath,TestBulkUpsertTreatsUnchangedRowsAsExisting,TestBulkUpsertUsesCallerRollback`
+
+### DAO 批量写入业务唯一键
+
+- Capability ID: `region.database.portable-dao-upsert-identities`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao batch upsert methods`
+- 代码路径: `db/mysql/dao/3rd_party.go`, `db/mysql/dao/application_config_group.go`, `db/mysql/dao/event.go`, `db/mysql/dao/gateway.go`, `db/mysql/dao/k8s.go`, `db/mysql/dao/k8s_resource.go`, `db/mysql/dao/monitor.go`, `db/mysql/dao/plugin.go`, `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/bulk_upsert_portability_test.go::TestPortableBatchUpsertsUseBusinessIdentity`
+
+### 数据库模型使用可移植文本类型
+
+- Capability ID: `region.database.portable-model-types`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `db/model field type declarations`
+- 代码路径: `db/model/application.go`, `db/model/component.go`, `db/model/gateway.go`, `db/model/key_value.go`, `db/model/plugin.go`, `db/model/tenant.go`, `db/model/volume_type.go`
+- 测试路径: `db/model/database_portability_test.go::TestModelTagsDoNotUseVendorSpecificTextTypes`
+
+### 可移植运行时查询语法
+
+- Capability ID: `region.database.portable-pagination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `other`
+- 业务入口: `db/mysql/dao runtime queries`
+- 代码路径: `db/mysql/dao/event.go`, `db/mysql/dao/tenants.go`
+- 测试路径: `db/mysql/dao/query_portability_test.go::TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination`

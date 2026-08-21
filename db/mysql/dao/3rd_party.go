@@ -20,15 +20,14 @@ package dao
 
 import (
 	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
-	pkgerr "github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 // EndpointDaoImpl implements EndpintDao
@@ -151,28 +150,11 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByComponentIDs(componentIDs []s
 
 // CreateOrUpdate3rdSvcDiscoveryCfgInBatch -
 func (t *ThirdPartySvcDiscoveryCfgDaoImpl) CreateOrUpdate3rdSvcDiscoveryCfgInBatch(cfgs []*model.ThirdPartySvcDiscoveryCfg) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cfg := range cfgs {
-			if ok := t.DB.Where("ID=? ", cfg.ID).Find(&cfg).RecordNotFound(); !ok {
-				if err := t.DB.Model(&cfg).Where("ID = ?", cfg.ID).Update(cfg).Error; err != nil {
-					logrus.Error("batch Update or update cfg error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&cfg).Error; err != nil {
-					logrus.Error("batch create cfg error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, cfg := range cfgs {
 		objects = append(objects, *cfg)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id"); err != nil {
 		return pkgerr.Wrap(err, "create or update third party svc discovery config in batch")
 	}
 	return nil

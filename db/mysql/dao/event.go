@@ -20,10 +20,9 @@ package dao
 
 import (
 	"context"
-	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -75,23 +74,12 @@ func abnormalEventStatuses(optType string) []string {
 
 // CreateEventsInBatch creates events in batch.
 func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
-	dbType := c.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, event := range events {
-			event := event
-			if err := c.DB.Create(&event).Error; err != nil {
-				logrus.Error("batch create or update events error:", err)
-				return err
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, event := range events {
 		event := event
 		objects = append(objects, *event)
 	}
-	if err := gormbulkups.BulkUpsert(c.DB, objects, 200); err != nil {
+	if err := portable.BulkUpsert(c.DB, objects, 200, "ID"); err != nil {
 		return errors.Wrap(err, "create events in batch")
 	}
 	return nil
@@ -130,22 +118,12 @@ func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEv
 
 // UpdateInBatch -
 func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
-	dbType := c.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, event := range events {
-			if err := c.DB.Model(&event).Where("ID = ?", event.ID).Update(event).Error; err != nil {
-				logrus.Error("batch Update or update events error:", err)
-				return err
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, event := range events {
 		event := event
 		objects = append(objects, *event)
 	}
-	if err := gormbulkups.BulkUpsert(c.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(c.DB, objects, 2000, "ID"); err != nil {
 		return errors.Wrap(err, "update events in batch")
 	}
 	return nil
@@ -231,34 +209,20 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 // GetEventsByTenantIDs get my teams all event by tenantIDs
 func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
 	var events []*model.EventAndBuild
-
-	// 使用原生 SQL 查询，并进行连接优化
-	query := `
-		SELECT
-			a.ID, a.create_time, a.tenant_id, a.target, a.target_id, a.user_name,
-			a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status,
-			a.message, a.reason, b.build_version, b.kind, b.delivered_type, b.delivered_path,
-			b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg,
-			b.code_commit_author, b.plan_version
-		FROM
-			tenant_services_event AS a
-		LEFT JOIN
-			tenant_service_version AS b
-		ON
-			a.target_id = b.service_id AND a.event_id = b.event_id
-		WHERE
-			a.target = 'service'
-		AND a.tenant_id IN (?)
-		ORDER BY
-			a.ID DESC
-		%s;
-	`
-	query = fmt.Sprintf(query, paginationSQL(c.DB.Dialect().GetName()))
-	args := []interface{}{tenantIDs, offset, limit}
-	if c.DB.Dialect().GetName() == "dm" {
-		args = []interface{}{tenantIDs, limit, offset}
-	}
-	if err := c.DB.Raw(query, args...).Scan(&events).Error; err != nil {
+	columns := `a.ID, a.create_time, a.tenant_id, a.target, a.target_id, a.user_name,
+		a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status,
+		a.message, a.reason, b.build_version, b.kind, b.delivered_type, b.delivered_path,
+		b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg,
+		b.code_commit_author, b.plan_version`
+	if err := c.DB.Table("tenant_services_event AS a").
+		Select(columns).
+		Joins("LEFT JOIN tenant_service_version AS b ON a.target_id = b.service_id AND a.event_id = b.event_id").
+		Where("a.target = ?", "service").
+		Where("a.tenant_id IN (?)", tenantIDs).
+		Order("a.ID DESC").
+		Offset(offset).
+		Limit(limit).
+		Scan(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil

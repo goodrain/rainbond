@@ -1,20 +1,19 @@
 package dao
 
 import (
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-//TenantServiceMonitorDaoImpl -
+// TenantServiceMonitorDaoImpl -
 type TenantServiceMonitorDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel create service monitor
+// AddModel create service monitor
 func (t *TenantServiceMonitorDaoImpl) AddModel(mo model.Interface) error {
 	m := mo.(*model.TenantServiceMonitor)
 	var oldTSM model.TenantServiceMonitor
@@ -28,7 +27,7 @@ func (t *TenantServiceMonitorDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel update service monitor
+// UpdateModel update service monitor
 func (t *TenantServiceMonitorDaoImpl) UpdateModel(mo model.Interface) error {
 	tsm := mo.(*model.TenantServiceMonitor)
 	if err := t.DB.Save(tsm).Error; err != nil {
@@ -37,7 +36,7 @@ func (t *TenantServiceMonitorDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//DeleteServiceMonitor delete service monitor
+// DeleteServiceMonitor delete service monitor
 func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitor(mo *model.TenantServiceMonitor) error {
 	if err := t.DB.Delete(mo).Error; err != nil {
 		return err
@@ -45,7 +44,7 @@ func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitor(mo *model.TenantServi
 	return nil
 }
 
-//DeleteServiceMonitorByServiceID delete service monitor by service id
+// DeleteServiceMonitorByServiceID delete service monitor by service id
 func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitorByServiceID(serviceID string) error {
 	if err := t.DB.Where("service_id=?", serviceID).Delete(&model.TenantServiceMonitor{}).Error; err != nil {
 		return err
@@ -53,41 +52,24 @@ func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitorByServiceID(serviceID 
 	return nil
 }
 
-//DeleteByComponentIDs delete service monitor by component ids
+// DeleteByComponentIDs delete service monitor by component ids
 func (t *TenantServiceMonitorDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceMonitor{}).Error
 }
 
-//CreateOrUpdateMonitorInBatch -
+// CreateOrUpdateMonitorInBatch -
 func (t *TenantServiceMonitorDaoImpl) CreateOrUpdateMonitorInBatch(monitors []*model.TenantServiceMonitor) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, monitor := range monitors {
-			if ok := t.DB.Where("ID=?", monitor.ID).Find(&monitor).RecordNotFound(); !ok {
-				if err := t.DB.Model(&monitor).Where("ID = ?", monitor.ID).Update(monitor).Error; err != nil {
-					logrus.Error("batch Update or update monitor error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&monitor).Error; err != nil {
-					logrus.Error("batch create monitor error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, monitor := range monitors {
 		objects = append(objects, *monitor)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "tenant_id", "name"); err != nil {
 		return pkgerr.Wrap(err, "create or update component monitors in batch")
 	}
 	return nil
 }
 
-//GetByServiceID get tsm by service id
+// GetByServiceID get tsm by service id
 func (t *TenantServiceMonitorDaoImpl) GetByServiceID(serviceID string) ([]*model.TenantServiceMonitor, error) {
 	var tsm []*model.TenantServiceMonitor
 	if err := t.DB.Where("service_id=?", serviceID).Find(&tsm).Error; err != nil {
@@ -96,7 +78,7 @@ func (t *TenantServiceMonitorDaoImpl) GetByServiceID(serviceID string) ([]*model
 	return tsm, nil
 }
 
-//GetByName get by name
+// GetByName get by name
 func (t *TenantServiceMonitorDaoImpl) GetByName(serviceID, name string) (*model.TenantServiceMonitor, error) {
 	var tsm model.TenantServiceMonitor
 	if err := t.DB.Where("service_id=? and name=?", serviceID, name).Find(&tsm).Error; err != nil {

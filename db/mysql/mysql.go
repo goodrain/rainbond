@@ -28,11 +28,10 @@ import (
 	"sync"
 	"time"
 
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
-
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dameng"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 
 	//import sqlite
@@ -500,7 +499,7 @@ func (m *Manager) initLanguageVersion() {
 	for _, version := range versions {
 		objects = append(objects, *version)
 	}
-	if err := gormbulkups.BulkUpsert(m.db, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(m.db, objects, 2000, "lang", "version", "build_strategy"); err != nil {
 		logrus.Errorf("create K8sResource groups in batch failure: %v", err)
 	}
 }
@@ -553,7 +552,7 @@ func (m *Manager) updateLanguageVersions() {
 		}
 	}
 	if len(objects) > 0 {
-		if err := gormbulkups.BulkUpsert(m.db, objects, 2000); err != nil {
+		if err := portable.BulkUpsert(m.db, objects, 2000, "lang", "version", "build_strategy"); err != nil {
 			logrus.Errorf("update language versions in batch failure: %v", err)
 		} else {
 			logrus.Info("successfully updated language versions")

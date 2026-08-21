@@ -20,11 +20,10 @@ package dao
 
 import (
 	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // K8sResourceDaoImpl k8s resource dao
@@ -69,22 +68,11 @@ func (t *K8sResourceDaoImpl) DeleteK8sResourceByIDs(ids []uint) error {
 
 // CreateK8sResource -
 func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cg := range k8sResources {
-			cgBak := cg
-			if err := t.DB.Create(&cgBak).Error; err != nil {
-				logrus.Error("batch Update or update k8sResources error:", err)
-				return err
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, cg := range k8sResources {
 		objects = append(objects, *cg)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "app_id", "name", "kind"); err != nil {
 		return pkgerr.Wrap(err, "create K8sResource groups in batch")
 	}
 	return nil

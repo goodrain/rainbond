@@ -9022,6 +9022,93 @@
       ],
       "test_type": "regression",
       "status": "active"
+    },
+    {
+      "id": "region.database.portable-bulk-upsert",
+      "title": "Portable bulk upsert boundary",
+      "title_zh": "\u53ef\u79fb\u690d\u6279\u91cf\u5199\u5165\u8fb9\u754c",
+      "interface_type": "package_function",
+      "interface": "db/portable.BulkUpsert",
+      "code_paths": [
+        "db/portable/upsert.go"
+      ],
+      "tests": [
+        {
+          "path": "db/portable/upsert_test.go",
+          "selector": "TestBulkUpsertUsesCallerTransactionAndDeclaredConflictColumns,TestBulkUpsertKeepsExistingMySQLFastPath,TestBulkUpsertTreatsUnchangedRowsAsExisting,TestBulkUpsertUsesCallerRollback"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "region.database.portable-dao-upsert-identities",
+      "title": "DAO bulk upsert business identities",
+      "title_zh": "DAO \u6279\u91cf\u5199\u5165\u4e1a\u52a1\u552f\u4e00\u952e",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao batch upsert methods",
+      "code_paths": [
+        "db/mysql/dao/3rd_party.go",
+        "db/mysql/dao/application_config_group.go",
+        "db/mysql/dao/event.go",
+        "db/mysql/dao/gateway.go",
+        "db/mysql/dao/k8s.go",
+        "db/mysql/dao/k8s_resource.go",
+        "db/mysql/dao/monitor.go",
+        "db/mysql/dao/plugin.go",
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/bulk_upsert_portability_test.go",
+          "selector": "TestPortableBatchUpsertsUseBusinessIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "region.database.portable-model-types",
+      "title": "Portable database model text types",
+      "title_zh": "\u6570\u636e\u5e93\u6a21\u578b\u4f7f\u7528\u53ef\u79fb\u690d\u6587\u672c\u7c7b\u578b",
+      "interface_type": "other",
+      "interface": "db/model field type declarations",
+      "code_paths": [
+        "db/model/application.go",
+        "db/model/component.go",
+        "db/model/gateway.go",
+        "db/model/key_value.go",
+        "db/model/plugin.go",
+        "db/model/tenant.go",
+        "db/model/volume_type.go"
+      ],
+      "tests": [
+        {
+          "path": "db/model/database_portability_test.go",
+          "selector": "TestModelTagsDoNotUseVendorSpecificTextTypes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "region.database.portable-pagination",
+      "title": "Portable runtime query syntax",
+      "title_zh": "\u53ef\u79fb\u690d\u8fd0\u884c\u65f6\u67e5\u8be2\u8bed\u6cd5",
+      "interface_type": "other",
+      "interface": "db/mysql/dao runtime queries",
+      "code_paths": [
+        "db/mysql/dao/event.go",
+        "db/mysql/dao/tenants.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/query_portability_test.go",
+          "selector": "TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
     }
   ]
 }

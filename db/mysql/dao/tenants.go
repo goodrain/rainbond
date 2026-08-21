@@ -21,7 +21,6 @@ package dao
 import (
 	"errors"
 	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"os"
 	"reflect"
 	"strconv"
@@ -32,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 	dberr "github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -362,12 +362,14 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 		return nil, count, err
 	}
 	count = len(re)
-	query := "SELECT tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory FROM tenant_services where service_id in (?) GROUP BY tenant_id ORDER BY use_memory DESC" + paginationSQL(t.DB.Dialect().GetName())
-	args := []interface{}{serviceIDs, offset, length}
-	if t.DB.Dialect().GetName() == "dm" {
-		args = []interface{}{serviceIDs, length, offset}
-	}
-	rows, err := t.DB.Raw(query, args...).Rows()
+	rows, err := t.DB.Table(service.TableName()).
+		Select("tenant_id, SUM(container_cpu * replicas) AS use_cpu, SUM(container_memory * replicas) AS use_memory").
+		Where("service_id in (?)", serviceIDs).
+		Group("tenant_id").
+		Order("use_memory DESC").
+		Offset(offset).
+		Limit(length).
+		Rows()
 	if err != nil {
 		return nil, count, err
 	}
@@ -614,28 +616,11 @@ func (t *TenantServicesDaoImpl) BindAppByServiceIDs(appID string, serviceIDs []s
 
 // CreateOrUpdateComponentsInBatch Batch insert or update component
 func (t *TenantServicesDaoImpl) CreateOrUpdateComponentsInBatch(components []*model.TenantServices) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, component := range components {
-			if ok := t.DB.Where("ID=? ", component.ID).Find(&component).RecordNotFound(); !ok {
-				if err := t.DB.Model(&component).Where("ID = ?", component.ID).Update(component).Error; err != nil {
-					logrus.Error("batch Update or update spPort error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&component).Error; err != nil {
-					logrus.Error("batch create spPort error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, component := range components {
 		objects = append(objects, *component)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id"); err != nil {
 		return pkgerr.Wrap(err, "create or update component in batch")
 	}
 	return nil
@@ -757,23 +742,6 @@ func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 
 // CreateOrUpdatePortsInBatch Batch insert or update ports variables
 func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, port := range ports {
-			if ok := t.DB.Where("ID=? ", port.ID).Find(&port).RecordNotFound(); !ok {
-				if err := t.DB.Model(&port).Where("ID = ?", port.ID).Update(port).Error; err != nil {
-					logrus.Error("batch Update or update port error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&port).Error; err != nil {
-					logrus.Error("batch create port error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	// dedup
 	existPorts := make(map[string]struct{})
@@ -785,7 +753,7 @@ func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.Te
 
 		objects = append(objects, *port)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "container_port"); err != nil {
 		return pkgerr.Wrap(err, "create or update ports in batch")
 	}
 	return nil
@@ -1001,28 +969,11 @@ func (t *TenantServiceRelationDaoImpl) DeleteByComponentIDs(componentIDs []strin
 
 // CreateOrUpdateRelationsInBatch -
 func (t *TenantServiceRelationDaoImpl) CreateOrUpdateRelationsInBatch(relations []*model.TenantServiceRelation) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, relation := range relations {
-			if ok := t.DB.Where("ID=? ", relation.ID).Find(&relation).RecordNotFound(); !ok {
-				if err := t.DB.Model(&relation).Where("ID = ?", relation.ID).Update(relation).Error; err != nil {
-					logrus.Error("batch Update or update relation error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&relation).Error; err != nil {
-					logrus.Error("batch create relation error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, relation := range relations {
 		objects = append(objects, *relation)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "dep_service_id"); err != nil {
 		return pkgerr.Wrap(err, "create or update relation in batch")
 	}
 	return nil
@@ -1152,23 +1103,6 @@ func (t *TenantServiceEnvVarDaoImpl) DeleteByComponentIDs(componentIDs []string)
 
 // CreateOrUpdateEnvsInBatch Batch insert or update environment variables
 func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, env := range envs {
-			if ok := t.DB.Where("ID=? ", env.ID).Find(&env).RecordNotFound(); !ok {
-				if err := t.DB.Model(&env).Where("ID = ?", env.ID).Update(env).Error; err != nil {
-					logrus.Error("batch Update or update env error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&env).Error; err != nil {
-					logrus.Error("batch create env error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	existEnvs := make(map[string]struct{})
 	for _, env := range envs {
@@ -1180,7 +1114,7 @@ func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.Ten
 
 		objects = append(objects, *env)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "attr_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update envs in batch")
 	}
 	return nil
@@ -1357,28 +1291,11 @@ func (t *TenantServiceMountRelationDaoImpl) DeleteByComponentIDs(componentIDs []
 
 // CreateOrUpdateVolumeRelsInBatch -
 func (t *TenantServiceMountRelationDaoImpl) CreateOrUpdateVolumeRelsInBatch(volRels []*model.TenantServiceMountRelation) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, volRel := range volRels {
-			if ok := t.DB.Where("ID=? ", volRel.ID).Find(&volRel).RecordNotFound(); !ok {
-				if err := t.DB.Model(&volRel).Where("ID = ?", volRel.ID).Update(volRel).Error; err != nil {
-					logrus.Error("batch Update or update env error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&volRel).Error; err != nil {
-					logrus.Error("batch create env error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, volRel := range volRels {
 		objects = append(objects, *volRel)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "dep_service_id", "volume_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update volume relation in batch")
 	}
 	return nil
@@ -1485,28 +1402,11 @@ func (t *TenantServiceVolumeDaoImpl) DeleteByComponentIDs(componentIDs []string)
 
 // CreateOrUpdateVolumesInBatch -
 func (t *TenantServiceVolumeDaoImpl) CreateOrUpdateVolumesInBatch(volumes []*model.TenantServiceVolume) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, volume := range volumes {
-			if ok := t.DB.Where("ID=? ", volume.ID).Find(&volume).RecordNotFound(); !ok {
-				if err := t.DB.Model(&volume).Where("ID = ?", volume.ID).Update(volume).Error; err != nil {
-					logrus.Error("batch Update or update volume error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&volume).Error; err != nil {
-					logrus.Error("batch create volume error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, volume := range volumes {
 		objects = append(objects, *volume)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "volume_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update volumes in batch")
 	}
 	return nil
@@ -1647,28 +1547,11 @@ func (t *TenantServiceConfigFileDaoImpl) DeleteByComponentIDs(componentIDs []str
 
 // CreateOrUpdateConfigFilesInBatch -
 func (t *TenantServiceConfigFileDaoImpl) CreateOrUpdateConfigFilesInBatch(configFiles []*model.TenantServiceConfigFile) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, configFile := range configFiles {
-			if ok := t.DB.Where("ID=? ", configFile.ID).Find(&configFile).RecordNotFound(); !ok {
-				if err := t.DB.Model(&configFile).Where("ID = ?", configFile.ID).Update(configFile).Error; err != nil {
-					logrus.Error("batch Update or update configFile error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&configFile).Error; err != nil {
-					logrus.Error("batch create configFile error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, configFile := range configFiles {
 		objects = append(objects, *configFile)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "volume_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update config files in batch")
 	}
 	return nil
@@ -2029,28 +1912,11 @@ func (t *ServiceLabelDaoImpl) DeleteByComponentIDs(componentIDs []string) error 
 
 // CreateOrUpdateLabelsInBatch -
 func (t *ServiceLabelDaoImpl) CreateOrUpdateLabelsInBatch(labels []*model.TenantServiceLable) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, label := range labels {
-			if ok := t.DB.Where("ID=? ", label.ID).Find(&label).RecordNotFound(); !ok {
-				if err := t.DB.Model(&label).Where("ID = ?", label.ID).Update(label).Error; err != nil {
-					logrus.Error("batch Update or update label error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&label).Error; err != nil {
-					logrus.Error("batch create label error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, label := range labels {
 		objects = append(objects, *label)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "service_id", "label_key", "label_value"); err != nil {
 		return pkgerr.Wrap(err, "create or update label in batch")
 	}
 	return nil
@@ -2127,28 +1993,11 @@ func (t *TenantServceAutoscalerRulesDaoImpl) DeleteByComponentIDs(componentIDs [
 
 // CreateOrUpdateScaleRulesInBatch -
 func (t *TenantServceAutoscalerRulesDaoImpl) CreateOrUpdateScaleRulesInBatch(rules []*model.TenantServiceAutoscalerRules) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, rule := range rules {
-			if ok := t.DB.Where("ID=? ", rule.ID).Find(&rule).RecordNotFound(); !ok {
-				if err := t.DB.Model(&rule).Where("ID = ?", rule.ID).Update(rule).Error; err != nil {
-					logrus.Error("batch Update or update rule error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&rule).Error; err != nil {
-					logrus.Error("batch create rule error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, rule := range rules {
 		objects = append(objects, *rule)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "rule_id"); err != nil {
 		return pkgerr.Wrap(err, "create or update scale rule in batch")
 	}
 	return nil
@@ -2224,28 +2073,11 @@ func (t *TenantServceAutoscalerRuleMetricsDaoImpl) DeleteByRuleIDs(ruleIDs []str
 
 // CreateOrUpdateScaleRuleMetricsInBatch -
 func (t *TenantServceAutoscalerRuleMetricsDaoImpl) CreateOrUpdateScaleRuleMetricsInBatch(metrics []*model.TenantServiceAutoscalerRuleMetrics) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, metric := range metrics {
-			if ok := t.DB.Where("ID=? ", metric.ID).Find(&metric).RecordNotFound(); !ok {
-				if err := t.DB.Model(&metric).Where("ID = ?", metric.ID).Update(metric).Error; err != nil {
-					logrus.Error("batch Update or update metric error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&metric).Error; err != nil {
-					logrus.Error("batch create metric error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, metric := range metrics {
 		objects = append(objects, *metric)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "rule_id", "metric_type", "metric_name"); err != nil {
 		return pkgerr.Wrap(err, "create or update rule metric in batch")
 	}
 	return nil
@@ -2348,28 +2180,11 @@ func (t *ComponentK8sAttributeDaoImpl) GetByComponentIDAndName(componentID, name
 
 // CreateOrUpdateAttributesInBatch Batch insert or update component attributes
 func (t *ComponentK8sAttributeDaoImpl) CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, attribute := range attributes {
-			if ok := t.DB.Where("ID=? ", attribute.ID).Find(&attribute).RecordNotFound(); !ok {
-				if err := t.DB.Model(&attribute).Where("ID = ?", attribute.ID).Update(attribute).Error; err != nil {
-					logrus.Error("batch Update or update attribute error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&attribute).Error; err != nil {
-					logrus.Error("batch create attribute error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, attribute := range attributes {
 		objects = append(objects, *attribute)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "component_id", "name"); err != nil {
 		return pkgerr.Wrap(err, "create or update component attributes in batch")
 	}
 	return nil

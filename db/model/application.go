@@ -79,7 +79,7 @@ type ConfigGroupItem struct {
 	AppID           string `gorm:"column:app_id" json:"-"`
 	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
 	ItemKey         string `gorm:"column:item_key" json:"item_key"`
-	ItemValue       string `gorm:"column:item_value;type:longtext" json:"item_value"`
+	ItemValue       string `gorm:"column:item_value;type:text" json:"item_value"`
 }
 
 // TableName return tableName "application"
@@ -109,9 +109,9 @@ type K8sResource struct {
 	// The resource kind is the same as that in k8s cluster
 	Kind string `gorm:"column:kind" json:"kind"`
 	// Yaml file for the storage resource
-	Content string `gorm:"column:content;type:longtext" json:"content"`
+	Content string `gorm:"column:content;type:text" json:"content"`
 	// resource create error overview
-	ErrorOverview string `gorm:"column:status;type:longtext" json:"error_overview"`
+	ErrorOverview string `gorm:"column:status;type:text" json:"error_overview"`
 	//whether it was created successfully
 	State int `gorm:"column:success;type:int" json:"state"`
 }
@@ -127,9 +127,9 @@ type AppGrayRelease struct {
 	AppID            string `gorm:"column:app_id" json:"app_id"`
 	EntryComponentID string `gorm:"column:entry_component_id" json:"entry_component_id"`
 	EntryHTTPRoute   string `gorm:"column:entry_http_route" json:"entry_http_route"`
-	FlowEntryRule    string `gorm:"column:flow_entry_rule;type:longtext" json:"flow_entry_rule"`
+	FlowEntryRule    string `gorm:"column:flow_entry_rule;type:text" json:"flow_entry_rule"`
 	GrayStrategyType string `gorm:"column:gray_strategy_type" json:"gray_strategy_type"`
-	GrayStrategy     string `gorm:"column:gray_strategy;type:longtext" json:"gray_strategy"`
+	GrayStrategy     string `gorm:"column:gray_strategy;type:text" json:"gray_strategy"`
 	Status           bool   `gorm:"column:status" json:"status"`
 	TraceType        string `gorm:"column:trace_type" json:"trace_type"`
 }

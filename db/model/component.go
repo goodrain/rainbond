@@ -93,7 +93,7 @@ type ComponentK8sAttributes struct {
 
 	// Define the attribute value, which is stored in the database.
 	// The value is stored in the database in the form of `json/yaml/string`.
-	AttributeValue string `gorm:"column:attribute_value;type:longtext" json:"attribute_value"`
+	AttributeValue string `gorm:"column:attribute_value;type:text" json:"attribute_value"`
 }
 
 // TableName 表名

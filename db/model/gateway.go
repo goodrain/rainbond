@@ -76,9 +76,9 @@ type HTTPRule struct {
 	ServiceID     string `gorm:"column:service_id"`
 	ContainerPort int    `gorm:"column:container_port"`
 	Domain        string `gorm:"column:domain"`
-	Path          string `gorm:"column:path;type:longtext"`
-	Header        string `gorm:"column:header;type:longtext"`
-	Cookie        string `gorm:"column:cookie;type:longtext"`
+	Path          string `gorm:"column:path;type:text"`
+	Header        string `gorm:"column:header;type:text"`
+	Cookie        string `gorm:"column:cookie;type:text"`
 	Weight        int    `gorm:"column:weight"`
 	IP            string `gorm:"column:ip"`
 	CertificateID string `gorm:"column:certificate_id"`

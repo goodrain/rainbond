@@ -22,10 +22,9 @@ import (
 	"fmt"
 	"reflect"
 
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
-
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -152,28 +151,11 @@ func (c *RuleExtensionDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 
 // CreateOrUpdateRuleExtensionsInBatch -
 func (c *RuleExtensionDaoImpl) CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error {
-	dbType := c.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, ext := range exts {
-			if ok := c.DB.Where("ID=? ", ext.ID).Find(&ext).RecordNotFound(); !ok {
-				if err := c.DB.Model(&ext).Where("ID = ?", ext.ID).Update(ext).Error; err != nil {
-					logrus.Error("batch Update or update ext error:", err)
-					return err
-				}
-			} else {
-				if err := c.DB.Create(&ext).Error; err != nil {
-					logrus.Error("batch create ext error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, ext := range exts {
 		objects = append(objects, *ext)
 	}
-	if err := gormbulkups.BulkUpsert(c.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(c.DB, objects, 2000, "rule_id", "value"); err != nil {
 		return errors.Wrap(err, "create or update rule extensions in batch")
 	}
 	return nil
@@ -312,28 +294,11 @@ func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 
 // CreateOrUpdateHTTPRuleInBatch Batch insert or update http rule
 func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error {
-	dbType := h.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, httpRule := range httpRules {
-			if ok := h.DB.Where("ID=? ", httpRule.ID).Find(&httpRule).RecordNotFound(); !ok {
-				if err := h.DB.Model(&httpRule).Where("ID = ?", httpRule.ID).Update(httpRule).Error; err != nil {
-					logrus.Error("batch Update or update httpRule error:", err)
-					return err
-				}
-			} else {
-				if err := h.DB.Create(&httpRule).Error; err != nil {
-					logrus.Error("batch create httpRule error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, httpRule := range httpRules {
 		objects = append(objects, *httpRule)
 	}
-	if err := gormbulkups.BulkUpsert(h.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(h.DB, objects, 2000, "uuid"); err != nil {
 		return errors.Wrap(err, "create or update http rule in batch")
 	}
 	return nil
@@ -377,28 +342,11 @@ func (h *HTTPRuleRewriteDaoTmpl) UpdateModel(mo model.Interface) error {
 
 // CreateOrUpdateHTTPRuleRewriteInBatch -
 func (h *HTTPRuleRewriteDaoTmpl) CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error {
-	dbType := h.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, httpRuleRewrite := range httpRuleRewrites {
-			if ok := h.DB.Where("ID=? ", httpRuleRewrite.ID).Find(&httpRuleRewrite).RecordNotFound(); !ok {
-				if err := h.DB.Model(&httpRuleRewrite).Where("ID = ?", httpRuleRewrite.ID).Update(httpRuleRewrite).Error; err != nil {
-					logrus.Error("batch Update or update httpRuleRewrite error:", err)
-					return err
-				}
-			} else {
-				if err := h.DB.Create(&httpRuleRewrite).Error; err != nil {
-					logrus.Error("batch create httpRuleRewrite error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, httpRuleRewrites := range httpRuleRewrites {
 		objects = append(objects, *httpRuleRewrites)
 	}
-	if err := gormbulkups.BulkUpsert(h.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(h.DB, objects, 2000, "uuid"); err != nil {
 		return errors.Wrap(err, "create or update http rule rewrite in batch")
 	}
 	return nil
@@ -580,28 +528,11 @@ func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error {
 
 // CreateOrUpdateTCPRuleInBatch Batch insert or update tcp rule
 func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, tcpRule := range tcpRules {
-			if ok := t.DB.Where("ID=? ", tcpRule.ID).Find(&tcpRule).RecordNotFound(); !ok {
-				if err := t.DB.Model(&tcpRule).Where("ID = ?", tcpRule.ID).Update(tcpRule).Error; err != nil {
-					logrus.Error("batch Update or update tcpRule error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&tcpRule).Error; err != nil {
-					logrus.Error("batch create tcpRule error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, tcpRule := range tcpRules {
 		objects = append(objects, *tcpRule)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "uuid"); err != nil {
 		return errors.Wrap(err, "create or update tcp rule in batch")
 	}
 	return nil
@@ -616,7 +547,7 @@ type GwRuleConfigDaoImpl struct {
 func (t *GwRuleConfigDaoImpl) AddModel(mo model.Interface) error {
 	cfg := mo.(*model.GwRuleConfig)
 	var old model.GwRuleConfig
-	err := t.DB.Where("`rule_id` = ? and `key` = ?", cfg.RuleID, cfg.Key).Find(&old).Error
+	err := t.DB.Where(map[string]interface{}{"rule_id": cfg.RuleID, "key": cfg.Key}).Find(&old).Error
 	if err == gorm.ErrRecordNotFound {
 		if err := t.DB.Create(cfg).Error; err != nil {
 			return err
@@ -657,28 +588,11 @@ func (t *GwRuleConfigDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 
 // CreateOrUpdateGwRuleConfigsInBatch creates or updates rule configs in batch.
 func (t *GwRuleConfigDaoImpl) CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*model.GwRuleConfig) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, ruleConfig := range ruleConfigs {
-			if ok := t.DB.Where("ID=? ", ruleConfig.ID).Find(&ruleConfig).RecordNotFound(); !ok {
-				if err := t.DB.Model(&ruleConfig).Where("ID = ?", ruleConfig.ID).Update(ruleConfig).Error; err != nil {
-					logrus.Error("batch Update or update ruleConfig error:", err)
-					return err
-				}
-			} else {
-				if err := t.DB.Create(&ruleConfig).Error; err != nil {
-					logrus.Error("batch create ruleConfig error:", err)
-					return err
-				}
-			}
-		}
-		return nil
-	}
 	var objects []interface{}
 	for _, ruleConfig := range ruleConfigs {
 		objects = append(objects, *ruleConfig)
 	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+	if err := portable.BulkUpsert(t.DB, objects, 2000, "rule_id", "key"); err != nil {
 		return errors.Wrap(err, "create or update rule configs in batch")
 	}
 	return nil

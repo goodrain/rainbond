@@ -23,7 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//TenantPlugin plugin model
+// TenantPlugin plugin model
 type TenantPlugin struct {
 	Model
 	PluginID string `gorm:"column:plugin_id;size:32"`
@@ -47,12 +47,12 @@ type TenantPlugin struct {
 	CodeFrom string `gorm:"column:code_from" json:"code_from"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantPlugin) TableName() string {
 	return "tenant_plugin"
 }
 
-//TenantPluginDefaultENV plugin default env config
+// TenantPluginDefaultENV plugin default env config
 type TenantPluginDefaultENV struct {
 	Model
 	//plugin id
@@ -67,12 +67,12 @@ type TenantPluginDefaultENV struct {
 	IsChange bool `gorm:"column:is_change;default:false" json:"is_change"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantPluginDefaultENV) TableName() string {
 	return "tenant_plugin_default_env"
 }
 
-//TenantPluginBuildVersion plugin build version
+// TenantPluginBuildVersion plugin build version
 type TenantPluginBuildVersion struct {
 	Model
 	//plugin version eg v1.0.0
@@ -96,12 +96,12 @@ type TenantPluginBuildVersion struct {
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantPluginBuildVersion) TableName() string {
 	return "tenant_plugin_build_version"
 }
 
-//CreateShareImage CreateShareImage
+// CreateShareImage CreateShareImage
 func (t *TenantPluginBuildVersion) CreateShareImage(hubURL, namespace string) (string, error) {
 	_, err := reference.ParseAnyReference(t.BuildLocalImage)
 	if err != nil {
@@ -119,7 +119,7 @@ func (t *TenantPluginBuildVersion) CreateShareImage(hubURL, namespace string) (s
 	return image.String(), nil
 }
 
-//TenantPluginVersionEnv TenantPluginVersionEnv
+// TenantPluginVersionEnv TenantPluginVersionEnv
 type TenantPluginVersionEnv struct {
 	Model
 	//VersionID string `gorm:"column:version_id;size:32"`
@@ -129,25 +129,25 @@ type TenantPluginVersionEnv struct {
 	ServiceID string `gorm:"column:service_id" json:"service_id"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantPluginVersionEnv) TableName() string {
 	return "tenant_plugin_version_env"
 }
 
-//TenantPluginVersionDiscoverConfig service plugin config that can be dynamic discovery
+// TenantPluginVersionDiscoverConfig service plugin config that can be dynamic discovery
 type TenantPluginVersionDiscoverConfig struct {
 	Model
 	PluginID  string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
-	ConfigStr string `gorm:"column:config_str;" sql:"type:longtext;" json:"config_str"`
+	ConfigStr string `gorm:"column:config_str;type:text" json:"config_str"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantPluginVersionDiscoverConfig) TableName() string {
 	return "tenant_plugin_version_config"
 }
 
-//TenantServicePluginRelation TenantServicePluginRelation
+// TenantServicePluginRelation TenantServicePluginRelation
 type TenantServicePluginRelation struct {
 	Model
 	VersionID   string `gorm:"column:version_id;size:32" json:"version_id"`
@@ -161,12 +161,12 @@ type TenantServicePluginRelation struct {
 	Switch          bool `gorm:"column:switch;default:0" json:"switch"`
 }
 
-//TableName table name
+// TableName table name
 func (t *TenantServicePluginRelation) TableName() string {
 	return "tenant_service_plugin_relation"
 }
 
-//TenantServicesStreamPluginPort 绑定stream类型插件后端口映射信息
+// TenantServicesStreamPluginPort 绑定stream类型插件后端口映射信息
 type TenantServicesStreamPluginPort struct {
 	Model
 	TenantID      string `gorm:"column:tenant_id;size:32" validate:"tenant_id|between:30,33" json:"tenant_id"`
@@ -176,7 +176,7 @@ type TenantServicesStreamPluginPort struct {
 	PluginPort    int    `gorm:"column:plugin_port" json:"plugin_port"`
 }
 
-//TableName 表名
+// TableName 表名
 func (t *TenantServicesStreamPluginPort) TableName() string {
 	return "tenant_services_stream_plugin_port"
 }
@@ -187,17 +187,17 @@ func (t *TenantServicesStreamPluginPort) TableName() string {
 //@ 1. 插件大类  xxx-plugin
 //@ 2. 大类细分  冒号+细分 xxx-plugin:up  or  xxx-plugin:down
 
-//InitPlugin 初始化插件
+// InitPlugin 初始化插件
 var InitPlugin = "init-plugin"
 
-//InBoundNetPlugin 入站治理网络插件
+// InBoundNetPlugin 入站治理网络插件
 var InBoundNetPlugin = "net-plugin:up"
 
-//OutBoundNetPlugin 出站治理网络插件
+// OutBoundNetPlugin 出站治理网络插件
 var OutBoundNetPlugin = "net-plugin:down"
 
-//InBoundAndOutBoundNetPlugin 出站和入站治理
+// InBoundAndOutBoundNetPlugin 出站和入站治理
 var InBoundAndOutBoundNetPlugin = "net-plugin:in-and-out"
 
-//GeneralPlugin 一般插件,默认分类,优先级最低
+// GeneralPlugin 一般插件,默认分类,优先级最低
 var GeneralPlugin = "general-plugin"
