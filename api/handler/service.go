@@ -58,6 +58,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dberr "github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	dbportable "github.com/goodrain/rainbond/db/portable"
 	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -3363,14 +3364,8 @@ func (s *ServiceAction) delServiceMetadata(ctx context.Context, serviceID string
 	if err != nil {
 		return err
 	}
-	if db.GetManager().DB().Dialect().GetName() == "sqlite3" {
-		if err := s.deleteThirdComponent(ctx, service); err != nil {
-			return err
-		}
-		return s.deleteComponent(db.GetManager().DB(), service)
-	}
 	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
-	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+	return dbportable.WithinTransaction(db.GetManager().DB(), func(tx *gorm.DB) error {
 		if err := s.deleteThirdComponent(ctx, service); err != nil {
 			return err
 		}

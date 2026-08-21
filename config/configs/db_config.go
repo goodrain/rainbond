@@ -19,13 +19,6 @@ func AddDBFlags(fs *pflag.FlagSet, dc *DBConfig) {
 		dbType = "mysql"
 	}
 	schemaMode := os.Getenv("RBD_DB_SCHEMA_MODE")
-	if schemaMode == "" {
-		if dbType == "dm" {
-			schemaMode = "verify"
-		} else {
-			schemaMode = "migrate"
-		}
-	}
 	fs.StringVar(&dc.DBType, "db-type", dbType, "db type mysql or etcd")
 	fs.StringVar(&dc.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&dc.SchemaMode, "db-schema-mode", schemaMode, "database schema action: migrate or verify")

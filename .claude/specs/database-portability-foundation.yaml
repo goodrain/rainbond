@@ -2,7 +2,7 @@ meta:
   name: database-portability-foundation
   version: "1.0"
   repo: "/Users/zhangqihang/MyWork/workrc"
-  branch: "feature/database-portability"
+  branch: "v6.9.9-dev"
   design_doc: "/Users/zhangqihang/MyWork/workrc/rainbond/docs/plans/2026-08-20-database-portability-design.md"
 
 sprints:
@@ -138,3 +138,71 @@ sprints:
           - "No migration executor, Operator, or deployment lifecycle changes are included."
           - "MySQL keeps the existing fast upsert path and API contracts."
           - "Runtime business code contains no known MySQL-only SQL constructs covered by the static guards."
+
+  - id: sprint-4
+    name: Database backend boundary
+    commits:
+      - id: commit-4
+        message: "refactor: centralize database backend capabilities"
+        repo: "/Users/zhangqihang/MyWork/workrc/rainbond"
+        tasks: [task-4.1, task-4.2, task-4.3]
+    tasks:
+      - id: task-4.1
+        name: Define backend registry and schema capabilities
+        status: completed
+        files:
+          create:
+            - path: "db/mysql/backend.go"
+            - path: "db/mysql/backend_test.go"
+          modify:
+            - path: "db/mysql/mysql.go"
+            - path: "db/db.go"
+            - path: "config/configs/db_config.go"
+        steps:
+          - action: write-test
+            description: Cover backend lookup, driver validation, default schema action, table metadata and MySQL table options before implementation.
+            run: "go test -mod=mod ./db/mysql ./db ./config/configs -count=1"
+            expect: "FAIL before implementation, then PASS"
+          - action: implement
+            description: Route connection, schema defaults, table checks and vendor DDL through one registered backend selected before Manager initialization.
+            run: "go test -mod=mod ./db/mysql ./db ./config/configs -count=1"
+            expect: "PASS"
+      - id: task-4.2
+        name: Remove obsolete database-specific runtime branches
+        status: completed
+        files:
+          delete:
+            - path: "db/mysql/dao/pagination.go"
+            - path: "db/mysql/dao/pagination_test.go"
+          modify:
+            - path: "third_party/gorm-bulk-upsert/bulk_upsert.go"
+            - path: "third_party/gorm-bulk-upsert/bulk_upsert_test.go"
+            - path: "test-manifest.json"
+            - path: "test-manifest.md"
+        steps:
+          - action: write-test
+            description: Extend portability guards so production DAO code cannot add database-name branches or bypass the portable upsert boundary.
+            run: "go test -mod=mod ./db/mysql/dao ./db/portable -count=1"
+            expect: "FAIL before cleanup, then PASS"
+          - action: implement
+            description: Delete the unused Dameng pagination helper and old third-party Dameng upsert path; retain only the MySQL fast implementation behind db/portable.
+            run: "go test -mod=mod ./db/mysql/dao ./db/portable -count=1 && (cd third_party/gorm-bulk-upsert && go test ./...)"
+            expect: "PASS"
+      - id: task-4.3
+        name: Verify cross-database boundaries
+        status: completed
+        files:
+          modify:
+            - path: "db/mysql/dao/query_portability_test.go"
+            - path: "test-manifest.json"
+            - path: "test-manifest.md"
+        steps:
+          - action: verify
+            description: Ensure database-name checks exist only in backend/driver configuration and no HTTP API contract changes are introduced.
+            run: "python3 scripts/validate_test_manifest.py --repo-root . --manifest test-manifest.json"
+            expect: "PASS"
+        acceptance:
+          - "DAO, handler and service code contain no Dameng-specific branches."
+          - "Adding a database requires a driver and one backend adapter, not business query changes."
+          - "MySQL keeps its existing optimized write path and schema behavior."
+          - "Dameng keeps its driver, schema verification and explicit catalog behavior."

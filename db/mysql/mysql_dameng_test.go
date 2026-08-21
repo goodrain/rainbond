@@ -78,9 +78,9 @@ func TestDamengTableCheckUsesExplicitSchemaCatalog(t *testing.T) {
 	db.LogMode(false)
 
 	manager := &Manager{
-		db:           db,
-		config:       config.Config{DBType: "dm"},
-		damengSchema: "REGION",
+		db:      db,
+		config:  config.Config{DBType: "dm"},
+		backend: &damengDatabaseBackend{schema: "REGION"},
 	}
 	mock.ExpectQuery(regexp.QuoteMeta(damengTableCatalogQuery)).
 		WithArgs("REGION", "tenants").

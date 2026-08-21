@@ -19,39 +19,25 @@
 package mysql
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
-	"os"
-	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/goodrain/rainbond/db/config"
-	"github.com/goodrain/rainbond/db/dameng"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/db/portable"
 	"github.com/jinzhu/gorm"
-
-	//import sqlite
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/sirupsen/logrus"
-
-	// import sql driver manually
-	_ "github.com/go-sql-driver/mysql"
-	// import postgres
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
 // Manager db manager
 type Manager struct {
-	db           *gorm.DB
-	config       config.Config
-	damengSchema string
-	initOne      sync.Once
-	initErr      error
-	models       []model.Interface
+	db      *gorm.DB
+	config  config.Config
+	backend databaseBackend
+	initOne sync.Once
+	initErr error
+	models  []model.Interface
 }
 
 type schemaAction string
@@ -67,96 +53,27 @@ type cnbSeedVersion struct {
 }
 
 // CreateManager create manager
-func CreateManager(config config.Config) (*Manager, error) {
-	var db *gorm.DB
-	var damengSchema string
-	if config.DBType == "mysql" {
-		logrus.Info("mysql db driver create")
-		var err error
-		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8mb4&parseTime=True&loc=Local")
-		if err != nil {
-			return nil, err
-		}
-		// 获取底层的 sql.DB 对象
-		sqlDB := db.DB()
-		if err != nil {
-			logrus.Errorf("failed to get sql.DB from gorm.DB: %v", err)
-			return nil, err
-		}
-		// 循环 Ping 操作，最多重试 5 次，每次间隔 10 秒
-		for {
-			if err := sqlDB.Ping(); err != nil {
-				logrus.Errorf("failed to connect to database: %v", err)
-				// wait 2 seconds before retry
-				time.Sleep(2 * time.Second)
-			} else {
-				logrus.Info("database connection successful")
-				break
-			}
-		}
-
-		configureConnectionPool(sqlDB)
+func CreateManager(dbConfig config.Config) (*Manager, error) {
+	backend, err := lookupDatabaseBackend(dbConfig.DBType)
+	if err != nil {
+		return nil, err
 	}
-	if config.DBType == "dm" {
-		connectionInfo, err := dameng.NormalizeDSN(config.MysqlConnectionInfo)
-		if err != nil {
-			return nil, errors.New("invalid Dameng connection information")
-		}
-		damengSchema, err = dameng.SchemaName(connectionInfo)
-		if err != nil {
-			return nil, errors.New("invalid Dameng connection information")
-		}
-		db, err = gorm.Open("dm", connectionInfo)
-		if err != nil {
-			return nil, damengOpenError(err)
-		}
-
-		sqlDB := db.DB()
-		for {
-			if err := sqlDB.Ping(); err != nil {
-				logrus.Error("failed to connect to Dameng database")
-				time.Sleep(2 * time.Second)
-			} else {
-				logrus.Info("Dameng database connection successful")
-				break
-			}
-		}
-
-		configureConnectionPool(sqlDB)
+	if err := backend.validate(); err != nil {
+		return nil, err
 	}
-	if config.DBType == "cockroachdb" {
-		var err error
-		addr := config.MysqlConnectionInfo
-		db, err = gorm.Open("postgres", addr)
-		if err != nil {
-			return nil, err
-		}
+	db, err := backend.open(dbConfig)
+	if err != nil {
+		return nil, err
 	}
-	if config.DBType == "sqlite" {
-		_, err := os.Stat("/db")
-		if err != nil {
-			if !os.IsExist(err) {
-				err := os.MkdirAll("/db", 0777)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-		db, err = gorm.Open("sqlite3", "/db/region.sqlite3")
-		if err != nil {
-			return nil, err
-		}
-		db.Exec("PRAGMA journal_mode = WAL")
-	}
-	if config.ShowSQL {
+	if dbConfig.ShowSQL {
 		db = db.Debug()
 	}
 	logrus.Info("db init success")
 	manager := &Manager{
-		db:           db,
-		config:       config,
-		damengSchema: damengSchema,
-		initOne:      sync.Once{},
+		db:      db,
+		config:  dbConfig,
+		backend: backend,
+		initOne: sync.Once{},
 	}
 
 	db.SetLogger(manager)
@@ -175,26 +92,8 @@ func CreateManager(config config.Config) (*Manager, error) {
 			return nil, err
 		}
 	}
-	logrus.Debug("mysql db driver create")
+	logrus.Debug("database manager created")
 	return manager, nil
-}
-
-var damengDSNCredentialsPattern = regexp.MustCompile(`(?i)(dm://[^:/\s]+:)[^@\s]*@`)
-
-type damengOpenFailure struct {
-	cause error
-}
-
-func (e damengOpenFailure) Error() string {
-	return "unable to open Dameng database: " + damengDSNCredentialsPattern.ReplaceAllString(e.cause.Error(), "${1}<redacted>@")
-}
-
-func (e damengOpenFailure) Unwrap() error {
-	return e.cause
-}
-
-func damengOpenError(err error) error {
-	return damengOpenFailure{cause: err}
 }
 
 // CloseManager 关闭管理器
@@ -287,10 +186,28 @@ func (m *Manager) RegisterTableModel() {
 }
 
 func (m *Manager) schemaAction() schemaAction {
-	if m.config.DBType == "dm" && strings.ToLower(m.config.SchemaMode) != string(schemaMigrate) {
+	switch strings.ToLower(strings.TrimSpace(m.config.SchemaMode)) {
+	case string(schemaMigrate):
+		return schemaMigrate
+	case string(schemaVerify):
 		return schemaVerify
 	}
-	return schemaMigrate
+	if err := m.ensureBackend(); err != nil {
+		return schemaMigrate
+	}
+	return m.backend.defaultSchemaAction()
+}
+
+func (m *Manager) ensureBackend() error {
+	if m.backend != nil {
+		return nil
+	}
+	backend, err := lookupDatabaseBackend(m.config.DBType)
+	if err != nil {
+		return err
+	}
+	m.backend = backend
+	return nil
 }
 
 // VerifySchema checks that all registered tables exist without changing the schema.
@@ -310,191 +227,23 @@ func (m *Manager) VerifySchema() error {
 // CheckTable creates or migrates database tables according to the configured database dialect.
 func (m *Manager) CheckTable() error {
 	m.initOne.Do(func() {
-		if m.config.DBType == "dm" {
-			m.initErr = m.checkDamengTables()
+		if err := m.ensureBackend(); err != nil {
+			m.initErr = err
 			return
 		}
-		for _, md := range m.models {
-			if !m.db.HasTable(md) {
-				var err error
-				if m.config.DBType == "mysql" {
-					err = m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
-				} else {
-					err = m.db.CreateTable(md).Error
-				}
-				if err != nil {
-					logrus.Errorf("auto create table %s to db error.%s", md.TableName(), err.Error())
-				} else {
-					logrus.Infof("auto create table %s to db success", md.TableName())
-				}
-			} else {
-				if err := m.db.AutoMigrate(md).Error; err != nil {
-					logrus.Errorf("auto Migrate table %s to db error."+err.Error(), md.TableName())
-				}
-			}
-		}
-		m.initErr = m.patchTable()
+		m.initErr = m.backend.ensureSchema(m)
 	})
 	return m.initErr
 }
-
-func (m *Manager) checkDamengTables() error {
-	for _, md := range m.models {
-		exists, err := m.hasTable(md)
-		if err != nil {
-			return fmt.Errorf("check Dameng table %q: %w", md.TableName(), err)
-		}
-		if exists {
-			continue
-		}
-		if err := m.db.CreateTable(md).Error; err != nil {
-			return fmt.Errorf("initialize Dameng table %q: %w", md.TableName(), err)
-		}
-		logrus.Infof("auto create table %s to Dameng success", md.TableName())
-	}
-	return m.patchTable()
-}
-
-const damengTableCatalogQuery = `SELECT COUNT(*) FROM SYS.SYSOBJECTS SCHEMAS, SYS.SYSOBJECTS TABLES
-WHERE SCHEMAS.ID = TABLES.SCHID
-  AND SCHEMAS.TYPE$ = 'SCH'
-  AND SCHEMAS.NAME = ?
-  AND TABLES.TYPE$ = 'SCHOBJ'
-  AND TABLES.SUBTYPE$ = 'UTAB'
-  AND TABLES.NAME = ?`
-
-// hasTable bypasses the official GORM v1 Dameng dialect's HasTable method.
-// That method applies a privilege predicate which can misreport an existing
-// table in an explicitly selected schema, leading to duplicate CREATE TABLE.
 func (m *Manager) hasTable(md model.Interface) (bool, error) {
-	if m.config.DBType != "dm" || m.damengSchema == "" {
-		return m.db.HasTable(md), nil
-	}
-
-	var count int
-	if err := m.db.Raw(damengTableCatalogQuery, m.damengSchema, md.TableName()).Row().Scan(&count); err != nil {
+	if err := m.ensureBackend(); err != nil {
 		return false, err
 	}
-	return count > 0, nil
-}
-
-func (m *Manager) patchTable() error {
-	if m.config.DBType == "dm" {
-		return m.patchDamengTable()
-	}
-	count := -1
-	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
-		logrus.Errorf("backfill legacy language versions error: %s", err.Error())
-	}
-	if err := deduplicateLanguageVersions(m.db); err != nil {
-		logrus.Errorf("deduplicate enterprise_language_version rows error: %s", err.Error())
-	}
-	if err := m.patchLanguageVersionUniqueIndex(); err != nil {
-		logrus.Errorf("patch enterprise_language_version unique index error: %s", err.Error())
-	}
-	m.db.Model(&model.EnterpriseLanguageVersion{}).Count(&count)
-	if count == 0 {
-		m.initLanguageVersion()
-	} else {
-		// Update existing or insert new language versions
-		m.updateLanguageVersions()
-	}
-	if m.config.DBType == "sqlite" {
-		return nil
-	}
-	if err := m.db.Exec("alter table tenant_services_envs modify column attr_value text;").Error; err != nil {
-		logrus.Errorf("alter table tenant_services_envs error %s", err.Error())
-	}
-
-	if err := m.db.Exec("alter table tenant_services_event modify column request_body varchar(1024);").Error; err != nil {
-		logrus.Errorf("alter table tenant_services_envent error %s", err.Error())
-	}
-
-	if err := m.db.Exec("update gateway_tcp_rule set ip=? where ip=?", "0.0.0.0", "").Error; err != nil {
-		logrus.Errorf("update gateway_tcp_rule data error %s", err.Error())
-	}
-	if err := m.db.Exec("alter table tenant_services_volume modify column volume_type varchar(64);").Error; err != nil {
-		logrus.Errorf("alter table tenant_services_volume error: %s", err.Error())
-	}
-	if err := m.db.Exec("update tenants set namespace=uuid where namespace is NULL;").Error; err != nil {
-		logrus.Errorf("update tenants namespace error: %s", err.Error())
-	}
-	if err := m.db.Exec("update applications set k8s_app=concat('app-',LEFT(app_id,8)) where k8s_app is NULL;").Error; err != nil {
-		logrus.Errorf("update tenants namespace error: %s", err.Error())
-	}
-	if err := m.db.Exec("update tenant_services set k8s_component_name=service_alias where k8s_component_name is NULL;").Error; err != nil {
-		logrus.Errorf("update tenants namespace error: %s", err.Error())
-	}
-	if err := m.db.Exec("alter  table tenant_services_probe modify column cmd longtext;").Error; err != nil {
-		logrus.Errorf("alter table tenant_services_probe error: %s", err.Error())
-	}
-	if err := m.db.Exec("alter  table app_config_group_item modify column item_value longtext;").Error; err != nil {
-		logrus.Errorf("alter table app_config_group_item error: %s", err.Error())
-	}
-
-	if err := m.db.Exec("alter table applications modify column governance_mode varchar(255) DEFAULT 'KUBERNETES_NATIVE_SERVICE';").Error; err != nil {
-		logrus.Errorf("alter table applications error: %s", err.Error())
-	}
-
-	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
-		logrus.Errorf("alter table applications error: %s", err.Error())
-	}
-	return nil
-}
-
-func (m *Manager) patchDamengTable() error {
-	if err := backfillLegacyLongVersionStrategy(m.db); err != nil {
-		return fmt.Errorf("backfill legacy language versions: %w", err)
-	}
-	if err := deduplicateLanguageVersions(m.db); err != nil {
-		return fmt.Errorf("deduplicate language versions: %w", err)
-	}
-	if err := m.syncDamengLanguageVersions(); err != nil {
-		return fmt.Errorf("seed language versions: %w", err)
-	}
-	return nil
-}
-
-func (m *Manager) syncDamengLanguageVersions() error {
-	for _, version := range allSeedLanguageVersions() {
-		var existing model.EnterpriseLanguageVersion
-		err := m.db.Where("lang = ? AND version = ? AND build_strategy = ?", version.Lang, version.Version, version.BuildStrategy).First(&existing).Error
-		if err != nil {
-			if !gorm.IsRecordNotFoundError(err) {
-				return err
-			}
-			if err := m.db.Create(version).Error; err != nil {
-				return err
-			}
-			continue
-		}
-		if !version.System {
-			continue
-		}
-		existing.FirstChoice = version.FirstChoice
-		existing.FileName = version.FileName
-		existing.Show = version.Show
-		existing.System = version.System
-		existing.BuildStrategy = version.BuildStrategy
-		existing.IsAllowed = version.IsAllowed
-		if err := m.db.Save(&existing).Error; err != nil {
-			return err
-		}
-	}
-	return retireMissingSystemCNBVersions(m.db, cnbSeedLanguageVersions())
+	return m.backend.hasTable(m.db, md)
 }
 
 func (m *Manager) initLanguageVersion() {
 	versions := allSeedLanguageVersions()
-	dbType := m.db.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, version := range versions {
-			if err := m.db.Create(version).Error; err != nil {
-				logrus.Error("batch Update or update k8sResources error:", err)
-			}
-		}
-		return
-	}
 	var objects []interface{}
 	for _, version := range versions {
 		objects = append(objects, *version)
@@ -507,43 +256,6 @@ func (m *Manager) initLanguageVersion() {
 func (m *Manager) updateLanguageVersions() {
 	versions := allSeedLanguageVersions()
 	cnbVersions := cnbSeedLanguageVersions()
-
-	dbType := m.db.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, version := range versions {
-			// Check if the version exists
-			var existing model.EnterpriseLanguageVersion
-			if err := m.db.Where("lang = ? AND version = ? AND build_strategy = ?", version.Lang, version.Version, version.BuildStrategy).First(&existing).Error; err != nil {
-				if gorm.IsRecordNotFoundError(err) {
-					// Version doesn't exist, create it
-					if err := m.db.Create(version).Error; err != nil {
-						logrus.Errorf("create language version %s-%s error: %v", version.Lang, version.Version, err)
-					} else {
-						logrus.Infof("added new language version: %s-%s", version.Lang, version.Version)
-					}
-				}
-			} else {
-				// Version exists, update if it's a system version
-				if version.System {
-					existing.FirstChoice = version.FirstChoice
-					existing.FileName = version.FileName
-					existing.Show = version.Show
-					existing.System = version.System
-					existing.BuildStrategy = version.BuildStrategy
-					existing.IsAllowed = version.IsAllowed
-					if err := m.db.Save(&existing).Error; err != nil {
-						logrus.Errorf("update language version %s-%s error: %v", version.Lang, version.Version, err)
-					}
-				}
-			}
-		}
-		if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
-			logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
-		}
-		return
-	}
-
-	// For MySQL/CockroachDB, use bulk upsert
 	var objects []interface{}
 	for _, version := range versions {
 		// Only update system versions
@@ -560,33 +272,6 @@ func (m *Manager) updateLanguageVersions() {
 	}
 	if err := retireMissingSystemCNBVersions(m.db, cnbVersions); err != nil {
 		logrus.Errorf("retire obsolete cnb language versions failure: %v", err)
-	}
-}
-
-func (m *Manager) patchLanguageVersionUniqueIndex() error {
-	switch m.config.DBType {
-	case "mysql":
-		var columns sql.NullString
-		row := m.db.Raw("SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?", "enterprise_language_version", "lang_version_unique").Row()
-		if err := row.Scan(&columns); err != nil {
-			return err
-		}
-		if columns.Valid && columns.String == "lang,version,build_strategy" {
-			return nil
-		}
-		if columns.Valid && columns.String != "" {
-			if err := m.db.Exec("alter table enterprise_language_version drop index lang_version_unique;").Error; err != nil {
-				return err
-			}
-		}
-		return m.db.Exec("alter table enterprise_language_version add unique index lang_version_unique (lang, version, build_strategy);").Error
-	case "sqlite":
-		if err := m.db.Exec("DROP INDEX IF EXISTS lang_version_unique;").Error; err != nil {
-			return err
-		}
-		return m.db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS lang_version_unique ON enterprise_language_version(lang, version, build_strategy);").Error
-	default:
-		return nil
 	}
 }
 

@@ -48,16 +48,20 @@ func TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue(t *testing.T) {
 	}
 }
 
-// capability_id: rainbond.database.dameng-schema-lifecycle
-func TestAddDBFlagsDefaultsDamengServicesToSchemaVerification(t *testing.T) {
-	t.Setenv("DB_TYPE", "dm")
-	t.Setenv("RBD_DB_SCHEMA_MODE", "")
+// capability_id: region.database.backend-boundary
+func TestAddDBFlagsDefersSchemaDefaultToDatabaseBackend(t *testing.T) {
+	for _, dbType := range []string{"mysql", "dm", "cockroachdb", "sqlite"} {
+		t.Run(dbType, func(t *testing.T) {
+			t.Setenv("DB_TYPE", dbType)
+			t.Setenv("RBD_DB_SCHEMA_MODE", "")
 
-	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	config := &DBConfig{}
-	AddDBFlags(flags, config)
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			config := &DBConfig{}
+			AddDBFlags(flags, config)
 
-	if config.SchemaMode != "verify" {
-		t.Fatalf("expected Dameng service schema mode to default to verify, got %q", config.SchemaMode)
+			if config.SchemaMode != "" {
+				t.Fatalf("expected the backend to choose the schema default, got %q", config.SchemaMode)
+			}
+		})
 	}
 }

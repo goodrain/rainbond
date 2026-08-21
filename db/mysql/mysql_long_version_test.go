@@ -417,7 +417,7 @@ func TestDeduplicateLanguageVersionsRemovesHistoricalDuplicates(t *testing.T) {
 		db:     db,
 		config: config.Config{DBType: "sqlite"},
 	}
-	if err := manager.patchLanguageVersionUniqueIndex(); err != nil {
+	if err := patchSQLiteLanguageVersionUniqueIndex(manager); err != nil {
 		t.Fatalf("patch unique index after deduplication: %v", err)
 	}
 	if err := db.Create(&model.EnterpriseLanguageVersion{

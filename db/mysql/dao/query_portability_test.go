@@ -41,7 +41,8 @@ func TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax(t *testing.T) {
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") ||
-			relativePath == filepath.Join("db", "mysql", "mysql.go") {
+			relativePath == filepath.Join("db", "mysql", "mysql.go") ||
+			strings.HasPrefix(relativePath, filepath.Join("db", "mysql", "backend")) {
 			return nil
 		}
 		fileSet := token.NewFileSet()
@@ -73,6 +74,49 @@ func TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// capability_id: region.database.backend-boundary
+func TestDAOCodeDoesNotBranchOnDatabaseNames(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	databaseNames := map[string]struct{}{
+		"cockroachdb": {},
+		"dm":          {},
+		"mysql":       {},
+		"postgres":    {},
+		"sqlite":      {},
+		"sqlite3":     {},
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+
+		fileSet := token.NewFileSet()
+		file, err := parser.ParseFile(fileSet, entry.Name(), nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", entry.Name(), err)
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			literal, ok := node.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				return true
+			}
+			value, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				return true
+			}
+			if _, found := databaseNames[strings.ToLower(value)]; found {
+				position := fileSet.Position(literal.Pos())
+				t.Errorf("%s:%d branches on database %q outside the backend boundary", entry.Name(), position.Line, value)
+			}
+			return true
+		})
 	}
 }
 

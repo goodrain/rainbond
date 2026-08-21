@@ -1912,94 +1912,29 @@
       "status": "active"
     },
     {
-      "id": "rainbond.database.dameng-query-capabilities",
-      "title": "Use portable bound pagination in Dameng queries",
-      "title_zh": "\u8fbe\u68a6\u67e5\u8be2\u4f7f\u7528\u53ef\u79fb\u690d\u7684\u53c2\u6570\u5316\u5206\u9875",
-      "interface_type": "package_function",
-      "interface": "db/mysql/dao.paginationSQL",
-      "code_paths": [
-        "db/mysql/dao/pagination.go",
-        "db/mysql/dao/tenants.go",
-        "db/mysql/dao/event.go"
-      ],
-      "tests": [
-        {
-          "path": "db/mysql/dao/pagination_test.go",
-          "selector": "TestPaginationSQLKeepsMySQLAndUsesDamengOffsetSyntax"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.database.dameng-schema-lifecycle",
       "title": "Initialize and verify Dameng schemas without concurrent DDL",
       "title_zh": "\u521d\u59cb\u5316\u5e76\u9a8c\u8bc1\u8fbe\u68a6 Schema\uff0c\u907f\u514d\u5e76\u53d1 DDL",
       "interface_type": "workflow",
-      "interface": "db/mysql.Manager schema lifecycle",
+      "interface": "db/mysql damengDatabaseBackend schema lifecycle",
       "code_paths": [
+        "db/mysql/backend.go",
         "db/dameng/dsn.go",
-        "db/mysql/mysql.go",
-        "db/config/config.go",
-        "config/configs/db_config.go",
         "cmd/db-migrate/main.go",
         "hack/contrib/docker/api/Dockerfile"
       ],
       "tests": [
         {
           "path": "db/mysql/mysql_dameng_test.go",
-          "selector": "TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify"
-        },
-        {
-          "path": "db/mysql/mysql_dameng_test.go",
-          "selector": "TestVerifyDamengSchemaReportsTheMissingModelTable"
-        },
-        {
-          "path": "db/mysql/mysql_dameng_test.go",
-          "selector": "TestDamengTableCheckUsesExplicitSchemaCatalog"
+          "selector": "TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify,TestVerifyDamengSchemaReportsTheMissingModelTable,TestDamengTableCheckUsesExplicitSchemaCatalog"
         },
         {
           "path": "db/dameng/dsn_test.go",
           "selector": "TestSchemaName"
         },
         {
-          "path": "config/configs/db_config_test.go",
-          "selector": "TestAddDBFlagsDefaultsDamengServicesToSchemaVerification"
-        },
-        {
           "path": "hack/contrib/docker/dameng_dockerfile_test.go",
           "selector": "TestStandardImagesIncludeDamengDriverWithoutUPX"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.database.dameng-bulk-upsert",
-      "title": "Use row-by-row writes for Dameng bulk upserts",
-      "title_zh": "达梦批量写入使用逐条创建或更新",
-      "interface_type": "package_function",
-      "interface": "gormbulkups.BulkUpsert",
-      "code_paths": [
-        "go.mod",
-        "third_party/gorm-bulk-upsert/bulk_upsert.go"
-      ],
-      "tests": [
-        {
-          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
-          "selector": "TestUsesDamengRowByRowUpsert"
-        },
-        {
-          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
-          "selector": "TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey"
-        },
-        {
-          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
-          "selector": "TestDamengUpsertObjectSetReusesCallerTransaction"
-        },
-        {
-          "path": "third_party/gorm-bulk-upsert/bulk_upsert_test.go",
-          "selector": "TestBulkUpsertKeepsMySQLStatement"
         }
       ],
       "test_type": "regression",
@@ -9024,6 +8959,45 @@
       "status": "active"
     },
     {
+      "id": "region.database.backend-boundary",
+      "title": "Keep database-specific behavior behind registered backends",
+      "title_zh": "\u5c06\u6570\u636e\u5e93\u5dee\u5f02\u6536\u655b\u5230\u6ce8\u518c\u540e\u7aef\u8fb9\u754c",
+      "interface_type": "workflow",
+      "interface": "db/mysql databaseBackend registry",
+      "code_paths": [
+        "db/mysql/backend.go",
+        "db/mysql/mysql.go",
+        "db/db.go",
+        "config/configs/db_config.go",
+        "db/mysql/dao/query_portability_test.go",
+        "db/portable/database_boundary_test.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/backend_test.go",
+          "selector": "TestManagerDoesNotBranchOnDatabaseNames,TestDatabaseBackendProvidesSchemaDefaults,TestManagerSchemaActionUsesBackendDefaultAndExplicitOverride,TestUnknownDatabaseBackendIsRejected"
+        },
+        {
+          "path": "config/configs/db_config_test.go",
+          "selector": "TestAddDBFlagsDefersSchemaDefaultToDatabaseBackend"
+        },
+        {
+          "path": "db/mysql/dao/query_portability_test.go",
+          "selector": "TestDAOCodeDoesNotBranchOnDatabaseNames"
+        },
+        {
+          "path": "db/portable/upsert_test.go",
+          "selector": "TestMySQLBulkUpsertDependencyContainsNoDatabaseFallback"
+        },
+        {
+          "path": "db/portable/database_boundary_test.go",
+          "selector": "TestBusinessPackagesDoNotInspectDatabaseDialect"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "region.database.portable-bulk-upsert",
       "title": "Portable bulk upsert boundary",
       "title_zh": "\u53ef\u79fb\u690d\u6279\u91cf\u5199\u5165\u8fb9\u754c",
@@ -9105,6 +9079,25 @@
         {
           "path": "db/mysql/dao/query_portability_test.go",
           "selector": "TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "region.database.portable-transaction",
+      "title": "Execute business operations through a portable transaction boundary",
+      "title_zh": "\u901a\u8fc7\u53ef\u79fb\u690d\u4e8b\u52a1\u8fb9\u754c\u6267\u884c\u4e1a\u52a1\u64cd\u4f5c",
+      "interface_type": "package_function",
+      "interface": "db/portable.WithinTransaction",
+      "code_paths": [
+        "db/portable/transaction.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "db/portable/transaction_test.go",
+          "selector": "TestWithinTransactionUsesDatabaseTransaction,TestWithinTransactionUsesSQLiteCompatibilityPath,TestWithinTransactionPropagatesCallbackError"
         }
       ],
       "test_type": "regression",

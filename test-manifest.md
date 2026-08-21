@@ -100,14 +100,12 @@
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
 | rainbond.config-files.read-yarnrc | 读取源码中的 yarnrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetYarnrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetYarnrcContent |
 | rainbond.config-files.resolve-relevant-file | 为包管理器选择相关配置文件 | active | regression | builder/parser/code.ConfigFiles.GetRelevantConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile |
-| rainbond.database.dameng-bulk-upsert | 达梦批量写入使用逐条创建或更新 | active | regression | gormbulkups.BulkUpsert | third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetReusesCallerTransaction<br>third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement |
 | rainbond.database.dameng-driver-bundle-preparation | Prepare a minimal Dameng driver bundle from ISO | active | regression | scripts/prepare-dameng-driver-bundle-from-iso.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengDriverBundleFromISO |
 | rainbond.database.dameng-driver-image-guard | Reject DM configuration in a non-DM image | active | regression | db.CreateManager | db/db_dameng_stub_test.go::TestCreateManagerDamengWithoutImageDriver |
 | rainbond.database.dameng-dsn-normalization | 达梦 DSN 规范化 | active | unit | db/dameng.NormalizeDSN | db/dameng/dsn_test.go::TestNormalizeDSN |
 | rainbond.database.dameng-go-dialect-module | Prepare separate Dameng Go driver and GORM dialect modules | active | regression | scripts/prepare-dameng-go-driver.sh | hack/contrib/docker/dameng_dockerfile_test.go::TestPrepareDamengGoDriverSeparatesDialectModule |
 | rainbond.database.dameng-open-error-cause | Preserve a redacted Dameng connection failure cause | active | regression | db/mysql.damengOpenError | db/mysql/mysql_dameng_test.go::TestDamengOpenErrorPreservesDriverCause<br>db/mysql/mysql_dameng_test.go::TestDamengOpenErrorRedactsConnectionCredentials |
-| rainbond.database.dameng-query-capabilities | 达梦查询使用可移植的参数化分页 | active | regression | db/mysql/dao.paginationSQL | db/mysql/dao/pagination_test.go::TestPaginationSQLKeepsMySQLAndUsesDamengOffsetSyntax |
-| rainbond.database.dameng-schema-lifecycle | 初始化并验证达梦 Schema，避免并发 DDL | active | regression | db/mysql.Manager schema lifecycle | db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify<br>db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable<br>db/mysql/mysql_dameng_test.go::TestDamengTableCheckUsesExplicitSchemaCatalog<br>db/dameng/dsn_test.go::TestSchemaName<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification<br>hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
+| rainbond.database.dameng-schema-lifecycle | 初始化并验证达梦 Schema，避免并发 DDL | active | regression | db/mysql damengDatabaseBackend schema lifecycle | db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify,TestVerifyDamengSchemaReportsTheMissingModelTable,TestDamengTableCheckUsesExplicitSchemaCatalog<br>db/dameng/dsn_test.go::TestSchemaName<br>hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.dameng-standard-image-actions | 标准镜像工作流提供达梦驱动包 | active | regression | development and release image build workflows | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardDamengBuildWorkflows |
 | rainbond.database.dameng-standard-images | 标准区域镜像内置达梦驱动 | active | regression | standard rbd API, Worker, and Chaos Dockerfiles | hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX |
 | rainbond.database.db-type-environment-default | 数据库类型环境默认值 | active | unit | config/configs.AddDBFlags | config/configs/db_config_test.go::TestAddDBFlagsUsesDBTypeEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsExplicitDBTypeOverridesEnvironmentDefault<br>config/configs/db_config_test.go::TestAddDBFlagsDefaultsToMySQLWithoutEnvironmentValue |
@@ -479,10 +477,12 @@
 | rainbond.worker.volume-provider.pvc-identifiers | 根据 PVC 名称解析 Pod 名与卷 ID | active | regression | worker/master/volumes/provider.getVolumeIDByPVCName | worker/master/volumes/provider/rainbondsslc_test.go::TestGetVolumeIDByPVCName |
 | rainbond.worker.volume-provider.select-node | 按可用内存选择存储节点 | active | integration | worker/master/volumes/provider.rainbondsslcProvisioner.selectNode | worker/master/volumes/provider/rainbondsslc_test.go::TestSelectNode |
 | rainbond.worker.volume-type.from-storageclass | 将存储类转换为 Rainbond 卷类型 | active | regression | worker/util.TransStorageClass2RBDVolumeType | worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType<br>db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode |
+| region.database.backend-boundary | 将数据库差异收敛到注册后端边界 | active | regression | db/mysql databaseBackend registry | db/mysql/backend_test.go::TestManagerDoesNotBranchOnDatabaseNames,TestDatabaseBackendProvidesSchemaDefaults,TestManagerSchemaActionUsesBackendDefaultAndExplicitOverride,TestUnknownDatabaseBackendIsRejected<br>config/configs/db_config_test.go::TestAddDBFlagsDefersSchemaDefaultToDatabaseBackend<br>db/mysql/dao/query_portability_test.go::TestDAOCodeDoesNotBranchOnDatabaseNames<br>db/portable/upsert_test.go::TestMySQLBulkUpsertDependencyContainsNoDatabaseFallback<br>db/portable/database_boundary_test.go::TestBusinessPackagesDoNotInspectDatabaseDialect |
 | region.database.portable-bulk-upsert | 可移植批量写入边界 | active | regression | db/portable.BulkUpsert | db/portable/upsert_test.go::TestBulkUpsertUsesCallerTransactionAndDeclaredConflictColumns,TestBulkUpsertKeepsExistingMySQLFastPath,TestBulkUpsertTreatsUnchangedRowsAsExisting,TestBulkUpsertUsesCallerRollback |
 | region.database.portable-dao-upsert-identities | DAO 批量写入业务唯一键 | active | regression | db/mysql/dao batch upsert methods | db/mysql/dao/bulk_upsert_portability_test.go::TestPortableBatchUpsertsUseBusinessIdentity |
 | region.database.portable-model-types | 数据库模型使用可移植文本类型 | active | regression | db/model field type declarations | db/model/database_portability_test.go::TestModelTagsDoNotUseVendorSpecificTextTypes |
 | region.database.portable-pagination | 可移植运行时查询语法 | active | regression | db/mysql/dao runtime queries | db/mysql/dao/query_portability_test.go::TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination |
+| region.database.portable-transaction | 通过可移植事务边界执行业务操作 | active | regression | db/portable.WithinTransaction | db/portable/transaction_test.go::TestWithinTransactionUsesDatabaseTransaction,TestWithinTransactionUsesSQLiteCompatibilityPath,TestWithinTransactionPropagatesCallbackError |
 
 ## 详情
 
@@ -1446,16 +1446,6 @@
 - 代码路径: `builder/parser/code/config_files.go`
 - 测试路径: `builder/parser/code/config_files_test.go::TestConfigFiles_GetRelevantConfigFile`
 
-### 达梦批量写入使用逐条创建或更新
-
-- Capability ID: `rainbond.database.dameng-bulk-upsert`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `gormbulkups.BulkUpsert`
-- 代码路径: `go.mod`, `third_party/gorm-bulk-upsert/bulk_upsert.go`
-- 测试路径: `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestUsesDamengRowByRowUpsert`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetCreatesThenUpdatesByPrimaryKey`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestDamengUpsertObjectSetReusesCallerTransaction`, `third_party/gorm-bulk-upsert/bulk_upsert_test.go::TestBulkUpsertKeepsMySQLStatement`
-
 ### Prepare a minimal Dameng driver bundle from ISO
 
 - Capability ID: `rainbond.database.dameng-driver-bundle-preparation`
@@ -1506,25 +1496,15 @@
 - 代码路径: `db/mysql/mysql.go`
 - 测试路径: `db/mysql/mysql_dameng_test.go::TestDamengOpenErrorPreservesDriverCause`, `db/mysql/mysql_dameng_test.go::TestDamengOpenErrorRedactsConnectionCredentials`
 
-### 达梦查询使用可移植的参数化分页
-
-- Capability ID: `rainbond.database.dameng-query-capabilities`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `package_function`
-- 业务入口: `db/mysql/dao.paginationSQL`
-- 代码路径: `db/mysql/dao/pagination.go`, `db/mysql/dao/tenants.go`, `db/mysql/dao/event.go`
-- 测试路径: `db/mysql/dao/pagination_test.go::TestPaginationSQLKeepsMySQLAndUsesDamengOffsetSyntax`
-
 ### 初始化并验证达梦 Schema，避免并发 DDL
 
 - Capability ID: `rainbond.database.dameng-schema-lifecycle`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
-- 业务入口: `db/mysql.Manager schema lifecycle`
-- 代码路径: `db/dameng/dsn.go`, `db/mysql/mysql.go`, `db/config/config.go`, `config/configs/db_config.go`, `cmd/db-migrate/main.go`, `hack/contrib/docker/api/Dockerfile`
-- 测试路径: `db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify`, `db/mysql/mysql_dameng_test.go::TestVerifyDamengSchemaReportsTheMissingModelTable`, `db/mysql/mysql_dameng_test.go::TestDamengTableCheckUsesExplicitSchemaCatalog`, `db/dameng/dsn_test.go::TestSchemaName`, `config/configs/db_config_test.go::TestAddDBFlagsDefaultsDamengServicesToSchemaVerification`, `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX`
+- 业务入口: `db/mysql damengDatabaseBackend schema lifecycle`
+- 代码路径: `db/mysql/backend.go`, `db/dameng/dsn.go`, `cmd/db-migrate/main.go`, `hack/contrib/docker/api/Dockerfile`
+- 测试路径: `db/mysql/mysql_dameng_test.go::TestSchemaActionKeepsMySQLMigrationAndMakesDamengServicesVerify,TestVerifyDamengSchemaReportsTheMissingModelTable,TestDamengTableCheckUsesExplicitSchemaCatalog`, `db/dameng/dsn_test.go::TestSchemaName`, `hack/contrib/docker/dameng_dockerfile_test.go::TestStandardImagesIncludeDamengDriverWithoutUPX`
 
 ### 标准镜像工作流提供达梦驱动包
 
@@ -5236,6 +5216,16 @@
 - 代码路径: `worker/util/volumetype.go`, `db/mysql/dao/volume_type.go`
 - 测试路径: `worker/util/volumetype_test.go::TestTransStorageClass2RBDVolumeType`, `db/mysql/dao/volume_type_test.go::TestShouldBackfillStorageClassAccessMode`
 
+### 将数据库差异收敛到注册后端边界
+
+- Capability ID: `region.database.backend-boundary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `db/mysql databaseBackend registry`
+- 代码路径: `db/mysql/backend.go`, `db/mysql/mysql.go`, `db/db.go`, `config/configs/db_config.go`, `db/mysql/dao/query_portability_test.go`, `db/portable/database_boundary_test.go`
+- 测试路径: `db/mysql/backend_test.go::TestManagerDoesNotBranchOnDatabaseNames,TestDatabaseBackendProvidesSchemaDefaults,TestManagerSchemaActionUsesBackendDefaultAndExplicitOverride,TestUnknownDatabaseBackendIsRejected`, `config/configs/db_config_test.go::TestAddDBFlagsDefersSchemaDefaultToDatabaseBackend`, `db/mysql/dao/query_portability_test.go::TestDAOCodeDoesNotBranchOnDatabaseNames`, `db/portable/upsert_test.go::TestMySQLBulkUpsertDependencyContainsNoDatabaseFallback`, `db/portable/database_boundary_test.go::TestBusinessPackagesDoNotInspectDatabaseDialect`
+
 ### 可移植批量写入边界
 
 - Capability ID: `region.database.portable-bulk-upsert`
@@ -5275,3 +5265,13 @@
 - 业务入口: `db/mysql/dao runtime queries`
 - 代码路径: `db/mysql/dao/event.go`, `db/mysql/dao/tenants.go`
 - 测试路径: `db/mysql/dao/query_portability_test.go::TestDAORuntimeSQLDoesNotUseVendorSpecificSyntax,TestGetEventsByTenantIDsUsesORMPagination,TestGetPagedTenantServiceUsesORMPagination`
+
+### 通过可移植事务边界执行业务操作
+
+- Capability ID: `region.database.portable-transaction`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `db/portable.WithinTransaction`
+- 代码路径: `db/portable/transaction.go`, `api/handler/service.go`
+- 测试路径: `db/portable/transaction_test.go::TestWithinTransactionUsesDatabaseTransaction,TestWithinTransactionUsesSQLiteCompatibilityPath,TestWithinTransactionPropagatesCallbackError`

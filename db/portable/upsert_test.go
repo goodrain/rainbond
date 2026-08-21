@@ -1,7 +1,10 @@
 package portable
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +13,19 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
+
+// capability_id: region.database.backend-boundary
+func TestMySQLBulkUpsertDependencyContainsNoDatabaseFallback(t *testing.T) {
+	path := filepath.Join("..", "..", "third_party", "gorm-bulk-upsert", "bulk_upsert.go")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lowerSource := strings.ToLower(string(source))
+	if strings.Contains(lowerSource, "dameng") || strings.Contains(lowerSource, `"dm"`) {
+		t.Fatal("the MySQL fast-path dependency must not contain a Dameng fallback")
+	}
+}
 
 type portableUpsertFixture struct {
 	ID        int64     `gorm:"column:id;primary_key;AUTO_INCREMENT"`

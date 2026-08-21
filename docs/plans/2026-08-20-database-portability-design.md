@@ -15,13 +15,14 @@
 
 ### 1.3 核心需求
 
-本阶段只整理运行时代码的数据库可移植性，不设计迁移执行器，不修改 Operator，也不改变部署流程：
+本阶段整理运行时代码和数据库接入边界的可移植性，不设计迁移执行器，不修改 Operator，也不改变部署流程：
 
 1. 模型优先使用 MySQL 与达梦都支持、且容量满足业务需求的公共字段类型。
 2. 查询优先使用 ORM，其次使用参数化的 ANSI SQL。
 3. 只有确实无法统一的 upsert、聚合、分页等能力进入一个窄方言边界。
 4. 业务 DAO 不出现散落的 `if dbType == "dm"`。
 5. MySQL 的接口行为、事务归属和已有优化路径保持不变。
+6. 驱动、DSN、Schema 元数据和 DDL 差异集中到数据库后端适配器；新增数据库时不修改业务 DAO。
 
 ## 二、用户旅程
 
@@ -53,6 +54,8 @@ DAO / Django ORM  --------> ORM 或参数化 ANSI SQL
       |
       v
 database portability boundary
+  - connection/backend registry
+  - schema metadata and DDL policy
   - bulk upsert
   - aggregate expression
   - pagination fallback
@@ -60,6 +63,7 @@ database portability boundary
       |
       +------ MySQL implementation
       +------ Dameng implementation
+      +------ additional database implementation
 ```
 
 ### 3.2 核心流程
@@ -79,8 +83,7 @@ database portability boundary
 ### 4.2 字段规则
 
 - 短字符串必须声明合理的 `size`，避免 ORM 默认生成无界大文本。
-- 普通文本使用两端都支持的 `TEXT`。
-- 需要超过 64 KiB 的大文本使用两端都支持的 `LONG VARCHAR`：MySQL 将其映射为 `MEDIUMTEXT`，达梦原生支持该类型。
+- 文本字段统一使用 ORM 可映射的 `TEXT`；当前业务字段不声明厂商专属大文本类型。
 - 业务模型禁止出现 `LONGTEXT`、`MEDIUMTEXT`、`CLOB` 等单一数据库类型。
 - 如果后续出现不存在公共物理类型的字段，只允许在集中方言层映射，不在模型中增加厂商判断。
 
@@ -91,6 +94,7 @@ database portability boundary
 不新增或修改 HTTP API。内部新增窄能力接口：
 
 - `BulkUpsert(db, rows, batchSize, conflictColumns...)`：调用方明确冲突键。
+- `DatabaseBackend`：集中声明连接、默认 Schema 行为、表元数据查询和数据库专属补丁。
 - 聚合和分页优先由 ORM 表达；只有无法表达时才增加方言方法。
 
 ### 5.2 请求/响应结构
@@ -121,6 +125,14 @@ Console、UI 与 region API 的请求和响应保持不变。
 - 其他数据库使用对应的原生 merge/upsert，或在调用方已有事务内执行可移植的 update-then-insert。
 - upsert 工具不得自行开启嵌套事务；事务始终由现有 service/handler 调用方拥有。
 - 传入值统一转换为可寻址指针，防止再次出现 `using unaddressable value`。
+
+#### 6.1.4 数据库后端边界
+
+- 通用 Manager 只负责注册模型、调用后端能力和暴露 DAO，不直接判断 `dm`。
+- 每种数据库在一个后端实现中处理驱动可用性、连接 DSN、默认 Schema 策略、表存在性检查和专属 DDL。
+- MySQL 专属历史 DDL 只由 MySQL 后端调用，不能成为其他数据库的默认分支。
+- 达梦专属目录、驱动构建和系统目录查询保留在达梦后端；这些是必要的驱动差异，不进入 DAO/Service/View。
+- 新数据库的目标接入成本是“驱动 + 一个后端适配器 + 兼容性验证”，不承诺仅复制驱动文件即可支持所有 Schema 行为。
 
 ### 6.2 复用现有代码
 
@@ -164,6 +176,14 @@ Console、UI 与 region API 的请求和响应保持不变。
 2. Console：相关测试、项目检查和 manifest 校验。
 3. MySQL E2E 作为合并门禁；达梦 E2E 用于发现尚未进入集中边界的差异。
 
+### Sprint 5：数据库后端边界收敛
+
+1. 用注册表和后端接口替换通用 Manager 中散落的数据库类型判断。
+2. 将 MySQL 历史 DDL、达梦 Schema 元数据查询和默认迁移策略归入各自后端。
+3. 删除未被生产代码调用的达梦分页分支和旧 bulk-upsert 达梦补丁。
+4. 增加静态测试，禁止 DAO、Handler、Service 和 View 新增达梦类型判断。
+5. 保持 Console 的数据库判断仅存在于 Django `DATABASES` 驱动配置边界。
+
 ## 八、关键参考代码
 
 | 功能 | 文件 | 说明 |
@@ -171,7 +191,8 @@ Console、UI 与 region API 的请求和响应保持不变。
 | Go 模型 | `db/model/*.go` | 清理厂商字段类型 |
 | Go 查询 | `db/mysql/dao/*.go` | ORM/ANSI SQL 整理 |
 | Go upsert | `db/mysql/dao/*.go` | 33 个调用点收口 |
-| Go 启动补丁 | `db/mysql/mysql.go` | 只盘点 SQL，本阶段不重构迁移生命周期 |
+| Go 后端适配器 | `db/mysql/backend*.go` | 连接、Schema 元数据和专属 DDL 边界 |
+| Go 通用 Manager | `db/mysql/mysql.go` | 注册模型并调用后端能力，不判断具体数据库 |
 | Console repository | `console/repositories/*.py` | 查询与结果标准化 |
 | Console service/view | `console/services/*.py`, `console/views/*.py` | 原生 SQL 收口 |
 | Console OpenAPI | `openapi/**/*.py` | OpenAPI 查询分页收口 |
