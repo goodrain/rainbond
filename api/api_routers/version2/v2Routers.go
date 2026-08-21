@@ -21,12 +21,14 @@ package version2
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
@@ -37,8 +39,43 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	http2 "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const pluginStaticRequestTimeout = 15 * time.Second
+
+var pluginStaticHTTPClient = &http.Client{
+	Timeout: pluginStaticRequestTimeout,
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+type rbdPluginGetter func(string) (*v1alpha1.RBDPlugin, error)
+
+type pluginStaticContent struct {
+	body        []byte
+	contentType string
+}
+
+type pluginStaticUpstreamError struct {
+	host       string
+	statusCode int
+	kind       string
+	err        error
+}
+
+func (e *pluginStaticUpstreamError) Error() string {
+	if e.statusCode != 0 {
+		return fmt.Sprintf("plugin frontend upstream returned status %d", e.statusCode)
+	}
+	return "plugin frontend upstream request failed"
+}
+
+func (e *pluginStaticUpstreamError) Unwrap() error {
+	return e.err
+}
 
 // V2 v2
 type V2 struct {
@@ -209,45 +246,112 @@ func getRBDPlugin(pluginName string) (*v1alpha1.RBDPlugin, error) {
 }
 
 func PluginStaticProxy(w http.ResponseWriter, r *http.Request) {
-	plugin, err := getRBDPlugin(chi.URLParam(r, "plugin_name"))
+	servePluginStatic(w, r, getRBDPlugin)
+}
+
+func servePluginStatic(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter) {
+	servePluginStaticWithClient(w, r, getPlugin, pluginStaticHTTPClient)
+}
+
+func servePluginStaticWithClient(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter, client *http.Client) {
+	pluginName := chi.URLParam(r, "plugin_name")
+	plugin, err := getPlugin(pluginName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get fronted_path: %v", err), http.StatusInternalServerError)
-		return
-	}
-	// 解析 fronted_path 内容
-	content, err := resolveFrontedPathContent(plugin)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to resolve fronted_path content: %v", err), http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		if apierrors.IsNotFound(err) {
+			statusCode = http.StatusNotFound
+		}
+		logrus.WithFields(logrus.Fields{
+			"plugin":     pluginName,
+			"error_type": fmt.Sprintf("%T", err),
+		}).Warn("failed to resolve RBDPlugin for static proxy")
+		http.Error(w, http.StatusText(statusCode), statusCode)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/javascript")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(content))
+	content, err := fetchPluginStaticContent(r.Context(), client, plugin)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write response: %v", err), http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		fields := logrus.Fields{
+			"plugin":     plugin.Name,
+			"error_type": fmt.Sprintf("%T", err),
+		}
+		var upstreamErr *pluginStaticUpstreamError
+		if errors.As(err, &upstreamErr) {
+			statusCode = http.StatusBadGateway
+			fields["target_host"] = upstreamErr.host
+			fields["upstream_status"] = upstreamErr.statusCode
+			fields["error_kind"] = upstreamErr.kind
+		}
+		logrus.WithFields(fields).Warn("failed to fetch plugin frontend static content")
+		http.Error(w, http.StatusText(statusCode), statusCode)
+		return
+	}
+
+	contentType := content.contentType
+	if contentType == "" {
+		contentType = "application/javascript"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(content.body)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"plugin":     plugin.Name,
+			"error_type": fmt.Sprintf("%T", err),
+		}).Warn("failed to write plugin static proxy response")
 	}
 }
 
 func resolveFrontedPathContent(plugin *v1alpha1.RBDPlugin) (content string, err error) {
+	staticContent, err := fetchPluginStaticContent(context.Background(), pluginStaticHTTPClient, plugin)
+	if err != nil {
+		return "", err
+	}
+	return string(staticContent.body), nil
+}
+
+func fetchPluginStaticContent(ctx context.Context, client *http.Client, plugin *v1alpha1.RBDPlugin) (*pluginStaticContent, error) {
 	frontendService := plugin.Spec.FrontendService
 	if frontendService == "" {
-		return "", fmt.Errorf("plugin %s has no frontend_service configured", plugin.Name)
+		return nil, fmt.Errorf("plugin %s has no frontend_service configured", plugin.Name)
 	}
 	fetchURL := frontendService
 	if !strings.HasPrefix(fetchURL, "http://") && !strings.HasPrefix(fetchURL, "https://") {
 		fetchURL = "http://" + fetchURL
 	}
-	resp, err := http.Get(fetchURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch content from %s: %v", fetchURL, err)
+		return nil, fmt.Errorf("invalid frontend_service for plugin %s: %w", plugin.Name, err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, &pluginStaticUpstreamError{
+			host: req.URL.Host,
+			kind: "transport",
+			err:  err,
+		}
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, &pluginStaticUpstreamError{
+			host:       req.URL.Host,
+			statusCode: resp.StatusCode,
+			kind:       "status",
+		}
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read content from %s: %v", fetchURL, err)
+		return nil, &pluginStaticUpstreamError{
+			host: req.URL.Host,
+			kind: "read",
+			err:  err,
+		}
 	}
-	return string(body), nil
+	return &pluginStaticContent{
+		body:        body,
+		contentType: resp.Header.Get("Content-Type"),
+	}, nil
 }
 
 func resolveNetworkPathContent(plugin *v1alpha1.RBDPlugin) (string, error) {
