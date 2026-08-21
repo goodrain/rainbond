@@ -95,6 +95,7 @@
 | rainbond.compose.preserve-volume-source-path | Preserve docker compose volume source paths | active | regression | builder/parser/compose.loadV3Volumes | builder/parser/compose/version_detect_test.go::TestLoadV3VolumesPreservesSourcePathUnderscores |
 | rainbond.compose.yaml-anchor-support | 支持 docker compose 中的 YAML anchors | active | regression | builder/parser.CreateDockerComposeParse.Parse | builder/parser/docker_compose_warnings_test.go::TestDockerComposeParseWithYAMLAnchors |
 | rainbond.config-file.dependent-configmap-ownership | 依赖配置文件保持提供方所有权 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision |
+| rainbond.config-file.dependent-source-key | 依赖配置文件使用提供方源文件键 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderFileKey<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderFileKey<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyLegacyDependentSourceKey<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyKnownLegacyConsumerConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapRetriesDependentMigrationConflict<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapHandlesDependentCreateRace |
 | rainbond.config-file.k8s-volume-name-safe | Keep config-file Kubernetes volume names DNS-safe | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName |
 | rainbond.config-files.detect | 识别源码目录中的 npm 和 yarn 配置文件 | active | regression | builder/parser/code.DetectConfigFiles | builder/parser/code/config_files_test.go::TestDetectConfigFiles_Npmrc<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcClassic<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcYml<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_Multiple<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_None |
 | rainbond.config-files.has-any | 检测源码中是否存在包管理器配置文件 | active | regression | builder/parser/code.ConfigFiles.HasAnyConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_HasAnyConfigFile |
@@ -406,6 +407,7 @@
 | rainbond.vm-volume-selected-storage-class | 为 VM 数据卷保留所选存储类 | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestNewVolumeManagerUsesSelectedStorageClassForVMDisks |
 | rainbond.vm-volume-vm-file-backward-compatible | 旧版 vm-file 虚机卷继续回退到 local-path | active | regression | worker/appm/volume.ShareFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestShareFileVolumeVMStorageClassFallsBackToLocalPathForLegacyVMFile |
 | rainbond.vm-volume.allow-shared-device-paths | 允许 VM 服务在不同数据卷间复用设备路径 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath |
+| rainbond.volume-dependency.precise-delete | 仅删除指定提供方的挂载关系 | active | regression | api/handler.ServiceAction.VolumeDependency | api/handler/service_volume_dependency_test.go::TestVolumeDependencyDeleteUsesConsumerProviderAndVolumeName<br>db/mysql/dao/tenant_service_mount_relation_test.go::TestTenantServiceMountRelationDaoDeletesOnlyRequestedProviderVolume |
 | rainbond.volume.keep-non-vm-path-uniqueness | 保持非 VM 服务卷路径唯一性校验 | active | regression | db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel | db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelRejectsDuplicatePathForNonVMService |
 | rainbond.watch.error-dispatch | 将 watch 后端错误分发到内部错误通道 | active | regression | util/watch.watchChan.sendError | util/watch/watch_test.go::TestWatchChanSendError |
 | rainbond.watch.error-parse | 将 watch 后端错误转换为 API 错误事件 | active | regression | util/watch.parseError | util/watch/watch_test.go::TestParseError |
@@ -1381,6 +1383,16 @@
 - 业务入口: `worker/appm/volume.ConfigFileVolume.CreateDependVolume`
 - 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/controller/upgrade.go`, `worker/appm/types/v1/labels.go`
 - 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision`
+
+### 依赖配置文件使用提供方源文件键
+
+- Capability ID: `rainbond.config-file.dependent-source-key`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume.ConfigFileVolume.CreateDependVolume`
+- 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderFileKey`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderFileKey`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyLegacyDependentSourceKey`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyKnownLegacyConsumerConfigMap`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapRetriesDependentMigrationConflict`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapHandlesDependentCreateRace`
 
 ### Keep config-file Kubernetes volume names DNS-safe
 
@@ -4491,6 +4503,16 @@
 - 业务入口: `db/mysql/dao.TenantServiceVolumeDaoImpl.AddModel`
 - 代码路径: `db/mysql/dao/tenants.go`
 - 测试路径: `db/mysql/dao/tenant_service_volume_vm_test.go::TestTenantServiceVolumeDaoAddModelAllowsDuplicateVMDevicePath`
+
+### 仅删除指定提供方的挂载关系
+
+- Capability ID: `rainbond.volume-dependency.precise-delete`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.VolumeDependency`
+- 代码路径: `api/handler/service.go`, `db/dao/dao.go`, `db/mysql/dao/tenants.go`
+- 测试路径: `api/handler/service_volume_dependency_test.go::TestVolumeDependencyDeleteUsesConsumerProviderAndVolumeName`, `db/mysql/dao/tenant_service_mount_relation_test.go::TestTenantServiceMountRelationDaoDeletesOnlyRequestedProviderVolume`
 
 ### 保持非 VM 服务卷路径唯一性校验
 

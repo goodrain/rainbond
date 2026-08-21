@@ -22,6 +22,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 type upgradeController struct {
@@ -104,11 +106,9 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 	var errs []error
 	for _, new := range newConfigMaps {
 		if new.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeDependent {
+			nowConfig := nowConfigMapMaps[new.Name]
 			nowConfigMapMaps[new.Name] = nil
-			_, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Get(s.ctx, new.Name, metav1.GetOptions{})
-			if errors.IsNotFound(err) {
-				_, err = s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
-			}
+			err := s.ensureDependentConfigMap(nowApp.GetNamespace(), nowApp.ServiceID, nowConfig, new)
 			if err != nil {
 				logrus.Errorf("ensure dependency configmap failure %s", err.Error())
 				errs = append(errs, fmt.Errorf("ensure dependency configmap %s failure: %s", new.Name, err.Error()))
@@ -163,6 +163,65 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 		}
 	}
 	return stderrors.Join(errs...)
+}
+
+func (s *upgradeController) ensureDependentConfigMap(namespace, consumerID string, nowConfig, desired *corev1.ConfigMap) error {
+	return retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return errors.IsAlreadyExists(err) || errors.IsConflict(err) || errors.IsNotFound(err)
+	}, func() error {
+		existing, err := s.manager.client.CoreV1().ConfigMaps(namespace).Get(s.ctx, desired.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			_, err = s.manager.client.CoreV1().ConfigMaps(namespace).Create(s.ctx, desired.DeepCopy(), metav1.CreateOptions{})
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		if !migrateLegacyDependentConfigMapKey(existing, desired, nowConfig, consumerID) {
+			return nil
+		}
+		_, err = s.manager.client.CoreV1().ConfigMaps(namespace).Update(s.ctx, existing, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+func migrateLegacyDependentConfigMapKey(existing, desired, nowConfig *corev1.ConfigMap, consumerID string) bool {
+	if desired.Annotations[v1.ConfigFileScopeAnnotation] != v1.ConfigFileScopeDependent ||
+		len(existing.Data) != 1 || len(desired.Data) != 1 {
+		return false
+	}
+	providerID := desired.Labels["service_id"]
+	if providerID == "" {
+		return false
+	}
+	switch existing.Annotations[v1.ConfigFileScopeAnnotation] {
+	case v1.ConfigFileScopeDependent:
+		if existing.Labels["service_id"] != providerID {
+			return false
+		}
+	case "":
+		if consumerID == "" || providerID == consumerID || existing.Name != desired.Name ||
+			!strings.HasPrefix(existing.Name, "vm-cfg-") || len(existing.Name) != len("vm-cfg-")+16 ||
+			existing.Labels["creator"] != "Rainbond" || existing.Labels["service_id"] != consumerID ||
+			nowConfig == nil || nowConfig.Name != existing.Name || nowConfig.Labels["service_id"] != consumerID {
+			return false
+		}
+	default:
+		return false
+	}
+	var sourceKey string
+	for key := range desired.Data {
+		sourceKey = key
+	}
+	if _, ok := existing.Data[sourceKey]; ok {
+		return false
+	}
+	var legacyValue string
+	for _, value := range existing.Data {
+		legacyValue = value
+	}
+	existing.Data[sourceKey] = legacyValue
+	return true
 }
 
 func canAdoptConfigMap(existing, desired *corev1.ConfigMap) bool {

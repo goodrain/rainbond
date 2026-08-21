@@ -343,7 +343,7 @@ type TenantServiceMountRelationDao interface {
 	Dao
 	GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error)
 	GetTenantServiceMountRelationsByDepServiceAndVolumeName(serviceID, volumeName string) ([]*model.TenantServiceMountRelation, error)
-	DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error
+	DeleteTenantServiceMountRelation(serviceID, dependServiceID, volumeName string) error
 	DELTenantServiceMountRelationByServiceID(serviceID string) error
 	DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error
 	DeleteByComponentIDs(componentIDs []string) error

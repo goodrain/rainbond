@@ -2627,7 +2627,7 @@ func (s *ServiceAction) VolumeDependency(tsr *dbmodel.TenantServiceMountRelation
 		}
 	case "delete":
 		if tsr.VolumeName != "" {
-			if err := db.GetManager().TenantServiceMountRelationDao().DElTenantServiceMountRelationByServiceAndName(tsr.ServiceID, tsr.VolumeName); err != nil {
+			if err := db.GetManager().TenantServiceMountRelationDao().DeleteTenantServiceMountRelation(tsr.ServiceID, tsr.DependServiceID, tsr.VolumeName); err != nil {
 				return util.CreateAPIHandleErrorFromDBError("delete mount relation", err)
 			}
 		} else {
