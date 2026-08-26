@@ -564,6 +564,55 @@ func (t *TCPRuleDaoTmpl) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
 	return rules, nil
 }
 
+// ReplaceByIPAndPort replaces duplicate TCP rules with one canonical rule.
+func (t *TCPRuleDaoTmpl) ReplaceByIPAndPort(tcpRule *model.TCPRule) error {
+	tx := t.DB.Begin()
+	if tx.Error != nil {
+		return errors.Wrap(tx.Error, "begin replacing tcp rule")
+	}
+
+	query := tx.Where("ip = ? and port = ?", tcpRule.IP, tcpRule.Port)
+	if tcpRule.UUID != "" {
+		query = tx.Where("uuid = ? or (ip = ? and port = ?)", tcpRule.UUID, tcpRule.IP, tcpRule.Port)
+	}
+	if err := query.Delete(&model.TCPRule{}).Error; err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "delete duplicate tcp rules")
+	}
+
+	canonical := *tcpRule
+	canonical.Model = model.Model{}
+	if err := tx.Create(&canonical).Error; err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "create canonical tcp rule")
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "commit replacing tcp rule")
+	}
+	return nil
+}
+
+// ListByIPAndPort lists all TCP rules matching an external IP and port.
+func (t *TCPRuleDaoTmpl) ListByIPAndPort(ip string, port int) ([]*model.TCPRule, error) {
+	var rules []*model.TCPRule
+	if err := t.DB.Where("ip = ? and port = ?", ip, port).Find(&rules).Error; err != nil {
+		return nil, errors.Wrap(err, "list tcp rules by ip and port")
+	}
+	return rules, nil
+}
+
+// DeleteByRecordIDs deletes only TCP rules with the captured primary IDs.
+func (t *TCPRuleDaoTmpl) DeleteByRecordIDs(ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := t.DB.Where("ID in (?)", ids).Delete(&model.TCPRule{}).Error; err != nil {
+		return errors.Wrap(err, "delete tcp rules by record IDs")
+	}
+	return nil
+}
+
 // ListByServiceID lists all TCPRules matching serviceID
 func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
 	var rules []*model.TCPRule

@@ -34,6 +34,91 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// capability_id: rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation
+func TestShouldTrackNodePortService(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   bool
+	}{
+		{
+			name: "Rainbond-managed outer TCP route",
+			labels: map[string]string{
+				"creator": "Rainbond",
+				"tcp":     "true",
+				"outer":   "true",
+			},
+			want: false,
+		},
+		{
+			name: "ordinary NodePort service",
+			want: true,
+		},
+		{
+			name: "missing creator label",
+			labels: map[string]string{
+				"tcp":   "true",
+				"outer": "true",
+			},
+			want: true,
+		},
+		{
+			name: "missing tcp label",
+			labels: map[string]string{
+				"creator": "Rainbond",
+				"outer":   "true",
+			},
+			want: true,
+		},
+		{
+			name: "missing outer label",
+			labels: map[string]string{
+				"creator": "Rainbond",
+				"tcp":     "true",
+			},
+			want: true,
+		},
+		{
+			name: "different creator label",
+			labels: map[string]string{
+				"creator": "external",
+				"tcp":     "true",
+				"outer":   "true",
+			},
+			want: true,
+		},
+		{
+			name: "different tcp label",
+			labels: map[string]string{
+				"creator": "Rainbond",
+				"tcp":     "false",
+				"outer":   "true",
+			},
+			want: true,
+		},
+		{
+			name: "different outer label",
+			labels: map[string]string{
+				"creator": "Rainbond",
+				"tcp":     "true",
+				"outer":   "false",
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Labels: tt.labels},
+				Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeNodePort},
+			}
+
+			assert.Equal(t, tt.want, shouldTrackNodePortService(service))
+		})
+	}
+}
+
 // capability_id: rainbond.worker.appm.store.aggregate-app-status
 func TestGetAppStatus(t *testing.T) {
 	tests := []struct {
