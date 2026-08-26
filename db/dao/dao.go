@@ -559,6 +559,9 @@ type TCPRuleDao interface {
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
 	GetUsedPortsByIP(ip string) ([]*model.TCPRule, error)
+	ReplaceByIPAndPort(tcpRule *model.TCPRule) error
+	ListByIPAndPort(ip string, port int) ([]*model.TCPRule, error)
+	DeleteByRecordIDs(ids []uint) error
 	DeleteByComponentPort(componentID string, port int) error
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error

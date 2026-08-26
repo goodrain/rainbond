@@ -395,6 +395,10 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 	}
 }
 
+func shouldTrackNodePortService(service *corev1.Service) bool {
+	return service.Labels["creator"] != "Rainbond" || service.Labels["tcp"] != "true" || service.Labels["outer"] != "true"
+}
+
 func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
 		serviceID := thirdComponent.Labels["service_id"]
@@ -627,25 +631,27 @@ func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 		}
 	}
 	if service, ok := obj.(*corev1.Service); ok {
-		for _, port := range service.Spec.Ports {
-			if port.NodePort != 0 {
-				nodePort := int(port.NodePort)
-				// 查询数据库是否存在该端口
-				exist, err := a.dbmanager.TCPRuleDao().GetTCPRuleByPort(nodePort)
-				if err != nil {
-					logrus.Errorf("get tcp rule by port failure: %v", err)
-				}
-				if exist == nil {
-					tcpRule := &model.TCPRule{
-						UUID:          "",
-						ServiceID:     "",
-						ContainerPort: int(port.Port),
-						IP:            "0.0.0.0",
-						Port:          int(port.NodePort),
-					}
-					err = a.dbmanager.TCPRuleDao().AddModel(tcpRule)
+		if shouldTrackNodePortService(service) {
+			for _, port := range service.Spec.Ports {
+				if port.NodePort != 0 {
+					nodePort := int(port.NodePort)
+					// 查询数据库是否存在该端口
+					exist, err := a.dbmanager.TCPRuleDao().GetTCPRuleByPort(nodePort)
 					if err != nil {
-						logrus.Errorf("add tcp rule failure: %v", err)
+						logrus.Errorf("get tcp rule by port failure: %v", err)
+					}
+					if exist == nil {
+						tcpRule := &model.TCPRule{
+							UUID:          "",
+							ServiceID:     "",
+							ContainerPort: int(port.Port),
+							IP:            "0.0.0.0",
+							Port:          int(port.NodePort),
+						}
+						err = a.dbmanager.TCPRuleDao().AddModel(tcpRule)
+						if err != nil {
+							logrus.Errorf("add tcp rule failure: %v", err)
+						}
 					}
 				}
 			}

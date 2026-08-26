@@ -4736,6 +4736,43 @@ func (mr *MockTCPRuleDaoMockRecorder) GetUsedPortsByIP(ip interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsedPortsByIP", reflect.TypeOf((*MockTCPRuleDao)(nil).GetUsedPortsByIP), ip)
 }
 
+// ReplaceByIPAndPort mocks base method
+func (m *MockTCPRuleDao) ReplaceByIPAndPort(tcpRule *model.TCPRule) error {
+	ret := m.ctrl.Call(m, "ReplaceByIPAndPort", tcpRule)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReplaceByIPAndPort indicates an expected call of ReplaceByIPAndPort
+func (mr *MockTCPRuleDaoMockRecorder) ReplaceByIPAndPort(tcpRule interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceByIPAndPort", reflect.TypeOf((*MockTCPRuleDao)(nil).ReplaceByIPAndPort), tcpRule)
+}
+
+// ListByIPAndPort mocks base method
+func (m *MockTCPRuleDao) ListByIPAndPort(ip string, port int) ([]*model.TCPRule, error) {
+	ret := m.ctrl.Call(m, "ListByIPAndPort", ip, port)
+	ret0, _ := ret[0].([]*model.TCPRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByIPAndPort indicates an expected call of ListByIPAndPort
+func (mr *MockTCPRuleDaoMockRecorder) ListByIPAndPort(ip, port interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByIPAndPort", reflect.TypeOf((*MockTCPRuleDao)(nil).ListByIPAndPort), ip, port)
+}
+
+// DeleteByRecordIDs mocks base method
+func (m *MockTCPRuleDao) DeleteByRecordIDs(ids []uint) error {
+	ret := m.ctrl.Call(m, "DeleteByRecordIDs", ids)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByRecordIDs indicates an expected call of DeleteByRecordIDs
+func (mr *MockTCPRuleDaoMockRecorder) DeleteByRecordIDs(ids interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByRecordIDs", reflect.TypeOf((*MockTCPRuleDao)(nil).DeleteByRecordIDs), ids)
+}
+
 // MockEndpointsDao is a mock of EndpointsDao interface
 type MockEndpointsDao struct {
 	ctrl     *gomock.Controller
