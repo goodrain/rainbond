@@ -2372,7 +2372,7 @@
 - 接口类型: `package_function`
 - 业务入口: `worker.handle.resolveK8sResourceMapping`
 - 代码路径: `worker/handle/manager.go`
-- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution`, `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFallsBackToServedCRDVersion`
 
 ### 按 Region 记录身份受理 K8s 资源删除
 

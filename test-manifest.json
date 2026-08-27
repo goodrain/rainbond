@@ -3521,6 +3521,10 @@
         {
           "path": "worker/handle/k8s_resource_delete_test.go",
           "selector": "TestK8sResourceDeleteRefreshesMapperAndRetriesResolution"
+        },
+        {
+          "path": "worker/handle/k8s_resource_delete_test.go",
+          "selector": "TestK8sResourceDeleteFallsBackToServedCRDVersion"
         }
       ],
       "test_type": "regression",

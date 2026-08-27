@@ -123,6 +123,24 @@ func TestK8sResourceDeleteRefreshesMapperAndRetriesResolution(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.k8s-resource.mapper-refresh-delete
+func TestK8sResourceDeleteFallsBackToServedCRDVersion(t *testing.T) {
+	groupKind := schema.GroupKind{Group: "extensions.kubeblocks.io", Kind: "Addon"}
+	served := schema.GroupVersionKind{Group: "extensions.kubeblocks.io", Version: "v1alpha2", Kind: "Addon"}
+	refreshed := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: served.Group, Version: served.Version}})
+	refreshed.Add(served, meta.RESTScopeNamespace)
+
+	mapping, err := resolveK8sResourceMapping(&noMatchRESTMapper{}, groupKind, "v1alpha1", func() (meta.RESTMapper, error) {
+		return refreshed, nil
+	})
+	if err != nil {
+		t.Fatalf("expected deletion to resolve the currently served CRD version, got %v", err)
+	}
+	if mapping.Resource != (schema.GroupVersionResource{Group: served.Group, Version: served.Version, Resource: "addons"}) {
+		t.Fatalf("expected Addon to resolve through served version %q, got %#v", served.Version, mapping.Resource)
+	}
+}
+
 type noMatchRESTMapper struct {
 	calls int
 }

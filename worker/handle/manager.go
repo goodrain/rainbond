@@ -751,27 +751,24 @@ type k8sResourceDeleteMapperResolver struct {
 func (r *k8sResourceDeleteMapperResolver) resolve(gk schema.GroupKind, version string) (*meta.RESTMapping, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.mapper == nil {
-		return nil, fmt.Errorf("k8s REST mapper is unavailable")
-	}
-	mapping, err := r.mapper.RESTMapping(gk, version)
-	if err == nil || !meta.IsNoMatchError(err) {
-		return mapping, err
-	}
-	refreshed, refreshErr := r.refresh()
-	if refreshErr != nil {
-		return nil, refreshErr
-	}
-	if refreshed == nil {
-		return nil, fmt.Errorf("k8s REST mapper refresh returned nil")
-	}
-	r.mapper = refreshed
-	return r.mapper.RESTMapping(gk, version)
+	return resolveK8sResourceMapping(r.mapper, gk, version, func() (meta.RESTMapper, error) {
+		refreshed, err := r.refresh()
+		if err != nil {
+			return nil, err
+		}
+		if refreshed != nil {
+			r.mapper = refreshed
+		}
+		return refreshed, nil
+	})
 }
 
 // resolveK8sResourceMapping retries the actual RESTMapping after discovery has
-// been refreshed. The old deletion path accidentally returned the successful
-// refresh error (nil) instead of continuing to map the resource.
+// been refreshed. The persisted YAML may name a CRD version that is no longer
+// served (for example, KubeBlocks v1alpha1 after an upgrade), so after that
+// retry a versionless GroupKind lookup selects the currently served version.
+// The old deletion path accidentally returned the successful refresh error
+// (nil) instead of continuing to map the resource.
 func resolveK8sResourceMapping(mapper meta.RESTMapper, gk schema.GroupKind, version string, refresh func() (meta.RESTMapper, error)) (*meta.RESTMapping, error) {
 	if mapper == nil {
 		return nil, fmt.Errorf("k8s REST mapper is unavailable")
@@ -787,7 +784,11 @@ func resolveK8sResourceMapping(mapper meta.RESTMapper, gk schema.GroupKind, vers
 	if refreshed == nil {
 		return nil, fmt.Errorf("k8s REST mapper refresh returned nil")
 	}
-	return refreshed.RESTMapping(gk, version)
+	mapping, err = refreshed.RESTMapping(gk, version)
+	if err == nil || !meta.IsNoMatchError(err) {
+		return mapping, err
+	}
+	return refreshed.RESTMapping(gk)
 }
 
 func uniqueK8sResourceDeleteTargets(targets []model.K8sResourceDeleteTaskTarget) []model.K8sResourceDeleteTaskTarget {
