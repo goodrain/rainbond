@@ -97,12 +97,6 @@ const (
 	k8sResourceDeleteConcurrency    = 8
 )
 
-var customResourceDefinitionGVR = schema.GroupVersionResource{
-	Group:    "apiextensions.k8s.io",
-	Version:  "v1",
-	Resource: "customresourcedefinitions",
-}
-
 type k8sResourceDeleteIdentityError struct {
 	message string
 }
@@ -797,37 +791,6 @@ func resolveK8sResourceMapping(mapper meta.RESTMapper, gk schema.GroupKind, vers
 	return refreshed.RESTMapping(gk)
 }
 
-// isK8sCustomResourceDefinitionMissing verifies the CRD registry rather than
-// inferring physical deletion from a discovery no-match. Kubernetes removes a
-// CRD's custom objects when that CRD is deleted, so an absent matching CRD is
-// the one safe no-GET completion case for a persisted custom resource.
-func isK8sCustomResourceDefinitionMissing(ctx context.Context, client dynamic.Interface, groupKind schema.GroupKind) (bool, error) {
-	if client == nil {
-		return false, fmt.Errorf("k8s dynamic client is unavailable while verifying CRD %s/%s", groupKind.Group, groupKind.Kind)
-	}
-	crds, err := client.Resource(customResourceDefinitionGVR).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return false, fmt.Errorf("list custom resource definitions while verifying %s/%s: %w", groupKind.Group, groupKind.Kind, err)
-	}
-	for _, crd := range crds.Items {
-		group, found, err := unstructured.NestedString(crd.Object, "spec", "group")
-		if err != nil {
-			return false, fmt.Errorf("read custom resource definition %q group: %w", crd.GetName(), err)
-		}
-		if !found || group != groupKind.Group {
-			continue
-		}
-		kind, found, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
-		if err != nil {
-			return false, fmt.Errorf("read custom resource definition %q kind: %w", crd.GetName(), err)
-		}
-		if found && kind == groupKind.Kind {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
 func uniqueK8sResourceDeleteTargets(targets []model.K8sResourceDeleteTaskTarget) []model.K8sResourceDeleteTaskTarget {
 	seen := make(map[string]struct{}, len(targets))
 	unique := make([]model.K8sResourceDeleteTaskTarget, 0, len(targets))
@@ -869,14 +832,6 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 		}
 		return
 	}
-	// A create/update error does not prove Kubernetes created nothing: a client
-	// timeout may arrive after the API server accepted the create. Never remove
-	// Region state without an actual GET NotFound verification.
-	if resource.State != apimodel.CreateSuccess && resource.State != apimodel.UpdateSuccess {
-		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource create/update did not complete; physical identity cannot be verified"), true)
-		return
-	}
-
 	deleteContext, cancel := context.WithTimeout(m.ctx, k8sResourceDeleteRequestTimeout)
 	defer cancel()
 	obj, gvk, err := decodeK8sResourceForDeletion(resource.Content)
@@ -886,18 +841,6 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 	}
 	mapping, err := resolver.resolve(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		if meta.IsNoMatchError(err) {
-			crdMissing, crdErr := isK8sCustomResourceDefinitionMissing(deleteContext, dc, gvk.GroupKind())
-			if crdErr != nil {
-				m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, crdErr, false)
-				return
-			}
-			if crdMissing {
-				logrus.Infof("complete k8s resource deletion %d/%d because CRD %s/%s is absent", resource.ID, target.DeleteGeneration, gvk.Group, gvk.Kind)
-				m.completeK8sResourceDeletion(resource, target, lease.DeleteLeaseToken)
-				return
-			}
-		}
 		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, false)
 		return
 	}
@@ -912,14 +855,23 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 	} else {
 		resourceClient = dc.Resource(mapping.Resource)
 	}
-	if resource.ResourceUID == "" || resource.ResourceIdentity == "" {
-		observed, getErr := resourceClient.Get(deleteContext, obj.GetName(), metav1.GetOptions{})
+	createOrUpdateSucceeded := resource.State == apimodel.CreateSuccess || resource.State == apimodel.UpdateSuccess
+	var (
+		observed *unstructured.Unstructured
+		getErr   error
+	)
+	if !createOrUpdateSucceeded || resource.ResourceUID == "" || resource.ResourceIdentity == "" {
+		observed, getErr = resourceClient.Get(deleteContext, obj.GetName(), metav1.GetOptions{})
 		if k8sErrors.IsNotFound(getErr) {
 			m.completeK8sResourceDeletion(resource, target, lease.DeleteLeaseToken)
 			return
 		}
 		if getErr != nil {
 			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, getErr, false)
+			return
+		}
+		if !createOrUpdateSucceeded && !isK8sResourceCreateFailureRecoverable(resource, observed) {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource create/update did not complete and existing Kubernetes object is not a permitted terminating cleanup target"), true)
 			return
 		}
 		observedUID := string(observed.GetUID())
@@ -943,9 +895,14 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 		resource.ResourceUID = observedUID
 		resource.ResourceIdentity = physicalIdentity
 	}
-	if err := resourceClient.Delete(deleteContext, obj.GetName(), forceDeleteOptions(types.UID(resource.ResourceUID))); err != nil && !k8sErrors.IsNotFound(err) {
-		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, k8sErrors.IsConflict(err))
-		return
+	// A failed create that observed the exact object already terminating does
+	// not issue a second delete. It proceeds directly to the UID-guarded
+	// finalizer wait/cleanup path below.
+	if observed == nil || observed.GetDeletionTimestamp() == nil {
+		if err := resourceClient.Delete(deleteContext, obj.GetName(), forceDeleteOptions(types.UID(resource.ResourceUID))); err != nil && !k8sErrors.IsNotFound(err) {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, k8sErrors.IsConflict(err))
+			return
+		}
 	}
 
 	deleted, err := waitForK8sResourceDeletion(deleteContext, resourceClient, obj.GetName(), types.UID(resource.ResourceUID), resource.ResourceOrigin, resource.AllowsForceFinalizerRemoval())
@@ -960,9 +917,19 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 	m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource %s is still terminating after force deletion", obj.GetName()), false)
 }
 
-// completeK8sResourceDeletion removes Region state after an exact Kubernetes
-// GET returns NotFound, or after the CRD registry verifies the CRD itself has
-// been removed (which deletes all of that CRD's custom objects).
+// isK8sResourceCreateFailureRecoverable permits cleanup after a failed create
+// or update only when an exact GET observes the target already terminating and
+// this record's source policy authorizes finalizer removal. It prevents a
+// failed create from deleting an unrelated active object with the same name.
+func isK8sResourceCreateFailureRecoverable(resource dbmodel.K8sResource, observed *unstructured.Unstructured) bool {
+	if resource.State != apimodel.CreateError && resource.State != apimodel.UpdateError {
+		return false
+	}
+	return observed != nil && observed.GetDeletionTimestamp() != nil && resource.AllowsForceFinalizerRemoval()
+}
+
+// completeK8sResourceDeletion removes Region state only after a Kubernetes GET
+// for the exact persisted identity has returned NotFound.
 func (m *Manager) completeK8sResourceDeletion(resource dbmodel.K8sResource, target model.K8sResourceDeleteTaskTarget, leaseToken string) {
 	if removed, deleteErr := m.dbmanager.K8sResourceDao().DeleteK8sResourceByIDAndGeneration(resource.ID, target.DeleteGeneration, leaseToken); deleteErr != nil {
 		logrus.Errorf("remove verified k8s resource deletion row %d/%d: %v", resource.ID, target.DeleteGeneration, deleteErr)

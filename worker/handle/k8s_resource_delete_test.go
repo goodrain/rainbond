@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	apimodel "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -141,44 +142,50 @@ func TestK8sResourceDeleteFallsBackToServedCRDVersion(t *testing.T) {
 	}
 }
 
-// capability_id: rainbond.k8s-resource.missing-crd-delete-completion
-func TestK8sResourceDeleteCompletesOnlyWhenMatchingCRDIsAbsent(t *testing.T) {
-	groupKind := schema.GroupKind{Group: "extensions.kubeblocks.io", Kind: "Addon"}
-	client := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
-		customResourceDefinitionGVR: "CustomResourceDefinitionList",
-	})
+// capability_id: rainbond.k8s-resource.terminating-create-conflict-recovery
+func TestK8sResourceDeleteRecoversOnlyObservedTerminatingCreateConflict(t *testing.T) {
+	deleting := &unstructured.Unstructured{}
+	now := metav1.Now()
+	deleting.SetDeletionTimestamp(&now)
 
-	missing, err := isK8sCustomResourceDefinitionMissing(context.Background(), client, groupKind)
-	if err != nil {
-		t.Fatalf("verify absent CRD: %v", err)
-	}
-	if !missing {
-		t.Fatal("a GroupKind with no matching CRD must be identified as removed")
+	testCases := []struct {
+		name     string
+		resource dbmodel.K8sResource
+		observed *unstructured.Unstructured
+		want     bool
+	}{
+		{
+			name:     "market resource already terminating",
+			resource: dbmodel.K8sResource{State: apimodel.CreateError, ResourceOrigin: dbmodel.K8sResourceOriginMarket, ForceFinalizerAllowed: true},
+			observed: deleting,
+			want:     true,
+		},
+		{
+			name:     "existing object is still active",
+			resource: dbmodel.K8sResource{State: apimodel.CreateError, ResourceOrigin: dbmodel.K8sResourceOriginMarket, ForceFinalizerAllowed: true},
+			observed: &unstructured.Unstructured{},
+			want:     false,
+		},
+		{
+			name:     "finalizer policy forbids recovery",
+			resource: dbmodel.K8sResource{State: apimodel.CreateError, ResourceOrigin: dbmodel.K8sResourceOriginLegacy, ForceFinalizerAllowed: true},
+			observed: deleting,
+			want:     false,
+		},
+		{
+			name:     "successful create stays on normal deletion path",
+			resource: dbmodel.K8sResource{State: apimodel.CreateSuccess, ResourceOrigin: dbmodel.K8sResourceOriginMarket, ForceFinalizerAllowed: true},
+			observed: deleting,
+			want:     false,
+		},
 	}
 
-	matchingCRD := &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "apiextensions.k8s.io/v1",
-		"kind":       "CustomResourceDefinition",
-		"metadata": map[string]interface{}{
-			"name": "addons.extensions.kubeblocks.io",
-		},
-		"spec": map[string]interface{}{
-			"group": groupKind.Group,
-			"names": map[string]interface{}{
-				"kind":   groupKind.Kind,
-				"plural": "addons",
-			},
-		},
-	}}
-	client = fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
-		customResourceDefinitionGVR: "CustomResourceDefinitionList",
-	}, matchingCRD)
-	missing, err = isK8sCustomResourceDefinitionMissing(context.Background(), client, groupKind)
-	if err != nil {
-		t.Fatalf("verify present CRD: %v", err)
-	}
-	if missing {
-		t.Fatal("a matching CRD must keep deletion in the physical deletion path")
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := isK8sResourceCreateFailureRecoverable(testCase.resource, testCase.observed); got != testCase.want {
+				t.Fatalf("expected recoverable=%t, got %t", testCase.want, got)
+			}
+		})
 	}
 }
 

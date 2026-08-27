@@ -3531,24 +3531,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.k8s-resource.missing-crd-delete-completion",
-      "title": "Complete deletion after verified CRD removal",
-      "title_zh": "CRD \u5df2\u786e\u8ba4\u79fb\u9664\u540e\u7684\u5220\u9664\u5b8c\u6210\u5904\u7406",
-      "interface_type": "workflow",
-      "interface": "worker.handle.deletePersistedK8sResource",
-      "code_paths": [
-        "worker/handle/manager.go"
-      ],
-      "tests": [
-        {
-          "path": "worker/handle/k8s_resource_delete_test.go",
-          "selector": "TestK8sResourceDeleteCompletesOnlyWhenMatchingCRDIsAbsent"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.k8s-resource.persist-delete-lifecycle",
       "title": "Accept K8s resource deletion by Region record identity",
       "title_zh": "\u6309 Region \u8bb0\u5f55\u8eab\u4efd\u53d7\u7406 K8s \u8d44\u6e90\u5220\u9664",
@@ -3591,6 +3573,24 @@
         {
           "path": "db/mysql/dao/k8s_resource_delete_test.go",
           "selector": "TestK8sResourceDeleteAcceptReturnsIdempotentReceiptAndRejectsInvalidIDs"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.terminating-create-conflict-recovery",
+      "title": "Recover terminating resource after create conflict",
+      "title_zh": "\u521b\u5efa\u51b2\u7a81\u540e\u63a5\u7ba1\u5220\u9664\u4e2d\u7684\u8d44\u6e90",
+      "interface_type": "workflow",
+      "interface": "worker.handle.deletePersistedK8sResource",
+      "code_paths": [
+        "worker/handle/manager.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/handle/k8s_resource_delete_test.go",
+          "selector": "TestK8sResourceDeleteRecoversOnlyObservedTerminatingCreateConflict"
         }
       ],
       "test_type": "regression",
