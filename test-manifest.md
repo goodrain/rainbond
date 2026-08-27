@@ -191,7 +191,8 @@
 | rainbond.k8s-resource.finalizer-force-policy | Kubernetes finalizer force policy | active | regression | db.model.K8sResource.AllowsForceFinalizerRemoval | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFinalizerPolicyHasExplicitOriginBoundary |
 | rainbond.k8s-resource.fixed-delete-worker-pool | Bounded Kubernetes delete worker pool | active | regression | worker.handle.k8sResourceDeleteWorkerCount | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteWorkerCountIsBounded |
 | rainbond.k8s-resource.force-delete-options | Forced Kubernetes delete options | active | regression | worker.handle.forceDeleteOptions | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteUsesForceBackgroundOptions |
-| rainbond.k8s-resource.mapper-refresh-delete | Refresh REST mapper before delete | active | regression | worker.handle.resolveK8sResourceMapping | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution |
+| rainbond.k8s-resource.mapper-refresh-delete | Refresh REST mapper before delete | active | regression | worker.handle.resolveK8sResourceMapping | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution<br>worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFallsBackToServedCRDVersion |
+| rainbond.k8s-resource.missing-crd-delete-completion | CRD 已确认移除后的删除完成处理 | active | regression | worker.handle.deletePersistedK8sResource | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteCompletesOnlyWhenMatchingCRDIsAbsent |
 | rainbond.k8s-resource.persist-delete-lifecycle | 按 Region 记录身份受理 K8s 资源删除 | active | regression | db/mysql/dao.K8sResourceDaoImpl.AcceptK8sResourceDeletions | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLifecycleKeepsCreateUpdateState<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMarkingDoesNotOverwriteInProgressResource<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteStatusLookupUsesExactNameAndKind<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteGenerationRejectsStaleWorkerWrites<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLeaseAndRetryMakeAcceptedWorkRecoverable<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDaoUpdateModelPreservesDeleteLifecycleAndRejectsDeletingRows<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMixedTargetsAreAcceptedAtomically<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAcceptReturnsIdempotentReceiptAndRejectsInvalidIDs |
 | rainbond.k8s-resource.uid-adoption-lease-guard | Lease guarded Kubernetes UID adoption | active | regression | db.mysql.dao.K8sResourceDaoImpl.AdoptK8sResourceDeleteIdentity | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAdoptsObservedUIDOnlyForOwnedLease |
 | rainbond.k8s-resource.uid-force-delete | UID guarded Kubernetes deletion | active | regression | worker.handle.waitForK8sResourceDeletion | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRequiresObservedUIDAndActualGetNotFound |
@@ -2373,6 +2374,16 @@
 - 业务入口: `worker.handle.resolveK8sResourceMapping`
 - 代码路径: `worker/handle/manager.go`
 - 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution`, `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFallsBackToServedCRDVersion`
+
+### CRD 已确认移除后的删除完成处理
+
+- Capability ID: `rainbond.k8s-resource.missing-crd-delete-completion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker.handle.deletePersistedK8sResource`
+- 代码路径: `worker/handle/manager.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteCompletesOnlyWhenMatchingCRDIsAbsent`
 
 ### 按 Region 记录身份受理 K8s 资源删除
 

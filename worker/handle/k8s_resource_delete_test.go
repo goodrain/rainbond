@@ -141,6 +141,47 @@ func TestK8sResourceDeleteFallsBackToServedCRDVersion(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.k8s-resource.missing-crd-delete-completion
+func TestK8sResourceDeleteCompletesOnlyWhenMatchingCRDIsAbsent(t *testing.T) {
+	groupKind := schema.GroupKind{Group: "extensions.kubeblocks.io", Kind: "Addon"}
+	client := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
+		customResourceDefinitionGVR: "CustomResourceDefinitionList",
+	})
+
+	missing, err := isK8sCustomResourceDefinitionMissing(context.Background(), client, groupKind)
+	if err != nil {
+		t.Fatalf("verify absent CRD: %v", err)
+	}
+	if !missing {
+		t.Fatal("a GroupKind with no matching CRD must be identified as removed")
+	}
+
+	matchingCRD := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata": map[string]interface{}{
+			"name": "addons.extensions.kubeblocks.io",
+		},
+		"spec": map[string]interface{}{
+			"group": groupKind.Group,
+			"names": map[string]interface{}{
+				"kind":   groupKind.Kind,
+				"plural": "addons",
+			},
+		},
+	}}
+	client = fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
+		customResourceDefinitionGVR: "CustomResourceDefinitionList",
+	}, matchingCRD)
+	missing, err = isK8sCustomResourceDefinitionMissing(context.Background(), client, groupKind)
+	if err != nil {
+		t.Fatalf("verify present CRD: %v", err)
+	}
+	if missing {
+		t.Fatal("a matching CRD must keep deletion in the physical deletion path")
+	}
+}
+
 type noMatchRESTMapper struct {
 	calls int
 }

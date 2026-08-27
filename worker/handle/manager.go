@@ -97,6 +97,12 @@ const (
 	k8sResourceDeleteConcurrency    = 8
 )
 
+var customResourceDefinitionGVR = schema.GroupVersionResource{
+	Group:    "apiextensions.k8s.io",
+	Version:  "v1",
+	Resource: "customresourcedefinitions",
+}
+
 type k8sResourceDeleteIdentityError struct {
 	message string
 }
@@ -791,6 +797,37 @@ func resolveK8sResourceMapping(mapper meta.RESTMapper, gk schema.GroupKind, vers
 	return refreshed.RESTMapping(gk)
 }
 
+// isK8sCustomResourceDefinitionMissing verifies the CRD registry rather than
+// inferring physical deletion from a discovery no-match. Kubernetes removes a
+// CRD's custom objects when that CRD is deleted, so an absent matching CRD is
+// the one safe no-GET completion case for a persisted custom resource.
+func isK8sCustomResourceDefinitionMissing(ctx context.Context, client dynamic.Interface, groupKind schema.GroupKind) (bool, error) {
+	if client == nil {
+		return false, fmt.Errorf("k8s dynamic client is unavailable while verifying CRD %s/%s", groupKind.Group, groupKind.Kind)
+	}
+	crds, err := client.Resource(customResourceDefinitionGVR).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, fmt.Errorf("list custom resource definitions while verifying %s/%s: %w", groupKind.Group, groupKind.Kind, err)
+	}
+	for _, crd := range crds.Items {
+		group, found, err := unstructured.NestedString(crd.Object, "spec", "group")
+		if err != nil {
+			return false, fmt.Errorf("read custom resource definition %q group: %w", crd.GetName(), err)
+		}
+		if !found || group != groupKind.Group {
+			continue
+		}
+		kind, found, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
+		if err != nil {
+			return false, fmt.Errorf("read custom resource definition %q kind: %w", crd.GetName(), err)
+		}
+		if found && kind == groupKind.Kind {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func uniqueK8sResourceDeleteTargets(targets []model.K8sResourceDeleteTaskTarget) []model.K8sResourceDeleteTaskTarget {
 	seen := make(map[string]struct{}, len(targets))
 	unique := make([]model.K8sResourceDeleteTaskTarget, 0, len(targets))
@@ -849,6 +886,18 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 	}
 	mapping, err := resolver.resolve(gvk.GroupKind(), gvk.Version)
 	if err != nil {
+		if meta.IsNoMatchError(err) {
+			crdMissing, crdErr := isK8sCustomResourceDefinitionMissing(deleteContext, dc, gvk.GroupKind())
+			if crdErr != nil {
+				m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, crdErr, false)
+				return
+			}
+			if crdMissing {
+				logrus.Infof("complete k8s resource deletion %d/%d because CRD %s/%s is absent", resource.ID, target.DeleteGeneration, gvk.Group, gvk.Kind)
+				m.completeK8sResourceDeletion(resource, target, lease.DeleteLeaseToken)
+				return
+			}
+		}
 		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, false)
 		return
 	}
@@ -911,8 +960,9 @@ func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8s
 	m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource %s is still terminating after force deletion", obj.GetName()), false)
 }
 
-// completeK8sResourceDeletion removes Region state only after a Kubernetes GET
-// for the exact persisted identity has returned NotFound.
+// completeK8sResourceDeletion removes Region state after an exact Kubernetes
+// GET returns NotFound, or after the CRD registry verifies the CRD itself has
+// been removed (which deletes all of that CRD's custom objects).
 func (m *Manager) completeK8sResourceDeletion(resource dbmodel.K8sResource, target model.K8sResourceDeleteTaskTarget, leaseToken string) {
 	if removed, deleteErr := m.dbmanager.K8sResourceDao().DeleteK8sResourceByIDAndGeneration(resource.ID, target.DeleteGeneration, leaseToken); deleteErr != nil {
 		logrus.Errorf("remove verified k8s resource deletion row %d/%d: %v", resource.ID, target.DeleteGeneration, deleteErr)
