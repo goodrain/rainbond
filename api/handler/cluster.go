@@ -87,8 +87,6 @@ type ClusterHandler interface {
 	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
 	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string)
-	AcceptAppK8SResourceDeletions(ctx context.Context, appID string, resources []model.HandleResource) ([]model.K8sResourceDeleteStatus, *util.APIHandleError)
-	GetAppK8SResourceDeleteStatus(ctx context.Context, appID string, resources []model.HandleResource) ([]model.K8sResourceDeleteStatus, *util.APIHandleError)
 	GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	SyncAppK8SResources(ctx context.Context, resources *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError)

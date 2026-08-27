@@ -143,27 +143,8 @@ func (c *clusterAction) createApp(eid string, app string, tenantID string) (*dbm
 
 func (c *clusterAction) CreateK8sResource(k8sResources []dbmodel.K8sResource, AppID string) ([]dbmodel.K8sResource, error) {
 	var k8sResourceList []*dbmodel.K8sResource
-	for index := range k8sResources {
-		k8sResource := k8sResources[index]
+	for _, k8sResource := range k8sResources {
 		k8sResource.AppID = AppID
-		identities, err := c.k8sResourceIdentitiesFromYAML("", k8sResource.Content)
-		if err != nil || len(identities) != 1 {
-			if err == nil {
-				err = fmt.Errorf("expected exactly one Kubernetes resource identity, got %d", len(identities))
-			}
-			return nil, fmt.Errorf("resolve imported k8s resource identity %s/%s: %v", k8sResource.Kind, k8sResource.Name, err)
-		}
-		resourceUID, err := k8sResourceUIDFromYAML(k8sResource.Content)
-		if err != nil {
-			return nil, fmt.Errorf("resolve imported k8s resource UID %s/%s: %v", k8sResource.Kind, k8sResource.Name, err)
-		}
-		k8sResource.ResourceIdentity = identities[0].ResourceIdentity
-		k8sResource.ResourceUID = resourceUID
-		if k8sResource.ResourceOrigin == "" || k8sResource.ResourceOrigin == dbmodel.K8sResourceOriginLegacy {
-			k8sResource.ResourceOrigin = dbmodel.K8sResourceOriginImported
-			k8sResource.ForceFinalizerAllowed = true
-		}
-		k8sResources[index] = k8sResource
 		kr := k8sResource
 		k8sResourceList = append(k8sResourceList, &kr)
 	}

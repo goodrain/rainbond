@@ -650,21 +650,6 @@ type ComponentK8sAttributeDao interface {
 type K8sResourceDao interface {
 	Dao
 	ListByAppID(appID string) ([]model.K8sResource, error)
-	GetK8sResourcesByNames(appID string, targets []model.K8sResourceDeleteTarget) ([]model.K8sResource, error)
-	ListK8sResourcesDeleteStatus(appID string, targets []model.K8sResourceDeleteTarget) ([]model.K8sResource, error)
-	EnsureK8sResourcesCreatable(appID string, targets []model.K8sResourceDeleteTarget) error
-	AcceptK8sResourceDeletions(appID string, targets []model.K8sResourceDeleteTarget) (resolved []model.K8sResource, newlyAccepted []model.K8sResource, err error)
-	MarkK8sResourcesDeleting(appID string, targets []model.K8sResourceDeleteTarget) ([]model.K8sResource, error)
-	MarkK8sResourcesDeletingByIDs(appID string, resourceIDs []uint) ([]model.K8sResource, error)
-	MarkK8sResourcesDeletingByNames(appID string, targets []model.K8sResourceDeleteTarget) ([]model.K8sResource, error)
-	ListDueK8sResourceDeletions(now time.Time, limit int) ([]model.K8sResource, error)
-	ClaimK8sResourceDeleteLease(resourceID uint, deleteGeneration int64, now, leaseUntil time.Time) (*model.K8sResource, error)
-	GetK8sResourceForDeletion(resourceID uint, deleteGeneration int64, deleteLeaseToken string) (model.K8sResource, error)
-	ScheduleK8sResourceDeleteRetry(resourceID uint, deleteGeneration int64, deleteLeaseToken string, nextRetryAt time.Time, deleteError string) (bool, error)
-	MarkK8sResourceDeleteFailed(resourceID uint, deleteGeneration int64, deleteLeaseToken, deleteError string) (bool, error)
-	IncreaseK8sResourceDeleteAttempts(resourceID uint, deleteGeneration int64, deleteLeaseToken string) (bool, error)
-	AdoptK8sResourceDeleteIdentity(resourceID uint, deleteGeneration int64, deleteLeaseToken, resourceUID, resourceIdentity string) (bool, error)
-	DeleteK8sResourceByIDAndGeneration(resourceID uint, deleteGeneration int64, deleteLeaseToken string) (bool, error)
 	DeleteK8sResourceByIDs(ids []uint) error
 	CreateK8sResource(k8sResources []*model.K8sResource) error
 	DeleteK8sResource(appID, name string, kind string) error

@@ -22,8 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"os"
@@ -83,59 +81,8 @@ func NewTaskManager(store store.Storer,
 // Start 启动
 func (t *TaskManager) Start() error {
 	go t.Do()
-	go t.recoverK8sResourceDeletions()
 	logrus.Info("start discover success.")
 	return nil
-}
-
-// recoverK8sResourceDeletions restores accepted deletion work when a Region API
-// process could not publish its MQ message or a worker restarted mid-delete.
-// The worker claims an expiring lease before it loads YAML, so repeated scanner
-// messages are intentionally safe.
-func (t *TaskManager) recoverK8sResourceDeletions() {
-	t.scanDueK8sResourceDeletions()
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case <-ticker.C:
-			t.scanDueK8sResourceDeletions()
-		}
-	}
-}
-
-func (t *TaskManager) scanDueK8sResourceDeletions() {
-	resources, err := db.GetManager().K8sResourceDao().ListDueK8sResourceDeletions(time.Now(), 32)
-	if err != nil {
-		logrus.Errorf("scan due k8s resource deletions: %v", err)
-		return
-	}
-	if len(resources) == 0 {
-		return
-	}
-	body := newK8sResourceDeleteRecoveryTask(resources)
-	if err := t.client.SendBuilderTopic(client.TaskStruct{
-		Topic:    client.WorkerTopic,
-		TaskType: "delete_k8s_resource",
-		TaskBody: body,
-	}); err != nil {
-		// The durable DELETING rows remain due. The next scanner cycle retries a
-		// bounded batch without changing the accepted deletion lifecycle.
-		logrus.Errorf("requeue k8s resource deletion batch (%d targets): %v", len(body.Resources), err)
-	}
-}
-
-func newK8sResourceDeleteRecoveryTask(resources []dbmodel.K8sResource) model.DeleteK8sResourceTaskBody {
-	targets := make([]model.K8sResourceDeleteTaskTarget, 0, len(resources))
-	for _, resource := range resources {
-		targets = append(targets, model.K8sResourceDeleteTaskTarget{
-			ResourceID:       resource.ID,
-			DeleteGeneration: resource.DeleteGeneration,
-		})
-	}
-	return model.DeleteK8sResourceTaskBody{Resources: targets}
 }
 
 // Do do

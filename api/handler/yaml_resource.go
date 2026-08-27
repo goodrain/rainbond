@@ -507,21 +507,12 @@ func HandleDetailResource(namespace string, k8sResourceObjects []apimodel.K8sRes
 					logrus.Errorf("namespace:%v %v:%v error: %v", namespace, buildResource.Resource.GetKind(), buildResource.Resource.GetName(), err)
 					continue
 				}
-				resourceIdentity, identityErr := k8sResourceIdentityFromMapper(mapper, buildResource.Resource)
-				if identityErr != nil {
-					logrus.Errorf("resolve imported k8s resource identity %s/%s: %v", buildResource.Resource.GetKind(), buildResource.Resource.GetName(), identityErr)
-					continue
-				}
 				K8SResource = append(K8SResource, dbmodel.K8sResource{
-					Name:                  buildResource.Resource.GetName(),
-					Kind:                  buildResource.Resource.GetKind(),
-					Content:               kubernetesResourcesYAML,
-					ResourceUID:           string(buildResource.Resource.GetUID()),
-					ResourceIdentity:      resourceIdentity,
-					ResourceOrigin:        dbmodel.K8sResourceOriginImported,
-					ForceFinalizerAllowed: true,
-					State:                 state,
-					ErrorOverview:         errorOverview,
+					Name:          buildResource.Resource.GetName(),
+					Kind:          buildResource.Resource.GetKind(),
+					Content:       kubernetesResourcesYAML,
+					State:         state,
+					ErrorOverview: errorOverview,
 				})
 			}
 		}

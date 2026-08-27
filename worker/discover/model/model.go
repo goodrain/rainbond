@@ -430,19 +430,9 @@ type ApplyRegistryAuthSecretTaskBody struct {
 	Password string `json:"password"`
 }
 
-// K8sResourceDeleteTaskTarget identifies a persisted Region deletion lifecycle.
-// The worker deliberately loads the YAML only after it has claimed the matching
-// generation lease. Keeping task messages free of YAML makes retries safe when
-// a record is edited, deleted, or re-accepted while a message is in flight.
-type K8sResourceDeleteTaskTarget struct {
-	ResourceID       uint  `json:"resource_id"`
-	DeleteGeneration int64 `json:"delete_generation"`
-}
-
-// DeleteK8sResourceTaskBody contains only persisted Region IDs and lifecycle
-// generations. Resource YAML must never be carried by this asynchronous task.
+// DeleteK8sResourceTaskBody -
 type DeleteK8sResourceTaskBody struct {
-	Resources []K8sResourceDeleteTaskTarget `json:"resources"`
+	ResourceYaml string `json:"resource_yaml"`
 }
 
 // BuildFromKubeBlocksTaskBody KubeBlocks组件构建操作任务主体

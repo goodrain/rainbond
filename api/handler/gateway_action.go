@@ -466,16 +466,12 @@ func (g *GatewayAction) AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct
 		return nil, err
 	}
 	k8sresource := []*model.K8sResource{{
-		AppID:                 req.AppID,
-		Name:                  req.Name,
-		Kind:                  apimodel.HTTPRoute,
-		Content:               httpRouteYaml,
-		ResourceUID:           string(httpRoute.GetUID()),
-		ResourceIdentity:      model.K8sResourcePhysicalIdentity("gateway.networking.k8s.io", "httproutes", httpRoute.GetNamespace(), httpRoute.GetName()),
-		ResourceOrigin:        model.K8sResourceOriginGateway,
-		ForceFinalizerAllowed: false,
-		ErrorOverview:         "创建成功",
-		State:                 apimodel.CreateSuccess,
+		AppID:         req.AppID,
+		Name:          req.Name,
+		Kind:          apimodel.HTTPRoute,
+		Content:       httpRouteYaml,
+		ErrorOverview: "创建成功",
+		State:         apimodel.CreateSuccess,
 	}}
 	err = db.GetManager().K8sResourceDao().CreateK8sResource(k8sresource)
 	if err != nil {
@@ -704,10 +700,6 @@ func (g *GatewayAction) UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStr
 	res, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(req.AppID, req.Name, apimodel.HTTPRoute)
 	res.ErrorOverview = "更新成功"
 	res.Content = httpRouteYaml
-	res.ResourceUID = string(newHTTPRoute.GetUID())
-	res.ResourceIdentity = model.K8sResourcePhysicalIdentity("gateway.networking.k8s.io", "httproutes", newHTTPRoute.GetNamespace(), newHTTPRoute.GetName())
-	res.ResourceOrigin = model.K8sResourceOriginGateway
-	res.ForceFinalizerAllowed = false
 	res.State = apimodel.UpdateSuccess
 	err = db.GetManager().K8sResourceDao().UpdateModel(&res)
 	if err != nil {

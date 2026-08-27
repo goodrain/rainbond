@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-// LabelResource -
+//LabelResource -
 type LabelResource struct {
 	Workloads WorkLoadsResource   `json:"workloads,omitempty"`
 	Others    OtherResource       `json:"others,omitempty"`
@@ -16,7 +16,7 @@ type LabelResource struct {
 	Status    string              `json:"status"`
 }
 
-// LabelWorkloadsResourceProcess -
+//LabelWorkloadsResourceProcess -
 type LabelWorkloadsResourceProcess struct {
 	Deployments  map[string][]string `json:"deployments,omitempty"`
 	Jobs         map[string][]string `json:"jobs,omitempty"`
@@ -24,7 +24,7 @@ type LabelWorkloadsResourceProcess struct {
 	StateFulSets map[string][]string `json:"stateFulSets,omitempty"`
 }
 
-// LabelOthersResourceProcess -
+//LabelOthersResourceProcess -
 type LabelOthersResourceProcess struct {
 	Services                 map[string][]string `json:"services,omitempty"`
 	PVC                      map[string][]string `json:"PVC,omitempty"`
@@ -38,7 +38,7 @@ type LabelOthersResourceProcess struct {
 	Roles                    map[string][]string `json:"roles,omitempty"`
 }
 
-// YamlResourceParameter -
+//YamlResourceParameter -
 type YamlResourceParameter struct {
 	ComponentsCR *[]ConvertResource
 	Basic        BasicManagement
@@ -50,14 +50,14 @@ type YamlResourceParameter struct {
 	HPAs         []autoscalingv1.HorizontalPodAutoscaler
 }
 
-// K8sResourceObject -
+//K8sResourceObject -
 type K8sResourceObject struct {
 	FileName       string
 	BuildResources []BuildResource
 	Error          string
 }
 
-// WorkLoadsResource -
+//WorkLoadsResource -
 type WorkLoadsResource struct {
 	Deployments  []string `json:"Deployment,omitempty"`
 	Jobs         []string `json:"Job,omitempty"`
@@ -65,7 +65,7 @@ type WorkLoadsResource struct {
 	StateFulSets []string `json:"StatefulSet,omitempty"`
 }
 
-// BuildResource -
+//BuildResource -
 type BuildResource struct {
 	Resource      *unstructured.Unstructured
 	State         int
@@ -73,10 +73,9 @@ type BuildResource struct {
 	Dri           dynamic.ResourceInterface
 	DC            dynamic.Interface
 	GVK           *schema.GroupVersionKind
-	ResourceGVR   schema.GroupVersionResource
 }
 
-// OtherResource -
+//OtherResource -
 type OtherResource struct {
 	Services                 []string `json:"Service,omitempty"`
 	PVC                      []string `json:"PVC,omitempty"`
