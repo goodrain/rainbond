@@ -290,10 +290,14 @@ func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *
 		logrus.Warningf("marshal service mesh cr error: %v", err)
 	}
 	resource := &dbmodel.K8sResource{
-		AppID:   app.AppID,
-		Name:    app.K8sApp,
-		State:   model.CreateSuccess,
-		Content: string(contentBytes),
+		AppID:                 app.AppID,
+		Name:                  app.K8sApp,
+		State:                 model.CreateSuccess,
+		Content:               string(contentBytes),
+		ResourceUID:           string(smcr.GetUID()),
+		ResourceIdentity:      dbmodel.K8sResourcePhysicalIdentity("rainbond.io", "servicemeshes", smcr.GetNamespace(), smcr.GetName()),
+		ResourceOrigin:        dbmodel.K8sResourceOriginGovernance,
+		ForceFinalizerAllowed: false,
 	}
 	switch action {
 	case "create":
@@ -307,6 +311,10 @@ func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *
 			return "", err
 		}
 		old.Content = string(contentBytes)
+		old.ResourceUID = string(smcr.GetUID())
+		old.ResourceIdentity = dbmodel.K8sResourcePhysicalIdentity("rainbond.io", "servicemeshes", smcr.GetNamespace(), smcr.GetName())
+		old.ResourceOrigin = dbmodel.K8sResourceOriginGovernance
+		old.ForceFinalizerAllowed = false
 		if err := db.GetManager().K8sResourceDao().UpdateModel(&old); err != nil {
 			return "", err
 		}

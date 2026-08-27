@@ -27,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -253,16 +252,12 @@ func (c *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	if hr.State == model.CreateSuccess || hr.State == model.UpdateSuccess {
-		handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
-	}
-	err := db.GetManager().K8sResourceDao().DeleteK8sResource(hr.AppID, hr.Name, hr.Kind)
+	statuses, err := handler.GetClusterHandler().AcceptAppK8SResourceDeletions(r.Context(), hr.AppID, []model.HandleResource{hr})
 	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
-		e.Handle(r, w)
+		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.Return(r, w, http.StatusAccepted, httputil.ResponseBody{Bean: statuses})
 }
 
 // BatchDeleteResource -
@@ -271,42 +266,27 @@ func (c *ClusterController) BatchDeleteResource(w http.ResponseWriter, r *http.R
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
 		return
 	}
-	k8sResources, err := db.GetManager().K8sResourceDao().ListByAppID(req.AppID)
+	statuses, err := handler.GetClusterHandler().AcceptAppK8SResourceDeletions(r.Context(), req.AppID, req.K8sResources)
 	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource failure: %v", err)}
-		e.Handle(r, w)
+		err.Handle(r, w)
 		return
 	}
-	resourceMap := make(map[string][]dbmodel.K8sResource)
-	for _, resource := range k8sResources {
-		resourceList, ok := resourceMap[resource.Name]
-		if ok {
-			resourceMap[resource.Name] = append(resourceList, resource)
-			continue
-		}
-		resourceMap[resource.Name] = []dbmodel.K8sResource{resource}
-	}
-	var deleteResourcesID []uint
-	for _, hr := range req.K8sResources {
-		if hr.State == model.CreateSuccess || hr.State == model.UpdateSuccess {
-			handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
-			nameResource, ok := resourceMap[hr.Name]
-			if ok {
-				for _, dbResource := range nameResource {
-					if dbResource.Kind == hr.Kind {
-						deleteResourcesID = append(deleteResourcesID, dbResource.ID)
-					}
-				}
-			}
-		}
-	}
-	err = db.GetManager().K8sResourceDao().DeleteK8sResourceByIDs(deleteResourcesID)
-	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
-		e.Handle(r, w)
+	httputil.Return(r, w, http.StatusAccepted, httputil.ResponseBody{Bean: statuses})
+}
+
+// K8sResourceDeleteStatus returns Region-owned physical deletion lifecycle
+// status. Missing rows intentionally mean that the resource is gone.
+func (c *ClusterController) K8sResourceDeleteStatus(w http.ResponseWriter, r *http.Request) {
+	var req model.SyncResources
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	statuses, err := handler.GetClusterHandler().GetAppK8SResourceDeleteStatus(r.Context(), req.AppID, req.K8sResources)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, statuses)
 }
 
 // SyncResource -

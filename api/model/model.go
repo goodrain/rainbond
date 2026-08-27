@@ -494,6 +494,9 @@ type AddHandleResource struct {
 
 // HandleResource -
 type HandleResource struct {
+	// ResourceID is the preferred Region record identity for reliable deletion.
+	// Name and Kind remain only for compatibility with older Console callers.
+	ResourceID   uint   `json:"resource_id"`
 	Name         string `json:"name"`
 	AppID        string `json:"app_id"`
 	Kind         string `json:"kind"`
@@ -506,6 +509,28 @@ type HandleResource struct {
 type SyncResources struct {
 	AppID        string           `json:"app_id"`
 	K8sResources []HandleResource `json:"k8s_resources"`
+}
+
+const (
+	// K8sResourceDeleteStatusActive means no deletion has been accepted.
+	K8sResourceDeleteStatusActive = iota
+	// K8sResourceDeleteStatusDeleting means physical deletion is pending.
+	K8sResourceDeleteStatusDeleting
+	// K8sResourceDeleteStatusFailed means the latest physical deletion failed.
+	K8sResourceDeleteStatusFailed
+)
+
+// K8sResourceDeleteStatus is the public lifecycle response. It intentionally
+// contains only resource identity and deletion state, never persisted YAML.
+type K8sResourceDeleteStatus struct {
+	ResourceID       uint   `json:"resource_id"`
+	Name             string `json:"name"`
+	Kind             string `json:"kind"`
+	DeleteStatus     int    `json:"delete_status"`
+	DeleteError      string `json:"delete_error,omitempty"`
+	DeleteAttempts   int    `json:"delete_attempts"`
+	DeleteGeneration int64  `json:"delete_generation"`
+	Accepted         bool   `json:"accepted"`
 }
 
 // YamlResource -

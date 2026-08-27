@@ -183,6 +183,18 @@
 | rainbond.ingress-nginx.name-namespace-parse | 解析 ingress-nginx 资源的 namespace/name 标识 | active | regression | util/ingress-nginx/k8s.ParseNameNS | util/ingress-nginx/k8s/main_test.go::TestParseNameNS |
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
+| rainbond.k8s-resource.batched-delete-acceptance | Batched Kubernetes delete acceptance | active | regression | db.mysql.dao.K8sResourceDaoImpl.AcceptK8sResourceDeletions | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAcceptsLargeMixedBatchAtomically |
+| rainbond.k8s-resource.batched-delete-recovery | Batched Kubernetes delete recovery | active | regression | worker.discover.TaskManager.scanDueK8sResourceDeletions | worker/discover/k8s_resource_delete_recovery_test.go::TestK8sResourceDeleteRecoveryBuildsOneBoundedBatchTask |
+| rainbond.k8s-resource.create-delete-reservation | Kubernetes create cleanup reservation | active | regression | db.mysql.dao.K8sResourceDaoImpl.EnsureK8sResourcesCreatable | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceCreateReservationBlocksDeletingRecords |
+| rainbond.k8s-resource.cross-app-physical-reservation | Cross-app Kubernetes physical cleanup reservation | active | regression | db.mysql.dao.K8sResourceDaoImpl.EnsureK8sResourcesCreatable | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceCreateReservationBlocksCrossAppPhysicalIdentity |
+| rainbond.k8s-resource.delete-status-contract | Kubernetes delete status response contract | active | regression | api.handler.newK8sResourceDeleteStatus | api/handler/k8s_resource_delete_test.go::TestK8sResourceDeleteStatusDoesNotExposePersistedYAML |
+| rainbond.k8s-resource.finalizer-force-policy | Kubernetes finalizer force policy | active | regression | db.model.K8sResource.AllowsForceFinalizerRemoval | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFinalizerPolicyHasExplicitOriginBoundary |
+| rainbond.k8s-resource.fixed-delete-worker-pool | Bounded Kubernetes delete worker pool | active | regression | worker.handle.k8sResourceDeleteWorkerCount | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteWorkerCountIsBounded |
+| rainbond.k8s-resource.force-delete-options | Forced Kubernetes delete options | active | regression | worker.handle.forceDeleteOptions | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteUsesForceBackgroundOptions |
+| rainbond.k8s-resource.mapper-refresh-delete | Refresh REST mapper before delete | active | regression | worker.handle.resolveK8sResourceMapping | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution |
+| rainbond.k8s-resource.persist-delete-lifecycle | 按 Region 记录身份受理 K8s 资源删除 | active | regression | db/mysql/dao.K8sResourceDaoImpl.AcceptK8sResourceDeletions | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLifecycleKeepsCreateUpdateState<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMarkingDoesNotOverwriteInProgressResource<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteStatusLookupUsesExactNameAndKind<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteGenerationRejectsStaleWorkerWrites<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLeaseAndRetryMakeAcceptedWorkRecoverable<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDaoUpdateModelPreservesDeleteLifecycleAndRejectsDeletingRows<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMixedTargetsAreAcceptedAtomically<br>db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAcceptReturnsIdempotentReceiptAndRejectsInvalidIDs |
+| rainbond.k8s-resource.uid-adoption-lease-guard | Lease guarded Kubernetes UID adoption | active | regression | db.mysql.dao.K8sResourceDaoImpl.AdoptK8sResourceDeleteIdentity | db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAdoptsObservedUIDOnlyForOwnedLease |
+| rainbond.k8s-resource.uid-force-delete | UID guarded Kubernetes deletion | active | regression | worker.handle.waitForK8sResourceDeletion | worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRequiresObservedUIDAndActualGetNotFound |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
 | rainbond.kubeblocks.component-selector | 为 KubeBlocks 组件生成标签选择器 | active | regression | util/kubeblocks.GenerateKubeBlocksSelector | util/kubeblocks/kubeblocks_test.go::TestGenerateKubeBlocksSelector |
 | rainbond.license.decode | 解码并解析许可证令牌内容 | active | regression | api/util/license.DecodeLicense | api/util/license/rsa_license_test.go::TestDecodeLicense |
@@ -2271,6 +2283,126 @@
 - 业务入口: `util/ingress-nginx/k8s.GetPodDetails`
 - 代码路径: `util/ingress-nginx/k8s/main.go`
 - 测试路径: `util/ingress-nginx/k8s/main_test.go::TestGetPodDetails`
+
+### Batched Kubernetes delete acceptance
+
+- Capability ID: `rainbond.k8s-resource.batched-delete-acceptance`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db.mysql.dao.K8sResourceDaoImpl.AcceptK8sResourceDeletions`
+- 代码路径: `db/mysql/dao/k8s_resource.go`
+- 测试路径: `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAcceptsLargeMixedBatchAtomically`
+
+### Batched Kubernetes delete recovery
+
+- Capability ID: `rainbond.k8s-resource.batched-delete-recovery`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker.discover.TaskManager.scanDueK8sResourceDeletions`
+- 代码路径: `worker/discover/manager.go`
+- 测试路径: `worker/discover/k8s_resource_delete_recovery_test.go::TestK8sResourceDeleteRecoveryBuildsOneBoundedBatchTask`
+
+### Kubernetes create cleanup reservation
+
+- Capability ID: `rainbond.k8s-resource.create-delete-reservation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db.mysql.dao.K8sResourceDaoImpl.EnsureK8sResourcesCreatable`
+- 代码路径: `db/mysql/dao/k8s_resource.go`, `api/handler/resource.go`
+- 测试路径: `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceCreateReservationBlocksDeletingRecords`
+
+### Cross-app Kubernetes physical cleanup reservation
+
+- Capability ID: `rainbond.k8s-resource.cross-app-physical-reservation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db.mysql.dao.K8sResourceDaoImpl.EnsureK8sResourcesCreatable`
+- 代码路径: `db/model/application.go`, `db/mysql/dao/k8s_resource.go`
+- 测试路径: `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceCreateReservationBlocksCrossAppPhysicalIdentity`
+
+### Kubernetes delete status response contract
+
+- Capability ID: `rainbond.k8s-resource.delete-status-contract`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.handler.newK8sResourceDeleteStatus`
+- 代码路径: `api/handler/resource.go`
+- 测试路径: `api/handler/k8s_resource_delete_test.go::TestK8sResourceDeleteStatusDoesNotExposePersistedYAML`
+
+### Kubernetes finalizer force policy
+
+- Capability ID: `rainbond.k8s-resource.finalizer-force-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `db.model.K8sResource.AllowsForceFinalizerRemoval`
+- 代码路径: `db/model/application.go`, `worker/handle/manager.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteFinalizerPolicyHasExplicitOriginBoundary`
+
+### Bounded Kubernetes delete worker pool
+
+- Capability ID: `rainbond.k8s-resource.fixed-delete-worker-pool`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker.handle.k8sResourceDeleteWorkerCount`
+- 代码路径: `worker/handle/manager.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteWorkerCountIsBounded`
+
+### Forced Kubernetes delete options
+
+- Capability ID: `rainbond.k8s-resource.force-delete-options`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker.handle.forceDeleteOptions`
+- 代码路径: `worker/handle/manager.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteUsesForceBackgroundOptions`
+
+### Refresh REST mapper before delete
+
+- Capability ID: `rainbond.k8s-resource.mapper-refresh-delete`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker.handle.resolveK8sResourceMapping`
+- 代码路径: `worker/handle/manager.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRefreshesMapperAndRetriesResolution`
+
+### 按 Region 记录身份受理 K8s 资源删除
+
+- Capability ID: `rainbond.k8s-resource.persist-delete-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.K8sResourceDaoImpl.AcceptK8sResourceDeletions`
+- 代码路径: `db/model/application.go`, `db/dao/dao.go`, `db/mysql/dao/k8s_resource.go`
+- 测试路径: `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLifecycleKeepsCreateUpdateState`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMarkingDoesNotOverwriteInProgressResource`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteStatusLookupUsesExactNameAndKind`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteGenerationRejectsStaleWorkerWrites`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteLeaseAndRetryMakeAcceptedWorkRecoverable`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDaoUpdateModelPreservesDeleteLifecycleAndRejectsDeletingRows`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteMixedTargetsAreAcceptedAtomically`, `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAcceptReturnsIdempotentReceiptAndRejectsInvalidIDs`
+
+### Lease guarded Kubernetes UID adoption
+
+- Capability ID: `rainbond.k8s-resource.uid-adoption-lease-guard`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db.mysql.dao.K8sResourceDaoImpl.AdoptK8sResourceDeleteIdentity`
+- 代码路径: `db/mysql/dao/k8s_resource.go`, `worker/handle/manager.go`
+- 测试路径: `db/mysql/dao/k8s_resource_delete_test.go::TestK8sResourceDeleteAdoptsObservedUIDOnlyForOwnedLease`
+
+### UID guarded Kubernetes deletion
+
+- Capability ID: `rainbond.k8s-resource.uid-force-delete`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker.handle.waitForK8sResourceDeletion`
+- 代码路径: `worker/handle/manager.go`, `db/model/application.go`
+- 测试路径: `worker/handle/k8s_resource_delete_test.go::TestK8sResourceDeleteRequiresObservedUIDAndActualGetNotFound`
 
 ### K8s scheme registers KubeVirt VirtualMachine
 

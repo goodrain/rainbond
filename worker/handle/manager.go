@@ -21,24 +21,20 @@ package handle
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	yamlt "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/restmapper"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
+	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -49,7 +45,16 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/types"
+	yamlt "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/restmapper"
 )
 
 // Manager manager
@@ -82,6 +87,31 @@ func NewManager(ctx context.Context,
 
 // ErrCallback do not handle this task
 var ErrCallback = fmt.Errorf("callback task to mq")
+
+const (
+	k8sResourceDeleteLeaseDuration  = 30 * time.Second
+	k8sResourceDeleteRequestTimeout = 20 * time.Second
+	k8sResourceDeleteRetryLimit     = 6
+	k8sResourceDeletePollAttempts   = 5
+	k8sResourceDeletePollInterval   = time.Second
+	k8sResourceDeleteConcurrency    = 8
+)
+
+type k8sResourceDeleteIdentityError struct {
+	message string
+}
+
+func (e *k8sResourceDeleteIdentityError) Error() string {
+	return e.message
+}
+
+type k8sResourceDeleteFinalizerPolicyError struct {
+	origin string
+}
+
+func (e *k8sResourceDeleteFinalizerPolicyError) Error() string {
+	return fmt.Sprintf("finalizer removal is not allowed for k8s resource origin %q", e.origin)
+}
 
 func (m *Manager) checkCount() bool {
 	return m.controllerManager.GetControllerSize() > m.workerConfig.MaxTasks
@@ -652,74 +682,374 @@ func (m *Manager) RefreshMapper() error {
 	return nil
 }
 
-// DeleteK8sResource -
+// DeleteK8sResource deletes persisted Region resources. A duplicate MQ message
+// is harmless: a worker first claims the row's exact deletion generation lease.
+// Per-resource failures are persisted and retried by the recovery scanner, so
+// returning an error here must never be used as the reliability mechanism.
 func (m *Manager) DeleteK8sResource(task *model.Task) error {
 	body, ok := task.Body.(*model.DeleteK8sResourceTaskBody)
 	if !ok {
-		return fmt.Errorf("can't convert %s to *model.DeleteK8sResourceTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("can't convert task body to *model.DeleteK8sResourceTaskBody")
 	}
-	var buildResourceList []*model.BuildResource
+	if len(body.Resources) == 0 {
+		return nil
+	}
 	dc, err := dynamic.NewForConfig(m.k8sComponent.RestConfig)
 	if err != nil {
-		logrus.Errorf("HandleResourceYaml dynamic.NewForConfig error %v", err)
+		logrus.Errorf("create dynamic client for k8s resource deletion: %v", err)
 		return err
 	}
-	decoder := yamlt.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(body.ResourceYaml)), 1000)
+
+	resolver := &k8sResourceDeleteMapperResolver{
+		mapper: m.k8sComponent.Mapper,
+		refresh: func() (meta.RESTMapper, error) {
+			if err := m.RefreshMapper(); err != nil {
+				return nil, err
+			}
+			return m.k8sComponent.Mapper, nil
+		},
+	}
+	workerCount := k8sResourceDeleteWorkerCount(len(body.Resources))
+	if workerCount == 0 {
+		return nil
+	}
+	jobs := make(chan model.K8sResourceDeleteTaskTarget)
+	var waitGroup sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			for target := range jobs {
+				m.deletePersistedK8sResource(dc, resolver, target)
+			}
+		}()
+	}
+	for _, target := range uniqueK8sResourceDeleteTargets(body.Resources) {
+		jobs <- target
+	}
+	close(jobs)
+	waitGroup.Wait()
+	return nil
+}
+
+func k8sResourceDeleteWorkerCount(targetCount int) int {
+	if targetCount <= 0 {
+		return 0
+	}
+	if targetCount < k8sResourceDeleteConcurrency {
+		return targetCount
+	}
+	return k8sResourceDeleteConcurrency
+}
+
+type k8sResourceDeleteMapperResolver struct {
+	mu      sync.Mutex
+	mapper  meta.RESTMapper
+	refresh func() (meta.RESTMapper, error)
+}
+
+func (r *k8sResourceDeleteMapperResolver) resolve(gk schema.GroupKind, version string) (*meta.RESTMapping, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.mapper == nil {
+		return nil, fmt.Errorf("k8s REST mapper is unavailable")
+	}
+	mapping, err := r.mapper.RESTMapping(gk, version)
+	if err == nil || !meta.IsNoMatchError(err) {
+		return mapping, err
+	}
+	refreshed, refreshErr := r.refresh()
+	if refreshErr != nil {
+		return nil, refreshErr
+	}
+	if refreshed == nil {
+		return nil, fmt.Errorf("k8s REST mapper refresh returned nil")
+	}
+	r.mapper = refreshed
+	return r.mapper.RESTMapping(gk, version)
+}
+
+// resolveK8sResourceMapping retries the actual RESTMapping after discovery has
+// been refreshed. The old deletion path accidentally returned the successful
+// refresh error (nil) instead of continuing to map the resource.
+func resolveK8sResourceMapping(mapper meta.RESTMapper, gk schema.GroupKind, version string, refresh func() (meta.RESTMapper, error)) (*meta.RESTMapping, error) {
+	if mapper == nil {
+		return nil, fmt.Errorf("k8s REST mapper is unavailable")
+	}
+	mapping, err := mapper.RESTMapping(gk, version)
+	if err == nil || !meta.IsNoMatchError(err) {
+		return mapping, err
+	}
+	refreshed, refreshErr := refresh()
+	if refreshErr != nil {
+		return nil, refreshErr
+	}
+	if refreshed == nil {
+		return nil, fmt.Errorf("k8s REST mapper refresh returned nil")
+	}
+	return refreshed.RESTMapping(gk, version)
+}
+
+func uniqueK8sResourceDeleteTargets(targets []model.K8sResourceDeleteTaskTarget) []model.K8sResourceDeleteTaskTarget {
+	seen := make(map[string]struct{}, len(targets))
+	unique := make([]model.K8sResourceDeleteTaskTarget, 0, len(targets))
+	for _, target := range targets {
+		if target.ResourceID == 0 || target.DeleteGeneration <= 0 {
+			continue
+		}
+		key := fmt.Sprintf("%d/%d", target.ResourceID, target.DeleteGeneration)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		unique = append(unique, target)
+	}
+	return unique
+}
+
+func (m *Manager) deletePersistedK8sResource(dc dynamic.Interface, resolver *k8sResourceDeleteMapperResolver, target model.K8sResourceDeleteTaskTarget) {
+	now := time.Now()
+	lease, err := m.dbmanager.K8sResourceDao().ClaimK8sResourceDeleteLease(target.ResourceID, target.DeleteGeneration, now, now.Add(k8sResourceDeleteLeaseDuration))
+	if err != nil {
+		logrus.Errorf("claim k8s resource deletion lease for %d/%d: %v", target.ResourceID, target.DeleteGeneration, err)
+		return
+	}
+	if lease == nil {
+		return
+	}
+	resource, err := m.dbmanager.K8sResourceDao().GetK8sResourceForDeletion(target.ResourceID, target.DeleteGeneration, lease.DeleteLeaseToken)
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			logrus.Errorf("load claimed k8s resource deletion %d/%d: %v", target.ResourceID, target.DeleteGeneration, err)
+		}
+		return
+	}
+	updated, err := m.dbmanager.K8sResourceDao().IncreaseK8sResourceDeleteAttempts(resource.ID, target.DeleteGeneration, lease.DeleteLeaseToken)
+	if err != nil || !updated {
+		if err != nil {
+			logrus.Errorf("record k8s resource deletion attempt for %d/%d: %v", resource.ID, target.DeleteGeneration, err)
+		}
+		return
+	}
+	// A create/update error does not prove Kubernetes created nothing: a client
+	// timeout may arrive after the API server accepted the create. Never remove
+	// Region state without an actual GET NotFound verification.
+	if resource.State != apimodel.CreateSuccess && resource.State != apimodel.UpdateSuccess {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource create/update did not complete; physical identity cannot be verified"), true)
+		return
+	}
+
+	deleteContext, cancel := context.WithTimeout(m.ctx, k8sResourceDeleteRequestTimeout)
+	defer cancel()
+	obj, gvk, err := decodeK8sResourceForDeletion(resource.Content)
+	if err != nil {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, true)
+		return
+	}
+	mapping, err := resolver.resolve(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, false)
+		return
+	}
+	physicalIdentity := dbmodel.K8sResourcePhysicalIdentity(mapping.Resource.Group, mapping.Resource.Resource, obj.GetNamespace(), obj.GetName())
+	if resource.ResourceIdentity != "" && resource.ResourceIdentity != physicalIdentity {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, &k8sResourceDeleteIdentityError{message: fmt.Sprintf("persisted Kubernetes identity %q does not match saved content identity %q", resource.ResourceIdentity, physicalIdentity)}, true)
+		return
+	}
+	var resourceClient dynamic.ResourceInterface
+	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+		resourceClient = dc.Resource(mapping.Resource).Namespace(obj.GetNamespace())
+	} else {
+		resourceClient = dc.Resource(mapping.Resource)
+	}
+	if resource.ResourceUID == "" || resource.ResourceIdentity == "" {
+		observed, getErr := resourceClient.Get(deleteContext, obj.GetName(), metav1.GetOptions{})
+		if k8sErrors.IsNotFound(getErr) {
+			m.completeK8sResourceDeletion(resource, target, lease.DeleteLeaseToken)
+			return
+		}
+		if getErr != nil {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, getErr, false)
+			return
+		}
+		observedUID := string(observed.GetUID())
+		if observedUID == "" {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, &k8sResourceDeleteIdentityError{message: "exact Kubernetes object has no UID; refusing deletion"}, true)
+			return
+		}
+		if resource.ResourceUID != "" && resource.ResourceUID != observedUID {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, &k8sResourceDeleteIdentityError{message: fmt.Sprintf("persisted Kubernetes UID %q does not match observed object UID %q", resource.ResourceUID, observedUID)}, true)
+			return
+		}
+		adopted, adoptErr := m.dbmanager.K8sResourceDao().AdoptK8sResourceDeleteIdentity(resource.ID, target.DeleteGeneration, lease.DeleteLeaseToken, observedUID, physicalIdentity)
+		if adoptErr != nil {
+			m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, adoptErr, false)
+			return
+		}
+		if !adopted {
+			logrus.Debugf("k8s resource deletion identity %d/%d was superseded before UID adoption", resource.ID, target.DeleteGeneration)
+			return
+		}
+		resource.ResourceUID = observedUID
+		resource.ResourceIdentity = physicalIdentity
+	}
+	if err := resourceClient.Delete(deleteContext, obj.GetName(), forceDeleteOptions(types.UID(resource.ResourceUID))); err != nil && !k8sErrors.IsNotFound(err) {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, k8sErrors.IsConflict(err))
+		return
+	}
+
+	deleted, err := waitForK8sResourceDeletion(deleteContext, resourceClient, obj.GetName(), types.UID(resource.ResourceUID), resource.ResourceOrigin, resource.AllowsForceFinalizerRemoval())
+	if err == nil && deleted {
+		m.completeK8sResourceDeletion(resource, target, lease.DeleteLeaseToken)
+		return
+	}
+	if err != nil {
+		m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, err, isPermanentK8sResourceDeleteError(err))
+		return
+	}
+	m.finishK8sResourceDeleteFailure(resource, target, lease.DeleteLeaseToken, fmt.Errorf("resource %s is still terminating after force deletion", obj.GetName()), false)
+}
+
+// completeK8sResourceDeletion removes Region state only after a Kubernetes GET
+// for the exact persisted identity has returned NotFound.
+func (m *Manager) completeK8sResourceDeletion(resource dbmodel.K8sResource, target model.K8sResourceDeleteTaskTarget, leaseToken string) {
+	if removed, deleteErr := m.dbmanager.K8sResourceDao().DeleteK8sResourceByIDAndGeneration(resource.ID, target.DeleteGeneration, leaseToken); deleteErr != nil {
+		logrus.Errorf("remove verified k8s resource deletion row %d/%d: %v", resource.ID, target.DeleteGeneration, deleteErr)
+	} else if !removed {
+		logrus.Debugf("k8s resource deletion row %d/%d was superseded before physical removal", resource.ID, target.DeleteGeneration)
+	}
+}
+
+func decodeK8sResourceForDeletion(resourceYAML string) (*unstructured.Unstructured, schema.GroupVersionKind, error) {
+	decoder := yamlt.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(resourceYAML)), 1000)
+	var objects []*unstructured.Unstructured
+	var groupVersionKinds []schema.GroupVersionKind
 	for {
 		var rawObj runtime.RawExtension
-		if err = decoder.Decode(&rawObj); err != nil {
+		err := decoder.Decode(&rawObj)
+		if err != nil {
 			if err.Error() == "EOF" {
 				break
 			}
-			logrus.Errorf("HandleResourceYaml decoder.Decode error %v", err)
-			return err
+			return nil, schema.GroupVersionKind{}, err
+		}
+		if len(rawObj.Raw) == 0 {
+			continue
 		}
 		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
 		if err != nil {
-			logrus.Errorf("HandleResourceYaml yaml.NewDecodingSerializer error %v", err)
-			return err
+			return nil, schema.GroupVersionKind{}, err
 		}
-		//转化成map
 		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
-			logrus.Errorf("HandleResourceYaml runtime.DefaultUnstructuredConverter.ToUnstructured error %v", err)
-			return err
+			return nil, schema.GroupVersionKind{}, err
 		}
-		//转化成对象
-		unstructuredObj := unstructured.Unstructured{Object: unstructuredMap}
-		mapping, err := m.k8sComponent.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		if err != nil {
-			if !meta.IsNoMatchError(err) {
-				return err
-			}
-			err = m.RefreshMapper()
-			if err != nil {
-				return err
-			}
-			return err
-		}
-		var dri dynamic.ResourceInterface
-		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
-			dri = dc.Resource(mapping.Resource).Namespace(unstructuredObj.GetNamespace())
-		} else {
-			dri = dc.Resource(mapping.Resource)
-		}
-		br := &model.BuildResource{
-			Resource: &unstructuredObj,
-			Dri:      dri,
-		}
-		buildResourceList = append(buildResourceList, br)
+		objects = append(objects, &unstructured.Unstructured{Object: unstructuredMap})
+		groupVersionKinds = append(groupVersionKinds, *gvk)
 	}
-	for _, buildResource := range buildResourceList {
-		unstructuredObj := buildResource.Resource
-		err := buildResource.Dri.Delete(context.TODO(), unstructuredObj.GetName(), metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("delete k8s resource %v(%v) error %v", unstructuredObj.GetName(), unstructuredObj.GetKind(), err)
-			return err
-		}
-		logrus.Debugf("delete k8s resource %v(%v) success", unstructuredObj.GetName(), unstructuredObj.GetKind())
+	if len(objects) != 1 {
+		return nil, schema.GroupVersionKind{}, fmt.Errorf("expected exactly one persisted k8s resource object, got %d", len(objects))
 	}
-	return nil
+	if objects[0].GetName() == "" {
+		return nil, schema.GroupVersionKind{}, fmt.Errorf("persisted k8s resource has no metadata.name")
+	}
+	return objects[0], groupVersionKinds[0], nil
+}
+
+func forceDeleteOptions(resourceUID types.UID) metav1.DeleteOptions {
+	gracePeriodSeconds := int64(0)
+	propagationPolicy := metav1.DeletePropagationBackground
+	return metav1.DeleteOptions{
+		GracePeriodSeconds: &gracePeriodSeconds,
+		PropagationPolicy:  &propagationPolicy,
+		Preconditions:      &metav1.Preconditions{UID: &resourceUID},
+	}
+}
+
+func waitForK8sResourceDeletion(ctx context.Context, resourceClient dynamic.ResourceInterface, name string, expectedUID types.UID, resourceOrigin string, allowFinalizerRemoval bool) (bool, error) {
+	for attempt := 0; attempt < k8sResourceDeletePollAttempts; attempt++ {
+		resource, err := resourceClient.Get(ctx, name, metav1.GetOptions{})
+		if k8sErrors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if resource.GetUID() != expectedUID {
+			return false, &k8sResourceDeleteIdentityError{message: fmt.Sprintf("persisted Kubernetes UID %q does not match current object UID %q", expectedUID, resource.GetUID())}
+		}
+		if resource.GetDeletionTimestamp() != nil && len(resource.GetFinalizers()) > 0 {
+			if !allowFinalizerRemoval {
+				return false, &k8sResourceDeleteFinalizerPolicyError{origin: resourceOrigin}
+			}
+			finalizerPatch, _ := json.Marshal([]map[string]interface{}{
+				{"op": "test", "path": "/metadata/uid", "value": string(expectedUID)},
+				{"op": "test", "path": "/metadata/resourceVersion", "value": resource.GetResourceVersion()},
+				{"op": "replace", "path": "/metadata/finalizers", "value": []string{}},
+			})
+			if _, err := resourceClient.Patch(ctx, name, types.JSONPatchType, finalizerPatch, metav1.PatchOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
+				return false, err
+			}
+		}
+		if attempt == k8sResourceDeletePollAttempts-1 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(k8sResourceDeletePollInterval):
+		}
+	}
+	return false, nil
+}
+
+func isPermanentK8sResourceDeleteError(err error) bool {
+	switch err.(type) {
+	case *k8sResourceDeleteIdentityError, *k8sResourceDeleteFinalizerPolicyError:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *Manager) finishK8sResourceDeleteFailure(resource dbmodel.K8sResource, target model.K8sResourceDeleteTaskTarget, leaseToken string, deleteErr error, permanent bool) {
+	deleteError := sanitizeK8sResourceDeleteError(deleteErr)
+	if permanent || resource.DeleteAttempts+1 >= k8sResourceDeleteRetryLimit {
+		if updated, err := m.dbmanager.K8sResourceDao().MarkK8sResourceDeleteFailed(resource.ID, target.DeleteGeneration, leaseToken, deleteError); err != nil {
+			logrus.Errorf("mark k8s resource deletion %d/%d failed: %v", resource.ID, target.DeleteGeneration, err)
+		} else if !updated {
+			logrus.Debugf("k8s resource deletion failure %d/%d was superseded", resource.ID, target.DeleteGeneration)
+		}
+		return
+	}
+	delay := k8sResourceDeleteRetryDelay(resource.DeleteAttempts + 1)
+	if updated, err := m.dbmanager.K8sResourceDao().ScheduleK8sResourceDeleteRetry(resource.ID, target.DeleteGeneration, leaseToken, time.Now().Add(delay), deleteError); err != nil {
+		logrus.Errorf("schedule k8s resource deletion %d/%d retry: %v", resource.ID, target.DeleteGeneration, err)
+	} else if !updated {
+		logrus.Debugf("k8s resource deletion retry %d/%d was superseded", resource.ID, target.DeleteGeneration)
+	}
+}
+
+func k8sResourceDeleteRetryDelay(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	delay := time.Second * time.Duration(1<<(uint(attempt)-1))
+	if delay > time.Minute {
+		return time.Minute
+	}
+	return delay
+}
+
+func sanitizeK8sResourceDeleteError(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	if len(message) > 1024 {
+		return message[:1024]
+	}
+	return message
 }
 
 // buildFromKubeBlocksExec KubeBlocks组件构建执行方法
@@ -730,9 +1060,9 @@ func (m *Manager) buildFromKubeBlocksExec(task *model.Task) error {
 		logrus.Errorf("build_from_kubeblocks body convert to taskbody error")
 		return fmt.Errorf("build_from_kubeblocks body convert to taskbody error")
 	}
-	
+
 	logger := event.GetManager().GetLogger(body.EventID)
-	
+
 	// 检查服务是否已经启动
 	appService := m.store.GetAppService(body.ServiceID)
 	if appService != nil && !appService.IsClosed() {
@@ -740,7 +1070,7 @@ func (m *Manager) buildFromKubeBlocksExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	
+
 	// 初始化AppService，跳过镜像构建阶段
 	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
@@ -749,12 +1079,12 @@ func (m *Manager) buildFromKubeBlocksExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("KubeBlocks component init create failure")
 	}
-	
+
 	newAppService.Logger = logger
-	
+
 	// 注册新的应用服务
 	m.store.RegistAppService(newAppService)
-	
+
 	// KubeBlocks组件使用启动控制器，跳过镜像构建过程直接部署K8s资源
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 	if err != nil {
@@ -763,7 +1093,7 @@ func (m *Manager) buildFromKubeBlocksExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("KubeBlocks component start failure")
 	}
-	
+
 	logrus.Infof("KubeBlocks component(%s) %s working is running.", body.ServiceID, "build_from_kubeblocks")
 	return nil
 }
