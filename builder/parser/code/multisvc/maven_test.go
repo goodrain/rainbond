@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
 // capability_id: rainbond.maven.parse-pom
@@ -80,6 +82,8 @@ func TestMaven_ListModules(t *testing.T) {
     <module>rbd-api</module>
     <module>rbd-worker</module>
     <module>rbd-gateway</module>
+    <module>rbd-boot-default-group</module>
+    <module>rbd-fake-boot</module>
   </modules>
 </project>`
 	if err := os.WriteFile(filepath.Join(root, "pom.xml"), []byte(rootPom), 0o644); err != nil {
@@ -87,11 +91,15 @@ func TestMaven_ListModules(t *testing.T) {
 	}
 	modules := map[string]string{
 		"rbd-api": `<?xml version="1.0" encoding="UTF-8"?>
-<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-api</artifactId><version>1.0.0</version><packaging>jar</packaging></project>`,
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-api</artifactId><version>1.0.0</version><packaging>jar</packaging><build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build></project>`,
 		"rbd-worker": `<?xml version="1.0" encoding="UTF-8"?>
 <project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-worker</artifactId><version>1.0.0</version><packaging>jar</packaging></project>`,
 		"rbd-gateway": `<?xml version="1.0" encoding="UTF-8"?>
 <project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-gateway</artifactId><version>1.0.0</version><packaging>war</packaging></project>`,
+		"rbd-boot-default-group": `<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-boot-default-group</artifactId><version>1.0.0</version><packaging>jar</packaging><build><plugins><plugin><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build></project>`,
+		"rbd-fake-boot": `<?xml version="1.0" encoding="UTF-8"?>
+<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>rbd-fake-boot</artifactId><version>1.0.0</version><packaging>jar</packaging><build><plugins><plugin><groupId>com.example</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build></project>`,
 	}
 	for name, content := range modules {
 		dir := filepath.Join(root, name)
@@ -108,22 +116,35 @@ func TestMaven_ListModules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res) != 3 {
-		t.Fatalf("Expected 3 modules, but returned %d", len(res))
+	if len(res) != 5 {
+		t.Fatalf("Expected 5 modules, but returned %d", len(res))
 	}
-	names := []string{res[0].Name, res[1].Name, res[2].Name}
-	expected := map[string]string{
-		"rbd-api":     "jar",
-		"rbd-worker":  "jar",
-		"rbd-gateway": "war",
+	wantNames := []string{"rbd-api", "rbd-worker", "rbd-gateway", "rbd-boot-default-group", "rbd-fake-boot"}
+	for i, wantName := range wantNames {
+		if res[i].Name != wantName {
+			t.Fatalf("module order[%d] = %q, want %q", i, res[i].Name, wantName)
+		}
+	}
+	expected := map[string]struct {
+		packaging string
+		role      string
+	}{
+		"rbd-api":                {packaging: "jar", role: types.ModuleRoleRunnable},
+		"rbd-worker":             {packaging: "jar", role: types.ModuleRolePossibleDependency},
+		"rbd-gateway":            {packaging: "war", role: types.ModuleRoleRunnable},
+		"rbd-boot-default-group": {packaging: "jar", role: types.ModuleRoleRunnable},
+		"rbd-fake-boot":          {packaging: "jar", role: types.ModuleRolePossibleDependency},
 	}
 	for _, svc := range res {
-		packaging, ok := expected[svc.Name]
+		want, ok := expected[svc.Name]
 		if !ok {
-			t.Fatalf("unexpected module name %q in %v", svc.Name, names)
+			t.Fatalf("unexpected module name %q in %v", svc.Name, wantNames)
 		}
-		if svc.Packaging != packaging {
-			t.Fatalf("module %s packaging = %q, want %q", svc.Name, svc.Packaging, packaging)
+		if svc.Packaging != want.packaging {
+			t.Fatalf("module %s packaging = %q, want %q", svc.Name, svc.Packaging, want.packaging)
+		}
+		if svc.ModuleRole != want.role {
+			t.Fatalf("module %s role = %q, want %q", svc.Name, svc.ModuleRole, want.role)
 		}
 		if svc.Envs["BUILD_MAVEN_CUSTOM_GOALS"] == nil {
 			t.Fatalf("module %s missing BUILD_MAVEN_CUSTOM_GOALS", svc.Name)
@@ -137,7 +158,7 @@ func TestMaven_ListModules(t *testing.T) {
 		if svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"] == nil {
 			t.Fatalf("module %s missing BUILD_MAVEN_BUILT_ARTIFACT", svc.Name)
 		}
-		wantArtifact := svc.Name + "/target/" + svc.Name + "-*." + packaging
+		wantArtifact := svc.Name + "/target/" + svc.Name + "-*." + want.packaging
 		if got := svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"].Value; got != wantArtifact {
 			t.Fatalf("module %s BUILD_MAVEN_BUILT_ARTIFACT = %q, want %q", svc.Name, got, wantArtifact)
 		}

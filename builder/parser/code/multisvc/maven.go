@@ -76,6 +76,7 @@ type module struct {
 	MavenCustomGoals string
 	MavenJavaOpts    string
 	Packaging        string
+	ModuleRole       string
 	BuiltArtifact    string
 }
 
@@ -112,8 +113,9 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				cnames := strings.Split(name, "/")
 				return cnames[len(cnames)-1]
 			}(item.Name),
-			Packaging: item.Packaging,
-			Envs:      make(map[string]*types.Env),
+			Packaging:  item.Packaging,
+			ModuleRole: item.ModuleRole,
+			Envs:       make(map[string]*types.Env),
 		}
 		for _, env := range envs {
 			mo.Envs[env.Name] = &types.Env{Name: env.Name, Value: env.Value}
@@ -149,6 +151,7 @@ func listModules(prefix, topPref, finalName string) ([]*module, error) {
 				}
 				return "jar"
 			}(),
+			ModuleRole:       pom.moduleRole(),
 			MavenCustomOpts:  fmt.Sprintf("-DskipTests"),
 			MavenCustomGoals: fmt.Sprintf("clean dependency:list install -pl %s -am", name),
 			BuiltArtifact: func() string {
@@ -189,6 +192,26 @@ func parsePom(pomPath string) (*pom, error) {
 // checks if the pom has submodules.
 func (p *pom) hasSubmodules() bool {
 	return len(p.Modules) > 0
+}
+
+func (p *pom) hasSpringBootPlugin() bool {
+	if p.Build == nil || p.Build.Plugins == nil {
+		return false
+	}
+	for _, plugin := range p.Build.Plugins.Plugin {
+		if plugin != nil && plugin.ArtifactID == "spring-boot-maven-plugin" &&
+			(plugin.GroupID == "" || plugin.GroupID == "org.springframework.boot") {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *pom) moduleRole() string {
+	if p.Packaging == "war" || p.hasSpringBootPlugin() {
+		return types.ModuleRoleRunnable
+	}
+	return types.ModuleRolePossibleDependency
 }
 
 // TODO: read maven source code, learn how does maven get the final name
