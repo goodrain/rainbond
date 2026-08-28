@@ -798,6 +798,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 			info.Name = svc.Name
 			info.Cname = svc.Cname
 			info.Packaging = svc.Packaging
+			info.ModuleRole = svc.ModuleRole
 			for i := range svc.Envs {
 				info.Envs = append(info.Envs, *svc.Envs[i])
 			}
