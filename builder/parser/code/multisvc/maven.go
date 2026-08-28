@@ -20,7 +20,6 @@ package multi
 
 import (
 	"encoding/xml"
-	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -29,24 +28,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 )
-
-// Build represents build in pom.xml
-type Build struct {
-	FinalName string   `xml:"finalName"`
-	Plugins   *Plugins `xml:"plugins"`
-}
-
-// Plugins represents plugins in pom.xml
-type Plugins struct {
-	Plugin []*Plugin `xml:"plugin"`
-}
-
-// Plugin represents plugin in pom.xml
-type Plugin struct {
-	GroupID    string `xml:"groupId"`
-	ArtifactID string `xml:"artifactId"`
-	FinalName  string `xml:"configuration>finalName"`
-}
 
 // maven is an implementation of MutilModuler.
 type maven struct {
@@ -65,47 +46,23 @@ type pom struct {
 	Version    string   `xml:"version"`
 	Packaging  string   `xml:"packaging"`
 	Modules    []string `xml:"modules>module"`
-	Build      *Build   `xml:"build"`
 }
 
 // module represents a maven module
 type module struct {
-	ID               string
-	Name             string
-	MavenCustomOpts  string
-	MavenCustomGoals string
-	MavenJavaOpts    string
-	Packaging        string
-	ModuleRole       string
-	BuiltArtifact    string
+	ID        string
+	Name      string
+	Packaging string
 }
 
 // ListModules lists all maven modules from pom.xml
 func (m *maven) ListModules(path string) ([]*types.Service, error) {
-	modules, err := listModules(path, strings.TrimRight(path, "/")+"/", "")
+	modules, err := listModules(path, strings.TrimRight(path, "/")+"/")
 	if err != nil {
 		return nil, err
 	}
 	var res []*types.Service
 	for _, item := range modules {
-		envs := []*types.Env{
-			{
-				Name:  "BUILD_MAVEN_CUSTOM_OPTS",
-				Value: item.MavenCustomOpts,
-			},
-			{
-				Name:  "BUILD_MAVEN_CUSTOM_GOALS",
-				Value: item.MavenCustomGoals,
-			},
-			{
-				Name:  "BUILD_MAVEN_BUILT_MODULE",
-				Value: item.Name,
-			},
-			{
-				Name:  "BUILD_MAVEN_BUILT_ARTIFACT",
-				Value: item.BuiltArtifact,
-			},
-		}
 		mo := &types.Service{
 			ID:   item.ID,
 			Name: item.Name,
@@ -113,33 +70,29 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				cnames := strings.Split(name, "/")
 				return cnames[len(cnames)-1]
 			}(item.Name),
-			Packaging:  item.Packaging,
-			ModuleRole: item.ModuleRole,
-			Envs:       make(map[string]*types.Env),
-		}
-		for _, env := range envs {
-			mo.Envs[env.Name] = &types.Env{Name: env.Name, Value: env.Value}
+			Packaging: item.Packaging,
+			Envs: map[string]*types.Env{
+				"BUILD_MAVEN_BUILT_MODULE": {
+					Name:  "BUILD_MAVEN_BUILT_MODULE",
+					Value: item.Name,
+				},
+			},
 		}
 		res = append(res, mo)
 	}
 	return res, nil
 }
 
-func listModules(prefix, topPref, finalName string) ([]*module, error) {
+func listModules(prefix, topPref string) ([]*module, error) {
 	pomPath := path.Join(prefix, "pom.xml")
 	pom, err := parsePom(pomPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if pom.Build != nil && pom.Build.FinalName != "" {
-		finalName = pom.Build.FinalName
-	}
-
 	var modules []*module // module names
 	// recursive end condition
 	if pom.isValidModule() {
-		filename := pom.getExecuteFilename(finalName)
 		// full module name. eg: foobar/rbd-worker
 		name := strings.Replace(prefix, topPref, "", 1)
 		mo := &module{
@@ -151,19 +104,13 @@ func listModules(prefix, topPref, finalName string) ([]*module, error) {
 				}
 				return "jar"
 			}(),
-			ModuleRole:       pom.moduleRole(),
-			MavenCustomOpts:  fmt.Sprintf("-DskipTests"),
-			MavenCustomGoals: fmt.Sprintf("clean dependency:list install -pl %s -am", name),
-			BuiltArtifact: func() string {
-				return fmt.Sprintf("%s/target/%s", name, filename)
-			}(),
 		}
 		return []*module{mo}, nil
 	}
 
 	for _, name := range pom.Modules {
 		// submodule names
-		submodules, err := listModules(path.Join(prefix, name), topPref, finalName)
+		submodules, err := listModules(path.Join(prefix, name), topPref)
 		if err != nil {
 			logrus.Warningf("Prefix: %s; error getting module names: %v",
 				path.Join(prefix, name), err)
@@ -192,66 +139,6 @@ func parsePom(pomPath string) (*pom, error) {
 // checks if the pom has submodules.
 func (p *pom) hasSubmodules() bool {
 	return len(p.Modules) > 0
-}
-
-func (p *pom) hasSpringBootPlugin() bool {
-	if p.Build == nil || p.Build.Plugins == nil {
-		return false
-	}
-	for _, plugin := range p.Build.Plugins.Plugin {
-		if plugin != nil && plugin.ArtifactID == "spring-boot-maven-plugin" &&
-			(plugin.GroupID == "" || plugin.GroupID == "org.springframework.boot") {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *pom) moduleRole() string {
-	if p.Packaging == "war" || p.hasSpringBootPlugin() {
-		return types.ModuleRoleRunnable
-	}
-	return types.ModuleRolePossibleDependency
-}
-
-// TODO: read maven source code, learn how does maven get the final name
-func (p *pom) getExecuteFilename(finalName string) string {
-	// default finalName
-	name := p.ArtifactID + "-*"
-	if p.Build != nil {
-		// the finalName in the plugin has a higher priority than in the build.
-		if p.Build.FinalName != "" {
-			finalName = p.Build.FinalName
-		}
-		if p.Build.Plugins != nil && p.Build.Plugins.Plugin != nil && len(p.Build.Plugins.Plugin) > 0 {
-			for _, plugin := range p.Build.Plugins.Plugin {
-				if plugin.ArtifactID == "spring-boot-maven-plugin" && plugin.GroupID == "org.springframework.boot" &&
-					plugin.FinalName != "" {
-					finalName = plugin.FinalName
-					break
-				}
-			}
-		}
-	}
-	if finalName == "${project.name}" {
-		name = p.ArtifactID
-		if p.Name != "" {
-			name = p.Name
-		}
-	} else if finalName == "${project.artifactId}" {
-		name = p.ArtifactID
-	} else if strings.HasPrefix(finalName, "") && strings.HasSuffix(finalName, "}") {
-		name = "*"
-	} else if finalName != "" {
-		name = finalName
-	}
-	suffix := func() string {
-		if p.Packaging == "" {
-			return "jar"
-		}
-		return p.Packaging
-	}
-	return name + "." + suffix()
 }
 
 func (p *pom) isValidModule() bool {

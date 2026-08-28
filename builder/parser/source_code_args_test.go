@@ -116,8 +116,8 @@ func TestGetServiceInfo_MultiModulesPreserveDockerfileDetection(t *testing.T) {
 		dockerfiles: []string{"Dockerfile"},
 		isMulti:     true,
 		services: []*types.Service{
-			{Name: "service-a", Cname: "service-a", Packaging: "jar", ModuleRole: types.ModuleRoleRunnable},
-			{Name: "service-b", Cname: "service-b", Packaging: "jar", ModuleRole: types.ModuleRolePossibleDependency},
+			{Name: "service-a", Cname: "service-a", Packaging: "jar"},
+			{Name: "service-b", Cname: "service-b", Packaging: "jar"},
 		},
 	}
 
@@ -125,15 +125,12 @@ func TestGetServiceInfo_MultiModulesPreserveDockerfileDetection(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("GetServiceInfo() returned %d services, want 2", len(got))
 	}
-	for idx, info := range got {
+	for _, info := range got {
 		if info.Lang != code.Lang("dockerfile,Java-maven") {
 			t.Fatalf("service %q language = %q, want dockerfile,Java-maven", info.Name, info.Lang)
 		}
 		if len(info.Dockerfiles) != 1 || info.Dockerfiles[0] != "Dockerfile" {
 			t.Fatalf("service %q Dockerfiles = %v, want [Dockerfile]", info.Name, info.Dockerfiles)
-		}
-		if info.ModuleRole != d.services[idx].ModuleRole {
-			t.Fatalf("service %q module role = %q, want %q", info.Name, info.ModuleRole, d.services[idx].ModuleRole)
 		}
 	}
 }

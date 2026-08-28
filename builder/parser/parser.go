@@ -198,11 +198,10 @@ type ServiceInfo struct {
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 	//os type,default linux
-	OS         string `json:"os"`
-	Name       string `json:"name,omitempty"`  // module name
-	Cname      string `json:"cname,omitempty"` // service cname
-	Packaging  string `json:"packaging,omitempty"`
-	ModuleRole string `json:"module_role,omitempty"`
+	OS        string `json:"os"`
+	Name      string `json:"name,omitempty"`  // module name
+	Cname     string `json:"cname,omitempty"` // service cname
+	Packaging string `json:"packaging,omitempty"`
 	// Dockerfile 文件列表，相对于代码根目录的路径
 	Dockerfiles []string `json:"dockerfiles,omitempty"`
 

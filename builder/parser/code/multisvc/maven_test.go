@@ -22,8 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
 // capability_id: rainbond.maven.parse-pom
@@ -125,45 +123,29 @@ func TestMaven_ListModules(t *testing.T) {
 			t.Fatalf("module order[%d] = %q, want %q", i, res[i].Name, wantName)
 		}
 	}
-	expected := map[string]struct {
-		packaging string
-		role      string
-	}{
-		"rbd-api":                {packaging: "jar", role: types.ModuleRoleRunnable},
-		"rbd-worker":             {packaging: "jar", role: types.ModuleRolePossibleDependency},
-		"rbd-gateway":            {packaging: "war", role: types.ModuleRoleRunnable},
-		"rbd-boot-default-group": {packaging: "jar", role: types.ModuleRoleRunnable},
-		"rbd-fake-boot":          {packaging: "jar", role: types.ModuleRolePossibleDependency},
+	expectedPackaging := map[string]string{
+		"rbd-api":                "jar",
+		"rbd-worker":             "jar",
+		"rbd-gateway":            "war",
+		"rbd-boot-default-group": "jar",
+		"rbd-fake-boot":          "jar",
 	}
 	for _, svc := range res {
-		want, ok := expected[svc.Name]
+		wantPackaging, ok := expectedPackaging[svc.Name]
 		if !ok {
 			t.Fatalf("unexpected module name %q in %v", svc.Name, wantNames)
 		}
-		if svc.Packaging != want.packaging {
-			t.Fatalf("module %s packaging = %q, want %q", svc.Name, svc.Packaging, want.packaging)
+		if svc.Packaging != wantPackaging {
+			t.Fatalf("module %s packaging = %q, want %q", svc.Name, svc.Packaging, wantPackaging)
 		}
-		if svc.ModuleRole != want.role {
-			t.Fatalf("module %s role = %q, want %q", svc.Name, svc.ModuleRole, want.role)
-		}
-		if svc.Envs["BUILD_MAVEN_CUSTOM_GOALS"] == nil {
-			t.Fatalf("module %s missing BUILD_MAVEN_CUSTOM_GOALS", svc.Name)
+		if len(svc.Envs) != 1 {
+			t.Fatalf("module %s env count = %d, want only BUILD_MAVEN_BUILT_MODULE: %#v", svc.Name, len(svc.Envs), svc.Envs)
 		}
 		if svc.Envs["BUILD_MAVEN_BUILT_MODULE"] == nil {
 			t.Fatalf("module %s missing BUILD_MAVEN_BUILT_MODULE", svc.Name)
 		}
 		if svc.Envs["BUILD_MAVEN_BUILT_MODULE"].Value != svc.Name {
 			t.Fatalf("module %s BUILD_MAVEN_BUILT_MODULE = %q, want %q", svc.Name, svc.Envs["BUILD_MAVEN_BUILT_MODULE"].Value, svc.Name)
-		}
-		if svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"] == nil {
-			t.Fatalf("module %s missing BUILD_MAVEN_BUILT_ARTIFACT", svc.Name)
-		}
-		wantArtifact := svc.Name + "/target/" + svc.Name + "-*." + want.packaging
-		if got := svc.Envs["BUILD_MAVEN_BUILT_ARTIFACT"].Value; got != wantArtifact {
-			t.Fatalf("module %s BUILD_MAVEN_BUILT_ARTIFACT = %q, want %q", svc.Name, got, wantArtifact)
-		}
-		if svc.Packaging == "war" && svc.Envs["BUILD_PROCFILE"] != nil && svc.Envs["BUILD_PROCFILE"].Value == "" {
-			t.Fatalf("module %s missing BUILD_PROCFILE value", svc.Name)
 		}
 	}
 }
