@@ -257,8 +257,8 @@ func TestJavaLanguageConfigAutoDetectsUniqueMavenModule(t *testing.T) {
 	if annotations["cnb-bp-maven-built-module"] != "service-a" {
 		t.Fatalf("expected unique maven module service-a, got %q", annotations["cnb-bp-maven-built-module"])
 	}
-	if annotations["cnb-bp-maven-built-artifact"] != "service-a/target/service-a-*.jar" {
-		t.Fatalf("expected unique maven artifact, got %q", annotations["cnb-bp-maven-built-artifact"])
+	if artifact := annotations["cnb-bp-maven-built-artifact"]; artifact != "" {
+		t.Fatalf("expected Maven auto-detection not to set a built artifact, got %q", artifact)
 	}
 }
 

@@ -556,22 +556,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		spec.Selector = kbutil.GenerateKubeBlocksSelector(rbdService.K8sComponentName)
 		logrus.Infof("Using KubeBlocks selector for service %s (k8s_component_name: %s)", serviceName, rbdService.K8sComponentName)
 	}
-	if !autoAllocatePort {
-		rules, err := db.GetManager().TCPRuleDao().GetUsedPortsByIP("0.0.0.0")
-		if err != nil {
-			logrus.Errorf("get used TCP ports error: %v", err)
-			httputil.ReturnBcodeError(r, w, bcode.ErrRouteCreate)
-			return
-		}
-		for _, rule := range rules {
-			sameOwner := resolvedServiceID != "" && rule.ServiceID == resolvedServiceID
-			if rule.Port == int(apisixRouteStream.Match.IngressPort) && !sameOwner {
-				httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
-				return
-			}
-		}
-	}
-
 	// Try to get the existing service first
 	service, err := k.Services(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
@@ -603,7 +587,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			// 设置服务的 NodePort
 			nodePort := service.Spec.Ports[0].NodePort
 			// 创建服务
-			_, err = k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
+			createdService, createErr := k.Services(tenant.Namespace).Create(r.Context(), service, v1.CreateOptions{})
+			err = createErr
 			if err != nil {
 				if strings.Contains(err.Error(), "provided port is already allocated") {
 					if !autoAllocatePort {
@@ -626,7 +611,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			apisixRouteStream.Match.IngressPort = nodePort
+			service = createdService
+			apisixRouteStream.Match.IngressPort = service.Spec.Ports[0].NodePort
 			// 如果创建成功，退出循环
 			logrus.Infof("Service created successfully with NodePort %d", nodePort)
 			serviceCreated = true
@@ -639,14 +625,21 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Service exists, update it
+		if resolvedServiceID != "" && service.Labels["service_id"] != resolvedServiceID {
+			logrus.Warnf("refusing to update TCP route Service %s owned by service %q for requested service %q",
+				name, service.Labels["service_id"], resolvedServiceID)
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
 		logrus.Infof("Service %s already exists, updating it", name)
 		service.Spec = spec
-		_, err = k.Services(tenant.Namespace).Update(r.Context(), service, v1.UpdateOptions{})
+		service, err = k.Services(tenant.Namespace).Update(r.Context(), service, v1.UpdateOptions{})
 		if err != nil {
 			logrus.Errorf("update route error %s", err.Error())
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
+		apisixRouteStream.Match.IngressPort = service.Spec.Ports[0].NodePort
 	}
 
 	// Add or update the TCP rule in the database
@@ -657,8 +650,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		IP:            "0.0.0.0",
 		Port:          int(apisixRouteStream.Match.IngressPort),
 	}
-	if err := db.GetManager().TCPRuleDao().AddModel(tcpRule); err != nil {
-		logrus.Errorf("add tcp %s", err.Error())
+	if err := db.GetManager().TCPRuleDao().ReplaceByIPAndPort(tcpRule); err != nil {
+		logrus.Errorf("reconcile tcp rule: %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 		return
 	}
@@ -678,6 +671,8 @@ func (g Struct) UpdateTCPRoute(w http.ResponseWriter, r *http.Request) {
 func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
+	requestedName := name
+	requestedServiceID := r.URL.Query().Get("service_id")
 
 	k := k8s.Default().Clientset.CoreV1()
 
@@ -692,8 +687,23 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if service == nil {
+				if err := releaseAbsentTCPRouteRules(requestedName, requestedServiceID); err != nil {
+					logrus.Errorf("release already deleted TCP route %s rules: %v", requestedName, err)
+					httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+					return
+				}
 				logrus.Infof("Service %s not found, treating as already deleted", name)
 				httputil.ReturnSuccess(r, w, name)
+				return
+			}
+			if requestedServiceID != "" && service.Labels["service_id"] != requestedServiceID {
+				if err := releaseAbsentTCPRouteRules(requestedName, requestedServiceID); err != nil {
+					logrus.Errorf("release replaced TCP route %s rules: %v", requestedName, err)
+					httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+					return
+				}
+				logrus.Infof("TCP route Service %s now belongs to another service, treating %s as already deleted", service.Name, requestedName)
+				httputil.ReturnSuccess(r, w, requestedName)
 				return
 			}
 			logrus.Infof("Service %s not found, fallback to TCP route Service %s by NodePort", name, service.Name)
@@ -704,21 +714,95 @@ func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if requestedServiceID != "" && service.Labels["service_id"] != requestedServiceID {
+		if err := releaseAbsentTCPRouteRules(requestedName, requestedServiceID); err != nil {
+			logrus.Errorf("release replaced TCP route %s rules: %v", requestedName, err)
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+			return
+		}
+		logrus.Infof("TCP route Service %s belongs to another service, treating %s as already deleted", service.Name, requestedName)
+		httputil.ReturnSuccess(r, w, requestedName)
+		return
+	}
+
+	resolvedServiceID := requestedServiceID
+	if resolvedServiceID == "" {
+		resolvedServiceID = service.Labels["service_id"]
+	}
+	nodePort := tcpRouteServiceNodePort(service)
+	capturedRuleIDs, err := captureTCPRouteRuleIDs(nodePort, "")
+	if err != nil {
+		logrus.Errorf("capture TCP route %s rules for service %s: %v", name, resolvedServiceID, err)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+		return
+	}
 
 	// Log the Service details for debugging
 	logrus.Infof("Deleting TCP route Service: %s, labels: %v, port: %v",
 		name, service.Labels, service.Spec.Ports[0].Port)
 
 	// Delete the Service
-	err = k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
-	if err != nil {
+	serviceUID := service.UID
+	err = k.Services(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{
+		Preconditions: &v1.Preconditions{UID: &serviceUID},
+	})
+	if err != nil && !errors.IsNotFound(err) {
 		logrus.Errorf("delete route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+		return
+	}
+	if err := db.GetManager().TCPRuleDao().DeleteByRecordIDs(capturedRuleIDs); err != nil {
+		logrus.Errorf("release captured TCP route %s rules: %v", name, err)
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
 		return
 	}
 
 	logrus.Infof("Successfully deleted TCP route Service: %s", name)
 	httputil.ReturnSuccess(r, w, name)
+}
+
+func releaseAbsentTCPRouteRules(routeName, serviceID string) error {
+	if serviceID == "" {
+		// Old clients do not identify the former owner. Once a NodePort is reused,
+		// deleting by port alone could remove the new owner's rule.
+		return nil
+	}
+	nodePort, ok := nodePortFromTCPRouteName(routeName)
+	if !ok {
+		return nil
+	}
+	ruleIDs, err := captureTCPRouteRuleIDs(nodePort, serviceID)
+	if err != nil {
+		return err
+	}
+	return db.GetManager().TCPRuleDao().DeleteByRecordIDs(ruleIDs)
+}
+
+func captureTCPRouteRuleIDs(nodePort int32, serviceID string) ([]uint, error) {
+	if nodePort == 0 {
+		return nil, nil
+	}
+	rules, err := db.GetManager().TCPRuleDao().ListByIPAndPort("0.0.0.0", int(nodePort))
+	if err != nil {
+		return nil, err
+	}
+	ruleIDs := make([]uint, 0, len(rules))
+	for _, rule := range rules {
+		if serviceID != "" && rule.ServiceID != serviceID {
+			continue
+		}
+		ruleIDs = append(ruleIDs, rule.ID)
+	}
+	return ruleIDs, nil
+}
+
+func tcpRouteServiceNodePort(service *corev1.Service) int32 {
+	for _, port := range service.Spec.Ports {
+		if port.NodePort != 0 {
+			return port.NodePort
+		}
+	}
+	return 0
 }
 
 func findTCPRouteServiceByNodePort(ctx context.Context, services typedcorev1.ServiceInterface, routeName string) (*corev1.Service, error) {
@@ -748,8 +832,8 @@ func nodePortFromTCPRouteName(routeName string) (int32, bool) {
 	if idx == -1 || idx == len(routeName)-1 {
 		return 0, false
 	}
-	port, err := strconv.Atoi(routeName[idx+1:])
-	if err != nil {
+	port, err := strconv.ParseInt(routeName[idx+1:], 10, 64)
+	if err != nil || port < 1 || port > 65535 {
 		return 0, false
 	}
 	return int32(port), true

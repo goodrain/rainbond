@@ -2636,6 +2636,60 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.prevent-tcp-route-delete-recreation-race",
+      "title": "Protect recreated TCP route Services with UID delete preconditions",
+      "title_zh": "Protect recreated TCP route Services with UID delete preconditions",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.DeleteTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.protect-tcp-route-service-ownership",
+      "title": "Reject TCP route updates for missing or different Service owners",
+      "title_zh": "Reject TCP route updates for missing or different Service owners",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.CreateTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.protect-unlabeled-tcp-route-service",
+      "title": "Do not delete unlabeled TCP route Services for owned requests",
+      "title_zh": "Do not delete unlabeled TCP route Services for owned requests",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.DeleteTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteTCPRouteWithServiceIDDoesNotDeleteUnlabeledService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.reassign-conflicting-imported-tcp-port",
       "title": "Reassign imported TCP ports that conflict with existing NodePorts",
       "interface_type": "package_function",
@@ -2647,6 +2701,24 @@
         {
           "path": "api/handler/gateway_action_test.go",
           "selector": "TestReassignConflictingTCPRulePorts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.reconcile-stale-tcp-nodeport-rules",
+      "title": "Reconcile stale TCP NodePort database rules after Kubernetes allocation",
+      "title_zh": "Reconcile stale TCP NodePort database rules after Kubernetes allocation",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.CreateTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteReconcilesStaleDatabaseRules"
         }
       ],
       "test_type": "regression",
@@ -2670,6 +2742,60 @@
         {
           "path": "api/controller/apigateway/api_gateway_route_test.go",
           "selector": "TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.release-absent-tcp-nodeport-owner",
+      "title": "Release only the requested owner when a TCP route Service is absent",
+      "title_zh": "Release only the requested owner when a TCP route Service is absent",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.DeleteTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.release-captured-tcp-nodeport-rules",
+      "title": "Release only TCP NodePort rules captured before Service deletion",
+      "title_zh": "Release only TCP NodePort rules captured before Service deletion",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.DeleteTCPRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.validate-tcp-nodeport-route-name",
+      "title": "Reject out-of-range TCP NodePorts parsed from route names",
+      "title_zh": "Reject out-of-range TCP NodePorts parsed from route names",
+      "interface_type": "package_function",
+      "interface": "api/controller/apigateway.nodePortFromTCPRouteName",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestNodePortFromTCPRouteNameValidatesRange"
         }
       ],
       "test_type": "regression",
@@ -8149,6 +8275,24 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestGetAppStatus"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation",
+      "title": "Skip anonymous reservations for Rainbond-managed TCP routes",
+      "title_zh": "\u8df3\u8fc7 Rainbond \u7ba1\u7406\u7684 TCP \u8def\u7531\u533f\u540d\u7aef\u53e3\u9884\u7559",
+      "interface_type": "workflow",
+      "interface": "worker/appm/store.shouldTrackNodePortService",
+      "code_paths": [
+        "worker/appm/store/store.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/store/store_test.go",
+          "selector": "TestShouldTrackNodePortService"
         }
       ],
       "test_type": "regression",

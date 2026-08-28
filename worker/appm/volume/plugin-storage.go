@@ -39,11 +39,19 @@ func (v *PluginStorageVolume) CreateVolume(define *Define) error {
 	if v.Plugin.AttrType == "storage" {
 		volumeMountName := fmt.Sprintf("plugin-%v-%v", v.PluginID, v.Plugin.VolumeName)
 		volumeMountPath := v.Plugin.VolumePath
+		storageClassName := v.Plugin.VolumeType
+		if storageClassName == "" {
+			storageClassName = "local-path"
+		}
+		accessMode := v.Plugin.AccessMode
+		if accessMode == "" {
+			accessMode = "RWX"
+		}
 		volumeReadOnly := false
 		var vm *corev1.VolumeMount
 		annotations := map[string]string{"volume_name": v.Plugin.VolumeName}
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "VolumeName": v.Plugin.VolumeName, "pluginID": v.PluginID})
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, "RWX", "local-path", 0, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, accessMode, storageClassName, v.Plugin.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
 		if v.as.GetStatefulSet() == nil {
 			v.as.SetClaimManually(claim)

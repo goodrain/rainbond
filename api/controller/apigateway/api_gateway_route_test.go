@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -61,8 +62,12 @@ func (d *tcpRouteTenantServiceDao) GetServiceByID(serviceID string) (*dbmodel.Te
 
 type tcpRouteRuleDao struct {
 	dbdao.TCPRuleDao
-	added     *dbmodel.TCPRule
-	usedRules []*dbmodel.TCPRule
+	added             *dbmodel.TCPRule
+	replaced          *dbmodel.TCPRule
+	rules             []*dbmodel.TCPRule
+	deletedIDs        []uint
+	beforeDeleteByIDs func()
+	afterListByIPPort func()
 }
 
 func (d *tcpRouteRuleDao) AddModel(m dbmodel.Interface) error {
@@ -71,7 +76,57 @@ func (d *tcpRouteRuleDao) AddModel(m dbmodel.Interface) error {
 }
 
 func (d *tcpRouteRuleDao) GetUsedPortsByIP(string) ([]*dbmodel.TCPRule, error) {
-	return d.usedRules, nil
+	return d.rules, nil
+}
+
+func (d *tcpRouteRuleDao) ReplaceByIPAndPort(rule *dbmodel.TCPRule) error {
+	canonical := *rule
+	d.replaced = &canonical
+	remaining := make([]*dbmodel.TCPRule, 0, len(d.rules)+1)
+	for _, existing := range d.rules {
+		if existing.IP == rule.IP && existing.Port == rule.Port {
+			continue
+		}
+		if rule.UUID != "" && existing.UUID == rule.UUID {
+			continue
+		}
+		remaining = append(remaining, existing)
+	}
+	remaining = append(remaining, &canonical)
+	d.rules = remaining
+	return nil
+}
+
+func (d *tcpRouteRuleDao) ListByIPAndPort(ip string, port int) ([]*dbmodel.TCPRule, error) {
+	var rules []*dbmodel.TCPRule
+	for _, rule := range d.rules {
+		if rule.IP == ip && rule.Port == port {
+			rules = append(rules, rule)
+		}
+	}
+	if d.afterListByIPPort != nil {
+		d.afterListByIPPort()
+	}
+	return rules, nil
+}
+
+func (d *tcpRouteRuleDao) DeleteByRecordIDs(ids []uint) error {
+	d.deletedIDs = append(d.deletedIDs, ids...)
+	if d.beforeDeleteByIDs != nil {
+		d.beforeDeleteByIDs()
+	}
+	deleted := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		deleted[id] = struct{}{}
+	}
+	remaining := make([]*dbmodel.TCPRule, 0, len(d.rules))
+	for _, rule := range d.rules {
+		if _, ok := deleted[rule.ID]; !ok {
+			remaining = append(remaining, rule)
+		}
+	}
+	d.rules = remaining
+	return nil
 }
 
 func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service) (*kubernetes.Clientset, func()) {
@@ -118,6 +173,28 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 			if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
 				t.Fatalf("decode service: %v", err)
 			}
+			for _, existing := range services {
+				for _, existingPort := range existing.Spec.Ports {
+					for _, requestedPort := range service.Spec.Ports {
+						if requestedPort.NodePort == 0 || requestedPort.NodePort != existingPort.NodePort {
+							continue
+						}
+						w.WriteHeader(http.StatusUnprocessableEntity)
+						_ = json.NewEncoder(w).Encode(v1.Status{
+							TypeMeta: v1.TypeMeta{Kind: "Status", APIVersion: "v1"},
+							Status:   v1.StatusFailure,
+							Message: fmt.Sprintf(
+								"Service %q is invalid: spec.ports[0].nodePort: Invalid value: %d: provided port is already allocated",
+								service.Name,
+								requestedPort.NodePort,
+							),
+							Reason: v1.StatusReasonInvalid,
+							Code:   http.StatusUnprocessableEntity,
+						})
+						return
+					}
+				}
+			}
 			service.Namespace = "default"
 			services[service.Name] = &service
 			w.WriteHeader(http.StatusCreated)
@@ -126,9 +203,37 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 			}
 			return
 		}
+		if r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/default/services/") {
+			name := strings.TrimPrefix(r.URL.Path, "/api/v1/namespaces/default/services/")
+			existing, ok := services[name]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(v1.Status{
+					TypeMeta: v1.TypeMeta{Kind: "Status", APIVersion: "v1"},
+					Status:   v1.StatusFailure,
+					Reason:   v1.StatusReasonNotFound,
+					Code:     http.StatusNotFound,
+				})
+				return
+			}
+			var service corev1.Service
+			if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
+				t.Fatalf("decode updated service: %v", err)
+			}
+			service.Namespace = "default"
+			if service.UID == "" {
+				service.UID = existing.UID
+			}
+			services[name] = &service
+			if err := json.NewEncoder(w).Encode(&service); err != nil {
+				t.Fatalf("encode updated service: %v", err)
+			}
+			return
+		}
 		if r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/namespaces/default/services/") {
 			name := strings.TrimPrefix(r.URL.Path, "/api/v1/namespaces/default/services/")
-			if _, ok := services[name]; !ok {
+			existing, ok := services[name]
+			if !ok {
 				w.WriteHeader(http.StatusNotFound)
 				_ = json.NewEncoder(w).Encode(v1.Status{
 					TypeMeta: v1.TypeMeta{
@@ -138,6 +243,19 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 					Status: v1.StatusFailure,
 					Reason: v1.StatusReasonNotFound,
 					Code:   http.StatusNotFound,
+				})
+				return
+			}
+			var options v1.DeleteOptions
+			_ = json.NewDecoder(r.Body).Decode(&options)
+			if options.Preconditions != nil && options.Preconditions.UID != nil && *options.Preconditions.UID != existing.UID {
+				w.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(w).Encode(v1.Status{
+					TypeMeta: v1.TypeMeta{Kind: "Status", APIVersion: "v1"},
+					Status:   v1.StatusFailure,
+					Message:  fmt.Sprintf("Operation cannot be fulfilled on services %q: UID precondition failed", name),
+					Reason:   v1.StatusReasonConflict,
+					Code:     http.StatusConflict,
 				})
 				return
 			}
@@ -330,16 +448,16 @@ func TestCreateTCPRouteUsesRainbondServiceAliasFromBackendServiceLabels(t *testi
 	if got := created.Labels["service_id"]; got != serviceID {
 		t.Fatalf("expected label service_id %q, got %q", serviceID, got)
 	}
-	if ruleDao.added == nil {
-		t.Fatal("expected TCP rule to be persisted")
+	if ruleDao.replaced == nil {
+		t.Fatal("expected TCP rule to be reconciled")
 	}
-	if got := ruleDao.added.ServiceID; got != serviceID {
+	if got := ruleDao.replaced.ServiceID; got != serviceID {
 		t.Fatalf("expected TCP rule service_id %q, got %q", serviceID, got)
 	}
 }
 
-// capability_id: rainbond.gateway.reject-duplicate-tcp-nodeport
-func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
+// capability_id: rainbond.gateway.reconcile-stale-tcp-nodeport-rules
+func TestCreateTCPRouteReconcilesStaleDatabaseRules(t *testing.T) {
 	const (
 		namespace     = "default"
 		tenantID      = "tenant-id"
@@ -354,14 +472,83 @@ func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
 	defer closeServer()
 	k8s.New().Clientset = clientset
 
-	ruleDao := &tcpRouteRuleDao{usedRules: []*dbmodel.TCPRule{
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
 		{
-			UUID:      "rule-a",
+			Model:     dbmodel.Model{ID: 1},
+			UUID:      "service-a",
 			ServiceID: "service-a",
 			IP:        "0.0.0.0",
 			Port:      int(requestedPort),
 		},
+		{
+			Model: dbmodel.Model{ID: 2},
+			IP:    "0.0.0.0",
+			Port:  int(requestedPort),
+		},
 	}}
+	db.SetTestManager(tcpRouteTestManager{
+		tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+			serviceID: {
+				ServiceID:    serviceID,
+				ServiceAlias: serviceAlias,
+				TenantID:     tenantID,
+			},
+		}},
+		tcpRuleDao: ruleDao,
+	})
+	defer db.SetTestManager(nil)
+
+	rr := createTCPRouteForTest(t, namespace, tenantID, serviceID, serviceName, requestedPort)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if ruleDao.replaced == nil {
+		t.Fatal("expected stale TCP rules to be reconciled")
+	}
+	if ruleDao.replaced.ServiceID != serviceID || ruleDao.replaced.Port != int(requestedPort) {
+		t.Fatalf("unexpected canonical TCP rule: %#v", ruleDao.replaced)
+	}
+	if len(ruleDao.rules) != 1 || ruleDao.rules[0].ServiceID != serviceID {
+		t.Fatalf("expected one canonical TCP rule, got %#v", ruleDao.rules)
+	}
+	if _, ok := services[serviceName+"-30000"]; !ok {
+		t.Fatal("expected Kubernetes NodePort service to be created")
+	}
+}
+
+// capability_id: rainbond.gateway.reject-duplicate-tcp-nodeport
+func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
+	const (
+		namespace     = "default"
+		tenantID      = "tenant-id"
+		serviceID     = "service-b"
+		serviceAlias  = "service-b-alias"
+		serviceName   = "service-b-name"
+		requestedPort = int32(30000)
+	)
+
+	services := map[string]*corev1.Service{
+		"service-a-30000": {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "service-a-30000",
+				Namespace: namespace,
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:     "service-a-30000",
+					Protocol: corev1.ProtocolTCP,
+					Port:     8080,
+					NodePort: requestedPort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{}
 	db.SetTestManager(tcpRouteTestManager{
 		tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
 			serviceID: {
@@ -402,12 +589,133 @@ func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
 	}
-	if ruleDao.added != nil {
-		t.Fatalf("expected conflicting TCP rule not to be persisted, got %#v", ruleDao.added)
+	var response struct {
+		Code int `json:"code"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode conflict response: %v", err)
+	}
+	if response.Code != 50005 {
+		t.Fatalf("expected error code 50005, got %d: %s", response.Code, rr.Body.String())
+	}
+	if ruleDao.replaced != nil {
+		t.Fatalf("expected conflicting TCP rule not to be reconciled, got %#v", ruleDao.replaced)
 	}
 	if _, ok := services[serviceName+"-30000"]; ok {
 		t.Fatal("expected conflicting NodePort service not to be created")
 	}
+}
+
+// capability_id: rainbond.gateway.protect-tcp-route-service-ownership
+func TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner(t *testing.T) {
+	const (
+		namespace     = "default"
+		tenantID      = "tenant-id"
+		serviceID     = "service-a"
+		serviceAlias  = "service-a-alias"
+		serviceName   = "service-a-name"
+		requestedPort = int32(30000)
+		routeName     = "service-a-name-30000"
+	)
+
+	tests := []struct {
+		name              string
+		existingServiceID string
+	}{
+		{name: "missing owner label"},
+		{name: "different owner label", existingServiceID: "service-b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			labels := map[string]string{"tcp": "true", "outer": "true"}
+			if tt.existingServiceID != "" {
+				labels["service_id"] = tt.existingServiceID
+			}
+			services := map[string]*corev1.Service{
+				routeName: {
+					ObjectMeta: v1.ObjectMeta{
+						Name:      routeName,
+						Namespace: namespace,
+						Labels:    labels,
+					},
+					Spec: corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{
+							Name:     routeName,
+							Protocol: corev1.ProtocolTCP,
+							Port:     8080,
+							NodePort: requestedPort,
+						}},
+						Type: corev1.ServiceTypeNodePort,
+					},
+				},
+			}
+			clientset, closeServer := newTCPRouteTestClientset(t, services)
+			defer closeServer()
+			k8s.New().Clientset = clientset
+
+			ruleDao := &tcpRouteRuleDao{}
+			db.SetTestManager(tcpRouteTestManager{
+				tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+					serviceID: {
+						ServiceID:    serviceID,
+						ServiceAlias: serviceAlias,
+						TenantID:     tenantID,
+					},
+				}},
+				tcpRuleDao: ruleDao,
+			})
+			defer db.SetTestManager(nil)
+
+			rr := createTCPRouteForTest(t, namespace, tenantID, serviceID, serviceName, requestedPort)
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+			}
+			var response struct {
+				Code int `json:"code"`
+			}
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("decode ownership response: %v", err)
+			}
+			if response.Code != 50005 {
+				t.Fatalf("expected error code 50005, got %d: %s", response.Code, rr.Body.String())
+			}
+			if ruleDao.replaced != nil {
+				t.Fatalf("expected database rule not to be reconciled, got %#v", ruleDao.replaced)
+			}
+			if got := services[routeName].Spec.Ports[0].Port; got != 8080 {
+				t.Fatalf("expected existing Service not to be updated, got port %d", got)
+			}
+		})
+	}
+}
+
+func createTCPRouteForTest(t *testing.T, namespace, tenantID, serviceID, serviceName string, nodePort int32) *httptest.ResponseRecorder {
+	t.Helper()
+	streamRoute := v2.ApisixRouteStream{
+		Name:     "tcp",
+		Protocol: "tcp",
+		Match: v2.ApisixRouteStreamMatch{
+			IngressPort: nodePort,
+		},
+		Backend: v2.ApisixRouteStreamBackend{
+			ServiceName: serviceName,
+			ServicePort: intstr.FromInt(9090),
+		},
+	}
+	body, err := json.Marshal(streamRoute)
+	if err != nil {
+		t.Fatalf("marshal route: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/?service_id="+serviceID, bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		UUID:      tenantID,
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+	return rr
 }
 
 // capability_id: rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy
@@ -627,6 +935,9 @@ func TestDeleteTCPRouteFallsBackToNodePortWhenNameDiffers(t *testing.T) {
 	clientset, closeServer := newTCPRouteTestClientset(t, services)
 	defer closeServer()
 	k8s.New().Clientset = clientset
+	ruleDao := &tcpRouteRuleDao{}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/"+requestedName, nil)
 	routeCtx := chi.NewRouteContext()
@@ -646,5 +957,308 @@ func TestDeleteTCPRouteFallsBackToNodePortWhenNameDiffers(t *testing.T) {
 	_, err := k8s.Default().Clientset.CoreV1().Services(namespace).Get(context.Background(), actualServiceName, v1.GetOptions{})
 	if !errors.IsNotFound(err) {
 		t.Fatalf("expected actual TCP route service to be deleted, got err %v", err)
+	}
+}
+
+// capability_id: rainbond.gateway.release-captured-tcp-nodeport-rules
+func TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs(t *testing.T) {
+	const (
+		namespace   = "default"
+		serviceID   = "service-a"
+		serviceName = "service-a-30003"
+		nodePort    = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"service_id": serviceID,
+					"outer":      "true",
+					"tcp":        "true",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:     serviceName,
+					Protocol: corev1.ProtocolTCP,
+					Port:     8080,
+					NodePort: nodePort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
+		{Model: dbmodel.Model{ID: 10}, UUID: serviceID, ServiceID: serviceID, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 11}, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 12}, UUID: serviceID, ServiceID: serviceID, IP: "0.0.0.0", Port: 30004},
+	}}
+	ruleDao.beforeDeleteByIDs = func() {
+		ruleDao.rules = append(ruleDao.rules, &dbmodel.TCPRule{
+			Model:     dbmodel.Model{ID: 13},
+			UUID:      "service-b",
+			ServiceID: "service-b",
+			IP:        "0.0.0.0",
+			Port:      int(nodePort),
+		})
+	}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
+
+	rr := deleteTCPRouteForTest(t, namespace, serviceName, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if len(ruleDao.deletedIDs) != 2 || ruleDao.deletedIDs[0] != 10 || ruleDao.deletedIDs[1] != 11 {
+		t.Fatalf("expected captured IDs [10 11] to be deleted, got %v", ruleDao.deletedIDs)
+	}
+	if len(ruleDao.rules) != 2 || ruleDao.rules[0].ID != 12 || ruleDao.rules[1].ID != 13 {
+		t.Fatalf("expected non-captured and future rules to remain, got %#v", ruleDao.rules)
+	}
+}
+
+// capability_id: rainbond.gateway.prevent-tcp-route-delete-recreation-race
+func TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID(t *testing.T) {
+	const (
+		namespace   = "default"
+		serviceID   = "service-a"
+		serviceName = "service-a-30003"
+		nodePort    = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				UID:       "old-uid",
+				Labels: map[string]string{
+					"service_id": serviceID,
+					"outer":      "true",
+					"tcp":        "true",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:     serviceName,
+					Protocol: corev1.ProtocolTCP,
+					Port:     8080,
+					NodePort: nodePort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
+		{Model: dbmodel.Model{ID: 40}, UUID: serviceID, ServiceID: serviceID, IP: "0.0.0.0", Port: int(nodePort)},
+	}}
+	ruleDao.afterListByIPPort = func() {
+		ruleDao.afterListByIPPort = nil
+		services[serviceName] = &corev1.Service{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				UID:       "new-uid",
+				Labels: map[string]string{
+					"service_id": "service-b",
+					"outer":      "true",
+					"tcp":        "true",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:     serviceName,
+					Protocol: corev1.ProtocolTCP,
+					Port:     9090,
+					NodePort: nodePort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		}
+	}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
+
+	rr := deleteTCPRouteForTest(t, namespace, serviceName, serviceID)
+	if rr.Code == http.StatusOK {
+		t.Fatalf("expected stale UID delete to fail, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if got := services[serviceName]; got == nil || got.UID != "new-uid" {
+		t.Fatalf("expected recreated Service to remain, got %#v", got)
+	}
+	if len(ruleDao.deletedIDs) != 0 || len(ruleDao.rules) != 1 || ruleDao.rules[0].ID != 40 {
+		t.Fatalf("expected captured rules to remain after failed UID precondition, deleted=%v rules=%#v", ruleDao.deletedIDs, ruleDao.rules)
+	}
+}
+
+// capability_id: rainbond.gateway.protect-unlabeled-tcp-route-service
+func TestDeleteTCPRouteWithServiceIDDoesNotDeleteUnlabeledService(t *testing.T) {
+	const (
+		namespace   = "default"
+		serviceID   = "service-a"
+		serviceName = "service-a-30003"
+		nodePort    = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				UID:       "unknown-owner-uid",
+				Labels: map[string]string{
+					"outer": "true",
+					"tcp":   "true",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:     serviceName,
+					Protocol: corev1.ProtocolTCP,
+					Port:     8080,
+					NodePort: nodePort,
+				}},
+				Type: corev1.ServiceTypeNodePort,
+			},
+		},
+	}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
+		{Model: dbmodel.Model{ID: 50}, UUID: serviceID, ServiceID: serviceID, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 51}, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 52}, UUID: "service-b", ServiceID: "service-b", IP: "0.0.0.0", Port: int(nodePort)},
+	}}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
+
+	rr := deleteTCPRouteForTest(t, namespace, serviceName, serviceID)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected unknown owner to be treated as already deleted, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if got := services[serviceName]; got == nil || got.UID != "unknown-owner-uid" {
+		t.Fatalf("expected unlabeled Service to remain, got %#v", got)
+	}
+	if len(ruleDao.deletedIDs) != 1 || ruleDao.deletedIDs[0] != 50 {
+		t.Fatalf("expected only requested owner's old rule to be deleted, got %v", ruleDao.deletedIDs)
+	}
+	if len(ruleDao.rules) != 2 || ruleDao.rules[0].ID != 51 || ruleDao.rules[1].ID != 52 {
+		t.Fatalf("expected unknown-owner rules to remain, got %#v", ruleDao.rules)
+	}
+}
+
+// capability_id: rainbond.gateway.release-absent-tcp-nodeport-owner
+func TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner(t *testing.T) {
+	const (
+		namespace   = "default"
+		serviceID   = "service-a"
+		serviceName = "service-a-30003"
+		nodePort    = int32(30003)
+	)
+
+	services := map[string]*corev1.Service{}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
+		{Model: dbmodel.Model{ID: 20}, UUID: serviceID, ServiceID: serviceID, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 21}, IP: "0.0.0.0", Port: int(nodePort)},
+		{Model: dbmodel.Model{ID: 22}, UUID: "service-b", ServiceID: "service-b", IP: "0.0.0.0", Port: int(nodePort)},
+	}}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
+
+	rr := deleteTCPRouteForTest(t, namespace, serviceName, serviceID)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if len(ruleDao.deletedIDs) != 1 || ruleDao.deletedIDs[0] != 20 {
+		t.Fatalf("expected only requested owner's rule ID to be deleted, got %v", ruleDao.deletedIDs)
+	}
+	if len(ruleDao.rules) != 2 || ruleDao.rules[0].ID != 21 || ruleDao.rules[1].ID != 22 {
+		t.Fatalf("expected anonymous and future-owner rules to remain, got %#v", ruleDao.rules)
+	}
+}
+
+func TestDeleteTCPRouteAlreadyAbsentWithoutServiceIDKeepsRules(t *testing.T) {
+	const (
+		namespace   = "default"
+		serviceName = "service-a-30003"
+	)
+
+	services := map[string]*corev1.Service{}
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{rules: []*dbmodel.TCPRule{
+		{Model: dbmodel.Model{ID: 30}, UUID: "service-b", ServiceID: "service-b", IP: "0.0.0.0", Port: 30003},
+	}}
+	db.SetTestManager(tcpRouteTestManager{tcpRuleDao: ruleDao})
+	defer db.SetTestManager(nil)
+
+	rr := deleteTCPRouteForTest(t, namespace, serviceName, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if len(ruleDao.deletedIDs) != 0 || len(ruleDao.rules) != 1 {
+		t.Fatalf("expected old client request not to release an unknown owner, got deleted=%v rules=%#v", ruleDao.deletedIDs, ruleDao.rules)
+	}
+}
+
+func deleteTCPRouteForTest(t *testing.T, namespace, serviceName, serviceID string) *httptest.ResponseRecorder {
+	t.Helper()
+	path := "/" + serviceName
+	if serviceID != "" {
+		path += "?service_id=" + serviceID
+	}
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("name", serviceName)
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx)
+	ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.DeleteTCPRoute(rr, req)
+	return rr
+}
+
+// capability_id: rainbond.gateway.validate-tcp-nodeport-route-name
+func TestNodePortFromTCPRouteNameValidatesRange(t *testing.T) {
+	tests := []struct {
+		name      string
+		routeName string
+		wantPort  int32
+		wantOK    bool
+	}{
+		{name: "valid", routeName: "service-a-30003", wantPort: 30003, wantOK: true},
+		{name: "zero", routeName: "service-a-0"},
+		{name: "above maximum", routeName: "service-a-65536"},
+		{name: "int32 wraparound", routeName: "service-a-4294997299"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPort, gotOK := nodePortFromTCPRouteName(tt.routeName)
+			if gotPort != tt.wantPort || gotOK != tt.wantOK {
+				t.Fatalf("nodePortFromTCPRouteName(%q) = (%d, %v), want (%d, %v)", tt.routeName, gotPort, gotOK, tt.wantPort, tt.wantOK)
+			}
+		})
 	}
 }

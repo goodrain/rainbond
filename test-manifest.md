@@ -144,8 +144,15 @@
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
 | rainbond.gateway.certificate-resource-consistency | Keep gateway certificate resources consistent | active | regression | api/handler.GatewayAction.AddGatewayCertificate | api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
+| rainbond.gateway.prevent-tcp-route-delete-recreation-race | Protect recreated TCP route Services with UID delete preconditions | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID |
+| rainbond.gateway.protect-tcp-route-service-ownership | Reject TCP route updates for missing or different Service owners | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner |
+| rainbond.gateway.protect-unlabeled-tcp-route-service | Do not delete unlabeled TCP route Services for owned requests | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteWithServiceIDDoesNotDeleteUnlabeledService |
 | rainbond.gateway.reassign-conflicting-imported-tcp-port | Reassign imported TCP ports that conflict with existing NodePorts | active | regression | api/handler.reassignConflictingTCPRulePorts | api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts |
+| rainbond.gateway.reconcile-stale-tcp-nodeport-rules | Reconcile stale TCP NodePort database rules after Kubernetes allocation | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReconcilesStaleDatabaseRules |
 | rainbond.gateway.reject-duplicate-tcp-nodeport | Reject duplicate TCP NodePort bindings | active | regression | TCP NodePort binding | db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule<br>api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService |
+| rainbond.gateway.release-absent-tcp-nodeport-owner | Release only the requested owner when a TCP route Service is absent | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner |
+| rainbond.gateway.release-captured-tcp-nodeport-rules | Release only TCP NodePort rules captured before Service deletion | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs |
+| rainbond.gateway.validate-tcp-nodeport-route-name | Reject out-of-range TCP NodePorts parsed from route names | active | regression | api/controller/apigateway.nodePortFromTCPRouteName | api/controller/apigateway/api_gateway_route_test.go::TestNodePortFromTCPRouteNameValidatesRange |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.classify-resources | 按资源类型归类 Helm 发布资源 | active | regression | api/handler.splitHelmReleaseResources | api/handler/helm_release_test.go::TestSplitHelmReleaseResourcesClassifiesKinds |
@@ -434,6 +441,7 @@
 | rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM worker NodePort services | active | regression | worker/appm/conversion.outerServiceExternalTrafficPolicy | worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM<br>worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM |
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
+| rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation | 跳过 Rainbond 管理的 TCP 路由匿名端口预留 | active | regression | worker/appm/store.shouldTrackNodePortService | worker/appm/store/store_test.go::TestShouldTrackNodePortService |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
@@ -1874,6 +1882,36 @@
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents`
 
+### Protect recreated TCP route Services with UID delete preconditions
+
+- Capability ID: `rainbond.gateway.prevent-tcp-route-delete-recreation-race`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.DeleteTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID`
+
+### Reject TCP route updates for missing or different Service owners
+
+- Capability ID: `rainbond.gateway.protect-tcp-route-service-ownership`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.CreateTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner`
+
+### Do not delete unlabeled TCP route Services for owned requests
+
+- Capability ID: `rainbond.gateway.protect-unlabeled-tcp-route-service`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.DeleteTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteWithServiceIDDoesNotDeleteUnlabeledService`
+
 ### Reassign imported TCP ports that conflict with existing NodePorts
 
 - Capability ID: `rainbond.gateway.reassign-conflicting-imported-tcp-port`
@@ -1884,6 +1922,16 @@
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestReassignConflictingTCPRulePorts`
 
+### Reconcile stale TCP NodePort database rules after Kubernetes allocation
+
+- Capability ID: `rainbond.gateway.reconcile-stale-tcp-nodeport-rules`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.CreateTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReconcilesStaleDatabaseRules`
+
 ### Reject duplicate TCP NodePort bindings
 
 - Capability ID: `rainbond.gateway.reject-duplicate-tcp-nodeport`
@@ -1893,6 +1941,36 @@
 - 业务入口: `TCP NodePort binding`
 - 代码路径: `db/mysql/dao/gateway.go`, `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule`, `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService`
+
+### Release only the requested owner when a TCP route Service is absent
+
+- Capability ID: `rainbond.gateway.release-absent-tcp-nodeport-owner`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.DeleteTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner`
+
+### Release only TCP NodePort rules captured before Service deletion
+
+- Capability ID: `rainbond.gateway.release-captured-tcp-nodeport-rules`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.DeleteTCPRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs`
+
+### Reject out-of-range TCP NodePorts parsed from route names
+
+- Capability ID: `rainbond.gateway.validate-tcp-nodeport-route-name`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/controller/apigateway.nodePortFromTCPRouteName`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestNodePortFromTCPRouteNameValidatesRange`
 
 ### 为 Helm 历史输出格式化应用版本号
 
@@ -4773,6 +4851,16 @@
 - 业务入口: `worker/appm/store.getAppStatus`
 - 代码路径: `worker/appm/store/store.go`
 - 测试路径: `worker/appm/store/store_test.go::TestGetAppStatus`
+
+### 跳过 Rainbond 管理的 TCP 路由匿名端口预留
+
+- Capability ID: `rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/store.shouldTrackNodePortService`
+- 代码路径: `worker/appm/store/store.go`
+- 测试路径: `worker/appm/store/store_test.go::TestShouldTrackNodePortService`
 
 ### 在命名空间事件中同步受管命名空间的镜像拉取密钥
 
