@@ -18,22 +18,14 @@
 
 package types
 
-const (
-	// ModuleRoleRunnable identifies a module that can be deployed directly.
-	ModuleRoleRunnable = "runnable"
-	// ModuleRolePossibleDependency identifies a module that may only provide dependencies.
-	ModuleRolePossibleDependency = "possible_dependency"
-)
-
 // Service represents a module in a multi-module project.
 type Service struct {
-	ID         string          `json:"id"`
-	Name       string          `json:"name"`  // module name
-	Cname      string          `json:"cname"` // service cname
-	Packaging  string          `json:"packaging"`
-	ModuleRole string          `json:"module_role,omitempty"`
-	Envs       map[string]*Env `json:"envs,omitempty"`
-	Ports      map[int]*Port   `json:"ports,omitempty"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`  // module name
+	Cname     string          `json:"cname"` // service cname
+	Packaging string          `json:"packaging"`
+	Envs      map[string]*Env `json:"envs,omitempty"`
+	Ports     map[int]*Port   `json:"ports,omitempty"`
 }
 
 // Port -
