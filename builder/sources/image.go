@@ -1120,40 +1120,29 @@ func buildKitTomlContent(imageDomain string, mirrors []string) string {
 	return configStr
 }
 
-// PrepareBuildKitTomlCM ensures the buildkitd.toml ConfigMap exists and reflects
-// the current configuration. It creates the ConfigMap when absent and updates it
-// in place when the rendered content differs from the stored one, so registry
-// mirror changes take effect on the next build without manual cleanup.
+// PrepareBuildKitTomlCM creates the buildkitd.toml ConfigMap when it does not
+// already exist. Existing ConfigMaps are left untouched so operator changes are
+// preserved across builds.
 func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace, buildKitTomlCMName, imageDomain string) error {
-	configStr := buildKitTomlContent(imageDomain, mergeMirrors(builder.REGISTRYMIRRORS, mirror.Default().Mirrors()))
-
-	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
+	_, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
-	if k8serror.IsNotFound(err) {
-		buildKitTomlCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: buildKitTomlCMName,
-			},
-			Data: map[string]string{
-				"buildkittoml": configStr,
-			},
-		}
-		if _, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{}); err != nil {
-			return errors.Wrap(err, "create buildkittoml cm failure")
-		}
+	if err == nil {
 		return nil
 	}
-	if buildKitTomlCM.Data["buildkittoml"] == configStr {
-		return nil
+
+	configStr := buildKitTomlContent(imageDomain, mergeMirrors(builder.REGISTRYMIRRORS, mirror.Default().Mirrors()))
+	buildKitTomlCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: buildKitTomlCMName,
+		},
+		Data: map[string]string{
+			"buildkittoml": configStr,
+		},
 	}
-	if buildKitTomlCM.Data == nil {
-		buildKitTomlCM.Data = map[string]string{}
-	}
-	buildKitTomlCM.Data["buildkittoml"] = configStr
-	if _, err = kubeClient.CoreV1().ConfigMaps(namespace).Update(ctx, buildKitTomlCM, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrap(err, "update buildkittoml cm failure")
+	if _, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{}); err != nil {
+		return errors.Wrap(err, "create buildkittoml cm failure")
 	}
 	return nil
 }
