@@ -151,7 +151,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			if config != nil {
 				var resourceConfig api_model.ResourceSpec
 				if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err != nil {
-					logrus.Warningf("load mesh plugin %s config of componet %s failure %v", pluginR.PluginID, as.ServiceID, err.Error())
+					logrus.Warningf("load mesh plugin %s config of component %s failure %v", pluginR.PluginID, as.ServiceID, err.Error())
 				}
 				if len(resourceConfig.BaseServices) > 0 {
 					setSidecarContainerLifecycle(as, &pc, &resourceConfig)
