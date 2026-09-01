@@ -398,6 +398,16 @@ func generateSVCPortName(protocol string, containerPort int) string {
 	return fmt.Sprintf("%s-%d", strings.ToLower(protocol), containerPort)
 }
 
+func generatedHTTPRouteLabels(as *v1.AppService, containerPort int, domain string) map[string]string {
+	labels := as.GetCommonLabels(map[string]string{
+		"port":           strconv.Itoa(containerPort),
+		"component_sort": as.ServiceAlias,
+	})
+	labels[as.ServiceAlias] = "service_alias"
+	labels[domain] = "host"
+	return labels
+}
+
 func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute, outerSVC *corev1.Service) {
 	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
 	if err != nil {
@@ -432,14 +442,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 						}
 					}
 				}
-				// 创建 label
-				labels := make(map[string]string)
-				labels["creator"] = "Rainbond"
-				labels["port"] = strconv.Itoa(port.ContainerPort)
-				labels["component_sort"] = as.ServiceAlias
-				labels["app_id"] = as.AppID
-				labels[as.ServiceAlias] = "service_alias"
-				labels[httpRule.Domain] = "host"
+				labels := generatedHTTPRouteLabels(as, port.ContainerPort, httpRule.Domain)
 
 				routeName := httpRule.Domain + "/*"
 				routeName = strings.ReplaceAll(routeName, "/", "p-p")

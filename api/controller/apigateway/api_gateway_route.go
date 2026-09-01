@@ -232,6 +232,33 @@ func addResponseRewritePlugin(apisixRouteHTTP v2.ApisixRouteHTTP) v2.ApisixRoute
 	return apisixRouteHTTP
 }
 
+func httpAPIRouteLabels(tenant *dbmodel.Tenants, r *http.Request, serviceAlias string) map[string]string {
+	labels := map[string]string{
+		"creator":        "Rainbond",
+		"port":           r.URL.Query().Get("port"),
+		"component_sort": serviceAlias,
+	}
+	if tenant != nil {
+		if tenant.UUID != "" {
+			labels["tenant_id"] = tenant.UUID
+		}
+		if tenant.Name != "" {
+			labels["tenant_name"] = tenant.Name
+		}
+	}
+	if appID := r.URL.Query().Get("appID"); appID != "" {
+		labels["app_id"] = appID
+	}
+	if serviceID := r.URL.Query().Get("service_id"); serviceID != "" {
+		labels["service_id"] = serviceID
+	}
+	if serviceAlias != "" {
+		labels["service_alias"] = serviceAlias
+		labels[serviceAlias] = "service_alias"
+	}
+	return labels
+}
+
 // CreateHTTPAPIRoute -
 func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
@@ -245,22 +272,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.Index(sa, ","); idx != -1 {
 		sa = sa[:idx]
 	}
-	sLabel := strings.Split(sa, ",")
-	// 如果没有绑定appId，那么不要加这个lable
-	labels := make(map[string]string)
-	labels["creator"] = "Rainbond"
-	labels["port"] = r.URL.Query().Get("port")
-	labels["component_sort"] = sa
-	if r.URL.Query().Get("appID") != "" {
-		labels["app_id"] = r.URL.Query().Get("appID")
-	}
+	labels := httpAPIRouteLabels(tenant, r, sa)
 	defaultDomain := r.URL.Query().Get("default") == "true"
-
-	for _, sl := range sLabel {
-		if sl != "" {
-			labels[sl] = "service_alias"
-		}
-	}
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
 

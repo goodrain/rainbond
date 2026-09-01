@@ -35,6 +35,37 @@ type tcpRouteTestManager struct {
 	tcpRuleDao       dbdao.TCPRuleDao
 }
 
+func TestCreateHTTPAPIRouteAddsCanonicalIdentityLabels(t *testing.T) {
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/?appID=region-app-id&service_id=service-id&service_alias=service-alias&port=8080",
+		nil,
+	)
+	tenant := &dbmodel.Tenants{
+		UUID:      "tenant-id",
+		Name:      "tenant-name",
+		Namespace: "tenant-namespace",
+	}
+
+	labels := httpAPIRouteLabels(tenant, req, "service-alias")
+	want := map[string]string{
+		"creator":        "Rainbond",
+		"tenant_id":      "tenant-id",
+		"tenant_name":    "tenant-name",
+		"app_id":         "region-app-id",
+		"service_id":     "service-id",
+		"service_alias":  "service-alias",
+		"port":           "8080",
+		"component_sort": "service-alias",
+		"service-alias":  "service_alias",
+	}
+	for key, expected := range want {
+		if got := labels[key]; got != expected {
+			t.Errorf("label %s = %q; want %q", key, got, expected)
+		}
+	}
+}
+
 func (m tcpRouteTestManager) TenantServiceDao() dbdao.TenantServiceDao {
 	return m.tenantServiceDao
 }
