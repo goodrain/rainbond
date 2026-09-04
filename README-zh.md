@@ -1,63 +1,35 @@
-<div align="center">
-  <img src="https://static.goodrain.com/logo/logo-long.png" width="56%" alt="Rainbond Logo" />
+# Rainbond
 
-  <p>
-    <a href="./README.md">English</a>
-  </p>
+[English](./README.md)
 
-  <p>
-    <img src="https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square" alt="GitHub stars" />
-    <img src="https://img.shields.io/badge/version-v6.X-brightgreen.svg?style=flat-square" alt="Version" />
-    <img src="https://img.shields.io/badge/open%20source-100%25-blue?style=flat-square" alt="Open Source" />
-  </p>
-</div>
-<div align="center">
+> **AI 生成，Rainbond 运行。始终由你掌控。**
 
-## Rainbond 是 AI 应用运行平台
+Rainbond 是 AI 应用运行平台。
 
- <p>
-    <a href="https://www.bilibili.com/video/BV1Lzo5BGEuc">
-      <img src="./docs/rainbond-video.png" width="80%" alt="Rainbond 视频介绍" />
-    </a>
-  </p>
+核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
 
-Rainbond 是 AI 应用运行平台，核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
+通过 [Rainskills](https://github.com/goodrain/rainskills)，Codex、Claude Code 等 AI Agent 可以直接将项目部署到 Rainbond，并完成排错和交付验证。
 
-**Open-source AI application runtime platform powered by AI-driven deployment and operations.**
+[让 AI 帮我部署](https://github.com/goodrain/rainskills) ·
+[免费体验](https://run.rainbond.com) ·
+[安装 Rainbond](https://www.rainbond.com/docs/quick-start/quick-install) ·
+[查看文档](https://www.rainbond.com/docs)
 
-[项目官网](https://www.rainbond.com?channel=github) ·
-[快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) ·
-[文档](https://www.rainbond.com/docs?channel=github) ·
-[选型中心](https://www.rainbond.com/compare?channel=github) ·
-[应用市场](https://hub.rainbond.com?channel=github)
+## 从哪里开始
 
-</div>
-
----
-
-## Rainbond 是什么
-
-Rainbond 是一款 `100% 开源`、`不用懂 Kubernetes` 的开源容器平台。\
-它更偏向解决“应用交付”问题，而不是只做 Kubernetes 资源管理界面。
-
-如果你的团队正在面对下面这些问题，Rainbond 更值得你看一眼：
-
-- 会 Kubernetes，但应用交付还是很费劲
-- 客户环境复杂，每次上线都像重来一遍
-- 需要私有化部署、离线交付、信创适配或内网部署
-- 想做统一的应用交付入口，但不想从零开始自研平台
-
----
-
-## 你可能最关心的是哪一类问题
-
-| 你的目标 | 建议先看这里 |
+| 你的目标 | 推荐入口 |
 | --- | --- |
-| 我想先判断 Rainbond 适不适合我 | [选型中心](https://www.rainbond.com/compare?channel=github) |
-| 我想马上装起来试试 | [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) |
-| 我装完了，想跑第一个应用 | [部署你的第一个应用](https://www.rainbond.com/docs/quick-start/getting-started?channel=github) |
-| 我在做离线 / 内网 / 客户现场 / 信创 | [离线 / 信创专题](https://www.rainbond.com/offline-and-xinchuang?channel=github) |
-| 我想看能不能通过应用市场一键部署 | [Rainbond 应用市场](https://hub.rainbond.com?channel=github) |
+| 我正在使用 AI 编程，想把项目部署上线 | 安装 [Rainskills](https://github.com/goodrain/rainskills) |
+| 我想快速体验，不准备服务器 | 使用 [Rainbond Cloud](https://run.rainbond.com) |
+| 我想运行在自己的服务器或 Kubernetes | [私有化安装 Rainbond](https://www.rainbond.com/docs/quick-start/quick-install) |
+| 我想部署 Dify、RAGFlow 等开源应用 | 访问 Rainbond [应用市场](https://hub.rainbond.com) |
+| 我正在选型开源容器平台 | [了解 Rainbond 的应用管理与交付能力](https://www.rainbond.com/compare) |
+
+## 不只是 AI 应用
+
+Rainbond 的新入口面向 AI 编程，但底层应用运行能力没有改变。
+
+源码、容器镜像、Docker Compose、Helm、传统业务系统和微服务应用，仍然可以通过 Rainbond 完成部署、管理、升级、回滚、离线交付和信创适配。
 
 ---
 
