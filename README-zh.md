@@ -13,7 +13,7 @@
 </div>
 <div align="center">
 
-## 不用懂 Kubernetes 的开源容器平台
+## Rainbond 是 AI 时代的应用运行平台
 
  <p>
     <a href="https://www.bilibili.com/video/BV1Lzo5BGEuc">
@@ -21,8 +21,7 @@
     </a>
   </p>
 
-Rainbond 帮助团队在不深入学习 Kubernetes 的前提下完成应用构建、部署、升级、运维与私有化交付。  
-更适合私有化部署、离线交付、信创适配、应用市场交付和 AI 应用私有化场景。
+Rainbond 是 AI 时代的应用运行平台，核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
 
 **Open-source container platform for teams that want to deploy and run applications without deeply operating Kubernetes.**
 
@@ -36,9 +35,10 @@ Rainbond 帮助团队在不深入学习 Kubernetes 的前提下完成应用构�
 
 ---
 
-## Rainbond 是 AI 时代的应用运行平台
+## Rainbond 是什么
 
-Rainbond 是 AI 时代的应用运行平台，核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
+Rainbond 是一款 `100% 开源`、`不用懂 Kubernetes` 的开源容器平台。\
+它更偏向解决“应用交付”问题，而不是只做 Kubernetes 资源管理界面。
 
 如果你的团队正在面对下面这些问题，Rainbond 更值得你看一眼：
 
