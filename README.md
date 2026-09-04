@@ -29,10 +29,9 @@ It is better suited for private deployment, offline delivery, Xinchuang adaptati
 
 ---
 
-## What is Rainbond
+## Rainbond: The Application Runtime Platform for the AI Era
 
-Rainbond is a `100% open-source`, `Kubernetes-friendly` container platform.  
-It is more focused on **application delivery** than on being just a Kubernetes resource management interface.
+Rainbond is an application runtime platform for the AI era, with 100% open-source core capabilities. It provides a unified platform for running and managing AI-generated projects, large language model services, open-source AI software, and business applications. With AI-powered deployment, troubleshooting, upgrades, and operations, Rainbond keeps applications running reliably in containers on users' own servers or Kubernetes clusters.
 
 If your team is facing problems like these, Rainbond is worth evaluating:
 
