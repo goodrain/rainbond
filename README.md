@@ -14,9 +14,9 @@
 
 <div align="center">
 
-## Rainbond: The Application Runtime Platform for the AI Era
+## Rainbond: The AI Application Runtime Platform
 
-Rainbond is an application runtime platform for the AI era, with 100% open-source core capabilities. It provides a unified platform for running and managing AI-generated projects, large language model services, open-source AI software, and business applications. With AI-powered deployment, troubleshooting, upgrades, and operations, Rainbond keeps applications running reliably in containers on users' own servers or Kubernetes clusters.
+Rainbond is an AI application runtime platform with 100% open-source core capabilities. It provides a unified platform for running and managing AI-generated projects, large language model services, open-source AI software, and business applications. With AI-powered deployment, troubleshooting, upgrades, and operations, Rainbond keeps applications running reliably in containers on users' own servers or Kubernetes clusters.
 
 [Website](https://www.rainbond.com?channel=github) ·
 [Quick Install](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) ·

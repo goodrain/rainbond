@@ -13,7 +13,7 @@
 </div>
 <div align="center">
 
-## Rainbond 是 AI 时代的应用运行平台
+## Rainbond 是 AI 应用运行平台
 
  <p>
     <a href="https://www.bilibili.com/video/BV1Lzo5BGEuc">
@@ -21,9 +21,9 @@
     </a>
   </p>
 
-Rainbond 是 AI 时代的应用运行平台，核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
+Rainbond 是 AI 应用运行平台，核心能力 100% 开源。它统一承载和管理 AI 生成的项目、大模型服务、开源 AI 软件及业务应用，通过 AI 完成部署、排错、升级与运维，让应用以容器方式稳定运行在用户自己的服务器或 Kubernetes 上。
 
-**Open-source container platform for teams that want to deploy and run applications without deeply operating Kubernetes.**
+**Open-source AI application runtime platform powered by AI-driven deployment and operations.**
 
 [项目官网](https://www.rainbond.com?channel=github) ·
 [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) ·
