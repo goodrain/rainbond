@@ -19,10 +19,10 @@ Rainbond 是 AI 应用运行平台。
 
 | 你的目标 | 推荐入口 |
 | --- | --- |
-| 我正在使用 AI 编程，想把项目部署上线 | 安装 [Rainskills](https://github.com/goodrain/rainskills) |
-| 我想快速体验，不准备服务器 | 使用 [Rainbond Cloud](https://run.rainbond.com) |
+| 我正在使用 AI 编程，想把项目部署上线 | [安装 Rainskills](https://github.com/goodrain/rainskills) |
+| 我想快速体验，不准备服务器 | [使用 Rainbond Cloud](https://run.rainbond.com) |
 | 我想运行在自己的服务器或 Kubernetes | [私有化安装 Rainbond](https://www.rainbond.com/docs/quick-start/quick-install) |
-| 我想部署 Dify、RAGFlow 等开源应用 | 访问 Rainbond [应用市场](https://hub.rainbond.com) |
+| 我想部署 Dify、RAGFlow 等开源应用 | [访问 Rainbond 应用市场](https://hub.rainbond.com) |
 | 我正在选型开源容器平台 | [了解 Rainbond 的应用管理与交付能力](https://www.rainbond.com/compare) |
 
 ## 不只是 AI 应用

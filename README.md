@@ -19,10 +19,10 @@ Through [Rainskills](https://github.com/goodrain/rainskills), AI agents such as 
 
 | Your goal | Start here |
 | --- | --- |
-| I use AI coding and want to deploy my project | Install [Rainskills](https://github.com/goodrain/rainskills) |
-| I want to try Rainbond without preparing a server | Use [Rainbond Cloud](https://run.rainbond.com) |
+| I use AI coding and want to deploy my project | [Install Rainskills](https://github.com/goodrain/rainskills) |
+| I want to try Rainbond without preparing a server | [Use Rainbond Cloud](https://run.rainbond.com) |
 | I want to run applications on my own servers or Kubernetes | [Install Rainbond privately](https://www.rainbond.com/docs/quick-start/quick-install) |
-| I want to deploy open-source applications such as Dify or RAGFlow | Visit the Rainbond [Application Marketplace](https://hub.rainbond.com) |
+| I want to deploy open-source applications such as Dify or RAGFlow | [Visit the Rainbond Application Marketplace](https://hub.rainbond.com) |
 | I am evaluating open-source container platforms | [Explore Rainbond's application management and delivery capabilities](https://www.rainbond.com/compare) |
 
 ## Not just AI applications
