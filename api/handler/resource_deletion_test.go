@@ -69,6 +69,26 @@ func TestK8sResourceDeletionBlocksCascadeBeforeMutation(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.k8s-resource.failed-delete-metadata-only
+func TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion(t *testing.T) {
+	orchestrator, client := newDeletionTestOrchestrator(t)
+	req := newCRDDeletionRequest(false)
+	req.K8sResources[0].State = model.CreateError
+
+	result, err := orchestrator.Delete(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if result.Status != "completed" || len(result.DeletedClientIDs) != 1 || result.DeletedClientIDs[0] != "crd-row" {
+		t.Fatalf("Delete() result = %#v, want metadata-only completion", result)
+	}
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "delete" {
+			t.Fatalf("Delete() mutated Kubernetes for failed resource: %#v", action)
+		}
+	}
+}
+
 // capability_id: rainbond.k8s-resource.crd-cascade-delete
 func TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition(t *testing.T) {
 	orchestrator, client := newDeletionTestOrchestrator(t,

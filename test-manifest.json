@@ -3398,6 +3398,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.k8s-resource.failed-delete-metadata-only",
+      "title": "Failed resources are metadata-only during deletion",
+      "title_zh": "Failed resources are metadata-only during deletion",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.k8s-resource.metadata-reconcile",
       "title": "Kubernetes resource metadata reconciliation",
       "title_zh": "Kubernetes resource metadata reconciliation",

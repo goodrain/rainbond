@@ -155,7 +155,10 @@ func (o *k8sResourceDeletionOrchestrator) Delete(ctx context.Context, req *model
 	}
 	for i := range plan.resources {
 		resource := &plan.resources[i]
-		if resource.apiRemoved || isCRD(resource.object.GroupVersionKind()) || resource.item.State != model.CreateSuccess && resource.item.State != model.UpdateSuccess {
+		if resource.item.State != model.CreateSuccess && resource.item.State != model.UpdateSuccess {
+			continue
+		}
+		if resource.apiRemoved || resource.object == nil || isCRD(resource.object.GroupVersionKind()) {
 			continue
 		}
 		if err := o.deleteResourceAndWait(ctx, resource); err != nil {
