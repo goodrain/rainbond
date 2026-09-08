@@ -800,6 +800,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster-resource.exclude-terminal-pods",
+      "title": "Exclude terminal pods from cluster resource allocation",
+      "title_zh": "\u4ece\u96c6\u7fa4\u8d44\u6e90\u5206\u914d\u7edf\u8ba1\u4e2d\u6392\u9664\u7ec8\u6001 Pod",
+      "interface_type": "workflow",
+      "interface": "api/handler.(*TenantAction).initClusterResource",
+      "code_paths": [
+        "api/handler/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_query_scope_test.go",
+          "selector": "TestInitClusterResourceExcludesTerminalPods"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cluster-resource.handler-singleton",
       "title": "Reuse singleton cluster resource handler",
       "title_zh": "\u590d\u7528\u96c6\u7fa4\u8d44\u6e90\u5904\u7406\u5668\u5355\u4f8b",

@@ -536,6 +536,10 @@ func podResourceInformationFromPod(pod *v1.Pod) PodResourceInformation {
 	return info
 }
 
+func isTerminalPod(pod *v1.Pod) bool {
+	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed
+}
+
 func (t *TenantAction) initClusterResource(ctx context.Context) error {
 	t.cacheMu.Lock()
 	defer t.cacheMu.Unlock()
@@ -572,6 +576,9 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 			return err
 		}
 		for _, pod := range podList.Items {
+			if isTerminalPod(&pod) {
+				continue
+			}
 			if _, ok := usedNodeNames[pod.Spec.NodeName]; !ok {
 				continue
 			}

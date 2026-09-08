@@ -48,6 +48,7 @@
 | rainbond.cloud-storage.provider-parse | 解析云存储 provider 配置值 | active | regression | builder/cloudos.Str2S3Provider | builder/cloudos/cloudos_test.go::TestStr2S3Provider |
 | rainbond.cloud-storage.s3-driver-config | 按预期配置初始化 S3 存储驱动 | active | regression | builder/cloudos.newS3 | builder/cloudos/s3_test.go::TestNewS3DriverKeepsConfig |
 | rainbond.cluster-resource.detect-subresource | 识别集群资源子路径 | active | regression | api/handler.containsSlash | api/handler/cluster_resource_test.go::TestContainsSlash |
+| rainbond.cluster-resource.exclude-terminal-pods | 从集群资源分配统计中排除终态 Pod | active | regression | api/handler.(*TenantAction).initClusterResource | api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods |
 | rainbond.cluster-resource.handler-singleton | 复用集群资源处理器单例 | active | unit | api/handler.GetClusterResourceHandler | api/handler/cluster_resource_test.go::TestGetClusterResourceHandlerSingleton |
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
@@ -921,6 +922,16 @@
 - 业务入口: `api/handler.containsSlash`
 - 代码路径: `api/handler/cluster_resource.go`
 - 测试路径: `api/handler/cluster_resource_test.go::TestContainsSlash`
+
+### 从集群资源分配统计中排除终态 Pod
+
+- Capability ID: `rainbond.cluster-resource.exclude-terminal-pods`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.(*TenantAction).initClusterResource`
+- 代码路径: `api/handler/tenant.go`
+- 测试路径: `api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods`
 
 ### 复用集群资源处理器单例
 
