@@ -3380,6 +3380,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.k8s-resource.crd-cascade-delete",
+      "title": "CRD cascade deletion preserves dependency order",
+      "title_zh": "CRD cascade deletion preserves dependency order",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.metadata-reconcile",
+      "title": "Kubernetes resource metadata reconciliation",
+      "title_zh": "Kubernetes resource metadata reconciliation",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Reconcile",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceReconcileDistinguishesMissingAndUnknown"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.k8s.scheme-registers-kubevirt-vm",
       "title": "K8s scheme registers KubeVirt VirtualMachine",
       "title_zh": "K8s scheme registers KubeVirt VirtualMachine",

@@ -494,6 +494,8 @@ type AddHandleResource struct {
 
 // HandleResource -
 type HandleResource struct {
+	ClientID     string `json:"client_id,omitempty"`
+	CascadeCRD   bool   `json:"cascade_crd,omitempty"`
 	Name         string `json:"name"`
 	AppID        string `json:"app_id"`
 	Kind         string `json:"kind"`
