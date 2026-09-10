@@ -324,18 +324,9 @@ type RegistryInterface interface {
 // GatewayInterface api gateway interface
 type GatewayInterface interface {
 	GatewayRouteInterface
-	GatewayConsumerInterface
 	GatewayServiceInterface
 	GatewayCertInterface
 	GatewayLoadBalancerInterface
-}
-
-// GatewayConsumerInterface defines managed APISIX Consumer operations.
-type GatewayConsumerInterface interface {
-	ListGatewayJWTConsumers(w http.ResponseWriter, r *http.Request)
-	CreateGatewayJWTConsumer(w http.ResponseWriter, r *http.Request)
-	RotateGatewayJWTConsumer(w http.ResponseWriter, r *http.Request)
-	DeleteGatewayJWTConsumer(w http.ResponseWriter, r *http.Request)
 }
 
 // GatewayRouteInterface api gateway route interface

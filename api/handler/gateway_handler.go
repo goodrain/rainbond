@@ -19,9 +19,6 @@
 package handler
 
 import (
-	"context"
-
-	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -86,9 +83,4 @@ type APIGatewayHandler interface {
 	GetClient() apisixversioned.Interface
 	GetK8sClient() kubernetes.Interface
 	CreateCert(namespace, domain string) error
-	ListGatewayJWTConsumers(ctx context.Context, namespace, appID string) ([]*apimodel.GatewayJWTConsumer, error)
-	CreateGatewayJWTConsumer(ctx context.Context, namespace, appID string, req *apimodel.GatewayJWTConsumerRequest) (*apimodel.GatewayJWTConsumer, error)
-	RotateGatewayJWTConsumer(ctx context.Context, namespace, name string, req *apimodel.GatewayJWTConsumerCredential) (*apimodel.GatewayJWTConsumer, error)
-	DeleteGatewayJWTConsumer(ctx context.Context, namespace, name string) error
-	ConfigureManagedJWTAuth(ctx context.Context, namespace, appID string, auth *apimodel.ManagedJWTAuthentication, plugins []v2.ApisixRoutePlugin) ([]v2.ApisixRoutePlugin, error)
 }

@@ -1,19 +1,10 @@
 package gateway
 
 import (
-	"net/http"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/middleware"
 )
-
-type gatewayConsumerController interface {
-	ListGatewayJWTConsumers(http.ResponseWriter, *http.Request)
-	CreateGatewayJWTConsumer(http.ResponseWriter, *http.Request)
-	RotateGatewayJWTConsumer(http.ResponseWriter, *http.Request)
-	DeleteGatewayJWTConsumer(http.ResponseWriter, *http.Request)
-}
 
 // Routes -
 func Routes() chi.Router {
@@ -51,10 +42,6 @@ func Routes() chi.Router {
 		r.Delete("/{name}", controller.GetManager().DeleteTCPRoute)
 	})
 
-	r.Route("/consumers", func(r chi.Router) {
-		registerGatewayConsumerRoutes(r, controller.GetManager())
-	})
-
 	// 关于目标服务的接口
 	r.Route("/service", func(r chi.Router) {
 		r.Get("/", controller.GetManager().GetAPIService)
@@ -69,11 +56,4 @@ func Routes() chi.Router {
 	})
 
 	return r
-}
-
-func registerGatewayConsumerRoutes(r chi.Router, consumerController gatewayConsumerController) {
-	r.Get("/", consumerController.ListGatewayJWTConsumers)
-	r.Post("/", consumerController.CreateGatewayJWTConsumer)
-	r.Post("/{name}/credentials", consumerController.RotateGatewayJWTConsumer)
-	r.Delete("/{name}", consumerController.DeleteGatewayJWTConsumer)
 }
