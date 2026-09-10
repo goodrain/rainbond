@@ -24,9 +24,11 @@ import (
 )
 
 var (
-	testCRDGVR    = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
-	testWidgetGVR = schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
-	testConfigGVR = schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
+	testCRDGVR        = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+	testWidgetGVR     = schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"}
+	testReportGVR     = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "clusterconfigauditreports"}
+	testConfigGVR     = schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
+	testDeploymentGVR = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 )
 
 func TestK8sResourceDeletionPreviewRequiresCascadeForOtherApplications(t *testing.T) {
@@ -235,6 +237,66 @@ func TestK8sResourceDeletionDeletesAndConfirmsOrdinaryResource(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.k8s-resource.stop-recreating-controller
+func TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources(t *testing.T) {
+	orchestrator, client := newRecreatingControllerTestOrchestrator(t, false)
+	client.PrependReactor("delete", testReportGVR.Resource, func(action ktesting.Action) (bool, runtime.Object, error) {
+		deleteAction := action.(ktesting.DeleteAction)
+		if err := client.Tracker().Delete(testReportGVR, "", deleteAction.GetName()); err != nil {
+			return true, nil, err
+		}
+		if _, err := client.Tracker().Get(testDeploymentGVR, "rbd-plugins", "trivy-operator"); err == nil {
+			recreated := newTestGeneratedReport("recreated-report", false)
+			if err := client.Tracker().Add(recreated); err != nil {
+				return true, nil, err
+			}
+		}
+		return true, nil, nil
+	})
+
+	result, err := orchestrator.Delete(context.Background(), newGeneratedReportDeletionRequest())
+	if err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if result.Status != "completed" {
+		t.Fatalf("Delete() result = %#v, want completed", result)
+	}
+
+	var deletedResources []string
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "delete" {
+			deletedResources = append(deletedResources, action.GetResource().Resource)
+		}
+	}
+	want := []string{"deployments", "clusterconfigauditreports", "customresourcedefinitions"}
+	if fmt.Sprint(deletedResources) != fmt.Sprint(want) {
+		t.Fatalf("delete order = %v, want %v", deletedResources, want)
+	}
+}
+
+func TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone(t *testing.T) {
+	orchestrator, client := newRecreatingControllerTestOrchestrator(t, true)
+
+	result, err := orchestrator.Delete(context.Background(), newGeneratedReportDeletionRequest())
+	if err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if result.Status != "completed" {
+		t.Fatalf("Delete() result = %#v, want completed", result)
+	}
+
+	var deletedResources []string
+	for _, action := range client.Actions() {
+		if action.GetVerb() == "delete" {
+			deletedResources = append(deletedResources, action.GetResource().Resource)
+		}
+	}
+	want := []string{"clusterconfigauditreports", "deployments", "customresourcedefinitions"}
+	if fmt.Sprint(deletedResources) != fmt.Sprint(want) {
+		t.Fatalf("delete order = %v, want %v", deletedResources, want)
+	}
+}
+
 // capability_id: rainbond.k8s-resource.metadata-reconcile
 func TestK8sResourceReconcileDistinguishesMissingAndUnknown(t *testing.T) {
 	orchestrator, client := newDeletionTestOrchestrator(t, newTestWidget("present", "team-a", "app-a"))
@@ -399,6 +461,130 @@ func newDeletionTestDynamicClient(t *testing.T, objects ...runtime.Object) *dyna
 		objects...,
 	)
 	return client
+}
+
+func newRecreatingControllerTestOrchestrator(t *testing.T, finalized bool) (*k8sResourceDeletionOrchestrator, *dynamicfake.FakeDynamicClient) {
+	t.Helper()
+	client := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(),
+		map[schema.GroupVersionResource]string{
+			testCRDGVR:        "CustomResourceDefinitionList",
+			testReportGVR:     "ClusterConfigAuditReportList",
+			testDeploymentGVR: "DeploymentList",
+		},
+		newTestGeneratedReportCRD(),
+		newTestGeneratedReport("persistentvolume-data", finalized),
+		newTestControllerDeployment(),
+	)
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{
+		{Group: "apiextensions.k8s.io", Version: "v1"},
+		{Group: "aquasecurity.github.io", Version: "v1alpha1"},
+		{Group: "apps", Version: "v1"},
+	})
+	mapper.Add(schema.GroupVersionKind{Group: "apiextensions.k8s.io", Version: "v1", Kind: "CustomResourceDefinition"}, meta.RESTScopeRoot)
+	mapper.Add(schema.GroupVersionKind{Group: "aquasecurity.github.io", Version: "v1alpha1", Kind: "ClusterConfigAuditReport"}, meta.RESTScopeRoot)
+	mapper.Add(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, meta.RESTScopeNamespace)
+	orchestrator := &k8sResourceDeletionOrchestrator{
+		dynamicClient: client,
+		mapper:        mapper,
+		refreshMapper: func() (meta.RESTMapper, error) { return mapper, nil },
+		waitInterval:  time.Millisecond,
+		waitTimeout:   100 * time.Millisecond,
+	}
+	return orchestrator, client
+}
+
+func newTestGeneratedReportCRD() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "apiextensions.k8s.io/v1",
+		"kind":       "CustomResourceDefinition",
+		"metadata": map[string]interface{}{
+			"name": "clusterconfigauditreports.aquasecurity.github.io",
+		},
+		"spec": map[string]interface{}{
+			"group": "aquasecurity.github.io",
+			"scope": "Cluster",
+			"names": map[string]interface{}{
+				"kind":   "ClusterConfigAuditReport",
+				"plural": "clusterconfigauditreports",
+			},
+			"versions": []interface{}{
+				map[string]interface{}{"name": "v1alpha1", "served": true, "storage": true},
+			},
+		},
+	}}
+}
+
+func newTestGeneratedReport(name string, finalized bool) *unstructured.Unstructured {
+	metadata := map[string]interface{}{
+		"name": name,
+		"labels": map[string]interface{}{
+			"app.kubernetes.io/managed-by": "trivy-operator",
+		},
+	}
+	if finalized {
+		metadata["finalizers"] = []interface{}{"aquasecurity.github.io/finalizer"}
+	}
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "aquasecurity.github.io/v1alpha1",
+		"kind":       "ClusterConfigAuditReport",
+		"metadata":   metadata,
+	}}
+}
+
+func newTestControllerDeployment() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]interface{}{
+			"name":      "trivy-operator",
+			"namespace": "rbd-plugins",
+		},
+	}}
+}
+
+func newGeneratedReportDeletionRequest() *model.K8sResourceDeletionRequest {
+	return &model.K8sResourceDeletionRequest{
+		AppID:      "security-app",
+		CascadeCRD: true,
+		K8sResources: []model.HandleResource{
+			{
+				ClientID:     "report-crd-row",
+				AppID:        "security-app",
+				Name:         "clusterconfigauditreports.aquasecurity.github.io",
+				Kind:         "CustomResourceDefinition",
+				ResourceYaml: generatedReportCRDYAML(),
+				State:        model.CreateSuccess,
+			},
+			{
+				ClientID:     "operator-row",
+				AppID:        "security-app",
+				Namespace:    "rbd-plugins",
+				Name:         "trivy-operator",
+				Kind:         "Deployment",
+				ResourceYaml: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: trivy-operator\n  namespace: rbd-plugins\n",
+				State:        model.CreateSuccess,
+			},
+		},
+	}
+}
+
+func generatedReportCRDYAML() string {
+	return `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterconfigauditreports.aquasecurity.github.io
+spec:
+  group: aquasecurity.github.io
+  scope: Cluster
+  names:
+    kind: ClusterConfigAuditReport
+    plural: clusterconfigauditreports
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+`
 }
 
 func newTestCRD() *unstructured.Unstructured {

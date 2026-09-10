@@ -36,7 +36,10 @@ var (
 	crdGVR                               = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 )
 
-const appIDLabel = "app_id"
+const (
+	appIDLabel     = "app_id"
+	managedByLabel = "app.kubernetes.io/managed-by"
+)
 
 const finalDeletionCheckTimeout = 3 * time.Second
 
@@ -140,7 +143,8 @@ func (o *k8sResourceDeletionOrchestrator) Preview(ctx context.Context, req *mode
 	return &plan.impact, nil
 }
 
-// Delete removes dependent custom resources before ordinary resources and CRDs.
+// Delete stops in-application generators of non-finalized custom resources,
+// then removes dependent custom resources, ordinary resources, and CRDs.
 func (o *k8sResourceDeletionOrchestrator) Delete(ctx context.Context, req *model.K8sResourceDeletionRequest) (*model.K8sResourceDeletionResult, error) {
 	plan, err := o.buildPlan(ctx, req)
 	if err != nil {
@@ -150,12 +154,26 @@ func (o *k8sResourceDeletionOrchestrator) Delete(ctx context.Context, req *model
 		return nil, ErrCRDCascadeConfirmationRequired
 	}
 
+	deletedResources := make(map[int]struct{})
+	for _, index := range controllerResourcesToStopBeforeCustomResources(plan) {
+		propagation := metav1.DeletePropagationForeground
+		if err := o.deleteResourceAndWaitWithOptions(ctx, &plan.resources[index], metav1.DeleteOptions{
+			PropagationPolicy: &propagation,
+		}); err != nil {
+			return nil, err
+		}
+		deletedResources[index] = struct{}{}
+	}
+
 	for i := range plan.crds {
 		if err := o.deleteCustomResources(ctx, &plan.crds[i]); err != nil {
 			return nil, err
 		}
 	}
 	for i := range plan.resources {
+		if _, deleted := deletedResources[i]; deleted {
+			continue
+		}
 		resource := &plan.resources[i]
 		if resource.item.State != model.CreateSuccess && resource.item.State != model.UpdateSuccess {
 			continue
@@ -181,6 +199,57 @@ func (o *k8sResourceDeletionOrchestrator) Delete(ctx context.Context, req *model
 		result.DeletedClientIDs = append(result.DeletedClientIDs, resource.ClientID)
 	}
 	return result, nil
+}
+
+func controllerResourcesToStopBeforeCustomResources(plan *k8sResourceDeletionPlan) []int {
+	candidateManagers := make(map[string]struct{})
+	finalizedManagers := make(map[string]struct{})
+	for i := range plan.crds {
+		for j := range plan.crds[i].instances {
+			instance := &plan.crds[i].instances[j]
+			manager := strings.ToLower(strings.TrimSpace(instance.GetLabels()[managedByLabel]))
+			if manager == "" {
+				continue
+			}
+			if len(instance.GetFinalizers()) > 0 {
+				finalizedManagers[manager] = struct{}{}
+				continue
+			}
+			candidateManagers[manager] = struct{}{}
+		}
+	}
+
+	var indexes []int
+	for i := range plan.resources {
+		resource := &plan.resources[i]
+		if resource.item.State != model.CreateSuccess && resource.item.State != model.UpdateSuccess ||
+			resource.apiRemoved || resource.object == nil || !isControllerWorkload(resource.object.GroupVersionKind()) {
+			continue
+		}
+		name := strings.ToLower(strings.TrimSpace(resource.object.GetName()))
+		if name == "" {
+			name = strings.ToLower(strings.TrimSpace(resource.item.Name))
+		}
+		if _, blocked := finalizedManagers[name]; blocked {
+			continue
+		}
+		if _, matched := candidateManagers[name]; matched {
+			indexes = append(indexes, i)
+		}
+	}
+	return indexes
+}
+
+func isControllerWorkload(gvk schema.GroupVersionKind) bool {
+	if gvk.Group != "apps" {
+		return false
+	}
+	switch gvk.Kind {
+	case "Deployment", "StatefulSet", "DaemonSet":
+		return true
+	default:
+		return false
+	}
 }
 
 // Reconcile classifies only confirmed missing resources as safe metadata deletions.
@@ -381,12 +450,16 @@ func (o *k8sResourceDeletionOrchestrator) deleteCustomResources(ctx context.Cont
 }
 
 func (o *k8sResourceDeletionOrchestrator) deleteResourceAndWait(ctx context.Context, resource *plannedResource) error {
+	return o.deleteResourceAndWaitWithOptions(ctx, resource, metav1.DeleteOptions{})
+}
+
+func (o *k8sResourceDeletionOrchestrator) deleteResourceAndWaitWithOptions(ctx context.Context, resource *plannedResource, options metav1.DeleteOptions) error {
 	name := resource.item.Name
 	if name == "" {
 		name = resource.object.GetName()
 	}
 	client := o.resourceClient(resource.mapping, resource.item.Namespace, resource.object.GetNamespace())
-	if err := client.Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := client.Delete(ctx, name, options); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("delete %s/%s: %w", resource.object.GetKind(), name, err)
 	}
 	var checkErr error

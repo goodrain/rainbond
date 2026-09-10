@@ -189,6 +189,7 @@
 | rainbond.k8s-resource.deletion-timeout-final-check | Kubernetes deletion timeout performs a final live check | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace |
 | rainbond.k8s-resource.failed-delete-metadata-only | Failed resources are metadata-only during deletion | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion |
 | rainbond.k8s-resource.metadata-reconcile | Kubernetes resource metadata reconciliation | active | regression | api/handler.k8sResourceDeletionOrchestrator.Reconcile | api/handler/resource_deletion_test.go::TestK8sResourceReconcileDistinguishesMissingAndUnknown |
+| rainbond.k8s-resource.stop-recreating-controller | Stop in-application controllers before deleting generated custom resources | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources<br>api/handler/resource_deletion_test.go::TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
 | rainbond.kubeblocks.component-selector | 为 KubeBlocks 组件生成标签选择器 | active | regression | util/kubeblocks.GenerateKubeBlocksSelector | util/kubeblocks/kubeblocks_test.go::TestGenerateKubeBlocksSelector |
 | rainbond.license.decode | 解码并解析许可证令牌内容 | active | regression | api/util/license.DecodeLicense | api/util/license/rsa_license_test.go::TestDecodeLicense |
@@ -2337,6 +2338,16 @@
 - 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Reconcile`
 - 代码路径: `api/handler/resource_deletion.go`
 - 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceReconcileDistinguishesMissingAndUnknown`
+
+### Stop in-application controllers before deleting generated custom resources
+
+- Capability ID: `rainbond.k8s-resource.stop-recreating-controller`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources`, `api/handler/resource_deletion_test.go::TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone`
 
 ### K8s scheme registers KubeVirt VirtualMachine
 
