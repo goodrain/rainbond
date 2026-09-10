@@ -42,6 +42,18 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	gatewayJWTManagedRouteLabel = "gateway.rainbond.io/managed-jwt"
+	gatewayJWTManagedRouteValue = "true"
+)
+
+type gatewayHTTPRouteResponse struct {
+	*v2.ApisixRouteHTTP
+	Enabled        bool                               `json:"enabled"`
+	RegionAppID    string                             `json:"region_app_id"`
+	ManagedJWTAuth *apimodel.ManagedJWTAuthentication `json:"managedJwtAuth,omitempty"`
+}
+
 // OpenOrCloseDomains -
 func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
@@ -161,14 +173,6 @@ func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
-	type routeResponse struct {
-		*v2.ApisixRouteHTTP
-		Enabled     bool   `json:"enabled"`
-		RegionAppID string `json:"region_app_id"`
-	}
-
-	var resp = make([]*routeResponse, 0)
-
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	appID := r.URL.Query().Get("appID")
 	labelSelector := ""
@@ -184,31 +188,46 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, v := range list.Items {
-		httpRoute := v.Spec.HTTP[0].DeepCopy()
-		labels := v.Labels
-		serviceAliases := ""
-		regionAppID := ""
-		enabled := false // Default to enabled if not specified
-		for labelK, labelV := range labels {
-			if labelV == "service_alias" {
-				serviceAliases = serviceAliases + "-" + labelK
-			}
-			if labelK == "app_id" {
-				regionAppID = labelV
-			}
-			if labelK == "cert-manager-enabled" {
-				enabled = labelV == "true"
-			}
-		}
-		httpRoute.Name = regionAppID + "|" + v.Name + "|" + serviceAliases
-		resp = append(resp, &routeResponse{
-			ApisixRouteHTTP: httpRoute,
-			Enabled:         enabled,
-			RegionAppID:     regionAppID,
-		})
+	httputil.ReturnSuccess(r, w, gatewayHTTPRouteResponses(list.Items))
+}
+
+func gatewayHTTPRouteResponseFrom(route *v2.ApisixRoute) *gatewayHTTPRouteResponse {
+	if route == nil || len(route.Spec.HTTP) == 0 {
+		return nil
 	}
-	httputil.ReturnSuccess(r, w, resp)
+	httpRoute := route.Spec.HTTP[0].DeepCopy()
+	serviceAliases := ""
+	regionAppID := ""
+	enabled := false
+	for labelKey, labelValue := range route.Labels {
+		if labelValue == "service_alias" {
+			serviceAliases += "-" + labelKey
+		}
+		if labelKey == "app_id" {
+			regionAppID = labelValue
+		}
+		if labelKey == "cert-manager-enabled" {
+			enabled = labelValue == "true"
+		}
+	}
+	httpRoute.Name = regionAppID + "|" + route.Name + "|" + serviceAliases
+	return &gatewayHTTPRouteResponse{
+		ApisixRouteHTTP: httpRoute,
+		Enabled:         enabled,
+		RegionAppID:     regionAppID,
+		ManagedJWTAuth:  handler.ManagedJWTAuthenticationFromRoute(route),
+	}
+}
+
+func gatewayHTTPRouteResponses(routes []v2.ApisixRoute) []*gatewayHTTPRouteResponse {
+	responses := make([]*gatewayHTTPRouteResponse, 0, len(routes))
+	for i := range routes {
+		response := gatewayHTTPRouteResponseFrom(&routes[i])
+		if response != nil {
+			responses = append(responses, response)
+		}
+	}
+	return responses
 }
 
 // UpdateHTTPAPIRoute -
@@ -236,8 +255,12 @@ func addResponseRewritePlugin(apisixRouteHTTP v2.ApisixRouteHTTP) v2.ApisixRoute
 func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-	var apisixRouteHTTP v2.ApisixRouteHTTP
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteHTTP, nil) {
+	var routeRequest apimodel.GatewayHTTPRouteRequest
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &routeRequest, nil) {
+		return
+	}
+	if err := validateGatewayHTTPRouteRequest(&routeRequest); err != nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sa := r.URL.Query().Get("service_alias")
@@ -254,6 +277,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("appID") != "" {
 		labels["app_id"] = r.URL.Query().Get("appID")
 	}
+	if err := configureManagedJWTHTTPRoute(r.Context(), getAPIGatewayHandler(), tenant.Namespace, r.URL.Query().Get("appID"), &routeRequest, labels); err != nil {
+		returnGatewayJWTConsumerError(r, w, err)
+		return
+	}
 	defaultDomain := r.URL.Query().Get("default") == "true"
 
 	for _, sl := range sLabel {
@@ -263,6 +290,18 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := k8s.Default().ApiSixClient.ApisixV2()
+	if err := preserveManagedJWTHTTPRouteLabelBeforeCreate(
+		r.Context(),
+		c.ApisixRoutes(tenant.Namespace),
+		&routeRequest,
+		labels,
+		r.URL.Query().Get("name"),
+	); err != nil {
+		logrus.Errorf("get previous route before replacement: %v", err)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		return
+	}
+	apisixRouteHTTP := routeRequest.ApisixRouteHTTP
 
 	routeName := strings.ToLower(strings.ReplaceAll(apisixRouteHTTP.Match.Hosts[0], "*", "wildcard") + apisixRouteHTTP.Match.Paths[0])
 
@@ -293,6 +332,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apisixRouteHTTP.Name = uuid.New().String()[0:8] //每次都让他变化，让 apisix controller去更新
+	routeRequest.ApisixRouteHTTP = apisixRouteHTTP
 
 	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), &v2.ApisixRoute{
 		TypeMeta: v1.TypeMeta{
@@ -337,7 +377,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(get))
 		return
 	}
-	get.Spec.HTTP[0] = apisixRouteHTTP
+	preserveLegacyManagedJWTHTTPRoute(&routeRequest, labels, get)
+	replaceGatewayHTTPRouteRule(get, routeRequest.ApisixRouteHTTP)
 	if get.ObjectMeta.Labels["cert-manager-enabled"] == "true" {
 		labels["cert-manager-enabled"] = "true"
 	}
@@ -350,6 +391,156 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, marshalApisixRoute(update))
+}
+
+func validateGatewayHTTPRouteRequest(request *apimodel.GatewayHTTPRouteRequest) error {
+	if request == nil || len(request.Match.Hosts) == 0 {
+		return fmt.Errorf("route hosts cannot be empty")
+	}
+	for _, host := range request.Match.Hosts {
+		if strings.TrimSpace(host) == "" {
+			return fmt.Errorf("route hosts cannot be empty")
+		}
+	}
+	if len(request.Match.Paths) == 0 {
+		return fmt.Errorf("route paths cannot be empty")
+	}
+	for _, path := range request.Match.Paths {
+		if strings.TrimSpace(path) == "" {
+			return fmt.Errorf("route paths cannot be empty")
+		}
+	}
+	return nil
+}
+
+func replaceGatewayHTTPRouteRule(route *v2.ApisixRoute, httpRoute v2.ApisixRouteHTTP) {
+	if len(route.Spec.HTTP) == 0 {
+		route.Spec.HTTP = []v2.ApisixRouteHTTP{httpRoute}
+		return
+	}
+	route.Spec.HTTP[0] = httpRoute
+}
+
+func configureManagedJWTHTTPRoute(ctx context.Context, gatewayHandler handler.APIGatewayHandler, namespace, appID string, request *apimodel.GatewayHTTPRouteRequest, labels map[string]string) error {
+	if request.ManagedJWTAuth == nil {
+		return nil
+	}
+	plugins, err := gatewayHandler.ConfigureManagedJWTAuth(ctx, namespace, appID, request.ManagedJWTAuth, request.Plugins)
+	if err != nil {
+		return err
+	}
+	request.Plugins = plugins
+	if request.ManagedJWTAuth.Enabled {
+		labels[gatewayJWTManagedRouteLabel] = gatewayJWTManagedRouteValue
+	} else {
+		delete(labels, gatewayJWTManagedRouteLabel)
+	}
+	return nil
+}
+
+func preserveLegacyManagedJWTHTTPRoute(request *apimodel.GatewayHTTPRouteRequest, labels map[string]string, existingRoute *v2.ApisixRoute) {
+	if request.ManagedJWTAuth != nil || existingRoute == nil || existingRoute.Labels[gatewayJWTManagedRouteLabel] != gatewayJWTManagedRouteValue || len(existingRoute.Spec.HTTP) == 0 {
+		return
+	}
+	managedPair, ok := enabledManagedJWTPluginPair(existingRoute.Spec.HTTP[0].Plugins)
+	if !ok {
+		return
+	}
+	request.Plugins = append(removeJWTPluginCopies(request.Plugins), managedPair...)
+	labels[gatewayJWTManagedRouteLabel] = gatewayJWTManagedRouteValue
+}
+
+func enabledManagedJWTPluginPair(plugins []v2.ApisixRoutePlugin) ([]v2.ApisixRoutePlugin, bool) {
+	result := make([]v2.ApisixRoutePlugin, 0, 2)
+	hasJWT := false
+	hasRestriction := false
+	for _, plugin := range plugins {
+		if !plugin.Enable {
+			continue
+		}
+		switch plugin.Name {
+		case "jwt-auth":
+			if hasJWT {
+				continue
+			}
+			hasJWT = true
+		case "consumer-restriction":
+			if hasRestriction {
+				continue
+			}
+			hasRestriction = true
+		default:
+			continue
+		}
+		plugin.Config = cloneGatewayRoutePluginConfig(plugin.Config)
+		result = append(result, plugin)
+	}
+	return result, hasJWT && hasRestriction
+}
+
+func removeJWTPluginCopies(plugins []v2.ApisixRoutePlugin) []v2.ApisixRoutePlugin {
+	result := make([]v2.ApisixRoutePlugin, 0, len(plugins))
+	for _, plugin := range plugins {
+		if plugin.Name == "jwt-auth" || plugin.Name == "consumer-restriction" {
+			continue
+		}
+		plugin.Config = cloneGatewayRoutePluginConfig(plugin.Config)
+		result = append(result, plugin)
+	}
+	return result
+}
+
+func cloneGatewayRoutePluginConfig(config v2.ApisixRoutePluginConfig) v2.ApisixRoutePluginConfig {
+	if config == nil {
+		return nil
+	}
+	result := make(v2.ApisixRoutePluginConfig, len(config))
+	for key, value := range config {
+		result[key] = cloneGatewayRoutePluginValue(value)
+	}
+	return result
+}
+
+func cloneGatewayRoutePluginValue(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case v2.ApisixRoutePluginConfig:
+		return cloneGatewayRoutePluginConfig(typed)
+	case map[string]interface{}:
+		result := make(map[string]interface{}, len(typed))
+		for key, item := range typed {
+			result[key] = cloneGatewayRoutePluginValue(item)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, len(typed))
+		for i := range typed {
+			result[i] = cloneGatewayRoutePluginValue(typed[i])
+		}
+		return result
+	case []string:
+		return append([]string(nil), typed...)
+	default:
+		return value
+	}
+}
+
+func preserveManagedJWTHTTPRouteLabelBeforeCreate(ctx context.Context, routes apisixclientv2.ApisixRouteInterface, request *apimodel.GatewayHTTPRouteRequest, labels map[string]string, oldRouteName string) error {
+	if request.ManagedJWTAuth != nil || oldRouteName == "" {
+		return nil
+	}
+	oldRouteName = removeLeadingDigits(oldRouteName)
+	if oldRouteName == "" {
+		return nil
+	}
+	oldRoute, err := routes.Get(ctx, oldRouteName, v1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get previous APISIX route %q: %w", oldRouteName, err)
+	}
+	preserveLegacyManagedJWTHTTPRoute(request, labels, oldRoute)
+	return nil
 }
 
 func marshalApisixRoute(r *v2.ApisixRoute) map[string]interface{} {
