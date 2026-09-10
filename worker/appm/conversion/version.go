@@ -30,6 +30,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/util/portprotocol"
+
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/google/uuid"
@@ -1069,12 +1071,14 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 		}
 		for i := range ps {
 			p := ps[i]
-			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(p.ContainerPort),
-				// Must be UDP, TCP, or SCTP.
-				Protocol: conversionPortProtocol(p.Protocol),
-				Name:     p.Name,
-			})
+			transports := portprotocol.Transports(p.Protocol)
+			for _, transport := range transports {
+				name := p.Name
+				if len(transports) > 1 && name != "" {
+					name = generateSVCPortName(string(transport), p.ContainerPort)
+				}
+				ports = append(ports, corev1.ContainerPort{ContainerPort: int32(p.ContainerPort), Protocol: transport, Name: name})
+			}
 		}
 	}
 	return

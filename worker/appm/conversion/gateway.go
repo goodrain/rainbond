@@ -36,15 +36,17 @@ package conversion
 import (
 	"context"
 	"fmt"
-	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
-	"github.com/goodrain/rainbond/api/util"
-	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
-	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
-	"github.com/google/uuid"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/api/util"
+	k8s2 "github.com/goodrain/rainbond/pkg/component/k8s"
+	kbutil "github.com/goodrain/rainbond/util/kubeblocks"
+	"github.com/goodrain/rainbond/util/portprotocol"
+	"github.com/google/uuid"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -189,13 +191,13 @@ func (a *AppServiceBuild) Build(as *v1.AppService) (*v1.K8sResources, error) {
 			if *port.IsInnerService {
 				innerService = append(innerService, port)
 			}
-			if *port.IsOuterService {
+			{ // Persisted gateway mappings are independent of the component default switch.
 				route, svc := a.generateOuterDomain(as, port)
 				if route != nil {
 					apiSixRoutes = append(apiSixRoutes, route)
 				}
 				if svc != nil {
-					services = append(services, svc)
+					services = append(services, svc...)
 				}
 			}
 		}
@@ -293,21 +295,21 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 	service.Annotations = a.createServiceAnnotations()
 	var servicePorts []corev1.ServicePort
 	for _, port := range ports {
-		var servicePort corev1.ServicePort
-		if port.Protocol == "udp" {
-			servicePort.Protocol = "UDP"
-		} else {
-			servicePort.Protocol = "TCP"
+		mappingPort := port.MappingPort
+		if mappingPort == 0 {
+			mappingPort = port.ContainerPort
 		}
-		servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
-		servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-		servicePort.Port = int32(port.MappingPort)
-		if servicePort.Port == 0 {
-			servicePort.Port = int32(port.ContainerPort)
+		for _, transport := range portprotocol.Transports(port.Protocol) {
+			nameProtocol := port.Protocol
+			if len(portprotocol.Transports(port.Protocol)) > 1 {
+				nameProtocol = strings.ToLower(string(transport))
+			}
+			servicePorts = append(servicePorts, corev1.ServicePort{
+				Name:     generateSVCPortName(nameProtocol, port.ContainerPort),
+				Protocol: transport, Port: int32(mappingPort), TargetPort: intstr.FromInt(port.ContainerPort),
+			})
 		}
-		portProtocol := fmt.Sprintf("port_protocol_%v", servicePort.Port)
-		service.Labels[portProtocol] = port.Protocol
-		servicePorts = append(servicePorts, servicePort)
+		service.Labels[fmt.Sprintf("port_protocol_%v", mappingPort)] = strings.ReplaceAll(port.Protocol, "+", "-")
 	}
 	spec := corev1.ServiceSpec{
 		Ports: servicePorts,
@@ -333,15 +335,16 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 	})
 	var serviceports []corev1.ServicePort
 	for _, p := range ports {
-		var servicePort corev1.ServicePort
-		servicePort.Protocol = "TCP"
-		servicePort.TargetPort = intstr.FromInt(p.ContainerPort)
-		servicePort.Port = int32(p.MappingPort)
-		servicePort.Name = generateSVCPortName(string(servicePort.Protocol), p.ContainerPort)
-		if servicePort.Port == 0 {
-			servicePort.Port = int32(p.ContainerPort)
+		mappingPort := p.MappingPort
+		if mappingPort == 0 {
+			mappingPort = p.ContainerPort
 		}
-		serviceports = append(serviceports, servicePort)
+		for _, transport := range portprotocol.Transports(p.Protocol) {
+			serviceports = append(serviceports, corev1.ServicePort{
+				Name:     generateSVCPortName(strings.ToLower(string(transport)), p.ContainerPort),
+				Protocol: transport, Port: int32(mappingPort), TargetPort: intstr.FromInt(p.ContainerPort),
+			})
+		}
 	}
 	spec := corev1.ServiceSpec{
 		Ports:                    serviceports,
@@ -408,7 +411,7 @@ func generatedHTTPRouteLabels(as *v1.AppService, containerPort int, domain strin
 	return labels
 }
 
-func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute, outerSVC *corev1.Service) {
+func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.TenantServicesPort) (outerRoutes *v2.ApisixRoute, outerSVC []*corev1.Service) {
 	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
 	if err != nil {
 		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", as.ServiceID, err)
@@ -419,7 +422,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 	}
 	// create http ingresses
 	logrus.Debugf("find %d count http rule", len(httpRules))
-	if len(httpRules) > 0 {
+	if len(httpRules) > 0 && port.Protocol == "http" && port.IsOuterService != nil && *port.IsOuterService {
 		httpRule := httpRules[0]
 		routes, err := k8s2.Default().ApiSixClient.ApisixV2().ApisixRoutes(as.GetNamespace()).List(
 			context.Background(),
@@ -489,60 +492,35 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 		}
 	}
 	if len(tcpRules) > 0 {
-		tcpRule := tcpRules[0]
-		svcs, err := k8s2.Default().Clientset.CoreV1().Services(as.GetNamespace()).List(
-			context.Background(),
-			metav1.ListOptions{
-				LabelSelector: "service_alias=" + as.ServiceAlias + ",port=" + strconv.Itoa(tcpRule.ContainerPort),
-			},
-		)
+		existing, err := k8s2.Default().Clientset.CoreV1().Services(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
+			LabelSelector: "tcp=true,service_alias=" + as.ServiceAlias + ",port=" + strconv.Itoa(port.ContainerPort),
+		})
 		if err != nil {
-			logrus.Errorf("generate outer domain list svcs failure: %v", err)
-		} else {
-			if svcs != nil && len(svcs.Items) > 0 {
-				logrus.Infof("%v svc num > 0, not create", as.ServiceAlias)
-			} else {
-				labels := make(map[string]string)
-				labels["creator"] = "Rainbond"
-				labels["tcp"] = "true"
-				labels["app_id"] = as.AppID
-				labels["service_id"] = as.ServiceID
-				labels["service_alias"] = as.ServiceAlias
-				labels["outer"] = "true"
-				labels["port"] = fmt.Sprintf("%v", tcpRule.ContainerPort)
-				name := fmt.Sprintf("%v-%v", as.ServiceAlias, tcpRule.Port)
-				if err := a.reassignTCPRuleNodePort(as.GetNamespace(), name, tcpRule); err != nil {
-					logrus.Errorf("reassign tcp rule node port failure: %v", err)
-					return
+			logrus.Errorf("list external mappings: %v", err)
+			return
+		}
+		for _, rule := range tcpRules {
+			found := false
+			for _, service := range existing.Items {
+				for _, sp := range service.Spec.Ports {
+					if int(sp.NodePort) == rule.Port {
+						found = true
+						break
+					}
 				}
-				name = fmt.Sprintf("%v-%v", as.ServiceAlias, tcpRule.Port)
-				spec := corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Protocol:   corev1.Protocol("TCP"),
-							Name:       name,
-							Port:       int32(tcpRule.ContainerPort),
-							TargetPort: intstr.FromInt(tcpRule.ContainerPort),
-							NodePort:   int32(tcpRule.Port),
-						},
-					},
-					Type:                  corev1.ServiceTypeNodePort,
-					ExternalTrafficPolicy: outerServiceExternalTrafficPolicy(a.service),
-					Selector: map[string]string{
-						"service_alias": as.ServiceAlias,
-					},
-				}
-				if a.appService.ServiceType == v1.TypeKubeBlocks {
-					spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
-				}
-				outerSVC = &corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: labels,
-						Name:   name,
-					},
-					Spec: spec,
+				if found {
+					break
 				}
 			}
+			if found {
+				continue
+			}
+			name := fmt.Sprintf("%s-%d", as.ServiceAlias, rule.Port)
+			if err := a.reassignTCPRuleNodePort(as.GetNamespace(), name, rule); err != nil {
+				logrus.Errorf("reassign node port: %v", err)
+				continue
+			}
+			outerSVC = append(outerSVC, a.nodePortService(as, port, rule))
 		}
 	}
 	return
@@ -631,4 +609,29 @@ func selectAvailableNodePort(usedPorts map[int]struct{}) int {
 		return selectedPort
 	}
 	return 0
+}
+
+// nodePortService restores one mapping; multiple transports belong to the same Service.
+func (a *AppServiceBuild) nodePortService(as *v1.AppService, port *model.TenantServicesPort, rule *model.TCPRule) *corev1.Service {
+	name := fmt.Sprintf("%s-%d", as.ServiceAlias, rule.Port)
+	spec := corev1.ServiceSpec{
+		Type:                  corev1.ServiceTypeNodePort,
+		ExternalTrafficPolicy: outerServiceExternalTrafficPolicy(a.service),
+		Selector:              map[string]string{"service_alias": as.ServiceAlias},
+	}
+	for _, transport := range portprotocol.Transports(rule.Protocol) {
+		spec.Ports = append(spec.Ports, corev1.ServicePort{
+			Protocol: transport, Name: generateSVCPortName(strings.ToLower(string(transport)), rule.ContainerPort),
+			Port: int32(rule.ContainerPort), TargetPort: intstr.FromInt(rule.ContainerPort), NodePort: int32(rule.Port),
+		})
+	}
+	if a.appService.ServiceType == v1.TypeKubeBlocks {
+		spec.Selector = kbutil.GenerateKubeBlocksSelector(a.service.K8sComponentName)
+	}
+	return &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name: name, Namespace: as.GetNamespace(),
+		Annotations: map[string]string{"rainbond.com/backend-service": port.K8sServiceName},
+		Labels: map[string]string{"creator": "Rainbond", "tcp": "true", "app_id": as.AppID, "service_id": as.ServiceID,
+			"service_alias": as.ServiceAlias, "outer": "true", "port": strconv.Itoa(rule.ContainerPort)},
+	}, Spec: spec}
 }

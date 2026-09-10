@@ -1293,3 +1293,134 @@ func TestNodePortFromTCPRouteNameValidatesRange(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateMixedRouteAndEditPreservesNodePort(t *testing.T) {
+	const (
+		namespace    = "default"
+		tenantID     = "tenant-id"
+		appID        = "app-id"
+		serviceID    = "db66afd0892c326ff557df7880ac572d"
+		serviceAlias = "grac572d"
+		serviceName  = "demo-2048"
+		nodePort     = int32(30000)
+	)
+
+	services := map[string]*corev1.Service{
+		serviceName: {
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"app_id":        appID,
+					"service_id":    serviceID,
+					"service_alias": serviceAlias,
+					"rainbond_app":  serviceName,
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{
+					Name:       "tcp-8080",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       8080,
+					TargetPort: intstr.FromInt(8080),
+				}},
+				Selector: map[string]string{"name": serviceAlias},
+			},
+		},
+	}
+	services[serviceName].Spec.Ports = append(services[serviceName].Spec.Ports, corev1.ServicePort{Name: "udp-8080", Port: 8080, Protocol: corev1.ProtocolUDP, TargetPort: intstr.FromInt(8080)})
+	clientset, closeServer := newTCPRouteTestClientset(t, services)
+	defer closeServer()
+	k8s.New().Clientset = clientset
+
+	ruleDao := &tcpRouteRuleDao{}
+	db.SetTestManager(tcpRouteTestManager{
+		tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+			serviceID: {
+				ServiceID:        serviceID,
+				ServiceAlias:     serviceAlias,
+				TenantID:         tenantID,
+				ExtendMethod:     "",
+				K8sComponentName: serviceAlias,
+			},
+		}},
+		tcpRuleDao: ruleDao,
+	})
+	defer db.SetTestManager(nil)
+
+	streamRoute := v2.ApisixRouteStream{
+		Name:     "tcp",
+		Protocol: "tcp+udp",
+		Match: v2.ApisixRouteStreamMatch{
+			IngressPort: nodePort,
+		},
+		Backend: v2.ApisixRouteStreamBackend{
+			ServiceName: serviceName,
+			ServicePort: intstr.FromInt(8080),
+		},
+	}
+	body, err := json.Marshal(streamRoute)
+	if err != nil {
+		t.Fatalf("marshal route: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/?appID="+appID, bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		UUID:      tenantID,
+		Namespace: namespace,
+	})
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+
+	created, err := k8s.Default().Clientset.CoreV1().Services(namespace).Get(context.Background(), serviceName+"-30000", v1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			t.Fatalf("expected NodePort service to be created")
+		}
+		t.Fatalf("get created service: %v", err)
+	}
+	if got := created.Spec.Selector["service_alias"]; got != serviceAlias {
+		t.Fatalf("expected selector service_alias %q, got %q", serviceAlias, got)
+	}
+	if got := created.Labels["service_alias"]; got != serviceAlias {
+		t.Fatalf("expected label service_alias %q, got %q", serviceAlias, got)
+	}
+	if got := created.Labels["service_id"]; got != serviceID {
+		t.Fatalf("expected label service_id %q, got %q", serviceID, got)
+	}
+	if ruleDao.replaced == nil {
+		t.Fatal("expected TCP rule to be reconciled")
+	}
+	if got := ruleDao.replaced.ServiceID; got != serviceID {
+		t.Fatalf("expected TCP rule service_id %q, got %q", serviceID, got)
+	}
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create mixed route: %d %s", rr.Code, rr.Body.String())
+	}
+	if len(created.Spec.Ports) != 2 || created.Spec.Ports[0].NodePort != nodePort || created.Spec.Ports[1].NodePort != nodePort {
+		t.Fatalf("expected shared nodePort: %#v", created.Spec.Ports)
+	}
+	if ruleDao.replaced.Protocol != "tcp+udp" {
+		t.Fatalf("persisted wrong protocol: %#v", ruleDao.replaced)
+	}
+	streamRoute.Protocol = "udp"
+	body, _ = json.Marshal(streamRoute)
+	req = httptest.NewRequest(http.MethodPost, "/?appID="+appID+"&route_name="+created.Name, bytes.NewReader(body)).WithContext(ctx)
+	rr = httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("edit route: %d %s", rr.Code, rr.Body.String())
+	}
+	updated := services[created.Name]
+	if len(updated.Spec.Ports) != 1 || updated.Spec.Ports[0].Protocol != corev1.ProtocolUDP || updated.Spec.Ports[0].NodePort != nodePort {
+		t.Fatalf("edit lost identity: %#v", updated)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/?appID="+appID+"&action=create", bytes.NewReader(body)).WithContext(ctx)
+	rr = httptest.NewRecorder()
+	Struct{}.CreateTCPRoute(rr, req)
+	if rr.Code == http.StatusOK {
+		t.Fatal("duplicate create must not overwrite mapping")
+	}
+
+}

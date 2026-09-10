@@ -30,6 +30,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/util/portprotocol"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -51,11 +52,18 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.Index(serviceAlias, ","); idx != -1 {
 		serviceAlias = serviceAlias[:idx]
 	}
-	list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
+	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: serviceAlias + "=service_alias" + ",port=" + r.URL.Query().Get("port"),
 	})
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		return
+	}
 	for _, itemL := range list.Items {
 		item := itemL
+		if len(item.Spec.HTTP) == 0 {
+			continue
+		}
 		var plugins = item.Spec.HTTP[0].Plugins
 		var newPlugins = make([]v2.ApisixRoutePlugin, 0)
 		for _, plugin := range plugins {
@@ -78,10 +86,6 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 		item.Status = v2.ApisixStatus{}
 		_, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), &item, v1.UpdateOptions{})
 		if err != nil {
-			if errors.IsConflict(err) {
-				logrus.Warnf("update route %v conflict", item.Name)
-				continue
-			}
 			logrus.Errorf("update route %v failure: %v", item.Name, err)
 			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
 			return
@@ -150,9 +154,21 @@ func (g Struct) GetTCPBindDomains(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
-	var resp []int32
-	for _, v := range list.Items {
-		resp = append(resp, v.Spec.Ports[0].NodePort)
+	if r.URL.Query().Get("details") == "true" {
+		resp := make([]apimodel.TCPRouteServicePort, 0, len(list.Items))
+		for _, service := range list.Items {
+			if len(service.Spec.Ports) > 0 {
+				resp = append(resp, streamRouteSummary(service))
+			}
+		}
+		httputil.ReturnSuccess(r, w, resp)
+		return
+	}
+	resp := make([]int32, 0, len(list.Items))
+	for _, service := range list.Items {
+		if len(service.Spec.Ports) > 0 {
+			resp = append(resp, service.Spec.Ports[0].NodePort)
+		}
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -417,26 +433,11 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
-	var resp []apimodel.TCPRouteServicePort
-	for _, v := range list.Items {
-		if len(v.Spec.Ports) == 0 {
-			continue
+	resp := make([]apimodel.TCPRouteServicePort, 0, len(list.Items))
+	for _, service := range list.Items {
+		if len(service.Spec.Ports) > 0 {
+			resp = append(resp, streamRouteSummary(service))
 		}
-		servicePort := v.Spec.Ports[0]
-		item := apimodel.TCPRouteServicePort{
-			ServicePort:   servicePort,
-			ServiceName:   v.Name,
-			ServiceAlias:  v.Labels["service_alias"],
-			ServiceID:     v.Labels["service_id"],
-			AppID:         v.Labels["app_id"],
-			ContainerPort: servicePort.Port,
-		}
-		if portLabel := v.Labels["port"]; portLabel != "" {
-			if containerPort, err := strconv.Atoi(portLabel); err == nil {
-				item.ContainerPort = int32(containerPort)
-			}
-		}
-		resp = append(resp, item)
 	}
 	httputil.ReturnSuccess(r, w, resp)
 }
@@ -451,6 +452,17 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteStream, nil) {
 		return
 	}
+
+	protocol := strings.ToLower(strings.TrimSpace(apisixRouteStream.Protocol))
+	if protocol != "tcp" && protocol != "udp" && protocol != "tcp+udp" {
+		httputil.ReturnError(r, w, 400, "unsupported transport protocol")
+		return
+	}
+	if apisixRouteStream.Backend.ServicePort.Type != 0 || apisixRouteStream.Backend.ServicePort.IntVal < 1 || apisixRouteStream.Backend.ServicePort.IntVal > 65535 {
+		httputil.ReturnError(r, w, 400, "invalid backend port")
+		return
+	}
+	routeName := r.URL.Query().Get("route_name")
 
 	serviceName := apisixRouteStream.Backend.ServiceName
 	serviceAlias := serviceName
@@ -470,44 +482,14 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	name := fmt.Sprintf("%v-%v", serviceName, apisixRouteStream.Match.IngressPort)
 	spec := corev1.ServiceSpec{
-		Ports: []corev1.ServicePort{
-			{
-				Protocol:   corev1.Protocol(strings.ToUpper(apisixRouteStream.Protocol)),
-				Name:       name,
-				Port:       apisixRouteStream.Backend.ServicePort.IntVal,
-				TargetPort: apisixRouteStream.Backend.ServicePort,
-				NodePort:   apisixRouteStream.Match.IngressPort,
-			},
-		},
-		Type: corev1.ServiceTypeNodePort,
+		Ports: streamPorts(protocol, apisixRouteStream.Backend.ServicePort.IntVal, apisixRouteStream.Backend.ServicePort, apisixRouteStream.Match.IngressPort),
+		Type:  corev1.ServiceTypeNodePort,
+	}
+	if routeName != "" {
+		name = routeName
 	}
 
 	isThirdParty := r.URL.Query().Get("service_type") == "third_party"
-	if isThirdParty {
-		defer func() {
-			// For third-party components, update the third component state
-			list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
-				LabelSelector: "service_id=" + serviceID,
-			})
-			if err != nil {
-				logrus.Errorf("get route error %s", err.Error())
-				httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-				return
-			}
-			for _, v := range list.Items {
-				for i := range v.Spec.Ports {
-					v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
-					_, err = k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
-					if err != nil {
-						logrus.Errorf("update third component failure: %v", err)
-						httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
-						return
-					}
-				}
-			}
-		}()
-	}
-
 	// kubeblocks_component should use specific selector
 	// Try to get service by service_id first, if not provided, try by service_alias and tenant_id
 	var rbdService *dbmodel.TenantServices
@@ -528,6 +510,11 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if rbdService != nil && rbdService.TenantID != tenant.UUID {
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+		return
+	}
+
 	if rbdService != nil {
 		serviceAlias = rbdService.ServiceAlias
 		if resolvedServiceID == "" {
@@ -538,14 +525,26 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !isThirdParty {
+	{
 		if backendService, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName, v1.GetOptions{}); err == nil {
+			if !backendSupportsStream(backendService, apisixRouteStream.Backend.ServicePort.IntVal, protocol) {
+				httputil.ReturnError(r, w, 400, "protocol is not supported by the component port")
+				return
+			}
+			if resolvedServiceID != "" && backendService.Labels["service_id"] != "" && backendService.Labels["service_id"] != resolvedServiceID {
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+				return
+			}
+
 			if alias := backendService.Labels["service_alias"]; alias != "" && serviceAlias == serviceName {
 				serviceAlias = alias
 			}
 			if resolvedServiceID == "" {
 				resolvedServiceID = backendService.Labels["service_id"]
 			}
+		} else if protocol != "tcp" || r.URL.Query().Get("action") == "create" || routeName != "" {
+			httputil.ReturnError(r, w, 400, "backend service is unavailable for protocol validation")
+			return
 		} else if !errors.IsNotFound(err) {
 			logrus.Warnf("get backend service %s in namespace %s error: %v", serviceName, tenant.Namespace, err)
 		}
@@ -559,8 +558,15 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		spec.Selector = map[string]string{
-			"service_alias": serviceAlias,
+		if rbdService != nil {
+			if rbdService.TenantID != tenant.UUID {
+				httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+				return
+			}
+			isThirdParty = rbdService.Kind == string(dbmodel.ServiceKindThirdParty)
+		}
+		if !isThirdParty {
+			spec.Selector = map[string]string{"service_alias": serviceAlias}
 		}
 	}
 
@@ -577,6 +583,10 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
 			return
 		}
+		if routeName != "" {
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+			return
+		}
 		// Service doesn't exist, create a new one
 		logrus.Infof("Service %s does not exist, creating a new service", name)
 		labels := make(map[string]string)
@@ -589,8 +599,9 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		labels["port"] = apisixRouteStream.Backend.ServicePort.String()
 		service = &corev1.Service{
 			ObjectMeta: v1.ObjectMeta{
-				Labels: labels,
-				Name:   name,
+				Labels:      labels,
+				Annotations: map[string]string{"rainbond.com/backend-service": serviceName},
+				Name:        name,
 			},
 			Spec: spec,
 		}
@@ -612,10 +623,12 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 					logrus.Infof("NodePort %d is already allocated, trying next port...", nodePort)
 					nodePort++
 					// Update the NodePort in the service spec before retrying
-					service.Spec.Ports[0].NodePort = nodePort
+					for i := range service.Spec.Ports {
+						service.Spec.Ports[i].NodePort = nodePort
+					}
 					// Update the service name to include new port
 					service.ObjectMeta.Name = fmt.Sprintf("%v-%v", serviceName, nodePort)
-					service.Spec.Ports[0].Name = service.ObjectMeta.Name
+					// Port names stay stable when retrying a NodePort allocation.
 					continue // 重新尝试创建服务
 				} else {
 					// 其他错误，返回失败
@@ -638,6 +651,19 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Service exists, update it
+		if r.URL.Query().Get("action") == "create" {
+			httputil.ReturnBcodeError(r, w, bcode.ErrPortExists)
+			return
+		}
+		if routeName != "" && (resolvedServiceID == "" || service.Labels["tcp"] != "true" || service.Spec.Type != corev1.ServiceTypeNodePort) {
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
+			return
+		}
+		if routeName != "" && (len(service.Spec.Ports) == 0 || service.Spec.Ports[0].NodePort != apisixRouteStream.Match.IngressPort || service.Spec.Ports[0].Port != apisixRouteStream.Backend.ServicePort.IntVal || service.Labels["service_alias"] != serviceAlias) {
+			httputil.ReturnError(r, w, 400, "editing a rule cannot change its target or external port")
+			return
+		}
+
 		if resolvedServiceID != "" && service.Labels["service_id"] != resolvedServiceID {
 			logrus.Warnf("refusing to update TCP route Service %s owned by service %q for requested service %q",
 				name, service.Labels["service_id"], resolvedServiceID)
@@ -645,7 +671,15 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		logrus.Infof("Service %s already exists, updating it", name)
+		spec.ClusterIP = service.Spec.ClusterIP
+		spec.ClusterIPs = service.Spec.ClusterIPs
+		spec.IPFamilies = service.Spec.IPFamilies
+		spec.IPFamilyPolicy = service.Spec.IPFamilyPolicy
 		service.Spec = spec
+		if service.Annotations == nil {
+			service.Annotations = map[string]string{}
+		}
+		service.Annotations["rainbond.com/backend-service"] = serviceName
 		service, err = k.Services(tenant.Namespace).Update(r.Context(), service, v1.UpdateOptions{})
 		if err != nil {
 			logrus.Errorf("update route error %s", err.Error())
@@ -657,7 +691,8 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 
 	// Add or update the TCP rule in the database
 	tcpRule := &dbmodel.TCPRule{
-		UUID:          resolvedServiceID,
+		UUID:          fmt.Sprintf("%s-%d", resolvedServiceID, apisixRouteStream.Match.IngressPort),
+		Protocol:      portprotocol.Canonical(portprotocol.Transports(protocol)),
 		ServiceID:     resolvedServiceID,
 		ContainerPort: int(apisixRouteStream.Backend.ServicePort.IntVal),
 		IP:            "0.0.0.0",
@@ -669,6 +704,28 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if isThirdParty {
+		components, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{LabelSelector: "service_id=" + resolvedServiceID})
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+		for _, component := range components.Items {
+			changed := false
+			for _, port := range component.Spec.Ports {
+				if port.Port == int(apisixRouteStream.Backend.ServicePort.IntVal) && !port.OpenOuter {
+					port.OpenOuter = true
+					changed = true
+				}
+			}
+			if changed {
+				if _, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &component, v1.UpdateOptions{}); err != nil {
+					httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+					return
+				}
+			}
+		}
+	}
 	// Return success response with NodePort
 	httputil.ReturnSuccess(r, w, service.Spec.Ports[0].NodePort)
 	return

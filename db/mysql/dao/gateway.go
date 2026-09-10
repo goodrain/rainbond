@@ -450,7 +450,7 @@ func (t *TCPRuleDaoTmpl) AddModel(mo model.Interface) error {
 		return errors.Wrapf(bcode.ErrPortExists, "tcp port %s:%d is owned by service %s", tcpRule.IP, tcpRule.Port, portOwner.ServiceID)
 	}
 
-	if tcpRule.UUID != "" {
+	if tcpRule.UUID != "" && tcpRule.UUID != tcpRule.ServiceID {
 		var existing model.TCPRule
 		err = t.DB.Where("uuid = ?", tcpRule.UUID).First(&existing).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -572,7 +572,7 @@ func (t *TCPRuleDaoTmpl) ReplaceByIPAndPort(tcpRule *model.TCPRule) error {
 	}
 
 	query := tx.Where("ip = ? and port = ?", tcpRule.IP, tcpRule.Port)
-	if tcpRule.UUID != "" {
+	if tcpRule.UUID != "" && tcpRule.UUID != tcpRule.ServiceID {
 		query = tx.Where("uuid = ? or (ip = ? and port = ?)", tcpRule.UUID, tcpRule.IP, tcpRule.Port)
 	}
 	if err := query.Delete(&model.TCPRule{}).Error; err != nil {

@@ -1147,6 +1147,7 @@ func (g *GatewayAction) CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruc
 	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
+		Protocol:      req.Protocol,
 		ServiceID:     req.ServiceID,
 		ContainerPort: req.ContainerPort,
 		IP:            req.IP,

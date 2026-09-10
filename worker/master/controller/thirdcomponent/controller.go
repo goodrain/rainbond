@@ -165,11 +165,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res recon
 
 		// create endpoint for component service
 		if len(component.Spec.Ports) == 1 && len(component.Spec.EndpointSource.StaticEndpoints) > 1 {
-			svc := services.Items[0]
-			ep := createEndpointsOnlyOnePort(component, svc, component.Status.Endpoints)
-			if ep != nil {
-				controllerutil.SetControllerReference(component, ep, r.Scheme)
-				r.applyEndpointService(ctx, log, &svc, ep)
+			for _, svc := range services.Items {
+				ep := createEndpointsOnlyOnePort(component, svc, component.Status.Endpoints)
+				if ep != nil {
+					controllerutil.SetControllerReference(component, ep, r.Scheme)
+					r.applyEndpointService(ctx, log, &svc, ep)
+				}
 			}
 		} else {
 			for _, service := range services.Items {
@@ -245,19 +246,14 @@ func createEndpointsOnlyOnePort(thirdComponent *v1alpha1.ThirdComponent, service
 		},
 	}
 
-	servicePort := service.Spec.Ports[0]
 	var subsets []corev1.EndpointSubset
 	var domain string
 	for port, eps := range sourceEndpointPE {
-		subset := corev1.EndpointSubset{
-			Ports: []corev1.EndpointPort{
-				{
-					Name:        servicePort.Name,
-					Port:        int32(port),
-					Protocol:    servicePort.Protocol,
-					AppProtocol: servicePort.AppProtocol,
-				},
-			},
+		subset := corev1.EndpointSubset{}
+		for _, servicePort := range service.Spec.Ports {
+			subset.Ports = append(subset.Ports, corev1.EndpointPort{
+				Name: servicePort.Name, Port: int32(port), Protocol: servicePort.Protocol, AppProtocol: servicePort.AppProtocol,
+			})
 		}
 		for _, ep := range eps {
 			if validation.IsDomainNotIP(ep.Address.GetIP()) {

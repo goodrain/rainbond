@@ -32,6 +32,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/util/portprotocol"
+
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/config/configs"
@@ -2043,6 +2045,30 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *apimode
 			if err != nil {
 				tx.Rollback()
 				return err
+			}
+			if vp.Protocol != vpD.Protocol {
+				rules, ruleErr := db.GetManager().TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(serviceID, oldPort)
+				if ruleErr != nil && ruleErr != gorm.ErrRecordNotFound {
+					tx.Rollback()
+					return ruleErr
+				}
+				for _, rule := range rules {
+					if !portprotocol.Allows(vp.Protocol, rule.Protocol) {
+						tx.Rollback()
+						return bcode.NewBadRequest("remove incompatible external mappings before changing the component protocol")
+					}
+				}
+				if vp.Protocol != "http" && vpD.IsOuterService != nil && *vpD.IsOuterService {
+					httpRules, ruleErr := db.GetManager().HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(serviceID, oldPort)
+					if ruleErr != nil && ruleErr != gorm.ErrRecordNotFound {
+						tx.Rollback()
+						return ruleErr
+					}
+					if len(httpRules) > 0 {
+						tx.Rollback()
+						return bcode.NewBadRequest("remove HTTP routes before changing the component protocol")
+					}
+				}
 			}
 			// make sure K8sServiceName is unique
 			if vp.K8sServiceName != "" {

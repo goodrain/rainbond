@@ -254,3 +254,22 @@ func TestTCPRuleDaoDeleteByRecordIDsDeletesOnlyCapturedRules(t *testing.T) {
 		t.Fatalf("expected only the new TCP rule owner to remain, got %#v", rules)
 	}
 }
+
+func TestReplaceLegacyComponentUUIDPreservesOtherMappings(t *testing.T) {
+	db := newTCPRuleTestDB(t)
+	defer db.Close()
+	dao := &TCPRuleDaoTmpl{DB: db}
+	for _, port := range []int{30010, 30020} {
+		if err := db.Create(&model.TCPRule{UUID: "component", ServiceID: "component", ContainerPort: 53, IP: "0.0.0.0", Port: port}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := dao.ReplaceByIPAndPort(&model.TCPRule{UUID: "component", ServiceID: "component", ContainerPort: 53, IP: "0.0.0.0", Port: 30030, Protocol: "tcp+udp"}); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	db.Model(&model.TCPRule{}).Count(&count)
+	if count != 3 {
+		t.Fatalf("want three independent mappings, got %d", count)
+	}
+}

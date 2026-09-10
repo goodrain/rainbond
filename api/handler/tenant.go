@@ -21,17 +21,18 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
@@ -706,6 +707,7 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 			APIVersion:    "v2",
 			IsSupport:     true,
 		},
+		{ProtocolGroup: "stream", ProtocolChild: "tcp+udp", APIVersion: "v2", IsSupport: true},
 	}, nil
 }
 

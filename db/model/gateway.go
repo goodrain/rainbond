@@ -107,6 +107,7 @@ func (HTTPRuleRewrite) TableName() string {
 
 // TCPRule contain stream rule
 type TCPRule struct {
+	Protocol string `gorm:"column:protocol;size:16;default:tcp"`
 	Model
 	UUID          string `gorm:"column:uuid"`
 	ServiceID     string `gorm:"column:service_id"`
