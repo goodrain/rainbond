@@ -548,6 +548,57 @@ func TestBuildPlatformAnnotations(t *testing.T) {
 			t.Errorf("got %q; want public", ann["cnb-bp-web-server-root"])
 		}
 	})
+
+	t.Run("static project nginx config takes precedence over generated defaults", func(t *testing.T) {
+		for _, lang := range []code.Lang{code.Static, code.Nodejs} {
+			t.Run(string(lang), func(t *testing.T) {
+				dir := t.TempDir()
+				configPath := filepath.Join(dir, "nginx.conf")
+				config := []byte("daemon off;\nevents {}\nhttp { server { listen 8080; root /workspace; } }\n")
+				if err := os.WriteFile(configPath, config, 0644); err != nil {
+					t.Fatal(err)
+				}
+				b := &Builder{}
+				re := &build.Request{Lang: lang, SourceDir: dir, BuildEnvs: map[string]string{"CNB_OUTPUT_DIR": "public"}}
+				ann := b.buildPlatformAnnotations(re)
+				for _, key := range []string{"cnb-bp-web-server", "cnb-bp-web-server-root", "cnb-bp-web-server-enable-push-state"} {
+					if value, exists := ann[key]; exists {
+						t.Errorf("project nginx.conf must suppress generated default %s=%q", key, value)
+					}
+				}
+				vol, _ := b.createPlatformVolume(ann, nil)
+				for _, source := range vol.Projected.Sources {
+					if source.DownwardAPI == nil {
+						continue
+					}
+					for _, item := range source.DownwardAPI.Items {
+						if item.Path == "env/BP_WEB_SERVER" {
+							t.Error("buildpack must not receive automatic config generation flag")
+						}
+					}
+				}
+				bps := getLanguageConfig(re).CustomOrder(re)
+				if len(bps) != 1 || bps[0].ID != "paketo-buildpacks/nginx" {
+					t.Fatalf("custom config still requires nginx buildpack, got %+v", bps)
+				}
+				got, err := os.ReadFile(configPath)
+				if err != nil || string(got) != string(config) {
+					t.Fatalf("project config changed: content=%q, err=%v", got, err)
+				}
+			})
+		}
+	})
+
+	t.Run("nginx config directory does not suppress generated defaults", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.Mkdir(filepath.Join(dir, "nginx.conf"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		ann := (&Builder{}).buildPlatformAnnotations(&build.Request{Lang: code.Static, SourceDir: dir})
+		if ann["cnb-bp-web-server"] != "nginx" || ann["cnb-bp-web-server-root"] != "." || ann["cnb-bp-web-server-enable-push-state"] != "true" {
+			t.Errorf("expected generated static defaults, got %v", ann)
+		}
+	})
 }
 
 // capability_id: rainbond.cnb.platform-volume
