@@ -185,6 +185,8 @@
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
 | rainbond.k8s-resource.crd-cascade-delete | CRD cascade deletion preserves dependency order | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition |
+| rainbond.k8s-resource.deletion-request-timeout | Kubernetes deletion requests outlive the global HTTP timeout | active | regression | pkg/interceptors.requestTimeout | pkg/interceptors/http_test.go::TestRequestTimeout |
+| rainbond.k8s-resource.deletion-timeout-final-check | Kubernetes deletion timeout performs a final live check | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace |
 | rainbond.k8s-resource.failed-delete-metadata-only | Failed resources are metadata-only during deletion | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion |
 | rainbond.k8s-resource.metadata-reconcile | Kubernetes resource metadata reconciliation | active | regression | api/handler.k8sResourceDeletionOrchestrator.Reconcile | api/handler/resource_deletion_test.go::TestK8sResourceReconcileDistinguishesMissingAndUnknown |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
@@ -2295,6 +2297,26 @@
 - 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
 - 代码路径: `api/handler/resource_deletion.go`
 - 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition`
+
+### Kubernetes deletion requests outlive the global HTTP timeout
+
+- Capability ID: `rainbond.k8s-resource.deletion-request-timeout`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/interceptors.requestTimeout`
+- 代码路径: `pkg/interceptors/http.go`
+- 测试路径: `pkg/interceptors/http_test.go::TestRequestTimeout`
+
+### Kubernetes deletion timeout performs a final live check
+
+- Capability ID: `rainbond.k8s-resource.deletion-timeout-final-check`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace`
 
 ### Failed resources are metadata-only during deletion
 

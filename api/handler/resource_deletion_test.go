@@ -135,6 +135,35 @@ func TestK8sResourceDeletionDoesNotDeleteDefinitionWhenCustomResourceDeleteFails
 	}
 }
 
+// capability_id: rainbond.k8s-resource.deletion-timeout-final-check
+func TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace(t *testing.T) {
+	orchestrator, client := newDeletionTestOrchestrator(t, newTestWidget("owned", "team-a", "app-a"))
+	orchestrator.waitInterval = 100 * time.Millisecond
+	orchestrator.waitTimeout = time.Millisecond
+
+	listCalls := 0
+	client.PrependReactor("list", "widgets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		listCalls++
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "WidgetList"})
+		if listCalls <= 2 {
+			list.Items = []unstructured.Unstructured{*newTestWidget("owned", "team-a", "app-a")}
+		}
+		return true, list, nil
+	})
+
+	result, err := orchestrator.Delete(context.Background(), newCRDDeletionRequest(false))
+	if err != nil {
+		t.Fatalf("Delete() error = %v, want final live check to confirm deletion", err)
+	}
+	if result.Status != "completed" {
+		t.Fatalf("Delete() result = %#v, want completed", result)
+	}
+	if listCalls != 3 {
+		t.Fatalf("widget list calls = %d, want build, poll, and final check", listCalls)
+	}
+}
+
 func TestK8sResourceDeletionRejectsInvalidResourceBeforeMutation(t *testing.T) {
 	orchestrator, client := newDeletionTestOrchestrator(t)
 	req := &model.K8sResourceDeletionRequest{

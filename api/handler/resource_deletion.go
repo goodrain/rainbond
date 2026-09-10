@@ -38,6 +38,8 @@ var (
 
 const appIDLabel = "app_id"
 
+const finalDeletionCheckTimeout = 3 * time.Second
+
 type k8sResourceDeletionOrchestrator struct {
 	dynamicClient dynamic.Interface
 	mapper        meta.RESTMapper
@@ -361,8 +363,17 @@ func (o *k8sResourceDeletionOrchestrator) deleteCustomResources(ctx context.Cont
 		return len(list.Items) == 0, nil
 	})
 	if err != nil {
+		finalCheckCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finalDeletionCheckTimeout)
+		defer cancel()
+		remaining, finalCheckErr := o.dynamicClient.Resource(crd.gvr).List(finalCheckCtx, metav1.ListOptions{})
+		if finalCheckErr == nil && len(remaining.Items) == 0 {
+			return nil
+		}
 		if checkErr != nil {
 			return fmt.Errorf("confirm custom resources for CRD %s: %w", crd.impact.Name, checkErr)
+		}
+		if finalCheckErr != nil {
+			return fmt.Errorf("final confirmation of custom resources for CRD %s: %w", crd.impact.Name, finalCheckErr)
 		}
 		return fmt.Errorf("%w for CRD %s custom resources: %v", ErrK8sResourceDeletionNotConfirmed, crd.impact.Name, err)
 	}

@@ -3398,6 +3398,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.k8s-resource.deletion-request-timeout",
+      "title": "Kubernetes deletion requests outlive the global HTTP timeout",
+      "title_zh": "Kubernetes deletion requests outlive the global HTTP timeout",
+      "interface_type": "workflow",
+      "interface": "pkg/interceptors.requestTimeout",
+      "code_paths": [
+        "pkg/interceptors/http.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/interceptors/http_test.go",
+          "selector": "TestRequestTimeout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.deletion-timeout-final-check",
+      "title": "Kubernetes deletion timeout performs a final live check",
+      "title_zh": "Kubernetes deletion timeout performs a final live check",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.k8s-resource.failed-delete-metadata-only",
       "title": "Failed resources are metadata-only during deletion",
       "title_zh": "Failed resources are metadata-only during deletion",
