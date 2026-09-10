@@ -85,6 +85,9 @@
 | rainbond.cnb.volume-mounts | 创建 CNB 构建卷与挂载 | active | regression | builder/build/cnb.Builder.createVolumeAndMount | builder/build/cnb/cnb_test.go::TestCreateVolumeAndMount |
 | rainbond.cnb.waiting-complete | 等待 CNB 构建任务完成状态 | active | regression | builder/build/cnb.Builder.waitingComplete | builder/build/cnb/cnb_test.go::TestWaitingComplete |
 | rainbond.component.volume-delete-blocks-shared-mount | Block deleting shared mounted component volumes | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_volume_test.go::TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume |
+| rainbond.component.volume-expansion-only-grows | Reject PVC volume shrink requests | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink |
+| rainbond.component.volume-expansion-status | Report PVC volume expansion capability and status | active | unit | api/handler.ServiceAction.GetVolumes | api/handler/service_volume_expansion_test.go::TestInspectVolumeExpansion |
+| rainbond.component.volume-expansion-updates-claims | Expand every PVC for a component volume | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_expansion_test.go::TestExpandVolumeClaims |
 | rainbond.component.volume-update-persists-capacity | 持久化组件存储容量更新 | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity |
 | rainbond.component.volume-update-preserves-capacity | 组件存储更新请求保留容量字段 | active | regression | api/model.UpdVolumeReq | api/model/volume_test.go::TestUpdVolumeReqPreservesVolumeCapacityFromJSON |
 | rainbond.compose.config-volume-file-content | 保留配置卷文件内容字段语义 | active | regression | builder/parser/types.Volume.FileContent | builder/parser/file_content_test.go::TestVolumeFileContent |
@@ -1298,6 +1301,36 @@
 - 业务入口: `api/handler.ServiceAction.VolumnVar`
 - 代码路径: `api/handler/service.go`, `db/dao/dao.go`, `db/mysql/dao/tenants.go`
 - 测试路径: `api/handler/service_volume_test.go::TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume`
+
+### Reject PVC volume shrink requests
+
+- Capability ID: `rainbond.component.volume-expansion-only-grows`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink`
+
+### Report PVC volume expansion capability and status
+
+- Capability ID: `rainbond.component.volume-expansion-status`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetVolumes`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_expansion_test.go::TestInspectVolumeExpansion`
+
+### Expand every PVC for a component volume
+
+- Capability ID: `rainbond.component.volume-expansion-updates-claims`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_expansion_test.go::TestExpandVolumeClaims`
 
 ### 持久化组件存储容量更新
 

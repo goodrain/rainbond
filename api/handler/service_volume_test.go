@@ -6,6 +6,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -165,6 +166,61 @@ func TestServiceActionUpdVolumeUpdatesVolumeCapacity(t *testing.T) {
 		t.Fatalf("expected volume path /data, got %s", volumeDao.updatedVolume.VolumePath)
 	}
 
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+// capability_id: rainbond.component.volume-expansion-only-grows
+func TestServiceActionUpdVolumeRejectsShrink(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectRollback()
+
+	volumeDao := &volumeUpdateTenantServiceVolumeDao{
+		volume: &dbmodel.TenantServiceVolume{
+			Model:          dbmodel.Model{ID: 1},
+			ServiceID:      "service-1",
+			VolumeName:     "data",
+			VolumeType:     "share-file",
+			VolumePath:     "/data",
+			VolumeCapacity: 20,
+		},
+	}
+	db.SetTestManager(volumeUpdateTestManager{tx: tx, volumeDao: volumeDao})
+	defer db.SetTestManager(nil)
+
+	volumeCapacity := int64(10)
+	err = (&ServiceAction{}).UpdVolume("service-1", &apimodel.UpdVolumeReq{
+		VolumeName:     "data",
+		VolumeType:     "share-file",
+		VolumePath:     "/data",
+		VolumeCapacity: &volumeCapacity,
+	})
+	if err == nil {
+		t.Fatal("expected shrinking a volume to fail")
+	}
+	if got := bcode.Err2Coder(err).GetStatus(); got != 400 {
+		t.Fatalf("error status = %d, want 400: %v", got, err)
+	}
+	if volumeDao.updatedVolume != nil {
+		t.Fatalf("volume was updated after rejected shrink: %#v", volumeDao.updatedVolume)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
 	}

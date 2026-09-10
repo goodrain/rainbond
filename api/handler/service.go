@@ -2521,6 +2521,24 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		tx.Rollback()
 		return err
 	}
+	if req.VolumeCapacity != nil && req.VolumeType != dbmodel.ConfigFileVolumeType.String() &&
+		*req.VolumeCapacity != v.VolumeCapacity {
+		if *req.VolumeCapacity < v.VolumeCapacity {
+			tx.Rollback()
+			return bcode.NewBadRequest("volume capacity can only be expanded, not reduced")
+		}
+		if s.kubeClient != nil {
+			service, serviceErr := dbm.TenantServiceDao().GetServiceByID(sid)
+			if serviceErr != nil {
+				tx.Rollback()
+				return serviceErr
+			}
+			if expandErr := s.expandVolumeClaims(context.Background(), service, v, *req.VolumeCapacity); expandErr != nil {
+				tx.Rollback()
+				return expandErr
+			}
+		}
+	}
 	v.VolumePath = req.VolumePath
 	if req.VolumeCapacity != nil {
 		v.VolumeCapacity = *req.VolumeCapacity
@@ -2567,6 +2585,13 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 	}
 	isMountedShareVolume := false
 	mountStatus := pb.ServiceVolumeStatus_NOT_READY.String()
+	var service *dbmodel.TenantServices
+	if s.kubeClient != nil {
+		service, err = s.getDBManager().TenantServiceDao().GetServiceByID(serviceID)
+		if err != nil {
+			logrus.Warnf("get service for volume expansion status error: %s", err.Error())
+		}
+	}
 	for _, volume := range vs {
 		vws := &apimodel.VolumeWithStatusStruct{
 			ServiceID:          volume.ServiceID,
@@ -2584,6 +2609,22 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 			AllowExpansion:     volume.AllowExpansion,
 			VolumeProviderName: volume.VolumeProviderName,
 			Mode:               volume.Mode,
+		}
+		if service != nil {
+			expansion, _, inspectErr := s.inspectVolumeExpansion(context.Background(), service, volume)
+			if inspectErr != nil {
+				vws.AllowExpansion = false
+				vws.ExpansionStatus = volumeExpansionFailed
+				vws.ExpansionMessage = inspectErr.Error()
+				logrus.Warnf("inspect volume %s expansion status error: %s", volume.VolumeName, inspectErr.Error())
+			} else {
+				vws.AllowExpansion = expansion.AllowExpansion
+				vws.ActualCapacity = expansion.ActualCapacity
+				vws.RequestedCapacity = expansion.RequestedCapacity
+				vws.ExpansionStatus = expansion.Status
+				vws.ExpansionMessage = expansion.Message
+				vws.PVCCount = expansion.PVCCount
+			}
 		}
 		volumeID := strconv.FormatInt(int64(volume.ID), 10)
 		if phrase, ok := volumeStatus[volumeID]; ok {

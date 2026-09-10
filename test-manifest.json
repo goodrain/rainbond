@@ -1501,6 +1501,63 @@
       "status": "active"
     },
     {
+      "id": "rainbond.component.volume-expansion-only-grows",
+      "title": "Reject PVC volume shrink requests",
+      "title_zh": "Reject PVC volume shrink requests",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumeRejectsShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-status",
+      "title": "Report PVC volume expansion capability and status",
+      "title_zh": "Report PVC volume expansion capability and status",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVolumes",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_expansion_test.go",
+          "selector": "TestInspectVolumeExpansion"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-updates-claims",
+      "title": "Expand every PVC for a component volume",
+      "title_zh": "Expand every PVC for a component volume",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_expansion_test.go",
+          "selector": "TestExpandVolumeClaims"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.component.volume-update-persists-capacity",
       "title": "Persist component volume capacity updates",
       "title_zh": "\u6301\u4e45\u5316\u7ec4\u4ef6\u5b58\u50a8\u5bb9\u91cf\u66f4\u65b0",
