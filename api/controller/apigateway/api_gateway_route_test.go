@@ -720,7 +720,7 @@ func TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner(t *testing.T) 
 	}
 }
 
-func createTCPRouteForTest(t *testing.T, namespace, tenantID, serviceID, serviceName string, nodePort int32) *httptest.ResponseRecorder {
+func createTCPRouteForTest(t *testing.T, namespace, tenantID, serviceID, serviceName string, nodePort int32, protocols ...string) *httptest.ResponseRecorder {
 	t.Helper()
 	streamRoute := v2.ApisixRouteStream{
 		Name:     "tcp",
@@ -732,6 +732,9 @@ func createTCPRouteForTest(t *testing.T, namespace, tenantID, serviceID, service
 			ServiceName: serviceName,
 			ServicePort: intstr.FromInt(9090),
 		},
+	}
+	if len(protocols) > 0 {
+		streamRoute.Protocol = protocols[0]
 	}
 	body, err := json.Marshal(streamRoute)
 	if err != nil {
@@ -1423,4 +1426,30 @@ func TestCreateMixedRouteAndEditPreservesNodePort(t *testing.T) {
 		t.Fatal("duplicate create must not overwrite mapping")
 	}
 
+}
+
+func TestCreateStreamRouteAcceptsLegacyConsoleAlias(t *testing.T) {
+	for _, protocol := range []string{"tcp", "udp", "tcp+udp"} {
+		t.Run(protocol, func(t *testing.T) {
+			services := map[string]*corev1.Service{}
+			clientset, closeServer := newTCPRouteTestClientset(t, services)
+			defer closeServer()
+			k8s.New().Clientset = clientset
+			db.SetTestManager(tcpRouteTestManager{
+				tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+					"component": {ServiceID: "component", TenantID: "tenant", ServiceAlias: "grf9ce55"},
+				}},
+				tcpRuleDao: &tcpRouteRuleDao{},
+			})
+			defer db.SetTestManager(nil)
+			response := createTCPRouteForTest(t, "default", "tenant", "component", "grf9ce55", 30000, protocol)
+			if response.Code != http.StatusOK {
+				t.Fatalf("legacy %s request failed: %d %s", protocol, response.Code, response.Body.String())
+			}
+			service := services["grf9ce55-30000"]
+			if service == nil || service.Spec.Selector["service_alias"] != "grf9ce55" {
+				t.Fatalf("legacy request lost its component selector: %#v", service)
+			}
+		})
+	}
 }

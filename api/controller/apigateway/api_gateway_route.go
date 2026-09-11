@@ -542,7 +542,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			if resolvedServiceID == "" {
 				resolvedServiceID = backendService.Labels["service_id"]
 			}
-		} else if protocol != "tcp" || r.URL.Query().Get("action") == "create" || routeName != "" {
+		} else if r.URL.Query().Get("action") == "create" || routeName != "" {
 			httputil.ReturnError(r, w, 400, "backend service is unavailable for protocol validation")
 			return
 		} else if !errors.IsNotFound(err) {
