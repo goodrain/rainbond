@@ -1,6 +1,7 @@
 package conversion
 
 import (
+	"fmt"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -36,16 +37,22 @@ func TestMixedInternalAndHeadlessPorts(t *testing.T) {
 
 func TestRestoreThreeIndependentMappingProtocols(t *testing.T) {
 	as := &appv1.AppService{}
-	as.ServiceAlias = "dns"
+	as.ServiceAlias = "grf9ce55"
 	as.SetTenant(&corev1.Namespace{})
-	builder := &AppServiceBuild{service: &model.TenantServices{ServiceAlias: "dns"}, appService: as}
-	port := &model.TenantServicesPort{ContainerPort: 53, Protocol: "tcp+udp", K8sServiceName: "dns"}
+	builder := &AppServiceBuild{service: &model.TenantServices{ServiceAlias: as.ServiceAlias}, appService: as}
+	port := &model.TenantServicesPort{ContainerPort: 53, Protocol: "tcp+udp", K8sServiceName: "demo-2048"}
 	for _, tc := range []struct {
 		port     int
 		protocol string
 		count    int
 	}{{30010, "tcp", 1}, {30020, "udp", 1}, {30030, "tcp+udp", 2}} {
 		svc := builder.nodePortService(as, port, &model.TCPRule{ContainerPort: 53, Port: tc.port, Protocol: tc.protocol})
+		if want := fmt.Sprintf("demo-2048-%d", tc.port); svc.Name != want {
+			t.Fatalf("expected configured service name %q, got %q", want, svc.Name)
+		}
+		if svc.Spec.Selector["service_alias"] != "grf9ce55" {
+			t.Fatalf("naming must not change the pod selector: %#v", svc.Spec.Selector)
+		}
 		if len(svc.Spec.Ports) != tc.count {
 			t.Fatalf("wrong transport count: %#v", svc.Spec.Ports)
 		}
@@ -57,5 +64,17 @@ func TestRestoreThreeIndependentMappingProtocols(t *testing.T) {
 		if tc.protocol == "udp" && svc.Spec.Ports[0].Protocol != corev1.ProtocolUDP {
 			t.Fatal("restored UDP as TCP")
 		}
+	}
+}
+
+func TestNodePortServiceNameFallsBackToLegacyAlias(t *testing.T) {
+	as := &appv1.AppService{}
+	as.ServiceAlias = "grf9ce55"
+	as.SetTenant(&corev1.Namespace{})
+	builder := &AppServiceBuild{service: &model.TenantServices{ServiceAlias: as.ServiceAlias}, appService: as}
+	service := builder.nodePortService(as, &model.TenantServicesPort{ContainerPort: 8081},
+		&model.TCPRule{ContainerPort: 8081, Port: 30001, Protocol: "udp"})
+	if service.Name != "grf9ce55-30001" {
+		t.Fatalf("legacy port without a configured service name lost its alias: %s", service.Name)
 	}
 }

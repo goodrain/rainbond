@@ -515,7 +515,7 @@ func (a *AppServiceBuild) generateOuterDomain(as *v1.AppService, port *model.Ten
 			if found {
 				continue
 			}
-			name := fmt.Sprintf("%s-%d", as.ServiceAlias, rule.Port)
+			name := nodePortServiceName(as.ServiceAlias, port.K8sServiceName, rule.Port)
 			if err := a.reassignTCPRuleNodePort(as.GetNamespace(), name, rule); err != nil {
 				logrus.Errorf("reassign node port: %v", err)
 				continue
@@ -611,9 +611,16 @@ func selectAvailableNodePort(usedPorts map[int]struct{}) int {
 	return 0
 }
 
+func nodePortServiceName(serviceAlias, k8sServiceName string, nodePort int) string {
+	if k8sServiceName == "" {
+		k8sServiceName = serviceAlias
+	}
+	return fmt.Sprintf("%s-%d", k8sServiceName, nodePort)
+}
+
 // nodePortService restores one mapping; multiple transports belong to the same Service.
 func (a *AppServiceBuild) nodePortService(as *v1.AppService, port *model.TenantServicesPort, rule *model.TCPRule) *corev1.Service {
-	name := fmt.Sprintf("%s-%d", as.ServiceAlias, rule.Port)
+	name := nodePortServiceName(as.ServiceAlias, port.K8sServiceName, rule.Port)
 	spec := corev1.ServiceSpec{
 		Type:                  corev1.ServiceTypeNodePort,
 		ExternalTrafficPolicy: outerServiceExternalTrafficPolicy(a.service),
