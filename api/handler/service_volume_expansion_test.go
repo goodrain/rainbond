@@ -22,6 +22,12 @@ func expansionStorageClass(name string, allowed bool) *storagev1.StorageClass {
 	}
 }
 
+func expansionStorageClassWithProvisioner(name string, allowed bool, provisioner string) *storagev1.StorageClass {
+	storageClass := expansionStorageClass(name, allowed)
+	storageClass.Provisioner = provisioner
+	return storageClass
+}
+
 func expansionPVC(namespace, name, serviceID, volumeName, storageClass, requested, actual string,
 	conditions ...corev1.PersistentVolumeClaimConditionType,
 ) *corev1.PersistentVolumeClaim {
@@ -64,15 +70,16 @@ func TestInspectVolumeExpansion(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		service       *dbmodel.TenantServices
-		volume        *dbmodel.TenantServiceVolume
-		objects       []runtime.Object
-		wantStatus    string
-		wantAllowed   bool
-		wantActual    int64
-		wantRequested int64
-		wantPVCCount  int
+		name                       string
+		service                    *dbmodel.TenantServices
+		volume                     *dbmodel.TenantServiceVolume
+		objects                    []runtime.Object
+		wantStatus                 string
+		wantAllowed                bool
+		wantActual                 int64
+		wantRequested              int64
+		wantPVCCount               int
+		resolveTenantNamespaceHook func(string) (string, error)
 	}{
 		{
 			name:    "stateful claims are aggregated",
@@ -101,6 +108,26 @@ func TestInspectVolumeExpansion(t *testing.T) {
 			wantAllowed:   true,
 			wantActual:    20,
 			wantRequested: 30,
+			wantPVCCount:  1,
+		},
+		{
+			name:    "stored target ahead of PVC request is pending",
+			service: service,
+			volume: &dbmodel.TenantServiceVolume{
+				Model:          dbmodel.Model{ID: 7},
+				ServiceID:      service.ServiceID,
+				VolumeName:     "data",
+				VolumeType:     "fast",
+				VolumeCapacity: 30,
+			},
+			objects: []runtime.Object{
+				expansionStorageClass("fast", true),
+				expansionPVC("tenant-ns", "manual7", "service-1", "data", "fast", "10Gi", "10Gi"),
+			},
+			wantStatus:    "pending",
+			wantAllowed:   true,
+			wantActual:    10,
+			wantRequested: 10,
 			wantPVCCount:  1,
 		},
 		{
@@ -135,6 +162,22 @@ func TestInspectVolumeExpansion(t *testing.T) {
 			wantPVCCount:  1,
 		},
 		{
+			name:    "nfs subdir provisioner cannot expand volumes",
+			service: service,
+			volume:  volume,
+			objects: []runtime.Object{
+				expansionStorageClassWithProvisioner(
+					"fast", true, "cluster.local/nfs-subdir-external-provisioner",
+				),
+				expansionPVC("tenant-ns", "manual7", "service-1", "data", "fast", "20Gi", "20Gi"),
+			},
+			wantStatus:    volumeExpansionUnsupported,
+			wantAllowed:   false,
+			wantActual:    20,
+			wantRequested: 20,
+			wantPVCCount:  1,
+		},
+		{
 			name:          "not yet deployed PVC can change desired capacity",
 			service:       service,
 			volume:        volume,
@@ -143,6 +186,27 @@ func TestInspectVolumeExpansion(t *testing.T) {
 			wantActual:    0,
 			wantRequested: 0,
 			wantPVCCount:  0,
+		},
+		{
+			name: "image namespace does not shadow tenant namespace",
+			service: &dbmodel.TenantServices{
+				TenantID:  "tenant-uuid",
+				ServiceID: "service-1",
+				Namespace: "goodrain",
+			},
+			volume: volume,
+			objects: []runtime.Object{
+				expansionStorageClass("fast", true),
+				expansionPVC("default", "manual7", "service-1", "data", "fast", "20Gi", "20Gi"),
+			},
+			wantStatus:    volumeExpansionReady,
+			wantAllowed:   true,
+			wantActual:    20,
+			wantRequested: 20,
+			wantPVCCount:  1,
+			resolveTenantNamespaceHook: func(tenantID string) (string, error) {
+				return "default", nil
+			},
 		},
 		{
 			name: "virtual machine guest disks are not supported",
@@ -160,7 +224,10 @@ func TestInspectVolumeExpansion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			action := &ServiceAction{kubeClient: fake.NewSimpleClientset(tt.objects...)}
+			action := &ServiceAction{
+				kubeClient:                 fake.NewSimpleClientset(tt.objects...),
+				resolveTenantNamespaceHook: tt.resolveTenantNamespaceHook,
+			}
 			got, _, err := action.inspectVolumeExpansion(context.Background(), tt.service, tt.volume)
 			if err != nil {
 				t.Fatalf("inspect volume expansion: %v", err)
@@ -171,41 +238,6 @@ func TestInspectVolumeExpansion(t *testing.T) {
 				t.Fatalf("unexpected runtime: %#v", got)
 			}
 		})
-	}
-}
-
-func TestInspectVolumeExpansionResolvesTenantNamespace(t *testing.T) {
-	service := &dbmodel.TenantServices{
-		TenantID:  "tenant-uuid",
-		ServiceID: "service-1",
-		Namespace: "tenant-uuid",
-	}
-	volume := &dbmodel.TenantServiceVolume{
-		Model:          dbmodel.Model{ID: 7},
-		ServiceID:      service.ServiceID,
-		VolumeName:     "data",
-		VolumeType:     "fast",
-		VolumeCapacity: 20,
-	}
-	action := &ServiceAction{
-		kubeClient: fake.NewSimpleClientset(
-			expansionStorageClass("fast", true),
-			expansionPVC("tenant-ns", "manual7", "service-1", "data", "fast", "20Gi", "20Gi"),
-		),
-		resolveTenantNamespaceHook: func(tenantID string) (string, error) {
-			if tenantID != "tenant-uuid" {
-				t.Fatalf("tenant ID = %q, want tenant-uuid", tenantID)
-			}
-			return "tenant-ns", nil
-		},
-	}
-
-	got, claims, err := action.inspectVolumeExpansion(context.Background(), service, volume)
-	if err != nil {
-		t.Fatalf("inspect volume expansion: %v", err)
-	}
-	if got.Status != volumeExpansionReady || len(claims) != 1 || claims[0].Namespace != "tenant-ns" {
-		t.Fatalf("unexpected resolved runtime or claims: %#v, %#v", got, claims)
 	}
 }
 

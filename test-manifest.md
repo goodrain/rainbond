@@ -86,6 +86,7 @@
 | rainbond.cnb.waiting-complete | 等待 CNB 构建任务完成状态 | active | regression | builder/build/cnb.Builder.waitingComplete | builder/build/cnb/cnb_test.go::TestWaitingComplete |
 | rainbond.component.volume-delete-blocks-shared-mount | Block deleting shared mounted component volumes | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_volume_test.go::TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume |
 | rainbond.component.volume-expansion-only-grows | Reject PVC volume shrink requests | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink |
+| rainbond.component.volume-expansion-reconciles-drift | Reconcile PVC request with stored volume capacity | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeReconcilesStoredCapacity |
 | rainbond.component.volume-expansion-status | Report PVC volume expansion capability and status | active | unit | api/handler.ServiceAction.GetVolumes | api/handler/service_volume_expansion_test.go::TestInspectVolumeExpansion |
 | rainbond.component.volume-expansion-updates-claims | Expand every PVC for a component volume | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_expansion_test.go::TestExpandVolumeClaims |
 | rainbond.component.volume-update-persists-capacity | 持久化组件存储容量更新 | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity |
@@ -1311,6 +1312,16 @@
 - 业务入口: `api/handler.ServiceAction.UpdVolume`
 - 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
 - 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink`
+
+### Reconcile PVC request with stored volume capacity
+
+- Capability ID: `rainbond.component.volume-expansion-reconciles-drift`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeReconcilesStoredCapacity`
 
 ### Report PVC volume expansion capability and status
 

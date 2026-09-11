@@ -2521,8 +2521,7 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		tx.Rollback()
 		return err
 	}
-	if req.VolumeCapacity != nil && req.VolumeType != dbmodel.ConfigFileVolumeType.String() &&
-		*req.VolumeCapacity != v.VolumeCapacity {
+	if req.VolumeCapacity != nil && req.VolumeType != dbmodel.ConfigFileVolumeType.String() {
 		if *req.VolumeCapacity < v.VolumeCapacity {
 			tx.Rollback()
 			return bcode.NewBadRequest("volume capacity can only be expanded, not reduced")

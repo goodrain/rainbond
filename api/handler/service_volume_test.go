@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -11,12 +12,16 @@ import (
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 type volumeUpdateTestManager struct {
 	db.Manager
-	tx        *gorm.DB
-	volumeDao dbdao.TenantServiceVolumeDao
+	tx         *gorm.DB
+	volumeDao  dbdao.TenantServiceVolumeDao
+	serviceDao dbdao.TenantServiceDao
 }
 
 func (m volumeUpdateTestManager) Begin() *gorm.DB {
@@ -25,6 +30,19 @@ func (m volumeUpdateTestManager) Begin() *gorm.DB {
 
 func (m volumeUpdateTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
 	return m.volumeDao
+}
+
+func (m volumeUpdateTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
+}
+
+type volumeUpdateTenantServiceDao struct {
+	dbdao.TenantServiceDao
+	service *dbmodel.TenantServices
+}
+
+func (d *volumeUpdateTenantServiceDao) GetServiceByID(string) (*dbmodel.TenantServices, error) {
+	return d.service, nil
 }
 
 type volumeUpdateTenantServiceVolumeDao struct {
@@ -139,7 +157,13 @@ func TestServiceActionUpdVolumeUpdatesVolumeCapacity(t *testing.T) {
 			VolumeCapacity: 10,
 		},
 	}
-	db.SetTestManager(volumeUpdateTestManager{tx: tx, volumeDao: volumeDao})
+	db.SetTestManager(volumeUpdateTestManager{
+		tx:        tx,
+		volumeDao: volumeDao,
+		serviceDao: &volumeUpdateTenantServiceDao{service: &dbmodel.TenantServices{
+			ServiceID: "service-1",
+		}},
+	})
 	defer db.SetTestManager(nil)
 
 	volumeCapacity := int64(20)
@@ -168,6 +192,79 @@ func TestServiceActionUpdVolumeUpdatesVolumeCapacity(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+// capability_id: rainbond.component.volume-expansion-reconciles-drift
+func TestServiceActionUpdVolumeReconcilesStoredCapacity(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create sqlmock: %v", err)
+	}
+	defer sqlDB.Close()
+
+	gdb, err := gorm.Open("mysql", sqlDB)
+	if err != nil {
+		t.Fatalf("open gorm db: %v", err)
+	}
+	defer gdb.Close()
+
+	mock.ExpectBegin()
+	tx := gdb.Begin()
+	if err := tx.Error; err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	mock.ExpectCommit()
+
+	service := &dbmodel.TenantServices{
+		TenantID:  "tenant-uuid",
+		ServiceID: "service-1",
+		Namespace: "goodrain",
+	}
+	volumeDao := &volumeUpdateTenantServiceVolumeDao{volume: &dbmodel.TenantServiceVolume{
+		Model:          dbmodel.Model{ID: 1},
+		ServiceID:      service.ServiceID,
+		VolumeName:     "data",
+		VolumeType:     "fast",
+		VolumePath:     "/data",
+		VolumeCapacity: 20,
+	}}
+	manager := volumeUpdateTestManager{
+		tx:         tx,
+		volumeDao:  volumeDao,
+		serviceDao: &volumeUpdateTenantServiceDao{service: service},
+	}
+	client := fake.NewSimpleClientset(
+		expansionStorageClass("fast", true),
+		expansionPVC("default", "manual1", "service-1", "data", "fast", "10Gi", "10Gi"),
+	)
+	action := &ServiceAction{
+		dbmanager:  manager,
+		kubeClient: client,
+		resolveTenantNamespaceHook: func(string) (string, error) {
+			return "default", nil
+		},
+	}
+	targetCapacity := int64(20)
+
+	if err := action.UpdVolume("service-1", &apimodel.UpdVolumeReq{
+		VolumeName:     "data",
+		VolumeType:     "fast",
+		VolumePath:     "/data",
+		VolumeCapacity: &targetCapacity,
+	}); err != nil {
+		t.Fatalf("update volume: %v", err)
+	}
+	pvc, err := client.CoreV1().PersistentVolumeClaims("default").Get(
+		context.Background(), "manual1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("get PVC: %v", err)
+	}
+	if got := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; got.String() != "20Gi" {
+		t.Fatalf("PVC request = %s, want 20Gi", got.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
 	}
 }
 

@@ -1520,6 +1520,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.component.volume-expansion-reconciles-drift",
+      "title": "Reconcile PVC request with stored volume capacity",
+      "title_zh": "Reconcile PVC request with stored volume capacity",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumeReconcilesStoredCapacity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.component.volume-expansion-status",
       "title": "Report PVC volume expansion capability and status",
       "title_zh": "Report PVC volume expansion capability and status",

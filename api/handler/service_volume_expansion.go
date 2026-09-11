@@ -20,6 +20,7 @@ import (
 const (
 	volumeExpansionUnsupported             = "unsupported"
 	volumeExpansionUnbound                 = "unbound"
+	volumeExpansionPending                 = "pending"
 	volumeExpansionReady                   = "ready"
 	volumeExpansionResizing                = "resizing"
 	volumeExpansionFileSystemResizePending = "filesystem_resize_pending"
@@ -74,6 +75,12 @@ func capacityInGi(quantity resource.Quantity) int64 {
 		return 0
 	}
 	return (value + gibibyte - 1) / gibibyte
+}
+
+func unsupportedExpansionProvisioner(provisioner string) bool {
+	provisioner = strings.ToLower(strings.TrimSpace(provisioner))
+	return strings.Contains(provisioner, "nfs-subdir-external-provisioner") ||
+		strings.Contains(provisioner, "nfs-client-provisioner")
 }
 
 func expansionCondition(pvc *corev1.PersistentVolumeClaim) (status, message string) {
@@ -171,6 +178,13 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 				}
 				return runtimeStatus, claims, fmt.Errorf("get StorageClass %s: %w", className, getErr)
 			}
+			if unsupportedExpansionProvisioner(storageClass.Provisioner) {
+				runtimeStatus.Message = fmt.Sprintf(
+					"StorageClass %s uses an NFS subdir provisioner that does not support volume expansion", className,
+				)
+				runtimeStatus.ActualCapacity = normalizedActualCapacity(runtimeStatus.ActualCapacity)
+				return runtimeStatus, claims, nil
+			}
 			allowed = storageClass.AllowVolumeExpansion != nil && *storageClass.AllowVolumeExpansion
 			classCache[className] = allowed
 		}
@@ -196,6 +210,9 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 		runtimeStatus.Message = conditionMessage
 	} else if runtimeStatus.ActualCapacity < runtimeStatus.RequestedCapacity {
 		runtimeStatus.Status = volumeExpansionResizing
+	} else if volume.VolumeCapacity > runtimeStatus.RequestedCapacity {
+		runtimeStatus.Status = volumeExpansionPending
+		runtimeStatus.Message = "desired capacity has not been applied to the PersistentVolumeClaim"
 	}
 	return runtimeStatus, claims, nil
 }
@@ -211,15 +228,17 @@ func (s *ServiceAction) resolveVolumeExpansionNamespace(service *dbmodel.TenantS
 	if service == nil {
 		return "", nil
 	}
-	tenantNamespace := ""
-	if (service.Namespace == "" || service.Namespace == service.TenantID) && s.resolveTenantNamespaceHook != nil {
-		var err error
-		tenantNamespace, err = s.resolveTenantNamespaceHook(service.TenantID)
+	if service.TenantID != "" {
+		if s.resolveTenantNamespaceHook == nil {
+			return "", nil
+		}
+		tenantNamespace, err := s.resolveTenantNamespaceHook(service.TenantID)
 		if err != nil {
 			return "", fmt.Errorf("resolve tenant namespace: %w", err)
 		}
+		return tenantNamespace, nil
 	}
-	return resolvePodMetricsNamespace(service.Namespace, service.TenantID, tenantNamespace), nil
+	return service.Namespace, nil
 }
 
 func (s *ServiceAction) expandVolumeClaims(ctx context.Context, service *dbmodel.TenantServices,
@@ -230,9 +249,6 @@ func (s *ServiceAction) expandVolumeClaims(ctx context.Context, service *dbmodel
 	}
 	if targetGi < volume.VolumeCapacity {
 		return bcode.NewBadRequest("volume capacity can only be expanded, not reduced")
-	}
-	if targetGi == volume.VolumeCapacity {
-		return nil
 	}
 	if reason := unsupportedVolumeExpansionReason(service, volume); reason != "" {
 		return bcode.NewBadRequest(reason)
