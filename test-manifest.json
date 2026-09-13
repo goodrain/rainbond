@@ -1577,6 +1577,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.component.volume-path-update-without-expansion",
+      "title": "Path edits with unchanged capacity do not require PVC expansion support",
+      "title_zh": "Path edits with unchanged capacity do not require PVC expansion support",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumePathDoesNotRequireExpansion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.component.volume-update-persists-capacity",
       "title": "Persist component volume capacity updates",
       "title_zh": "\u6301\u4e45\u5316\u7ec4\u4ef6\u5b58\u50a8\u5bb9\u91cf\u66f4\u65b0",
@@ -8499,6 +8517,41 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestShouldTrackNodePortService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.store.stateful-volume-capacity-reconciliation",
+      "title": "New StatefulSet claims converge to stored capacity without recreating workloads",
+      "title_zh": "New StatefulSet claims converge to stored capacity without recreating workloads",
+      "interface_type": "workflow",
+      "interface": "appRuntimeStore.OnAdd",
+      "code_paths": [
+        "worker/appm/store/store.go",
+        "worker/appm/store/volume_expansion.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionOnClaimEvents"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionRetriesAfterDatabaseCommit"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionRetriesFailuresAndConflicts"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionSkipsUnsupportedOrForeignClaims"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionAcceptsManualVolumeLabel"
         }
       ],
       "test_type": "regression",

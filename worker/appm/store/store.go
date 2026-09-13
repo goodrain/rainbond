@@ -21,6 +21,13 @@ package store
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	model2 "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -28,12 +35,6 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
@@ -67,6 +68,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -138,6 +140,7 @@ type Event struct {
 // cache all kubernetes object and appservice
 type appRuntimeStore struct {
 	k8sClient              *k8s.Component
+	volumeExpansionClient  kubernetes.Interface
 	confClient             *configs.Config
 	crdClient              *internalclientset.Clientset
 	crClients              map[string]interface{}
@@ -177,6 +180,7 @@ func NewStore(dbmanager db.Manager) Storer {
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
 	}
+	store.volumeExpansionClient = store.k8sClient.Clientset
 	store.syncImagePullSecret = store.createOrUpdateImagePullSecret
 	crdClient, err := internalclientset.NewForConfig(store.k8sClient.RestConfig)
 	if err != nil {
@@ -342,7 +346,8 @@ func NewStore(dbmanager db.Manager) Storer {
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, 0)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, 0)
-	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, 0)
+	// Retry capacity reconciliation even when the database commit follows the PVC event.
+	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, 5*time.Minute)
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), 0)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, 0)
 	store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, 0)
@@ -774,6 +779,9 @@ func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 				a.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				if err := a.reconcileStatefulVolumeClaim(a.ctx, claim); err != nil {
+					logrus.Warnf("reconcile StatefulSet volume capacity for %s/%s: %v", claim.Namespace, claim.Name, err)
+				}
 				appservice.SetClaim(claim)
 				return
 			}

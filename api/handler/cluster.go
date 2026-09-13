@@ -1100,6 +1100,7 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 	return plugins, nil
 }
 
+// ComponentRainbondOperator and related constants identify workloads checked during platform upgrades.
 const (
 	ComponentRainbondOperator = "rainbond-operator" // deployment
 	ComponentRBDAPI           = "rbd-api"           // deployment

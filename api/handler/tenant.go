@@ -21,17 +21,18 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
@@ -894,6 +895,7 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 	return nil
 }
 
+// ConvertMemory formats memory in Mi or whole Gi units.
 func ConvertMemory(memory int) string {
 	if memory >= 1024 {
 		return fmt.Sprintf("%vGi", memory/1024)
@@ -901,6 +903,7 @@ func ConvertMemory(memory int) string {
 	return fmt.Sprintf("%vMi", memory)
 }
 
+// ConvertCPU formats millicores as milliCPU or whole CPU units.
 func ConvertCPU(cpu int) string {
 	if cpu >= 1000 {
 		return fmt.Sprintf("%v", strconv.Itoa(cpu/1000))
@@ -908,10 +911,12 @@ func ConvertCPU(cpu int) string {
 	return fmt.Sprintf("%vm", cpu)
 }
 
+// ConvertStorage formats storage capacity in Gi units.
 func ConvertStorage(storage int) string {
 	return fmt.Sprintf("%vGi", strconv.Itoa(storage))
 }
 
+// CheckTenantResourceQuotaAndLimitRange checks that default resource limits fit within remaining tenant quotas.
 func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context, namespace string, noMemory, noCPU int) error {
 	quotas, err := t.kubeClient.CoreV1().ResourceQuotas(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-quota"), metav1.GetOptions{})
 	if err != nil {
@@ -920,12 +925,12 @@ func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context
 		}
 		return errors.Wrap(err, "get tenant limit range failure")
 	}
-	hardCpu := quotas.Status.Hard["limits.cpu"]
-	userCpu := quotas.Status.Used["limits.cpu"]
+	hardCPU := quotas.Status.Hard["limits.cpu"]
+	userCPU := quotas.Status.Used["limits.cpu"]
 	hardMemory := quotas.Status.Hard["limits.memory"]
 	userMemory := quotas.Status.Used["limits.memory"]
 
-	surplusCPU := ConvertCpuToInt(hardCpu.String()) - ConvertCpuToInt(userCpu.String())
+	surplusCPU := ConvertCPUToInt(hardCPU.String()) - ConvertCPUToInt(userCPU.String())
 	surplusMemory := hardMemory.Value() - userMemory.Value()
 	limitRanges, err := t.kubeClient.CoreV1().LimitRanges(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-range"), metav1.GetOptions{})
 	if err != nil {
@@ -934,13 +939,13 @@ func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context
 		}
 		return errors.Wrap(err, "get tenant limit range failure")
 	}
-	var defaultCpu, defaultMemory int64
+	var defaultCPU, defaultMemory int64
 	for _, limit := range limitRanges.Spec.Limits {
 		cpu := limit.Default["cpu"]
-		defaultCpu = ConvertCpuToInt(cpu.String())
+		defaultCPU = ConvertCPUToInt(cpu.String())
 		defaultMemory = limit.Default.Memory().Value()
 	}
-	if ConvertCpuToInt(hardCpu.String()) > 0 && int64(noCPU)*defaultCpu > surplusCPU {
+	if ConvertCPUToInt(hardCPU.String()) > 0 && int64(noCPU)*defaultCPU > surplusCPU {
 		return errors.New(constants.TenantQuotaCPULack)
 	}
 	if hardMemory.Value() > 0 && int64(noMemory)*defaultMemory > surplusMemory {
@@ -949,7 +954,8 @@ func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context
 	return nil
 }
 
-func ConvertCpuToInt(cpu string) int64 {
+// ConvertCPUToInt converts an integer or milliCPU quantity to millicores.
+func ConvertCPUToInt(cpu string) int64 {
 	var res int64
 	if strings.Contains(cpu, "m") {
 		s := strings.TrimRight(cpu, "m")

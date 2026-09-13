@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 type volumeUpdateTestManager struct {
@@ -192,6 +193,93 @@ func TestServiceActionUpdVolumeUpdatesVolumeCapacity(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}
+
+// capability_id: rainbond.component.volume-path-update-without-expansion
+func TestServiceActionUpdVolumePathDoesNotRequireExpansion(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		volumeType    string
+		extendMethod  string
+		enableSubpath string
+	}{
+		{name: "non-expandable StorageClass", volumeType: "fixed"},
+		{name: "memory filesystem", volumeType: dbmodel.MemoryFSVolumeType.String()},
+		{name: "virtual machine", volumeType: "fixed", extendMethod: "vm"},
+		{name: "shared subpath", volumeType: dbmodel.ShareFileVolumeType.String(), enableSubpath: "true"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ENABLE_SUBPATH", test.enableSubpath)
+			sqlDB, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("create sqlmock: %v", err)
+			}
+			defer sqlDB.Close()
+			gdb, err := gorm.Open("mysql", sqlDB)
+			if err != nil {
+				t.Fatalf("open gorm db: %v", err)
+			}
+			defer gdb.Close()
+			mock.ExpectBegin()
+			tx := gdb.Begin()
+			if err := tx.Error; err != nil {
+				t.Fatalf("begin tx: %v", err)
+			}
+			mock.ExpectCommit()
+
+			capacity := int64(20)
+			volumeDao := &volumeUpdateTenantServiceVolumeDao{volume: &dbmodel.TenantServiceVolume{
+				Model:          dbmodel.Model{ID: 7},
+				ServiceID:      "service-1",
+				VolumeName:     "data",
+				VolumeType:     test.volumeType,
+				VolumePath:     "/data",
+				VolumeCapacity: capacity,
+			}}
+			client := fake.NewSimpleClientset(
+				expansionStorageClass("fixed", false),
+				expansionPVC("tenant-ns", "manual7", "service-1", "data", "fixed", "20Gi", "20Gi"),
+			)
+			queriedVMServiceID := ""
+			action := &ServiceAction{
+				dbmanager: volumeUpdateTestManager{
+					tx:        tx,
+					volumeDao: volumeDao,
+					serviceDao: &volumeUpdateTenantServiceDao{service: &dbmodel.TenantServices{
+						ServiceID:    "service-1",
+						Namespace:    "tenant-ns",
+						ExtendMethod: test.extendMethod,
+					}},
+				},
+				kubeClient: client,
+				getVirtualMachineByServiceIDHook: func(serviceID string) (*kubevirtv1.VirtualMachine, error) {
+					queriedVMServiceID = serviceID
+					return nil, nil
+				},
+			}
+			if err := action.UpdVolume("service-1", &apimodel.UpdVolumeReq{
+				VolumeName:     "data",
+				VolumeType:     test.volumeType,
+				VolumePath:     "/new-data",
+				VolumeCapacity: &capacity,
+			}); err != nil {
+				t.Fatalf("path update with unchanged capacity should succeed: %v", err)
+			}
+			if volumeDao.updatedVolume == nil || volumeDao.updatedVolume.VolumePath != "/new-data" ||
+				volumeDao.updatedVolume.VolumeCapacity != capacity {
+				t.Fatalf("expected new path and unchanged capacity, got %#v", volumeDao.updatedVolume)
+			}
+			if len(client.Actions()) != 0 {
+				t.Fatalf("path update should not inspect or expand PVCs, got %v", client.Actions())
+			}
+			if test.extendMethod == "vm" && queriedVMServiceID != "service-1" {
+				t.Fatalf("expected existing VM sync to query service-1, got %q", queriedVMServiceID)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatalf("unmet SQL expectations: %v", err)
+			}
+		})
 	}
 }
 

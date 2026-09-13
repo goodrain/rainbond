@@ -22,6 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
@@ -34,14 +42,7 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"io"
 	"k8s.io/apimachinery/pkg/types"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -751,6 +752,7 @@ func copyDirectory(srcDir, dstDir string) error {
 	return err
 }
 
+// GetRegionStatus returns the region status after validating the Helm request.
 func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token != os.Getenv("HELM_TOKEN") {
@@ -765,6 +767,7 @@ func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, regionInfo)
 }
 
+// SetOverScore updates the cluster resource overcommit rate.
 func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request) {
 	var overScore model.OverScore
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &overScore, nil); !ok {

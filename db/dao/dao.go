@@ -69,7 +69,7 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
-// AppDao tenant dao
+// KeyValueDao provides operations on persistent key-value records.
 type KeyValueDao interface {
 	Put(key, value string) error
 	Get(key string) (*model.KeyValue, error)

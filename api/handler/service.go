@@ -517,6 +517,7 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 	return lastErr
 }
 
+// StartOrCreateVM starts an existing virtual machine or queues its creation.
 func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
@@ -558,6 +559,7 @@ func isVMStartRequestedOrRunning(status v1.VirtualMachinePrintableStatus) bool {
 	}
 }
 
+// RestartVM restarts the component virtual machine, creating it when absent.
 func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
@@ -591,6 +593,7 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 }
 
+// StopVM stops the component virtual machine and records the operation result.
 func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
 	vm, err := s.getVirtualMachineByServiceID(serviceID)
 	if err != nil {
@@ -2526,7 +2529,9 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 			tx.Rollback()
 			return bcode.NewBadRequest("volume capacity can only be expanded, not reduced")
 		}
-		if s.kubeClient != nil {
+		// An unchanged capacity accompanies ordinary path edits. Only retry
+		// capacity reconciliation when the path is unchanged, or expand a new target.
+		if s.kubeClient != nil && (*req.VolumeCapacity > v.VolumeCapacity || req.VolumePath == v.VolumePath) {
 			service, serviceErr := dbm.TenantServiceDao().GetServiceByID(sid)
 			if serviceErr != nil {
 				tx.Rollback()
@@ -4199,6 +4204,7 @@ func TransStatus(eStatus string) string {
 	return ""
 }
 
+// FileManageInfo lists files at a path in the component's selected container.
 func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
 
