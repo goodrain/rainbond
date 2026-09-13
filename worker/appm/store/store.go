@@ -31,6 +31,7 @@ import (
 	model2 "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/util/portprotocol"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
@@ -648,6 +649,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}, _ bool) {
 					if exist == nil {
 						tcpRule := &model.TCPRule{
 							UUID:          "",
+							Protocol:      portprotocol.Canonical([]corev1.Protocol{port.Protocol}),
 							ServiceID:     "",
 							ContainerPort: int(port.Port),
 							IP:            "0.0.0.0",

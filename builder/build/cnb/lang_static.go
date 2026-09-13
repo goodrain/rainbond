@@ -15,6 +15,17 @@ type staticConfig struct{}
 
 // BuildAnnotations configures nginx web server for static file serving.
 func (s *staticConfig) BuildAnnotations(re *build.Request, annotations map[string]string) {
+	applyDependencyMirrorAnnotation(annotations)
+
+	// BP_WEB_SERVER=nginx tells Paketo to overwrite nginx.conf with generated
+	// defaults. Without it, the nginx buildpack detects and uses the project file.
+	if re.SourceDir != "" {
+		if info, err := os.Stat(filepath.Join(re.SourceDir, "nginx.conf")); err == nil && info.Mode().IsRegular() {
+			logrus.Info("Pure static project: using project nginx.conf")
+			return
+		}
+	}
+
 	outputDir := re.BuildEnvs["CNB_OUTPUT_DIR"]
 	if outputDir == "" {
 		outputDir = "."
@@ -22,8 +33,6 @@ func (s *staticConfig) BuildAnnotations(re *build.Request, annotations map[strin
 	annotations["cnb-bp-web-server"] = "nginx"
 	annotations["cnb-bp-web-server-root"] = outputDir
 	annotations["cnb-bp-web-server-enable-push-state"] = "true"
-
-	applyDependencyMirrorAnnotation(annotations)
 
 	logrus.Infof("Pure static project: nginx web server at '%s', mirror=%s", outputDir, annotations["cnb-bp-dependency-mirror"])
 }
@@ -47,7 +56,7 @@ func (s *staticConfig) CustomOrder(re *build.Request) []orderBuildpack {
 
 // isPureStaticProject checks if the source directory has no package.json.
 func isPureStaticProject(sourceDir string) bool {
-	packageJsonPath := filepath.Join(sourceDir, "package.json")
-	_, err := os.Stat(packageJsonPath)
+	packageJSONPath := filepath.Join(sourceDir, "package.json")
+	_, err := os.Stat(packageJSONPath)
 	return os.IsNotExist(err)
 }

@@ -1,57 +1,35 @@
-<div align="center">
-  <img src="https://static.goodrain.com/logo/logo-long.png" width="56%" alt="Rainbond Logo" />
+# Rainbond
 
-  <p>
-    <a href="./README-zh.md">中文</a>
-  </p>
+[中文](./README-zh.md)
 
-  <p>
-    <img src="https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square" alt="GitHub stars" />
-    <img src="https://img.shields.io/badge/version-v6.X-brightgreen.svg?style=flat-square" alt="Version" />
-    <img src="https://img.shields.io/badge/open%20source-100%25-blue?style=flat-square" alt="Open Source" />
-  </p>
-</div>
+> **Built by AI. Run by Rainbond. Always under your control.**
 
-<div align="center">
+Rainbond is an AI application runtime platform.
 
-## An open-source container platform that needs no Kubernetes learning
+Its core capabilities are 100% open source. Rainbond provides a unified platform for running and managing AI-generated projects, large language model services, open-source AI software, and business applications. With AI-powered deployment, troubleshooting, upgrades, and operations, it keeps applications running reliably in containers on your own servers or Kubernetes clusters.
 
-Rainbond helps teams build, deploy, upgrade, operate, and privately deliver applications without deeply learning Kubernetes.  
-It is better suited for private deployment, offline delivery, Xinchuang adaptation, application marketplace delivery, and AI application privatization scenarios.
+Through [Rainskills](https://github.com/goodrain/rainskills), AI agents such as Codex and Claude Code can deploy projects directly to Rainbond, troubleshoot issues, and verify delivery.
 
-[Website](https://www.rainbond.com?channel=github) ·
-[Quick Install](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) ·
-[Documentation](https://www.rainbond.com/docs?channel=github) ·
-[Comparison Center](https://www.rainbond.com/compare?channel=github) ·
-[Marketplace](https://hub.rainbond.com?channel=github)
+[Deploy with AI](https://github.com/goodrain/rainskills) ·
+[Try for free](https://run.rainbond.com) ·
+[Install Rainbond](https://www.rainbond.com/docs/quick-start/quick-install) ·
+[Documentation](https://www.rainbond.com/docs)
 
-</div>
-
----
-
-## What is Rainbond
-
-Rainbond is a `100% open-source`, `Kubernetes-friendly` container platform.  
-It is more focused on **application delivery** than on being just a Kubernetes resource management interface.
-
-If your team is facing problems like these, Rainbond is worth evaluating:
-
-- You already use Kubernetes, but application delivery is still too heavy
-- Customer environments are complex, and every release feels like rebuilding everything
-- You need private deployment, offline delivery, Xinchuang compatibility, or internal-network deployment
-- You want a unified application delivery platform without building one from scratch
-
----
-
-## Start from the path that matches your goal
+## Where to start
 
 | Your goal | Start here |
 | --- | --- |
-| I want to know whether Rainbond fits my team | [Comparison Center](https://www.rainbond.com/compare?channel=github) |
-| I want to install and try it now | [Quick Install](https://www.rainbond.com/docs/quick-start/quick-install?channel=github) |
-| I have installed it and want to deploy the first app | [Deploy your first app](https://www.rainbond.com/docs/quick-start/getting-started?channel=github) |
-| I work in offline / internal / customer site / Xinchuang environments | [Offline / Xinchuang Topic](https://www.rainbond.com/offline-and-xinchuang?channel=github) |
-| I want to see whether apps can be deployed from the marketplace | [Rainbond Marketplace](https://hub.rainbond.com?channel=github) |
+| I use AI coding and want to deploy my project | [Install Rainskills](https://github.com/goodrain/rainskills) |
+| I want to try Rainbond without preparing a server | [Use Rainbond Cloud](https://run.rainbond.com) |
+| I want to run applications on my own servers or Kubernetes | [Install Rainbond privately](https://www.rainbond.com/docs/quick-start/quick-install) |
+| I want to deploy open-source applications such as Dify or RAGFlow | [Visit the Rainbond Application Marketplace](https://hub.rainbond.com) |
+| I am evaluating open-source container platforms | [Explore Rainbond's application management and delivery capabilities](https://www.rainbond.com/compare) |
+
+## Not just AI applications
+
+Rainbond's new entry point is designed for AI coding, but its underlying application runtime capabilities remain unchanged.
+
+Source code, container images, Docker Compose, Helm, traditional business systems, and microservice applications can still be deployed, managed, upgraded, rolled back, delivered offline, and adapted for Xinchuang environments with Rainbond.
 
 ---
 

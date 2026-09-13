@@ -64,6 +64,8 @@ type GatewayHTTPRouteConcise struct {
 
 // TCPRouteServicePort includes the Kubernetes ServicePort plus Rainbond service metadata.
 type TCPRouteServicePort struct {
+	Protocols          []corev1.Protocol `json:"protocols"`
+	BackendServiceName string            `json:"backend_service_name"`
 	corev1.ServicePort `json:",inline"`
 	ServiceName        string `json:"service_name"`
 	ServiceAlias       string `json:"service_alias"`
@@ -196,6 +198,7 @@ type DeleteHTTPRuleStruct struct {
 
 // AddTCPRuleStruct is used to add tcp rule and rule extensions
 type AddTCPRuleStruct struct {
+	Protocol       string                 `json:"protocol"`
 	TCPRuleID      string                 `json:"tcp_rule_id" validate:"tcp_rule_id|required"`
 	ServiceID      string                 `json:"service_id" validate:"service_id|required"`
 	ContainerPort  int                    `json:"container_port"`
@@ -208,6 +211,7 @@ type AddTCPRuleStruct struct {
 func (a *AddTCPRuleStruct) DbModel(serviceID string) *dbmodel.TCPRule {
 	return &dbmodel.TCPRule{
 		UUID:          a.TCPRuleID,
+		Protocol:      a.Protocol,
 		ServiceID:     serviceID,
 		ContainerPort: a.ContainerPort,
 		IP:            a.IP,
