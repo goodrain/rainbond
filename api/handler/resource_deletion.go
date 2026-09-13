@@ -192,8 +192,9 @@ func (o *k8sResourceDeletionOrchestrator) Delete(ctx context.Context, req *model
 	}
 
 	result := &model.K8sResourceDeletionResult{
-		Status:       "completed",
-		CascadedCRDs: plan.impact.CRDs,
+		Status:           "completed",
+		DeletedClientIDs: make([]string, 0, len(req.K8sResources)),
+		CascadedCRDs:     plan.impact.CRDs,
 	}
 	for _, resource := range req.K8sResources {
 		result.DeletedClientIDs = append(result.DeletedClientIDs, resource.ClientID)
@@ -254,7 +255,10 @@ func isControllerWorkload(gvk schema.GroupVersionKind) bool {
 
 // Reconcile classifies only confirmed missing resources as safe metadata deletions.
 func (o *k8sResourceDeletionOrchestrator) Reconcile(ctx context.Context, req *model.K8sResourceReconcileRequest) *model.K8sResourceReconcileResult {
-	result := &model.K8sResourceReconcileResult{}
+	result := &model.K8sResourceReconcileResult{
+		MissingClientIDs: []string{},
+		Unknown:          []model.K8sResourceUnknown{},
+	}
 	for _, item := range req.K8sResources {
 		if item.State != model.CreateSuccess && item.State != model.UpdateSuccess {
 			continue
@@ -293,7 +297,9 @@ func (o *k8sResourceDeletionOrchestrator) buildPlan(ctx context.Context, req *mo
 	if req == nil || strings.TrimSpace(req.AppID) == "" {
 		return nil, fmt.Errorf("%w: app_id is required", ErrInvalidK8sResourceDeletionRequest)
 	}
-	plan := &k8sResourceDeletionPlan{}
+	plan := &k8sResourceDeletionPlan{
+		impact: model.K8sResourceDeletionImpact{CRDs: []model.CRDDeletionImpact{}},
+	}
 	plannedCRDs := make(map[string]struct{})
 	for _, item := range req.K8sResources {
 		if item.State != model.CreateSuccess && item.State != model.UpdateSuccess {
@@ -377,12 +383,13 @@ func (o *k8sResourceDeletionOrchestrator) buildCRDPlan(ctx context.Context, reso
 	}
 
 	impact := model.CRDDeletionImpact{
-		Name:    live.GetName(),
-		Group:   group,
-		Version: version,
-		Kind:    kind,
-		Plural:  plural,
-		Scope:   scope,
+		Name:                 live.GetName(),
+		Group:                group,
+		Version:              version,
+		Kind:                 kind,
+		Plural:               plural,
+		Scope:                scope,
+		AffectedRegionAppIDs: []string{},
 	}
 	otherApps := make(map[string]struct{})
 	for i := range list.Items {

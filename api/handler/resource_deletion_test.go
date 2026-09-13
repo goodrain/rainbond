@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -30,6 +31,134 @@ var (
 	testConfigGVR     = schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
 	testDeploymentGVR = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
 )
+
+// capability_id: rainbond.k8s-resource.response-array-contract
+func TestK8sResourceDeletionResponseArrays(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		kind     string
+		instance *unstructured.Unstructured
+	}{
+		{name: "empty selection"},
+		{name: "ordinary ConfigMap", kind: "ConfigMap"},
+		{name: "CRD without instances", kind: "CustomResourceDefinition"},
+		{name: "CRD with current application instance", kind: "CustomResourceDefinition", instance: newTestWidget("owned", "team-a", "app-a")},
+		{name: "CRD with another application instance", kind: "CustomResourceDefinition", instance: newTestWidget("shared", "team-b", "app-b")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var objects []*unstructured.Unstructured
+			if test.instance != nil {
+				objects = append(objects, test.instance)
+			}
+			orchestrator, client := newDeletionTestOrchestrator(t, objects...)
+			req := &model.K8sResourceDeletionRequest{AppID: "app-a"}
+			wantIDs := []string{}
+			wantCRDs := []model.CRDDeletionImpact{}
+			switch test.kind {
+			case "ConfigMap":
+				orchestrator.mapper.(*meta.DefaultRESTMapper).Add(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}, meta.RESTScopeNamespace)
+				configMap := &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "v1", "kind": "ConfigMap",
+					"metadata": map[string]interface{}{"name": "settings", "namespace": "team-a"},
+				}}
+				if err := client.Tracker().Add(configMap); err != nil {
+					t.Fatal(err)
+				}
+				req.K8sResources = []model.HandleResource{{
+					ClientID: "config-row", AppID: "app-a", Namespace: "team-a", Name: "settings", Kind: "ConfigMap",
+					ResourceYaml: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: team-a\n", State: model.CreateSuccess,
+				}}
+				wantIDs = []string{"config-row"}
+			case "CustomResourceDefinition":
+				req = newCRDDeletionRequest(true)
+				wantIDs = []string{"crd-row"}
+				wantCRDs = []model.CRDDeletionImpact{{
+					Name: "widgets.example.com", Group: "example.com", Version: "v1", Kind: "Widget", Plural: "widgets", Scope: "Namespaced",
+					AffectedRegionAppIDs: []string{},
+				}}
+				if test.instance != nil {
+					if test.instance.GetLabels()[appIDLabel] == req.AppID {
+						wantCRDs[0].CurrentAppCRCount = 1
+					} else {
+						wantCRDs[0].OtherAppCRCount = 1
+						wantCRDs[0].AffectedRegionAppIDs = []string{"app-b"}
+					}
+				}
+			}
+			impact, err := orchestrator.Preview(context.Background(), req)
+			if err != nil {
+				t.Fatalf("Preview() error = %v", err)
+			}
+			assertResourceResponseJSONField(t, impact, "crds", wantCRDs)
+			for _, action := range client.Actions() {
+				if action.GetVerb() == "delete" {
+					t.Fatalf("Preview() mutated Kubernetes: %#v", action)
+				}
+			}
+			result, err := orchestrator.Delete(context.Background(), req)
+			if err != nil {
+				t.Fatalf("Delete() error = %v", err)
+			}
+			assertResourceResponseJSONField(t, result, "status", "completed")
+			assertResourceResponseJSONField(t, result, "deleted_client_ids", wantIDs)
+			assertResourceResponseJSONField(t, result, "cascaded_crds", wantCRDs)
+		})
+	}
+}
+
+func TestK8sResourceReconcileResponseArrays(t *testing.T) {
+	lookupErr := apierrors.NewForbidden(testWidgetGVR.GroupResource(), "unknown", errors.New("denied"))
+	for _, test := range []struct {
+		name        string
+		names       []string
+		wantMissing []string
+		wantUnknown []model.K8sResourceUnknown
+	}{
+		{name: "empty selection", wantMissing: []string{}, wantUnknown: []model.K8sResourceUnknown{}},
+		{name: "all present", names: []string{"present"}, wantMissing: []string{}, wantUnknown: []model.K8sResourceUnknown{}},
+		{name: "missing", names: []string{"missing"}, wantMissing: []string{"missing"}, wantUnknown: []model.K8sResourceUnknown{}},
+		{name: "unknown", names: []string{"unknown"}, wantMissing: []string{}, wantUnknown: []model.K8sResourceUnknown{{ClientID: "unknown", Error: lookupErr.Error()}}},
+		{name: "mixed", names: []string{"present", "missing", "unknown"}, wantMissing: []string{"missing"}, wantUnknown: []model.K8sResourceUnknown{{ClientID: "unknown", Error: lookupErr.Error()}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			orchestrator, client := newDeletionTestOrchestrator(t, newTestWidget("present", "team-a", "app-a"))
+			client.PrependReactor("get", "widgets", func(action ktesting.Action) (bool, runtime.Object, error) {
+				if action.(ktesting.GetAction).GetName() == "unknown" {
+					return true, nil, lookupErr
+				}
+				return false, nil, nil
+			})
+			req := &model.K8sResourceReconcileRequest{AppID: "app-a"}
+			for _, name := range test.names {
+				req.K8sResources = append(req.K8sResources, model.HandleResource{
+					ClientID: name, Namespace: "team-a", Name: name, Kind: "Widget", ResourceYaml: testWidgetYAML(name, "team-a"), State: model.CreateSuccess,
+				})
+			}
+			result := orchestrator.Reconcile(context.Background(), req)
+			assertResourceResponseJSONField(t, result, "missing_client_ids", test.wantMissing)
+			assertResourceResponseJSONField(t, result, "unknown", test.wantUnknown)
+		})
+	}
+}
+
+func assertResourceResponseJSONField(t *testing.T, response interface{}, field string, want interface{}) {
+	t.Helper()
+	data, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	expected, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshal expected %s: %v", field, err)
+	}
+	if string(fields[field]) != string(expected) {
+		t.Errorf("response %s = %s, want %s", field, fields[field], expected)
+	}
+}
 
 func TestK8sResourceDeletionPreviewRequiresCascadeForOtherApplications(t *testing.T) {
 	orchestrator, _ := newDeletionTestOrchestrator(t,
