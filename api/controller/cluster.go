@@ -22,12 +22,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -35,14 +42,7 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"io"
 	"k8s.io/apimachinery/pkg/types"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -253,60 +253,58 @@ func (c *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	if hr.State == model.CreateSuccess || hr.State == model.UpdateSuccess {
-		handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
-	}
-	err := db.GetManager().K8sResourceDao().DeleteK8sResource(hr.AppID, hr.Name, hr.Kind)
+	result, err := handler.GetClusterHandler().DeleteK8SResources(r.Context(), &model.K8sResourceDeletionRequest{
+		AppID:        hr.AppID,
+		CascadeCRD:   hr.CascadeCRD,
+		K8sResources: []model.HandleResource{hr},
+	})
 	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
-		e.Handle(r, w)
+		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, result)
+}
+
+// PreviewDeleteResources returns the cluster-wide effect of deleting application resources.
+func (c *ClusterController) PreviewDeleteResources(w http.ResponseWriter, r *http.Request) {
+	var req model.K8sResourceDeletionRequest
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	impact, err := handler.GetClusterHandler().PreviewK8SResourceDeletion(r.Context(), &req)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, impact)
 }
 
 // BatchDeleteResource -
 func (c *ClusterController) BatchDeleteResource(w http.ResponseWriter, r *http.Request) {
-	var req model.SyncResources
+	var req model.K8sResourceDeletionRequest
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
 		return
 	}
-	k8sResources, err := db.GetManager().K8sResourceDao().ListByAppID(req.AppID)
+	result, err := handler.GetClusterHandler().DeleteK8SResources(r.Context(), &req)
 	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource failure: %v", err)}
-		e.Handle(r, w)
+		err.Handle(r, w)
 		return
 	}
-	resourceMap := make(map[string][]dbmodel.K8sResource)
-	for _, resource := range k8sResources {
-		resourceList, ok := resourceMap[resource.Name]
-		if ok {
-			resourceMap[resource.Name] = append(resourceList, resource)
-			continue
-		}
-		resourceMap[resource.Name] = []dbmodel.K8sResource{resource}
-	}
-	var deleteResourcesID []uint
-	for _, hr := range req.K8sResources {
-		if hr.State == model.CreateSuccess || hr.State == model.UpdateSuccess {
-			handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
-			nameResource, ok := resourceMap[hr.Name]
-			if ok {
-				for _, dbResource := range nameResource {
-					if dbResource.Kind == hr.Kind {
-						deleteResourcesID = append(deleteResourcesID, dbResource.ID)
-					}
-				}
-			}
-		}
-	}
-	err = db.GetManager().K8sResourceDao().DeleteK8sResourceByIDs(deleteResourcesID)
-	if err != nil {
-		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
-		e.Handle(r, w)
+	httputil.ReturnSuccess(r, w, result)
+}
+
+// ReconcileResources removes metadata for resources confirmed absent from Kubernetes.
+func (c *ClusterController) ReconcileResources(w http.ResponseWriter, r *http.Request) {
+	var req model.K8sResourceReconcileRequest
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	result, err := handler.GetClusterHandler().ReconcileK8SResources(r.Context(), &req)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, result)
 }
 
 // SyncResource -
@@ -754,6 +752,7 @@ func copyDirectory(srcDir, dstDir string) error {
 	return err
 }
 
+// GetRegionStatus returns the region status after validating the Helm request.
 func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token != os.Getenv("HELM_TOKEN") {
@@ -768,6 +767,7 @@ func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, regionInfo)
 }
 
+// SetOverScore updates the cluster resource overcommit rate.
 func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request) {
 	var overScore model.OverScore
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &overScore, nil); !ok {

@@ -87,6 +87,9 @@ type ClusterHandler interface {
 	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
 	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string)
+	PreviewK8SResourceDeletion(ctx context.Context, req *model.K8sResourceDeletionRequest) (*model.K8sResourceDeletionImpact, *util.APIHandleError)
+	DeleteK8SResources(ctx context.Context, req *model.K8sResourceDeletionRequest) (*model.K8sResourceDeletionResult, *util.APIHandleError)
+	ReconcileK8SResources(ctx context.Context, req *model.K8sResourceReconcileRequest) (*model.K8sResourceReconcileResult, *util.APIHandleError)
 	GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	SyncAppK8SResources(ctx context.Context, resources *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError)
@@ -1097,6 +1100,7 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 	return plugins, nil
 }
 
+// ComponentRainbondOperator and related constants identify workloads checked during platform upgrades.
 const (
 	ComponentRainbondOperator = "rainbond-operator" // deployment
 	ComponentRBDAPI           = "rbd-api"           // deployment

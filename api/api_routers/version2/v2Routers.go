@@ -182,6 +182,7 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 	return r
 }
 
+// PluginBackendProxy forwards requests to the named plugin's backend service.
 func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 	plugin, err := getRBDPlugin(chi.URLParam(r, "plugin_name"))
 	if err != nil {
@@ -245,6 +246,7 @@ func getRBDPlugin(pluginName string) (*v1alpha1.RBDPlugin, error) {
 	return plugin, nil
 }
 
+// PluginStaticProxy serves the named plugin's frontend content.
 func PluginStaticProxy(w http.ResponseWriter, r *http.Request) {
 	servePluginStatic(w, r, getRBDPlugin)
 }
@@ -362,6 +364,7 @@ func resolveConfigMapContent(plugin *v1alpha1.RBDPlugin) (string, error) {
 	return resolveFrontedPathContent(plugin)
 }
 
+// ChangePluginStatus enables or disables the named plugin.
 func ChangePluginStatus(w http.ResponseWriter, r *http.Request) {
 	type Status struct {
 		Action string `json:"action"`
@@ -404,7 +407,9 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/k8s-resource", controller.GetManager().GetResource)
 	r.Post("/k8s-resource", controller.GetManager().AddResource)
 	r.Delete("/k8s-resource", controller.GetManager().DeleteResource)
+	r.Post("/k8s-resource-deletions/preview", controller.GetManager().PreviewDeleteResources)
 	r.Delete("/batch-k8s-resource", controller.GetManager().BatchDeleteResource)
+	r.Post("/k8s-resource-reconciliations", controller.GetManager().ReconcileResources)
 	r.Put("/k8s-resource", controller.GetManager().UpdateResource)
 	r.Post("/sync-k8s-resources", controller.GetManager().SyncResource)
 	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)

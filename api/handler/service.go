@@ -519,6 +519,7 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 	return lastErr
 }
 
+// StartOrCreateVM starts an existing virtual machine or queues its creation.
 func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
@@ -560,6 +561,7 @@ func isVMStartRequestedOrRunning(status v1.VirtualMachinePrintableStatus) bool {
 	}
 }
 
+// RestartVM restarts the component virtual machine, creating it when absent.
 func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
@@ -593,6 +595,7 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 	return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 }
 
+// StopVM stops the component virtual machine and records the operation result.
 func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
 	vm, err := s.getVirtualMachineByServiceID(serviceID)
 	if err != nil {
@@ -2547,6 +2550,25 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		tx.Rollback()
 		return err
 	}
+	if req.VolumeCapacity != nil && req.VolumeType != dbmodel.ConfigFileVolumeType.String() {
+		if *req.VolumeCapacity < v.VolumeCapacity {
+			tx.Rollback()
+			return bcode.NewBadRequest("volume capacity can only be expanded, not reduced")
+		}
+		// An unchanged capacity accompanies ordinary path edits. Only retry
+		// capacity reconciliation when the path is unchanged, or expand a new target.
+		if s.kubeClient != nil && (*req.VolumeCapacity > v.VolumeCapacity || req.VolumePath == v.VolumePath) {
+			service, serviceErr := dbm.TenantServiceDao().GetServiceByID(sid)
+			if serviceErr != nil {
+				tx.Rollback()
+				return serviceErr
+			}
+			if expandErr := s.expandVolumeClaims(context.Background(), service, v, *req.VolumeCapacity); expandErr != nil {
+				tx.Rollback()
+				return expandErr
+			}
+		}
+	}
 	v.VolumePath = req.VolumePath
 	if req.VolumeCapacity != nil {
 		v.VolumeCapacity = *req.VolumeCapacity
@@ -2593,6 +2615,13 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 	}
 	isMountedShareVolume := false
 	mountStatus := pb.ServiceVolumeStatus_NOT_READY.String()
+	var service *dbmodel.TenantServices
+	if s.kubeClient != nil {
+		service, err = s.getDBManager().TenantServiceDao().GetServiceByID(serviceID)
+		if err != nil {
+			logrus.Warnf("get service for volume expansion status error: %s", err.Error())
+		}
+	}
 	for _, volume := range vs {
 		vws := &apimodel.VolumeWithStatusStruct{
 			ServiceID:          volume.ServiceID,
@@ -2610,6 +2639,22 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 			AllowExpansion:     volume.AllowExpansion,
 			VolumeProviderName: volume.VolumeProviderName,
 			Mode:               volume.Mode,
+		}
+		if service != nil {
+			expansion, _, inspectErr := s.inspectVolumeExpansion(context.Background(), service, volume)
+			if inspectErr != nil {
+				vws.AllowExpansion = false
+				vws.ExpansionStatus = volumeExpansionFailed
+				vws.ExpansionMessage = inspectErr.Error()
+				logrus.Warnf("inspect volume %s expansion status error: %s", volume.VolumeName, inspectErr.Error())
+			} else {
+				vws.AllowExpansion = expansion.AllowExpansion
+				vws.ActualCapacity = expansion.ActualCapacity
+				vws.RequestedCapacity = expansion.RequestedCapacity
+				vws.ExpansionStatus = expansion.Status
+				vws.ExpansionMessage = expansion.Message
+				vws.PVCCount = expansion.PVCCount
+			}
 		}
 		volumeID := strconv.FormatInt(int64(volume.ID), 10)
 		if phrase, ok := volumeStatus[volumeID]; ok {
@@ -4185,6 +4230,7 @@ func TransStatus(eStatus string) string {
 	return ""
 }
 
+// FileManageInfo lists files at a path in the component's selected container.
 func (s *ServiceAction) FileManageInfo(serviceID, podName, tarPath, containerName, namespace string) ([]apimodel.FileInfo, error) {
 	var fileInfos []apimodel.FileInfo
 

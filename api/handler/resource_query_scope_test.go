@@ -467,6 +467,72 @@ func TestInitClusterResourceListsPodsOnceAndCoalescesColdRequests(t *testing.T) 
 	assert.Len(t, action.cacheClusterResourceStats.NodePods, 2)
 }
 
+// capability_id: rainbond.cluster-resource.exclude-terminal-pods
+func TestInitClusterResourceExcludesTerminalPods(t *testing.T) {
+	node := newResourceQueryNode("node-a")
+	deletionTime := metav1.Now()
+	testCases := []struct {
+		name              string
+		phase             corev1.PodPhase
+		reason            string
+		deletionTimestamp *metav1.Time
+		wantIncluded      bool
+	}{
+		{name: "pending", phase: corev1.PodPending, wantIncluded: true},
+		{name: "running", phase: corev1.PodRunning, wantIncluded: true},
+		{name: "unknown", phase: corev1.PodUnknown, wantIncluded: true},
+		{name: "terminating-running", phase: corev1.PodRunning, deletionTimestamp: &deletionTime, wantIncluded: true},
+		{name: "succeeded", phase: corev1.PodSucceeded},
+		{name: "evicted", phase: corev1.PodFailed, reason: "Evicted"},
+		{name: "failed", phase: corev1.PodFailed, reason: "Error"},
+	}
+
+	pods := make([]corev1.Pod, 0, len(testCases))
+	wantPodNames := make([]string, 0, len(testCases))
+	for _, testCase := range testCases {
+		pod := newResourceQueryPod(testCase.name, node.Name, "service-"+testCase.name)
+		pod.DeletionTimestamp = testCase.deletionTimestamp
+		pod.Status.Phase = testCase.phase
+		pod.Status.Reason = testCase.reason
+		pods = append(pods, pod)
+		if testCase.wantIncluded {
+			wantPodNames = append(wantPodNames, pod.Name)
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/nodes":
+			require.NoError(t, json.NewEncoder(w).Encode(&corev1.NodeList{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "NodeList"},
+				Items:    []corev1.Node{node},
+			}))
+		case "/api/v1/pods":
+			require.NoError(t, json.NewEncoder(w).Encode(&corev1.PodList{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PodList"},
+				Items:    pods,
+			}))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	client, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+	action := &TenantAction{kubeClient: client}
+
+	err = action.initClusterResource(context.Background())
+
+	require.NoError(t, err)
+	require.NotNil(t, action.cacheClusterResourceStats)
+	assert.Equal(t, int64(len(wantPodNames)), action.cacheClusterResourceStats.AllPods)
+	gotPodNames := make([]string, 0, len(action.cacheClusterResourceStats.NodePods))
+	for _, pod := range action.cacheClusterResourceStats.NodePods {
+		gotPodNames = append(gotPodNames, pod.PodName)
+	}
+	assert.ElementsMatch(t, wantPodNames, gotPodNames)
+}
+
 func TestGetClusterPodResourcesAggregatesPrometheusResultsByNode(t *testing.T) {
 	prom := &recordingPrometheus{}
 	prom.metric = func(query string) promcli.Metric {

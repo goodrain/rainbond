@@ -800,6 +800,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster-resource.exclude-terminal-pods",
+      "title": "Exclude terminal pods from cluster resource allocation",
+      "title_zh": "\u4ece\u96c6\u7fa4\u8d44\u6e90\u5206\u914d\u7edf\u8ba1\u4e2d\u6392\u9664\u7ec8\u6001 Pod",
+      "interface_type": "workflow",
+      "interface": "api/handler.(*TenantAction).initClusterResource",
+      "code_paths": [
+        "api/handler/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_query_scope_test.go",
+          "selector": "TestInitClusterResourceExcludesTerminalPods"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cluster-resource.handler-singleton",
       "title": "Reuse singleton cluster resource handler",
       "title_zh": "\u590d\u7528\u96c6\u7fa4\u8d44\u6e90\u5904\u7406\u5668\u5355\u4f8b",
@@ -1477,6 +1495,100 @@
         {
           "path": "api/handler/service_volume_test.go",
           "selector": "TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-only-grows",
+      "title": "Reject PVC volume shrink requests",
+      "title_zh": "Reject PVC volume shrink requests",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumeRejectsShrink"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-reconciles-drift",
+      "title": "Reconcile PVC request with stored volume capacity",
+      "title_zh": "Reconcile PVC request with stored volume capacity",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumeReconcilesStoredCapacity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-status",
+      "title": "Report PVC volume expansion capability and status",
+      "title_zh": "Report PVC volume expansion capability and status",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.GetVolumes",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_expansion_test.go",
+          "selector": "TestInspectVolumeExpansion"
+        }
+      ],
+      "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-expansion-updates-claims",
+      "title": "Expand every PVC for a component volume",
+      "title_zh": "Expand every PVC for a component volume",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_expansion_test.go",
+          "selector": "TestExpandVolumeClaims"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.component.volume-path-update-without-expansion",
+      "title": "Path edits with unchanged capacity do not require PVC expansion support",
+      "title_zh": "Path edits with unchanged capacity do not require PVC expansion support",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_volume_test.go",
+          "selector": "TestServiceActionUpdVolumePathDoesNotRequireExpansion"
         }
       ],
       "test_type": "regression",
@@ -3356,6 +3468,140 @@
         {
           "path": "util/ingress-nginx/k8s/main_test.go",
           "selector": "TestGetPodDetails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.crd-cascade-delete",
+      "title": "CRD cascade deletion preserves dependency order",
+      "title_zh": "CRD cascade deletion preserves dependency order",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.deletion-request-timeout",
+      "title": "Kubernetes deletion requests outlive the global HTTP timeout",
+      "title_zh": "Kubernetes deletion requests outlive the global HTTP timeout",
+      "interface_type": "workflow",
+      "interface": "pkg/interceptors.requestTimeout",
+      "code_paths": [
+        "pkg/interceptors/http.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/interceptors/http_test.go",
+          "selector": "TestRequestTimeout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.deletion-timeout-final-check",
+      "title": "Kubernetes deletion timeout performs a final live check",
+      "title_zh": "Kubernetes deletion timeout performs a final live check",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.failed-delete-metadata-only",
+      "title": "Failed resources are metadata-only during deletion",
+      "title_zh": "Failed resources are metadata-only during deletion",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.metadata-reconcile",
+      "title": "Kubernetes resource metadata reconciliation",
+      "title_zh": "Kubernetes resource metadata reconciliation",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Reconcile",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceReconcileDistinguishesMissingAndUnknown"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.response-array-contract",
+      "title": "Resource deletion and reconciliation responses encode empty lists as arrays",
+      "title_zh": "Resource deletion and reconciliation responses encode empty lists as arrays",
+      "interface_type": "workflow",
+      "interface": "k8sResourceDeletionOrchestrator",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionResponseArrays"
+        },
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceReconcileResponseArrays"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.k8s-resource.stop-recreating-controller",
+      "title": "Stop in-application controllers before deleting generated custom resources",
+      "title_zh": "Stop in-application controllers before deleting generated custom resources",
+      "interface_type": "handler_method",
+      "interface": "api/handler.k8sResourceDeletionOrchestrator.Delete",
+      "code_paths": [
+        "api/handler/resource_deletion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources"
+        },
+        {
+          "path": "api/handler/resource_deletion_test.go",
+          "selector": "TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone"
         }
       ],
       "test_type": "regression",
@@ -8293,6 +8539,41 @@
         {
           "path": "worker/appm/store/store_test.go",
           "selector": "TestShouldTrackNodePortService"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.store.stateful-volume-capacity-reconciliation",
+      "title": "New StatefulSet claims converge to stored capacity without recreating workloads",
+      "title_zh": "New StatefulSet claims converge to stored capacity without recreating workloads",
+      "interface_type": "workflow",
+      "interface": "appRuntimeStore.OnAdd",
+      "code_paths": [
+        "worker/appm/store/store.go",
+        "worker/appm/store/volume_expansion.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionOnClaimEvents"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionRetriesAfterDatabaseCommit"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionRetriesFailuresAndConflicts"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionSkipsUnsupportedOrForeignClaims"
+        },
+        {
+          "path": "worker/appm/store/volume_expansion_test.go",
+          "selector": "TestStatefulVolumeExpansionAcceptsManualVolumeLabel"
         }
       ],
       "test_type": "regression",

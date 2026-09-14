@@ -36,6 +36,8 @@ import (
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 )
 
+const k8sResourceDeletionRequestTimeout = 75 * time.Second
+
 // Recoverer -
 func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +125,7 @@ func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			// 长时请求豁免：日志流、插件后端代理（含 SSE / 长连接）使用更长的超时。
 			// 这里用每请求的局部变量，避免直接改写闭包捕获的 timeout 而污染后续所有请求。
-			effectiveTimeout := requestTimeout(r.URL.Path, timeout)
+			effectiveTimeout := requestTimeout(r.Method, r.URL.Path, timeout)
 			ctx, cancel := context.WithTimeout(r.Context(), effectiveTimeout)
 			defer func() {
 				cancel()
@@ -139,13 +141,25 @@ func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 	}
 }
 
-func requestTimeout(path string, defaultTimeout time.Duration) time.Duration {
+func requestTimeout(method, path string, defaultTimeout time.Duration) time.Duration {
 	if strings.Contains(path, "logs") ||
 		strings.Contains(path, "/platform/backend/plugins/") ||
 		isEventLogStreamPath(path) {
 		return time.Hour
 	}
+	if method == http.MethodDelete && isK8sResourceDeletionPath(path) {
+		return k8sResourceDeletionRequestTimeout
+	}
 	return defaultTimeout
+}
+
+func isK8sResourceDeletionPath(path string) bool {
+	switch path {
+	case "/v2/cluster/k8s-resource", "/v2/cluster/batch-k8s-resource":
+		return true
+	default:
+		return false
+	}
 }
 
 func isEventLogStreamPath(path string) bool {
