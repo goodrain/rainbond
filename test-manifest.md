@@ -149,6 +149,8 @@
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
 | rainbond.gateway.certificate-resource-consistency | Keep gateway certificate resources consistent | active | regression | api/handler.GatewayAction.AddGatewayCertificate | api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency |
+| rainbond.gateway.client-ca-lifecycle | Manage gateway client CA lifecycle | active | regression | api/handler.GatewayAction.AddGatewayClientCA | api/handler/gateway_action_test.go::TestGatewayClientCALifecycle |
+| rainbond.gateway.domain-mtls | Configure inbound mTLS per gateway domain | active | regression | api/handler.GatewayAction.ConfigureGatewayDomainMTLS | api/handler/gateway_action_test.go::TestGatewayDomainMTLS |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.prevent-tcp-route-delete-recreation-race | Protect recreated TCP route Services with UID delete preconditions | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID |
 | rainbond.gateway.protect-tcp-route-service-ownership | Reject TCP route updates for missing or different Service owners | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner |
@@ -1945,6 +1947,26 @@
 - 业务入口: `api/handler.GatewayAction.AddGatewayCertificate`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency`
+
+### Manage gateway client CA lifecycle
+
+- Capability ID: `rainbond.gateway.client-ca-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.GatewayAction.AddGatewayClientCA`
+- 代码路径: `api/handler/gateway_action.go`, `api/model/gateway_model.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestGatewayClientCALifecycle`
+
+### Configure inbound mTLS per gateway domain
+
+- Capability ID: `rainbond.gateway.domain-mtls`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.GatewayAction.ConfigureGatewayDomainMTLS`
+- 代码路径: `api/handler/gateway_action.go`, `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestGatewayDomainMTLS`
 
 ### 删除网关 HTTPRoute 时记录组件事件
 

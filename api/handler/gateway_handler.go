@@ -41,6 +41,13 @@ type GatewayHandler interface {
 	AddGatewayCertificate(req *apimodel.GatewayCertificate) error
 	UpdateGatewayCertificate(req *apimodel.GatewayCertificate) error
 	DeleteGatewayCertificate(name, namespace string) error
+	ListGatewayClientCAs(namespace string) ([]*apimodel.GatewayClientCAStatus, error)
+	AddGatewayClientCA(namespace string, req *apimodel.GatewayClientCA) error
+	UpdateGatewayClientCA(namespace string, req *apimodel.GatewayClientCA) error
+	DeleteGatewayClientCA(namespace, name string) error
+	ConfigureGatewayDomainMTLS(namespace string, req *apimodel.GatewayDomainMTLS) error
+	DisableGatewayDomainMTLS(namespace, domain string) error
+	GetGatewayDomainMTLS(namespace string, domains []string) ([]*apimodel.GatewayDomainMTLS, error)
 
 	AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*dbmodel.K8sResource, error)
 	GetGatewayHTTPRoute(name, namespace string) (*apimodel.GatewayHTTPRouteStruct, error)

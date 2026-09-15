@@ -2730,6 +2730,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.client-ca-lifecycle",
+      "title": "Manage gateway client CA lifecycle",
+      "title_zh": "Manage gateway client CA lifecycle",
+      "interface_type": "handler_method",
+      "interface": "api/handler.GatewayAction.AddGatewayClientCA",
+      "code_paths": [
+        "api/handler/gateway_action.go",
+        "api/model/gateway_model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestGatewayClientCALifecycle"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.domain-mtls",
+      "title": "Configure inbound mTLS per gateway domain",
+      "title_zh": "Configure inbound mTLS per gateway domain",
+      "interface_type": "handler_method",
+      "interface": "api/handler.GatewayAction.ConfigureGatewayDomainMTLS",
+      "code_paths": [
+        "api/handler/gateway_action.go",
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/gateway_action_test.go",
+          "selector": "TestGatewayDomainMTLS"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.http-route-delete-component-event",
       "title": "Record component event when deleting Gateway HTTPRoute",
       "title_zh": "\u5220\u9664\u7f51\u5173 HTTPRoute \u65f6\u8bb0\u5f55\u7ec4\u4ef6\u4e8b\u4ef6",

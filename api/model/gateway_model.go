@@ -53,6 +53,25 @@ type GatewayCertificate struct {
 	Certificate string `json:"certificate"`
 }
 
+// GatewayClientCA describes a client certificate authority managed by the gateway.
+type GatewayClientCA struct {
+	Name        string `json:"name" validate:"name|required"`
+	Certificate string `json:"certificate" validate:"certificate|required"`
+}
+
+// GatewayClientCAStatus describes a client CA and the domains that reference it.
+type GatewayClientCAStatus struct {
+	Name         string   `json:"name"`
+	BoundDomains []string `json:"bound_domains"`
+}
+
+// GatewayDomainMTLS describes inbound mutual TLS configuration for one HTTPS domain.
+type GatewayDomainMTLS struct {
+	Domain             string `json:"domain" validate:"domain|required"`
+	Enabled            bool   `json:"enabled"`
+	ClientCASecretName string `json:"client_ca_secret_name,omitempty"`
+}
+
 // GatewayHTTPRouteConcise -
 type GatewayHTTPRouteConcise struct {
 	Name             string   `json:"name"`

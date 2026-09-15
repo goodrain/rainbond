@@ -20,7 +20,6 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/config/configs"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -29,6 +28,8 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	"github.com/goodrain/rainbond/config/configs"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
@@ -63,6 +64,47 @@ func (g *GatewayStruct) GatewayCertificate(w http.ResponseWriter, r *http.Reques
 		g.addGatewayCertificate(w, r)
 	case "DELETE":
 		g.deleteGatewayCertificate(w, r)
+	}
+}
+
+// GatewayClientCA manages client certificate authorities used by inbound gateway mTLS.
+func (g *GatewayStruct) GatewayClientCA(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	switch r.Method {
+	case http.MethodGet:
+		statuses, err := handler.GetGatewayHandler().ListGatewayClientCAs(tenant.Namespace)
+		if err != nil {
+			httputil.ReturnError(r, w, http.StatusInternalServerError, "failed to list gateway client CAs")
+			return
+		}
+		httputil.ReturnSuccess(r, w, statuses)
+	case http.MethodPost, http.MethodPut:
+		var req api_model.GatewayClientCA
+		if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+			return
+		}
+		var err error
+		if r.Method == http.MethodPost {
+			err = handler.GetGatewayHandler().AddGatewayClientCA(tenant.Namespace, &req)
+		} else {
+			err = handler.GetGatewayHandler().UpdateGatewayClientCA(tenant.Namespace, &req)
+		}
+		if err != nil {
+			httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+			return
+		}
+		httputil.ReturnSuccess(r, w, nil)
+	case http.MethodDelete:
+		name := r.URL.Query().Get("name")
+		if name == "" {
+			httputil.ReturnError(r, w, http.StatusBadRequest, "client CA name is required")
+			return
+		}
+		if err := handler.GetGatewayHandler().DeleteGatewayClientCA(tenant.Namespace, name); err != nil {
+			httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+			return
+		}
+		httputil.ReturnSuccess(r, w, nil)
 	}
 }
 
