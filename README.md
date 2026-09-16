@@ -1,35 +1,44 @@
-# Rainbond
+<div align="center">
+  <img src="https://static.goodrain.com/logo/logo-long.png" width="60%" alt="Rainbond Logo" />
 
-[中文](./README-zh.md)
+  <p><a href="./README-zh.md">中文</a></p>
 
-> **Built by AI. Run by Rainbond. Always under your control.**
+  <p>
+    <a href="https://github.com/goodrain/rainbond/stargazers">
+      <img src="https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square" alt="GitHub stars" />
+    </a>
+    <img src="https://img.shields.io/badge/version-v6.X-brightgreen.svg?style=flat-square" alt="Rainbond version" />
+    <a href="https://discord.com/invite/czusNpcymS">
+      <img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&amp;logo=discord" alt="Discord" />
+    </a>
+  </p>
+</div>
 
-Rainbond is an AI application runtime platform.
+<div align="center">
+  <h2>An open-source container platform. No Kubernetes expertise required.</h2>
+  <p>Build, deploy, assemble, and manage applications on Kubernetes through a graphical interface, without K8s expertise.</p>
+  <p>
+    <a href="https://www.rainbond.io?channel=github">Website</a> ·
+    <a href="https://www.rainbond.io/docs/?channel=github">Documentation</a>
+  </p>
+</div>
 
-Its core capabilities are 100% open source. Rainbond provides a unified platform for running and managing AI-generated projects, large language model services, open-source AI software, and business applications. With AI-powered deployment, troubleshooting, upgrades, and operations, it keeps applications running reliably in containers on your own servers or Kubernetes clusters.
+## What is Rainbond?
 
-Through [Rainskills](https://github.com/goodrain/rainskills), AI agents such as Codex and Claude Code can deploy projects directly to Rainbond, troubleshoot issues, and verify delivery.
+Rainbond is an open-source container platform that requires no Kubernetes expertise. Its core capabilities are 100% open source.
 
-[Deploy with AI](https://github.com/goodrain/rainskills) ·
-[Try for free](https://run.rainbond.com) ·
-[Install Rainbond](https://www.rainbond.com/docs/quick-start/quick-install) ·
-[Documentation](https://www.rainbond.com/docs)
+It abstracts away infrastructure complexity and provides a unified way to deploy and manage business applications, AI-generated projects, open-source AI software, and large language model services. AI helps teams deploy and operate these workloads, keeping applications running reliably on their own servers or Kubernetes clusters.
+
 
 ## Where to start
 
 | Your goal | Start here |
 | --- | --- |
-| I use AI coding and want to deploy my project | [Install Rainskills](https://github.com/goodrain/rainskills) |
+| I use AI coding and want to deploy my project | [Install RainSkills](https://github.com/goodrain/rainskills) |
 | I want to try Rainbond without preparing a server | [Use Rainbond Cloud](https://run.rainbond.com) |
 | I want to run applications on my own servers or Kubernetes | [Install Rainbond privately](https://www.rainbond.com/docs/quick-start/quick-install) |
 | I want to deploy open-source applications such as Dify or RAGFlow | [Visit the Rainbond Application Marketplace](https://hub.rainbond.com) |
 | I am evaluating open-source container platforms | [Explore Rainbond's application management and delivery capabilities](https://www.rainbond.com/compare) |
-
-## Not just AI applications
-
-Rainbond's new entry point is designed for AI coding, but its underlying application runtime capabilities remain unchanged.
-
-Source code, container images, Docker Compose, Helm, traditional business systems, and microservice applications can still be deployed, managed, upgraded, rolled back, delivered offline, and adapted for Xinchuang environments with Rainbond.
 
 ---
 
@@ -37,7 +46,7 @@ Source code, container images, Docker Compose, Helm, traditional business system
 
 ### 1. Deliver applications without deeply learning Kubernetes
 
-Rainbond brings source code, images, application templates, dependencies, access, upgrades, and rollbacks into one application delivery path through a graphical interface and standardized workflows.
+Rainbond supports deploying applications from source code, container images, Docker Compose, Helm, or application templates. Its graphical interface and standardized workflows bring application dependencies, access, upgrades, and rollbacks into one place.
 
 ### 2. Make delivery in complex enterprise environments more reliable
 
