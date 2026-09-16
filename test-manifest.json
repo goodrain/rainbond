@@ -836,6 +836,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster.upgrade-preserves-component-config",
+      "title": "Preserve custom component configuration during image upgrades",
+      "title_zh": "Preserve custom component configuration during image upgrades",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cluster/rbd-upgrade",
+      "code_paths": [
+        "api/controller/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cluster_upgrade_test.go",
+          "selector": "TestUpgradePreservesComponentConfig"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb-version.extract-major",
       "title": "Extract major version from CNB spec",
       "title_zh": "\u4ece CNB \u7248\u672c\u8868\u8fbe\u5f0f\u63d0\u53d6\u4e3b\u7248\u672c",

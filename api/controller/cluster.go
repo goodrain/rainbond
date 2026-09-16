@@ -22,6 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
@@ -35,14 +43,8 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"io"
 	"k8s.io/apimachinery/pkg/types"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -449,9 +451,11 @@ func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
 			res = append(res, fmt.Sprintf(`%s获取异常%s`, k, err.Error()))
 			continue
 		}
+		original := cpt.DeepCopy()
 		cpt.Spec.Image = v
 		logrus.Infof("upgrade [%s] image to [%s]", k, v)
-		err = k8s.Default().K8sClient.Update(context.Background(), &cpt)
+		// Patch only the image so fields absent from the vendored CRD type are preserved.
+		err = k8s.Default().K8sClient.Patch(context.Background(), &cpt, k8sclient.MergeFrom(original))
 		if err != nil {
 			res = append(res, fmt.Sprintf(`%s更新异常%s`, k, err.Error()))
 			continue
@@ -754,6 +758,7 @@ func copyDirectory(srcDir, dstDir string) error {
 	return err
 }
 
+// GetRegionStatus returns the cluster region status after verifying the request token.
 func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token != os.Getenv("HELM_TOKEN") {
@@ -768,6 +773,7 @@ func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, regionInfo)
 }
 
+// SetOverScore updates the resource overcommit ratio.
 func (c *ClusterController) SetOverScore(w http.ResponseWriter, r *http.Request) {
 	var overScore model.OverScore
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &overScore, nil); !ok {
