@@ -179,8 +179,9 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	type routeResponse struct {
 		*v2.ApisixRouteHTTP
-		Enabled     bool   `json:"enabled"`
-		RegionAppID string `json:"region_app_id"`
+		Enabled     bool                          `json:"enabled"`
+		RegionAppID string                        `json:"region_app_id"`
+		MTLS        []*apimodel.GatewayDomainMTLS `json:"mtls"`
 	}
 
 	var resp = make([]*routeResponse, 0)
@@ -199,8 +200,35 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
+	allDomains := make([]string, 0)
+	seenDomains := make(map[string]struct{})
+	for i := range list.Items {
+		if len(list.Items[i].Spec.HTTP) == 0 {
+			continue
+		}
+		for _, domain := range list.Items[i].Spec.HTTP[0].Match.Hosts {
+			if _, seen := seenDomains[domain]; seen {
+				continue
+			}
+			seenDomains[domain] = struct{}{}
+			allDomains = append(allDomains, domain)
+		}
+	}
+	mtlsStatuses, err := handler.GetGatewayHandler().GetGatewayDomainMTLS(tenant.Namespace, allDomains)
+	if err != nil {
+		logrus.Errorf("get gateway domain mTLS status: %v", err)
+		httputil.ReturnError(r, w, http.StatusInternalServerError, "failed to get gateway domain mTLS status")
+		return
+	}
+	mtlsByDomain := make(map[string]*apimodel.GatewayDomainMTLS, len(mtlsStatuses))
+	for _, status := range mtlsStatuses {
+		mtlsByDomain[status.Domain] = status
+	}
 
 	for _, v := range list.Items {
+		if len(v.Spec.HTTP) == 0 {
+			continue
+		}
 		httpRoute := v.Spec.HTTP[0].DeepCopy()
 		labels := v.Labels
 		serviceAliases := ""
@@ -218,13 +246,59 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		httpRoute.Name = regionAppID + "|" + v.Name + "|" + serviceAliases
+		routeMTLS := make([]*apimodel.GatewayDomainMTLS, 0, len(httpRoute.Match.Hosts))
+		for _, domain := range httpRoute.Match.Hosts {
+			if status := mtlsByDomain[domain]; status != nil {
+				routeMTLS = append(routeMTLS, status)
+			} else {
+				routeMTLS = append(routeMTLS, &apimodel.GatewayDomainMTLS{Domain: domain})
+			}
+		}
 		resp = append(resp, &routeResponse{
 			ApisixRouteHTTP: httpRoute,
 			Enabled:         enabled,
 			RegionAppID:     regionAppID,
+			MTLS:            routeMTLS,
 		})
 	}
 	httputil.ReturnSuccess(r, w, resp)
+}
+
+// ConfigureHTTPRouteMTLS enables or updates inbound mTLS for one HTTPS domain.
+func (g Struct) ConfigureHTTPRouteMTLS(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	var req apimodel.GatewayDomainMTLS
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+	if req.ClientCASecretName == "" {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "client CA is required")
+		return
+	}
+	if err := handler.GetGatewayHandler().ConfigureGatewayDomainMTLS(tenant.Namespace, &req); err != nil {
+		logrus.Errorf("configure gateway domain mTLS: %v", err)
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, &apimodel.GatewayDomainMTLS{
+		Domain: req.Domain, Enabled: true, ClientCASecretName: req.ClientCASecretName,
+	})
+}
+
+// DisableHTTPRouteMTLS disables inbound mTLS for one HTTPS domain.
+func (g Struct) DisableHTTPRouteMTLS(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	domain := r.URL.Query().Get("domain")
+	if domain == "" {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "domain is required")
+		return
+	}
+	if err := handler.GetGatewayHandler().DisableGatewayDomainMTLS(tenant.Namespace, domain); err != nil {
+		logrus.Errorf("disable gateway domain mTLS: %v", err)
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, &apimodel.GatewayDomainMTLS{Domain: domain})
 }
 
 // UpdateHTTPAPIRoute -

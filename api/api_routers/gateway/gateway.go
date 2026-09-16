@@ -23,6 +23,8 @@ func Routes() chi.Router {
 		r.Post("/cert-manager", controller.GetManager().CreateCertManager)
 		r.Get("/cert-manager", controller.GetManager().GetCertManager)
 		r.Delete("/cert-manager", controller.GetManager().DeleteCertManager)
+		r.Post("/mtls", controller.GetManager().ConfigureHTTPRouteMTLS)
+		r.Delete("/mtls", controller.GetManager().DisableHTTPRouteMTLS)
 
 	})
 

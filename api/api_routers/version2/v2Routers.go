@@ -578,6 +578,10 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/gateway-certificate", controller.GetManager().GatewayCertificate)
 	r.Delete("/gateway-certificate", controller.GetManager().GatewayCertificate)
 	r.Put("/gateway-certificate", controller.GetManager().GatewayCertificate)
+	r.Get("/gateway-client-ca", controller.GetManager().GatewayClientCA)
+	r.Post("/gateway-client-ca", controller.GetManager().GatewayClientCA)
+	r.Put("/gateway-client-ca", controller.GetManager().GatewayClientCA)
+	r.Delete("/gateway-client-ca", controller.GetManager().GatewayClientCA)
 
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)

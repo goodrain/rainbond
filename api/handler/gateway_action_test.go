@@ -3,12 +3,19 @@ package handler
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"math/big"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
+	"time"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
@@ -190,10 +197,36 @@ func TestGatewayParentRefValuesReturnsFirstParentRef(t *testing.T) {
 
 func gatewayCertificateRequestForTest(t *testing.T, name, namespace, domain string) *apimodel.GatewayCertificate {
 	t.Helper()
+	return gatewayCertificateRequestForDomains(t, name, namespace, []string{domain})
+}
 
-	cert, key, err := generateSelfSignedCertificate(domain)
+func gatewayCertificateRequestForDomains(t *testing.T, name, namespace string, domains []string) *apimodel.GatewayCertificate {
+	t.Helper()
+	if len(domains) == 0 {
+		t.Fatal("at least one certificate domain is required")
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		t.Fatalf("generate certificate: %v", err)
+		t.Fatalf("generate certificate key: %v", err)
+	}
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("generate certificate serial: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               pkix.Name{CommonName: domains[0]},
+		DNSNames:              domains,
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
 	}
 	keyBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
@@ -203,7 +236,7 @@ func gatewayCertificateRequestForTest(t *testing.T, name, namespace, domain stri
 	return &apimodel.GatewayCertificate{
 		Name:        name,
 		Namespace:   namespace,
-		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+		Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})),
 		PrivateKey:  string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes})),
 	}
 }
@@ -216,6 +249,355 @@ func gatewayActionForCertificateTest(kubeClient kubernetes.Interface, apisixClie
 			return nil
 		},
 	}
+}
+
+func testCertificatePEM(t *testing.T, commonName string, isCA bool, notAfter time.Time) string {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate certificate key: %v", err)
+	}
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatalf("generate certificate serial: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               pkix.Name{CommonName: commonName},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+	}
+	if isCA {
+		template.KeyUsage |= x509.KeyUsageCertSign
+	} else {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+}
+
+// capability_id: rainbond.gateway.client-ca-lifecycle
+func TestGatewayClientCALifecycle(t *testing.T) {
+	const (
+		namespace = "tenant-ns"
+		name      = "rbd-client-ca-certificate-id"
+	)
+
+	t.Run("creates updates and lists a valid client CA", func(t *testing.T) {
+		firstCertificate := testCertificatePEM(t, "first-client-ca", true, time.Now().Add(24*time.Hour))
+		updatedCertificate := testCertificatePEM(t, "updated-client-ca", true, time.Now().Add(48*time.Hour))
+		kubeClient := k8sfake.NewSimpleClientset()
+		apisixClient := apisixfake.NewSimpleClientset()
+		action := gatewayActionForCertificateTest(kubeClient, apisixClient)
+
+		if err := action.AddGatewayClientCA(namespace, &apimodel.GatewayClientCA{
+			Name: name, Certificate: firstCertificate,
+		}); err != nil {
+			t.Fatalf("add client CA: %v", err)
+		}
+		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get client CA secret: %v", err)
+		}
+		if got := string(secret.Data[corev1.ServiceAccountRootCAKey]); got != firstCertificate {
+			t.Fatal("client CA secret does not contain the submitted certificate")
+		}
+		if _, ok := secret.Data[corev1.TLSPrivateKeyKey]; ok {
+			t.Fatal("client CA secret must not contain a private key")
+		}
+
+		if err := action.UpdateGatewayClientCA(namespace, &apimodel.GatewayClientCA{
+			Name: name, Certificate: updatedCertificate,
+		}); err != nil {
+			t.Fatalf("update client CA: %v", err)
+		}
+		secret, err = kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get updated client CA secret: %v", err)
+		}
+		if got := string(secret.Data[corev1.ServiceAccountRootCAKey]); got != updatedCertificate {
+			t.Fatal("updated client CA secret does not contain the submitted certificate")
+		}
+
+		_, err = apisixClient.ApisixV2().ApisixTlses(namespace).Create(context.Background(), &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: "api-tls", Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"api.example.com"},
+				Secret: v2.ApisixSecret{Name: "server-cert", Namespace: namespace},
+				Client: &v2.ApisixMutualTlsClientConfig{
+					CASecret: v2.ApisixSecret{Name: name, Namespace: namespace},
+					Depth:    1,
+				},
+			},
+		}, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("create referencing ApisixTls: %v", err)
+		}
+
+		statuses, err := action.ListGatewayClientCAs(namespace)
+		if err != nil {
+			t.Fatalf("list client CAs: %v", err)
+		}
+		if len(statuses) != 1 || statuses[0].Name != name || !reflect.DeepEqual(statuses[0].BoundDomains, []string{"api.example.com"}) {
+			t.Fatalf("client CA statuses = %#v", statuses)
+		}
+
+		if err := action.DeleteGatewayClientCA(namespace, name); err == nil {
+			t.Fatal("expected referenced client CA deletion to fail")
+		}
+		if _, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{}); err != nil {
+			t.Fatalf("referenced client CA secret was deleted: %v", err)
+		}
+
+		if err := apisixClient.ApisixV2().ApisixTlses(namespace).Delete(context.Background(), "api-tls", metav1.DeleteOptions{}); err != nil {
+			t.Fatalf("delete referencing ApisixTls: %v", err)
+		}
+		if err := action.DeleteGatewayClientCA(namespace, name); err != nil {
+			t.Fatalf("delete unreferenced client CA: %v", err)
+		}
+		if _, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{}); !k8serrors.IsNotFound(err) {
+			t.Fatalf("client CA secret still exists, error: %v", err)
+		}
+	})
+
+	tests := []struct {
+		name        string
+		certificate string
+	}{
+		{name: "malformed", certificate: "not a certificate"},
+		{name: "non CA", certificate: testCertificatePEM(t, "client", false, time.Now().Add(24*time.Hour))},
+		{name: "expired", certificate: testCertificatePEM(t, "expired-ca", true, time.Now().Add(-time.Minute))},
+	}
+	for _, tt := range tests {
+		t.Run("rejects "+tt.name, func(t *testing.T) {
+			kubeClient := k8sfake.NewSimpleClientset()
+			action := gatewayActionForCertificateTest(kubeClient, apisixfake.NewSimpleClientset())
+			if err := action.AddGatewayClientCA(namespace, &apimodel.GatewayClientCA{
+				Name: name, Certificate: tt.certificate,
+			}); err == nil {
+				t.Fatalf("expected %s certificate to be rejected", tt.name)
+			}
+			if _, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{}); !k8serrors.IsNotFound(err) {
+				t.Fatalf("invalid client CA created a secret, error: %v", err)
+			}
+		})
+	}
+}
+
+func tlsHostsForTest(tls *v2.ApisixTls) []string {
+	hosts := make([]string, 0, len(tls.Spec.Hosts))
+	for _, host := range tls.Spec.Hosts {
+		hosts = append(hosts, string(host))
+	}
+	sort.Strings(hosts)
+	return hosts
+}
+
+// capability_id: rainbond.gateway.domain-mtls
+func TestGatewayDomainMTLS(t *testing.T) {
+	const (
+		namespace = "tenant-ns"
+		caName    = "rbd-client-ca-certificate-id"
+	)
+	validCA := testCertificatePEM(t, "client-ca", true, time.Now().Add(24*time.Hour))
+	clientCASecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      caName,
+			Namespace: namespace,
+			Labels:    map[string]string{gatewayClientCASecretLabel: gatewayClientCASecretLabelValue},
+		},
+		Data: map[string][]byte{corev1.ServiceAccountRootCAKey: []byte(validCA)},
+	}
+
+	t.Run("configures and disables a single exact domain", func(t *testing.T) {
+		tls := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: "server-tls", Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"api.example.com"},
+				Secret: v2.ApisixSecret{Name: "server-secret", Namespace: namespace},
+			},
+		}
+		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(clientCASecret.DeepCopy()), apisixfake.NewSimpleClientset(tls))
+
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "api.example.com", ClientCASecretName: caName,
+		}); err != nil {
+			t.Fatalf("configure domain mTLS: %v", err)
+		}
+		updated, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), "server-tls", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get configured ApisixTls: %v", err)
+		}
+		if updated.Spec.Client == nil || updated.Spec.Client.CASecret.Name != caName || updated.Spec.Client.Depth != 1 {
+			t.Fatalf("mTLS client config = %#v", updated.Spec.Client)
+		}
+		statuses, err := action.GetGatewayDomainMTLS(namespace, []string{"api.example.com", "other.example.com"})
+		if err != nil {
+			t.Fatalf("get domain mTLS status: %v", err)
+		}
+		if len(statuses) != 2 || !statuses[0].Enabled || statuses[0].ClientCASecretName != caName || statuses[1].Enabled {
+			t.Fatalf("domain mTLS statuses = %#v", statuses)
+		}
+
+		if err := action.DisableGatewayDomainMTLS(namespace, "api.example.com"); err != nil {
+			t.Fatalf("disable domain mTLS: %v", err)
+		}
+		updated, err = action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), "server-tls", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get disabled ApisixTls: %v", err)
+		}
+		if updated.Spec.Client != nil {
+			t.Fatalf("mTLS client config was not removed: %#v", updated.Spec.Client)
+		}
+	})
+
+	t.Run("splits and restores one domain from a multi host certificate", func(t *testing.T) {
+		tls := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: "server-tls", Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"api.example.com", "www.example.com"},
+				Secret: v2.ApisixSecret{Name: "server-secret", Namespace: namespace},
+			},
+		}
+		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(clientCASecret.DeepCopy()), apisixfake.NewSimpleClientset(tls))
+
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "api.example.com", ClientCASecretName: caName,
+		}); err != nil {
+			t.Fatalf("configure split domain mTLS: %v", err)
+		}
+		list, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			t.Fatalf("list split ApisixTls resources: %v", err)
+		}
+		if len(list.Items) != 2 {
+			t.Fatalf("ApisixTls resource count = %d, expected 2", len(list.Items))
+		}
+		base, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), "server-tls", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get base ApisixTls: %v", err)
+		}
+		if !reflect.DeepEqual(tlsHostsForTest(base), []string{"www.example.com"}) {
+			t.Fatalf("base hosts = %#v", base.Spec.Hosts)
+		}
+		var split *v2.ApisixTls
+		for i := range list.Items {
+			candidate := &list.Items[i]
+			if candidate.Name != "server-tls" {
+				split = candidate
+			}
+		}
+		if split == nil || !reflect.DeepEqual(tlsHostsForTest(split), []string{"api.example.com"}) || split.Spec.Client == nil {
+			t.Fatalf("split ApisixTls = %#v", split)
+		}
+		if split.Spec.Secret != tls.Spec.Secret {
+			t.Fatalf("split server secret = %#v, expected %#v", split.Spec.Secret, tls.Spec.Secret)
+		}
+
+		if err := action.DisableGatewayDomainMTLS(namespace, "api.example.com"); err != nil {
+			t.Fatalf("disable split domain mTLS: %v", err)
+		}
+		list, err = action.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			t.Fatalf("list restored ApisixTls resources: %v", err)
+		}
+		if len(list.Items) != 1 || list.Items[0].Name != "server-tls" {
+			t.Fatalf("restored ApisixTls resources = %#v", list.Items)
+		}
+		if !reflect.DeepEqual(tlsHostsForTest(&list.Items[0]), []string{"api.example.com", "www.example.com"}) {
+			t.Fatalf("restored base hosts = %#v", list.Items[0].Spec.Hosts)
+		}
+	})
+
+	t.Run("creates a specific override for a wildcard certificate", func(t *testing.T) {
+		tls := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: "wildcard-tls", Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"*.example.com"},
+				Secret: v2.ApisixSecret{Name: "wildcard-secret", Namespace: namespace},
+			},
+		}
+		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(clientCASecret.DeepCopy()), apisixfake.NewSimpleClientset(tls))
+
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "api.example.com", ClientCASecretName: caName,
+		}); err != nil {
+			t.Fatalf("configure wildcard domain mTLS: %v", err)
+		}
+		list, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			t.Fatalf("list wildcard ApisixTls resources: %v", err)
+		}
+		if len(list.Items) != 2 {
+			t.Fatalf("wildcard ApisixTls resource count = %d, expected 2", len(list.Items))
+		}
+		base, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), "wildcard-tls", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get wildcard base ApisixTls: %v", err)
+		}
+		if !reflect.DeepEqual(tlsHostsForTest(base), []string{"*.example.com"}) || base.Spec.Client != nil {
+			t.Fatalf("wildcard base was modified: %#v", base.Spec)
+		}
+
+		if err := action.DisableGatewayDomainMTLS(namespace, "api.example.com"); err != nil {
+			t.Fatalf("disable wildcard domain mTLS: %v", err)
+		}
+		list, err = action.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			t.Fatalf("list wildcard resources after disable: %v", err)
+		}
+		if len(list.Items) != 1 || list.Items[0].Name != "wildcard-tls" {
+			t.Fatalf("wildcard resources after disable = %#v", list.Items)
+		}
+	})
+
+	t.Run("configures a wildcard domain", func(t *testing.T) {
+		tls := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: "wildcard-tls", Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"*.example.com"},
+				Secret: v2.ApisixSecret{Name: "wildcard-secret", Namespace: namespace},
+			},
+		}
+		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(clientCASecret.DeepCopy()), apisixfake.NewSimpleClientset(tls))
+
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "*.example.com", ClientCASecretName: caName,
+		}); err != nil {
+			t.Fatalf("configure wildcard mTLS: %v", err)
+		}
+		updated, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(
+			context.Background(), "wildcard-tls", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get configured wildcard ApisixTls: %v", err)
+		}
+		if updated.Spec.Client == nil || updated.Spec.Client.CASecret.Name != caName {
+			t.Fatalf("wildcard mTLS client config = %#v", updated.Spec.Client)
+		}
+	})
+
+	t.Run("rejects missing client CA and missing server TLS", func(t *testing.T) {
+		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(), apisixfake.NewSimpleClientset())
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "api.example.com", ClientCASecretName: caName,
+		}); err == nil {
+			t.Fatal("expected missing client CA to fail")
+		}
+
+		action = gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(clientCASecret.DeepCopy()), apisixfake.NewSimpleClientset())
+		if err := action.ConfigureGatewayDomainMTLS(namespace, &apimodel.GatewayDomainMTLS{
+			Domain: "api.example.com", ClientCASecretName: caName,
+		}); err == nil {
+			t.Fatal("expected missing server TLS to fail")
+		}
+	})
 }
 
 func assertGatewayCertificateResources(t *testing.T, action *GatewayAction, req *apimodel.GatewayCertificate, domain string) {
@@ -397,6 +779,50 @@ func TestGatewayCertificateResourceConsistency(t *testing.T) {
 		}
 	})
 
+	t.Run("update keeps detached mTLS domains out of the base resource", func(t *testing.T) {
+		req := gatewayCertificateRequestForDomains(t, name, namespace, []string{"api.example.com", "www.example.com"})
+		baseTLS := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"www.example.com"},
+				Secret: v2.ApisixSecret{Name: name, Namespace: namespace},
+			},
+		}
+		childTLS := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      gatewayMTLSResourceName("api.example.com"),
+				Namespace: namespace,
+				Labels:    map[string]string{gatewayMTLSManagedLabel: "true"},
+				Annotations: map[string]string{
+					gatewayMTLSDomainAnnotation:   "api.example.com",
+					gatewayMTLSParentAnnotation:   name,
+					gatewayMTLSDetachedAnnotation: "true",
+					gatewayMTLSInPlaceAnnotation:  "false",
+				},
+			},
+			Spec: &v2.ApisixTlsSpec{
+				Hosts:  []v2.HostType{"api.example.com"},
+				Secret: v2.ApisixSecret{Name: name, Namespace: namespace},
+				Client: gatewayMTLSClient(namespace, "client-ca"),
+			},
+		}
+		action := gatewayActionForCertificateTest(
+			k8sfake.NewSimpleClientset(),
+			apisixfake.NewSimpleClientset(baseTLS, childTLS),
+		)
+
+		if err := action.UpdateGatewayCertificate(req); err != nil {
+			t.Fatalf("update gateway certificate with detached mTLS domain: %v", err)
+		}
+		updatedBase, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("get updated base ApisixTls: %v", err)
+		}
+		if !reflect.DeepEqual(tlsHostsForTest(updatedBase), []string{"www.example.com"}) {
+			t.Fatalf("updated base hosts = %#v, expected detached domain to stay excluded", updatedBase.Spec.Hosts)
+		}
+	})
+
 	t.Run("delete ignores missing resources", func(t *testing.T) {
 		action := gatewayActionForCertificateTest(k8sfake.NewSimpleClientset(), apisixfake.NewSimpleClientset())
 
@@ -426,6 +852,38 @@ func TestGatewayCertificateResourceConsistency(t *testing.T) {
 		}
 		if !reflect.DeepEqual(deletionOrder, []string{"ApisixTls", "Secret"}) {
 			t.Fatalf("deletion order = %#v, expected ApisixTls then Secret", deletionOrder)
+		}
+	})
+
+	t.Run("delete removes managed mTLS resources that reference the server certificate", func(t *testing.T) {
+		secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+		baseTLS := &v2.ApisixTls{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+		childTLS := &v2.ApisixTls{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      gatewayMTLSResourceName("api.example.com"),
+				Namespace: namespace,
+				Labels:    map[string]string{gatewayMTLSManagedLabel: "true"},
+				Annotations: map[string]string{
+					gatewayMTLSDomainAnnotation: "api.example.com",
+					gatewayMTLSParentAnnotation: name,
+				},
+			},
+			Spec: &v2.ApisixTlsSpec{Secret: v2.ApisixSecret{Name: name, Namespace: namespace}},
+		}
+		action := gatewayActionForCertificateTest(
+			k8sfake.NewSimpleClientset(secret),
+			apisixfake.NewSimpleClientset(baseTLS, childTLS),
+		)
+
+		if err := action.DeleteGatewayCertificate(name, namespace); err != nil {
+			t.Fatalf("delete gateway certificate with managed mTLS child: %v", err)
+		}
+		list, err := action.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			t.Fatalf("list ApisixTls resources after certificate deletion: %v", err)
+		}
+		if len(list.Items) != 0 {
+			t.Fatalf("orphan ApisixTls resources remain: %#v", list.Items)
 		}
 	})
 }
