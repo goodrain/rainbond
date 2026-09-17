@@ -43,6 +43,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -447,9 +448,11 @@ func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
 			res = append(res, fmt.Sprintf(`%s获取异常%s`, k, err.Error()))
 			continue
 		}
+		original := cpt.DeepCopy()
 		cpt.Spec.Image = v
 		logrus.Infof("upgrade [%s] image to [%s]", k, v)
-		err = k8s.Default().K8sClient.Update(context.Background(), &cpt)
+		// Patch only the image so fields absent from the vendored CRD type are preserved.
+		err = k8s.Default().K8sClient.Patch(context.Background(), &cpt, k8sclient.MergeFrom(original))
 		if err != nil {
 			res = append(res, fmt.Sprintf(`%s更新异常%s`, k, err.Error()))
 			continue
