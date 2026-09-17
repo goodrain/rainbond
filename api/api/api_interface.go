@@ -38,7 +38,9 @@ type ClusterInterface interface {
 	GetResource(w http.ResponseWriter, r *http.Request)
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
+	PreviewDeleteResources(w http.ResponseWriter, r *http.Request)
 	BatchDeleteResource(w http.ResponseWriter, r *http.Request)
+	ReconcileResources(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
 	SyncResource(w http.ResponseWriter, r *http.Request)
 	YamlResourceName(w http.ResponseWriter, r *http.Request)
@@ -274,6 +276,7 @@ type Gatewayer interface {
 	GatewayHTTPRoute(w http.ResponseWriter, r *http.Request)
 	BatchGatewayHTTPRoute(w http.ResponseWriter, r *http.Request)
 	GatewayCertificate(w http.ResponseWriter, r *http.Request)
+	GatewayClientCA(w http.ResponseWriter, r *http.Request)
 }
 
 // ThirdPartyServicer is an interface for defining methods for third-party service.
@@ -348,6 +351,8 @@ type GatewayRouteInterface interface {
 	CheckCertManager(w http.ResponseWriter, r *http.Request)
 	GetCertManager(w http.ResponseWriter, r *http.Request)
 	DeleteCertManager(w http.ResponseWriter, r *http.Request)
+	ConfigureHTTPRouteMTLS(w http.ResponseWriter, r *http.Request)
+	DisableHTTPRouteMTLS(w http.ResponseWriter, r *http.Request)
 }
 
 // GatewayServiceInterface api gateway service interface

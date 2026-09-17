@@ -59,6 +59,15 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 	return resources, nil
 }
 
+// ListByKind lists K8s resource metadata across all applications by kind.
+func (t *K8sResourceDaoImpl) ListByKind(kind string) ([]model.K8sResource, error) {
+	var resources []model.K8sResource
+	if err := t.DB.Where("kind = ?", kind).Find(&resources).Error; err != nil {
+		return nil, err
+	}
+	return resources, nil
+}
+
 // DeleteK8sResourceByIDs -
 func (t *K8sResourceDaoImpl) DeleteK8sResourceByIDs(ids []uint) error {
 	if err := t.DB.Where("ID in (?)", ids).Delete(&model.K8sResource{}).Error; err != nil {

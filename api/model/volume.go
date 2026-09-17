@@ -51,7 +51,7 @@ type AddVolumeStruct struct {
 		VolumeProviderName string `json:"volume_provider_name"`
 		IsReadOnly         bool   `json:"is_read_only"`
 		// VolumeCapacity 存储大小
-		VolumeCapacity int64 `json:"volume_capacity"` // 单位: Mi
+		VolumeCapacity int64 `json:"volume_capacity"` // 单位: Gi
 		// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
 		AccessMode string `json:"access_mode"`
 		// SharePolicy 共享模式
@@ -163,7 +163,7 @@ type V2AddVolumeStruct struct {
 		//存储驱动名称
 		VolumeProviderName string `json:"volume_provider_name"`
 		// 存储大小
-		VolumeCapacity int64 `json:"volume_capacity" validate:"volume_capacity|required|min:1"` // 单位Mi
+		VolumeCapacity int64 `json:"volume_capacity" validate:"volume_capacity|required|min:1"` // 单位 Gi
 		// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a
 		AccessMode string `gorm:"column:access_mode" json:"access_mode"`
 		// SharePolicy 共享模式
@@ -290,6 +290,16 @@ type VolumeWithStatusStruct struct {
 	ReclaimPolicy string `json:"reclaim_policy"`
 	// AllowExpansion 是否支持扩展
 	AllowExpansion bool `json:"allow_expansion"`
+	// ActualCapacity PVC 已完成扩容的实际容量，单位 GiB
+	ActualCapacity int64 `json:"actual_capacity"`
+	// RequestedCapacity PVC 当前请求容量，单位 GiB
+	RequestedCapacity int64 `json:"requested_capacity"`
+	// ExpansionStatus PVC 扩容状态
+	ExpansionStatus string `json:"expansion_status"`
+	// ExpansionMessage PVC 扩容状态详情或禁用原因
+	ExpansionMessage string `json:"expansion_message"`
+	// PVCCount 逻辑存储对应的 PVC 数量
+	PVCCount int `json:"pvc_count"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `json:"volume_provider_name"`
 	// Mode 配置文件权限模式

@@ -48,6 +48,7 @@
 | rainbond.cloud-storage.provider-parse | 解析云存储 provider 配置值 | active | regression | builder/cloudos.Str2S3Provider | builder/cloudos/cloudos_test.go::TestStr2S3Provider |
 | rainbond.cloud-storage.s3-driver-config | 按预期配置初始化 S3 存储驱动 | active | regression | builder/cloudos.newS3 | builder/cloudos/s3_test.go::TestNewS3DriverKeepsConfig |
 | rainbond.cluster-resource.detect-subresource | 识别集群资源子路径 | active | regression | api/handler.containsSlash | api/handler/cluster_resource_test.go::TestContainsSlash |
+| rainbond.cluster-resource.exclude-terminal-pods | 从集群资源分配统计中排除终态 Pod | active | regression | api/handler.(*TenantAction).initClusterResource | api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods |
 | rainbond.cluster-resource.handler-singleton | 复用集群资源处理器单例 | active | unit | api/handler.GetClusterResourceHandler | api/handler/cluster_resource_test.go::TestGetClusterResourceHandlerSingleton |
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cluster.upgrade-preserves-component-config | Preserve custom component configuration during image upgrades | active | regression | POST /v2/cluster/rbd-upgrade | api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig |
@@ -85,6 +86,11 @@
 | rainbond.cnb.volume-mounts | 创建 CNB 构建卷与挂载 | active | regression | builder/build/cnb.Builder.createVolumeAndMount | builder/build/cnb/cnb_test.go::TestCreateVolumeAndMount |
 | rainbond.cnb.waiting-complete | 等待 CNB 构建任务完成状态 | active | regression | builder/build/cnb.Builder.waitingComplete | builder/build/cnb/cnb_test.go::TestWaitingComplete |
 | rainbond.component.volume-delete-blocks-shared-mount | Block deleting shared mounted component volumes | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_volume_test.go::TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume |
+| rainbond.component.volume-expansion-only-grows | Reject PVC volume shrink requests | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink |
+| rainbond.component.volume-expansion-reconciles-drift | Reconcile PVC request with stored volume capacity | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeReconcilesStoredCapacity |
+| rainbond.component.volume-expansion-status | Report PVC volume expansion capability and status | active | unit | api/handler.ServiceAction.GetVolumes | api/handler/service_volume_expansion_test.go::TestInspectVolumeExpansion |
+| rainbond.component.volume-expansion-updates-claims | Expand every PVC for a component volume | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_expansion_test.go::TestExpandVolumeClaims |
+| rainbond.component.volume-path-update-without-expansion | Path edits with unchanged capacity do not require PVC expansion support | active | regression | ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumePathDoesNotRequireExpansion |
 | rainbond.component.volume-update-persists-capacity | 持久化组件存储容量更新 | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_volume_test.go::TestServiceActionUpdVolumeUpdatesVolumeCapacity |
 | rainbond.component.volume-update-preserves-capacity | 组件存储更新请求保留容量字段 | active | regression | api/model.UpdVolumeReq | api/model/volume_test.go::TestUpdVolumeReqPreservesVolumeCapacityFromJSON |
 | rainbond.compose.config-volume-file-content | 保留配置卷文件内容字段语义 | active | regression | builder/parser/types.Volume.FileContent | builder/parser/file_content_test.go::TestVolumeFileContent |
@@ -144,6 +150,8 @@
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
 | rainbond.gateway.certificate-resource-consistency | Keep gateway certificate resources consistent | active | regression | api/handler.GatewayAction.AddGatewayCertificate | api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency |
+| rainbond.gateway.client-ca-lifecycle | Manage gateway client CA lifecycle | active | regression | api/handler.GatewayAction.AddGatewayClientCA | api/handler/gateway_action_test.go::TestGatewayClientCALifecycle |
+| rainbond.gateway.domain-mtls | Configure inbound mTLS per gateway domain | active | regression | api/handler.GatewayAction.ConfigureGatewayDomainMTLS | api/handler/gateway_action_test.go::TestGatewayDomainMTLS |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
 | rainbond.gateway.prevent-tcp-route-delete-recreation-race | Protect recreated TCP route Services with UID delete preconditions | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID |
 | rainbond.gateway.protect-tcp-route-service-ownership | Reject TCP route updates for missing or different Service owners | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner |
@@ -184,6 +192,13 @@
 | rainbond.ingress-nginx.name-namespace-parse | 解析 ingress-nginx 资源的 namespace/name 标识 | active | regression | util/ingress-nginx/k8s.ParseNameNS | util/ingress-nginx/k8s/main_test.go::TestParseNameNS |
 | rainbond.ingress-nginx.node-ip-resolve | 为 ingress-nginx helper 解析节点内外网 IP | active | regression | util/ingress-nginx/k8s.GetNodeIPOrName | util/ingress-nginx/k8s/main_test.go::TestGetNodeIPOrName |
 | rainbond.ingress-nginx.pod-details | 根据环境变量和集群状态解析 ingress-nginx Pod 详情 | active | regression | util/ingress-nginx/k8s.GetPodDetails | util/ingress-nginx/k8s/main_test.go::TestGetPodDetails |
+| rainbond.k8s-resource.crd-cascade-delete | CRD cascade deletion preserves dependency order | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition |
+| rainbond.k8s-resource.deletion-request-timeout | Kubernetes deletion requests outlive the global HTTP timeout | active | regression | pkg/interceptors.requestTimeout | pkg/interceptors/http_test.go::TestRequestTimeout |
+| rainbond.k8s-resource.deletion-timeout-final-check | Kubernetes deletion timeout performs a final live check | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace |
+| rainbond.k8s-resource.failed-delete-metadata-only | Failed resources are metadata-only during deletion | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion |
+| rainbond.k8s-resource.metadata-reconcile | Kubernetes resource metadata reconciliation | active | regression | api/handler.k8sResourceDeletionOrchestrator.Reconcile | api/handler/resource_deletion_test.go::TestK8sResourceReconcileDistinguishesMissingAndUnknown |
+| rainbond.k8s-resource.response-array-contract | Resource deletion and reconciliation responses encode empty lists as arrays | active | regression | k8sResourceDeletionOrchestrator | api/handler/resource_deletion_test.go::TestK8sResourceDeletionResponseArrays<br>api/handler/resource_deletion_test.go::TestK8sResourceReconcileResponseArrays |
+| rainbond.k8s-resource.stop-recreating-controller | Stop in-application controllers before deleting generated custom resources | active | regression | api/handler.k8sResourceDeletionOrchestrator.Delete | api/handler/resource_deletion_test.go::TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources<br>api/handler/resource_deletion_test.go::TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone |
 | rainbond.k8s.scheme-registers-kubevirt-vm | K8s scheme registers KubeVirt VirtualMachine | active | regression | pkg/component/k8s.init | pkg/component/k8s/k8sComponent_test.go::TestSchemeRegistersKubeVirtVirtualMachine |
 | rainbond.kubeblocks.component-selector | 为 KubeBlocks 组件生成标签选择器 | active | regression | util/kubeblocks.GenerateKubeBlocksSelector | util/kubeblocks/kubeblocks_test.go::TestGenerateKubeBlocksSelector |
 | rainbond.license.decode | 解码并解析许可证令牌内容 | active | regression | api/util/license.DecodeLicense | api/util/license/rsa_license_test.go::TestDecodeLicense |
@@ -443,6 +458,7 @@
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation | 跳过 Rainbond 管理的 TCP 路由匿名端口预留 | active | regression | worker/appm/store.shouldTrackNodePortService | worker/appm/store/store_test.go::TestShouldTrackNodePortService |
+| rainbond.worker.appm.store.stateful-volume-capacity-reconciliation | New StatefulSet claims converge to stored capacity without recreating workloads | active | regression | appRuntimeStore.OnAdd | worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionOnClaimEvents<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesAfterDatabaseCommit<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesFailuresAndConflicts<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionSkipsUnsupportedOrForeignClaims<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionAcceptsManualVolumeLabel |
 | rainbond.worker.appm.store.sync-managed-namespace-image-pull-secret | 在命名空间事件中同步受管命名空间的镜像拉取密钥 | active | regression | worker/appm/store.appRuntimeStore.nsEventHandler | worker/appm/store/store_test.go::TestNsEventHandlerProvidesAddFunc |
 | rainbond.worker.appm.vm-boot-media-paths | 拆分 ISO 与 QCOW2 的 VM 启动介质组装路径 | active | regression | worker/appm/conversion.TenantServiceVersion | worker/appm/conversion/version_vm_test.go::TestResolveVMBootPathUsesISOInstallerWhenRootDiskIsBlank<br>worker/appm/conversion/version_vm_test.go::TestApplyVMBootVolumeLayoutDropsInstallerVolumeWhenDiskLayoutRemovesIt |
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
@@ -923,6 +939,16 @@
 - 代码路径: `api/handler/cluster_resource.go`
 - 测试路径: `api/handler/cluster_resource_test.go::TestContainsSlash`
 
+### 从集群资源分配统计中排除终态 Pod
+
+- Capability ID: `rainbond.cluster-resource.exclude-terminal-pods`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.(*TenantAction).initClusterResource`
+- 代码路径: `api/handler/tenant.go`
+- 测试路径: `api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods`
+
 ### 复用集群资源处理器单例
 
 - Capability ID: `rainbond.cluster-resource.handler-singleton`
@@ -1292,6 +1318,56 @@
 - 业务入口: `api/handler.ServiceAction.VolumnVar`
 - 代码路径: `api/handler/service.go`, `db/dao/dao.go`, `db/mysql/dao/tenants.go`
 - 测试路径: `api/handler/service_volume_test.go::TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume`
+
+### Reject PVC volume shrink requests
+
+- Capability ID: `rainbond.component.volume-expansion-only-grows`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeRejectsShrink`
+
+### Reconcile PVC request with stored volume capacity
+
+- Capability ID: `rainbond.component.volume-expansion-reconciles-drift`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumeReconcilesStoredCapacity`
+
+### Report PVC volume expansion capability and status
+
+- Capability ID: `rainbond.component.volume-expansion-status`
+- 状态: `active`
+- 测试类型: `unit`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.GetVolumes`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_expansion_test.go::TestInspectVolumeExpansion`
+
+### Expand every PVC for a component volume
+
+- Capability ID: `rainbond.component.volume-expansion-updates-claims`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service_volume_expansion.go`, `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_expansion_test.go::TestExpandVolumeClaims`
+
+### Path edits with unchanged capacity do not require PVC expansion support
+
+- Capability ID: `rainbond.component.volume-path-update-without-expansion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_volume_test.go::TestServiceActionUpdVolumePathDoesNotRequireExpansion`
 
 ### 持久化组件存储容量更新
 
@@ -1883,6 +1959,26 @@
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency`
 
+### Manage gateway client CA lifecycle
+
+- Capability ID: `rainbond.gateway.client-ca-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.GatewayAction.AddGatewayClientCA`
+- 代码路径: `api/handler/gateway_action.go`, `api/model/gateway_model.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestGatewayClientCALifecycle`
+
+### Configure inbound mTLS per gateway domain
+
+- Capability ID: `rainbond.gateway.domain-mtls`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.GatewayAction.ConfigureGatewayDomainMTLS`
+- 代码路径: `api/handler/gateway_action.go`, `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/handler/gateway_action_test.go::TestGatewayDomainMTLS`
+
 ### 删除网关 HTTPRoute 时记录组件事件
 
 - Capability ID: `rainbond.gateway.http-route-delete-component-event`
@@ -2282,6 +2378,76 @@
 - 业务入口: `util/ingress-nginx/k8s.GetPodDetails`
 - 代码路径: `util/ingress-nginx/k8s/main.go`
 - 测试路径: `util/ingress-nginx/k8s/main_test.go::TestGetPodDetails`
+
+### CRD cascade deletion preserves dependency order
+
+- Capability ID: `rainbond.k8s-resource.crd-cascade-delete`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionDeletesCustomResourcesBeforeDefinition`
+
+### Kubernetes deletion requests outlive the global HTTP timeout
+
+- Capability ID: `rainbond.k8s-resource.deletion-request-timeout`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/interceptors.requestTimeout`
+- 代码路径: `pkg/interceptors/http.go`
+- 测试路径: `pkg/interceptors/http_test.go::TestRequestTimeout`
+
+### Kubernetes deletion timeout performs a final live check
+
+- Capability ID: `rainbond.k8s-resource.deletion-timeout-final-check`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionFinalCheckAvoidsTimeoutRace`
+
+### Failed resources are metadata-only during deletion
+
+- Capability ID: `rainbond.k8s-resource.failed-delete-metadata-only`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionSkipsFailedResourceKubernetesDeletion`
+
+### Kubernetes resource metadata reconciliation
+
+- Capability ID: `rainbond.k8s-resource.metadata-reconcile`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Reconcile`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceReconcileDistinguishesMissingAndUnknown`
+
+### Resource deletion and reconciliation responses encode empty lists as arrays
+
+- Capability ID: `rainbond.k8s-resource.response-array-contract`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `k8sResourceDeletionOrchestrator`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionResponseArrays`, `api/handler/resource_deletion_test.go::TestK8sResourceReconcileResponseArrays`
+
+### Stop in-application controllers before deleting generated custom resources
+
+- Capability ID: `rainbond.k8s-resource.stop-recreating-controller`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.k8sResourceDeletionOrchestrator.Delete`
+- 代码路径: `api/handler/resource_deletion.go`
+- 测试路径: `api/handler/resource_deletion_test.go::TestK8sResourceDeletionStopsManagedControllerBeforeGeneratedResources`, `api/handler/resource_deletion_test.go::TestK8sResourceDeletionKeepsControllerUntilFinalizedResourcesAreGone`
 
 ### K8s scheme registers KubeVirt VirtualMachine
 
@@ -4872,6 +5038,16 @@
 - 业务入口: `worker/appm/store.shouldTrackNodePortService`
 - 代码路径: `worker/appm/store/store.go`
 - 测试路径: `worker/appm/store/store_test.go::TestShouldTrackNodePortService`
+
+### New StatefulSet claims converge to stored capacity without recreating workloads
+
+- Capability ID: `rainbond.worker.appm.store.stateful-volume-capacity-reconciliation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `appRuntimeStore.OnAdd`
+- 代码路径: `worker/appm/store/store.go`, `worker/appm/store/volume_expansion.go`
+- 测试路径: `worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionOnClaimEvents`, `worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesAfterDatabaseCommit`, `worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesFailuresAndConflicts`, `worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionSkipsUnsupportedOrForeignClaims`, `worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionAcceptsManualVolumeLabel`
 
 ### 在命名空间事件中同步受管命名空间的镜像拉取密钥
 

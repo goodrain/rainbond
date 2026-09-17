@@ -20,12 +20,16 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
@@ -45,6 +49,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	v1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -63,6 +68,18 @@ type GatewayAction struct {
 	apisixClient          apisixversioned.Interface
 	domainConflictChecker func(context.Context, []v2.HostType, string, string) error
 }
+
+const (
+	gatewayClientCASecretLabel       = "rainbond.io/certificate-type"
+	gatewayClientCASecretLabelValue  = "client-ca"
+	gatewayMTLSManagedLabel          = "rainbond.io/mtls-managed"
+	gatewayMTLSDomainAnnotation      = "rainbond.io/mtls-domain"
+	gatewayMTLSParentAnnotation      = "rainbond.io/mtls-parent"
+	gatewayMTLSDetachedAnnotation    = "rainbond.io/mtls-host-detached"
+	gatewayMTLSInPlaceAnnotation     = "rainbond.io/mtls-in-place"
+	gatewayClientCASecretDataKey     = corev1.ServiceAccountRootCAKey
+	gatewayMTLSCertificateChainDepth = 1
+)
 
 // CreateGatewayManager creates gateway manager.
 func CreateGatewayManager() *GatewayAction {
@@ -154,6 +171,445 @@ func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificat
 	return g.reconcileGatewayCertificate(req)
 }
 
+func validateGatewayClientCA(certificate string) error {
+	rest := []byte(certificate)
+	foundCertificate := false
+	now := time.Now()
+	for len(rest) > 0 {
+		block, remaining := pem.Decode(rest)
+		if block == nil {
+			if strings.TrimSpace(string(rest)) != "" {
+				return fmt.Errorf("client CA must contain only PEM encoded certificates")
+			}
+			break
+		}
+		rest = remaining
+		if block.Type != "CERTIFICATE" {
+			return fmt.Errorf("client CA contains unsupported PEM block %q", block.Type)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return fmt.Errorf("parse client CA certificate: %w", err)
+		}
+		if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+			return fmt.Errorf("client CA certificate is not currently valid")
+		}
+		if !cert.BasicConstraintsValid || !cert.IsCA {
+			return fmt.Errorf("client CA certificate must have CA basic constraints")
+		}
+		foundCertificate = true
+	}
+	if !foundCertificate {
+		return fmt.Errorf("client CA certificate is required")
+	}
+	return nil
+}
+
+func validateGatewayResourceName(name string) error {
+	if errs := k8svalidation.IsDNS1123Subdomain(name); len(errs) > 0 {
+		return fmt.Errorf("invalid Kubernetes resource name: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// AddGatewayClientCA creates a Kubernetes Secret containing a validated client CA certificate.
+func (g *GatewayAction) AddGatewayClientCA(namespace string, req *apimodel.GatewayClientCA) error {
+	if req == nil {
+		return fmt.Errorf("client CA request is required")
+	}
+	if err := validateGatewayResourceName(req.Name); err != nil {
+		return err
+	}
+	if err := validateGatewayClientCA(req.Certificate); err != nil {
+		return err
+	}
+	_, err := g.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				gatewayClientCASecretLabel: gatewayClientCASecretLabelValue,
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			gatewayClientCASecretDataKey: []byte(req.Certificate),
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("create gateway client CA secret: %w", err)
+	}
+	return nil
+}
+
+// UpdateGatewayClientCA updates a Kubernetes Secret containing a validated client CA certificate.
+func (g *GatewayAction) UpdateGatewayClientCA(namespace string, req *apimodel.GatewayClientCA) error {
+	if req == nil {
+		return fmt.Errorf("client CA request is required")
+	}
+	if err := validateGatewayResourceName(req.Name); err != nil {
+		return err
+	}
+	if err := validateGatewayClientCA(req.Certificate); err != nil {
+		return err
+	}
+	secrets := g.kubeClient.CoreV1().Secrets(namespace)
+	secret, err := secrets.Get(context.Background(), req.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get gateway client CA secret: %w", err)
+	}
+	updated := secret.DeepCopy()
+	if updated.Labels == nil {
+		updated.Labels = make(map[string]string)
+	}
+	updated.Labels[gatewayClientCASecretLabel] = gatewayClientCASecretLabelValue
+	updated.Type = corev1.SecretTypeOpaque
+	updated.Data = map[string][]byte{gatewayClientCASecretDataKey: []byte(req.Certificate)}
+	if _, err := secrets.Update(context.Background(), updated, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("update gateway client CA secret: %w", err)
+	}
+	return nil
+}
+
+// ListGatewayClientCAs lists Rainbond-managed client CA Secrets and their bound domains.
+func (g *GatewayAction) ListGatewayClientCAs(namespace string) ([]*apimodel.GatewayClientCAStatus, error) {
+	secrets, err := g.kubeClient.CoreV1().Secrets(namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: gatewayClientCASecretLabel + "=" + gatewayClientCASecretLabelValue,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list gateway client CA secrets: %w", err)
+	}
+	tlsList, err := g.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list ApisixTls resources: %w", err)
+	}
+	boundDomains := make(map[string]map[string]struct{})
+	for i := range tlsList.Items {
+		tls := &tlsList.Items[i]
+		if tls.Spec == nil || tls.Spec.Client == nil || tls.Spec.Client.CASecret.Namespace != namespace {
+			continue
+		}
+		name := tls.Spec.Client.CASecret.Name
+		if boundDomains[name] == nil {
+			boundDomains[name] = make(map[string]struct{})
+		}
+		for _, host := range tls.Spec.Hosts {
+			boundDomains[name][string(host)] = struct{}{}
+		}
+	}
+	statuses := make([]*apimodel.GatewayClientCAStatus, 0, len(secrets.Items))
+	for i := range secrets.Items {
+		secret := &secrets.Items[i]
+		domains := make([]string, 0, len(boundDomains[secret.Name]))
+		for domain := range boundDomains[secret.Name] {
+			domains = append(domains, domain)
+		}
+		sort.Strings(domains)
+		statuses = append(statuses, &apimodel.GatewayClientCAStatus{Name: secret.Name, BoundDomains: domains})
+	}
+	sort.Slice(statuses, func(i, j int) bool { return statuses[i].Name < statuses[j].Name })
+	return statuses, nil
+}
+
+// DeleteGatewayClientCA deletes an unreferenced Rainbond-managed client CA Secret.
+func (g *GatewayAction) DeleteGatewayClientCA(namespace, name string) error {
+	if err := validateGatewayResourceName(name); err != nil {
+		return err
+	}
+	tlsList, err := g.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("list ApisixTls resources: %w", err)
+	}
+	for i := range tlsList.Items {
+		tls := &tlsList.Items[i]
+		if tls.Spec != nil && tls.Spec.Client != nil && tls.Spec.Client.CASecret.Name == name && tls.Spec.Client.CASecret.Namespace == namespace {
+			return fmt.Errorf("client CA is still used by domain %s", strings.Join(hostTypesToStrings(tls.Spec.Hosts), ","))
+		}
+	}
+	err = g.kubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil && !k8serror.IsNotFound(err) {
+		return fmt.Errorf("delete gateway client CA secret: %w", err)
+	}
+	return nil
+}
+
+func hostTypesToStrings(hosts []v2.HostType) []string {
+	result := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		result = append(result, string(host))
+	}
+	return result
+}
+
+func gatewayMTLSResourceName(domain string) string {
+	sum := sha256.Sum256([]byte(domain))
+	return fmt.Sprintf("rbd-mtls-%x", sum[:8])
+}
+
+func validateGatewayMTLSDomain(domain string) error {
+	var validationErrors []string
+	if strings.HasPrefix(domain, "*.") {
+		validationErrors = k8svalidation.IsWildcardDNS1123Subdomain(domain)
+	} else {
+		validationErrors = k8svalidation.IsDNS1123Subdomain(domain)
+	}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("a valid gateway domain is required")
+	}
+	return nil
+}
+
+func gatewayDomainMatchesHost(domain string, host v2.HostType) bool {
+	pattern := string(host)
+	if pattern == domain {
+		return true
+	}
+	if !strings.HasPrefix(pattern, "*.") {
+		return false
+	}
+	suffix := pattern[1:]
+	if !strings.HasSuffix(domain, suffix) {
+		return false
+	}
+	prefix := strings.TrimSuffix(domain, suffix)
+	return prefix != "" && !strings.Contains(prefix, ".")
+}
+
+func gatewayTLSHasExactHost(tls *v2.ApisixTls, domain string) bool {
+	if tls == nil || tls.Spec == nil {
+		return false
+	}
+	for _, host := range tls.Spec.Hosts {
+		if string(host) == domain {
+			return true
+		}
+	}
+	return false
+}
+
+func gatewayTLSManagedForDomain(tls *v2.ApisixTls, domain string) bool {
+	return tls != nil && tls.Labels[gatewayMTLSManagedLabel] == "true" && tls.Annotations[gatewayMTLSDomainAnnotation] == domain
+}
+
+func selectGatewayTLSForDomain(items []v2.ApisixTls, domain string) *v2.ApisixTls {
+	for i := range items {
+		if gatewayTLSManagedForDomain(&items[i], domain) {
+			return &items[i]
+		}
+	}
+	for i := range items {
+		if gatewayTLSHasExactHost(&items[i], domain) {
+			return &items[i]
+		}
+	}
+	for i := range items {
+		tls := &items[i]
+		if tls.Spec == nil {
+			continue
+		}
+		for _, host := range tls.Spec.Hosts {
+			if gatewayDomainMatchesHost(domain, host) {
+				return tls
+			}
+		}
+	}
+	return nil
+}
+
+func gatewayMTLSClient(namespace, caSecretName string) *v2.ApisixMutualTlsClientConfig {
+	return &v2.ApisixMutualTlsClientConfig{
+		CASecret: v2.ApisixSecret{Name: caSecretName, Namespace: namespace},
+		Depth:    gatewayMTLSCertificateChainDepth,
+	}
+}
+
+func ensureGatewayMTLSMetadata(tls *v2.ApisixTls, domain, parent string, detached, inPlace bool) {
+	if tls.Labels == nil {
+		tls.Labels = make(map[string]string)
+	}
+	if tls.Annotations == nil {
+		tls.Annotations = make(map[string]string)
+	}
+	tls.Labels[gatewayMTLSManagedLabel] = "true"
+	tls.Annotations[gatewayMTLSDomainAnnotation] = domain
+	tls.Annotations[gatewayMTLSParentAnnotation] = parent
+	tls.Annotations[gatewayMTLSDetachedAnnotation] = strconv.FormatBool(detached)
+	tls.Annotations[gatewayMTLSInPlaceAnnotation] = strconv.FormatBool(inPlace)
+}
+
+func removeGatewayMTLSMetadata(tls *v2.ApisixTls) {
+	delete(tls.Labels, gatewayMTLSManagedLabel)
+	delete(tls.Annotations, gatewayMTLSDomainAnnotation)
+	delete(tls.Annotations, gatewayMTLSParentAnnotation)
+	delete(tls.Annotations, gatewayMTLSDetachedAnnotation)
+	delete(tls.Annotations, gatewayMTLSInPlaceAnnotation)
+}
+
+// ConfigureGatewayDomainMTLS enables or updates inbound mTLS for one HTTPS domain.
+func (g *GatewayAction) ConfigureGatewayDomainMTLS(namespace string, req *apimodel.GatewayDomainMTLS) error {
+	if req == nil {
+		return fmt.Errorf("a valid gateway domain is required")
+	}
+	if err := validateGatewayMTLSDomain(req.Domain); err != nil {
+		return err
+	}
+	if err := validateGatewayResourceName(req.ClientCASecretName); err != nil {
+		return err
+	}
+	caSecret, err := g.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), req.ClientCASecretName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get gateway client CA secret: %w", err)
+	}
+	if caSecret.Labels[gatewayClientCASecretLabel] != gatewayClientCASecretLabelValue {
+		return fmt.Errorf("client CA secret is not managed by Rainbond")
+	}
+	if err := validateGatewayClientCA(string(caSecret.Data[gatewayClientCASecretDataKey])); err != nil {
+		return fmt.Errorf("validate gateway client CA secret: %w", err)
+	}
+
+	tlses := g.apisixClient.ApisixV2().ApisixTlses(namespace)
+	list, err := tlses.List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("list ApisixTls resources: %w", err)
+	}
+	source := selectGatewayTLSForDomain(list.Items, req.Domain)
+	if source == nil || source.Spec == nil {
+		return fmt.Errorf("domain %s has no HTTPS server certificate", req.Domain)
+	}
+	if gatewayTLSManagedForDomain(source, req.Domain) {
+		updated := source.DeepCopy()
+		updated.Spec.Client = gatewayMTLSClient(namespace, req.ClientCASecretName)
+		if _, err := tlses.Update(context.Background(), updated, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("update domain mTLS configuration: %w", err)
+		}
+		return nil
+	}
+
+	if len(source.Spec.Hosts) == 1 && gatewayTLSHasExactHost(source, req.Domain) {
+		updated := source.DeepCopy()
+		updated.Spec.Client = gatewayMTLSClient(namespace, req.ClientCASecretName)
+		ensureGatewayMTLSMetadata(updated, req.Domain, source.Name, false, true)
+		if _, err := tlses.Update(context.Background(), updated, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("update domain mTLS configuration: %w", err)
+		}
+		return nil
+	}
+
+	detached := gatewayTLSHasExactHost(source, req.Domain)
+	previousSource := source.DeepCopy()
+	if detached {
+		updatedSource := source.DeepCopy()
+		updatedSource.Spec.Hosts = make([]v2.HostType, 0, len(source.Spec.Hosts)-1)
+		for _, host := range source.Spec.Hosts {
+			if string(host) != req.Domain {
+				updatedSource.Spec.Hosts = append(updatedSource.Spec.Hosts, host)
+			}
+		}
+		persistedSource, updateErr := tlses.Update(context.Background(), updatedSource, metav1.UpdateOptions{})
+		if updateErr != nil {
+			return fmt.Errorf("detach domain from server TLS configuration: %w", updateErr)
+		}
+		previousSource.ResourceVersion = persistedSource.ResourceVersion
+	}
+
+	child := &v2.ApisixTls{
+		TypeMeta: source.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gatewayMTLSResourceName(req.Domain),
+			Namespace: namespace,
+		},
+		Spec: &v2.ApisixTlsSpec{
+			IngressClassName: source.Spec.IngressClassName,
+			Hosts:            []v2.HostType{v2.HostType(req.Domain)},
+			Secret:           source.Spec.Secret,
+			Client:           gatewayMTLSClient(namespace, req.ClientCASecretName),
+		},
+	}
+	ensureGatewayMTLSMetadata(child, req.Domain, source.Name, detached, false)
+	if _, err := tlses.Create(context.Background(), child, metav1.CreateOptions{}); err != nil {
+		if detached {
+			if _, rollbackErr := tlses.Update(context.Background(), previousSource, metav1.UpdateOptions{}); rollbackErr != nil {
+				return fmt.Errorf("create domain mTLS configuration: %v; restore server TLS configuration: %v", err, rollbackErr)
+			}
+		}
+		return fmt.Errorf("create domain mTLS configuration: %w", err)
+	}
+	return nil
+}
+
+// DisableGatewayDomainMTLS disables inbound mTLS for one HTTPS domain.
+func (g *GatewayAction) DisableGatewayDomainMTLS(namespace, domain string) error {
+	if err := validateGatewayMTLSDomain(domain); err != nil {
+		return err
+	}
+	tlses := g.apisixClient.ApisixV2().ApisixTlses(namespace)
+	list, err := tlses.List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("list ApisixTls resources: %w", err)
+	}
+	configured := selectGatewayTLSForDomain(list.Items, domain)
+	if configured == nil || configured.Spec == nil || configured.Spec.Client == nil {
+		return nil
+	}
+	if !gatewayTLSManagedForDomain(configured, domain) || configured.Annotations[gatewayMTLSInPlaceAnnotation] == "true" {
+		updated := configured.DeepCopy()
+		updated.Spec.Client = nil
+		removeGatewayMTLSMetadata(updated)
+		if _, err := tlses.Update(context.Background(), updated, metav1.UpdateOptions{}); err != nil {
+			return fmt.Errorf("disable domain mTLS configuration: %w", err)
+		}
+		return nil
+	}
+
+	child := configured.DeepCopy()
+	parentName := child.Annotations[gatewayMTLSParentAnnotation]
+	detached := child.Annotations[gatewayMTLSDetachedAnnotation] == "true"
+	if err := tlses.Delete(context.Background(), child.Name, metav1.DeleteOptions{}); err != nil && !k8serror.IsNotFound(err) {
+		return fmt.Errorf("delete domain mTLS configuration: %w", err)
+	}
+	if !detached {
+		return nil
+	}
+	parent, err := tlses.Get(context.Background(), parentName, metav1.GetOptions{})
+	if err != nil {
+		if _, recreateErr := tlses.Create(context.Background(), child, metav1.CreateOptions{}); recreateErr != nil {
+			return fmt.Errorf("restore domain to server TLS configuration: %v; recreate mTLS configuration: %v", err, recreateErr)
+		}
+		return fmt.Errorf("restore domain to server TLS configuration: %w", err)
+	}
+	updatedParent := parent.DeepCopy()
+	if !gatewayTLSHasExactHost(updatedParent, domain) {
+		updatedParent.Spec.Hosts = append(updatedParent.Spec.Hosts, v2.HostType(domain))
+	}
+	if _, err := tlses.Update(context.Background(), updatedParent, metav1.UpdateOptions{}); err != nil {
+		child.ResourceVersion = ""
+		if _, recreateErr := tlses.Create(context.Background(), child, metav1.CreateOptions{}); recreateErr != nil {
+			return fmt.Errorf("restore domain to server TLS configuration: %v; recreate mTLS configuration: %v", err, recreateErr)
+		}
+		return fmt.Errorf("restore domain to server TLS configuration: %w", err)
+	}
+	return nil
+}
+
+// GetGatewayDomainMTLS returns inbound mTLS status for the requested domains in input order.
+func (g *GatewayAction) GetGatewayDomainMTLS(namespace string, domains []string) ([]*apimodel.GatewayDomainMTLS, error) {
+	list, err := g.apisixClient.ApisixV2().ApisixTlses(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("list ApisixTls resources: %w", err)
+	}
+	statuses := make([]*apimodel.GatewayDomainMTLS, 0, len(domains))
+	for _, domain := range domains {
+		status := &apimodel.GatewayDomainMTLS{Domain: domain}
+		tls := selectGatewayTLSForDomain(list.Items, domain)
+		if tls != nil && tls.Spec != nil && tls.Spec.Client != nil {
+			status.Enabled = true
+			status.ClientCASecretName = tls.Spec.Client.CASecret.Name
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses, nil
+}
+
 func (g *GatewayAction) reconcileGatewayCertificate(req *apimodel.GatewayCertificate) (retErr error) {
 	ctx := context.Background()
 	secrets := g.kubeClient.CoreV1().Secrets(req.Namespace)
@@ -225,6 +681,30 @@ func (g *GatewayAction) reconcileGatewayCertificate(req *apimodel.GatewayCertifi
 		logrus.Errorf("get certificate domains failure: %v", err)
 		return err
 	}
+	apisixTlses := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace)
+	tlsList, err := apisixTlses.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("list gateway certificate apisix tls resources failure: %v", err)
+		return err
+	}
+	detachedDomains := make(map[string]struct{})
+	for i := range tlsList.Items {
+		tls := &tlsList.Items[i]
+		if tls.Labels[gatewayMTLSManagedLabel] == "true" &&
+			tls.Annotations[gatewayMTLSParentAnnotation] == req.Name &&
+			tls.Annotations[gatewayMTLSDetachedAnnotation] == "true" {
+			detachedDomains[tls.Annotations[gatewayMTLSDomainAnnotation]] = struct{}{}
+		}
+	}
+	if len(detachedDomains) > 0 {
+		baseHosts := make([]v2.HostType, 0, len(hosts))
+		for _, host := range hosts {
+			if _, detached := detachedDomains[string(host)]; !detached {
+				baseHosts = append(baseHosts, host)
+			}
+		}
+		hosts = baseHosts
+	}
 	domainConflictChecker := g.domainConflictChecker
 	if domainConflictChecker == nil {
 		domainConflictChecker = apiutil.CheckDomainConflict
@@ -242,7 +722,6 @@ func (g *GatewayAction) reconcileGatewayCertificate(req *apimodel.GatewayCertifi
 			Namespace: req.Namespace,
 		},
 	}
-	apisixTlses := g.apisixClient.ApisixV2().ApisixTlses(req.Namespace)
 	apisixTls, err := apisixTlses.Get(ctx, req.Name, metav1.GetOptions{})
 	switch {
 	case k8serror.IsNotFound(err):
@@ -282,7 +761,23 @@ func (g *GatewayAction) reconcileGatewayCertificate(req *apimodel.GatewayCertifi
 
 // DeleteGatewayCertificate delete gateway certificate
 func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
-	err := g.apisixClient.ApisixV2().ApisixTlses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	tlses := g.apisixClient.ApisixV2().ApisixTlses(namespace)
+	list, err := tlses.List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("list gateway certificate apisix tls resources failure: %v", err)
+		return err
+	}
+	for i := range list.Items {
+		tls := &list.Items[i]
+		if tls.Name == name || tls.Labels[gatewayMTLSManagedLabel] != "true" || tls.Annotations[gatewayMTLSParentAnnotation] != name {
+			continue
+		}
+		if err := tlses.Delete(context.Background(), tls.Name, metav1.DeleteOptions{}); err != nil && !k8serror.IsNotFound(err) {
+			logrus.Errorf("delete managed mTLS apisix tls failure: %v", err)
+			return err
+		}
+	}
+	err = tlses.Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		logrus.Errorf("delete gateway certificate apisix tls failure: %v", err)
 		return err

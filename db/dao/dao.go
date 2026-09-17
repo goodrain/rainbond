@@ -69,7 +69,7 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
-// AppDao tenant dao
+// KeyValueDao provides operations on persistent key-value records.
 type KeyValueDao interface {
 	Put(key, value string) error
 	Get(key string) (*model.KeyValue, error)
@@ -650,6 +650,7 @@ type ComponentK8sAttributeDao interface {
 type K8sResourceDao interface {
 	Dao
 	ListByAppID(appID string) ([]model.K8sResource, error)
+	ListByKind(kind string) ([]model.K8sResource, error)
 	DeleteK8sResourceByIDs(ids []uint) error
 	CreateK8sResource(k8sResources []*model.K8sResource) error
 	DeleteK8sResource(appID, name string, kind string) error

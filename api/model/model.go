@@ -19,9 +19,10 @@
 package model
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	"net/url"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -218,6 +219,7 @@ type CreateServiceStruct struct {
 	}
 }
 
+// ServiceSecurityContext contains security settings for a service.
 type ServiceSecurityContext struct {
 	ServiceID      string `json:"service_id"`
 	SeccompProfile struct {
@@ -494,6 +496,8 @@ type AddHandleResource struct {
 
 // HandleResource -
 type HandleResource struct {
+	ClientID     string `json:"client_id,omitempty"`
+	CascadeCRD   bool   `json:"cascade_crd,omitempty"`
 	Name         string `json:"name"`
 	AppID        string `json:"app_id"`
 	Kind         string `json:"kind"`
@@ -2353,6 +2357,7 @@ type FileInfo struct {
 	IsLeaf bool   `json:"is_leaf"`
 }
 
+// GrayReleaseModeRet describes the current canary deployment state.
 type GrayReleaseModeRet struct {
 	ComponentID         string `json:"component_id"`
 	Hostname            string `json:"hostname"`
@@ -2367,11 +2372,12 @@ type GrayReleaseModeRet struct {
 	OldVersion          string `json:"old_version"`
 }
 
+// GrayReleaseModeReq contains the configuration for an application's canary release.
 type GrayReleaseModeReq struct {
 	AppID            string             `json:"app_id"`
 	Namespace        string             `json:"namespace"`
 	EntryComponentID string             `json:"entry_component_id"`
-	EntryHttpRoute   string             `json:"entry_http_route"`
+	EntryHTTPRoute   string             `json:"entry_http_route"`
 	FlowEntryRule    [][]*FlowEntryRule `json:"flow_entry_rule"`
 	GrayStrategyType string             `json:"gray_strategy_type"`
 	GrayStrategy     []int              `json:"gray_strategy"`
@@ -2379,12 +2385,14 @@ type GrayReleaseModeReq struct {
 	TraceType        string             `json:"trace_type"`
 }
 
+// FlowEntryRule describes a request header match for canary traffic.
 type FlowEntryRule struct {
 	HeaderKey   string `json:"header_key"`
 	HeaderType  string `json:"header_type"`
 	HeaderValue string `json:"header_value"`
 }
 
+// AppPeerAuthentications describes an application's peer authentication operation.
 type AppPeerAuthentications struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
@@ -2392,6 +2400,7 @@ type AppPeerAuthentications struct {
 	OperateMode bool   `json:"operating_mode"`
 }
 
+// AppAuthorizationPolicy describes an application's component authorization policy operation.
 type AppAuthorizationPolicy struct {
 	Name           string          `json:"name"`
 	Namespace      string          `json:"namespace"`
@@ -2401,6 +2410,7 @@ type AppAuthorizationPolicy struct {
 	ComponentInfos []ComponentInfo `json:"component_infos"`
 }
 
+// ComponentInfo contains component service-account authorization settings.
 type ComponentInfo struct {
 	ComponentID               string   `json:"component_id"`
 	IsCreateSA                bool     `json:"is_create_sa"`

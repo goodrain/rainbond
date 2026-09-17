@@ -194,7 +194,8 @@ func (t *TenantStruct) UpdVolume(w http.ResponseWriter, r *http.Request) {
 
 	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().UpdVolume(sid, &req); err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
+		httputil.ReturnBcodeError(r, w, err)
+		return
 	}
 	httputil.ReturnSuccess(r, w, "success")
 }
