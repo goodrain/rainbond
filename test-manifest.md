@@ -161,6 +161,7 @@
 | rainbond.gateway.reject-duplicate-tcp-nodeport | Reject duplicate TCP NodePort bindings | active | regression | TCP NodePort binding | db/mysql/dao/gateway_test.go::TestTCPRuleDaoAddModelRejectsPortOwnedByAnotherRule<br>api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService |
 | rainbond.gateway.release-absent-tcp-nodeport-owner | Release only the requested owner when a TCP route Service is absent | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner |
 | rainbond.gateway.release-captured-tcp-nodeport-rules | Release only TCP NodePort rules captured before Service deletion | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs |
+| rainbond.gateway.report-tcp-service-create-error-details | TCP route creation reports Kubernetes error details | active | regression | POST /api-gateway/v1/{tenant_name}/routes/tcp | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReportsServiceCreateErrorDetails |
 | rainbond.gateway.validate-tcp-nodeport-route-name | Reject out-of-range TCP NodePorts parsed from route names | active | regression | api/controller/apigateway.nodePortFromTCPRouteName | api/controller/apigateway/api_gateway_route_test.go::TestNodePortFromTCPRouteNameValidatesRange |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
@@ -2068,6 +2069,16 @@
 - 业务入口: `api/controller/apigateway.Struct.DeleteTCPRoute`
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs`
+
+### TCP route creation reports Kubernetes error details
+
+- Capability ID: `rainbond.gateway.report-tcp-service-create-error-details`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /api-gateway/v1/{tenant_name}/routes/tcp`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReportsServiceCreateErrorDetails`
 
 ### Reject out-of-range TCP NodePorts parsed from route names
 

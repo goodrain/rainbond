@@ -12,6 +12,7 @@ import (
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -160,7 +162,7 @@ func (d *tcpRouteRuleDao) DeleteByRecordIDs(ids []uint) error {
 	return nil
 }
 
-func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service) (*kubernetes.Clientset, func()) {
+func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service, createErrors ...*errors.StatusError) (*kubernetes.Clientset, func()) {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -203,6 +205,13 @@ func newTCPRouteTestClientset(t *testing.T, services map[string]*corev1.Service)
 			var service corev1.Service
 			if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
 				t.Fatalf("decode service: %v", err)
+			}
+			if len(createErrors) > 0 {
+				status := createErrors[0].ErrStatus
+				status.TypeMeta = v1.TypeMeta{Kind: "Status", APIVersion: "v1"}
+				w.WriteHeader(int(status.Code))
+				_ = json.NewEncoder(w).Encode(status)
+				return
 			}
 			for _, existing := range services {
 				for _, existingPort := range existing.Spec.Ports {
@@ -634,6 +643,74 @@ func TestCreateTCPRouteRejectsExplicitPortOwnedByAnotherService(t *testing.T) {
 	}
 	if _, ok := services[serviceName+"-30000"]; ok {
 		t.Fatal("expected conflicting NodePort service not to be created")
+	}
+}
+
+// capability_id: rainbond.gateway.report-tcp-service-create-error-details
+func TestCreateTCPRouteReportsServiceCreateErrorDetails(t *testing.T) {
+	const (
+		tenantID    = "tenant-id"
+		serviceID   = "service-id"
+		serviceName = "op-tspnetty-server"
+	)
+	tests := []struct {
+		name       string
+		port       int32
+		validRange string
+	}{
+		{name: "below default range", port: 10007, validRange: "30000-32767"},
+		{name: "above default range", port: 32768, validRange: "30000-32767"},
+		{name: "custom cluster range", port: 30000, validRange: "10000-20000"},
+		{name: "other creation failure", port: 30000},
+	}
+	for _, tt := range tests {
+		for _, protocol := range []string{"tcp", "udp", "tcp+udp"} {
+			t.Run(tt.name+"/"+protocol, func(t *testing.T) {
+				createErr := errors.NewInternalError(fmt.Errorf("failed to allocate a service IP"))
+				if tt.validRange != "" {
+					createErr = errors.NewInvalid(schema.GroupKind{Kind: "Service"}, fmt.Sprintf("%s-%d", serviceName, tt.port), field.ErrorList{
+						field.Invalid(field.NewPath("spec", "ports").Index(0).Child("nodePort"), tt.port,
+							"provided port is not in the valid range. The range of valid ports is "+tt.validRange),
+					})
+				}
+				services := map[string]*corev1.Service{}
+				clientset, closeServer := newTCPRouteTestClientset(t, services, createErr)
+				t.Cleanup(closeServer)
+				k8s.New().Clientset = clientset
+				ruleDao := &tcpRouteRuleDao{}
+				db.SetTestManager(tcpRouteTestManager{
+					tenantServiceDao: &tcpRouteTenantServiceDao{servicesByID: map[string]*dbmodel.TenantServices{
+						serviceID: {ServiceID: serviceID, ServiceAlias: serviceName, TenantID: tenantID},
+					}},
+					tcpRuleDao: ruleDao,
+				})
+				t.Cleanup(func() { db.SetTestManager(nil) })
+
+				rr := createTCPRouteForTest(t, "default", tenantID, serviceID, serviceName, tt.port, protocol)
+				if rr.Code != http.StatusBadRequest {
+					t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+				}
+				var response struct {
+					Code int    `json:"code"`
+					Msg  string `json:"msg"`
+				}
+				if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+					t.Fatalf("decode creation error response: %v", err)
+				}
+				if response.Code != bcode.ServiceCreateError {
+					t.Errorf("expected business code %d, got %d", bcode.ServiceCreateError, response.Code)
+				}
+				if !strings.Contains(response.Msg, createErr.Error()) {
+					t.Errorf("expected Kubernetes error details %q in response, got %q", createErr.Error(), response.Msg)
+				}
+				if len(services) != 0 || ruleDao.replaced != nil || ruleDao.added != nil {
+					t.Fatal("failed service creation must not persist a Service or TCP rule")
+				}
+				if bcode.ErrServiceCreate.Error() != "service create error" {
+					t.Fatal("request-specific details must not modify the shared business error")
+				}
+			})
+		}
 	}
 }
 

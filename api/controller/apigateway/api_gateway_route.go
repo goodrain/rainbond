@@ -707,7 +707,11 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				} else {
 					// 其他错误，返回失败
 					logrus.Errorf("create tcp rule func, create svc failure: %s", err.Error())
-					httputil.ReturnBcodeError(r, w, bcode.ErrServiceCreate)
+					httputil.ReturnBcodeError(r, w, &bcode.Code{
+						Status:  bcode.ErrServiceCreate.GetStatus(),
+						Code:    bcode.ErrServiceCreate.GetCode(),
+						Message: fmt.Sprintf("%s: %s", bcode.ErrServiceCreate.Error(), err.Error()),
+					})
 					return
 				}
 			}
