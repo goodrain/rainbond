@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/db"
 	"io"
 	"io/ioutil"
 	"os"
@@ -30,6 +29,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
@@ -317,6 +318,44 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 	return volumes, volumeMounts
 }
 
+func newSlugBuildPodSpec(arch, hostIP, cacheMode string) corev1.PodSpec {
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{hostIP},
+							},
+						},
+					},
+					},
+				},
+			},
+		},
+	}
+	if hostIP != "" {
+		// All cache modes use the current chaos node, including dedicated or cordoned nodes.
+		podSpec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
+		if cacheMode == "hostpath" {
+			logrus.Debugf("builder cache mode using hostpath, schedule job into current node")
+			podSpec.NodeSelector = map[string]string{
+				"kubernetes.io/hostname": hostIP,
+			}
+		}
+	}
+	return podSpec
+}
+
 func (s *slugBuild) runBuildJob(re *Request) error {
 
 	//prepare build code dir
@@ -454,46 +493,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		}
 	}
 
-	podSpec := corev1.PodSpec{
-		RestartPolicy: corev1.RestartPolicyOnFailure,
-		Affinity: &corev1.Affinity{
-			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-						MatchExpressions: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/arch",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{re.Arch},
-							},
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{os.Getenv("HOST_IP")},
-							},
-						},
-					},
-					},
-				},
-			},
-		},
-	}
-	// only support never and onfailure
-	// schedule builder
-	if re.CacheMode == "hostpath" {
-		logrus.Debugf("builder cache mode using hostpath, schedule job into current node")
-		hostIP := os.Getenv("HOST_IP")
-		if hostIP != "" {
-			podSpec.NodeSelector = map[string]string{
-				"kubernetes.io/hostname": hostIP,
-			}
-			podSpec.Tolerations = []corev1.Toleration{
-				{
-					Operator: "Exists",
-				},
-			}
-		}
-	}
+	podSpec := newSlugBuildPodSpec(re.Arch, os.Getenv("HOST_IP"), re.CacheMode)
 	logrus.Debugf("request is: %+v", re)
 
 	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName, buildNoCache)
