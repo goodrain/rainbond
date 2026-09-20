@@ -2952,6 +2952,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.report-tcp-service-create-error-details",
+      "title": "TCP route creation reports Kubernetes error details",
+      "title_zh": "TCP route creation reports Kubernetes error details",
+      "interface_type": "view_endpoint",
+      "interface": "POST /api-gateway/v1/{tenant_name}/routes/tcp",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCreateTCPRouteReportsServiceCreateErrorDetails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.validate-tcp-nodeport-route-name",
       "title": "Reject out-of-range TCP NodePorts parsed from route names",
       "title_zh": "Reject out-of-range TCP NodePorts parsed from route names",
