@@ -153,6 +153,7 @@
 | rainbond.gateway.client-ca-lifecycle | Manage gateway client CA lifecycle | active | regression | api/handler.GatewayAction.AddGatewayClientCA | api/handler/gateway_action_test.go::TestGatewayClientCALifecycle |
 | rainbond.gateway.domain-mtls | Configure inbound mTLS per gateway domain | active | regression | api/handler.GatewayAction.ConfigureGatewayDomainMTLS | api/handler/gateway_action_test.go::TestGatewayDomainMTLS |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
+| rainbond.gateway.http-route-stable-rule-name | Keep APISIX HTTP route rule identity stable | active | regression | api/controller/apigateway.Struct.CreateHTTPAPIRoute | api/controller/apigateway/api_gateway_route_test.go::TestStableHTTPRouteRuleName<br>api/controller/apigateway/api_gateway_route_test.go::TestHTTPRouteCreateFailure |
 | rainbond.gateway.prevent-tcp-route-delete-recreation-race | Protect recreated TCP route Services with UID delete preconditions | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID |
 | rainbond.gateway.protect-tcp-route-service-ownership | Reject TCP route updates for missing or different Service owners | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner |
 | rainbond.gateway.protect-unlabeled-tcp-route-service | Do not delete unlabeled TCP route Services for owned requests | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteWithServiceIDDoesNotDeleteUnlabeledService |
@@ -1989,6 +1990,16 @@
 - 业务入口: `github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents`
+
+### Keep APISIX HTTP route rule identity stable
+
+- Capability ID: `rainbond.gateway.http-route-stable-rule-name`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.CreateHTTPAPIRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestStableHTTPRouteRuleName`, `api/controller/apigateway/api_gateway_route_test.go::TestHTTPRouteCreateFailure`
 
 ### Protect recreated TCP route Services with UID delete preconditions
 

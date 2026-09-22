@@ -2804,6 +2804,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.http-route-stable-rule-name",
+      "title": "Keep APISIX HTTP route rule identity stable",
+      "title_zh": "Keep APISIX HTTP route rule identity stable",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.CreateHTTPAPIRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestStableHTTPRouteRuleName"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestHTTPRouteCreateFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.prevent-tcp-route-delete-recreation-race",
       "title": "Protect recreated TCP route Services with UID delete preconditions",
       "title_zh": "Protect recreated TCP route Services with UID delete preconditions",

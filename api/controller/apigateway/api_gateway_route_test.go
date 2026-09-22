@@ -68,6 +68,101 @@ func TestCreateHTTPAPIRouteAddsCanonicalIdentityLabels(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.gateway.http-route-stable-rule-name
+func TestStableHTTPRouteRuleName(t *testing.T) {
+	tests := []struct {
+		name     string
+		route    *v2.ApisixRoute
+		expected string
+	}{
+		{
+			name:     "new route overrides request name with deterministic default",
+			route:    &v2.ApisixRoute{},
+			expected: "default",
+		},
+		{
+			name: "existing route keeps current rule name",
+			route: &v2.ApisixRoute{
+				Spec: v2.ApisixRouteSpec{
+					HTTP: []v2.ApisixRouteHTTP{{Name: "legacy-random-name"}},
+				},
+			},
+			expected: "legacy-random-name",
+		},
+		{
+			name: "existing route with empty rule name uses default",
+			route: &v2.ApisixRoute{
+				Spec: v2.ApisixRouteSpec{
+					HTTP: []v2.ApisixRouteHTTP{{}},
+				},
+			},
+			expected: "default",
+		},
+		{
+			name: "existing route without HTTP rules appends default rule",
+			route: &v2.ApisixRoute{
+				ObjectMeta: v1.ObjectMeta{Name: "existing-route"},
+			},
+			expected: "default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applyHTTPRouteRule(tt.route, v2.ApisixRouteHTTP{
+				Name: "request-rule-name",
+				Match: v2.ApisixRouteHTTPMatch{
+					Paths: []string{"/*"},
+				},
+			})
+
+			if got := len(tt.route.Spec.HTTP); got != 1 {
+				t.Fatalf("len(route.Spec.HTTP) = %d, want 1", got)
+			}
+			if got := tt.route.Spec.HTTP[0].Name; got != tt.expected {
+				t.Fatalf("route.Spec.HTTP[0].Name = %q, want %q", got, tt.expected)
+			}
+			if got := tt.route.Spec.HTTP[0].Match.Paths; len(got) != 1 || got[0] != "/*" {
+				t.Fatalf("route.Spec.HTTP[0].Match.Paths = %v, want [/*]", got)
+			}
+		})
+	}
+}
+
+func TestHTTPRouteCreateFailure(t *testing.T) {
+	tests := []struct {
+		name                 string
+		err                  error
+		expectUpdate         bool
+		expectErrRouteCreate bool
+	}{
+		{
+			name:                 "already exists enters update path",
+			err:                  errors.NewAlreadyExists(schema.GroupResource{Group: "apisix.apache.org", Resource: "apisixroutes"}, "route"),
+			expectUpdate:         true,
+			expectErrRouteCreate: false,
+		},
+		{
+			name:                 "other create error returns route create error without update",
+			err:                  fmt.Errorf("api server unavailable"),
+			expectUpdate:         false,
+			expectErrRouteCreate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updateExisting, responseErr := httpRouteCreateFailure(tt.err)
+			if updateExisting != tt.expectUpdate {
+				t.Fatalf("updateExisting = %t, want %t", updateExisting, tt.expectUpdate)
+			}
+			if got := bcode.ErrRouteCreate.Equal(responseErr); got != tt.expectErrRouteCreate {
+				t.Fatalf("ErrRouteCreate.Equal(responseErr) = %t, want %t (responseErr = %v)", got, tt.expectErrRouteCreate, responseErr)
+			}
+		})
+	}
+}
+
 func (m tcpRouteTestManager) TenantServiceDao() dbdao.TenantServiceDao {
 	return m.tenantServiceDao
 }

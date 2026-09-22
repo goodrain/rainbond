@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/util/portprotocol"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -42,6 +41,31 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/yaml"
 )
+
+const defaultHTTPRouteRuleName = "default"
+
+func stableHTTPRouteRuleName(route *v2.ApisixRoute) string {
+	if route != nil && len(route.Spec.HTTP) > 0 && route.Spec.HTTP[0].Name != "" {
+		return route.Spec.HTTP[0].Name
+	}
+	return defaultHTTPRouteRuleName
+}
+
+func applyHTTPRouteRule(route *v2.ApisixRoute, rule v2.ApisixRouteHTTP) {
+	rule.Name = stableHTTPRouteRuleName(route)
+	if len(route.Spec.HTTP) == 0 {
+		route.Spec.HTTP = append(route.Spec.HTTP, rule)
+		return
+	}
+	route.Spec.HTTP[0] = rule
+}
+
+func httpRouteCreateFailure(err error) (updateExisting bool, responseErr error) {
+	if errors.IsAlreadyExists(err) {
+		return true, nil
+	}
+	return false, bcode.ErrRouteCreate
+}
 
 // OpenOrCloseDomains -
 func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
@@ -395,9 +419,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		//}
 	}
 
-	apisixRouteHTTP.Name = uuid.New().String()[0:8] //每次都让他变化，让 apisix controller去更新
-
-	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), &v2.ApisixRoute{
+	apisixRoute := &v2.ApisixRoute{
 		TypeMeta: v1.TypeMeta{
 			Kind:       util.ApisixRoute,
 			APIVersion: util.APIVersion,
@@ -409,11 +431,10 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Spec: v2.ApisixRouteSpec{
 			IngressClassName: "apisix",
-			HTTP: []v2.ApisixRouteHTTP{
-				apisixRouteHTTP,
-			},
 		},
-	}, v1.CreateOptions{})
+	}
+	applyHTTPRouteRule(apisixRoute, apisixRouteHTTP)
+	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), apisixRoute, v1.CreateOptions{})
 	if err == nil {
 		name := r.URL.Query().Get("name")
 		if name != "" {
@@ -428,7 +449,13 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(route))
 		return
 	}
-	logrus.Warnf("create route error %s, will update route", err.Error())
+	updateExisting, responseErr := httpRouteCreateFailure(err)
+	if !updateExisting {
+		logrus.Errorf("create route error %s", err.Error())
+		httputil.ReturnBcodeError(r, w, responseErr)
+		return
+	}
+	logrus.Warnf("route already exists, will update route: %s", routeName)
 	// 创建失败去更新路由
 	get, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), routeName, v1.GetOptions{})
 	if err != nil {
@@ -440,7 +467,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, marshalApisixRoute(get))
 		return
 	}
-	get.Spec.HTTP[0] = apisixRouteHTTP
+	applyHTTPRouteRule(get, apisixRouteHTTP)
 	if get.ObjectMeta.Labels["cert-manager-enabled"] == "true" {
 		labels["cert-manager-enabled"] = "true"
 	}
