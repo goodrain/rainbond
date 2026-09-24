@@ -2280,6 +2280,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.event-log.require-log-identity",
+      "title": "Reject log list requests without a component identity",
+      "title_zh": "Reject log list requests without a component identity",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/cluster/log-file",
+      "code_paths": [
+        "api/controller/event_log.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/event_log_test.go",
+          "selector": "TestLogListRejectsMissingLogIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.eventlog.file-store",
       "title": "Append, read, delete and clean event log file store",
       "title_zh": "\u4e8b\u4ef6\u65e5\u5fd7\u6587\u4ef6\u5b58\u50a8\u7684\u8ffd\u52a0\u8bfb\u53d6\u4e0e\u6e05\u7406",
@@ -2986,6 +3004,24 @@
         {
           "path": "api/controller/apigateway/api_gateway_route_test.go",
           "selector": "TestCreateTCPRouteReportsServiceCreateErrorDetails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.validate-http-route-match",
+      "title": "Reject HTTP gateway routes without hosts or paths",
+      "title_zh": "Reject HTTP gateway routes without hosts or paths",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.CreateHTTPAPIRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestHTTPRouteResourceNameValidatesMatch"
         }
       ],
       "test_type": "regression",
@@ -4978,6 +5014,24 @@
         {
           "path": "api/handler/service_file_manage_test.go",
           "selector": "TestWrapFileManageExecErrorIncludesStderr"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.port-outer-idempotent-close",
+      "title": "Keep repeated external port closes idempotent",
+      "title_zh": "Keep repeated external port closes idempotent",
+      "interface_type": "handler_method",
+      "interface": "api/handler.(*ServiceAction).PortOuter",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_port_outer_test.go",
+          "selector": "TestServiceActionPortOuterAlreadyClosedReturnsPort"
         }
       ],
       "test_type": "regression",

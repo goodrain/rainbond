@@ -19,6 +19,8 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,6 +67,47 @@ func TestCreateHTTPAPIRouteAddsCanonicalIdentityLabels(t *testing.T) {
 		if got := labels[key]; got != expected {
 			t.Errorf("label %s = %q; want %q", key, got, expected)
 		}
+	}
+}
+
+// capability_id: rainbond.gateway.validate-http-route-match
+func TestHTTPRouteResourceNameValidatesMatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		route   v2.ApisixRouteHTTP
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "reject missing hosts",
+			route:   v2.ApisixRouteHTTP{Match: v2.ApisixRouteHTTPMatch{Paths: []string{"/api"}}},
+			wantErr: true,
+		},
+		{
+			name:    "reject missing paths",
+			route:   v2.ApisixRouteHTTP{Match: v2.ApisixRouteHTTPMatch{Hosts: []string{"example.com"}}},
+			wantErr: true,
+		},
+		{
+			name: "build normalized name",
+			route: v2.ApisixRouteHTTP{Match: v2.ApisixRouteHTTPMatch{
+				Hosts: []string{"Example.COM"},
+				Paths: []string{"/api"},
+			}},
+			want: "example.comp-papi",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := httpRouteResourceName(&tt.route)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }
 

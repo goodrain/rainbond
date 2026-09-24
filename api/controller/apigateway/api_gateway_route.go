@@ -67,6 +67,21 @@ func httpRouteCreateFailure(err error) (updateExisting bool, responseErr error) 
 	return false, bcode.ErrRouteCreate
 }
 
+func httpRouteResourceName(route *v2.ApisixRouteHTTP) (string, error) {
+	if route == nil || len(route.Match.Hosts) == 0 || strings.TrimSpace(route.Match.Hosts[0]) == "" {
+		return "", fmt.Errorf("route host is required")
+	}
+	if len(route.Match.Paths) == 0 || strings.TrimSpace(route.Match.Paths[0]) == "" {
+		return "", fmt.Errorf("route path is required")
+	}
+
+	routeName := strings.ToLower(strings.ReplaceAll(route.Match.Hosts[0], "*", "wildcard") + route.Match.Paths[0])
+	routeName = strings.ReplaceAll(routeName, "/", "p-p")
+	routeName = strings.ReplaceAll(routeName, "*", "s-s")
+	routeName = strings.ReplaceAll(routeName, "_", "")
+	return routeName, nil
+}
+
 // OpenOrCloseDomains -
 func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
@@ -389,13 +404,12 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	labels := httpAPIRouteLabels(tenant, r, sa)
 	defaultDomain := r.URL.Query().Get("default") == "true"
 
+	routeName, err := httpRouteResourceName(&apisixRouteHTTP)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
+		return
+	}
 	c := k8s.Default().ApiSixClient.ApisixV2()
-
-	routeName := strings.ToLower(strings.ReplaceAll(apisixRouteHTTP.Match.Hosts[0], "*", "wildcard") + apisixRouteHTTP.Match.Paths[0])
-
-	routeName = strings.ReplaceAll(routeName, "/", "p-p")
-	routeName = strings.ReplaceAll(routeName, "*", "s-s")
-	routeName = strings.ReplaceAll(routeName, "_", "")
 	//name := r.URL.Query().Get("name")
 
 	for _, host := range apisixRouteHTTP.Match.Hosts {

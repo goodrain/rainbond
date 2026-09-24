@@ -124,6 +124,7 @@
 | rainbond.envutil.custom-memory | 判断内存大小是自定义值还是预设值 | active | regression | util/envutil.IsCustomMemory | util/envutil/envutil_test.go::TestIsCustomMemory |
 | rainbond.envutil.getenv-default | 在 envutil 中为缺失环境变量返回默认值 | active | regression | util/envutil.GetenvDefault | util/envutil/envutil_test.go::TestGetenvDefault |
 | rainbond.envutil.memory-label | 将内存大小映射为预设内存标签 | active | regression | util/envutil.GetMemoryType | util/envutil/envutil_test.go::TestGetMemoryType |
+| rainbond.event-log.require-log-identity | Reject log list requests without a component identity | active | regression | GET /v2/cluster/log-file | api/controller/event_log_test.go::TestLogListRejectsMissingLogIdentity |
 | rainbond.eventlog.file-store | 事件日志文件存储的追加读取与清理 | active | regression | api/eventlog/store.JSONLinesFileStore | api/eventlog/store/filestore_test.go::TestJSONLinesFileStore |
 | rainbond.eventlog.file-store-concurrency | 事件日志文件存储支持并发写入 | active | regression | api/eventlog/store.JSONLinesFileStore.Append | api/eventlog/store/filestore_test.go::TestFileStoreConcurrency |
 | rainbond.file-operate.upload-folder-path-traversal | 文件操作上传拒绝不安全相对路径 | active | regression | api/controller.resolveUploadRelativePath | api/controller/service_monitor_upload_test.go::TestResolveUploadRelativePathRejectsTraversal |
@@ -163,6 +164,7 @@
 | rainbond.gateway.release-absent-tcp-nodeport-owner | Release only the requested owner when a TCP route Service is absent | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteAlreadyAbsentReleasesOnlyRequestedOwner |
 | rainbond.gateway.release-captured-tcp-nodeport-rules | Release only TCP NodePort rules captured before Service deletion | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteReleasesOnlyCapturedRuleIDs |
 | rainbond.gateway.report-tcp-service-create-error-details | TCP route creation reports Kubernetes error details | active | regression | POST /api-gateway/v1/{tenant_name}/routes/tcp | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReportsServiceCreateErrorDetails |
+| rainbond.gateway.validate-http-route-match | Reject HTTP gateway routes without hosts or paths | active | regression | api/controller/apigateway.Struct.CreateHTTPAPIRoute | api/controller/apigateway/api_gateway_route_test.go::TestHTTPRouteResourceNameValidatesMatch |
 | rainbond.gateway.validate-tcp-nodeport-route-name | Reject out-of-range TCP NodePorts parsed from route names | active | regression | api/controller/apigateway.nodePortFromTCPRouteName | api/controller/apigateway/api_gateway_route_test.go::TestNodePortFromTCPRouteNameValidatesRange |
 | rainbond.helm-release.app-version-format | 为 Helm 历史输出格式化应用版本号 | active | regression | pkg/helm.formatAppVersion | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
 | rainbond.helm-release.chart-name-format | 为历史和摘要输出格式化 Helm chart 名称 | active | regression | pkg/helm.formatChartName | pkg/helm/helm_release_test.go::TestGetReleaseHistory |
@@ -267,6 +269,7 @@
 | rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
+| rainbond.service.port-outer-idempotent-close | Keep repeated external port closes idempotent | active | regression | api/handler.(*ServiceAction).PortOuter | api/handler/service_port_outer_test.go::TestServiceActionPortOuterAlreadyClosedReturnsPort |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
 | rainbond.source-args.default-cnb-ports | 为多语言项目应用默认 CNB 端口 | active | regression | builder/parser.applyCNBDefaultPorts | builder/parser/source_code_args_test.go::TestCNBDefaultPorts_MultiLanguage |
@@ -1701,6 +1704,16 @@
 - 代码路径: `util/envutil/envutil.go`
 - 测试路径: `util/envutil/envutil_test.go::TestGetMemoryType`
 
+### Reject log list requests without a component identity
+
+- Capability ID: `rainbond.event-log.require-log-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `GET /v2/cluster/log-file`
+- 代码路径: `api/controller/event_log.go`
+- 测试路径: `api/controller/event_log_test.go::TestLogListRejectsMissingLogIdentity`
+
 ### 事件日志文件存储的追加读取与清理
 
 - Capability ID: `rainbond.eventlog.file-store`
@@ -2090,6 +2103,16 @@
 - 业务入口: `POST /api-gateway/v1/{tenant_name}/routes/tcp`
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteReportsServiceCreateErrorDetails`
+
+### Reject HTTP gateway routes without hosts or paths
+
+- Capability ID: `rainbond.gateway.validate-http-route-match`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/apigateway.Struct.CreateHTTPAPIRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestHTTPRouteResourceNameValidatesMatch`
 
 ### Reject out-of-range TCP NodePorts parsed from route names
 
@@ -3130,6 +3153,16 @@
 - 业务入口: `api/handler.wrapFileManageExecError`
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr`
+
+### Keep repeated external port closes idempotent
+
+- Capability ID: `rainbond.service.port-outer-idempotent-close`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.(*ServiceAction).PortOuter`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_port_outer_test.go::TestServiceActionPortOuterAlreadyClosedReturnsPort`
 
 ### 镜像分享使用请求中的快照部署版本
 
