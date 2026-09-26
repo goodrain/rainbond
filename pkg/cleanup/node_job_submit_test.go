@@ -91,8 +91,9 @@ func TestNodeSubmissionReconcilesLostCreateWithoutRecreating(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cleanup.executor-preview-authority
 func TestNodeDryRunCannotChangeExecutorIdentity(t *testing.T) {
-	for _, mutation := range []string{"image", "node", "environment"} {
+	for _, mutation := range []string{"image", "node", "environment", "mount", "volume", "lifecycle", "security", "envfrom"} {
 		t.Run(mutation, func(t *testing.T) {
 			database, _ := coordinationDB(t)
 			binding, err := ProvisionManagedCacheStorage(database, "cache", "/cache/build")
@@ -126,6 +127,18 @@ func TestNodeDryRunCannotChangeExecutorIdentity(t *testing.T) {
 					changed.Spec.Template.Spec.NodeName = "other"
 				case "environment":
 					changed.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{{Name: "UNEXPECTED", Value: "changed"}}
+				case "mount":
+					changed.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "injected", MountPath: "/node-state"}}
+				case "volume":
+					changed.Spec.Template.Spec.Volumes = []corev1.Volume{{Name: "injected", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: "other"}}}}
+				case "lifecycle":
+					changed.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{PostStart: &corev1.LifecycleHandler{Exec: &corev1.ExecAction{Command: []string{"/bin/true"}}}}
+				case "security":
+					user := int64(123)
+					changed.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{RunAsUser: &user}
+				case "envfrom":
+					changed.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "other"}}}}
+
 				}
 				return changed, nil
 			}
@@ -136,5 +149,25 @@ func TestNodeDryRunCannotChangeExecutorIdentity(t *testing.T) {
 				t.Fatal("rejected preview persisted intent", err)
 			}
 		})
+	}
+}
+
+func TestNodePreviewAllowsOrdinaryKubernetesDefaults(t *testing.T) {
+	original := corev1.PodSpec{Containers: []corev1.Container{{Name: "node", Image: "example.test/node@sha256:" + strings.Repeat("a", 64)}}}
+	observed := original.DeepCopy()
+	observed.ServiceAccountName = "default"
+	observed.DeprecatedServiceAccount = "default"
+	observed.SecurityContext = &corev1.PodSecurityContext{}
+	c := &observed.Containers[0]
+	c.ImagePullPolicy = corev1.PullIfNotPresent
+	c.TerminationMessagePath = "/dev/termination-log"
+	c.TerminationMessagePolicy = corev1.TerminationMessageReadFile
+	c.SecurityContext = &corev1.SecurityContext{}
+	if !sameExecutorPreview(original, *observed) {
+		t.Fatal("ordinary defaults rejected")
+	}
+	observed.ServiceAccountName = "privileged"
+	if sameExecutorPreview(original, *observed) {
+		t.Fatal("different service account accepted")
 	}
 }

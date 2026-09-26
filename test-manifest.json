@@ -864,6 +864,30 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.executor-preview-authority",
+      "title": "Reject admission changes to native executor authority",
+      "title_zh": "Reject admission changes to native executor authority",
+      "interface_type": "workflow",
+      "interface": "cleanup.sameExecutorPreview",
+      "code_paths": [
+        "pkg/cleanup/executor_preview.go",
+        "pkg/cleanup/node_job_submit.go",
+        "pkg/cleanup/gc_job_submit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/node_job_submit_test.go",
+          "selector": "TestNodeDryRunCannotChangeExecutorIdentity"
+        },
+        {
+          "path": "pkg/cleanup/gc_job_submit_test.go",
+          "selector": "TestGCPreviewCannotInjectLifecycleOrStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.gc-executor-command",
       "title": "Bind native GC command to the verified Job admission",
       "title_zh": "Bind native GC command to the verified Job admission",

@@ -3,7 +3,6 @@ package cleanup
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -93,8 +92,7 @@ func SubmitSuspendedNodeJob(ctx context.Context, database *gorm.DB, client NodeJ
 	if err != nil {
 		return nil, err
 	}
-	original, observed := job.Spec.Template.Spec.Containers[0], defaulted.Spec.Template.Spec.Containers[0]
-	if original.Image != observed.Image || !reflect.DeepEqual(original.Command, observed.Command) || !reflect.DeepEqual(original.Args, observed.Args) || !reflect.DeepEqual(original.Env, observed.Env) {
+	if !sameExecutorPreview(job.Spec.Template.Spec, defaulted.Spec.Template.Spec) {
 		return nil, ErrCoordinationChanged
 	}
 	if intent.SpecHash != "" && intent.SpecHash != hash {

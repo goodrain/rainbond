@@ -207,3 +207,38 @@ func TestGCSubmissionCanceledAndDryRunFailureLeaveNoIntent(t *testing.T) {
 		}
 	}
 }
+
+// capability_id: rainbond.cleanup.executor-preview-authority
+func TestGCPreviewCannotInjectLifecycleOrStorage(t *testing.T) {
+	for _, kind := range []string{"lifecycle", "mount", "volume", "environment"} {
+		t.Run(kind, func(t *testing.T) {
+			database, _ := coordinationDB(t)
+			request := operation("preview-authority", "gc", "*")
+			if _, err := RequestMaintenance(database, request); err != nil {
+				t.Fatal(err)
+			}
+			jobs := gcTestJobClient{JobInterface: fake.NewSimpleClientset().BatchV1().Jobs("system")}
+			jobs.create = func(_ context.Context, input *batchv1.Job, options metav1.CreateOptions) (*batchv1.Job, error) {
+				if len(options.DryRun) == 0 {
+					t.Fatal("injected executor reached creation")
+				}
+				changed := input.DeepCopy()
+				container := &changed.Spec.Template.Spec.Containers[0]
+				switch kind {
+				case "lifecycle":
+					container.Lifecycle = &corev1.Lifecycle{PostStart: &corev1.LifecycleHandler{Exec: &corev1.ExecAction{Command: []string{"/bin/true"}}}}
+				case "mount":
+					container.VolumeMounts = []corev1.VolumeMount{{Name: "other", MountPath: "/registry"}}
+				case "volume":
+					changed.Spec.Template.Spec.Volumes = []corev1.Volume{{Name: "other", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: "other"}}}}
+				case "environment":
+					container.EnvFrom = []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "other"}}}}
+				}
+				return changed, nil
+			}
+			if _, err := SubmitSuspendedGCJob(context.Background(), database, jobs, request, suspendedGCFixture()); !errors.Is(err, ErrCoordinationChanged) {
+				t.Fatal("injected preview accepted", err)
+			}
+		})
+	}
+}

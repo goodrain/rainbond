@@ -49,6 +49,9 @@ func SubmitSuspendedGCJob(ctx context.Context, database *gorm.DB, client GCJobCl
 	if defaulted == nil || defaulted.Namespace != job.Namespace || defaulted.Name != job.Name || defaulted.Spec.Suspend == nil || !*defaulted.Spec.Suspend {
 		return nil, ErrCoordinationChanged
 	}
+	if !sameExecutorPreview(job.Spec.Template.Spec, defaulted.Spec.Template.Spec) {
+		return nil, ErrCoordinationChanged
+	}
 	hash, err := gcSubmissionHash(defaulted)
 	if err != nil {
 		return nil, err

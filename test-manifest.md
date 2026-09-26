@@ -51,6 +51,7 @@
 | rainbond.cleanup.durable-coordination | Persist coordinated operations across restarts and conflicts | active | regression | pkg/cleanup.AcquireOperation | pkg/cleanup/coordination_test.go::TestPersistentCoordinationConflictsAndRecovery |
 | rainbond.cleanup.durable-gc-receipt | Recover only immutable GC execution evidence without replay | active | regression | registryproxy.RecoverGCReceipt | pkg/cleanup/registryproxy/gc_receipt_test.go::TestGCReceiptIsBoundImmutableAndDoesNotPermitReplay |
 | rainbond.cleanup.durable-maintenance-measurements | Persist GC measurements without releasing maintenance protection | active | regression | cleanup.RecordMaintenanceMeasurement | pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore |
+| rainbond.cleanup.executor-preview-authority | Reject admission changes to native executor authority | active | regression | cleanup.sameExecutorPreview | pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity<br>pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage |
 | rainbond.cleanup.gc-executor-command | Bind native GC command to the verified Job admission | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery |
 | rainbond.cleanup.gc-executor-identity | Verify GC pod ownership image and physical volume | active | regression | kubeidentity.InspectGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestGCExecutorIdentityRejectsUntrustedPodAndStorage |
 | rainbond.cleanup.gc-executor-termination | Require actual original GC container termination and unchanged source | active | regression | kubeidentity.InspectTerminatedGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestTerminatedGCExecutorRequiresActualOriginalContainerExit<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceFingerprintDetectsRuntimeAndConfigurationChanges |
@@ -1033,6 +1034,16 @@
 - 业务入口: `cleanup.RecordMaintenanceMeasurement`
 - 代码路径: `pkg/cleanup/maintenance_measurement.go`, `pkg/cleanup/storage_measurement.go`
 - 测试路径: `pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore`
+
+### Reject admission changes to native executor authority
+
+- Capability ID: `rainbond.cleanup.executor-preview-authority`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.sameExecutorPreview`
+- 代码路径: `pkg/cleanup/executor_preview.go`, `pkg/cleanup/node_job_submit.go`, `pkg/cleanup/gc_job_submit.go`
+- 测试路径: `pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity`, `pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage`
 
 ### Bind native GC command to the verified Job admission
 
