@@ -1319,6 +1319,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-inventory-template",
+      "title": "Read-only cache inventory binds observed storage",
+      "title_zh": "Read-only cache inventory binds observed storage",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.BuildManagedCacheInventoryJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/node_inventory_template.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/node_inventory_template_test.go",
+          "selector": "TestCacheInventoryTemplateUsesObservedReadOnlyStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-job-intent",
       "title": "Persist immutable node execution identity before job creation",
       "title_zh": "Persist immutable node execution identity before job creation",
