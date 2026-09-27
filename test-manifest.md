@@ -78,6 +78,8 @@
 | rainbond.cleanup.node-job-submission | Submit one suspended node cleanup Job and reconcile original identity | active | integration | SubmitSuspendedNodeJob | pkg/cleanup/node_job_submit_test.go::TestNodeSubmissionReconcilesLostCreateWithoutRecreating |
 | rainbond.cleanup.node-job-template | Bind node cleanup jobs to observed cache and persistent state | active | regression | kubeidentity.BuildManagedNodeJob | pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState |
 | rainbond.cleanup.node-journal-identity | Bind original node execution journal to PVC and PV identities | active | regression | kubeidentity.InspectNodeJournalVolume | pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState |
+| rainbond.cleanup.node-recovery-binding | Persist recovery intent without changing original native authority | active | regression | cleanup.PrepareNodeRecovery | pkg/cleanup/node_recovery_test.go::TestNodeRecoveryIntentIsDurableAndCannotReplaceOriginal |
+| rainbond.cleanup.node-recovery-submission | Reconcile original recovery Job after lost create response | active | regression | cleanup.SubmitSuspendedNodeRecovery | pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse |
 | rainbond.cleanup.node-recovery-template | Build receipt recovery without cache access after verified executor exit | active | regression | kubeidentity.BuildNodeRecoveryJob | pkg/cleanup/kubeidentity/node_recovery_template_test.go::TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume |
 | rainbond.cleanup.node-result-finalization | Finalize known original node results only after verified executor exit | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish | pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor<br>pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
 | rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
@@ -1306,6 +1308,26 @@
 - 业务入口: `kubeidentity.InspectNodeJournalVolume`
 - 代码路径: `pkg/cleanup/kubeidentity/node_journal.go`, `pkg/cleanup/kubeidentity/node_job_template.go`
 - 测试路径: `pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState`
+
+### Persist recovery intent without changing original native authority
+
+- Capability ID: `rainbond.cleanup.node-recovery-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.PrepareNodeRecovery`
+- 代码路径: `pkg/cleanup/node_recovery.go`, `pkg/cleanup/node_job.go`
+- 测试路径: `pkg/cleanup/node_recovery_test.go::TestNodeRecoveryIntentIsDurableAndCannotReplaceOriginal`
+
+### Reconcile original recovery Job after lost create response
+
+- Capability ID: `rainbond.cleanup.node-recovery-submission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.SubmitSuspendedNodeRecovery`
+- 代码路径: `pkg/cleanup/node_recovery_submit.go`
+- 测试路径: `pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse`
 
 ### Build receipt recovery without cache access after verified executor exit
 

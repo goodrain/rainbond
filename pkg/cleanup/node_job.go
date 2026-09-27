@@ -30,6 +30,7 @@ type NodeJobIntent struct {
 
 // NodeJobBinding records the immutable intent and observed executor identities.
 type NodeJobBinding struct {
+	Recovery              *NodeRecoveryBinding `json:"recovery,omitempty"`
 	CanceledBeforeGrantAt *time.Time           `json:"canceled_before_grant_at,omitempty"`
 	Result                *NodeExecutionResult `json:"result,omitempty"`
 	FinishedAt            *time.Time           `json:"finished_at,omitempty"`
@@ -94,6 +95,9 @@ func readNodeBinding(r CoordinationRequest, op model.CleanupOperation) (NodeJobB
 		return NodeJobBinding{}, ErrCoordinationChanged
 	}
 	if binding.FinishedAt != nil && (binding.FinishedAt.IsZero() || binding.PodUID == "" || binding.Result == nil) {
+		return NodeJobBinding{}, ErrCoordinationChanged
+	}
+	if binding.Recovery != nil && !validNodeRecovery(binding, *binding.Recovery) {
 		return NodeJobBinding{}, ErrCoordinationChanged
 	}
 	return binding, nil

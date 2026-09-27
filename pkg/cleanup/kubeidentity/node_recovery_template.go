@@ -2,8 +2,6 @@ package kubeidentity
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 
 	coordination "github.com/goodrain/rainbond/pkg/cleanup"
@@ -76,7 +74,6 @@ func BuildNodeRecoveryJob(ctx context.Context, client kubernetes.Interface, orig
 	container.ReadinessProbe = nil
 	container.StartupProbe = nil
 	spec.AutomountServiceAccountToken = &no
-	sum := sha256.Sum256([]byte(binding.JobUID + "\x00" + binding.PodUID))
 	zero, one := int32(0), int32(1)
-	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: "rainbond-node-recover-" + hex.EncodeToString(sum[:16]), Namespace: original.Namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Parallelism: &one, Completions: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"rainbond.io/task": "node-recovery"}, Annotations: map[string]string{nodeJournalPVCUID: original.Spec.Template.Annotations[nodeJournalPVCUID], nodeJournalPVUID: original.Spec.Template.Annotations[nodeJournalPVUID]}}, Spec: *spec}}}, nil
+	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: coordination.NodeRecoveryName(binding), Namespace: original.Namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Parallelism: &one, Completions: &one, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"rainbond.io/task": "node-recovery"}, Annotations: map[string]string{nodeJournalPVCUID: original.Spec.Template.Annotations[nodeJournalPVCUID], nodeJournalPVUID: original.Spec.Template.Annotations[nodeJournalPVUID]}}, Spec: *spec}}}, nil
 }

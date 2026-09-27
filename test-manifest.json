@@ -1431,6 +1431,43 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-recovery-binding",
+      "title": "Persist recovery intent without changing original native authority",
+      "title_zh": "Persist recovery intent without changing original native authority",
+      "interface_type": "workflow",
+      "interface": "cleanup.PrepareNodeRecovery",
+      "code_paths": [
+        "pkg/cleanup/node_recovery.go",
+        "pkg/cleanup/node_job.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/node_recovery_test.go",
+          "selector": "TestNodeRecoveryIntentIsDurableAndCannotReplaceOriginal"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.node-recovery-submission",
+      "title": "Reconcile original recovery Job after lost create response",
+      "title_zh": "Reconcile original recovery Job after lost create response",
+      "interface_type": "workflow",
+      "interface": "cleanup.SubmitSuspendedNodeRecovery",
+      "code_paths": [
+        "pkg/cleanup/node_recovery_submit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/node_recovery_test.go",
+          "selector": "TestRecoverySubmissionNeverRecreatesAfterLostResponse"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-recovery-template",
       "title": "Build receipt recovery without cache access after verified executor exit",
       "title_zh": "Build receipt recovery without cache access after verified executor exit",
