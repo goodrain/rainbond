@@ -8,7 +8,9 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -23,6 +25,11 @@ func TestInventoryRequestReusesJobAfterLostCreate(t *testing.T) {
 	client := gcTestJobClient{JobInterface: kube.BatchV1().Jobs("system")}
 	client.create = func(ctx context.Context, j *batchv1.Job, o metav1.CreateOptions) (*batchv1.Job, error) {
 		if len(o.DryRun) > 0 {
+			if _, err := client.JobInterface.Get(ctx, j.Name, metav1.GetOptions{}); err == nil {
+				return nil, apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, j.Name)
+			} else if !apierrors.IsNotFound(err) {
+				return nil, err
+			}
 			return j.DeepCopy(), nil
 		}
 		creates++
@@ -48,6 +55,14 @@ func TestInventoryRequestReusesJobAfterLostCreate(t *testing.T) {
 	again, err := RunNodeInventoryJob(context.Background(), client, "scan", template, fresh)
 	if err != nil || again.UID != job.UID || creates != 1 {
 		t.Fatal("scan recreated", err)
+	}
+	job.Status.Succeeded = 1
+	if _, err := client.JobInterface.UpdateStatus(context.Background(), job, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	completed, err := RunNodeInventoryJob(context.Background(), client, "scan", template, fresh)
+	if err != nil || completed.UID != job.UID || completed.Status.Succeeded != 1 || creates != 1 {
+		t.Fatal("completed report cannot be polled", err)
 	}
 	changed := template.DeepCopy()
 	changed.Spec.Template.Spec.NodeName = "replacement"
