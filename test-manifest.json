@@ -1431,6 +1431,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-recovery-template",
+      "title": "Build receipt recovery without cache access after verified executor exit",
+      "title_zh": "Build receipt recovery without cache access after verified executor exit",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.BuildNodeRecoveryJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/node_recovery_template.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/node_recovery_template_test.go",
+          "selector": "TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-result-finalization",
       "title": "Finalize known original node results only after verified executor exit",
       "title_zh": "Finalize known original node results only after verified executor exit",
