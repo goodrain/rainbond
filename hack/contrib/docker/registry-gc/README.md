@@ -15,7 +15,7 @@ docker build \
 The build rejects mutable tags. Use `/registry-coordinator` as the sidecar command;
 the same image supplies `/registry-gc` for server-generated GC Jobs.
 
-## Installation-scoped control authentication
+## Platform-scoped control authentication
 
 Set these coordinator arguments when using the Console bridge:
 
@@ -23,17 +23,36 @@ Set these coordinator arguments when using the Console bridge:
 --coordination-api=<console-origin>
 --console-enterprise=<enterprise-id>
 --console-region=<region-name>
+--console-system-identity=true
 --credential-file=/control/key
 --permit-key-file=/permit/key
 ```
 
-The control key is the installation-scoped gateway credential. The independent
+The control key is platform-owned and independent of the plugin gateway credential.
+It must survive plugin uninstall/reinstall. The independent
 permit key is shared only by `rbd-api` and the coordinator. Configure the API with
 `CLEANUP_REGISTRY_PERMIT_KEY_FILE=/var/run/cleanup-registry-permit/key` and project
 that Secret read-only into both components. Do not reuse the control key as the
 permit key. No Region administrator token or private client certificate is
 needed in signed Console mode. Plain HTTP requires explicit
 `--allow-internal-http=true` for the trusted internal Console origin.
+
+Console must include the system coordination endpoint and mount a platform-owned
+Secret entry at the absolute path configured by `CLEANUP_SYSTEM_COORDINATION_FILE`.
+That entry is one JSON document containing exactly `enterprise`, `region`, and
+`key` (base64 encoding of the control key bytes). The enterprise and region must
+match both the client scope and a current Console enterprise-region association.
+The coordinator mounts the same control key bytes as `/control/key`; it does not
+mount the JSON document. Use a generated printable key compatible with the CLI
+credential-file parser. Never place values in application templates, logs or chat.
+Missing or invalid configuration fails closed; there is no plugin-key fallback.
+The full system URL is part of the signature, preventing replay to the plugin URL.
+
+The default client mode remains the installation endpoint for existing callers.
+Operator-managed Registry coordination explicitly enables system identity; GC
+Jobs preserve that flag. Do not rotate a key underneath active GC without a
+coordinated drain/restart: Console reloads the file, while clients hold the key
+loaded at startup. Provisioning and controlled deactivation remain rollout gates.
 
 Use separate Secrets and volumes for the two keys. GC Jobs inherit the Console
 scope and control credential from the verified coordinator Pod, but never receive

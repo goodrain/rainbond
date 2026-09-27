@@ -15,15 +15,16 @@ import (
 	"time"
 )
 
-// ConsoleCoordinationScope uses the installation-owned key, never an administrator token.
+// ConsoleCoordinationScope selects a scoped signing identity, never an administrator token.
 type ConsoleCoordinationScope struct {
 	Enterprise, Region string
+	System             bool
 	Key                []byte `json:"-"`
 }
 
 // Configured distinguishes signed Console access from direct Core credentials.
 func (c ConsoleCoordinationScope) Configured() bool {
-	return c.Enterprise != "" || c.Region != "" || len(c.Key) > 0
+	return c.System || c.Enterprise != "" || c.Region != "" || len(c.Key) > 0
 }
 
 type consoleCoordinationTransport struct {
@@ -73,7 +74,11 @@ func (c *consoleCoordinationTransport) RoundTrip(request *http.Request) (*http.R
 		return nil, ErrCoordinationChanged
 	}
 	target := *c.endpoint
-	target.Path = "/console/cleanup/internal/coordination/" + c.scope.Enterprise + "/" + c.scope.Region
+	route := "coordination"
+	if c.scope.System {
+		route = "system-coordination"
+	}
+	target.Path = "/console/cleanup/internal/" + route + "/" + c.scope.Enterprise + "/" + c.scope.Region
 	at := strconv.FormatInt(time.Now().Unix(), 10)
 	sum := sha256.Sum256(payload)
 	message := strings.Join([]string{"cleanup-coordination-v1", "POST", target.RequestURI(), c.scope.Enterprise, c.scope.Region, at, hex.EncodeToString(sum[:])}, "\n")

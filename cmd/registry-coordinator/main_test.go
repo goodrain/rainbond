@@ -70,15 +70,16 @@ func TestStartupCannotCreateIdentityOrAcceptInlineCredentials(t *testing.T) {
 
 // capability_id: rainbond.cleanup.coordinator-runtime
 func TestCoordinatorRunsReadinessAndStopsWithContext(t *testing.T) {
-	checkCoordinatorRuntime(t, false)
+	checkCoordinatorRuntime(t, false, false)
 }
 
 // capability_id: rainbond.cleanup.console-signed-coordinator-runtime
 func TestCoordinatorUsesSignedConsoleAndIndependentPermitKey(t *testing.T) {
-	checkCoordinatorRuntime(t, true)
+	checkCoordinatorRuntime(t, true, false)
+	checkCoordinatorRuntime(t, true, true)
 }
 
-func checkCoordinatorRuntime(t *testing.T, signed bool) {
+func checkCoordinatorRuntime(t *testing.T, signed, system bool) {
 	root := t.TempDir()
 	binding := coordination.StorageRegistration{StorageID: "store", Generation: "one", VolumeUID: "volume", RootPath: "/var/lib/registry"}
 	if err := registryproxy.InitializeStorageIdentity(root, binding); err != nil {
@@ -93,6 +94,13 @@ func checkCoordinatorRuntime(t *testing.T, signed bool) {
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if signed {
+			route := "coordination"
+			if system {
+				route = "system-coordination"
+			}
+			if r.URL.Path != "/console/cleanup/internal/"+route+"/enterprise/rainbond" {
+				t.Error("wrong identity route")
+			}
 			if r.Header.Get("Authorization") != "" || r.Header.Get("X-Cleanup-Coordination-Signature") == "" {
 				t.Error("missing installation signature")
 			}
@@ -132,6 +140,9 @@ func checkCoordinatorRuntime(t *testing.T, signed bool) {
 			t.Fatal(err)
 		}
 		args = append(args, "--console-enterprise=enterprise", "--console-region=rainbond", "--permit-key-file="+permitPath)
+	}
+	if system {
+		args = append(args, "--console-system-identity=true")
 	}
 	go func() { exited <- run(ctx, args) }()
 	client := &http.Client{Timeout: time.Second}

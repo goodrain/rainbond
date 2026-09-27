@@ -83,6 +83,7 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	flags.SetOutput(io.Discard)
 	var binding coordination.StorageRegistration
 	var listen, root, upstream, api, credential, owner, serverCert, serverKey, pod, podUID string
+	var systemIdentity bool
 	var enterprise, region, permitFile string
 	var initialize, measure, allowHTTP bool
 	var controlTLS, upstreamTLS tlsFiles
@@ -95,6 +96,7 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	flags.StringVar(&upstream, "upstream", "http://127.0.0.1:5000", "loopback Registry origin")
 	flags.StringVar(&api, "coordination-api", "", "trusted Region API origin")
 	flags.StringVar(&credential, "credential-file", "", "mounted coordination credential")
+	flags.BoolVar(&systemIdentity, "console-system-identity", false, "use independent platform-owned Console identity")
 	flags.StringVar(&enterprise, "console-enterprise", "", "installation enterprise for signed Console control")
 	flags.StringVar(&region, "console-region", "", "installation region for signed Console control")
 	flags.StringVar(&permitFile, "permit-key-file", "", "independent deletion permit verification key")
@@ -153,13 +155,13 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	signed := enterprise != "" || region != ""
+	signed := systemIdentity || enterprise != "" || region != ""
 	var client *coordination.CoordinationClient
 	if signed {
 		if controlTLS.certificate != "" || controlTLS.key != "" {
 			return errConfiguration
 		}
-		client, err = coordination.NewConsoleCoordinationClient(api, coordination.ConsoleCoordinationScope{Enterprise: enterprise, Region: region, Key: []byte(token)}, allowHTTP, controlTransport)
+		client, err = coordination.NewConsoleCoordinationClient(api, coordination.ConsoleCoordinationScope{Enterprise: enterprise, Region: region, Key: []byte(token), System: systemIdentity}, allowHTTP, controlTransport)
 	} else {
 		client, err = coordination.NewCoordinationClient(api, token, allowHTTP, controlTransport)
 	}

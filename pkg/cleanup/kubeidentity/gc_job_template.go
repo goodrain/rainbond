@@ -168,7 +168,14 @@ func registryGCJob(pod *corev1.Pod, native, sidecar *corev1.Container, args map[
 	if err != nil || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Path != "" && endpoint.Path != "/") || (endpoint.Scheme != "https" && !(endpoint.Scheme == "http" && allowHTTP)) {
 		return nil, ErrBinding
 	}
-	scope := coordination.ConsoleCoordinationScope{Enterprise: args["console-enterprise"], Region: args["console-region"]}
+	systemIdentity := false
+	if value, present := args["console-system-identity"]; present {
+		if value != "true" && value != "false" {
+			return nil, ErrBinding
+		}
+		systemIdentity = value == "true"
+	}
+	scope := coordination.ConsoleCoordinationScope{Enterprise: args["console-enterprise"], Region: args["console-region"], System: systemIdentity}
 	permitSecret := ""
 	if scope.Configured() {
 		if !scope.ValidIdentity() || args["coordination-client-cert-file"] != "" || args["coordination-client-key-file"] != "" || !cleanRoot(args["permit-key-file"]) {
@@ -233,6 +240,9 @@ func registryGCJob(pod *corev1.Pod, native, sidecar *corev1.Container, args map[
 		security.FSGroup = nil
 		security.FSGroupChangePolicy = nil
 		job.Spec.Template.Spec.SecurityContext = security
+	}
+	if scope.System {
+		c.Args = append(c.Args, "--console-system-identity=true")
 	}
 	if scope.Configured() {
 		c.Args = append(c.Args, "--console-enterprise="+scope.Enterprise, "--console-region="+scope.Region)

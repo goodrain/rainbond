@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -85,5 +86,39 @@ func TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry(t *testing.T)
 			t.Fatal("weakened legacy authentication")
 		}
 		server.Close()
+	}
+}
+
+func TestSystemCoordinationBindsSeparateEndpoint(t *testing.T) {
+	for _, system := range []bool{false, true} {
+		t.Run(strconv.FormatBool(system), func(t *testing.T) {
+			key := bytes.Repeat([]byte("x"), 64)
+			route := "coordination"
+			if system {
+				route = "system-coordination"
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path := "/console/cleanup/internal/" + route + "/enterprise/rainbond"
+				raw, _ := io.ReadAll(r.Body)
+				sum := sha256.Sum256(raw)
+				mac := hmac.New(sha256.New, key)
+				mac.Write([]byte(strings.Join([]string{"cleanup-coordination-v1", "POST", path, "enterprise", "rainbond", r.Header.Get("X-Cleanup-Coordination-Time"), hex.EncodeToString(sum[:])}, "\n")))
+				if r.URL.Path != path || r.Header.Get("X-Cleanup-Coordination-Signature") != hex.EncodeToString(mac.Sum(nil)) {
+					t.Error("wrong trust boundary")
+				}
+				w.Write([]byte(`{"bean":{"protocol":1,"recorded":true}}`))
+			}))
+			defer server.Close()
+			client, err := NewConsoleCoordinationClient(server.URL, ConsoleCoordinationScope{Enterprise: "enterprise", Region: "rainbond", Key: key, System: system}, true, http.DefaultTransport)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = client.callPath(context.Background(), "/v2/cleanup/stores/discover", struct{}{}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if !(ConsoleCoordinationScope{System: true}).Configured() {
+		t.Fatal("system mode silently downgraded")
 	}
 }

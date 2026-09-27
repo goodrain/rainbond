@@ -197,7 +197,7 @@ func TestGCSourceTracksCleanerProcessButNotStatusHeartbeat(t *testing.T) {
 
 // capability_id: rainbond.cleanup.signed-gc-job-template
 func TestSignedGCJobCopiesScopeButNeverPermitSigningSecret(t *testing.T) {
-	for _, variant := range []string{"valid", "shared-secret", "partial-scope"} {
+	for _, variant := range []string{"valid", "system", "invalid-system", "shared-secret", "partial-scope"} {
 		t.Run(variant, func(t *testing.T) {
 			client, binding := gcTemplateFixture(t)
 			pod, err := client.CoreV1().Pods("system").Get(context.Background(), "hub", metav1.GetOptions{})
@@ -205,6 +205,12 @@ func TestSignedGCJobCopiesScopeButNeverPermitSigningSecret(t *testing.T) {
 				t.Fatal(err)
 			}
 			sidecar := &pod.Spec.Containers[1]
+			if variant == "system" {
+				sidecar.Args = append(sidecar.Args, "--console-system-identity=true")
+			}
+			if variant == "invalid-system" {
+				sidecar.Args = append(sidecar.Args, "--console-system-identity=maybe")
+			}
 			sidecar.Args = append(sidecar.Args, "--console-enterprise=enterprise", "--permit-key-file=/permit/key")
 			if variant != "partial-scope" {
 				sidecar.Args = append(sidecar.Args, "--console-region=rainbond")
@@ -220,7 +226,7 @@ func TestSignedGCJobCopiesScopeButNeverPermitSigningSecret(t *testing.T) {
 			}
 			r := coordination.CoordinationRequest{StorageID: "store", Generation: "one", OperationID: "gc", Owner: "manual", Kind: "gc", Scope: "*", Fingerprint: "selection"}
 			job, err := BuildRegistryGCJob(context.Background(), client, "system", "rbd-hub", binding, r)
-			if variant != "valid" {
+			if variant != "valid" && variant != "system" {
 				if err == nil {
 					t.Fatal("unsafe authentication projection accepted")
 				}
@@ -230,6 +236,9 @@ func TestSignedGCJobCopiesScopeButNeverPermitSigningSecret(t *testing.T) {
 				t.Fatal(err)
 			}
 			args := strings.Join(job.Spec.Template.Spec.Containers[0].Args, " ")
+			if variant == "system" && !strings.Contains(args, "--console-system-identity=true") {
+				t.Fatal("lost system identity")
+			}
 			if !strings.Contains(args, "--console-enterprise=enterprise") || !strings.Contains(args, "--console-region=rainbond") {
 				t.Fatal("lost signed identity", args)
 			}

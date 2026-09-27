@@ -78,6 +78,11 @@ func TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery(t *testing.T) {
 
 // capability_id: rainbond.cleanup.console-signed-gc-command
 func TestGCCommandUsesInstallationSignatureForOriginalReceipt(t *testing.T) {
+	for _, system := range []bool{false, true} {
+		checkGCSignedReceipt(t, system)
+	}
+}
+func checkGCSignedReceipt(t *testing.T, system bool) {
 	t.Setenv("CLEANUP_GC_OPERATION", `{"binding":{"storage_id":"owned","generation":"one","volume_uid":"volume","root_path":"/registry"},"request":{"generation":"one","operation_id":"gc","owner":"executor","kind":"gc","scope":"*","fingerprint":"confirmation"}}`)
 	t.Setenv("POD_NAME", "gc-pod")
 	t.Setenv("POD_UID", "pod-uid")
@@ -88,13 +93,20 @@ func TestGCCommandUsesInstallationSignatureForOriginalReceipt(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		if r.URL.Path != "/console/cleanup/internal/coordination/enterprise/rainbond" || r.Header.Get("Authorization") != "" || r.Header.Get("X-Cleanup-Coordination-Signature") == "" {
+		route := "coordination"
+		if system {
+			route = "system-coordination"
+		}
+		if r.URL.Path != "/console/cleanup/internal/"+route+"/enterprise/rainbond" || r.Header.Get("Authorization") != "" || r.Header.Get("X-Cleanup-Coordination-Signature") == "" {
 			t.Error("unscoped GC callback")
 		}
 		w.Write([]byte(`{"bean":{"protocol":1,"recorded":true}}`))
 	}))
 	defer server.Close()
 	args := []string{"--credential-file", credential, "--coordination-api", server.URL, "--allow-internal-http", "--console-enterprise=enterprise", "--console-region=rainbond", "--recover"}
+	if system {
+		args = append(args, "--console-system-identity=true")
+	}
 	invoke := func(ctx context.Context, root string, b coordination.StorageRegistration, r coordination.CoordinationRequest, binary string, recorder registryproxy.GCExecutionRecorder, recover bool) error {
 		if !recover {
 			t.Error("recovery became new native GC")
