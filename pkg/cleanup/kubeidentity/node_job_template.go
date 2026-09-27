@@ -96,7 +96,7 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 		Spec batchv1.JobSpec
 	}{[]string{sourceUID, observed.Mount.VolumeUID, string(state.UID), string(statePV.UID)}, job.Spec})
 	sum := sha256.Sum256(source)
-	job.Spec.Template.Annotations = map[string]string{"rainbond.io/node-source-fingerprint": hex.EncodeToString(sum[:]), "rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID}
+	job.Spec.Template.Annotations = map[string]string{nodeJournalPVCUID: string(state.UID), nodeJournalPVUID: string(statePV.UID), "rainbond.io/node-source-fingerprint": hex.EncodeToString(sum[:]), "rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID}
 	return job, nil
 }
 func nodeTaskDescriptor(region string, r coordination.CoordinationRequest, intent coordination.NodeJobIntent) map[string]interface{} {

@@ -1412,6 +1412,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-journal-identity",
+      "title": "Bind original node execution journal to PVC and PV identities",
+      "title_zh": "Bind original node execution journal to PVC and PV identities",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectNodeJournalVolume",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/node_journal.go",
+        "pkg/cleanup/kubeidentity/node_job_template.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/node_job_template_test.go",
+          "selector": "TestNodeJobTemplateBindsCacheAndDurableState"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-result-finalization",
       "title": "Finalize known original node results only after verified executor exit",
       "title_zh": "Finalize known original node results only after verified executor exit",

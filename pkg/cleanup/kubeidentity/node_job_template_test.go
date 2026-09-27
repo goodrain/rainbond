@@ -16,6 +16,7 @@ import (
 )
 
 // capability_id: rainbond.cleanup.node-job-template
+// capability_id: rainbond.cleanup.node-journal-identity
 func TestNodeJobTemplateBindsCacheAndDurableState(t *testing.T) {
 	_, _, pvc, pv := bindingObjects()
 	pod := gcCleanerFixture()
@@ -39,6 +40,26 @@ func TestNodeJobTemplateBindsCacheAndDurableState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	job.Name = "original-job"
+	job.UID = "original-job-uid"
+	intent.Name = job.Name
+	intent.SpecHash, err = coordination.NodeJobSpecHash(job, intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execution := coordination.NodeJobBinding{Protocol: 1, NodeJobIntent: intent, JobUID: string(job.UID)}
+	if err := InspectNodeJournalVolume(context.Background(), client, job, execution); err != nil {
+		t.Fatal("original journal not bound", err)
+	}
+	state.UID = "replacement-state"
+	client.CoreV1().PersistentVolumeClaims("system").Update(context.Background(), state, metav1.UpdateOptions{})
+	if err := InspectNodeJournalVolume(context.Background(), client, job, execution); err == nil {
+		t.Fatal("replacement journal accepted")
+	}
+	state.UID = "state-uid"
+	client.CoreV1().PersistentVolumeClaims("system").Update(context.Background(), state, metav1.UpdateOptions{})
+	intent.Name = ""
+	intent.SpecHash = ""
 	c := job.Spec.Template.Spec.Containers[0]
 	if !*job.Spec.Suspend || *job.Spec.BackoffLimit != 0 || job.Spec.Template.Spec.NodeName != "node" || c.Command[0] != "/app/node-cleanup" || c.VolumeMounts[0].SubPath != "owned/build" {
 		t.Fatal("unsafe execution mapping")
