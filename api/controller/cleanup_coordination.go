@@ -30,6 +30,7 @@ import (
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
 	nodeSettings        func() kubeidentity.NodeJobSettings
+	inventorySettings   func() kubeidentity.NodeInventorySettings
 	inspectManagedCache func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
 	gcTarget            func() (kubernetes.Interface, string, string, error)
 	database            func() *gorm.DB
@@ -40,7 +41,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: func() []byte { return []byte(os.Getenv("TOKEN")) }, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: func() []byte { return []byte(os.Getenv("TOKEN")) }, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.

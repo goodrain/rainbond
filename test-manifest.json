@@ -1319,6 +1319,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-inventory-api",
+      "title": "Authenticated manual inventory preserves deletion protection",
+      "title_zh": "Authenticated manual inventory preserves deletion protection",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/managed-cache/inventory",
+      "code_paths": [
+        "api/controller/cleanup_node_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_node_inventory_test.go",
+          "selector": "TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.node-inventory-submission",
+      "title": "Retry manual inventory without duplicating an existing job",
+      "title_zh": "Retry manual inventory without duplicating an existing job",
+      "interface_type": "workflow",
+      "interface": "cleanup.RunNodeInventoryJob",
+      "code_paths": [
+        "pkg/cleanup/node_inventory_submit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/node_inventory_submit_test.go",
+          "selector": "TestInventoryRequestReusesJobAfterLostCreate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-inventory-template",
       "title": "Read-only cache inventory binds observed storage",
       "title_zh": "Read-only cache inventory binds observed storage",

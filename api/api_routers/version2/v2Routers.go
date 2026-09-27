@@ -885,6 +885,7 @@ func (v2 *V2) cleanupCoordinationRouter() chi.Router {
 	r.Post("/stores/discover", h.DiscoverStores)
 	r.Post("/registry/prepare", h.PrepareRegistry)
 	r.Post("/managed-cache/prepare", h.PrepareManagedCache)
+	r.Post("/managed-cache/inventory", h.CollectManagedCache)
 	r.Post("/stores/{storage_id}/operations", h.Acquire)
 	r.Post("/stores/{storage_id}/status", h.StorageStatus)
 	r.Post("/stores/{storage_id}/reference-inventory", h.RegistryReferenceInventory)
