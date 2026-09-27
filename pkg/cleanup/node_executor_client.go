@@ -74,3 +74,11 @@ func (c *CoordinationClient) NodeJobProgress(ctx context.Context, r Coordination
 	}
 	return *result, nil
 }
+
+// RecoverNodeJob asks Core to recover a saved receipt after original termination.
+func (c *CoordinationClient) RecoverNodeJob(ctx context.Context, r CoordinationRequest) error {
+	if r.Kind != "delete" {
+		return ErrCoordinationChanged
+	}
+	return c.record(ctx, r, "node/recover", r)
+}

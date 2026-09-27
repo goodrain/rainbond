@@ -1431,6 +1431,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-recovery-api",
+      "title": "Recover original node receipt after verified executor exit",
+      "title_zh": "Recover original node receipt after verified executor exit",
+      "interface_type": "view_endpoint",
+      "interface": "POST node/recover",
+      "code_paths": [
+        "api/controller/cleanup_node_recovery.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_node_executor_test.go",
+          "selector": "TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-recovery-binding",
       "title": "Persist recovery intent without changing original native authority",
       "title_zh": "Persist recovery intent without changing original native authority",

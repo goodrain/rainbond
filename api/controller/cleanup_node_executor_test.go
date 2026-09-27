@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 // capability_id: rainbond.cleanup.node-executor-admission
 // capability_id: rainbond.cleanup.node-result-finalization
+// capability_id: rainbond.cleanup.node-recovery-api
 func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "node.db"))
 	if err != nil {
@@ -84,7 +86,9 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	if _, err := kube.CoreV1().Pods("system").Create(context.Background(), pod, metav1.CreateOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	h := &CleanupCoordinationHandler{nodeSettings: func() kubeidentity.NodeJobSettings { return settings }, database: func() *gorm.DB { return database }, gcTarget: func() (kubernetes.Interface, string, string, error) { return kube, "system", "rbd-hub", nil }}
+	h := &CleanupCoordinationHandler{nodeSettings: func() kubeidentity.NodeJobSettings { return settings }, database: func() *gorm.DB { return database }, gcTarget: func() (kubernetes.Interface, string, string, error) {
+		return gcAdmissionKubeClient{Interface: kube}, "system", "rbd-hub", nil
+	}}
 	t.Setenv("TOKEN", "isolated-node-fixture")
 	router := chi.NewRouter()
 	router.Use(middleware.FullToken)
@@ -92,6 +96,7 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	router.Post("/v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/result", h.RecordNodeJobResult)
 	router.Post("/v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish", h.FinishNodeJob)
 	router.Post("/v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/status", h.NodeJobProgress)
+	router.Post("/v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/recover", h.RecoverNodeJob)
 	endpoint := "/v2/cleanup/stores/" + r.StorageID + "/operations/" + r.OperationID + "/node/enter-job"
 	unauth := httptest.NewRecorder()
 	router.ServeHTTP(unauth, httptest.NewRequest(http.MethodPost, endpoint, strings.NewReader(`{}`)))
@@ -136,8 +141,8 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	after.AvailableBytes = 100
 	after.ObservedAt = after.ObservedAt.Add(time.Second)
 	result := guard.NodeExecutionResult{State: "deleted", Before: &before, After: &after}
-	if err := client.RecordNodeJobResult(context.Background(), r, locator, result); err != nil {
-		t.Fatal(err)
+	if err := client.RecoverNodeJob(context.Background(), r); !errors.Is(err, guard.ErrCoordinationBusy) {
+		t.Fatal("live original accepted for recovery", err)
 	}
 	if err := client.FinishNodeJob(context.Background(), r, locator); err == nil {
 		t.Fatal("running helper released scope")
@@ -145,6 +150,32 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	pod.Status.Phase = corev1.PodSucceeded
 	pod.Status.ContainerStatuses[0].State = corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{FinishedAt: metav1.NewTime(after.ObservedAt.Add(time.Second)), ExitCode: 0}}
 	if _, err := kube.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client.RecoverNodeJob(context.Background(), r); err != nil {
+		t.Fatal("receipt helper not launched", err)
+	}
+	recoveredBinding, err := guard.ReadNodeJobBinding(database, r)
+	if err != nil || recoveredBinding.Recovery == nil || recoveredBinding.Recovery.JobUID == "" {
+		t.Fatal("missing durable recovery identity", err)
+	}
+	helper, err := kube.BatchV1().Jobs("system").Get(context.Background(), recoveredBinding.Recovery.Name, metav1.GetOptions{})
+	if err != nil || *helper.Spec.Suspend || len(helper.Spec.Template.Spec.Volumes) != 2 {
+		t.Fatal("invalid recovery startup", err)
+	}
+	if err := client.RecoverNodeJob(context.Background(), r); err != nil {
+		t.Fatal("repeat helper request failed", err)
+	}
+	jobList, err := kube.BatchV1().Jobs("system").List(context.Background(), metav1.ListOptions{})
+	if err != nil || len(jobList.Items) != 2 {
+		t.Fatal("duplicate recovery job", err)
+	}
+	operationState, err := guard.InspectOperation(database, r)
+	if err != nil || operationState != "executing" {
+		t.Fatal("helper launch released native protection", operationState, err)
+	}
+	if err := client.RecordNodeJobResult(context.Background(), r, locator, result); err != nil {
 		t.Fatal(err)
 	}
 	if err := client.FinishNodeJob(context.Background(), r, locator); err != nil {
