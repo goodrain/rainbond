@@ -26,11 +26,16 @@ func RunNodeInventoryJob(ctx context.Context, client NodeJobStartClient, scanID 
 	if _, err := inventoryJobHash(job); err != nil || job.Spec.Suspend == nil || !*job.Spec.Suspend {
 		return nil, ErrCoordinationChanged
 	}
-	preview, err := client.Create(ctx, job, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	// A dry-run create still rejects an existing name. Use a distinct,
+	// never-persisted name so completed jobs can be observed repeatedly.
+	// Controller-generated labels are validated and excluded by inventoryJobHash.
+	previewRequest := job.DeepCopy()
+	previewRequest.Name = "cleanup-inventory-preview-" + hex.EncodeToString(key[:16])
+	preview, err := client.Create(ctx, previewRequest, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return nil, err
 	}
-	if preview == nil || preview.Name != job.Name || preview.Namespace != job.Namespace || preview.Spec.Suspend == nil || !*preview.Spec.Suspend || !sameExecutorPreview(job.Spec.Template.Spec, preview.Spec.Template.Spec) {
+	if preview == nil || preview.Name != previewRequest.Name || preview.Namespace != job.Namespace || preview.Spec.Suspend == nil || !*preview.Spec.Suspend || !sameExecutorPreview(job.Spec.Template.Spec, preview.Spec.Template.Spec) {
 		return nil, ErrCoordinationChanged
 	}
 	hash, err := inventoryJobHash(preview)
