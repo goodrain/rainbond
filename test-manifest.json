@@ -2100,6 +2100,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.saved-workload-reference-coordination",
+      "title": "Serialize saved workload reference writes with cleanup admission",
+      "title_zh": "Serialize saved workload reference writes with cleanup admission",
+      "interface_type": "workflow",
+      "interface": "K8sResourceDaoImpl",
+      "code_paths": [
+        "db/mysql/dao/k8s_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/k8s_resource_cleanup_test.go",
+          "selector": "TestSavedWorkloadWritesRespectCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.service_check_import_handoff",
       "title": "Preserve imported image references across component creation",
       "title_zh": "Preserve imported image references across component creation",
@@ -2437,6 +2455,47 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.workload-apply-admission",
+      "title": "Keep workload producer admission through Kubernetes mutation and reference commit",
+      "title_zh": "Keep workload producer admission through Kubernetes mutation and reference commit",
+      "interface_type": "workflow",
+      "interface": "handler.admitWorkload",
+      "code_paths": [
+        "api/handler/cleanup_workload_admission.go",
+        "api/handler/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_workload_admission_test.go",
+          "selector": "TestWorkloadAdmissionProtectsExternalApplyThroughCommit"
+        },
+        {
+          "path": "api/handler/cleanup_workload_admission_test.go",
+          "selector": "TestWorkloadAdmissionRetainsOnlyUnresolvedEffects"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.yaml-apply-admission-integration",
+      "title": "Exercise YAML apply protection through HTTP and durable database outcomes",
+      "title_zh": "Exercise YAML apply protection through HTTP and durable database outcomes",
+      "interface_type": "workflow",
+      "interface": "clusterAction.AddAppK8SResource",
+      "code_paths": [
+        "api/handler/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_workload_apply_test.go",
+          "selector": "TestYAMLApplyAdmissionCoversRequestsAndPartialResults"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {

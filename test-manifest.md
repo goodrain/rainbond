@@ -113,6 +113,7 @@
 | rainbond.cleanup.registry-stream-admission | Require admission before forwarding mutations without credential leakage | active | regression | pkg/cleanup/registryproxy.Proxy.ServeHTTP | pkg/cleanup/registryproxy/proxy_test.go::TestProxyAcquiresBeforeForwardingAndPreservesRegistryAuth |
 | rainbond.cleanup.registry-upload-lifecycle | Keep upload leases across parts and drain existing sessions safely | active | regression | pkg/cleanup.AcquireUploadRequest | pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts |
 | rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
+| rainbond.cleanup.saved-workload-reference-coordination | Serialize saved workload reference writes with cleanup admission | active | regression | K8sResourceDaoImpl | db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission |
 | rainbond.cleanup.service_check_import_handoff | Preserve imported image references across component creation | active | regression | CleanServiceCheckData | api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences |
 | rainbond.cleanup.share-task-completion | Slug sharing remains active until result persistence finishes | active | regression | exectorManager.slugShare | builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence |
 | rainbond.cleanup.signed-gc-job-template | Project GC identity without exposing permit signing authority | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret |
@@ -130,6 +131,8 @@
 | rainbond.cleanup.version-reference-coordination | Version writes serialize with manifest deletion | active | regression | VersionInfoDaoImpl | db/mysql/dao/version_cleanup_test.go::TestVersionCreationCannotRaceManifestDeletion |
 | rainbond.cleanup.version-update-no-resurrection | Version callbacks preserve activation and never recreate retired records | active | regression | VersionInfoDaoImpl.UpdateModel | db/mysql/dao/version_cleanup_test.go::TestVersionUpdateNeverRecreatesRetiredRecordsOrResetsActivation |
 | rainbond.cleanup.vm-activation-dispatch | Do not deploy VM after version activation rejection | active | regression | exectorManager.buildFromVM | builder/exector/cleanup_activation_test.go::TestVMBuildCannotDispatchAfterActivationRejected |
+| rainbond.cleanup.workload-apply-admission | Keep workload producer admission through Kubernetes mutation and reference commit | active | regression | handler.admitWorkload | api/handler/cleanup_workload_admission_test.go::TestWorkloadAdmissionProtectsExternalApplyThroughCommit<br>api/handler/cleanup_workload_admission_test.go::TestWorkloadAdmissionRetainsOnlyUnresolvedEffects |
+| rainbond.cleanup.yaml-apply-admission-integration | Exercise YAML apply protection through HTTP and durable database outcomes | active | integration | clusterAction.AddAppK8SResource | api/handler/cleanup_workload_apply_test.go::TestYAMLApplyAdmissionCoversRequestsAndPartialResults |
 | rainbond.cloud-storage.alioss-error-map | 将 AliOSS 服务错误转换为统一存储 SDK 错误 | active | regression | builder/cloudos.svcErrToS3SDKError | builder/cloudos/alioss_test.go::TestSvcErrToS3SDKError |
 | rainbond.cloud-storage.driver-factory | 将云存储配置分发到正确的驱动实现 | active | regression | builder/cloudos.New | builder/cloudos/cloudos_test.go::TestNewDispatchesProviderDrivers |
 | rainbond.cloud-storage.provider-parse | 解析云存储 provider 配置值 | active | regression | builder/cloudos.Str2S3Provider | builder/cloudos/cloudos_test.go::TestStr2S3Provider |
@@ -1678,6 +1681,16 @@
 - 代码路径: `builder/exector/groupapp_restore.go`, `builder/exector/exector.go`
 - 测试路径: `builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure`
 
+### Serialize saved workload reference writes with cleanup admission
+
+- Capability ID: `rainbond.cleanup.saved-workload-reference-coordination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `K8sResourceDaoImpl`
+- 代码路径: `db/mysql/dao/k8s_resource.go`
+- 测试路径: `db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission`
+
 ### Preserve imported image references across component creation
 
 - Capability ID: `rainbond.cleanup.service_check_import_handoff`
@@ -1847,6 +1860,26 @@
 - 业务入口: `exectorManager.buildFromVM`
 - 代码路径: `builder/exector/exector.go`
 - 测试路径: `builder/exector/cleanup_activation_test.go::TestVMBuildCannotDispatchAfterActivationRejected`
+
+### Keep workload producer admission through Kubernetes mutation and reference commit
+
+- Capability ID: `rainbond.cleanup.workload-apply-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `handler.admitWorkload`
+- 代码路径: `api/handler/cleanup_workload_admission.go`, `api/handler/resource.go`
+- 测试路径: `api/handler/cleanup_workload_admission_test.go::TestWorkloadAdmissionProtectsExternalApplyThroughCommit`, `api/handler/cleanup_workload_admission_test.go::TestWorkloadAdmissionRetainsOnlyUnresolvedEffects`
+
+### Exercise YAML apply protection through HTTP and durable database outcomes
+
+- Capability ID: `rainbond.cleanup.yaml-apply-admission-integration`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `clusterAction.AddAppK8SResource`
+- 代码路径: `api/handler/resource.go`
+- 测试路径: `api/handler/cleanup_workload_apply_test.go::TestYAMLApplyAdmissionCoversRequestsAndPartialResults`
 
 ### 将 AliOSS 服务错误转换为统一存储 SDK 错误
 
