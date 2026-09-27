@@ -118,6 +118,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/proxy-pass", v2.proxyRoute())
 	r.Get("/pods/logs", controller.GetManager().PodLogs)
 	r.Mount("/platform", v2.platformPluginsRouter())
+	r.Mount("/cleanup", v2.cleanupCoordinationRouter())
 
 	return r
 }
@@ -668,6 +669,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	r.Put("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
+	r.Post("/build-version/{build_version}/retire", middleware.WrapEL(controller.GetManager().RetireBuildVersion, dbmodel.TargetTypeService, "cleanup-retire-buildversion", dbmodel.SYNEVENTTYPE, false))
 	r.Delete("/build-version/{build_version}", middleware.WrapEL(controller.GetManager().BuildVersionInfo, dbmodel.TargetTypeService, "delete-buildversion", dbmodel.SYNEVENTTYPE, false))
 	//应用分享
 	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.SYNEVENTTYPE, false))
@@ -871,5 +873,53 @@ func (v2 *V2) licenseRouter() chi.Router {
 	r.Get("/cluster-id", controller.GetLicenseV2Controller().GetClusterID)
 	r.Post("/activate", controller.GetLicenseV2Controller().ActivateLicense)
 	r.Get("/status", controller.GetLicenseV2Controller().GetLicenseStatus)
+	return r
+}
+
+// Coordination endpoints remain authenticated even when the broad API is
+// configured without TOKEN; absent credentials must never enable coordination.
+func (v2 *V2) cleanupCoordinationRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Use(middleware.CleanupIdentity)
+	h := controller.NewCleanupCoordinationHandler()
+	r.Post("/stores/discover", h.DiscoverStores)
+	r.Post("/registry/prepare", h.PrepareRegistry)
+	r.Post("/managed-cache/prepare", h.PrepareManagedCache)
+	r.Post("/managed-cache/inventory", h.CollectManagedCache)
+	r.Post("/stores/{storage_id}/operations", h.Acquire)
+	r.Post("/stores/{storage_id}/status", h.StorageStatus)
+	r.Post("/stores/{storage_id}/reference-inventory", h.RegistryReferenceInventory)
+	r.Post("/stores/{storage_id}/participants/registry", h.RegisterRegistryParticipant)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/registry-permit", h.RegistryPermit)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/registry-references", h.RegistryReferences)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/attempt", h.BeginAttempt)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/attempt/complete", h.CompleteAttempt)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/upload", h.BindUpload)
+	r.Post("/stores/{storage_id}/uploads/lookup", h.LookupUpload)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/upload/requests", h.AcquireUpload)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/upload/requests/finish", h.FinishUpload)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/finish", h.Finish)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/inspect", h.Inspect)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/request", h.RequestMaintenance)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/enter", h.EnterMaintenance)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/enter-job", h.EnterGCJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/cancel-before-grant", h.CancelNodeBeforeGrant)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/submit-job", h.SubmitNodeJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/start-job", h.StartNodeJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/enter-job", h.EnterNodeJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/result", h.RecordNodeJobResult)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/finish", h.FinishNodeJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/status", h.NodeJobProgress)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/node/recover", h.RecoverNodeJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/job", h.SubmitGCJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/job/start", h.StartGCJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/job/restore", h.RestoreGCJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/job/status", h.GCJobProgress)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/job/cancel-failed", h.CancelFailedGCJob)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/cancel", h.CancelDrain)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/complete", h.CompleteMaintenanceWork)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/measurement", h.RecordMaintenanceMeasurement)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/restore", h.BeginRestore)
+	r.Post("/stores/{storage_id}/operations/{operation_id}/maintenance/restored", h.FinishRestore)
 	return r
 }

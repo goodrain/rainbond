@@ -2,6 +2,16 @@ package exector
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
 	humanize "github.com/dustin/go-humanize"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
@@ -13,16 +23,7 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"io"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
-	"sort"
-	"strings"
-	"time"
 )
 
 type vmBuildMedia string
@@ -72,22 +73,23 @@ COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 
 // VMBuildItem -
 type VMBuildItem struct {
-	Logger        event.Logger `json:"logger"`
-	Arch          string       `json:"arch"`
-	VMImageSource string       `json:"vm_image_source"`
-	VMImageToken  string       `json:"vm_image_token"`
-	ImageClient   sources.ImageClient
-	Configs       map[string]gjson.Result `json:"configs"`
-	ServiceID     string                  `json:"service_id"`
-	DeployVersion string                  `json:"deploy_version"`
-	Image         string                  `json:"image"`
-	BuildKitImage string
-	BuildKitArgs  []string
-	BuildKitCache bool
-	Action        string `json:"action"`
-	EventID       string `json:"event_id"`
-	TenantID      string `json:"tenant_id"`
-	kubeClient    kubernetes.Interface
+	cleanupAdmission *nativeBuildAdmission
+	Logger           event.Logger `json:"logger"`
+	Arch             string       `json:"arch"`
+	VMImageSource    string       `json:"vm_image_source"`
+	VMImageToken     string       `json:"vm_image_token"`
+	ImageClient      sources.ImageClient
+	Configs          map[string]gjson.Result `json:"configs"`
+	ServiceID        string                  `json:"service_id"`
+	DeployVersion    string                  `json:"deploy_version"`
+	Image            string                  `json:"image"`
+	BuildKitImage    string
+	BuildKitArgs     []string
+	BuildKitCache    bool
+	Action           string `json:"action"`
+	EventID          string `json:"event_id"`
+	TenantID         string `json:"tenant_id"`
+	kubeClient       kubernetes.Interface
 }
 
 // NewVMBuildItem -
@@ -216,7 +218,7 @@ func (v *VMBuildItem) storeVersionInfo(imageName string) error {
 	version.RepoURL = v.VMImageSource
 	version.FinalStatus = "success"
 	version.FinishTime = time.Now()
-	return db.GetManager().VersionInfoDao().UpdateModel(version)
+	return v.cleanupAdmission.saveVersion(version)
 }
 
 func (v *VMBuildItem) UpdateVersionInfo(status string) error {
@@ -227,7 +229,7 @@ func (v *VMBuildItem) UpdateVersionInfo(status string) error {
 	version.FinalStatus = status
 	version.RepoURL = v.VMImageSource
 	version.FinishTime = time.Now()
-	return db.GetManager().VersionInfoDao().UpdateModel(version)
+	return v.cleanupAdmission.saveVersion(version)
 }
 
 func renderVMDockerfile(fileName string) (string, error) {

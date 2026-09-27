@@ -19,10 +19,13 @@
 package exector
 
 import (
+	"errors"
 	"fmt"
-	"github.com/goodrain/rainbond/db"
 	"runtime/debug"
 	"strings"
+
+	"github.com/goodrain/rainbond/db"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 
 	"github.com/ghodss/yaml"
 
@@ -80,8 +83,43 @@ func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.Service
 	return sr, nil
 }
 
-// serviceCheck 应用创建源检测
+// serviceCheck admits tar-backed checks before their parser can push images.
 func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
+	var input ServiceCheckInput
+	if task == nil || ffjson.Unmarshal(task.TaskBody, &input) != nil {
+		logrus.Error("Invalid service check request")
+		return
+	}
+	_, tarSource := parser.TarImageEventID(input.SourceBody)
+	if input.SourceType != "docker-run" || !tarSource {
+		e.serviceCheckAdmitted(task, nil)
+		return
+	}
+	prior, err := db.GetManager().KeyValueDao().Get("/servicecheck/" + input.CheckUUID)
+	if err != nil {
+		logrus.Error("Service check result lookup unavailable")
+		return
+	}
+	if prior != nil {
+		return
+	}
+	err = runNativeBuildWithAdmission(db.GetManager().DB(), "service-check", input.CheckUUID, task.TaskBody, func(admission *nativeBuildAdmission) bool { return e.serviceCheckAdmitted(task, admission) })
+	if err == nil {
+		return
+	}
+	logrus.Error("Tar service check blocked or requires coordination verification")
+	if !errors.Is(err, guard.ErrCoordinationBusy) {
+		return
+	}
+	result, _ := CreateResult(parser.ParseErrorList{parser.ErrorAndSolve(parser.FatalError, "镜像仓库正在维护", parser.SolveAdvice("modify_image", "请在维护结束后重新提交检测"))}, nil)
+	raw, _ := ffjson.Marshal(result)
+	if saveErr := db.GetManager().KeyValueDao().Put("/servicecheck/"+input.CheckUUID, string(raw)); saveErr != nil {
+		logrus.Error("Service check rejection could not be recorded")
+	}
+}
+
+// serviceCheck 应用创建源检测
+func (e *exectorManager) serviceCheckAdmitted(task *pb.TaskMessage, admission *nativeBuildAdmission) (confirmed bool) {
 	//step1 判断应用源类型
 	//step2 获取应用源介质，镜像Or源码
 	//step3 解析判断应用源规范
@@ -125,7 +163,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 			if input.SourceBody[0] == '{' {
 				yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
 				if err != nil {
-					logrus.Errorf("json bytes format is error, %s", input.SourceBody)
+					logrus.Error("Invalid compose JSON")
 					logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
 					return
 				}
@@ -169,13 +207,11 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		}
 	}
 	serviceInfos := pr.GetServiceInfo()
-	for i, si := range serviceInfos {
-		logrus.Infof("[compose-debug] serviceInfo[%d]: name=%s, workingDir=%q, args=%v, command=%v", i, si.Name, si.WorkingDir, si.Args, si.Command)
-	}
 	sr, err := CreateResult(errList, serviceInfos)
 	if err != nil {
 		logrus.Errorf("create check result error,%s", err.Error())
 		logger.Error("创建检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		return
 	}
 	k := fmt.Sprintf("/servicecheck/%s", input.CheckUUID)
 	v := sr
@@ -183,14 +219,17 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	if err != nil {
 		logrus.Errorf("mashal servicecheck value error, %v", err)
 		logger.Error("格式化检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		return
 	}
-	err = db.GetManager().KeyValueDao().Put(k, string(vj))
+	err = admission.saveServiceCheckResult(input.CheckUUID, string(vj))
 	if err != nil {
 		logrus.Errorf("put servicecheck k %s into db error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
+		return
 	}
 	logrus.Info(serviceCheckCompletionLogSummary(input.SourceType, sr.CheckStatus))
 	logger.Info("创建检测结果成功。", map[string]string{"step": "last", "status": "success"})
+	return sr.CheckStatus == "Success"
 }
 
 func serviceCheckCompletionLogSummary(sourceType, checkStatus string) string {

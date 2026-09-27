@@ -99,7 +99,11 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			return d.errors
 		}
 	} else if strings.HasPrefix(d.source, "event") {
-		eventID := strings.Split(d.source, " ")[1]
+		eventID, valid := TarImageEventID(d.source)
+		if !valid {
+			d.errappend(ErrorAndSolve(FatalError, "无效的镜像上传事件", SolveAdvice("modify_image", "请重新选择上传文件")))
+			return d.errors
+		}
 		tarPath := path.Join("/grdata/package_build/temp/events", eventID)
 		err := storage.Default().StorageCli.DownloadDirToDir(tarPath, tarPath)
 		files, _ := filepath.Glob(path.Join(tarPath, "*"))

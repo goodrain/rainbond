@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
+
 	"github.com/goodrain/rainbond/db"
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +38,19 @@ func (h *CleanDateBaseHandler) CleanAllServiceData(keys []string) {
 
 // CleanServiceCheckData clean service check etcd data
 func (h *CleanDateBaseHandler) CleanServiceCheckData(key string) {
-	h.cleanDateBaseByKey(key, ServiceCheckEtcdKey)
+	if key == "" {
+		return
+	}
+	receiptKey := "/servicecheck/" + key
+	receipt, err := db.GetManager().KeyValueDao().Get(receiptKey)
+	if err != nil || receipt == nil || !serviceCheckCanBeReleasedOnCreate(receipt.V) {
+		return
+	}
+	// Delete the exact check only. Import receipts require an explicit handoff
+	// after all consuming components have committed, not the first creation.
+	if err := db.GetManager().KeyValueDao().Delete(receiptKey); err != nil {
+		logrus.Warn("could not release completed service check")
+	}
 }
 
 func (h *CleanDateBaseHandler) cleanDateBaseByKey(key string, keyTypes ...EtcdKeyType) {
@@ -64,4 +78,24 @@ func (h *CleanDateBaseHandler) cleanDateBaseData(prefix string) {
 	if err != nil {
 		logrus.Warnf("delete db key[%s] failed: %s", prefix, err.Error())
 	}
+}
+
+func serviceCheckCanBeReleasedOnCreate(value string) bool {
+	var receipt struct {
+		Status   string                       `json:"check_status"`
+		Services []map[string]json.RawMessage `json:"service_info"`
+	}
+	if json.Unmarshal([]byte(value), &receipt) != nil ||
+		(receipt.Status != "Success" && receipt.Status != "Failure") || receipt.Services == nil {
+		return false
+	}
+	for _, service := range receipt.Services {
+		if service == nil {
+			return false
+		}
+		if _, imported := service["tar_images"]; imported {
+			return false
+		}
+	}
+	return true
 }

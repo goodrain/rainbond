@@ -43,6 +43,85 @@
 | rainbond.builder.mirror-docker-ref-rewrite | docker daemon pulls rewrite docker.io refs to mirrors with fallback order | active | unit | builder/sources.mirrorPullRefs | builder/sources/mirror_hosts_test.go::TestMirrorPullRefs |
 | rainbond.builder.mirror-merge-manual-priority | Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup | active | unit | builder/sources.mergeMirrors | builder/sources/mirror_merge_test.go::TestMergeMirrors |
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
+| rainbond.cleanup.activation-registry-coordination | Rollback and activation cannot reference deleting images | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_coordination_test.go::TestActivationAndRollbackRejectDeletingImage |
+| rainbond.cleanup.app-import-admission | Hold application import admission through metadata publication | active | integration | exector.exec.import_app | builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication<br>builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload |
+| rainbond.cleanup.cache-builder-startup | Enroll actual cache writer before task consumption | active | integration | exector.registerCacheBuilderStartup | builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion |
+| rainbond.cleanup.cache-observation-before-readiness | Observe cache storage without enabling legacy writer deletion | active | regression | kubeidentity.InspectManagedBuildCacheSource | pkg/cleanup/kubeidentity/managed_cache_test.go::TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness |
+| rainbond.cleanup.cache-writer-certification | Certify cache readiness only with current membership and no writers | active | integration | cleanup.CertifyManagedCacheWriters | pkg/cleanup/cache_certification_test.go::TestCacheCertificationRequiresMembershipAndQuiescence |
+| rainbond.cleanup.cache-writer-coverage | Verify current coordinated writer rollout and detached builds | active | regression | kubeidentity.InspectCacheWriterCoverage | pkg/cleanup/kubeidentity/cache_coverage_test.go::TestCacheCoverageRejectsRollingWritersAndDetachedBuilds |
+| rainbond.cleanup.cache-writer-native-gate | Recheck live writer coverage before native deletion grant | active | integration | POST node/enter-job | api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.coordinated-registry-delete-gc | Verify coordinated deletion and separate GC against isolated real Registry | active | integration | Region coordination API and Registry sidecar | api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC |
+| rainbond.cleanup.coordination-route-auth | Require Region authentication for every coordination route | active | regression | /v2/cleanup/stores/{storage_id}/operations | api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication |
+| rainbond.cleanup.coordinator-runtime | Run verified readiness and terminate the coordinator cleanly | active | regression | cmd/registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext |
+| rainbond.cleanup.durable-coordination | Persist coordinated operations across restarts and conflicts | active | regression | pkg/cleanup.AcquireOperation | pkg/cleanup/coordination_test.go::TestPersistentCoordinationConflictsAndRecovery |
+| rainbond.cleanup.durable-gc-receipt | Recover only immutable GC execution evidence without replay | active | regression | registryproxy.RecoverGCReceipt | pkg/cleanup/registryproxy/gc_receipt_test.go::TestGCReceiptIsBoundImmutableAndDoesNotPermitReplay |
+| rainbond.cleanup.durable-maintenance-measurements | Persist GC measurements without releasing maintenance protection | active | regression | cleanup.RecordMaintenanceMeasurement | pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore |
+| rainbond.cleanup.executor-preview-authority | Reject admission changes to native executor authority | active | regression | cleanup.sameExecutorPreview | pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity<br>pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage |
+| rainbond.cleanup.gc-executor-command | Bind native GC command to the verified Job admission | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery |
+| rainbond.cleanup.gc-executor-identity | Verify GC pod ownership image and physical volume | active | regression | kubeidentity.InspectGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestGCExecutorIdentityRejectsUntrustedPodAndStorage |
+| rainbond.cleanup.gc-executor-termination | Require actual original GC container termination and unchanged source | active | regression | kubeidentity.InspectTerminatedGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestTerminatedGCExecutorRequiresActualOriginalContainerExit<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceFingerprintDetectsRuntimeAndConfigurationChanges |
+| rainbond.cleanup.gc-failed-before-admission | Cancel failed GC only before execution admission | active | integration | POST maintenance/job/cancel-failed | api/controller/cleanup_gc_failed_test.go::TestFailedGCBeforeAdmissionCanEndMaintenanceWithoutDeletion |
+| rainbond.cleanup.gc-job-execution-api | Grant verified GC Job execution once after writer drain | active | integration | POST maintenance/enter-job | api/controller/cleanup_gc_executor_test.go::TestGCJobAdmissionAPIRequiresVerifiedExecutorAndGrantsOnce<br>pkg/cleanup/registryproxy/gc_recorder_test.go::TestGCJobRecorderUsesVerifiedGateWithoutFallback |
+| rainbond.cleanup.gc-job-progress | Expose only the bound GC operation receipt | active | regression | cleanup.ReadGCJobProgress | pkg/cleanup/gc_job_restore_test.go::TestGCProgressRejectsAnotherOperationIdentity |
+| rainbond.cleanup.gc-job-restore | Restore only the original verified GC operation with durable measurements | active | integration | cleanup.FinishGCJobRestore | pkg/cleanup/gc_job_restore_test.go::TestGCJobRestoreRequiresOriginalBindingAndMeasurements<br>api/controller/cleanup_gc_executor_test.go::TestGCJobAdmissionAPIRequiresVerifiedExecutorAndGrantsOnce |
+| rainbond.cleanup.gc-job-start | Start the recorded GC Job only after writer drain | active | regression | cleanup.StartGCJob | pkg/cleanup/gc_job_start_test.go::TestGCJobStartWaitsForWritersAndNeverReplaysLostStart<br>pkg/cleanup/gc_job_start_test.go::TestGCJobStartRejectsCanceledOperation |
+| rainbond.cleanup.gc-job-submission | Persist GC submission and reconcile without replay | active | regression | cleanup.SubmitSuspendedGCJob | pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionPersistsBeforeCreateAndReconcilesLostResponse<br>pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionRejectsUnsafeRetrySettings<br>pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionDefaultingAndMutation<br>pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionCanceledAndDryRunFailureLeaveNoIntent |
+| rainbond.cleanup.gc-job-template | Derive GC Job from verified Registry storage and credential references | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobTemplateUsesObservedStorageAndMountedCredentials<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobTemplateRejectsUnsafeSource |
+| rainbond.cleanup.gc-reject-legacy-cleaner | Reject GC while legacy automatic cleanup is enabled | active | regression | BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobRejectsLegacyAutomaticCleanup<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceTracksCleanerProcessButNotStatusHeartbeat |
+| rainbond.cleanup.generic-activation-fence | Reject generic activation of retired version records | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/store_test.go::TestActivationCannotRestoreRetiredTargetThroughGenericSave |
+| rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
+| rainbond.cleanup.managed-cache-binding | Bind managed cache enrollment to observed system storage | active | integration | POST /v2/cleanup/managed-cache/prepare | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume<br>api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady |
+| rainbond.cleanup.manual-gc-maintenance | Drain writes and require confirmed restoration around manual GC | active | regression | pkg/cleanup.RequestMaintenance | pkg/cleanup/maintenance_test.go::TestMaintenanceDrainsWritersAndRestoresOnlyAfterConfirmation |
+| rainbond.cleanup.market-slug-task-completion | Market slug task waits for completion before returning | active | regression | exectorManager.buildFromMarketSlug | builder/exector/cleanup_task_boundary_test.go::TestMarketSlugTaskWaitsForCompletion |
+| rainbond.cleanup.native-image-build-admission | Image builds hold durable cleanup admission through completion | active | regression | exectorManager.buildFromImage | builder/exector/cleanup_image_admission_test.go::TestImageBuildAdmissionBlocksGCAndNeverReplays |
+| rainbond.cleanup.node-cancel-before-grant | Cancel only node operations without a native grant | active | regression | cleanup.CancelNodeBeforeGrant | pkg/cleanup/node_cancel_test.go::TestNodeCancellationCannotOverrideNativeAdmission<br>api/controller/cleanup_node_launch_test.go::TestNodeLaunchAPIRechecksSourceBeforeStarting |
+| rainbond.cleanup.node-candidate-readiness | Require idle coordinated storage before showing cache candidates | active | regression | cleanup.InspectManagedCacheReadiness | pkg/cleanup/node_readiness_test.go::TestNodeReadinessDoesNotIgnoreActiveOperations |
+| rainbond.cleanup.node-executor-admission | Admit exactly one observed node executor and verify its termination | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/enter-job | pkg/cleanup/node_execution_test.go::TestNodeExecutorAdmissionIsBoundAndSingleUse<br>pkg/cleanup/kubeidentity/node_executor_test.go::TestNodeExecutorRequiresOriginalRuntimeNodeAndMount<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.node-inventory-api | Authenticated manual inventory preserves deletion protection | active | integration | POST /v2/cleanup/managed-cache/inventory | api/controller/cleanup_node_inventory_test.go::TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness |
+| rainbond.cleanup.node-inventory-report | Return inventory only from the original verified successful pod | active | regression | kubeidentity.ReadNodeInventoryReport | pkg/cleanup/kubeidentity/node_inventory_report_test.go::TestInventoryReportRequiresOriginalSuccessfulPod |
+| rainbond.cleanup.node-inventory-submission | Retry manual inventory without duplicating an existing job | active | regression | cleanup.RunNodeInventoryJob | pkg/cleanup/node_inventory_submit_test.go::TestInventoryRequestReusesJobAfterLostCreate |
+| rainbond.cleanup.node-inventory-template | Read-only cache inventory binds observed storage | active | regression | kubeidentity.BuildManagedCacheInventoryJob | pkg/cleanup/kubeidentity/node_inventory_template_test.go::TestCacheInventoryTemplateUsesObservedReadOnlyStorage |
+| rainbond.cleanup.node-job-intent | Persist immutable node execution identity before job creation | active | integration | PrepareNodeJob | pkg/cleanup/node_job_test.go::TestNodeJobIntentIsImmutableAndDoesNotGrantRecreation |
+| rainbond.cleanup.node-job-launch-api | Launch only the original verified node cleanup job | active | regression | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/submit-job | api/controller/cleanup_node_launch_test.go::TestNodeLaunchAPIRechecksSourceBeforeStarting |
+| rainbond.cleanup.node-job-start | Start only the original protected node cleanup Job | active | integration | StartNodeJob | pkg/cleanup/node_job_start_test.go::TestNodeJobStartChecksProtectionAndReconcilesLostReply |
+| rainbond.cleanup.node-job-submission | Submit one suspended node cleanup Job and reconcile original identity | active | integration | SubmitSuspendedNodeJob | pkg/cleanup/node_job_submit_test.go::TestNodeSubmissionReconcilesLostCreateWithoutRecreating |
+| rainbond.cleanup.node-job-template | Bind node cleanup jobs to observed cache and persistent state | active | regression | kubeidentity.BuildManagedNodeJob | pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState |
+| rainbond.cleanup.node-journal-identity | Bind original node execution journal to PVC and PV identities | active | regression | kubeidentity.InspectNodeJournalVolume | pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState |
+| rainbond.cleanup.node-recovery-api | Recover original node receipt after verified executor exit | active | integration | POST node/recover | api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.node-recovery-binding | Persist recovery intent without changing original native authority | active | regression | cleanup.PrepareNodeRecovery | pkg/cleanup/node_recovery_test.go::TestNodeRecoveryIntentIsDurableAndCannotReplaceOriginal |
+| rainbond.cleanup.node-recovery-submission | Reconcile original recovery Job after lost create response | active | regression | cleanup.SubmitSuspendedNodeRecovery | pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse |
+| rainbond.cleanup.node-recovery-template | Build receipt recovery without cache access after verified executor exit | active | regression | kubeidentity.BuildNodeRecoveryJob | pkg/cleanup/kubeidentity/node_recovery_template_test.go::TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume |
+| rainbond.cleanup.node-result-finalization | Finalize known original node results only after verified executor exit | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish | pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor<br>pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
+| rainbond.cleanup.pending-import-references | Include retained tar import and check receipts in reference audits | active | regression | cleanup.collectRegionReferenceImages | pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased<br>pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence<br>pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences |
+| rainbond.cleanup.plugin-version-reference-coordination | Plugin version writes respect selected deletion and cannot resurrect records | active | regression | PluginBuildVersionDaoImpl | db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect |
+| rainbond.cleanup.registered-storage-discovery | Storage discovery rejects incomplete enrollment | active | regression | cleanup.DiscoverStores | pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration |
+| rainbond.cleanup.registry-delete-permit | Bind registry deletion permits to immutable targets and expiry | active | regression | pkg/cleanup.VerifyRegistryDeletionPermit | pkg/cleanup/deletion_permit_test.go::TestRegistryDeletionPermitBindsOriginalTargetAndExpiry |
+| rainbond.cleanup.registry-gc-executor | Execute native Registry GC once against a verified storage descriptor | active | integration | registryproxy.ExecuteGC | pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission<br>api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC |
+| rainbond.cleanup.registry-ingress-isolation | Reject registry routes that bypass the coordinator | active | regression | pkg/cleanup/kubeidentity.InspectRegistryIngress | pkg/cleanup/kubeidentity/registry_ingress_test.go::TestRegistryIngressRequiresExclusiveCoordinatedRoute |
+| rainbond.cleanup.registry-kubernetes-binding | Verify actual registry Pod and backing volume identity | active | regression | pkg/cleanup/kubeidentity.InspectRegistryMount | pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity |
+| rainbond.cleanup.registry-preparation | Derive registry identity from controlled inspection without granting cleanup | active | regression | /v2/cleanup/registry/prepare | api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady |
+| rainbond.cleanup.registry-request-scope | Reject ambiguous Registry paths and direct blob deletion | active | regression | pkg/cleanup/registryproxy.ClassifyRequest | pkg/cleanup/registryproxy/request_test.go::TestRegistryProxyRejectsAmbiguousPathsAndUnselectedDeletion |
+| rainbond.cleanup.registry-service-coverage | Check every registry service instance without accepting partial coverage | active | regression | pkg/cleanup/kubeidentity.InspectRegistryService | pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments |
+| rainbond.cleanup.registry-stream-admission | Require admission before forwarding mutations without credential leakage | active | regression | pkg/cleanup/registryproxy.Proxy.ServeHTTP | pkg/cleanup/registryproxy/proxy_test.go::TestProxyAcquiresBeforeForwardingAndPreservesRegistryAuth |
+| rainbond.cleanup.registry-upload-lifecycle | Keep upload leases across parts and drain existing sessions safely | active | regression | pkg/cleanup.AcquireUploadRequest | pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts |
+| rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
+| rainbond.cleanup.service_check_import_handoff | Preserve imported image references across component creation | active | regression | CleanServiceCheckData | api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences |
+| rainbond.cleanup.share-task-completion | Slug sharing remains active until result persistence finishes | active | regression | exectorManager.slugShare | builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence |
+| rainbond.cleanup.single-deletion-attempt | Consume deletion permission once and retain verification protection | active | regression | pkg/cleanup.BeginDeletionAttempt | pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified |
+| rainbond.cleanup.storage-enrollment | Collect writes during enrollment without granting cleanup | active | regression | pkg/cleanup.RegisterStorage | pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion |
+| rainbond.cleanup.storage-identity | Bind storage identity atomically without replacing prior markers | active | regression | pkg/cleanup/registryproxy.InitializeStorageIdentity | pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten |
+| rainbond.cleanup.tar-check-event-path | Restrict tar check input to event directory identifiers | active | regression | parser.TarImageEventID | builder/parser/tar_event_test.go::TestTarImageEventIDRejectsTraversalAndMalformedSources |
+| rainbond.cleanup.tar-image-admission | Fence tar image import through native work and result persistence | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportAdmissionCoversWorkAndResultPersistence<br>builder/exector/cleanup_tar_admission_test.go::TestTarImportUnknownOutcomeRetainsProtection<br>builder/exector/cleanup_tar_admission_test.go::TestTarImportInvalidIdentityStopsBeforeFilesystemOrDatabase |
+| rainbond.cleanup.tar-image-entry | Reject tar import before native work and preserve original result | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportEntryReportsMaintenanceWithoutStartingNativeWork |
+| rainbond.cleanup.tar-image-redelivery | Do not overwrite a running tar import on duplicate delivery | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportRedeliveryDoesNotPublishFailureOverActiveWork |
+| rainbond.cleanup.tar-service-check-admission | Block tar service check native work during maintenance | active | regression | exector.serviceCheck | builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance |
+| rainbond.cleanup.verified-client-identity | Cleanup requires configured token or verified platform client certificate | active | regression | api.middleware.CleanupIdentity | api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken |
+| rainbond.cleanup.verified-storage-measurement | Measure only the verified registry backing filesystem | active | regression | registryproxy.MeasureStorage | pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks<br>cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials |
+| rainbond.cleanup.version-activation-fence | Fence upgrade and rollback against version retirement | active | regression | OperationHandler.upgrade and ServiceAction.RollBack | api/handler/cleanup_rollback_test.go::TestLegacyRollbackCannotActivateRetiredVersion<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeRechecksVersionUnderRetirementLock<br>api/handler/cleanup_rollback_test.go::TestUpgradeQueueFailureCannotOverwriteNewerDeployment<br>api/handler/cleanup_rollback_test.go::TestLegacyRollbackRejectsWrongTenant<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeEnqueuesValidatedVersion |
+| rainbond.cleanup.version-reference-coordination | Version writes serialize with manifest deletion | active | regression | VersionInfoDaoImpl | db/mysql/dao/version_cleanup_test.go::TestVersionCreationCannotRaceManifestDeletion |
+| rainbond.cleanup.version-update-no-resurrection | Version callbacks preserve activation and never recreate retired records | active | regression | VersionInfoDaoImpl.UpdateModel | db/mysql/dao/version_cleanup_test.go::TestVersionUpdateNeverRecreatesRetiredRecordsOrResetsActivation |
+| rainbond.cleanup.vm-activation-dispatch | Do not deploy VM after version activation rejection | active | regression | exectorManager.buildFromVM | builder/exector/cleanup_activation_test.go::TestVMBuildCannotDispatchAfterActivationRejected |
 | rainbond.cloud-storage.alioss-error-map | 将 AliOSS 服务错误转换为统一存储 SDK 错误 | active | regression | builder/cloudos.svcErrToS3SDKError | builder/cloudos/alioss_test.go::TestSvcErrToS3SDKError |
 | rainbond.cloud-storage.driver-factory | 将云存储配置分发到正确的驱动实现 | active | regression | builder/cloudos.New | builder/cloudos/cloudos_test.go::TestNewDispatchesProviderDrivers |
 | rainbond.cloud-storage.provider-parse | 解析云存储 provider 配置值 | active | regression | builder/cloudos.Str2S3Provider | builder/cloudos/cloudos_test.go::TestStr2S3Provider |
@@ -890,6 +969,796 @@
 - 业务入口: `builder/exector.exectorManager.RunTask`
 - 代码路径: `builder/exector/exector.go`
 - 测试路径: `builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker`
+
+### Rollback and activation cannot reference deleting images
+
+- Capability ID: `rainbond.cleanup.activation-registry-coordination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.TrackServiceActivation`
+- 代码路径: `pkg/cleanup/activation.go`, `pkg/cleanup/store.go`
+- 测试路径: `pkg/cleanup/activation_coordination_test.go::TestActivationAndRollbackRejectDeletingImage`
+
+### Hold application import admission through metadata publication
+
+- Capability ID: `rainbond.cleanup.app-import-admission`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `exector.exec.import_app`
+- 代码路径: `builder/exector/exector.go`, `builder/exector/import_app.go`, `builder/exector/cleanup_image_admission.go`
+- 测试路径: `builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication`, `builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload`
+
+### Enroll actual cache writer before task consumption
+
+- Capability ID: `rainbond.cleanup.cache-builder-startup`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `exector.registerCacheBuilderStartup`
+- 代码路径: `builder/exector/cleanup_cache_startup.go`, `builder/exector/exector.go`, `pkg/cleanup/kubeidentity/cache_builder.go`, `pkg/cleanup/node_readiness.go`, `pkg/cleanup/participant.go`
+- 测试路径: `builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion`
+
+### Observe cache storage without enabling legacy writer deletion
+
+- Capability ID: `rainbond.cleanup.cache-observation-before-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectManagedBuildCacheSource`
+- 代码路径: `pkg/cleanup/kubeidentity/managed_cache.go`
+- 测试路径: `pkg/cleanup/kubeidentity/managed_cache_test.go::TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness`
+
+### Certify cache readiness only with current membership and no writers
+
+- Capability ID: `rainbond.cleanup.cache-writer-certification`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.CertifyManagedCacheWriters`
+- 代码路径: `pkg/cleanup/cache_certification.go`
+- 测试路径: `pkg/cleanup/cache_certification_test.go::TestCacheCertificationRequiresMembershipAndQuiescence`
+
+### Verify current coordinated writer rollout and detached builds
+
+- Capability ID: `rainbond.cleanup.cache-writer-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectCacheWriterCoverage`
+- 代码路径: `pkg/cleanup/kubeidentity/cache_coverage.go`
+- 测试路径: `pkg/cleanup/kubeidentity/cache_coverage_test.go::TestCacheCoverageRejectsRollingWritersAndDetachedBuilds`
+
+### Recheck live writer coverage before native deletion grant
+
+- Capability ID: `rainbond.cleanup.cache-writer-native-gate`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST node/enter-job`
+- 代码路径: `api/controller/cleanup_cache_readiness.go`, `api/controller/cleanup_node_launch.go`
+- 测试路径: `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Verify coordinated deletion and separate GC against isolated real Registry
+
+- Capability ID: `rainbond.cleanup.coordinated-registry-delete-gc`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `Region coordination API and Registry sidecar`
+- 代码路径: `pkg/cleanup/registryproxy/coordinator.go`, `api/controller/cleanup_coordination.go`
+- 测试路径: `api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC`
+
+### Require Region authentication for every coordination route
+
+- Capability ID: `rainbond.cleanup.coordination-route-auth`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `/v2/cleanup/stores/{storage_id}/operations`
+- 代码路径: `api/api_routers/version2/v2Routers.go`
+- 测试路径: `api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication`
+
+### Run verified readiness and terminate the coordinator cleanly
+
+- Capability ID: `rainbond.cleanup.coordinator-runtime`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cmd/registry-coordinator.run`
+- 代码路径: `cmd/registry-coordinator/main.go`
+- 测试路径: `cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext`
+
+### Persist coordinated operations across restarts and conflicts
+
+- Capability ID: `rainbond.cleanup.durable-coordination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.AcquireOperation`
+- 代码路径: `pkg/cleanup/coordination.go`
+- 测试路径: `pkg/cleanup/coordination_test.go::TestPersistentCoordinationConflictsAndRecovery`
+
+### Recover only immutable GC execution evidence without replay
+
+- Capability ID: `rainbond.cleanup.durable-gc-receipt`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registryproxy.RecoverGCReceipt`
+- 代码路径: `pkg/cleanup/registryproxy/gc_receipt.go`, `pkg/cleanup/registryproxy/gc_executor.go`
+- 测试路径: `pkg/cleanup/registryproxy/gc_receipt_test.go::TestGCReceiptIsBoundImmutableAndDoesNotPermitReplay`
+
+### Persist GC measurements without releasing maintenance protection
+
+- Capability ID: `rainbond.cleanup.durable-maintenance-measurements`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.RecordMaintenanceMeasurement`
+- 代码路径: `pkg/cleanup/maintenance_measurement.go`, `pkg/cleanup/storage_measurement.go`
+- 测试路径: `pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore`
+
+### Reject admission changes to native executor authority
+
+- Capability ID: `rainbond.cleanup.executor-preview-authority`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.sameExecutorPreview`
+- 代码路径: `pkg/cleanup/executor_preview.go`, `pkg/cleanup/node_job_submit.go`, `pkg/cleanup/gc_job_submit.go`
+- 测试路径: `pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity`, `pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage`
+
+### Bind native GC command to the verified Job admission
+
+- Capability ID: `rainbond.cleanup.gc-executor-command`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registry-gc.runGC`
+- 代码路径: `cmd/registry-gc/main.go`
+- 测试路径: `cmd/registry-gc/main_test.go::TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery`
+
+### Verify GC pod ownership image and physical volume
+
+- Capability ID: `rainbond.cleanup.gc-executor-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectGCExecutor`
+- 代码路径: `pkg/cleanup/kubeidentity/gc_executor.go`
+- 测试路径: `pkg/cleanup/kubeidentity/gc_executor_test.go::TestGCExecutorIdentityRejectsUntrustedPodAndStorage`
+
+### Require actual original GC container termination and unchanged source
+
+- Capability ID: `rainbond.cleanup.gc-executor-termination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectTerminatedGCExecutor`
+- 代码路径: `pkg/cleanup/kubeidentity/gc_executor.go`, `pkg/cleanup/kubeidentity/gc_job_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/gc_executor_test.go::TestTerminatedGCExecutorRequiresActualOriginalContainerExit`, `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceFingerprintDetectsRuntimeAndConfigurationChanges`
+
+### Cancel failed GC only before execution admission
+
+- Capability ID: `rainbond.cleanup.gc-failed-before-admission`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST maintenance/job/cancel-failed`
+- 代码路径: `api/controller/cleanup_gc_restore.go`
+- 测试路径: `api/controller/cleanup_gc_failed_test.go::TestFailedGCBeforeAdmissionCanEndMaintenanceWithoutDeletion`
+
+### Grant verified GC Job execution once after writer drain
+
+- Capability ID: `rainbond.cleanup.gc-job-execution-api`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST maintenance/enter-job`
+- 代码路径: `api/controller/cleanup_gc_executor.go`, `pkg/cleanup/gc_executor_client.go`, `pkg/cleanup/registryproxy/gc_recorder.go`
+- 测试路径: `api/controller/cleanup_gc_executor_test.go::TestGCJobAdmissionAPIRequiresVerifiedExecutorAndGrantsOnce`, `pkg/cleanup/registryproxy/gc_recorder_test.go::TestGCJobRecorderUsesVerifiedGateWithoutFallback`
+
+### Expose only the bound GC operation receipt
+
+- Capability ID: `rainbond.cleanup.gc-job-progress`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.ReadGCJobProgress`
+- 代码路径: `pkg/cleanup/gc_job_progress.go`, `api/controller/cleanup_gc_restore.go`
+- 测试路径: `pkg/cleanup/gc_job_restore_test.go::TestGCProgressRejectsAnotherOperationIdentity`
+
+### Restore only the original verified GC operation with durable measurements
+
+- Capability ID: `rainbond.cleanup.gc-job-restore`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.FinishGCJobRestore`
+- 代码路径: `pkg/cleanup/gc_job_restore.go`, `api/controller/cleanup_gc_restore.go`, `pkg/cleanup/maintenance.go`
+- 测试路径: `pkg/cleanup/gc_job_restore_test.go::TestGCJobRestoreRequiresOriginalBindingAndMeasurements`, `api/controller/cleanup_gc_executor_test.go::TestGCJobAdmissionAPIRequiresVerifiedExecutorAndGrantsOnce`
+
+### Start the recorded GC Job only after writer drain
+
+- Capability ID: `rainbond.cleanup.gc-job-start`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.StartGCJob`
+- 代码路径: `pkg/cleanup/gc_job_start.go`, `pkg/cleanup/maintenance.go`
+- 测试路径: `pkg/cleanup/gc_job_start_test.go::TestGCJobStartWaitsForWritersAndNeverReplaysLostStart`, `pkg/cleanup/gc_job_start_test.go::TestGCJobStartRejectsCanceledOperation`
+
+### Persist GC submission and reconcile without replay
+
+- Capability ID: `rainbond.cleanup.gc-job-submission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.SubmitSuspendedGCJob`
+- 代码路径: `pkg/cleanup/gc_job_submit.go`, `pkg/cleanup/gc_job.go`
+- 测试路径: `pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionPersistsBeforeCreateAndReconcilesLostResponse`, `pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionRejectsUnsafeRetrySettings`, `pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionDefaultingAndMutation`, `pkg/cleanup/gc_job_submit_test.go::TestGCSubmissionCanceledAndDryRunFailureLeaveNoIntent`
+
+### Derive GC Job from verified Registry storage and credential references
+
+- Capability ID: `rainbond.cleanup.gc-job-template`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.BuildRegistryGCJob`
+- 代码路径: `pkg/cleanup/kubeidentity/gc_job_template.go`, `api/controller/cleanup_gc_launch.go`
+- 测试路径: `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobTemplateUsesObservedStorageAndMountedCredentials`, `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobTemplateRejectsUnsafeSource`
+
+### Reject GC while legacy automatic cleanup is enabled
+
+- Capability ID: `rainbond.cleanup.gc-reject-legacy-cleaner`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `BuildRegistryGCJob`
+- 代码路径: `pkg/cleanup/kubeidentity/legacy_cleanup.go`, `pkg/cleanup/kubeidentity/gc_job_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobRejectsLegacyAutomaticCleanup`, `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceTracksCleanerProcessButNotStatusHeartbeat`
+
+### Reject generic activation of retired version records
+
+- Capability ID: `rainbond.cleanup.generic-activation-fence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.TrackServiceActivation`
+- 代码路径: `pkg/cleanup/activation.go`
+- 测试路径: `pkg/cleanup/store_test.go::TestActivationCannotRestoreRetiredTargetThroughGenericSave`
+
+### Atomically hand import references to successful versions
+
+- Capability ID: `rainbond.cleanup.import_reference_handoff`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `TransferImportedReferencesToVersions`
+- 代码路径: `pkg/cleanup/reference_handoff.go`, `pkg/cleanup/reference_import.go`, `db/mysql/dao/version.go`
+- 测试路径: `pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack`
+
+### Bind managed cache enrollment to observed system storage
+
+- Capability ID: `rainbond.cleanup.managed-cache-binding`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/managed-cache/prepare`
+- 代码路径: `pkg/cleanup/kubeidentity/managed_cache.go`, `pkg/cleanup/registration.go`, `api/controller/cleanup_coordination.go`
+- 测试路径: `pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume`, `api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady`
+
+### Drain writes and require confirmed restoration around manual GC
+
+- Capability ID: `rainbond.cleanup.manual-gc-maintenance`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.RequestMaintenance`
+- 代码路径: `pkg/cleanup/maintenance.go`
+- 测试路径: `pkg/cleanup/maintenance_test.go::TestMaintenanceDrainsWritersAndRestoresOnlyAfterConfirmation`
+
+### Market slug task waits for completion before returning
+
+- Capability ID: `rainbond.cleanup.market-slug-task-completion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exectorManager.buildFromMarketSlug`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/cleanup_task_boundary_test.go::TestMarketSlugTaskWaitsForCompletion`
+
+### Image builds hold durable cleanup admission through completion
+
+- Capability ID: `rainbond.cleanup.native-image-build-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exectorManager.buildFromImage`
+- 代码路径: `builder/exector/cleanup_image_admission.go`, `builder/exector/exector.go`, `pkg/cleanup/reference_mutation.go`
+- 测试路径: `builder/exector/cleanup_image_admission_test.go::TestImageBuildAdmissionBlocksGCAndNeverReplays`
+
+### Cancel only node operations without a native grant
+
+- Capability ID: `rainbond.cleanup.node-cancel-before-grant`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.CancelNodeBeforeGrant`
+- 代码路径: `pkg/cleanup/node_cancel.go`, `api/controller/cleanup_node_launch.go`
+- 测试路径: `pkg/cleanup/node_cancel_test.go::TestNodeCancellationCannotOverrideNativeAdmission`, `api/controller/cleanup_node_launch_test.go::TestNodeLaunchAPIRechecksSourceBeforeStarting`
+
+### Require idle coordinated storage before showing cache candidates
+
+- Capability ID: `rainbond.cleanup.node-candidate-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.InspectManagedCacheReadiness`
+- 代码路径: `pkg/cleanup/node_readiness.go`
+- 测试路径: `pkg/cleanup/node_readiness_test.go::TestNodeReadinessDoesNotIgnoreActiveOperations`
+
+### Admit exactly one observed node executor and verify its termination
+
+- Capability ID: `rainbond.cleanup.node-executor-admission`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/enter-job`
+- 代码路径: `pkg/cleanup/node_execution.go`, `pkg/cleanup/kubeidentity/node_executor.go`, `api/controller/cleanup_node_executor.go`
+- 测试路径: `pkg/cleanup/node_execution_test.go::TestNodeExecutorAdmissionIsBoundAndSingleUse`, `pkg/cleanup/kubeidentity/node_executor_test.go::TestNodeExecutorRequiresOriginalRuntimeNodeAndMount`, `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Authenticated manual inventory preserves deletion protection
+
+- Capability ID: `rainbond.cleanup.node-inventory-api`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/managed-cache/inventory`
+- 代码路径: `api/controller/cleanup_node_inventory.go`
+- 测试路径: `api/controller/cleanup_node_inventory_test.go::TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness`
+
+### Return inventory only from the original verified successful pod
+
+- Capability ID: `rainbond.cleanup.node-inventory-report`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.ReadNodeInventoryReport`
+- 代码路径: `pkg/cleanup/kubeidentity/node_inventory_report.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_inventory_report_test.go::TestInventoryReportRequiresOriginalSuccessfulPod`
+
+### Retry manual inventory without duplicating an existing job
+
+- Capability ID: `rainbond.cleanup.node-inventory-submission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.RunNodeInventoryJob`
+- 代码路径: `pkg/cleanup/node_inventory_submit.go`
+- 测试路径: `pkg/cleanup/node_inventory_submit_test.go::TestInventoryRequestReusesJobAfterLostCreate`
+
+### Read-only cache inventory binds observed storage
+
+- Capability ID: `rainbond.cleanup.node-inventory-template`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.BuildManagedCacheInventoryJob`
+- 代码路径: `pkg/cleanup/kubeidentity/node_inventory_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_inventory_template_test.go::TestCacheInventoryTemplateUsesObservedReadOnlyStorage`
+
+### Persist immutable node execution identity before job creation
+
+- Capability ID: `rainbond.cleanup.node-job-intent`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `PrepareNodeJob`
+- 代码路径: `pkg/cleanup/node_job.go`, `pkg/cleanup/coordination.go`, `pkg/cleanup/deletion_attempt.go`, `db/model/cleanup_coordination.go`
+- 测试路径: `pkg/cleanup/node_job_test.go::TestNodeJobIntentIsImmutableAndDoesNotGrantRecreation`
+
+### Launch only the original verified node cleanup job
+
+- Capability ID: `rainbond.cleanup.node-job-launch-api`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/submit-job`
+- 代码路径: `api/controller/cleanup_node_launch.go`
+- 测试路径: `api/controller/cleanup_node_launch_test.go::TestNodeLaunchAPIRechecksSourceBeforeStarting`
+
+### Start only the original protected node cleanup Job
+
+- Capability ID: `rainbond.cleanup.node-job-start`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `StartNodeJob`
+- 代码路径: `pkg/cleanup/node_job_start.go`
+- 测试路径: `pkg/cleanup/node_job_start_test.go::TestNodeJobStartChecksProtectionAndReconcilesLostReply`
+
+### Submit one suspended node cleanup Job and reconcile original identity
+
+- Capability ID: `rainbond.cleanup.node-job-submission`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `SubmitSuspendedNodeJob`
+- 代码路径: `pkg/cleanup/node_job_submit.go`
+- 测试路径: `pkg/cleanup/node_job_submit_test.go::TestNodeSubmissionReconcilesLostCreateWithoutRecreating`
+
+### Bind node cleanup jobs to observed cache and persistent state
+
+- Capability ID: `rainbond.cleanup.node-job-template`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.BuildManagedNodeJob`
+- 代码路径: `pkg/cleanup/kubeidentity/node_job_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState`
+
+### Bind original node execution journal to PVC and PV identities
+
+- Capability ID: `rainbond.cleanup.node-journal-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectNodeJournalVolume`
+- 代码路径: `pkg/cleanup/kubeidentity/node_journal.go`, `pkg/cleanup/kubeidentity/node_job_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_job_template_test.go::TestNodeJobTemplateBindsCacheAndDurableState`
+
+### Recover original node receipt after verified executor exit
+
+- Capability ID: `rainbond.cleanup.node-recovery-api`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST node/recover`
+- 代码路径: `api/controller/cleanup_node_recovery.go`
+- 测试路径: `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Persist recovery intent without changing original native authority
+
+- Capability ID: `rainbond.cleanup.node-recovery-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.PrepareNodeRecovery`
+- 代码路径: `pkg/cleanup/node_recovery.go`, `pkg/cleanup/node_job.go`
+- 测试路径: `pkg/cleanup/node_recovery_test.go::TestNodeRecoveryIntentIsDurableAndCannotReplaceOriginal`
+
+### Reconcile original recovery Job after lost create response
+
+- Capability ID: `rainbond.cleanup.node-recovery-submission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.SubmitSuspendedNodeRecovery`
+- 代码路径: `pkg/cleanup/node_recovery_submit.go`
+- 测试路径: `pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse`
+
+### Build receipt recovery without cache access after verified executor exit
+
+- Capability ID: `rainbond.cleanup.node-recovery-template`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.BuildNodeRecoveryJob`
+- 代码路径: `pkg/cleanup/kubeidentity/node_recovery_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_recovery_template_test.go::TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume`
+
+### Finalize known original node results only after verified executor exit
+
+- Capability ID: `rainbond.cleanup.node-result-finalization`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish`
+- 代码路径: `pkg/cleanup/node_result.go`, `api/controller/cleanup_node_executor.go`, `pkg/cleanup/node_executor_client.go`
+- 测试路径: `pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor`, `pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence`, `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Participant replacement preserves active deletion protection
+
+- Capability ID: `rainbond.cleanup.participant-replacement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.RegisterParticipant`
+- 代码路径: `pkg/cleanup/participant.go`, `pkg/cleanup/deletion_attempt.go`
+- 测试路径: `pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion`
+
+### Include retained tar import and check receipts in reference audits
+
+- Capability ID: `rainbond.cleanup.pending-import-references`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.collectRegionReferenceImages`
+- 代码路径: `pkg/cleanup/reference_import.go`, `pkg/cleanup/reference_audit.go`
+- 测试路径: `pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased`, `pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence`, `pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences`
+
+### Plugin version writes respect selected deletion and cannot resurrect records
+
+- Capability ID: `rainbond.cleanup.plugin-version-reference-coordination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `PluginBuildVersionDaoImpl`
+- 代码路径: `db/mysql/dao/plugin_cleanup.go`
+- 测试路径: `db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect`
+
+### Storage discovery rejects incomplete enrollment
+
+- Capability ID: `rainbond.cleanup.registered-storage-discovery`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.DiscoverStores`
+- 代码路径: `pkg/cleanup/discovery.go`
+- 测试路径: `pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration`
+
+### Bind registry deletion permits to immutable targets and expiry
+
+- Capability ID: `rainbond.cleanup.registry-delete-permit`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.VerifyRegistryDeletionPermit`
+- 代码路径: `pkg/cleanup/deletion_permit.go`
+- 测试路径: `pkg/cleanup/deletion_permit_test.go::TestRegistryDeletionPermitBindsOriginalTargetAndExpiry`
+
+### Execute native Registry GC once against a verified storage descriptor
+
+- Capability ID: `rainbond.cleanup.registry-gc-executor`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `registryproxy.ExecuteGC`
+- 代码路径: `pkg/cleanup/registryproxy/gc_executor.go`
+- 测试路径: `pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission`, `api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC`
+
+### Reject registry routes that bypass the coordinator
+
+- Capability ID: `rainbond.cleanup.registry-ingress-isolation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/kubeidentity.InspectRegistryIngress`
+- 代码路径: `pkg/cleanup/kubeidentity/registry_ingress.go`
+- 测试路径: `pkg/cleanup/kubeidentity/registry_ingress_test.go::TestRegistryIngressRequiresExclusiveCoordinatedRoute`
+
+### Verify actual registry Pod and backing volume identity
+
+- Capability ID: `rainbond.cleanup.registry-kubernetes-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/kubeidentity.InspectRegistryMount`
+- 代码路径: `pkg/cleanup/kubeidentity/registry_mount.go`
+- 测试路径: `pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity`
+
+### Derive registry identity from controlled inspection without granting cleanup
+
+- Capability ID: `rainbond.cleanup.registry-preparation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `/v2/cleanup/registry/prepare`
+- 代码路径: `api/controller/cleanup_coordination.go`
+- 测试路径: `api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady`
+
+### Reject ambiguous Registry paths and direct blob deletion
+
+- Capability ID: `rainbond.cleanup.registry-request-scope`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/registryproxy.ClassifyRequest`
+- 代码路径: `pkg/cleanup/registryproxy/request.go`
+- 测试路径: `pkg/cleanup/registryproxy/request_test.go::TestRegistryProxyRejectsAmbiguousPathsAndUnselectedDeletion`
+
+### Check every registry service instance without accepting partial coverage
+
+- Capability ID: `rainbond.cleanup.registry-service-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/kubeidentity.InspectRegistryService`
+- 代码路径: `pkg/cleanup/kubeidentity/registry_service.go`
+- 测试路径: `pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments`
+
+### Require admission before forwarding mutations without credential leakage
+
+- Capability ID: `rainbond.cleanup.registry-stream-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/registryproxy.Proxy.ServeHTTP`
+- 代码路径: `pkg/cleanup/registryproxy/proxy.go`
+- 测试路径: `pkg/cleanup/registryproxy/proxy_test.go::TestProxyAcquiresBeforeForwardingAndPreservesRegistryAuth`
+
+### Keep upload leases across parts and drain existing sessions safely
+
+- Capability ID: `rainbond.cleanup.registry-upload-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.AcquireUploadRequest`
+- 代码路径: `pkg/cleanup/upload_coordination.go`
+- 测试路径: `pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts`
+
+### Keep restore metadata and result publication in admitted transactions
+
+- Capability ID: `rainbond.cleanup.restore-producer-transaction`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `BackupAPPRestore.withMetadataWrite`
+- 代码路径: `builder/exector/groupapp_restore.go`, `builder/exector/exector.go`
+- 测试路径: `builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure`
+
+### Preserve imported image references across component creation
+
+- Capability ID: `rainbond.cleanup.service_check_import_handoff`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `CleanServiceCheckData`
+- 代码路径: `api/handler/etcd_handler.go`, `api/controller/resources.go`
+- 测试路径: `api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences`
+
+### Slug sharing remains active until result persistence finishes
+
+- Capability ID: `rainbond.cleanup.share-task-completion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exectorManager.slugShare`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence`
+
+### Consume deletion permission once and retain verification protection
+
+- Capability ID: `rainbond.cleanup.single-deletion-attempt`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.BeginDeletionAttempt`
+- 代码路径: `pkg/cleanup/deletion_attempt.go`
+- 测试路径: `pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified`
+
+### Collect writes during enrollment without granting cleanup
+
+- Capability ID: `rainbond.cleanup.storage-enrollment`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.RegisterStorage`
+- 代码路径: `pkg/cleanup/registration.go`
+- 测试路径: `pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion`
+
+### Bind storage identity atomically without replacing prior markers
+
+- Capability ID: `rainbond.cleanup.storage-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup/registryproxy.InitializeStorageIdentity`
+- 代码路径: `pkg/cleanup/registryproxy/identity.go`
+- 测试路径: `pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten`
+
+### Restrict tar check input to event directory identifiers
+
+- Capability ID: `rainbond.cleanup.tar-check-event-path`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `parser.TarImageEventID`
+- 代码路径: `builder/parser/tar_event.go`, `builder/parser/docker_run.go`
+- 测试路径: `builder/parser/tar_event_test.go::TestTarImageEventIDRejectsTraversalAndMalformedSources`
+
+### Fence tar image import through native work and result persistence
+
+- Capability ID: `rainbond.cleanup.tar-image-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exector.loadTarImage`
+- 代码路径: `builder/exector/tar_image_load.go`, `builder/exector/cleanup_image_admission.go`
+- 测试路径: `builder/exector/cleanup_tar_admission_test.go::TestTarImportAdmissionCoversWorkAndResultPersistence`, `builder/exector/cleanup_tar_admission_test.go::TestTarImportUnknownOutcomeRetainsProtection`, `builder/exector/cleanup_tar_admission_test.go::TestTarImportInvalidIdentityStopsBeforeFilesystemOrDatabase`
+
+### Reject tar import before native work and preserve original result
+
+- Capability ID: `rainbond.cleanup.tar-image-entry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exector.loadTarImage`
+- 代码路径: `builder/exector/tar_image_load.go`
+- 测试路径: `builder/exector/cleanup_tar_admission_test.go::TestTarImportEntryReportsMaintenanceWithoutStartingNativeWork`
+
+### Do not overwrite a running tar import on duplicate delivery
+
+- Capability ID: `rainbond.cleanup.tar-image-redelivery`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exector.loadTarImage`
+- 代码路径: `builder/exector/tar_image_load.go`
+- 测试路径: `builder/exector/cleanup_tar_admission_test.go::TestTarImportRedeliveryDoesNotPublishFailureOverActiveWork`
+
+### Block tar service check native work during maintenance
+
+- Capability ID: `rainbond.cleanup.tar-service-check-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exector.serviceCheck`
+- 代码路径: `builder/exector/service_check.go`, `builder/exector/cleanup_image_admission.go`
+- 测试路径: `builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance`
+
+### Cleanup requires configured token or verified platform client certificate
+
+- Capability ID: `rainbond.cleanup.verified-client-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api.middleware.CleanupIdentity`
+- 代码路径: `api/middleware/cleanup_identity.go`
+- 测试路径: `api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken`
+
+### Measure only the verified registry backing filesystem
+
+- Capability ID: `rainbond.cleanup.verified-storage-measurement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registryproxy.MeasureStorage`
+- 代码路径: `pkg/cleanup/registryproxy/measurement.go`
+- 测试路径: `pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks`, `cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials`
+
+### Fence upgrade and rollback against version retirement
+
+- Capability ID: `rainbond.cleanup.version-activation-fence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `OperationHandler.upgrade and ServiceAction.RollBack`
+- 代码路径: `api/handler/service.go`, `api/handler/service_operation.go`
+- 测试路径: `api/handler/cleanup_rollback_test.go::TestLegacyRollbackCannotActivateRetiredVersion`, `api/handler/cleanup_rollback_test.go::TestExplicitUpgradeRechecksVersionUnderRetirementLock`, `api/handler/cleanup_rollback_test.go::TestUpgradeQueueFailureCannotOverwriteNewerDeployment`, `api/handler/cleanup_rollback_test.go::TestLegacyRollbackRejectsWrongTenant`, `api/handler/cleanup_rollback_test.go::TestExplicitUpgradeEnqueuesValidatedVersion`
+
+### Version writes serialize with manifest deletion
+
+- Capability ID: `rainbond.cleanup.version-reference-coordination`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `VersionInfoDaoImpl`
+- 代码路径: `db/mysql/dao/version.go`, `pkg/cleanup/reference_mutation.go`
+- 测试路径: `db/mysql/dao/version_cleanup_test.go::TestVersionCreationCannotRaceManifestDeletion`
+
+### Version callbacks preserve activation and never recreate retired records
+
+- Capability ID: `rainbond.cleanup.version-update-no-resurrection`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `VersionInfoDaoImpl.UpdateModel`
+- 代码路径: `db/mysql/dao/version.go`
+- 测试路径: `db/mysql/dao/version_cleanup_test.go::TestVersionUpdateNeverRecreatesRetiredRecordsOrResetsActivation`
+
+### Do not deploy VM after version activation rejection
+
+- Capability ID: `rainbond.cleanup.vm-activation-dispatch`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `exectorManager.buildFromVM`
+- 代码路径: `builder/exector/exector.go`
+- 测试路径: `builder/exector/cleanup_activation_test.go::TestVMBuildCannotDispatchAfterActivationRejected`
 
 ### 将 AliOSS 服务错误转换为统一存储 SDK 错误
 
