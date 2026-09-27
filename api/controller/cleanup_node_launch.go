@@ -24,7 +24,7 @@ type NodeJobSelection struct {
 }
 
 func systemNodeJobSettings() kubeidentity.NodeJobSettings {
-	return kubeidentity.NodeJobSettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE"), Endpoint: os.Getenv("CLEANUP_NODE_CORE_ENDPOINT"), CredentialSecret: os.Getenv("CLEANUP_NODE_CORE_SECRET"), StateClaim: os.Getenv("CLEANUP_NODE_STATE_CLAIM")}
+	return kubeidentity.NodeJobSettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE"), Endpoint: os.Getenv("CLEANUP_NODE_CORE_ENDPOINT"), CredentialSecret: os.Getenv("CLEANUP_NODE_CORE_SECRET"), StateClaim: os.Getenv("CLEANUP_NODE_STATE_CLAIM"), ConsoleEnterprise: os.Getenv("CLEANUP_NODE_CONSOLE_ENTERPRISE"), AllowConsoleHTTP: os.Getenv("CLEANUP_NODE_CONSOLE_ALLOW_HTTP") == "true"}
 }
 
 // SubmitNodeJob builds an immutable suspended executor for an admitted selection.

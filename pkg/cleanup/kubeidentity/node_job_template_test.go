@@ -77,6 +77,42 @@ func TestNodeJobTemplateBindsCacheAndDurableState(t *testing.T) {
 			t.Fatal("read secret value")
 		}
 	}
+
+	settings.ConsoleEnterprise = "enterprise"
+	settings.Endpoint = "https://console.internal"
+	signed, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := strings.Join(signed.Spec.Template.Spec.Containers[0].Args, " ")
+	if !strings.Contains(args, "--console-enterprise=enterprise") || strings.Contains(args, "client-cert-file") || strings.Contains(args, "/token") {
+		t.Fatal("signed executor uses incorrect credentials", args)
+	}
+	secret := signed.Spec.Template.Spec.Volumes[2].Secret
+	if len(secret.Items) != 1 || secret.Items[0].Key != "key" || secret.Items[0].Path != "key" {
+		t.Fatal("signed executor did not project only installation key")
+	}
+	if SameManagedNodeSource(job, signed) {
+		t.Fatal("authentication change did not invalidate source fingerprint")
+	}
+	settings.Endpoint = "http://console.internal"
+	if _, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings); err == nil {
+		t.Fatal("plaintext allowed without opt-in")
+	}
+	settings.AllowConsoleHTTP = true
+	if _, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings); err != nil {
+		t.Fatal(err)
+	}
+	settings.ConsoleEnterprise = "../other"
+	if _, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings); err == nil {
+		t.Fatal("invalid enterprise accepted")
+	}
+	settings.ConsoleEnterprise = ""
+	if _, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings); err == nil {
+		t.Fatal("Console opt-in weakened direct Core TLS")
+	}
+	settings.AllowConsoleHTTP = false
+	settings.Endpoint = "https://core.internal:8443"
 	settings.Image = "example.test/plugin:latest"
 	if _, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings); err == nil {
 		t.Fatal("mutable executor image accepted")

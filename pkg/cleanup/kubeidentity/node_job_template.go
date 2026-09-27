@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/url"
+	"regexp"
 	"strings"
 
 	coordination "github.com/goodrain/rainbond/pkg/cleanup"
@@ -18,10 +19,14 @@ import (
 )
 
 // NodeJobSettings comes exclusively from the operator, never a deletion request.
-// The Secret contains token, ca.crt, tls.crt and tls.key mounted as files.
+// Direct Core access mounts mTLS files; signed Console access projects only key.
 type NodeJobSettings struct {
 	Region, Image, Endpoint, CredentialSecret, StateClaim string
+	ConsoleEnterprise                                     string
+	AllowConsoleHTTP                                      bool
 }
+
+var nodeConsoleScope = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
 // BuildManagedNodeJob mounts the observed system builder cache and a separate
 // persistent journal. It constructs a suspended single-execution Job, not a grant.
@@ -39,7 +44,10 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 		return nil, ErrBinding
 	}
 	endpoint, err := url.Parse(settings.Endpoint)
-	if err != nil || endpoint.Scheme != "https" || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Path != "" && endpoint.Path != "/") {
+	if err != nil || (endpoint.Scheme != "https" && !(settings.ConsoleEnterprise != "" && settings.AllowConsoleHTTP && endpoint.Scheme == "http")) || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Path != "" && endpoint.Path != "/") {
+		return nil, ErrBinding
+	}
+	if settings.ConsoleEnterprise != "" && (!nodeConsoleScope.MatchString(settings.ConsoleEnterprise) || !nodeConsoleScope.MatchString(settings.Region)) {
 		return nil, ErrBinding
 	}
 	observed, err := InspectManagedBuildCache(ctx, client, intent.Namespace, sourcePod, sourceUID)
@@ -88,9 +96,18 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 	zero, one := int32(0), int32(1)
 	root := int64(0)
 	mode := int32(0400)
-	c := corev1.Container{Name: "node-cleanup", Image: settings.Image, Command: []string{"/app/node-cleanup"}, Args: []string{"--core-endpoint=" + settings.Endpoint, "--credential-file=/node-control/token", "--ca-file=/node-control/ca.crt", "--client-cert-file=/node-control/tls.crt", "--client-key-file=/node-control/tls.key"}, Env: []corev1.EnvVar{{Name: "CLEANUP_NODE_OPERATION_BASE64", Value: base64.StdEncoding.EncodeToString(raw)}, {Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}}, {Name: "POD_UID", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}}}, VolumeMounts: []corev1.VolumeMount{mount, {Name: "node-state", MountPath: "/node-state"}, {Name: "node-control", MountPath: "/node-control", ReadOnly: true}}, SecurityContext: &corev1.SecurityContext{RunAsUser: &root, RunAsGroup: &root, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}
+	args := []string{"--core-endpoint=" + settings.Endpoint, "--credential-file=/node-control/token", "--ca-file=/node-control/ca.crt", "--client-cert-file=/node-control/tls.crt", "--client-key-file=/node-control/tls.key"}
+	control := &corev1.SecretVolumeSource{SecretName: settings.CredentialSecret, DefaultMode: &mode}
+	if settings.ConsoleEnterprise != "" {
+		args = []string{"--core-endpoint=" + settings.Endpoint, "--console-enterprise=" + settings.ConsoleEnterprise, "--credential-file=/node-control/key"}
+		if settings.AllowConsoleHTTP {
+			args = append(args, "--allow-internal-http")
+		}
+		control.Items = []corev1.KeyToPath{{Key: "key", Path: "key"}}
+	}
+	c := corev1.Container{Name: "node-cleanup", Image: settings.Image, Command: []string{"/app/node-cleanup"}, Args: args, Env: []corev1.EnvVar{{Name: "CLEANUP_NODE_OPERATION_BASE64", Value: base64.StdEncoding.EncodeToString(raw)}, {Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}}, {Name: "POD_UID", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}}}, VolumeMounts: []corev1.VolumeMount{mount, {Name: "node-state", MountPath: "/node-state"}, {Name: "node-control", MountPath: "/node-control", ReadOnly: true}}, SecurityContext: &corev1.SecurityContext{RunAsUser: &root, RunAsGroup: &root, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}
 	// No service-account token or inherited builder environment/credentials.
-	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: intent.Namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Completions: &one, Parallelism: &one, Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeName: intent.NodeName, RestartPolicy: corev1.RestartPolicyNever, AutomountServiceAccountToken: &no, ImagePullSecrets: append([]corev1.LocalObjectReference(nil), pod.Spec.ImagePullSecrets...), Containers: []corev1.Container{c}, Volumes: []corev1.Volume{*data, {Name: "node-state", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: settings.StateClaim}}}, {Name: "node-control", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: settings.CredentialSecret, DefaultMode: &mode}}}}}}}}
+	job := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: intent.Namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Completions: &one, Parallelism: &one, Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeName: intent.NodeName, RestartPolicy: corev1.RestartPolicyNever, AutomountServiceAccountToken: &no, ImagePullSecrets: append([]corev1.LocalObjectReference(nil), pod.Spec.ImagePullSecrets...), Containers: []corev1.Container{c}, Volumes: []corev1.Volume{*data, {Name: "node-state", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: settings.StateClaim}}}, {Name: "node-control", VolumeSource: corev1.VolumeSource{Secret: control}}}}}}}
 	source, _ := json.Marshal(struct {
 		IDs  []string
 		Spec batchv1.JobSpec
