@@ -73,3 +73,25 @@ support for the coordinator container and coordinated Service/probe configuratio
 must be installed before switching a managed `rbd-hub`. A manual Deployment edit
 is not a durable installation method. Live ingress changes require the separate
 review agreed for this rollout. GC remains an explicitly confirmed, one-shot job.
+
+### Initialize independent platform credentials
+
+The installer helper creates only `rbd-system/rainbond-registry-control` and
+`rbd-system/rainbond-registry-permit`. It does not patch workloads or ingress.
+Select the target Kubernetes context explicitly:
+
+```sh
+python3 hack/contrib/docker/registry-gc/provision_identity.py \
+  --context <verified-context> --enterprise <enterprise-id> --region <region-name>
+```
+
+Existing Secrets must have matching scope and purpose, no plugin ownerReference,
+consistent Console projection, and independent keys. They are never overwritten.
+A partial creation can be retried after checking state; a conflicting identity
+requires investigation. The helper prints no credential data or kubectl errors.
+Secrets are immutable to prevent accidental in-place rotation during active work.
+Rotation requires separate versioned Secrets and a reviewed drain/migration.
+
+The control Secret supplies `key` to the coordinator and `console.json` to Console.
+The permit Secret supplies `key` only to Core API and the coordinator. Do not
+project the entire control Secret into a plugin or permit Secret into GC Jobs.

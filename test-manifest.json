@@ -1884,6 +1884,23 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-identity-provision",
+      "title": "Provision independent platform registry identities without overwrites",
+      "title_zh": "Provision independent platform registry identities without overwrites",
+      "interface_type": "workflow",
+      "interface": "provision_identity.provision",
+      "code_paths": [
+        "hack/contrib/docker/registry-gc/provision_identity.py"
+      ],
+      "tests": [
+        {
+          "path": "hack/contrib/docker/registry-gc/provision_identity_test.py"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-ingress-isolation",
       "title": "Reject registry routes that bypass the coordinator",
       "title_zh": "Reject registry routes that bypass the coordinator",
