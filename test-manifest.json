@@ -793,6 +793,61 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.cache-writer-certification",
+      "title": "Certify cache readiness only with current membership and no writers",
+      "title_zh": "Certify cache readiness only with current membership and no writers",
+      "interface_type": "workflow",
+      "interface": "cleanup.CertifyManagedCacheWriters",
+      "code_paths": [
+        "pkg/cleanup/cache_certification.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/cache_certification_test.go",
+          "selector": "TestCacheCertificationRequiresMembershipAndQuiescence"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.cache-writer-coverage",
+      "title": "Verify current coordinated writer rollout and detached builds",
+      "title_zh": "Verify current coordinated writer rollout and detached builds",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectCacheWriterCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/cache_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/cache_coverage_test.go",
+          "selector": "TestCacheCoverageRejectsRollingWritersAndDetachedBuilds"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.cache-writer-native-gate",
+      "title": "Recheck live writer coverage before native deletion grant",
+      "title_zh": "Recheck live writer coverage before native deletion grant",
+      "interface_type": "view_endpoint",
+      "interface": "POST node/enter-job",
+      "code_paths": [
+        "api/controller/cleanup_cache_readiness.go",
+        "api/controller/cleanup_node_launch.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_node_executor_test.go",
+          "selector": "TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.coordinated-registry-delete-gc",
       "title": "Verify coordinated deletion and separate GC against isolated real Registry",
       "title_zh": "Verify coordinated deletion and separate GC against isolated real Registry",

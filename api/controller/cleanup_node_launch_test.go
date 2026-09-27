@@ -67,6 +67,7 @@ func TestNodeLaunchAPIRechecksSourceBeforeStarting(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings := kubeidentity.NodeJobSettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), Endpoint: "https://core.internal:8443", CredentialSecret: "core", StateClaim: "state"}
+	configureCacheCoverageFixture(t, database, kube, storage, request)
 	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, nodeSettings: func() kubeidentity.NodeJobSettings { return settings }, gcTarget: func() (kubernetes.Interface, string, string, error) {
 		return gcAdmissionKubeClient{Interface: kube}, "system", "rbd-hub", nil
 	}}

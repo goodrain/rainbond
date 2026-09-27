@@ -24,6 +24,7 @@ import (
 // capability_id: rainbond.cleanup.node-executor-admission
 // capability_id: rainbond.cleanup.node-result-finalization
 // capability_id: rainbond.cleanup.node-recovery-api
+// capability_id: rainbond.cleanup.cache-writer-native-gate
 func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "node.db"))
 	if err != nil {
@@ -86,6 +87,7 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 	if _, err := kube.CoreV1().Pods("system").Create(context.Background(), pod, metav1.CreateOptions{}); err != nil {
 		t.Fatal(err)
 	}
+	configureCacheCoverageFixture(t, database, kube, storage, r)
 	h := &CleanupCoordinationHandler{nodeSettings: func() kubeidentity.NodeJobSettings { return settings }, database: func() *gorm.DB { return database }, gcTarget: func() (kubernetes.Interface, string, string, error) {
 		return gcAdmissionKubeClient{Interface: kube}, "system", "rbd-hub", nil
 	}}
@@ -129,6 +131,23 @@ func TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce(t *testing.T) {
 		t.Fatal("changed source granted native deletion")
 	}
 	settings.Image = originalImage
+	var member model.CleanupParticipant
+	if err := database.Where("storage_id = ? AND role = ?", storage.StorageID, "cache-builder").First(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Delete(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := client.EnterNodeJob(context.Background(), r, locator); err == nil {
+		t.Fatal("missing writer coverage granted native deletion")
+	}
+	beforeGrant, err := guard.ReadNodeJobBinding(database, r)
+	if err != nil || beforeGrant.PodUID != "" {
+		t.Fatal("failed coverage still consumed native grant", err)
+	}
+	if err := database.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
 	if err := client.EnterNodeJob(context.Background(), r, locator); err != nil {
 		t.Fatal(err)
 	}

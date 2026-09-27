@@ -667,7 +667,7 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 		coordinationError(w, r, err)
 		return
 	}
-	status, quiescent, err := guard.InspectManagedCacheReadiness(h.database(), binding)
+	status, quiescent, err := h.certifyCacheWriters(r.Context(), binding, nil)
 	if err != nil {
 		coordinationError(w, r, err)
 		return
