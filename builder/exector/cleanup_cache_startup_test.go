@@ -12,7 +12,9 @@ import (
 	"github.com/jinzhu/gorm"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	ktesting "k8s.io/client-go/testing"
 )
 
 // capability_id: rainbond.cleanup.cache-builder-startup
@@ -27,7 +29,7 @@ func TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion(t *testing.T
 		t.Fatal(err)
 	}
 	image := "example.test/chaos@sha256:" + strings.Repeat("a", 64)
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "chaos", Namespace: "system", UID: "pod-uid", ResourceVersion: "1", Labels: map[string]string{"name": "rbd-chaos"}}, Spec: corev1.PodSpec{NodeName: "node", Containers: []corev1.Container{{Name: "chaos", Image: image, Command: []string{"/run/rainbond-chaos"}, Args: []string{"--clean-up=false"}, VolumeMounts: []corev1.VolumeMount{{Name: "cache", MountPath: "/cache"}}}}, Volumes: []corev1.Volume{{Name: "cache", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/opt/rainbond/cache"}}}}}, Status: corev1.PodStatus{Phase: corev1.PodRunning, ContainerStatuses: []corev1.ContainerStatus{{Name: "chaos", ImageID: image, ContainerID: "containerd://one", State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}}}}}
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "chaos", Namespace: "system", UID: "pod-uid", ResourceVersion: "1", Labels: map[string]string{"name": "rbd-chaos"}}, Spec: corev1.PodSpec{NodeName: "node", Containers: []corev1.Container{{Name: "chaos", Image: image, Args: []string{"--clean-up=false"}, VolumeMounts: []corev1.VolumeMount{{Name: "cache", MountPath: "/cache"}}}}, Volumes: []corev1.Volume{{Name: "cache", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/opt/rainbond/cache"}}}}}, Status: corev1.PodStatus{Phase: corev1.PodRunning, ContainerStatuses: []corev1.ContainerStatus{{Name: "chaos", ImageID: image, ContainerID: "containerd://one", State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}}}}}
 	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", UID: "node-uid"}}
 	kube := fake.NewSimpleClientset(pod, node)
 	observed, err := kubeidentity.InspectManagedBuildCache(context.Background(), kube, "system", "chaos", "pod-uid")
@@ -38,6 +40,17 @@ func TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The process can start before the API reports its container as Running.
+	pendingReads := 0
+	kube.PrependReactor("get", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
+		pendingReads++
+		if pendingReads <= 4 {
+			pending := pod.DeepCopy()
+			pending.Status.Phase = corev1.PodPending
+			return true, pending, nil
+		}
+		return false, nil, nil
+	})
 	for i := 0; i < 2; i++ {
 		if err := registerCacheBuilderStartup(context.Background(), database, kube, "system", "chaos"); err != nil {
 			t.Fatal(err)

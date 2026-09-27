@@ -48,7 +48,9 @@ func validateDisabledCleaner(pod *corev1.Pod) error {
 		return ErrBinding
 	}
 	c := &pod.Spec.Containers[0]
-	if len(c.Command) != 1 || c.Command[0] != "/run/rainbond-chaos" || !pinnedRuntimeImage(pod, c) {
+	// Standard operator deployments use the entrypoint of the installer-pinned
+	// image. An explicit command must still select the builder binary directly.
+	if (len(c.Command) != 0 && (len(c.Command) != 1 || c.Command[0] != "/run/rainbond-chaos")) || !pinnedRuntimeImage(pod, c) {
 		return ErrBinding
 	}
 	seen := false
