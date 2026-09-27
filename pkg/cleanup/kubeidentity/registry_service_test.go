@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
@@ -73,5 +74,42 @@ func TestRegistryServiceBoundsEmptyContinuationPages(t *testing.T) {
 	_, err := InspectRegistryService(context.Background(), client, RegistryMountRequest{Namespace: "system", Service: "rbd-hub"})
 	if err == nil || calls > 32 {
 		t.Fatalf("pagination not bounded: calls=%d", calls)
+	}
+}
+
+// capability_id: rainbond.cleanup.registry-service-stable-membership
+func TestRegistryServiceRejectsMembershipChangeDuringInspection(t *testing.T) {
+	service, pod, pvc, pv := bindingObjects()
+	service.Spec.Ports = []corev1.ServicePort{{Port: 5000, TargetPort: intstr.FromInt(5001)}}
+	pod.Spec.Containers[0].Env = []corev1.EnvVar{{Name: "REGISTRY_HTTP_ADDR", Value: "127.0.0.1:5000"}}
+	pod.Spec.Containers[1].Command = []string{"/registry-coordinator"}
+	pod.Spec.Containers[1].Args = []string{"--listen=:5001", "--upstream=http://127.0.0.1:5000"}
+	for _, change := range []string{"added", "replaced", "removed"} {
+		t.Run(change, func(t *testing.T) {
+			client := fake.NewSimpleClientset(service, pod, pvc, pv)
+			calls := 0
+			client.PrependReactor("list", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
+				calls++
+				list := &corev1.PodList{ListMeta: metav1.ListMeta{ResourceVersion: "snapshot"}, Items: []corev1.Pod{*pod.DeepCopy()}}
+				if calls > 1 {
+					switch change {
+					case "added":
+						extra := pod.DeepCopy()
+						extra.Name = "new-hub"
+						extra.UID = "new-uid"
+						list.Items = append(list.Items, *extra)
+					case "replaced":
+						list.Items[0].ResourceVersion = "changed"
+					case "removed":
+						list.Items = nil
+					}
+				}
+				return true, list, nil
+			})
+			request := RegistryMountRequest{Namespace: "system", Service: "rbd-hub", RegistryContainer: "registry", CoordinatorContainer: "coordinator", RegistryRoot: "/var/lib/registry", CoordinatorRoot: "/registry"}
+			if _, err := InspectRegistryService(context.Background(), client, request); err == nil {
+				t.Fatal("changed membership certified", change)
+			}
+		})
 	}
 }

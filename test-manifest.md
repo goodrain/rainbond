@@ -109,6 +109,7 @@
 | rainbond.cleanup.registry-reference-bootstrap | Read collecting registry references without granting deletion | active | regression | cleanup.ReadRegionReferenceInventory | pkg/cleanup/reference_audit_test.go::TestReferenceInventoryBootstrapsWithoutGrantingDeletion |
 | rainbond.cleanup.registry-request-scope | Reject ambiguous Registry paths and direct blob deletion | active | regression | pkg/cleanup/registryproxy.ClassifyRequest | pkg/cleanup/registryproxy/request_test.go::TestRegistryProxyRejectsAmbiguousPathsAndUnselectedDeletion |
 | rainbond.cleanup.registry-service-coverage | Check every registry service instance without accepting partial coverage | active | regression | pkg/cleanup/kubeidentity.InspectRegistryService | pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments |
+| rainbond.cleanup.registry-service-stable-membership | Reject registry membership changes during ingress inspection | active | regression | kubeidentity.InspectRegistryService | pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMembershipChangeDuringInspection |
 | rainbond.cleanup.registry-stream-admission | Require admission before forwarding mutations without credential leakage | active | regression | pkg/cleanup/registryproxy.Proxy.ServeHTTP | pkg/cleanup/registryproxy/proxy_test.go::TestProxyAcquiresBeforeForwardingAndPreservesRegistryAuth |
 | rainbond.cleanup.registry-upload-lifecycle | Keep upload leases across parts and drain existing sessions safely | active | regression | pkg/cleanup.AcquireUploadRequest | pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts |
 | rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
@@ -1636,6 +1637,16 @@
 - 业务入口: `pkg/cleanup/kubeidentity.InspectRegistryService`
 - 代码路径: `pkg/cleanup/kubeidentity/registry_service.go`
 - 测试路径: `pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments`
+
+### Reject registry membership changes during ingress inspection
+
+- Capability ID: `rainbond.cleanup.registry-service-stable-membership`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectRegistryService`
+- 代码路径: `pkg/cleanup/kubeidentity/registry_service.go`
+- 测试路径: `pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMembershipChangeDuringInspection`
 
 ### Require admission before forwarding mutations without credential leakage
 

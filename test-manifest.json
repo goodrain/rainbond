@@ -2027,6 +2027,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-service-stable-membership",
+      "title": "Reject registry membership changes during ingress inspection",
+      "title_zh": "Reject registry membership changes during ingress inspection",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectRegistryService",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/registry_service.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/registry_service_test.go",
+          "selector": "TestRegistryServiceRejectsMembershipChangeDuringInspection"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-stream-admission",
       "title": "Require admission before forwarding mutations without credential leakage",
       "title_zh": "Require admission before forwarding mutations without credential leakage",
