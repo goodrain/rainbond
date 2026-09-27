@@ -22,6 +22,25 @@ func TestManagedCachePreparationUsesActualNodeAndVolume(t *testing.T) {
 	if err != nil || observed.Root != "/cache/build" || observed.NodeUID != "node-uid" || observed.Mount.VolumeUID != volumeIdentity("pvc", "system", string(pvc.UID), string(pv.UID), "owned/build") {
 		t.Fatal(observed, err)
 	}
+	pod.Spec.Containers[0].Command = nil
+	client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{})
+	if _, err := InspectManagedBuildCache(context.Background(), client, "system", pod.Name, string(pod.UID)); err != nil {
+		t.Fatal("pinned image entrypoint rejected", err)
+	}
+	pod.Spec.Containers[0].Command = []string{"/bin/sh"}
+	client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{})
+	if _, err := InspectManagedBuildCache(context.Background(), client, "system", pod.Name, string(pod.UID)); err == nil {
+		t.Fatal("unrelated command accepted")
+	}
+	pod.Spec.Containers[0].Command = nil
+	pinned := pod.Spec.Containers[0].Image
+	pod.Spec.Containers[0].Image = "example.test/chaos:mutable"
+	client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{})
+	if _, err := InspectManagedBuildCache(context.Background(), client, "system", pod.Name, string(pod.UID)); err == nil {
+		t.Fatal("mutable default entrypoint accepted")
+	}
+	pod.Spec.Containers[0].Image = pinned
+	client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{})
 	if _, err := InspectManagedBuildCache(context.Background(), client, "system", pod.Name, "replacement"); err == nil {
 		t.Fatal("replaced Pod accepted")
 	}

@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"time"
 
 	"github.com/goodrain/rainbond/db/model"
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -60,9 +62,41 @@ func registerCacheBuilderStartup(ctx context.Context, database *gorm.DB, client 
 	if client == nil {
 		return unverified()
 	}
-	pod, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-	if err != nil {
+	// Runtime status can lag process startup. Wait before task discovery,
+	// without granting readiness or changing the observed Pod identity.
+	observationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	pod, err := client.CoreV1().Pods(namespace).Get(observationCtx, podName, metav1.GetOptions{})
+	if err != nil || pod.UID == "" || len(pod.Spec.Containers) != 1 {
 		return unverified()
+	}
+	originalUID := pod.UID
+	runtimeObserved := func() bool {
+		if pod.Status.Phase != corev1.PodRunning {
+			return false
+		}
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.Name == pod.Spec.Containers[0].Name && status.ContainerID != "" && status.ImageID != "" && status.State.Running != nil {
+				return true
+			}
+		}
+		return false
+	}
+	for !runtimeObserved() {
+		if pod.DeletionTimestamp != nil || pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
+			return unverified()
+		}
+		timer := time.NewTimer(200 * time.Millisecond)
+		select {
+		case <-observationCtx.Done():
+			timer.Stop()
+			return unverified()
+		case <-timer.C:
+		}
+		pod, err = client.CoreV1().Pods(namespace).Get(observationCtx, podName, metav1.GetOptions{})
+		if err != nil || pod.UID != originalUID || len(pod.Spec.Containers) != 1 {
+			return unverified()
+		}
 	}
 	observed, err := kubeidentity.InspectManagedBuildCache(ctx, client, namespace, podName, string(pod.UID))
 	if err != nil {
