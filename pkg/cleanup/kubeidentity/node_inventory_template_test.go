@@ -28,7 +28,7 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	volume := volumeIdentity("pvc", "system", string(pvc.UID), string(pv.UID), "owned/build")
 	sum := sha256.Sum256([]byte("managed-build-cache\x00" + volume))
 	binding := coordination.StorageRegistration{StorageID: hex.EncodeToString(sum[:]), Generation: "one", RootPath: "/cache/build", VolumeUID: volume}
-	settings := NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), ReportClaim: "reports"}
+	settings := NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), ReportClaim: "reports", ScanID: "manual-scan"}
 	job, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings)
 	if err != nil {
 		t.Fatal(err)
@@ -43,12 +43,13 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	}
 	raw, err := base64.StdEncoding.DecodeString(c.Env[0].Value)
 	var config struct {
+		ScanID  string `json:"scanId"`
 		NodeUID string `json:"nodeUid"`
 		Roots   []struct {
 			StorageID string `json:"storageId"`
 		} `json:"roots"`
 	}
-	if err != nil || json.Unmarshal(raw, &config) != nil || config.NodeUID != "node-uid" || len(config.Roots) != 1 || config.Roots[0].StorageID != binding.StorageID {
+	if err != nil || json.Unmarshal(raw, &config) != nil || config.NodeUID != "node-uid" || config.ScanID != "manual-scan" || len(config.Roots) != 1 || config.Roots[0].StorageID != binding.StorageID {
 		t.Fatal("invented inventory identity")
 	}
 	if pod.Spec.Containers[0].VolumeMounts[0].ReadOnly {

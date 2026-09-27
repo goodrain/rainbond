@@ -50,6 +50,7 @@ func (h *CleanupCoordinationHandler) CollectManagedCache(w http.ResponseWriter, 
 		return
 	}
 	settings := h.inventorySettings()
+	settings.ScanID = body.ScanID
 	fresh := func() (*batchv1.Job, error) {
 		return kubeidentity.BuildManagedCacheInventoryJob(r.Context(), client, namespace, body.Pod, body.PodUID, binding, settings)
 	}

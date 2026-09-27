@@ -17,7 +17,7 @@ import (
 )
 
 // NodeInventorySettings are operator-owned installation settings, not scan input.
-type NodeInventorySettings struct{ Region, Image, ReportClaim string }
+type NodeInventorySettings struct{ Region, Image, ReportClaim, ScanID string }
 
 // BuildManagedCacheInventoryJob constructs a one-shot read-only cache collector.
 // The caller must persist and revalidate the template before starting it. It does
@@ -72,7 +72,7 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 	mount.MountPath = "/cache/build"
 	mount.SubPath = relative
 	mount.ReadOnly = true
-	raw, err := json.Marshal(map[string]interface{}{"region": settings.Region, "node": observed.Mount.NodeName, "nodeUid": observed.NodeUID, "roots": []interface{}{map[string]string{"kind": "cache", "storageId": binding.StorageID, "path": "/cache/build"}}})
+	raw, err := json.Marshal(map[string]interface{}{"scanId": settings.ScanID, "region": settings.Region, "node": observed.Mount.NodeName, "nodeUid": observed.NodeUID, "roots": []interface{}{map[string]string{"kind": "cache", "storageId": binding.StorageID, "path": "/cache/build"}}})
 	if err != nil {
 		return nil, ErrBinding
 	}
