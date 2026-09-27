@@ -106,6 +106,7 @@
 | rainbond.cleanup.registry-kubernetes-binding | Verify actual registry Pod and backing volume identity | active | regression | pkg/cleanup/kubeidentity.InspectRegistryMount | pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity |
 | rainbond.cleanup.registry-permit-key-separation | Separate registry permit signing from control authentication | active | regression | controller.systemRegistryPermitKey | api/controller/cleanup_permit_key_test.go::TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure |
 | rainbond.cleanup.registry-preparation | Derive registry identity from controlled inspection without granting cleanup | active | regression | /v2/cleanup/registry/prepare | api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady |
+| rainbond.cleanup.registry-reference-bootstrap | Read collecting registry references without granting deletion | active | regression | cleanup.ReadRegionReferenceInventory | pkg/cleanup/reference_audit_test.go::TestReferenceInventoryBootstrapsWithoutGrantingDeletion |
 | rainbond.cleanup.registry-request-scope | Reject ambiguous Registry paths and direct blob deletion | active | regression | pkg/cleanup/registryproxy.ClassifyRequest | pkg/cleanup/registryproxy/request_test.go::TestRegistryProxyRejectsAmbiguousPathsAndUnselectedDeletion |
 | rainbond.cleanup.registry-service-coverage | Check every registry service instance without accepting partial coverage | active | regression | pkg/cleanup/kubeidentity.InspectRegistryService | pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments |
 | rainbond.cleanup.registry-stream-admission | Require admission before forwarding mutations without credential leakage | active | regression | pkg/cleanup/registryproxy.Proxy.ServeHTTP | pkg/cleanup/registryproxy/proxy_test.go::TestProxyAcquiresBeforeForwardingAndPreservesRegistryAuth |
@@ -1605,6 +1606,16 @@
 - 业务入口: `/v2/cleanup/registry/prepare`
 - 代码路径: `api/controller/cleanup_coordination.go`
 - 测试路径: `api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady`
+
+### Read collecting registry references without granting deletion
+
+- Capability ID: `rainbond.cleanup.registry-reference-bootstrap`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.ReadRegionReferenceInventory`
+- 代码路径: `pkg/cleanup/reference_audit.go`
+- 测试路径: `pkg/cleanup/reference_audit_test.go::TestReferenceInventoryBootstrapsWithoutGrantingDeletion`
 
 ### Reject ambiguous Registry paths and direct blob deletion
 

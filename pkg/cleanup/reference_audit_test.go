@@ -59,3 +59,42 @@ func TestRegionReferenceAuditChecksRetainedVersionsAndPluginImages(t *testing.T)
 		t.Fatal("unbound audit accepted")
 	}
 }
+
+func TestReferenceInventoryBootstrapsWithoutGrantingDeletion(t *testing.T) {
+	for _, mode := range []string{"collecting", "ready", "draining", "maintenance", "restoring", "recovery_required", "unknown"} {
+		t.Run(mode, func(t *testing.T) {
+			database, _ := coordinationDB(t)
+			if err := database.AutoMigrate(&model.VersionInfo{}, &model.TenantPluginBuildVersion{}, &model.K8sResource{}, &model.KeyValue{}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := database.Model(&model.CleanupStorage{}).Where("storage_id = ?", "store").Update("mode", mode).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := database.Create(&model.VersionInfo{ImageName: "goodrain.me/retained:v1", FinalStatus: "success"}).Error; err != nil {
+				t.Fatal(err)
+			}
+			result, err := ReadRegionReferenceInventory(database, "store", "generation1")
+			if mode != "collecting" && mode != "ready" {
+				if err == nil || result.Complete {
+					t.Fatal("unsafe storage mode accepted", mode)
+				}
+				return
+			}
+			if err != nil || !result.Complete || len(result.Images) != 1 || result.Images[0] != "goodrain.me/retained:v1" {
+				t.Fatal("missing retained reference", result, err)
+			}
+			observed, err := InspectStorage(database, "store", "generation1")
+			if err != nil || observed.Mode != mode {
+				t.Fatal("inventory changed storage mode", observed, err)
+			}
+			if mode == "collecting" {
+				if _, err := AcquireOperation(database, operation("not-authorized", "delete", "app")); err == nil {
+					t.Fatal("read-only inventory granted deletion")
+				}
+				if _, err := ReadRegionReferenceInventory(database, "store", "foreign-generation"); err == nil {
+					t.Fatal("foreign generation accepted")
+				}
+			}
+		})
+	}
+}

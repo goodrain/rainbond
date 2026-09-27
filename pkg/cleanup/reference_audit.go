@@ -131,7 +131,9 @@ func ReadRegionReferenceInventory(database *gorm.DB, storage, generation string)
 	if err != nil {
 		return denied, err
 	}
-	if store.Mode != "ready" {
+	// Collecting must expose advisory references for initial coverage assessment.
+	// This read never promotes readiness or creates a deletion admission.
+	if store.Mode != "ready" && store.Mode != "collecting" {
 		return denied, ErrCoordinationBusy
 	}
 	result, err := collectRegionReferenceImages(tx)

@@ -1973,6 +1973,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-reference-bootstrap",
+      "title": "Read collecting registry references without granting deletion",
+      "title_zh": "Read collecting registry references without granting deletion",
+      "interface_type": "workflow",
+      "interface": "cleanup.ReadRegionReferenceInventory",
+      "code_paths": [
+        "pkg/cleanup/reference_audit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_audit_test.go",
+          "selector": "TestReferenceInventoryBootstrapsWithoutGrantingDeletion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-request-scope",
       "title": "Reject ambiguous Registry paths and direct blob deletion",
       "title_zh": "Reject ambiguous Registry paths and direct blob deletion",
