@@ -6,12 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
+	"testing"
+
 	coordination "github.com/goodrain/rainbond/pkg/cleanup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"strings"
-	"testing"
 )
 
 // capability_id: rainbond.cleanup.node-inventory-template
@@ -28,17 +29,17 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	volume := volumeIdentity("pvc", "system", string(pvc.UID), string(pv.UID), "owned/build")
 	sum := sha256.Sum256([]byte("managed-build-cache\x00" + volume))
 	binding := coordination.StorageRegistration{StorageID: hex.EncodeToString(sum[:]), Generation: "one", RootPath: "/cache/build", VolumeUID: volume}
-	settings := NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), ReportClaim: "reports", ScanID: "manual-scan"}
+	settings := NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), ScanID: "manual-scan"}
 	job, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings)
 	if err != nil {
 		t.Fatal(err)
 	}
 	spec := job.Spec.Template.Spec
 	c := spec.Containers[0]
-	if !*job.Spec.Suspend || spec.NodeName != "node" || *spec.AutomountServiceAccountToken || len(spec.Volumes) != 2 || len(c.VolumeMounts) != 2 || !c.VolumeMounts[0].ReadOnly || c.VolumeMounts[0].SubPath != "owned/build" || !spec.Volumes[0].PersistentVolumeClaim.ReadOnly {
+	if !*job.Spec.Suspend || spec.NodeName != "node" || *spec.AutomountServiceAccountToken || len(spec.Volumes) != 1 || len(c.VolumeMounts) != 1 || !c.VolumeMounts[0].ReadOnly || c.VolumeMounts[0].SubPath != "owned/build" || !spec.Volumes[0].PersistentVolumeClaim.ReadOnly {
 		t.Fatal("unbounded collector authority")
 	}
-	if c.Command[0] != "/app/node-inventory" || *c.SecurityContext.RunAsGroup != 10001 || spec.SecurityContext != nil {
+	if len(c.Args) != 1 || c.Args[0] != "--output=-" || c.Command[0] != "/app/node-inventory" || *c.SecurityContext.RunAsGroup != 10001 || spec.SecurityContext != nil {
 		t.Fatal("invalid collector contract")
 	}
 	raw, err := base64.StdEncoding.DecodeString(c.Env[0].Value)
@@ -55,11 +56,6 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	if pod.Spec.Containers[0].VolumeMounts[0].ReadOnly {
 		t.Fatal("source mutated")
 	}
-	settings.ReportClaim = pvc.Name
-	if _, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings); err == nil {
-		t.Fatal("report can write scanned volume")
-	}
-	settings.ReportClaim = "reports"
 	binding.VolumeUID = "replaced"
 	if _, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings); err == nil {
 		t.Fatal("wrong source accepted")

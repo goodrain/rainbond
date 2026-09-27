@@ -73,6 +73,7 @@
 | rainbond.cleanup.node-candidate-readiness | Require idle coordinated storage before showing cache candidates | active | regression | cleanup.InspectManagedCacheReadiness | pkg/cleanup/node_readiness_test.go::TestNodeReadinessDoesNotIgnoreActiveOperations |
 | rainbond.cleanup.node-executor-admission | Admit exactly one observed node executor and verify its termination | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/enter-job | pkg/cleanup/node_execution_test.go::TestNodeExecutorAdmissionIsBoundAndSingleUse<br>pkg/cleanup/kubeidentity/node_executor_test.go::TestNodeExecutorRequiresOriginalRuntimeNodeAndMount<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
 | rainbond.cleanup.node-inventory-api | Authenticated manual inventory preserves deletion protection | active | integration | POST /v2/cleanup/managed-cache/inventory | api/controller/cleanup_node_inventory_test.go::TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness |
+| rainbond.cleanup.node-inventory-report | Return inventory only from the original verified successful pod | active | regression | kubeidentity.ReadNodeInventoryReport | pkg/cleanup/kubeidentity/node_inventory_report_test.go::TestInventoryReportRequiresOriginalSuccessfulPod |
 | rainbond.cleanup.node-inventory-submission | Retry manual inventory without duplicating an existing job | active | regression | cleanup.RunNodeInventoryJob | pkg/cleanup/node_inventory_submit_test.go::TestInventoryRequestReusesJobAfterLostCreate |
 | rainbond.cleanup.node-inventory-template | Read-only cache inventory binds observed storage | active | regression | kubeidentity.BuildManagedCacheInventoryJob | pkg/cleanup/kubeidentity/node_inventory_template_test.go::TestCacheInventoryTemplateUsesObservedReadOnlyStorage |
 | rainbond.cleanup.node-job-intent | Persist immutable node execution identity before job creation | active | integration | PrepareNodeJob | pkg/cleanup/node_job_test.go::TestNodeJobIntentIsImmutableAndDoesNotGrantRecreation |
@@ -1262,6 +1263,16 @@
 - 业务入口: `POST /v2/cleanup/managed-cache/inventory`
 - 代码路径: `api/controller/cleanup_node_inventory.go`
 - 测试路径: `api/controller/cleanup_node_inventory_test.go::TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness`
+
+### Return inventory only from the original verified successful pod
+
+- Capability ID: `rainbond.cleanup.node-inventory-report`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.ReadNodeInventoryReport`
+- 代码路径: `pkg/cleanup/kubeidentity/node_inventory_report.go`
+- 测试路径: `pkg/cleanup/kubeidentity/node_inventory_report_test.go::TestInventoryReportRequiresOriginalSuccessfulPod`
 
 ### Retry manual inventory without duplicating an existing job
 

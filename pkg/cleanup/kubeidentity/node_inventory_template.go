@@ -12,18 +12,17 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 )
 
 // NodeInventorySettings are operator-owned installation settings, not scan input.
-type NodeInventorySettings struct{ Region, Image, ReportClaim, ScanID string }
+type NodeInventorySettings struct{ Region, Image, ScanID string }
 
 // BuildManagedCacheInventoryJob constructs a one-shot read-only cache collector.
 // The caller must persist and revalidate the template before starting it. It does
 // not create Kubernetes resources, change readiness, or grant native deletion.
 func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interface, namespace, sourcePod, sourceUID string, binding coordination.StorageRegistration, settings NodeInventorySettings) (*batchv1.Job, error) {
-	if _, err := binding.Fingerprint(); err != nil || binding.RootPath != "/cache/build" || settings.Region == "" || len(settings.Region) > 63 || len(validation.IsDNS1123Subdomain(settings.ReportClaim)) != 0 {
+	if _, err := binding.Fingerprint(); err != nil || binding.RootPath != "/cache/build" || settings.Region == "" || len(settings.Region) > 63 {
 		return nil, ErrBinding
 	}
 	sum := sha256.Sum256([]byte("managed-build-cache\x00" + binding.VolumeUID))
@@ -53,15 +52,7 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 			data = pod.Spec.Volumes[i].DeepCopy()
 		}
 	}
-	if data == nil || (data.PersistentVolumeClaim != nil && data.PersistentVolumeClaim.ClaimName == settings.ReportClaim) {
-		return nil, ErrBinding
-	}
-	report, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, settings.ReportClaim, metav1.GetOptions{})
-	if err != nil || report.UID == "" || report.DeletionTimestamp != nil || report.Status.Phase != corev1.ClaimBound || report.Spec.VolumeName == "" || (report.Spec.VolumeMode != nil && *report.Spec.VolumeMode != corev1.PersistentVolumeFilesystem) {
-		return nil, ErrBinding
-	}
-	reportPV, err := client.CoreV1().PersistentVolumes().Get(ctx, report.Spec.VolumeName, metav1.GetOptions{})
-	if err != nil || reportPV.UID == "" || reportPV.DeletionTimestamp != nil || reportPV.Spec.ClaimRef == nil || reportPV.Spec.ClaimRef.UID != report.UID || reportPV.Spec.ClaimRef.Name != report.Name || reportPV.Spec.ClaimRef.Namespace != namespace {
+	if data == nil {
 		return nil, ErrBinding
 	}
 	data.Name = "node-cache"
@@ -80,6 +71,6 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 	zero, one := int32(0), int32(1)
 	root, readerGroup := int64(0), int64(10001)
 	deadline := int64(180)
-	c := corev1.Container{Name: "node-inventory", Image: settings.Image, Command: []string{"/app/node-inventory"}, Args: []string{"--output=/node-reports/inventory/" + binding.StorageID + ".json", "--shared-report"}, Env: []corev1.EnvVar{{Name: "CLEANUP_NODE_INVENTORY_BASE64", Value: base64.StdEncoding.EncodeToString(raw)}}, VolumeMounts: []corev1.VolumeMount{mount, {Name: "node-reports", MountPath: "/node-reports"}}, SecurityContext: &corev1.SecurityContext{RunAsUser: &root, RunAsGroup: &readerGroup, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}
-	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Parallelism: &one, Completions: &one, ActiveDeadlineSeconds: &deadline, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID, "rainbond.io/node-report-pvc-uid": string(report.UID), "rainbond.io/node-report-pv-uid": string(reportPV.UID)}}, Spec: corev1.PodSpec{NodeName: observed.Mount.NodeName, RestartPolicy: corev1.RestartPolicyNever, AutomountServiceAccountToken: &no, ImagePullSecrets: append([]corev1.LocalObjectReference(nil), pod.Spec.ImagePullSecrets...), Containers: []corev1.Container{c}, Volumes: []corev1.Volume{*data, {Name: "node-reports", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: settings.ReportClaim}}}}}}}}, nil
+	c := corev1.Container{Name: "node-inventory", Image: settings.Image, Command: []string{"/app/node-inventory"}, Args: []string{"--output=-"}, Env: []corev1.EnvVar{{Name: "CLEANUP_NODE_INVENTORY_BASE64", Value: base64.StdEncoding.EncodeToString(raw)}}, VolumeMounts: []corev1.VolumeMount{mount}, SecurityContext: &corev1.SecurityContext{RunAsUser: &root, RunAsGroup: &readerGroup, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}
+	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Parallelism: &one, Completions: &one, ActiveDeadlineSeconds: &deadline, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID}}, Spec: corev1.PodSpec{NodeName: observed.Mount.NodeName, RestartPolicy: corev1.RestartPolicyNever, AutomountServiceAccountToken: &no, ImagePullSecrets: append([]corev1.LocalObjectReference(nil), pod.Spec.ImagePullSecrets...), Containers: []corev1.Container{c}, Volumes: []corev1.Volume{*data}}}}}, nil
 }

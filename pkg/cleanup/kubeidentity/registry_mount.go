@@ -142,6 +142,12 @@ func InspectRegistryMount(ctx context.Context, client kubernetes.Interface, r Re
 }
 
 func inspectVolume(ctx context.Context, client kubernetes.Interface, pod *corev1.Pod, volumeName, relative string) (RegistryMountObservation, error) {
+	return inspectVolumeMode(ctx, client, pod, volumeName, relative, false)
+}
+
+// allowReadOnly is for observational collectors only; native writers retain the
+// original writable-volume requirement through inspectVolume.
+func inspectVolumeMode(ctx context.Context, client kubernetes.Interface, pod *corev1.Pod, volumeName, relative string, allowReadOnly bool) (RegistryMountObservation, error) {
 	denied := RegistryMountObservation{}
 	var volume *corev1.Volume
 	for i := range pod.Spec.Volumes {
@@ -157,7 +163,7 @@ func inspectVolume(ctx context.Context, client kubernetes.Interface, pod *corev1
 	}
 	observed := RegistryMountObservation{PodUID: string(pod.UID), PodVersion: pod.ResourceVersion, RelativeRoot: relative, NodeName: pod.Spec.NodeName}
 	if source := volume.PersistentVolumeClaim; source != nil {
-		if source.ReadOnly {
+		if source.ReadOnly && !allowReadOnly {
 			return denied, ErrBinding
 		}
 		pvc, err := client.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, source.ClaimName, metav1.GetOptions{})

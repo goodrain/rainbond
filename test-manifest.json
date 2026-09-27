@@ -1337,6 +1337,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.node-inventory-report",
+      "title": "Return inventory only from the original verified successful pod",
+      "title_zh": "Return inventory only from the original verified successful pod",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadNodeInventoryReport",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/node_inventory_report.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/node_inventory_report_test.go",
+          "selector": "TestInventoryReportRequiresOriginalSuccessfulPod"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-inventory-submission",
       "title": "Retry manual inventory without duplicating an existing job",
       "title_zh": "Retry manual inventory without duplicating an existing job",

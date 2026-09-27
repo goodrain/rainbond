@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func systemNodeInventorySettings() kubeidentity.NodeInventorySettings {
-	return kubeidentity.NodeInventorySettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE"), ReportClaim: os.Getenv("CLEANUP_NODE_REPORT_CLAIM")}
+	return kubeidentity.NodeInventorySettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE")}
 }
 
 // CollectManagedCache starts an authenticated, manually requested inventory job.
@@ -65,18 +66,25 @@ func (h *CleanupCoordinationHandler) CollectManagedCache(w http.ResponseWriter, 
 		return
 	}
 	state := "submitted"
+	var report json.RawMessage
 	if job.Status.Succeeded > 0 {
 		state = "succeeded"
+		report, err = kubeidentity.ReadNodeInventoryReport(r.Context(), client, job, binding, settings)
+		if err != nil {
+			coordinationError(w, r, guard.ErrCoordinationUnavailable)
+			return
+		}
 	} else if job.Status.Failed > 0 {
 		state = "failed"
 	}
 	httputil.ReturnSuccess(r, w, struct {
-		Protocol   int    `json:"protocol"`
-		State      string `json:"state"`
-		JobName    string `json:"job_name"`
-		JobUID     string `json:"job_uid"`
-		StorageID  string `json:"storage_id"`
-		NodeUID    string `json:"node_uid"`
-		Generation string `json:"generation"`
-	}{1, state, job.Name, string(job.UID), binding.StorageID, observed.NodeUID, binding.Generation})
+		Protocol   int             `json:"protocol"`
+		State      string          `json:"state"`
+		JobName    string          `json:"job_name"`
+		JobUID     string          `json:"job_uid"`
+		StorageID  string          `json:"storage_id"`
+		NodeUID    string          `json:"node_uid"`
+		Generation string          `json:"generation"`
+		Report     json.RawMessage `json:"report,omitempty"`
+	}{1, state, job.Name, string(job.UID), binding.StorageID, observed.NodeUID, binding.Generation, report})
 }

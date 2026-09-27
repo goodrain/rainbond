@@ -44,7 +44,7 @@ func TestInventoryAPIStartsReadOnlyJobWithoutDeletionReadiness(t *testing.T) {
 	kube.CoreV1().PersistentVolumeClaims("system").Create(ctx, claim, metav1.CreateOptions{})
 	kube.CoreV1().PersistentVolumes().Create(ctx, &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "report-pv", UID: "report-pv-uid"}, Spec: corev1.PersistentVolumeSpec{ClaimRef: &corev1.ObjectReference{Name: claim.Name, Namespace: "system", UID: claim.UID}}}, metav1.CreateOptions{})
 	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, inventorySettings: func() kubeidentity.NodeInventorySettings {
-		return kubeidentity.NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), ReportClaim: "reports"}
+		return kubeidentity.NodeInventorySettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64)}
 	}, gcTarget: func() (kubernetes.Interface, string, string, error) {
 		return gcAdmissionKubeClient{Interface: kube}, "system", "rbd-hub", nil
 	}}
