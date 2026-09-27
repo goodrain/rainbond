@@ -34,7 +34,7 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 	if err != nil || hex.EncodeToString(digest) != parts[1] {
 		return nil, ErrBinding
 	}
-	observed, err := InspectManagedBuildCache(ctx, client, namespace, sourcePod, sourceUID)
+	observed, err := InspectManagedBuildCacheSource(ctx, client, namespace, sourcePod, sourceUID)
 	if err != nil || observed.Mount.VolumeUID != binding.VolumeUID {
 		return nil, ErrBinding
 	}

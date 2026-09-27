@@ -31,3 +31,22 @@ func TestManagedCachePreparationUsesActualNodeAndVolume(t *testing.T) {
 		t.Fatal("nested mount accepted")
 	}
 }
+
+// capability_id: rainbond.cleanup.cache-observation-before-readiness
+func TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness(t *testing.T) {
+	_, _, pvc, pv := bindingObjects()
+	pod := gcCleanerFixture()
+	pod.Spec.NodeName = "node"
+	pod.Spec.Containers[0].Image = "example.test/chaos:legacy"
+	pod.Spec.Containers[0].Args = []string{"--clean-up=true"}
+	pod.Spec.Volumes = []corev1.Volume{{Name: "cache", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvc.Name}}}}
+	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "cache", MountPath: "/cache", SubPath: "owned"}}
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", UID: "node-uid"}}
+	client := fake.NewSimpleClientset(pod, pvc, pv, node)
+	if _, err := InspectManagedBuildCacheSource(context.Background(), client, "system", pod.Name, string(pod.UID)); err != nil {
+		t.Fatal("read-only identity blocked by write readiness", err)
+	}
+	if _, err := InspectManagedBuildCache(context.Background(), client, "system", pod.Name, string(pod.UID)); err == nil {
+		t.Fatal("legacy writer enabled native deletion")
+	}
+}

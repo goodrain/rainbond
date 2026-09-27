@@ -636,7 +636,7 @@ func inspectSystemManagedCache(ctx context.Context, pod, uid string) (kubeidenti
 	if err != nil {
 		return kubeidentity.ManagedCachePreparation{}, err
 	}
-	return kubeidentity.InspectManagedBuildCache(ctx, client, namespace, pod, uid)
+	return kubeidentity.InspectManagedBuildCacheSource(ctx, client, namespace, pod, uid)
 }
 
 // PrepareManagedCache enrolls only observed system build-cache storage. It

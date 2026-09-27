@@ -43,3 +43,37 @@ func InspectManagedCacheReadiness(database *gorm.DB, binding StorageRegistration
 	}
 	return observed, count == 0, nil
 }
+
+// WithdrawManagedCacheReadiness runs before a new builder consumes tasks. It
+// preserves all outstanding operations and never changes maintenance ownership.
+func WithdrawManagedCacheReadiness(database *gorm.DB, binding StorageRegistration) error {
+	fingerprint, err := binding.Fingerprint()
+	if err != nil {
+		return err
+	}
+	expected := sha256.Sum256([]byte("managed-build-cache\x00" + binding.VolumeUID))
+	if binding.RootPath != "/cache/build" || binding.StorageID != hex.EncodeToString(expected[:]) {
+		return ErrCoordinationChanged
+	}
+	tx := database.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer tx.Rollback()
+	row, err := lockCleanupStorage(tx, CoordinationRequest{StorageID: binding.StorageID, Generation: binding.Generation})
+	if err != nil {
+		return err
+	}
+	if row.RegistrationFingerprint != fingerprint {
+		return ErrCoordinationChanged
+	}
+	if row.Mode == "ready" {
+		if err := tx.Model(&model.CleanupStorage{}).Where("storage_id = ?", binding.StorageID).Update("mode", "collecting").Error; err != nil {
+			return err
+		}
+		if err := advanceCleanupRevision(tx, row); err != nil {
+			return err
+		}
+	}
+	return tx.Commit().Error
+}

@@ -753,6 +753,46 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.cache-builder-startup",
+      "title": "Enroll actual cache writer before task consumption",
+      "title_zh": "Enroll actual cache writer before task consumption",
+      "interface_type": "workflow",
+      "interface": "exector.registerCacheBuilderStartup",
+      "code_paths": [
+        "builder/exector/cleanup_cache_startup.go",
+        "builder/exector/exector.go",
+        "pkg/cleanup/kubeidentity/cache_builder.go",
+        "pkg/cleanup/node_readiness.go",
+        "pkg/cleanup/participant.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/cleanup_cache_startup_test.go",
+          "selector": "TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.cache-observation-before-readiness",
+      "title": "Observe cache storage without enabling legacy writer deletion",
+      "title_zh": "Observe cache storage without enabling legacy writer deletion",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectManagedBuildCacheSource",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/managed_cache.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/managed_cache_test.go",
+          "selector": "TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.coordinated-registry-delete-gc",
       "title": "Verify coordinated deletion and separate GC against isolated real Registry",
       "title_zh": "Verify coordinated deletion and separate GC against isolated real Registry",

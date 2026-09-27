@@ -45,6 +45,8 @@
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
 | rainbond.cleanup.activation-registry-coordination | Rollback and activation cannot reference deleting images | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_coordination_test.go::TestActivationAndRollbackRejectDeletingImage |
 | rainbond.cleanup.app-import-admission | Hold application import admission through metadata publication | active | integration | exector.exec.import_app | builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication<br>builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload |
+| rainbond.cleanup.cache-builder-startup | Enroll actual cache writer before task consumption | active | integration | exector.registerCacheBuilderStartup | builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion |
+| rainbond.cleanup.cache-observation-before-readiness | Observe cache storage without enabling legacy writer deletion | active | regression | kubeidentity.InspectManagedBuildCacheSource | pkg/cleanup/kubeidentity/managed_cache_test.go::TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness |
 | rainbond.cleanup.coordinated-registry-delete-gc | Verify coordinated deletion and separate GC against isolated real Registry | active | integration | Region coordination API and Registry sidecar | api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC |
 | rainbond.cleanup.coordination-route-auth | Require Region authentication for every coordination route | active | regression | /v2/cleanup/stores/{storage_id}/operations | api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication |
 | rainbond.cleanup.coordinator-runtime | Run verified readiness and terminate the coordinator cleanly | active | regression | cmd/registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext |
@@ -983,6 +985,26 @@
 - 业务入口: `exector.exec.import_app`
 - 代码路径: `builder/exector/exector.go`, `builder/exector/import_app.go`, `builder/exector/cleanup_image_admission.go`
 - 测试路径: `builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication`, `builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload`
+
+### Enroll actual cache writer before task consumption
+
+- Capability ID: `rainbond.cleanup.cache-builder-startup`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `exector.registerCacheBuilderStartup`
+- 代码路径: `builder/exector/cleanup_cache_startup.go`, `builder/exector/exector.go`, `pkg/cleanup/kubeidentity/cache_builder.go`, `pkg/cleanup/node_readiness.go`, `pkg/cleanup/participant.go`
+- 测试路径: `builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion`
+
+### Observe cache storage without enabling legacy writer deletion
+
+- Capability ID: `rainbond.cleanup.cache-observation-before-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectManagedBuildCacheSource`
+- 代码路径: `pkg/cleanup/kubeidentity/managed_cache.go`
+- 测试路径: `pkg/cleanup/kubeidentity/managed_cache_test.go::TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness`
 
 ### Verify coordinated deletion and separate GC against isolated real Registry
 

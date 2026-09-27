@@ -17,7 +17,7 @@ type ParticipantRegistration struct {
 }
 
 func (p ParticipantRegistration) valid() bool {
-	if !coordinationIdentity.MatchString(p.StorageID) || !coordinationIdentity.MatchString(p.Generation) || !coordinationIdentity.MatchString(p.PodUID) || p.Role != "registry-ingress" {
+	if !coordinationIdentity.MatchString(p.StorageID) || !coordinationIdentity.MatchString(p.Generation) || !coordinationIdentity.MatchString(p.PodUID) || (p.Role != "registry-ingress" && p.Role != "cache-builder") {
 		return false
 	}
 	for _, field := range []struct {
@@ -25,6 +25,12 @@ func (p ParticipantRegistration) valid() bool {
 		max   int
 	}{{p.Owner, 128}, {p.ContainerID, 256}, {p.ImageID, 512}, {p.BindingFingerprint, 64}} {
 		if field.value == "" || len(field.value) > field.max || strings.ContainsAny(field.value, "\x00\r\n") {
+			return false
+		}
+	}
+	if p.Role == "cache-builder" {
+		identity := sha256.Sum256([]byte(p.PodUID + "\x00" + p.ContainerID))
+		if p.Owner != "cache-builder:"+hex.EncodeToString(identity[:]) {
 			return false
 		}
 	}

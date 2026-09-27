@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -128,6 +129,8 @@ func NewManager() (Manager, error) {
 }
 
 type exectorManager struct {
+	startupOnce       sync.Once
+	startupErr        error
 	BuildKitImage     string
 	BuildKitArgs      []string
 	BuildKitCache     bool
@@ -880,7 +883,22 @@ func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) Start() error {
-	return nil
+	e.startupOnce.Do(func() {
+		manager := db.GetManager()
+		if manager == nil {
+			e.startupErr = fmt.Errorf("builder database is unavailable")
+			return
+		}
+		podName, err := os.Hostname()
+		if err != nil {
+			e.startupErr = err
+			return
+		}
+		ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+		defer cancel()
+		e.startupErr = registerCacheBuilderStartup(ctx, manager.DB(), e.KubeClient, configs.Default().PublicConfig.RbdNamespace, podName)
+	})
+	return e.startupErr
 }
 func (e *exectorManager) Stop() error {
 	e.cancel()

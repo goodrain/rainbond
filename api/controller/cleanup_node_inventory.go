@@ -40,7 +40,7 @@ func (h *CleanupCoordinationHandler) CollectManagedCache(w http.ResponseWriter, 
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
-	observed, err := kubeidentity.InspectManagedBuildCache(r.Context(), client, namespace, body.Pod, body.PodUID)
+	observed, err := kubeidentity.InspectManagedBuildCacheSource(r.Context(), client, namespace, body.Pod, body.PodUID)
 	if err != nil {
 		coordinationError(w, r, guard.ErrCoordinationChanged)
 		return
