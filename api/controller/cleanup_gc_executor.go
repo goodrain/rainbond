@@ -8,7 +8,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-// EnterGCJob is internal FullToken-only admission for the original executor.
+// EnterGCJob is internal authenticated admission for the original executor.
 // All runtime facts are fetched from Kubernetes; the body carries locators only.
 func (h *CleanupCoordinationHandler) EnterGCJob(w http.ResponseWriter, r *http.Request) {
 	var body struct {

@@ -880,7 +880,7 @@ func (v2 *V2) licenseRouter() chi.Router {
 // configured without TOKEN; absent credentials must never enable coordination.
 func (v2 *V2) cleanupCoordinationRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.FullToken)
+	r.Use(middleware.CleanupIdentity)
 	h := controller.NewCleanupCoordinationHandler()
 	r.Post("/stores/discover", h.DiscoverStores)
 	r.Post("/registry/prepare", h.PrepareRegistry)

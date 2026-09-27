@@ -67,7 +67,7 @@ func nodeRecorded(w http.ResponseWriter, r *http.Request) {
 }
 
 // EnterNodeJob admits only a Core-bound node executor using live Kubernetes facts.
-// This route is always protected by FullToken; caller runtime assertions fail decoding.
+// This route is always protected by CleanupIdentity; caller runtime assertions fail decoding.
 func (h *CleanupCoordinationHandler) EnterNodeJob(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		guard.CoordinationRequest

@@ -116,6 +116,7 @@
 | rainbond.cleanup.tar-image-entry | Reject tar import before native work and preserve original result | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportEntryReportsMaintenanceWithoutStartingNativeWork |
 | rainbond.cleanup.tar-image-redelivery | Do not overwrite a running tar import on duplicate delivery | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportRedeliveryDoesNotPublishFailureOverActiveWork |
 | rainbond.cleanup.tar-service-check-admission | Block tar service check native work during maintenance | active | regression | exector.serviceCheck | builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance |
+| rainbond.cleanup.verified-client-identity | Cleanup requires configured token or verified platform client certificate | active | regression | api.middleware.CleanupIdentity | api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken |
 | rainbond.cleanup.verified-storage-measurement | Measure only the verified registry backing filesystem | active | regression | registryproxy.MeasureStorage | pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks<br>cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials |
 | rainbond.cleanup.version-activation-fence | Fence upgrade and rollback against version retirement | active | regression | OperationHandler.upgrade and ServiceAction.RollBack | api/handler/cleanup_rollback_test.go::TestLegacyRollbackCannotActivateRetiredVersion<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeRechecksVersionUnderRetirementLock<br>api/handler/cleanup_rollback_test.go::TestUpgradeQueueFailureCannotOverwriteNewerDeployment<br>api/handler/cleanup_rollback_test.go::TestLegacyRollbackRejectsWrongTenant<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeEnqueuesValidatedVersion |
 | rainbond.cleanup.version-reference-coordination | Version writes serialize with manifest deletion | active | regression | VersionInfoDaoImpl | db/mysql/dao/version_cleanup_test.go::TestVersionCreationCannotRaceManifestDeletion |
@@ -1698,6 +1699,16 @@
 - 业务入口: `exector.serviceCheck`
 - 代码路径: `builder/exector/service_check.go`, `builder/exector/cleanup_image_admission.go`
 - 测试路径: `builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance`
+
+### Cleanup requires configured token or verified platform client certificate
+
+- Capability ID: `rainbond.cleanup.verified-client-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api.middleware.CleanupIdentity`
+- 代码路径: `api/middleware/cleanup_identity.go`
+- 测试路径: `api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken`
 
 ### Measure only the verified registry backing filesystem
 

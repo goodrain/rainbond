@@ -2158,6 +2158,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.verified-client-identity",
+      "title": "Cleanup requires configured token or verified platform client certificate",
+      "title_zh": "Cleanup requires configured token or verified platform client certificate",
+      "interface_type": "workflow",
+      "interface": "api.middleware.CleanupIdentity",
+      "code_paths": [
+        "api/middleware/cleanup_identity.go"
+      ],
+      "tests": [
+        {
+          "path": "api/middleware/cleanup_identity_test.go",
+          "selector": "TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.verified-storage-measurement",
       "title": "Measure only the verified registry backing filesystem",
       "title_zh": "Measure only the verified registry backing filesystem",

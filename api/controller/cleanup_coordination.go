@@ -25,7 +25,7 @@ import (
 )
 
 // CleanupCoordinationHandler is an internal Region API. Routes must always use
-// FullToken, including deployments where the general API token is not enabled.
+// CleanupIdentity, requiring a configured token or verified platform mutual TLS.
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
