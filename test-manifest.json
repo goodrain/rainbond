@@ -848,6 +848,69 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.console-signed-coordinator",
+      "title": "Use installation-scoped signatures for coordinator requests",
+      "title_zh": "Use installation-scoped signatures for coordinator requests",
+      "interface_type": "package_function",
+      "interface": "cleanup.NewConsoleCoordinationClient",
+      "code_paths": [
+        "pkg/cleanup/console_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/console_coordination_test.go",
+          "selector": "TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential"
+        },
+        {
+          "path": "pkg/cleanup/console_coordination_test.go",
+          "selector": "TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-signed-coordinator-runtime",
+      "title": "Run signed coordinator with an independent permit key",
+      "title_zh": "Run signed coordinator with an independent permit key",
+      "interface_type": "workflow",
+      "interface": "registry-coordinator.run",
+      "code_paths": [
+        "cmd/registry-coordinator/main.go",
+        "cmd/registry-coordinator/credentials.go"
+      ],
+      "tests": [
+        {
+          "path": "cmd/registry-coordinator/main_test.go",
+          "selector": "TestCoordinatorUsesSignedConsoleAndIndependentPermitKey"
+        },
+        {
+          "path": "cmd/registry-coordinator/main_test.go",
+          "selector": "TestSignedCoordinatorRejectsSharedOrMissingPermitKey"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-signed-gc-command",
+      "title": "Authenticate original GC callbacks with installation signatures",
+      "title_zh": "Authenticate original GC callbacks with installation signatures",
+      "interface_type": "workflow",
+      "interface": "registry-gc.runGC",
+      "code_paths": [
+        "cmd/registry-gc/main.go"
+      ],
+      "tests": [
+        {
+          "path": "cmd/registry-gc/main_test.go",
+          "selector": "TestGCCommandUsesInstallationSignatureForOriginalReceipt"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.coordinated-registry-delete-gc",
       "title": "Verify coordinated deletion and separate GC against isolated real Registry",
       "title_zh": "Verify coordinated deletion and separate GC against isolated real Registry",
@@ -1857,6 +1920,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-permit-key-separation",
+      "title": "Separate registry permit signing from control authentication",
+      "title_zh": "Separate registry permit signing from control authentication",
+      "interface_type": "workflow",
+      "interface": "controller.systemRegistryPermitKey",
+      "code_paths": [
+        "api/controller/cleanup_permit_key.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_permit_key_test.go",
+          "selector": "TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-preparation",
       "title": "Derive registry identity from controlled inspection without granting cleanup",
       "title_zh": "Derive registry identity from controlled inspection without granting cleanup",
@@ -1997,6 +2078,24 @@
         {
           "path": "builder/exector/cleanup_task_boundary_test.go",
           "selector": "TestSlugShareTaskWaitsForResultPersistence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.signed-gc-job-template",
+      "title": "Project GC identity without exposing permit signing authority",
+      "title_zh": "Project GC identity without exposing permit signing authority",
+      "interface_type": "package_function",
+      "interface": "kubeidentity.BuildRegistryGCJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/gc_job_template.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/gc_job_template_test.go",
+          "selector": "TestSignedGCJobCopiesScopeButNeverPermitSigningSecret"
         }
       ],
       "test_type": "regression",

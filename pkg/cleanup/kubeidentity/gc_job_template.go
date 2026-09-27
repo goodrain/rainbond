@@ -168,6 +168,25 @@ func registryGCJob(pod *corev1.Pod, native, sidecar *corev1.Container, args map[
 	if err != nil || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Path != "" && endpoint.Path != "/") || (endpoint.Scheme != "https" && !(endpoint.Scheme == "http" && allowHTTP)) {
 		return nil, ErrBinding
 	}
+	scope := coordination.ConsoleCoordinationScope{Enterprise: args["console-enterprise"], Region: args["console-region"]}
+	permitSecret := ""
+	if scope.Configured() {
+		if !scope.ValidIdentity() || args["coordination-client-cert-file"] != "" || args["coordination-client-key-file"] != "" || !cleanRoot(args["permit-key-file"]) {
+			return nil, ErrBinding
+		}
+		permitMount, _, err := effectiveMount(sidecar, args["permit-key-file"])
+		if err != nil || !permitMount.ReadOnly {
+			return nil, ErrBinding
+		}
+		for _, v := range pod.Spec.Volumes {
+			if v.Name == permitMount.Name && v.Secret != nil {
+				permitSecret = v.Secret.SecretName
+			}
+		}
+		if permitSecret == "" {
+			return nil, ErrBinding
+		}
+	}
 	mount, relative, err := effectiveMount(native, binding.RootPath)
 	if err != nil || mount.ReadOnly || mount.MountPropagation != nil && *mount.MountPropagation != corev1.MountPropagationNone {
 		return nil, ErrBinding
@@ -215,6 +234,9 @@ func registryGCJob(pod *corev1.Pod, native, sidecar *corev1.Container, args map[
 		security.FSGroupChangePolicy = nil
 		job.Spec.Template.Spec.SecurityContext = security
 	}
+	if scope.Configured() {
+		c.Args = append(c.Args, "--console-enterprise="+scope.Enterprise, "--console-region="+scope.Region)
+	}
 	if value := args["coordination-server-name"]; value != "" {
 		c.Args = append(c.Args, "--coordination-server-name="+value)
 	}
@@ -241,6 +263,14 @@ func registryGCJob(pod *corev1.Pod, native, sidecar *corev1.Container, args map[
 		}
 		if source == nil {
 			return nil, ErrBinding
+		}
+		if scope.Configured() {
+			if key == "credential-file" && source.Secret == nil {
+				return nil, ErrBinding
+			}
+			if source.Secret != nil && source.Secret.SecretName == permitSecret {
+				return nil, ErrBinding
+			}
 		}
 		// Copy references only; never GET a Secret or place its value in a Job.
 		if source.Secret == nil && source.ConfigMap == nil {

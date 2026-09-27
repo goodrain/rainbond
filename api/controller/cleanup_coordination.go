@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -41,7 +40,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: func() []byte { return []byte(os.Getenv("TOKEN")) }, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.

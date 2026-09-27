@@ -194,3 +194,50 @@ func TestGCSourceTracksCleanerProcessButNotStatusHeartbeat(t *testing.T) {
 		t.Fatal("missing cleaner treated as disabled")
 	}
 }
+
+// capability_id: rainbond.cleanup.signed-gc-job-template
+func TestSignedGCJobCopiesScopeButNeverPermitSigningSecret(t *testing.T) {
+	for _, variant := range []string{"valid", "shared-secret", "partial-scope"} {
+		t.Run(variant, func(t *testing.T) {
+			client, binding := gcTemplateFixture(t)
+			pod, err := client.CoreV1().Pods("system").Get(context.Background(), "hub", metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sidecar := &pod.Spec.Containers[1]
+			sidecar.Args = append(sidecar.Args, "--console-enterprise=enterprise", "--permit-key-file=/permit/key")
+			if variant != "partial-scope" {
+				sidecar.Args = append(sidecar.Args, "--console-region=rainbond")
+			}
+			sidecar.VolumeMounts = append(sidecar.VolumeMounts, corev1.VolumeMount{Name: "permit", MountPath: "/permit", ReadOnly: true})
+			secret := "permit-signing"
+			if variant == "shared-secret" {
+				secret = "coordination"
+			}
+			pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "permit", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: secret}}})
+			if _, err := client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			r := coordination.CoordinationRequest{StorageID: "store", Generation: "one", OperationID: "gc", Owner: "manual", Kind: "gc", Scope: "*", Fingerprint: "selection"}
+			job, err := BuildRegistryGCJob(context.Background(), client, "system", "rbd-hub", binding, r)
+			if variant != "valid" {
+				if err == nil {
+					t.Fatal("unsafe authentication projection accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			args := strings.Join(job.Spec.Template.Spec.Containers[0].Args, " ")
+			if !strings.Contains(args, "--console-enterprise=enterprise") || !strings.Contains(args, "--console-region=rainbond") {
+				t.Fatal("lost signed identity", args)
+			}
+			for _, v := range job.Spec.Template.Spec.Volumes {
+				if v.Name == "permit" || (v.Secret != nil && v.Secret.SecretName == "permit-signing") {
+					t.Fatal("GC received permit signing authority")
+				}
+			}
+		})
+	}
+}

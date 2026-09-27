@@ -70,6 +70,15 @@ func TestStartupCannotCreateIdentityOrAcceptInlineCredentials(t *testing.T) {
 
 // capability_id: rainbond.cleanup.coordinator-runtime
 func TestCoordinatorRunsReadinessAndStopsWithContext(t *testing.T) {
+	checkCoordinatorRuntime(t, false)
+}
+
+// capability_id: rainbond.cleanup.console-signed-coordinator-runtime
+func TestCoordinatorUsesSignedConsoleAndIndependentPermitKey(t *testing.T) {
+	checkCoordinatorRuntime(t, true)
+}
+
+func checkCoordinatorRuntime(t *testing.T, signed bool) {
 	root := t.TempDir()
 	binding := coordination.StorageRegistration{StorageID: "store", Generation: "one", VolumeUID: "volume", RootPath: "/var/lib/registry"}
 	if err := registryproxy.InitializeStorageIdentity(root, binding); err != nil {
@@ -82,10 +91,20 @@ func TestCoordinatorRunsReadinessAndStopsWithContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Token "+key {
+		path := r.URL.Path
+		if signed {
+			if r.Header.Get("Authorization") != "" || r.Header.Get("X-Cleanup-Coordination-Signature") == "" {
+				t.Error("missing installation signature")
+			}
+			var envelope struct{ Path, Body string }
+			if json.NewDecoder(r.Body).Decode(&envelope) != nil {
+				t.Error("invalid signed envelope")
+			}
+			path = envelope.Path
+		} else if r.Header.Get("Authorization") != "Token "+key {
 			t.Error("wrong control-plane request")
 		}
-		if r.URL.Path == "/v2/cleanup/stores/store/participants/registry" {
+		if path == "/v2/cleanup/stores/store/participants/registry" {
 			json.NewEncoder(w).Encode(map[string]interface{}{"bean": map[string]interface{}{"protocol": 1, "recorded": true}})
 			return
 		}
@@ -107,6 +126,13 @@ func TestCoordinatorRunsReadinessAndStopsWithContext(t *testing.T) {
 	defer cancel()
 	exited := make(chan error, 1)
 	args := []string{"--listen", address, "--storage-root", root, "--storage-id", "store", "--storage-generation", "one", "--volume-uid", "volume", "--registry-path", "/var/lib/registry", "--owner", "fixture-instance", "--pod-name", "pod", "--pod-uid", "uid", "--credential-file", keyPath, "--coordination-api", core.URL, "--allow-internal-http", "--upstream", registry.URL}
+	if signed {
+		permitPath := filepath.Join(t.TempDir(), "permit")
+		if err := os.WriteFile(permitPath, []byte(strings.Repeat("permit-only-", 4)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		args = append(args, "--console-enterprise=enterprise", "--console-region=rainbond", "--permit-key-file="+permitPath)
+	}
 	go func() { exited <- run(ctx, args) }()
 	client := &http.Client{Timeout: time.Second}
 	ready := false
@@ -132,5 +158,30 @@ func TestCoordinatorRunsReadinessAndStopsWithContext(t *testing.T) {
 	}
 	if !ready {
 		t.Fatal("coordinator readiness never succeeded")
+	}
+}
+
+func TestSignedCoordinatorRejectsSharedOrMissingPermitKey(t *testing.T) {
+	control := filepath.Join(t.TempDir(), "control")
+	permit := filepath.Join(t.TempDir(), "permit")
+	if err := os.WriteFile(control, []byte(strings.Repeat("control-only-", 4)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registryPermitKeyReader(control, "", true); err == nil {
+		t.Fatal("accepted missing independent key")
+	}
+	raw, _ := os.ReadFile(control)
+	os.WriteFile(permit, raw, 0600)
+	if _, err := registryPermitKeyReader(control, permit, true); err == nil {
+		t.Fatal("reused control authentication key for permits")
+	}
+	os.WriteFile(permit, []byte(strings.Repeat("permit-only-", 4)), 0600)
+	read, err := registryPermitKeyReader(control, permit, true)
+	if err != nil || string(read()) == string(raw) {
+		t.Fatal("independent key not loaded", err)
+	}
+	os.WriteFile(permit, raw, 0600)
+	if len(read()) != 0 {
+		t.Fatal("accepted unsafe key rotation")
 	}
 }

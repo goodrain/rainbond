@@ -4,8 +4,11 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	coordination "github.com/goodrain/rainbond/pkg/cleanup"
@@ -70,5 +73,38 @@ func TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery(t *testing.T) {
 	cancel()
 	if err := runGC(ctx, args, invoke); err == nil || called != 3 {
 		t.Fatal("canceled execution invoked", err)
+	}
+}
+
+// capability_id: rainbond.cleanup.console-signed-gc-command
+func TestGCCommandUsesInstallationSignatureForOriginalReceipt(t *testing.T) {
+	t.Setenv("CLEANUP_GC_OPERATION", `{"binding":{"storage_id":"owned","generation":"one","volume_uid":"volume","root_path":"/registry"},"request":{"generation":"one","operation_id":"gc","owner":"executor","kind":"gc","scope":"*","fingerprint":"confirmation"}}`)
+	t.Setenv("POD_NAME", "gc-pod")
+	t.Setenv("POD_UID", "pod-uid")
+	credential := filepath.Join(t.TempDir(), "credential")
+	if err := os.WriteFile(credential, []byte(strings.Repeat("fixture-control-", 3)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Path != "/console/cleanup/internal/coordination/enterprise/rainbond" || r.Header.Get("Authorization") != "" || r.Header.Get("X-Cleanup-Coordination-Signature") == "" {
+			t.Error("unscoped GC callback")
+		}
+		w.Write([]byte(`{"bean":{"protocol":1,"recorded":true}}`))
+	}))
+	defer server.Close()
+	args := []string{"--credential-file", credential, "--coordination-api", server.URL, "--allow-internal-http", "--console-enterprise=enterprise", "--console-region=rainbond", "--recover"}
+	invoke := func(ctx context.Context, root string, b coordination.StorageRegistration, r coordination.CoordinationRequest, binary string, recorder registryproxy.GCExecutionRecorder, recover bool) error {
+		if !recover {
+			t.Error("recovery became new native GC")
+		}
+		return recorder.CompleteGC(ctx, "succeeded")
+	}
+	if err := runGC(context.Background(), args, invoke); err != nil || calls != 1 {
+		t.Fatal("signed callback not made", err, calls)
+	}
+	if err := runGC(context.Background(), append(args, "--console-region="), invoke); err == nil || calls != 1 {
+		t.Fatal("partial identity accepted")
 	}
 }

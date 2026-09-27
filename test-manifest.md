@@ -50,6 +50,9 @@
 | rainbond.cleanup.cache-writer-certification | Certify cache readiness only with current membership and no writers | active | integration | cleanup.CertifyManagedCacheWriters | pkg/cleanup/cache_certification_test.go::TestCacheCertificationRequiresMembershipAndQuiescence |
 | rainbond.cleanup.cache-writer-coverage | Verify current coordinated writer rollout and detached builds | active | regression | kubeidentity.InspectCacheWriterCoverage | pkg/cleanup/kubeidentity/cache_coverage_test.go::TestCacheCoverageRejectsRollingWritersAndDetachedBuilds |
 | rainbond.cleanup.cache-writer-native-gate | Recheck live writer coverage before native deletion grant | active | integration | POST node/enter-job | api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.console-signed-coordinator | Use installation-scoped signatures for coordinator requests | active | regression | cleanup.NewConsoleCoordinationClient | pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential<br>pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry |
+| rainbond.cleanup.console-signed-coordinator-runtime | Run signed coordinator with an independent permit key | active | regression | registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorUsesSignedConsoleAndIndependentPermitKey<br>cmd/registry-coordinator/main_test.go::TestSignedCoordinatorRejectsSharedOrMissingPermitKey |
+| rainbond.cleanup.console-signed-gc-command | Authenticate original GC callbacks with installation signatures | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandUsesInstallationSignatureForOriginalReceipt |
 | rainbond.cleanup.coordinated-registry-delete-gc | Verify coordinated deletion and separate GC against isolated real Registry | active | integration | Region coordination API and Registry sidecar | api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC |
 | rainbond.cleanup.coordination-route-auth | Require Region authentication for every coordination route | active | regression | /v2/cleanup/stores/{storage_id}/operations | api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication |
 | rainbond.cleanup.coordinator-runtime | Run verified readiness and terminate the coordinator cleanly | active | regression | cmd/registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext |
@@ -100,6 +103,7 @@
 | rainbond.cleanup.registry-gc-executor | Execute native Registry GC once against a verified storage descriptor | active | integration | registryproxy.ExecuteGC | pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission<br>api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC |
 | rainbond.cleanup.registry-ingress-isolation | Reject registry routes that bypass the coordinator | active | regression | pkg/cleanup/kubeidentity.InspectRegistryIngress | pkg/cleanup/kubeidentity/registry_ingress_test.go::TestRegistryIngressRequiresExclusiveCoordinatedRoute |
 | rainbond.cleanup.registry-kubernetes-binding | Verify actual registry Pod and backing volume identity | active | regression | pkg/cleanup/kubeidentity.InspectRegistryMount | pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity |
+| rainbond.cleanup.registry-permit-key-separation | Separate registry permit signing from control authentication | active | regression | controller.systemRegistryPermitKey | api/controller/cleanup_permit_key_test.go::TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure |
 | rainbond.cleanup.registry-preparation | Derive registry identity from controlled inspection without granting cleanup | active | regression | /v2/cleanup/registry/prepare | api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.registry-request-scope | Reject ambiguous Registry paths and direct blob deletion | active | regression | pkg/cleanup/registryproxy.ClassifyRequest | pkg/cleanup/registryproxy/request_test.go::TestRegistryProxyRejectsAmbiguousPathsAndUnselectedDeletion |
 | rainbond.cleanup.registry-service-coverage | Check every registry service instance without accepting partial coverage | active | regression | pkg/cleanup/kubeidentity.InspectRegistryService | pkg/cleanup/kubeidentity/registry_service_test.go::TestRegistryServiceRejectsMixedAndEmptyDeployments |
@@ -108,6 +112,7 @@
 | rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
 | rainbond.cleanup.service_check_import_handoff | Preserve imported image references across component creation | active | regression | CleanServiceCheckData | api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences |
 | rainbond.cleanup.share-task-completion | Slug sharing remains active until result persistence finishes | active | regression | exectorManager.slugShare | builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence |
+| rainbond.cleanup.signed-gc-job-template | Project GC identity without exposing permit signing authority | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret |
 | rainbond.cleanup.single-deletion-attempt | Consume deletion permission once and retain verification protection | active | regression | pkg/cleanup.BeginDeletionAttempt | pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified |
 | rainbond.cleanup.storage-enrollment | Collect writes during enrollment without granting cleanup | active | regression | pkg/cleanup.RegisterStorage | pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion |
 | rainbond.cleanup.storage-identity | Bind storage identity atomically without replacing prior markers | active | regression | pkg/cleanup/registryproxy.InitializeStorageIdentity | pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten |
@@ -1040,6 +1045,36 @@
 - 代码路径: `api/controller/cleanup_cache_readiness.go`, `api/controller/cleanup_node_launch.go`
 - 测试路径: `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
 
+### Use installation-scoped signatures for coordinator requests
+
+- Capability ID: `rainbond.cleanup.console-signed-coordinator`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `cleanup.NewConsoleCoordinationClient`
+- 代码路径: `pkg/cleanup/console_coordination.go`
+- 测试路径: `pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential`, `pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry`
+
+### Run signed coordinator with an independent permit key
+
+- Capability ID: `rainbond.cleanup.console-signed-coordinator-runtime`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registry-coordinator.run`
+- 代码路径: `cmd/registry-coordinator/main.go`, `cmd/registry-coordinator/credentials.go`
+- 测试路径: `cmd/registry-coordinator/main_test.go::TestCoordinatorUsesSignedConsoleAndIndependentPermitKey`, `cmd/registry-coordinator/main_test.go::TestSignedCoordinatorRejectsSharedOrMissingPermitKey`
+
+### Authenticate original GC callbacks with installation signatures
+
+- Capability ID: `rainbond.cleanup.console-signed-gc-command`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registry-gc.runGC`
+- 代码路径: `cmd/registry-gc/main.go`
+- 测试路径: `cmd/registry-gc/main_test.go::TestGCCommandUsesInstallationSignatureForOriginalReceipt`
+
 ### Verify coordinated deletion and separate GC against isolated real Registry
 
 - Capability ID: `rainbond.cleanup.coordinated-registry-delete-gc`
@@ -1540,6 +1575,16 @@
 - 代码路径: `pkg/cleanup/kubeidentity/registry_mount.go`
 - 测试路径: `pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity`
 
+### Separate registry permit signing from control authentication
+
+- Capability ID: `rainbond.cleanup.registry-permit-key-separation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.systemRegistryPermitKey`
+- 代码路径: `api/controller/cleanup_permit_key.go`
+- 测试路径: `api/controller/cleanup_permit_key_test.go::TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure`
+
 ### Derive registry identity from controlled inspection without granting cleanup
 
 - Capability ID: `rainbond.cleanup.registry-preparation`
@@ -1619,6 +1664,16 @@
 - 业务入口: `exectorManager.slugShare`
 - 代码路径: `builder/exector/exector.go`
 - 测试路径: `builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence`
+
+### Project GC identity without exposing permit signing authority
+
+- Capability ID: `rainbond.cleanup.signed-gc-job-template`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `kubeidentity.BuildRegistryGCJob`
+- 代码路径: `pkg/cleanup/kubeidentity/gc_job_template.go`
+- 测试路径: `pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret`
 
 ### Consume deletion permission once and retain verification protection
 
