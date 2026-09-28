@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -18,10 +17,12 @@ import (
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 )
 
 // CleanupCoordinationHandler is an internal Region API. Routes must always use
@@ -29,19 +30,27 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
-	nodeSettings        func() kubeidentity.NodeJobSettings
-	inventorySettings   func() kubeidentity.NodeInventorySettings
-	inspectManagedCache func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
-	gcTarget            func() (kubernetes.Interface, string, string, error)
-	database            func() *gorm.DB
-	permitKey           func() []byte
-	inspectRegistry     func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
-	inspectParticipant  func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
+	measureUploadEvent      func(context.Context, string) (storage.UploadChunkUsage, error)
+	measureUploadChunks     func(context.Context, string) (storage.UploadChunkUsage, error)
+	inspectRegistryCoverage func(context.Context, guard.StorageRegistration, []guard.ParticipantRegistration) (guard.RegistryCoverage, error)
+	inspectReferenceWriters func(context.Context) ([]guard.ReferenceWriter, error)
+	inspectConsoleWriter    func(context.Context, string, string) (guard.ReferenceWriter, error)
+	clusterReferences       func(context.Context) (guard.RegionReferenceInventory, error)
+	nodeSettings            func() kubeidentity.NodeJobSettings
+	inventorySettings       func() kubeidentity.NodeInventorySettings
+	inspectManagedCache     func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
+	gcTarget                func() (kubernetes.Interface, string, string, error)
+	database                func() *gorm.DB
+	permitKey               func() []byte
+	inspectRegistry         func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
+	inspectParticipant      func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
 }
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: func() []byte { return []byte(os.Getenv("TOKEN")) }, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h := &CleanupCoordinationHandler{measureUploadChunks: systemMeasureUploadChunks, measureUploadEvent: systemMeasureUploadEvent, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h.inspectRegistryCoverage = h.observeRegistryCoverage
+	return h
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.
@@ -294,7 +303,7 @@ func (h *CleanupCoordinationHandler) FinishRestore(w http.ResponseWriter, r *htt
 	}{1, true})
 }
 
-// RegistryReferenceInventory returns advisory image identities for a ready store.
+// RegistryReferenceInventory returns advisory Region and retained Helm image identities.
 func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Generation string `json:"generation"`
@@ -312,12 +321,31 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		coordinationError(w, r, err)
 		return
 	}
+	if h.clusterReferences == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	helm, err := h.clusterReferences(r.Context())
+	if err != nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	result = guard.MergeReferenceInventories(result, helm)
+	// Manual inventory collection refreshes readiness from current deployment
+	// evidence. Health/status reads remain side-effect free. Missing evidence
+	// preserves the reference inventory but cannot certify deletion candidates.
+	ready := false
+	if binding, bindingErr := guard.StorageBinding(h.database(), storage, body.Generation); bindingErr == nil {
+		_, certified, certificationErr := h.certifyRegistry(r.Context(), binding, nil)
+		ready = certificationErr == nil && certified
+	}
 	httputil.ReturnSuccess(r, w, struct {
-		Protocol   int    `json:"protocol"`
-		StorageID  string `json:"storage_id"`
-		Generation string `json:"generation"`
+		Protocol      int    `json:"protocol"`
+		StorageID     string `json:"storage_id"`
+		Generation    string `json:"generation"`
+		RegistryReady bool   `json:"registry_ready"`
 		guard.RegionReferenceInventory
-	}{1, storage, body.Generation, result})
+	}{1, storage, body.Generation, ready, result})
 }
 
 // RegistryReferences audits retained Region records while the selected scope is held.
@@ -333,7 +361,27 @@ func (h *CleanupCoordinationHandler) RegistryReferences(w http.ResponseWriter, r
 		coordinationError(w, r, err)
 		return
 	}
-	result, err := guard.AuditRegionManifestReferences(h.database(), body.CoordinationRequest, body.Tags)
+	if h.clusterReferences == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	state, err := guard.InspectOperation(h.database(), body.CoordinationRequest)
+	if err != nil || state != "active" {
+		coordinationError(w, r, guard.ErrCoordinationChanged)
+		return
+	}
+	helm, err := h.clusterReferences(r.Context())
+	if err != nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	// Re-observe all current platform writers before accepting absence of references.
+	if err := h.requireReferenceWriterCoverage(r.Context()); err != nil {
+		coordinationError(w, r, err)
+		return
+	}
+	// The database audit rechecks the original admission after the remote read.
+	result, err := guard.AuditRegionManifestReferences(h.database(), body.CoordinationRequest, body.Tags, helm)
 	if err != nil {
 		coordinationError(w, r, err)
 		return
@@ -361,6 +409,15 @@ func (h *CleanupCoordinationHandler) RegistryPermit(w http.ResponseWriter, r *ht
 	}
 	if state != "active" {
 		coordinationError(w, r, guard.ErrCoordinationUncertain)
+		return
+	}
+	binding, err := guard.StorageBinding(h.database(), request.StorageID, request.Generation)
+	if err != nil {
+		coordinationError(w, r, err)
+		return
+	}
+	if _, ready, err := h.certifyRegistry(r.Context(), binding, &request); err != nil || !ready {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
 	permit, err := guard.IssueRegistryDeletionPermit(h.permitKey(), request, time.Now())
@@ -680,4 +737,32 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 		NodeUID      string                    `json:"node_uid"`
 		NodeName     string                    `json:"node_name"`
 	}{1, quiescent, binding, status, observed.NodeUID, observed.Mount.NodeName})
+}
+
+func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
+	component := k8s.Default()
+	if component == nil || component.RestConfig == nil || component.Clientset == nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	client, err := metadata.NewForConfig(component.RestConfig)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	configuration := configs.Default()
+	if configuration.PublicConfig == nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, component.RainbondClient, helm.HelmReleases)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	return guard.MergeReferenceInventories(helm, helpers, desired), nil
 }

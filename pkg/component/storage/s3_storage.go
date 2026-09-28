@@ -19,15 +19,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// S3Storage implements platform file operations using S3.
 type S3Storage struct {
 	s3Client *s3.S3
 	bucket   string
 }
 
+// Test is a legacy no-op.
 func (s3s *S3Storage) Test() {
 
 }
 
+// ReadDir lists stored object paths under a directory prefix.
 func (s3s *S3Storage) ReadDir(dirName string) ([]string, error) {
 	bucketName, prefix, err := s3s.ParseDirPath(dirName, false)
 	if err != nil {
@@ -136,6 +139,7 @@ func (s3s *S3Storage) ClearDirectory(bucketName, dirPath string) error {
 	return nil
 }
 
+// ServeFile streams a stored object through HTTP.
 func (s3s *S3Storage) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	// 获取对象
 	bucketName, key, err := s3s.ParseDirPath(filePath, true)
@@ -421,6 +425,7 @@ func (s3s *S3Storage) ParseDirPath(dirPath string, isFile bool) (string, string,
 	return bucketName, key, nil
 }
 
+// Unzip extracts the stored archive into the destination.
 func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error {
 	bucketName, key, err := s3s.ParseDirPath(archive, true)
 	// 下载 S3 中的 ZIP 文件
@@ -465,6 +470,7 @@ func (s3s *S3Storage) Unzip(archive, target string, currentDirectory bool) error
 	return nil
 }
 
+// SaveFile stores an uploaded file.
 func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
 	bucketName, key, err := s3s.ParseDirPath(fileName, true)
 	if err != nil {
@@ -484,6 +490,7 @@ func (s3s *S3Storage) SaveFile(fileName string, reader multipart.File) error {
 	return nil
 }
 
+// UploadFileToFile copies a local file into object storage.
 func (s3s *S3Storage) UploadFileToFile(src, dst string, logger event.Logger) error {
 	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
 	if err != nil {
@@ -696,6 +703,7 @@ func extractFile(zipFile *zip.File, target string, currentDirectory bool) error 
 	return run()
 }
 
+// DownloadDirToDir copies stored directory objects into local files.
 func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 	bucketName, prefix, err := s3s.ParseDirPath(srcDir, false)
 	if err != nil {
@@ -776,6 +784,7 @@ func (s3s *S3Storage) DownloadDirToDir(srcDir, dstDir string) error {
 	return nil
 }
 
+// DownloadFileToDir copies a stored file into a local directory.
 func (s3s *S3Storage) DownloadFileToDir(srcFile, dstDir string) error {
 	// 解析 S3 路径 - 第二个参数应该是 true,因为 srcFile 是文件路径而不是目录
 	bucketName, key, err := s3s.ParseDirPath(srcFile, true)
@@ -977,43 +986,7 @@ func (s3s *S3Storage) mergeChunksToS3(bucketName, chunkKeyPrefix, outputPath str
 
 // CleanupChunks 清理S3中的分片文件
 func (s3s *S3Storage) CleanupChunks(sessionID string) error {
-	bucketName := "grdata"
-	prefix := s3s.GetChunkDir(sessionID)
-
-	// 列出所有分片
-	result, err := s3s.s3Client.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String(prefix),
-	})
-	if err != nil {
-		logrus.Errorf("Failed to list chunks in S3: %v", err)
-		return err
-	}
-
-	// 批量删除
-	if len(result.Contents) == 0 {
-		return nil
-	}
-
-	objects := make([]*s3.ObjectIdentifier, 0, len(result.Contents))
-	for _, obj := range result.Contents {
-		objects = append(objects, &s3.ObjectIdentifier{Key: obj.Key})
-	}
-
-	_, err = s3s.s3Client.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: aws.String(bucketName),
-		Delete: &s3.Delete{
-			Objects: objects,
-			Quiet:   aws.Bool(true),
-		},
-	})
-	if err != nil {
-		logrus.Errorf("Failed to delete chunks from S3: %v", err)
-		return err
-	}
-
-	logrus.Debugf("Cleaned up chunks for session: %s from S3", sessionID)
-	return nil
+	return s3s.cleanupChunkObjects(sessionID)
 }
 
 // ReadFile reads a file directly from S3 and returns a reader

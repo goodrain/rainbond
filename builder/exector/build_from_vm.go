@@ -21,6 +21,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	utils "github.com/goodrain/rainbond/util"
+	platformconstants "github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"k8s.io/client-go/kubernetes"
@@ -41,8 +42,8 @@ const (
 	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
 )
 
-const defaultVMQCOW2ConverterImage = "quay.io/kubevirt/cdi-importer:v1.65.0"
-const defaultVMHTTPArtifactImage = "registry.cn-hangzhou.aliyuncs.com/zhangqihang/nginx:1.25-alpine"
+const defaultVMQCOW2ConverterImage = platformconstants.VMQCOW2ConverterImage
+const defaultVMHTTPArtifactImage = platformconstants.VMHTTPArtifactImage
 const defaultVMDownloadProgressInterval = 10 * time.Second
 const defaultVMDownloadProgressBytes int64 = 512 * 1024 * 1024
 

@@ -31,6 +31,7 @@ func InspectRegistryService(ctx context.Context, client kubernetes.Interface, re
 	result := RegistryServiceObservation{ServiceUID: string(service.UID), ServiceVersion: service.ResourceVersion}
 	cursor, version := "", ""
 	cursors, identities := map[string]bool{}, map[string]bool{}
+	podVersions := map[string]string{}
 	for pages := 0; ; pages++ {
 		if pages >= 32 {
 			return denied, ErrBinding
@@ -49,6 +50,7 @@ func InspectRegistryService(ctx context.Context, client kubernetes.Interface, re
 				return denied, ErrBinding
 			}
 			identities[string(pod.UID)] = true
+			podVersions[string(pod.UID)] = pod.ResourceVersion
 			ingress, err := InspectRegistryIngress(service, pod, request.RegistryContainer, request.CoordinatorContainer)
 			if err != nil {
 				return denied, err
@@ -78,6 +80,22 @@ func InspectRegistryService(ctx context.Context, client kubernetes.Interface, re
 		cursor = page.Continue
 	}
 	if len(result.PodUIDs) == 0 {
+		return denied, ErrBinding
+	}
+	// Recheck the selected set after mount/ingress inspection. A new legacy Pod
+	// can appear without changing the Service resource version.
+	finalPods, err := client.CoreV1().Pods(request.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.SelectorFromSet(service.Spec.Selector).String(), Limit: 33})
+	if err != nil || finalPods.ResourceVersion == "" || finalPods.Continue != "" || len(finalPods.Items) != len(podVersions) {
+		return denied, ErrBinding
+	}
+	for _, pod := range finalPods.Items {
+		uid := string(pod.UID)
+		if podVersions[uid] == "" || podVersions[uid] != pod.ResourceVersion {
+			return denied, ErrBinding
+		}
+		delete(podVersions, uid)
+	}
+	if len(podVersions) != 0 {
 		return denied, ErrBinding
 	}
 	current, err := client.CoreV1().Services(request.Namespace).Get(ctx, request.Service, metav1.GetOptions{})

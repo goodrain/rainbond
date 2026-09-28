@@ -69,7 +69,7 @@ func readCredential(path string) (string, error) {
 		return "", errConfiguration
 	}
 	value := strings.TrimSpace(string(raw))
-	if len(value) < 32 || strings.ContainsAny(value, " \t\r\n") {
+	if len(value) < 32 || strings.ContainsAny(value, " \t\r\n\x00") {
 		return "", errConfiguration
 	}
 	return value, nil
@@ -83,6 +83,8 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	flags.SetOutput(io.Discard)
 	var binding coordination.StorageRegistration
 	var listen, root, upstream, api, credential, owner, serverCert, serverKey, pod, podUID string
+	var systemIdentity bool
+	var enterprise, region, permitFile string
 	var initialize, measure, allowHTTP bool
 	var controlTLS, upstreamTLS tlsFiles
 	flags.StringVar(&listen, "listen", ":5001", "proxy listen address")
@@ -93,7 +95,11 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	flags.StringVar(&binding.RootPath, "registry-path", "", "data root inside the original Registry container")
 	flags.StringVar(&upstream, "upstream", "http://127.0.0.1:5000", "loopback Registry origin")
 	flags.StringVar(&api, "coordination-api", "", "trusted Region API origin")
-	flags.StringVar(&credential, "credential-file", "", "mounted Region coordination credential")
+	flags.StringVar(&credential, "credential-file", "", "mounted coordination credential")
+	flags.BoolVar(&systemIdentity, "console-system-identity", false, "use independent platform-owned Console identity")
+	flags.StringVar(&enterprise, "console-enterprise", "", "installation enterprise for signed Console control")
+	flags.StringVar(&region, "console-region", "", "installation region for signed Console control")
+	flags.StringVar(&permitFile, "permit-key-file", "", "independent deletion permit verification key")
 	flags.StringVar(&owner, "owner", "", "instance identity prefix supplied by the installer")
 	flags.StringVar(&pod, "pod-name", os.Getenv("POD_NAME"), "Pod name from the downward API")
 	flags.StringVar(&podUID, "pod-uid", os.Getenv("POD_UID"), "Pod UID from the downward API")
@@ -149,17 +155,24 @@ func runWithOutput(ctx context.Context, args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	client, err := coordination.NewCoordinationClient(api, token, allowHTTP, controlTransport)
+	signed := systemIdentity || enterprise != "" || region != ""
+	var client *coordination.CoordinationClient
+	if signed {
+		if controlTLS.certificate != "" || controlTLS.key != "" {
+			return errConfiguration
+		}
+		client, err = coordination.NewConsoleCoordinationClient(api, coordination.ConsoleCoordinationScope{Enterprise: enterprise, Region: region, Key: []byte(token), System: systemIdentity}, allowHTTP, controlTransport)
+	} else {
+		client, err = coordination.NewCoordinationClient(api, token, allowHTTP, controlTransport)
+	}
 	if err != nil {
 		return errConfiguration
 	}
-	runtime, err := registryproxy.NewRuntime(registryproxy.RuntimeConfig{Root: root, Binding: binding, Upstream: upstream, Owner: owner, Pod: pod, PodUID: podUID, Backend: client, Transport: upstreamTransport, PermitKey: func() []byte {
-		value, err := readCredential(credential)
-		if err != nil {
-			return nil
-		}
-		return []byte(value)
-	}})
+	permitReader, err := registryPermitKeyReader(credential, permitFile, signed)
+	if err != nil {
+		return err
+	}
+	runtime, err := registryproxy.NewRuntime(registryproxy.RuntimeConfig{Root: root, Binding: binding, Upstream: upstream, Owner: owner, Pod: pod, PodUID: podUID, Backend: client, Transport: upstreamTransport, PermitKey: permitReader})
 	if err != nil {
 		return err
 	}

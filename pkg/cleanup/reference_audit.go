@@ -17,10 +17,18 @@ type RegionReferenceAudit struct {
 	Referenced bool `json:"referenced"`
 }
 
+// HelmReleaseIdentity is internal correlation evidence, never a public inventory field.
+type HelmReleaseIdentity struct {
+	ValueHashes                                  map[string]string
+	Name, Namespace, Chart, ChartVersion, Status string
+	Revision                                     int
+}
+
 // RegionReferenceInventory contains image identities, never raw saved configs.
 type RegionReferenceInventory struct {
-	Complete bool     `json:"region_records_complete"`
-	Images   []string `json:"images"`
+	HelmReleases []HelmReleaseIdentity `json:"-"`
+	Complete     bool                  `json:"region_records_complete"`
+	Images       []string              `json:"images"`
 }
 
 var referenceAuditTag = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
@@ -131,7 +139,9 @@ func ReadRegionReferenceInventory(database *gorm.DB, storage, generation string)
 	if err != nil {
 		return denied, err
 	}
-	if store.Mode != "ready" {
+	// Collecting must expose advisory references for initial coverage assessment.
+	// This read never promotes readiness or creates a deletion admission.
+	if store.Mode != "ready" && store.Mode != "collecting" {
 		return denied, ErrCoordinationBusy
 	}
 	result, err := collectRegionReferenceImages(tx)
@@ -145,7 +155,7 @@ func ReadRegionReferenceInventory(database *gorm.DB, storage, generation string)
 }
 
 // AuditRegionManifestReferences checks retained records under the original active deletion admission.
-func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tags []string) (RegionReferenceAudit, error) {
+func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tags []string, extra ...RegionReferenceInventory) (RegionReferenceAudit, error) {
 	denied := RegionReferenceAudit{}
 	if !r.valid() || r.Kind != "delete" || !registryDeletionDigest.MatchString(r.Target) || len(tags) > 256 {
 		return denied, ErrCoordinationChanged
@@ -176,6 +186,7 @@ func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tag
 	if err != nil {
 		return denied, err
 	}
+	inventory = MergeReferenceInventories(append([]RegionReferenceInventory{inventory}, extra...)...)
 	result := RegionReferenceAudit{Complete: inventory.Complete}
 	for _, image := range inventory.Images {
 		named, err := reference.ParseNormalizedNamed(image)
@@ -201,4 +212,42 @@ func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tag
 		return denied, err
 	}
 	return result, nil
+}
+
+// MergeReferenceInventories preserves incompleteness and returns only validated,
+// deduplicated image identities. It never grants deletion or changes store state.
+func MergeReferenceInventories(inventories ...RegionReferenceInventory) RegionReferenceInventory {
+	result := RegionReferenceInventory{Complete: len(inventories) > 0, Images: []string{}}
+	images := map[string]bool{}
+	for _, inventory := range inventories {
+		result.Complete = result.Complete && inventory.Complete
+		for _, image := range inventory.Images {
+			if _, err := reference.ParseNormalizedNamed(image); err != nil {
+				result.Complete = false
+				continue
+			}
+			if len(images) >= 20000 && !images[image] {
+				result.Complete = false
+				continue
+			}
+			images[image] = true
+		}
+	}
+	for image := range images {
+		result.Images = append(result.Images, image)
+	}
+	sort.Strings(result.Images)
+	return result
+}
+
+// ConfiguredImageReferences protects explicitly configured future job images.
+// Empty values mean the optional executor is disabled, not an unknown image.
+func ConfiguredImageReferences(values []string) RegionReferenceInventory {
+	inventory := RegionReferenceInventory{Complete: true, Images: []string{}}
+	for _, value := range values {
+		if value != "" {
+			inventory.Images = append(inventory.Images, value)
+		}
+	}
+	return MergeReferenceInventories(inventory)
 }

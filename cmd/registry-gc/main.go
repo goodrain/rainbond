@@ -34,10 +34,15 @@ func runGC(ctx context.Context, args []string, invoke gcInvocation) error {
 	flags := flag.NewFlagSet("registry-gc", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var configFile, credentialFile, endpoint, caFile, certFile, keyFile, serverName string
+	var systemIdentity bool
+	var enterprise, region string
 	var allowHTTP, recover bool
 	flags.StringVar(&configFile, "configuration-file", "", "server-generated operation descriptor")
 	flags.StringVar(&credentialFile, "credential-file", "", "mounted internal coordination credential")
-	flags.StringVar(&endpoint, "coordination-api", "", "trusted Region API origin")
+	flags.StringVar(&endpoint, "coordination-api", "", "trusted coordination origin")
+	flags.BoolVar(&systemIdentity, "console-system-identity", false, "use independent platform-owned Console identity")
+	flags.StringVar(&enterprise, "console-enterprise", "", "installation enterprise for signed Console control")
+	flags.StringVar(&region, "console-region", "", "installation region for signed Console control")
 	flags.StringVar(&serverName, "coordination-server-name", "", "verified API TLS server name")
 	flags.StringVar(&caFile, "coordination-ca-file", "", "trusted API CA bundle")
 	flags.StringVar(&certFile, "coordination-client-cert-file", "", "mounted API client certificate")
@@ -120,7 +125,15 @@ func runGC(ctx context.Context, args []string, invoke gcInvocation) error {
 	transport.TLSClientConfig = configuration
 	transport.ResponseHeaderTimeout = 10 * time.Second
 	defer transport.CloseIdleConnections()
-	client, err := coordination.NewCoordinationClient(endpoint, token, allowHTTP, transport)
+	var client *coordination.CoordinationClient
+	if systemIdentity || enterprise != "" || region != "" {
+		if certFile != "" || keyFile != "" {
+			return errConfiguration
+		}
+		client, err = coordination.NewConsoleCoordinationClient(endpoint, coordination.ConsoleCoordinationScope{Enterprise: enterprise, Region: region, Key: []byte(token), System: systemIdentity}, allowHTTP, transport)
+	} else {
+		client, err = coordination.NewCoordinationClient(endpoint, token, allowHTTP, transport)
+	}
 	if err != nil {
 		return errConfiguration
 	}

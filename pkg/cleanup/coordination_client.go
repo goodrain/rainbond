@@ -91,7 +91,9 @@ func (c *CoordinationClient) callPath(ctx context.Context, path string, body int
 	}
 	req.GetBody = nil
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Token "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Token "+c.token)
+	}
 	response, err := c.http.Do(req)
 	if err != nil {
 		return result, ErrCoordinationUnavailable

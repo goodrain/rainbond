@@ -158,7 +158,7 @@ func (h *NsResourceHandler) GetNsResource(tenantName, group, version, resource, 
 }
 
 // CreateNsResource creates resources from YAML body, resolving the actual target GVR from each document.
-func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody []byte) (*NsResourceCreateResponse, int, error) {
+func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody []byte) (out *NsResourceCreateResponse, statusCode int, resultErr error) {
 	if source != "yaml" && source != "manual" {
 		source = "manual"
 	}
@@ -181,6 +181,16 @@ func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody
 		return nil, 0, fmt.Errorf("kubernetes dynamic client is not initialized")
 	}
 
+	admission, err := admitWorkload(db.GetManager().DB(), yamlBody)
+	if err != nil {
+		return nil, 409, err
+	}
+	defer func() {
+		if err := admission.finish(true); err != nil && resultErr == nil {
+			resultErr = err
+			statusCode = 503
+		}
+	}()
 	response := &NsResourceCreateResponse{
 		Results: make([]NsResourceCreateResult, 0, len(documents)),
 	}
@@ -192,7 +202,7 @@ func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody
 			Kind:       obj.GetKind(),
 			Name:       obj.GetName(),
 		}
-		h.createSingleNsResource(dynamicClient, mapper, ns, source, obj, &result)
+		h.createSingleNsResource(dynamicClient, mapper, ns, source, obj, &result, admission.observe)
 		response.Results = append(response.Results, result)
 	}
 
@@ -202,7 +212,7 @@ func (h *NsResourceHandler) CreateNsResource(tenantName, source string, yamlBody
 }
 
 // UpdateNsResource updates a resource in the tenant namespace from YAML body
-func (h *NsResourceHandler) UpdateNsResource(tenantName, group, version, resource, name string, yamlBody []byte) (*unstructured.Unstructured, error) {
+func (h *NsResourceHandler) UpdateNsResource(tenantName, group, version, resource, name string, yamlBody []byte) (out *unstructured.Unstructured, resultErr error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
 	}
@@ -219,15 +229,30 @@ func (h *NsResourceHandler) UpdateNsResource(tenantName, group, version, resourc
 	if obj.GetName() == "" {
 		obj.SetName(name)
 	}
+	dynamicClient := nsResourceDynamicClient()
+	if dynamicClient == nil {
+		return nil, fmt.Errorf("kubernetes dynamic client is not initialized")
+	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
 	if obj.GetResourceVersion() == "" {
-		current, err := k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
+		current, err := dynamicClient.Resource(gvr).Namespace(ns).Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 		obj.SetResourceVersion(current.GetResourceVersion())
 	}
-	result, err := k8s.Default().DynamicClient.Resource(gvr).Namespace(ns).Update(context.Background(), obj, metav1.UpdateOptions{})
+	admission, err := admitWorkload(db.GetManager().DB(), yamlBody)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := admission.finish(true); err != nil && resultErr == nil {
+			resultErr = err
+		}
+	}()
+	admission.observe(true, nil)
+	result, err := dynamicClient.Resource(gvr).Namespace(ns).Update(context.Background(), obj, metav1.UpdateOptions{})
+	admission.observe(false, err)
 	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
 		return nil, httputil.NewErrBadRequest(err)
 	}
@@ -288,7 +313,7 @@ func decodeNsResourceDocuments(yamlBody []byte) ([]*unstructured.Unstructured, e
 	return documents, nil
 }
 
-func (h *NsResourceHandler) createSingleNsResource(dynamicClient dynamic.Interface, mapper k8smeta.RESTMapper, teamNamespace, source string, obj *unstructured.Unstructured, result *NsResourceCreateResult) {
+func (h *NsResourceHandler) createSingleNsResource(dynamicClient dynamic.Interface, mapper k8smeta.RESTMapper, teamNamespace, source string, obj *unstructured.Unstructured, result *NsResourceCreateResult, observe func(bool, error)) {
 	mapping, err := resolveNsResourceMapping(mapper, obj)
 	if err != nil {
 		result.Message = err.Error()
@@ -316,7 +341,9 @@ func (h *NsResourceHandler) createSingleNsResource(dynamicClient dynamic.Interfa
 	injectSourceLabel(labels, source)
 	obj.SetLabels(labels)
 
+	observe(true, nil)
 	created, err := resourceClient.Create(context.Background(), obj, metav1.CreateOptions{})
+	observe(false, err)
 	if err != nil {
 		result.Message = err.Error()
 		return

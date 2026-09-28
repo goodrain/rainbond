@@ -62,7 +62,9 @@ func runCoordinatedRegistryGC(t *testing.T, useExecutor bool) {
 	if err := os.MkdirAll(storage, 0755); err != nil {
 		t.Fatal(err)
 	}
-	measurementBinding := guard.StorageRegistration{StorageID: "isolated", Generation: "one", VolumeUID: "owned-test-volume", RootPath: storage}
+	storageHash := sha256.Sum256([]byte("registry-filesystem\x00owned-test-volume"))
+	storageID := hex.EncodeToString(storageHash[:])
+	measurementBinding := guard.StorageRegistration{StorageID: storageID, Generation: "one", VolumeUID: "owned-test-volume", RootPath: storage}
 	if err := registryproxy.InitializeStorageIdentity(storage, measurementBinding); err != nil {
 		t.Fatal(err)
 	}
@@ -127,12 +129,13 @@ func runCoordinatedRegistryGC(t *testing.T, useExecutor bool) {
 	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := database.Create(&model.CleanupStorage{StorageID: "isolated", Generation: "one", Mode: "ready", RegistrationFingerprint: bindingFingerprint, RegistrationJSON: string(bindingJSON)}).Error; err != nil {
+	if err := database.Create(&model.CleanupStorage{StorageID: storageID, Generation: "one", Mode: "ready", RegistrationFingerprint: bindingFingerprint, RegistrationJSON: string(bindingJSON)}).Error; err != nil {
 		t.Fatal(err)
 	}
 	fixtureKey := strings.Repeat("isolated-fixture-", 3)
 	t.Setenv("TOKEN", fixtureKey)
 	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, permitKey: func() []byte { return []byte(fixtureKey) }}
+	installRegistryCoverageFixture(t, h, measurementBinding)
 	router := chi.NewRouter()
 	router.Use(middleware.FullToken)
 	base := "/v2/cleanup/stores/{storage_id}/operations"
@@ -148,7 +151,7 @@ func runCoordinatedRegistryGC(t *testing.T, useExecutor bool) {
 		t.Fatal(err)
 	}
 	newProxy := func(owner string) *registryproxy.Proxy {
-		coordinator, err := registryproxy.NewCoordinator(registryproxy.CoordinatorConfig{StorageID: "isolated", Generation: "one", Owner: owner, Backend: client, PermitKey: func() []byte { return []byte(fixtureKey) }})
+		coordinator, err := registryproxy.NewCoordinator(registryproxy.CoordinatorConfig{StorageID: storageID, Generation: "one", Owner: owner, Backend: client, PermitKey: func() []byte { return []byte(fixtureKey) }})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,7 +239,7 @@ func runCoordinatedRegistryGC(t *testing.T, useExecutor bool) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	selected := guard.CoordinationRequest{StorageID: "isolated", Generation: "one", Owner: "cleanup-test", OperationID: "selected-delete", Kind: "delete", Scope: "test/selected", Fingerprint: "explicit-selection", Target: manifests["test/selected"]}
+	selected := guard.CoordinationRequest{StorageID: storageID, Generation: "one", Owner: "cleanup-test", OperationID: "selected-delete", Kind: "delete", Scope: "test/selected", Fingerprint: "explicit-selection", Target: manifests["test/selected"]}
 	if admitted, err := client.Acquire(ctx, selected); err != nil || !admitted {
 		t.Fatal("selected deletion not admitted", err)
 	}
@@ -252,7 +255,7 @@ func runCoordinatedRegistryGC(t *testing.T, useExecutor bool) {
 	if err := client.Finish(ctx, selected, true); err != nil {
 		t.Fatal(err)
 	}
-	gc := guard.CoordinationRequest{StorageID: "isolated", Generation: "one", Owner: "cleanup-test", OperationID: "manual-gc", Kind: "gc", Scope: "*", Fingerprint: "separate-confirmation"}
+	gc := guard.CoordinationRequest{StorageID: storageID, Generation: "one", Owner: "cleanup-test", OperationID: "manual-gc", Kind: "gc", Scope: "*", Fingerprint: "separate-confirmation"}
 	if admitted, err := client.RequestMaintenance(ctx, gc); err != nil || !admitted {
 		t.Fatal(err)
 	}

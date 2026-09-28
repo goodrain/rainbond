@@ -21,15 +21,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
-	"os"
+
+	_ "net/http/pprof"
 
 	"github.com/goodrain/rainbond/cmd"
-	_ "net/http/pprof"
 )
 
 func main() {
@@ -49,6 +51,7 @@ func main() {
 		Registry(component.Grpc()).
 		Registry(component.Event()).
 		Registry(component.K8sClient()).
+		Registry(component.ReferenceWriter("worker")).
 		Registry(component.StorageClient()).
 		Registry(component.Cleanup()).
 		Registry(component.FilePersistenceClient()).

@@ -848,6 +848,116 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.configured-node-helper-references",
+      "title": "Protect configured executor images across API rollout and rollback",
+      "title_zh": "Protect configured executor images across API rollout and rollback",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadAPIHelperReferences",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/helper_references.go",
+        "pkg/cleanup/reference_audit.go",
+        "api/controller/cleanup_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_audit_test.go",
+          "selector": "TestConfiguredHelperImagesRemainProtectedWithoutRunningPods"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helper_references_test.go",
+          "selector": "TestAPIHelperReferencesIncludeDesiredRollbackAndRunningImages"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helper_references_test.go",
+          "selector": "TestAPIHelperDoesNotReadSecretBackedEnvironment"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-signed-coordinator",
+      "title": "Use installation-scoped signatures for coordinator requests",
+      "title_zh": "Use installation-scoped signatures for coordinator requests",
+      "interface_type": "package_function",
+      "interface": "cleanup.NewConsoleCoordinationClient",
+      "code_paths": [
+        "pkg/cleanup/console_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/console_coordination_test.go",
+          "selector": "TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential"
+        },
+        {
+          "path": "pkg/cleanup/console_coordination_test.go",
+          "selector": "TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-signed-coordinator-runtime",
+      "title": "Run signed coordinator with an independent permit key",
+      "title_zh": "Run signed coordinator with an independent permit key",
+      "interface_type": "workflow",
+      "interface": "registry-coordinator.run",
+      "code_paths": [
+        "cmd/registry-coordinator/main.go",
+        "cmd/registry-coordinator/credentials.go"
+      ],
+      "tests": [
+        {
+          "path": "cmd/registry-coordinator/main_test.go",
+          "selector": "TestCoordinatorUsesSignedConsoleAndIndependentPermitKey"
+        },
+        {
+          "path": "cmd/registry-coordinator/main_test.go",
+          "selector": "TestSignedCoordinatorRejectsSharedOrMissingPermitKey"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-signed-gc-command",
+      "title": "Authenticate original GC callbacks with installation signatures",
+      "title_zh": "Authenticate original GC callbacks with installation signatures",
+      "interface_type": "workflow",
+      "interface": "registry-gc.runGC",
+      "code_paths": [
+        "cmd/registry-gc/main.go"
+      ],
+      "tests": [
+        {
+          "path": "cmd/registry-gc/main_test.go",
+          "selector": "TestGCCommandUsesInstallationSignatureForOriginalReceipt"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.console-writer-announcement",
+      "title": "Authenticate Console announcements and bind observed runtime identity",
+      "title_zh": "Authenticate Console announcements and bind observed runtime identity",
+      "interface_type": "workflow",
+      "interface": "CleanupCoordinationHandler.RegisterConsoleReferenceWriter",
+      "code_paths": [
+        "api/controller/cleanup_reference_writer.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_reference_writer_test.go",
+          "selector": "TestConsoleWriterAnnouncementRequiresAuthenticationAndObservedIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.coordinated-registry-delete-gc",
       "title": "Verify coordinated deletion and separate GC against isolated real Registry",
       "title_zh": "Verify coordinated deletion and separate GC against isolated real Registry",
@@ -897,6 +1007,24 @@
         {
           "path": "cmd/registry-coordinator/main_test.go",
           "selector": "TestCoordinatorRunsReadinessAndStopsWithContext"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.deferred-helmapp-references",
+      "title": "Require settled HelmApp intent covered by retained release evidence",
+      "title_zh": "Require settled HelmApp intent covered by retained release evidence",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadHelmAppReferenceInventory",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/helmapp_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/helmapp_references_test.go",
+          "selector": "TestHelmAppReferencesRequireSettledRelease"
         }
       ],
       "test_type": "regression",
@@ -977,6 +1105,42 @@
         {
           "path": "pkg/cleanup/gc_job_submit_test.go",
           "selector": "TestGCPreviewCannotInjectLifecycleOrStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.expired-upload-reinitialize",
+      "title": "Start a new session instead of resuming expired chunk metadata",
+      "title_zh": "Start a new session instead of resuming expired chunk metadata",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.InitUploadSession",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.expired-upload-writes",
+      "title": "Reject writes and completion on expired upload sessions",
+      "title_zh": "Reject writes and completion on expired upload sessions",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.SaveChunk",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadCannotContinueWriting"
         }
       ],
       "test_type": "regression",
@@ -1245,6 +1409,120 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.helm-native-mutation-admission",
+      "title": "Coordinate native Helm mutations and track actual Kubernetes write outcomes",
+      "title_zh": "Coordinate native Helm mutations and track actual Kubernetes write outcomes",
+      "interface_type": "workflow",
+      "interface": "helm.runCoordinatedMutation",
+      "code_paths": [
+        "pkg/helm/cleanup_mutation.go",
+        "pkg/helm/cleanup_transport.go",
+        "pkg/helm/helm.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/helm/cleanup_mutation_test.go",
+          "selector": "TestHelmMutationRequiresDurableProducerAdmission"
+        },
+        {
+          "path": "pkg/helm/cleanup_transport_test.go",
+          "selector": "TestHelmTracksActualReleaseStorageWrites"
+        },
+        {
+          "path": "pkg/helm/cleanup_transport_test.go",
+          "selector": "TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helm-release-identity",
+      "title": "Keep bounded Helm release identity private to reference correlation",
+      "title_zh": "Keep bounded Helm release identity private to reference correlation",
+      "interface_type": "workflow",
+      "interface": "cleanup.InspectHelmReleaseReferences",
+      "code_paths": [
+        "pkg/cleanup/helm_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_release_identity_test.go",
+          "selector": "TestHelmReleaseIdentityDoesNotExposeChartConfiguration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helm-release-values-proof",
+      "title": "Match desired Helm overrides to actual release config digests",
+      "title_zh": "Match desired Helm overrides to actual release config digests",
+      "interface_type": "workflow",
+      "interface": "cleanup.HelmReleaseMatchesOverrides",
+      "code_paths": [
+        "pkg/cleanup/helm_value_evidence.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_release_identity_test.go",
+          "selector": "TestHelmReleaseOverridesRequireActualConfig"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helm-retained-reference-inventory",
+      "title": "Protect retained Helm manifests and hooks without exposing Secret contents",
+      "title_zh": "Protect retained Helm manifests and hooks without exposing Secret contents",
+      "interface_type": "workflow",
+      "interface": "cleanup.InspectHelmReleaseReferences",
+      "code_paths": [
+        "pkg/cleanup/helm_references.go",
+        "pkg/cleanup/kubeidentity/helm_references.go",
+        "api/controller/cleanup_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmRetainedManifestAndHooksProvideReferencesOnly"
+        },
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess"
+        },
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmReferenceDecompressionIsBounded"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helm_references_test.go",
+          "selector": "TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helmapp-mutation-admission",
+      "title": "Protect HelmApp create update and install intents during cleanup",
+      "title_zh": "Protect HelmApp create update and install intents during cleanup",
+      "interface_type": "workflow",
+      "interface": "ApplicationAction.CreateApp",
+      "code_paths": [
+        "api/handler/application_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_helmapp_test.go",
+          "selector": "TestHelmAppMutationsHoldCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",
@@ -1339,6 +1617,24 @@
         {
           "path": "builder/exector/cleanup_image_admission_test.go",
           "selector": "TestImageBuildAdmissionBlocksGCAndNeverReplays"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.native-service-mesh-references",
+      "title": "Classify only native ServiceMesh reference schemas",
+      "title_zh": "Classify only native ServiceMesh reference schemas",
+      "interface_type": "workflow",
+      "interface": "cleanup.inspectWorkloadObject",
+      "code_paths": [
+        "pkg/cleanup/reference_workloads.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_service_mesh_test.go",
+          "selector": "TestSavedServiceMeshRequiresKnownNativeProvider"
         }
       ],
       "test_type": "regression",
@@ -1745,6 +2041,59 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.platform-future-helper-references",
+      "title": "Protect default and configured builder and worker helper images",
+      "title_zh": "Protect default and configured builder and worker helper images",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadPlatformHelperReferences",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/platform_helper_references.go",
+        "pkg/cleanup/kubeidentity/helper_references.go",
+        "util/constants/helper_images.go",
+        "builder/build/cnb/config.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestPlatformDefaultsRemainReferencedWithoutActiveBuilds"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestBuilderDaemonSetRollbackHelperReferences"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.platform-resource-admission",
+      "title": "Protect namespace and cluster resource mutations from concurrent cleanup",
+      "title_zh": "Protect namespace and cluster resource mutations from concurrent cleanup",
+      "interface_type": "workflow",
+      "interface": "NsResourceHandler.CreateNsResource",
+      "code_paths": [
+        "api/handler/ns_resource.go",
+        "api/handler/cluster_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_namespace_admission_test.go",
+          "selector": "TestNamespaceMutationsCannotBypassCleanupAdmission"
+        },
+        {
+          "path": "api/handler/cleanup_namespace_admission_test.go",
+          "selector": "TestClusterMutationsCannotBypassCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.plugin-version-reference-coordination",
       "title": "Plugin version writes respect selected deletion and cannot resurrect records",
       "title_zh": "Plugin version writes respect selected deletion and cannot resurrect records",
@@ -1763,6 +2112,70 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.reference-writer-controller-coverage",
+      "title": "Require complete stable platform writer controller coverage",
+      "title_zh": "Require complete stable platform writer controller coverage",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectReferenceWriterCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/reference_writer_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_coverage_test.go",
+          "selector": "TestReferenceWriterCoverageRejectsIncompleteRollout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.reference-writer-runtime-evidence",
+      "title": "Bind reference-writer protocol evidence to immutable running containers",
+      "title_zh": "Bind reference-writer protocol evidence to immutable running containers",
+      "interface_type": "workflow",
+      "interface": "cleanup.RegisterReferenceWriter",
+      "code_paths": [
+        "db/model/cleanup_reference_writer.go",
+        "pkg/cleanup/reference_writer.go",
+        "pkg/cleanup/kubeidentity/reference_writer.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_writer_test.go",
+          "selector": "TestReferenceWriterEvidenceIsIndependentAndImmutable"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_test.go",
+          "selector": "TestReferenceWriterIdentityUsesActualRuntime"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.reference-writer-startup",
+      "title": "Register reference writer runtime evidence at service startup",
+      "title_zh": "Register reference writer runtime evidence at service startup",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.RegisterReferenceWriterStartup",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/reference_writer_startup.go",
+        "pkg/component/reference_writer.go",
+        "cmd/api/main.go",
+        "cmd/worker/worker.go",
+        "cmd/builder/builder.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_startup_test.go",
+          "selector": "TestReferenceWriterStartupWaitsForOwnRuntimeOnly"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registered-storage-discovery",
       "title": "Storage discovery rejects incomplete enrollment",
       "title_zh": "Storage discovery rejects incomplete enrollment",
@@ -1775,6 +2188,43 @@
         {
           "path": "pkg/cleanup/discovery_test.go",
           "selector": "TestDiscoverStoresRejectsIncompleteRegistration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-audit-writer-coverage",
+      "title": "Require current registered platform writers in execution reference audit",
+      "title_zh": "Require current registered platform writers in execution reference audit",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-references",
+      "code_paths": [
+        "api/controller/cleanup_coordination.go",
+        "api/controller/cleanup_reference_writers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_coordination_test.go",
+          "selector": "TestRegistryReferenceAuditUsesBoundAuthenticatedOperation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-certification",
+      "title": "Derive registry readiness from runtime evidence and quiescence",
+      "title_zh": "Derive registry readiness from runtime evidence and quiescence",
+      "interface_type": "workflow",
+      "interface": "cleanup.CertifyRegistry",
+      "code_paths": [
+        "pkg/cleanup/registry_certification.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/registry_certification_test.go",
+          "selector": "TestRegistryCertificationRequiresCompleteEvidence"
         }
       ],
       "test_type": "regression",
@@ -1821,6 +2271,23 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-identity-provision",
+      "title": "Provision independent platform registry identities without overwrites",
+      "title_zh": "Provision independent platform registry identities without overwrites",
+      "interface_type": "workflow",
+      "interface": "provision_identity.provision",
+      "code_paths": [
+        "hack/contrib/docker/registry-gc/provision_identity.py"
+      ],
+      "tests": [
+        {
+          "path": "hack/contrib/docker/registry-gc/provision_identity_test.py"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-ingress-isolation",
       "title": "Reject registry routes that bypass the coordinator",
       "title_zh": "Reject registry routes that bypass the coordinator",
@@ -1857,6 +2324,61 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-participant-coverage",
+      "title": "Verify every selected registry ingress against its runtime enrollment",
+      "title_zh": "Verify every selected registry ingress against its runtime enrollment",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectRegistryParticipantCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/registry_participant_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/registry_participant_test.go",
+          "selector": "TestParticipantIdentityComesFromCurrentContainerStatus"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-permit-fresh-coverage",
+      "title": "Revalidate current registry coverage before deletion permits",
+      "title_zh": "Revalidate current registry coverage before deletion permits",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-permit",
+      "code_paths": [
+        "api/controller/cleanup_coordination.go",
+        "api/controller/cleanup_registry_readiness.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_registry_readiness_test.go",
+          "selector": "TestRegistryPermitRevalidatesCurrentCoverage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-permit-key-separation",
+      "title": "Separate registry permit signing from control authentication",
+      "title_zh": "Separate registry permit signing from control authentication",
+      "interface_type": "workflow",
+      "interface": "controller.systemRegistryPermitKey",
+      "code_paths": [
+        "api/controller/cleanup_permit_key.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_permit_key_test.go",
+          "selector": "TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-preparation",
       "title": "Derive registry identity from controlled inspection without granting cleanup",
       "title_zh": "Derive registry identity from controlled inspection without granting cleanup",
@@ -1869,6 +2391,24 @@
         {
           "path": "api/controller/cleanup_coordination_test.go",
           "selector": "TestRegistryPreparationDerivesIdentityAndNeverPromotesReady"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-reference-bootstrap",
+      "title": "Read collecting registry references without granting deletion",
+      "title_zh": "Read collecting registry references without granting deletion",
+      "interface_type": "workflow",
+      "interface": "cleanup.ReadRegionReferenceInventory",
+      "code_paths": [
+        "pkg/cleanup/reference_audit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_audit_test.go",
+          "selector": "TestReferenceInventoryBootstrapsWithoutGrantingDeletion"
         }
       ],
       "test_type": "regression",
@@ -1905,6 +2445,24 @@
         {
           "path": "pkg/cleanup/kubeidentity/registry_service_test.go",
           "selector": "TestRegistryServiceRejectsMixedAndEmptyDeployments"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-service-stable-membership",
+      "title": "Reject registry membership changes during ingress inspection",
+      "title_zh": "Reject registry membership changes during ingress inspection",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectRegistryService",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/registry_service.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/registry_service_test.go",
+          "selector": "TestRegistryServiceRejectsMembershipChangeDuringInspection"
         }
       ],
       "test_type": "regression",
@@ -1966,6 +2524,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.saved-workload-reference-coordination",
+      "title": "Serialize saved workload reference writes with cleanup admission",
+      "title_zh": "Serialize saved workload reference writes with cleanup admission",
+      "interface_type": "workflow",
+      "interface": "K8sResourceDaoImpl",
+      "code_paths": [
+        "db/mysql/dao/k8s_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/k8s_resource_cleanup_test.go",
+          "selector": "TestSavedWorkloadWritesRespectCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.service-mesh-mutation-admission",
+      "title": "Protect ServiceMesh mutations until reference persistence is confirmed",
+      "title_zh": "Protect ServiceMesh mutations until reference persistence is confirmed",
+      "interface_type": "workflow",
+      "interface": "ApplicationAction.CreateServiceMeshCR",
+      "code_paths": [
+        "api/handler/application_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_service_mesh_test.go",
+          "selector": "TestServiceMeshMutationsHoldCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.service_check_import_handoff",
       "title": "Preserve imported image references across component creation",
       "title_zh": "Preserve imported image references across component creation",
@@ -1997,6 +2591,24 @@
         {
           "path": "builder/exector/cleanup_task_boundary_test.go",
           "selector": "TestSlugShareTaskWaitsForResultPersistence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.signed-gc-job-template",
+      "title": "Project GC identity without exposing permit signing authority",
+      "title_zh": "Project GC identity without exposing permit signing authority",
+      "interface_type": "package_function",
+      "interface": "kubeidentity.BuildRegistryGCJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/gc_job_template.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/gc_job_template_test.go",
+          "selector": "TestSignedGCJobCopiesScopeButNeverPermitSigningSecret"
         }
       ],
       "test_type": "regression",
@@ -2158,6 +2770,97 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-cancel-evidence",
+      "title": "Retain upload session evidence when physical cleanup fails",
+      "title_zh": "Retain upload session evidence when physical cleanup fails",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.CancelUpload",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestCancelUploadRetainsRecoveryEvidenceOnFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-completion-evidence",
+      "title": "Persist upload completion before deleting resumable chunks",
+      "title_zh": "Persist upload completion before deleting resumable chunks",
+      "interface_type": "workflow",
+      "interface": "ChunkUploadManager.CompleteUpload",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_completion_test.go",
+          "selector": "TestUploadCompletionPreservesEvidenceBeforeChunkDeletion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-expiration-evidence",
+      "title": "Preserve unverified expired upload records without expanding background deletion",
+      "title_zh": "Preserve unverified expired upload records without expanding background deletion",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.cleanExpiredSessions",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadCleanupPreservesRecoveryEvidence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-inventory-api",
+      "title": "Scope manual upload inventory and retain unknown measured sizes",
+      "title_zh": "Scope manual upload inventory and retain unknown measured sizes",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/inventory",
+      "code_paths": [
+        "api/controller/cleanup_upload_inventory.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_inventory_test.go",
+          "selector": "TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-inventory-bounds",
+      "title": "Bound upload inventory before physical storage reads",
+      "title_zh": "Bound upload inventory before physical storage reads",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/inventory",
+      "code_paths": [
+        "api/controller/cleanup_upload_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_inventory_test.go",
+          "selector": "TestUploadInventoryRejectsOversizedResultBeforeReadingStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.verified-client-identity",
       "title": "Cleanup requires configured token or verified platform client certificate",
       "title_zh": "Cleanup requires configured token or verified platform client certificate",
@@ -2285,6 +2988,47 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.workload-apply-admission",
+      "title": "Keep workload producer admission through Kubernetes mutation and reference commit",
+      "title_zh": "Keep workload producer admission through Kubernetes mutation and reference commit",
+      "interface_type": "workflow",
+      "interface": "handler.admitWorkload",
+      "code_paths": [
+        "api/handler/cleanup_workload_admission.go",
+        "api/handler/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_workload_admission_test.go",
+          "selector": "TestWorkloadAdmissionProtectsExternalApplyThroughCommit"
+        },
+        {
+          "path": "api/handler/cleanup_workload_admission_test.go",
+          "selector": "TestWorkloadAdmissionRetainsOnlyUnresolvedEffects"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.yaml-apply-admission-integration",
+      "title": "Exercise YAML apply protection through HTTP and durable database outcomes",
+      "title_zh": "Exercise YAML apply protection through HTTP and durable database outcomes",
+      "interface_type": "workflow",
+      "interface": "clusterAction.AddAppK8SResource",
+      "code_paths": [
+        "api/handler/resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_workload_apply_test.go",
+          "selector": "TestYAMLApplyAdmissionCoversRequestsAndPartialResults"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {
@@ -7196,6 +7940,43 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.chunk-cleanup-confirmation",
+      "title": "Require complete scoped S3 chunk deletion acknowledgements",
+      "title_zh": "Require complete scoped S3 chunk deletion acknowledgements",
+      "interface_type": "workflow",
+      "interface": "storage.S3Storage.CleanupChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_cleanup_s3_test.go",
+          "selector": "TestChunkCleanupRequiresCompleteScopedAcknowledgements"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.chunk-size-inventory",
+      "title": "Measure complete scoped S3 upload chunk sizes",
+      "title_zh": "Measure complete scoped S3 upload chunk sizes",
+      "interface_type": "workflow",
+      "interface": "S3Storage.MeasureUploadChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_inventory.go",
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_inventory_test.go",
+          "selector": "TestUploadChunkUsageRequiresCompletePhysicalInventory"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.storage.class-summary",
       "title": "Summarize storage class info",
       "title_zh": "\u6c47\u603b\u5b58\u50a8\u7c7b\u4fe1\u606f",
@@ -7232,6 +8013,60 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.local-chunk-size-inventory",
+      "title": "Measure local upload chunks without following symbolic links",
+      "title_zh": "Measure local upload chunks without following symbolic links",
+      "interface_type": "workflow",
+      "interface": "LocalStorage.MeasureUploadChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_inventory_test.go",
+          "selector": "TestLocalUploadChunkUsageReadsFilesWithoutFollowingLinks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.minio-chunk-cleanup",
+      "title": "Delete all owned MinIO upload chunks while preserving a sibling session",
+      "title_zh": "Delete all owned MinIO upload chunks while preserving a sibling session",
+      "interface_type": "workflow",
+      "interface": "storage.S3Storage.CleanupChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_cleanup_minio_test.go",
+          "selector": "TestMinIOChunkCleanupOwnsExactSession"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.no-credential-startup-logs",
+      "title": "Never print storage access or secret keys at startup",
+      "title_zh": "Never print storage access or secret keys at startup",
+      "interface_type": "workflow",
+      "interface": "storage.Component.Start",
+      "code_paths": [
+        "pkg/component/storage/storage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/credential_logging_test.go",
+          "selector": "TestStorageStartupDoesNotLogCredentials"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.storage.s3-lifecycle-skip-logs",
       "title": "Suppress info logs when S3 lifecycle is already configured",
       "title_zh": "S3 \u751f\u547d\u5468\u671f\u5df2\u914d\u7f6e\u65f6\u4e0d\u518d\u8f93\u51fa info \u65e5\u5fd7",
@@ -7244,6 +8079,29 @@
         {
           "path": "pkg/component/storage/s3_storage_test.go",
           "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.upload-package-size",
+      "title": "Measure scoped upload packages including extracted files",
+      "title_zh": "Measure scoped upload packages including extracted files",
+      "interface_type": "workflow",
+      "interface": "storage.MeasureUploadEvent",
+      "code_paths": [
+        "pkg/component/storage/upload_package_inventory.go",
+        "api/controller/cleanup_upload_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/upload_package_inventory_test.go",
+          "selector": "TestUploadPackageSizeIsScopedAndIncludesExtractedFiles"
+        },
+        {
+          "path": "pkg/component/storage/upload_package_inventory_test.go",
+          "selector": "TestS3UploadPackageMeasurementUsesExactEventPrefix"
         }
       ],
       "test_type": "regression",
@@ -10651,6 +11509,24 @@
         {
           "path": "worker/master/controller/helmapp/unit_test.go",
           "selector": "TestStatusGetPhase"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.helmapp.preserve-current-spec",
+      "title": "Preserve current HelmApp image intent during setup",
+      "title_zh": "Preserve current HelmApp image intent during setup",
+      "interface_type": "workflow",
+      "interface": "helmapp.App.UpdateSpec",
+      "code_paths": [
+        "worker/master/controller/helmapp/app.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/master/controller/helmapp/spec_defaults_test.go",
+          "selector": "TestHelmAppSpecDefaultsPreserveCurrentReferences"
         }
       ],
       "test_type": "regression",

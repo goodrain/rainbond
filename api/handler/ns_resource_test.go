@@ -90,7 +90,7 @@ func TestGetTenantNamespaceUsesNamespaceField(t *testing.T) {
 			Namespace: "tenant-namespace",
 		},
 	}
-	db.SetTestManager(testManager{tenantDao: tenantDao})
+	db.SetTestManager(testManager{Manager: workloadTestManager{database: namespaceAdmissionDB(t)}, tenantDao: tenantDao})
 	defer db.SetTestManager(nil)
 
 	ns, err := GetNsResourceHandler().getTenantNamespace("demo-team")
@@ -107,7 +107,7 @@ func TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty(t *testing.T) {
 			UUID: "tenant-uuid",
 		},
 	}
-	db.SetTestManager(testManager{tenantDao: tenantDao})
+	db.SetTestManager(testManager{Manager: workloadTestManager{database: namespaceAdmissionDB(t)}, tenantDao: tenantDao})
 	defer db.SetTestManager(nil)
 
 	ns, err := GetNsResourceHandler().getTenantNamespace("demo-team")
@@ -125,7 +125,7 @@ func TestCreateNsResourceBatchAggregatesPartialSuccess(t *testing.T) {
 			Namespace: "team-namespace",
 		},
 	}
-	db.SetTestManager(testManager{tenantDao: tenantDao})
+	db.SetTestManager(testManager{Manager: workloadTestManager{database: namespaceAdmissionDB(t)}, tenantDao: tenantDao})
 	defer db.SetTestManager(nil)
 
 	scheme := runtime.NewScheme()
@@ -234,7 +234,7 @@ func TestCreateNsResourceBatchOverridesExplicitNamespace(t *testing.T) {
 			Namespace: "team-namespace",
 		},
 	}
-	db.SetTestManager(testManager{tenantDao: tenantDao})
+	db.SetTestManager(testManager{Manager: workloadTestManager{database: namespaceAdmissionDB(t)}, tenantDao: tenantDao})
 	defer db.SetTestManager(nil)
 
 	scheme := runtime.NewScheme()

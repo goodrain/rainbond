@@ -204,7 +204,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.CodeCheckResult{})
 	m.models = append(m.models, &model.ServiceEvent{})
 	m.models = append(m.models, &model.VersionInfo{})
-	m.models = append(m.models, &model.CleanupStorage{}, &model.CleanupOperation{}, &model.CleanupParticipant{})
+	m.models = append(m.models, &model.CleanupStorage{}, &model.CleanupOperation{}, &model.CleanupParticipant{}, &model.CleanupReferenceWriter{})
 	m.models = append(m.models, &model.TenantServicesStreamPluginPort{})
 	m.models = append(m.models, &model.RegionProcotols{})
 	m.models = append(m.models, &model.LocalScheduler{})
