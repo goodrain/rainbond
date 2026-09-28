@@ -1415,6 +1415,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.helmapp-mutation-admission",
+      "title": "Protect HelmApp create update and install intents during cleanup",
+      "title_zh": "Protect HelmApp create update and install intents during cleanup",
+      "interface_type": "workflow",
+      "interface": "ApplicationAction.CreateApp",
+      "code_paths": [
+        "api/handler/application_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_helmapp_test.go",
+          "selector": "TestHelmAppMutationsHoldCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",
@@ -11178,6 +11196,24 @@
         {
           "path": "worker/master/controller/helmapp/unit_test.go",
           "selector": "TestStatusGetPhase"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.helmapp.preserve-current-spec",
+      "title": "Preserve current HelmApp image intent during setup",
+      "title_zh": "Preserve current HelmApp image intent during setup",
+      "interface_type": "workflow",
+      "interface": "helmapp.App.UpdateSpec",
+      "code_paths": [
+        "worker/master/controller/helmapp/app.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/master/controller/helmapp/spec_defaults_test.go",
+          "selector": "TestHelmAppSpecDefaultsPreserveCurrentReferences"
         }
       ],
       "test_type": "regression",

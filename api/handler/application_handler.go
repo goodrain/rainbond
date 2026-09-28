@@ -98,7 +98,7 @@ func NewApplicationHandler() ApplicationHandler {
 }
 
 // CreateApp -
-func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Application) (*model.Application, error) {
+func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Application) (result *model.Application, err error) {
 	appID := util.NewUUID()
 	if req.K8sApp == "" {
 		req.K8sApp = fmt.Sprintf("default")
@@ -116,8 +116,25 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 		K8sApp:          req.K8sApp,
 	}
 	req.AppID = appReq.AppID
+	var admission *workloadAdmission
+	if appReq.AppType == model.AppTypeHelm {
+		body, bodyErr := yaml.Marshal(appReq)
+		if bodyErr != nil {
+			return nil, bodyErr
+		}
+		admission, err = admitWorkload(db.GetManager().DB(), body)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			finishErr := admission.finish(err == nil)
+			if err == nil {
+				err = finishErr
+			}
+		}()
+	}
 
-	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+	err = db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if db.GetManager().ApplicationDaoTransactions(tx).IsK8sAppDuplicate(appReq.TenantID, appID, appReq.K8sApp) {
 			return bcode.ErrK8sAppExists
 		}
@@ -132,7 +149,7 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 
 		if appReq.AppType == model.AppTypeHelm {
 			// create helmapp.rainbond.io
-			return a.createHelmApp(ctx, appReq)
+			return a.createHelmApp(ctx, appReq, admission)
 		}
 		return nil
 	})
@@ -140,7 +157,7 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 	return req, err
 }
 
-func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Application) error {
+func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Application, admission *workloadAdmission) error {
 	labels := map[string]string{
 		constants.ResourceManagedByLabel: constants.Rainbond,
 	}
@@ -177,7 +194,9 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 
 	ctx2, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	admission.observe(true, nil)
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Create(ctx2, helmApp, metav1.CreateOptions{})
+	admission.observe(false, err)
 	if err != nil {
 		if k8sErrors.IsAlreadyExists(err) {
 			return errors.Wrap(bcode.ErrApplicationExist, "create helm app")
@@ -208,7 +227,7 @@ func (a *ApplicationAction) BatchCreateApp(ctx context.Context, apps *model.Crea
 }
 
 // UpdateApp -
-func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
+func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) (result *dbmodel.Application, err error) {
 	if req.AppName != "" {
 		app.AppName = req.AppName
 	}
@@ -220,7 +239,27 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 	}
 	app.K8sApp = req.K8sApp
 
-	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+	var admission *workloadAdmission
+	if req.NeedUpdateHelmApp() {
+		body, bodyErr := yaml.Marshal(struct {
+			App     *dbmodel.Application
+			Request model.UpdateAppRequest
+		}{app, req})
+		if bodyErr != nil {
+			return nil, bodyErr
+		}
+		admission, err = admitWorkload(db.GetManager().DB(), body)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			finishErr := admission.finish(err == nil)
+			if err == nil {
+				err = finishErr
+			}
+		}()
+	}
+	err = db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if db.GetManager().ApplicationDaoTransactions(tx).IsK8sAppDuplicate(app.TenantID, app.AppID, req.K8sApp) {
 			return bcode.ErrK8sAppExists
 		}
@@ -228,7 +267,7 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 			return err
 		}
 		if req.NeedUpdateHelmApp() {
-			if err := a.updateHelmApp(ctx, app, req); err != nil {
+			if err := a.updateHelmApp(ctx, app, req, admission); err != nil {
 				return err
 			}
 		}
@@ -407,7 +446,7 @@ func (a *ApplicationAction) DeleteServiceMeshCR(app *dbmodel.Application) error 
 	return nil
 }
 
-func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) error {
+func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest, admission *workloadAdmission) error {
 	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
 	if err != nil {
 		return errors.Wrap(err, "get tenant for helm app failed")
@@ -428,7 +467,9 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 	if req.Revision != 0 {
 		helmApp.Spec.Revision = req.Revision
 	}
+	admission.observe(true, nil)
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Update(ctx, helmApp, metav1.UpdateOptions{})
+	admission.observe(false, err)
 	return err
 }
 
@@ -782,7 +823,7 @@ func (a *ApplicationAction) getPVCDiskRequestsKB(ctx context.Context, appID stri
 }
 
 // Install installs the application.
-func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) error {
+func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) (err error) {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(app.TenantID)
@@ -801,7 +842,23 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 	defer cancel()
 	helmApp.Spec.Overrides = overrides
 	helmApp.Spec.PreStatus = v1alpha1.HelmAppPreStatusConfigured
+	body, err := yaml.Marshal(helmApp)
+	if err != nil {
+		return err
+	}
+	admission, err := admitWorkload(db.GetManager().DB(), body)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		finishErr := admission.finish(err == nil)
+		if err == nil {
+			err = finishErr
+		}
+	}()
+	admission.observe(true, nil)
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Update(ctx3, helmApp, metav1.UpdateOptions{})
+	admission.observe(false, err)
 	if err != nil {
 		return err
 	}

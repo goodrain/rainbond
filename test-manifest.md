@@ -76,6 +76,7 @@
 | rainbond.cleanup.generic-activation-fence | Reject generic activation of retired version records | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/store_test.go::TestActivationCannotRestoreRetiredTargetThroughGenericSave |
 | rainbond.cleanup.helm-native-mutation-admission | Coordinate native Helm mutations and track actual Kubernetes write outcomes | active | integration | helm.runCoordinatedMutation | pkg/helm/cleanup_mutation_test.go::TestHelmMutationRequiresDurableProducerAdmission<br>pkg/helm/cleanup_transport_test.go::TestHelmTracksActualReleaseStorageWrites<br>pkg/helm/cleanup_transport_test.go::TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites |
 | rainbond.cleanup.helm-retained-reference-inventory | Protect retained Helm manifests and hooks without exposing Secret contents | active | integration | cleanup.InspectHelmReleaseReferences | pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly<br>pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess<br>pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded<br>pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory |
+| rainbond.cleanup.helmapp-mutation-admission | Protect HelmApp create update and install intents during cleanup | active | regression | ApplicationAction.CreateApp | api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission |
 | rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
 | rainbond.cleanup.managed-cache-binding | Bind managed cache enrollment to observed system storage | active | integration | POST /v2/cleanup/managed-cache/prepare | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume<br>api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.manual-gc-maintenance | Drain writes and require confirmed restoration around manual GC | active | regression | pkg/cleanup.RequestMaintenance | pkg/cleanup/maintenance_test.go::TestMaintenanceDrainsWritersAndRestoresOnlyAfterConfirmation |
@@ -586,6 +587,7 @@
 | rainbond.worker.helmapp.install-and-deploy | 通过控制循环安装并部署 Helm 应用 | active | integration | worker/master/controller/helmapp.ControlLoop | worker/master/controller/helmapp/controlloop_test.go |
 | rainbond.worker.helmapp.overrides-compare | 按无序方式比较 HelmApp 期望与已生效的 overrides | active | regression | pkg/apis/rainbond/v1alpha1.HelmApp.OverridesEqual | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppOverridesEqual |
 | rainbond.worker.helmapp.phase-derive | 根据条件与前置状态推导 HelmApp 阶段 | active | regression | worker/master/controller/helmapp.Status.getPhase | worker/master/controller/helmapp/unit_test.go::TestStatusGetPhase |
+| rainbond.worker.helmapp.preserve-current-spec | Preserve current HelmApp image intent during setup | active | regression | helmapp.App.UpdateSpec | worker/master/controller/helmapp/spec_defaults_test.go::TestHelmAppSpecDefaultsPreserveCurrentReferences |
 | rainbond.worker.helmapp.queue-key-parse | 将 HelmApp 队列键拆分为名称与命名空间片段 | active | regression | worker/master/controller/helmapp.nameNamespace | worker/master/controller/helmapp/unit_test.go::TestNameNamespace |
 | rainbond.worker.helmapp.reconcile-configuring-phase | 协调 Helm 应用进入配置阶段 | active | integration | worker/master/controller/helmapp.ControlLoop | worker/master/controller/helmapp/controlloop_test.go |
 | rainbond.worker.helmapp.reconcile-default-values | 协调 Helm 应用默认值 | active | integration | worker/master/controller/helmapp.ControlLoop | worker/master/controller/helmapp/controlloop_test.go |
@@ -1324,6 +1326,16 @@
 - 业务入口: `cleanup.InspectHelmReleaseReferences`
 - 代码路径: `pkg/cleanup/helm_references.go`, `pkg/cleanup/kubeidentity/helm_references.go`, `api/controller/cleanup_coordination.go`
 - 测试路径: `pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly`, `pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess`, `pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded`, `pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory`
+
+### Protect HelmApp create update and install intents during cleanup
+
+- Capability ID: `rainbond.cleanup.helmapp-mutation-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ApplicationAction.CreateApp`
+- 代码路径: `api/handler/application_handler.go`
+- 测试路径: `api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission`
 
 ### Atomically hand import references to successful versions
 
@@ -6424,6 +6436,16 @@
 - 业务入口: `worker/master/controller/helmapp.Status.getPhase`
 - 代码路径: `worker/master/controller/helmapp/status.go`
 - 测试路径: `worker/master/controller/helmapp/unit_test.go::TestStatusGetPhase`
+
+### Preserve current HelmApp image intent during setup
+
+- Capability ID: `rainbond.worker.helmapp.preserve-current-spec`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `helmapp.App.UpdateSpec`
+- 代码路径: `worker/master/controller/helmapp/app.go`
+- 测试路径: `worker/master/controller/helmapp/spec_defaults_test.go::TestHelmAppSpecDefaultsPreserveCurrentReferences`
 
 ### 将 HelmApp 队列键拆分为名称与命名空间片段
 
