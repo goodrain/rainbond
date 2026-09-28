@@ -417,8 +417,10 @@
 | rainbond.source-sftp.port-parse | 解析 SFTP 端口并提供合理默认值 | active | regression | builder/sources.parseSFTPPort | builder/sources/sftp_test.go::TestParseSFTPPort |
 | rainbond.source-svn.branch-path | 解析 SVN 分支标签与 trunk 的目标路径 | active | regression | builder/sources.getBranchPath | builder/sources/svn_test.go::TestGetBranchPath |
 | rainbond.storage.chunk-cleanup-confirmation | Require complete scoped S3 chunk deletion acknowledgements | active | regression | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_s3_test.go::TestChunkCleanupRequiresCompleteScopedAcknowledgements |
+| rainbond.storage.chunk-size-inventory | Measure complete scoped S3 upload chunk sizes | active | regression | S3Storage.MeasureUploadChunks | pkg/component/storage/chunk_inventory_test.go::TestUploadChunkUsageRequiresCompletePhysicalInventory |
 | rainbond.storage.class-summary | 汇总存储类信息 | active | regression | api/handler.StorageClassInfo | api/handler/storage_test.go::TestStorageClassInfoFields |
 | rainbond.storage.handler-singleton | 复用存储处理器单例 | active | unit | api/handler.GetStorageHandler | api/handler/storage_test.go::TestGetStorageHandlerSingleton |
+| rainbond.storage.local-chunk-size-inventory | Measure local upload chunks without following symbolic links | active | regression | LocalStorage.MeasureUploadChunks | pkg/component/storage/chunk_inventory_test.go::TestLocalUploadChunkUsageReadsFilesWithoutFollowingLinks |
 | rainbond.storage.minio-chunk-cleanup | Delete all owned MinIO upload chunks while preserving a sibling session | active | integration | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_minio_test.go::TestMinIOChunkCleanupOwnsExactSession |
 | rainbond.storage.no-credential-startup-logs | Never print storage access or secret keys at startup | active | regression | storage.Component.Start | pkg/component/storage/credential_logging_test.go::TestStorageStartupDoesNotLogCredentials |
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
@@ -4749,6 +4751,16 @@
 - 代码路径: `pkg/component/storage/chunk_cleanup_s3.go`
 - 测试路径: `pkg/component/storage/chunk_cleanup_s3_test.go::TestChunkCleanupRequiresCompleteScopedAcknowledgements`
 
+### Measure complete scoped S3 upload chunk sizes
+
+- Capability ID: `rainbond.storage.chunk-size-inventory`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `S3Storage.MeasureUploadChunks`
+- 代码路径: `pkg/component/storage/chunk_inventory.go`, `pkg/component/storage/chunk_cleanup_s3.go`
+- 测试路径: `pkg/component/storage/chunk_inventory_test.go::TestUploadChunkUsageRequiresCompletePhysicalInventory`
+
 ### 汇总存储类信息
 
 - Capability ID: `rainbond.storage.class-summary`
@@ -4768,6 +4780,16 @@
 - 业务入口: `api/handler.GetStorageHandler`
 - 代码路径: `api/handler/storage.go`
 - 测试路径: `api/handler/storage_test.go::TestGetStorageHandlerSingleton`
+
+### Measure local upload chunks without following symbolic links
+
+- Capability ID: `rainbond.storage.local-chunk-size-inventory`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `LocalStorage.MeasureUploadChunks`
+- 代码路径: `pkg/component/storage/chunk_inventory.go`
+- 测试路径: `pkg/component/storage/chunk_inventory_test.go::TestLocalUploadChunkUsageReadsFilesWithoutFollowingLinks`
 
 ### Delete all owned MinIO upload chunks while preserving a sibling session
 

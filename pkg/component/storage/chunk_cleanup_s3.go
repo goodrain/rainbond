@@ -22,41 +22,15 @@ func (s3s *S3Storage) cleanupChunkObjects(sessionID string) error {
 	defer cancel()
 	const bucket = "grdata"
 	prefix := s3s.GetChunkDir(sessionID) + "/"
-	objects := []*s3.ObjectIdentifier{}
-	keys := map[string]bool{}
-	cursors := map[string]bool{}
-	cursor := ""
-	for page := 0; ; page++ {
-		if page >= 100 {
-			return fmt.Errorf("upload chunk inventory limit exceeded")
-		}
-		input := &s3.ListObjectsV2Input{Bucket: aws.String(bucket), Prefix: aws.String(prefix), MaxKeys: aws.Int64(1000)}
-		if cursor != "" {
-			input.ContinuationToken = aws.String(cursor)
-		}
-		result, err := s3s.s3Client.ListObjectsV2WithContext(ctx, input)
-		if err != nil {
-			return fmt.Errorf("upload chunk inventory unavailable")
-		}
-		if result == nil || result.IsTruncated == nil || aws.StringValue(result.Name) != bucket || aws.StringValue(result.Prefix) != prefix {
-			return fmt.Errorf("upload chunk inventory scope unverified")
-		}
-		for _, object := range result.Contents {
-			if object == nil || object.Key == nil || !strings.HasPrefix(*object.Key, prefix) || keys[*object.Key] || len(objects) >= 10000 {
-				return fmt.Errorf("invalid upload chunk inventory")
-			}
-			keys[*object.Key] = true
-			objects = append(objects, &s3.ObjectIdentifier{Key: object.Key})
-		}
-		if !*result.IsTruncated {
-			break
-		}
-		cursor = aws.StringValue(result.NextContinuationToken)
-		if cursor == "" || cursors[cursor] {
-			return fmt.Errorf("invalid upload chunk pagination")
-		}
-		cursors[cursor] = true
+	listed, err := s3s.listChunkObjects(ctx, sessionID)
+	if err != nil {
+		return err
 	}
+	objects := make([]*s3.ObjectIdentifier, 0, len(listed))
+	for _, object := range listed {
+		objects = append(objects, &s3.ObjectIdentifier{Key: object.Key})
+	}
+
 	if len(objects) == 0 {
 		return nil
 	}
@@ -95,4 +69,48 @@ func (s3s *S3Storage) cleanupChunkObjects(sessionID string) error {
 		return fmt.Errorf("upload chunk absence unconfirmed")
 	}
 	return nil
+}
+
+func (s3s *S3Storage) listChunkObjects(ctx context.Context, sessionID string) ([]*s3.Object, error) {
+	if !chunkSessionIdentity.MatchString(sessionID) || s3s.s3Client == nil {
+		return nil, fmt.Errorf("invalid upload chunk inventory scope")
+	}
+	const bucket = "grdata"
+	prefix := s3s.GetChunkDir(sessionID) + "/"
+	objects := []*s3.Object{}
+	keys := map[string]bool{}
+	cursors := map[string]bool{}
+	cursor := ""
+	for page := 0; ; page++ {
+		if page >= 100 {
+			return nil, fmt.Errorf("upload chunk inventory limit exceeded")
+		}
+		input := &s3.ListObjectsV2Input{Bucket: aws.String(bucket), Prefix: aws.String(prefix), MaxKeys: aws.Int64(1000)}
+		if cursor != "" {
+			input.ContinuationToken = aws.String(cursor)
+		}
+		result, err := s3s.s3Client.ListObjectsV2WithContext(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("upload chunk inventory unavailable")
+		}
+		if result == nil || result.IsTruncated == nil || aws.StringValue(result.Name) != bucket || aws.StringValue(result.Prefix) != prefix {
+			return nil, fmt.Errorf("upload chunk inventory scope unverified")
+		}
+		for _, object := range result.Contents {
+			if object == nil || object.Key == nil || !strings.HasPrefix(*object.Key, prefix) || keys[*object.Key] || len(objects) >= 10000 {
+				return nil, fmt.Errorf("invalid upload chunk inventory")
+			}
+			keys[*object.Key] = true
+			objects = append(objects, object)
+		}
+		if !*result.IsTruncated {
+			break
+		}
+		cursor = aws.StringValue(result.NextContinuationToken)
+		if cursor == "" || cursors[cursor] {
+			return nil, fmt.Errorf("invalid upload chunk pagination")
+		}
+		cursors[cursor] = true
+	}
+	return objects, nil
 }

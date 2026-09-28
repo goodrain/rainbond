@@ -100,8 +100,20 @@ func TestMinIOChunkCleanupOwnsExactSession(t *testing.T) {
 		t.Fatal("retained chunk creation failed")
 	}
 	store := &S3Storage{s3Client: client}
+	usage, err := store.MeasureUploadChunks(ctx, "owned")
+	if err != nil || usage.Bytes != 5005 || usage.Objects != 1001 {
+		t.Fatalf("real chunk size incorrect: %+v %v", usage, err)
+	}
 	if err := store.CleanupChunks("owned"); err != nil {
 		t.Fatal("real chunk cleanup failed", err)
+	}
+	usage, err = store.MeasureUploadChunks(ctx, "owned")
+	if err != nil || usage.Bytes != 0 || usage.Objects != 0 {
+		t.Fatalf("deleted scope measurement incorrect: %+v %v", usage, err)
+	}
+	retainedUsage, err := store.MeasureUploadChunks(ctx, "owned-retained")
+	if err != nil || retainedUsage.Bytes != 8 || retainedUsage.Objects != 1 {
+		t.Fatalf("retained scope measurement incorrect: %+v %v", retainedUsage, err)
 	}
 	remaining, err := client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("grdata"), Prefix: aws.String(selected)})
 	if err != nil || len(remaining.Contents) != 0 {

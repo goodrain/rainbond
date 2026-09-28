@@ -7921,6 +7921,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.chunk-size-inventory",
+      "title": "Measure complete scoped S3 upload chunk sizes",
+      "title_zh": "Measure complete scoped S3 upload chunk sizes",
+      "interface_type": "workflow",
+      "interface": "S3Storage.MeasureUploadChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_inventory.go",
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_inventory_test.go",
+          "selector": "TestUploadChunkUsageRequiresCompletePhysicalInventory"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.storage.class-summary",
       "title": "Summarize storage class info",
       "title_zh": "\u6c47\u603b\u5b58\u50a8\u7c7b\u4fe1\u606f",
@@ -7954,6 +7973,24 @@
         }
       ],
       "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.local-chunk-size-inventory",
+      "title": "Measure local upload chunks without following symbolic links",
+      "title_zh": "Measure local upload chunks without following symbolic links",
+      "interface_type": "workflow",
+      "interface": "LocalStorage.MeasureUploadChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_inventory_test.go",
+          "selector": "TestLocalUploadChunkUsageReadsFilesWithoutFollowingLinks"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {
