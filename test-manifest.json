@@ -2861,6 +2861,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-use-lifetime",
+      "title": "Keep native upload storage work protected through completion and restart",
+      "title_zh": "Keep native upload storage work protected through completion and restart",
+      "interface_type": "workflow",
+      "interface": "ChunkUploadManager native storage lifecycle",
+      "code_paths": [
+        "api/controller/cleanup_upload_use.go",
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestUploadUsePersistsAcrossStorageWorkAndUncertainResults"
+        },
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestUploadMaintenanceStopsNativeChunkWriteCancelAndExpiry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.verified-client-identity",
       "title": "Cleanup requires configured token or verified platform client certificate",
       "title_zh": "Cleanup requires configured token or verified platform client certificate",

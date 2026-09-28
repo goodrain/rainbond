@@ -151,6 +151,7 @@
 | rainbond.cleanup.upload-expiration-evidence | Preserve unverified expired upload records without expanding background deletion | active | regression | controller.ChunkUploadManager.cleanExpiredSessions | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCleanupPreservesRecoveryEvidence |
 | rainbond.cleanup.upload-inventory-api | Scope manual upload inventory and retain unknown measured sizes | active | regression | POST /v2/cleanup/uploads/inventory | api/controller/cleanup_upload_inventory_test.go::TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes |
 | rainbond.cleanup.upload-inventory-bounds | Bound upload inventory before physical storage reads | active | regression | POST /v2/cleanup/uploads/inventory | api/controller/cleanup_upload_inventory_test.go::TestUploadInventoryRejectsOversizedResultBeforeReadingStorage |
+| rainbond.cleanup.upload-use-lifetime | Keep native upload storage work protected through completion and restart | active | regression | ChunkUploadManager native storage lifecycle | api/controller/cleanup_upload_use_test.go::TestUploadUsePersistsAcrossStorageWorkAndUncertainResults<br>api/controller/cleanup_upload_use_test.go::TestUploadMaintenanceStopsNativeChunkWriteCancelAndExpiry |
 | rainbond.cleanup.verified-client-identity | Cleanup requires configured token or verified platform client certificate | active | regression | api.middleware.CleanupIdentity | api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken |
 | rainbond.cleanup.verified-storage-measurement | Measure only the verified registry backing filesystem | active | regression | registryproxy.MeasureStorage | pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks<br>cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials |
 | rainbond.cleanup.version-activation-fence | Fence upgrade and rollback against version retirement | active | regression | OperationHandler.upgrade and ServiceAction.RollBack | api/handler/cleanup_rollback_test.go::TestLegacyRollbackCannotActivateRetiredVersion<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeRechecksVersionUnderRetirementLock<br>api/handler/cleanup_rollback_test.go::TestUpgradeQueueFailureCannotOverwriteNewerDeployment<br>api/handler/cleanup_rollback_test.go::TestLegacyRollbackRejectsWrongTenant<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeEnqueuesValidatedVersion |
@@ -2093,6 +2094,16 @@
 - 业务入口: `POST /v2/cleanup/uploads/inventory`
 - 代码路径: `api/controller/cleanup_upload_inventory.go`
 - 测试路径: `api/controller/cleanup_upload_inventory_test.go::TestUploadInventoryRejectsOversizedResultBeforeReadingStorage`
+
+### Keep native upload storage work protected through completion and restart
+
+- Capability ID: `rainbond.cleanup.upload-use-lifetime`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ChunkUploadManager native storage lifecycle`
+- 代码路径: `api/controller/cleanup_upload_use.go`, `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/cleanup_upload_use_test.go::TestUploadUsePersistsAcrossStorageWorkAndUncertainResults`, `api/controller/cleanup_upload_use_test.go::TestUploadMaintenanceStopsNativeChunkWriteCancelAndExpiry`
 
 ### Cleanup requires configured token or verified platform client certificate
 
