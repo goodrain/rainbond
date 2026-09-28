@@ -1808,6 +1808,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.platform-resource-admission",
+      "title": "Protect namespace and cluster resource mutations from concurrent cleanup",
+      "title_zh": "Protect namespace and cluster resource mutations from concurrent cleanup",
+      "interface_type": "workflow",
+      "interface": "NsResourceHandler.CreateNsResource",
+      "code_paths": [
+        "api/handler/ns_resource.go",
+        "api/handler/cluster_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_namespace_admission_test.go",
+          "selector": "TestNamespaceMutationsCannotBypassCleanupAdmission"
+        },
+        {
+          "path": "api/handler/cleanup_namespace_admission_test.go",
+          "selector": "TestClusterMutationsCannotBypassCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.plugin-version-reference-coordination",
       "title": "Plugin version writes respect selected deletion and cannot resurrect records",
       "title_zh": "Plugin version writes respect selected deletion and cannot resurrect records",
