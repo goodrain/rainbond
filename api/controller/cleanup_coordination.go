@@ -757,5 +757,9 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if err != nil {
 		return guard.RegionReferenceInventory{}, err
 	}
-	return guard.MergeReferenceInventories(helm, helpers), nil
+	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, component.RainbondClient, helm.HelmReleases)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	return guard.MergeReferenceInventories(helm, helpers, desired), nil
 }

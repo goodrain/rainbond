@@ -36,6 +36,16 @@ func InspectHelmReleaseReferences(encoded, name, namespace string, revision int)
 		}
 	}
 	var release struct {
+		Config json.RawMessage `json:"config"`
+		Chart  struct {
+			Metadata struct {
+				Name    string `json:"name"`
+				Version string `json:"version"`
+			} `json:"metadata"`
+		} `json:"chart"`
+		Info struct {
+			Status string `json:"status"`
+		} `json:"info"`
 		Name      string `json:"name"`
 		Namespace string `json:"namespace"`
 		Version   int    `json:"version"`
@@ -47,7 +57,24 @@ func InspectHelmReleaseReferences(encoded, name, namespace string, revision int)
 	if json.Unmarshal(raw, &release) != nil || release.Name != name || release.Namespace != namespace || release.Version != revision || len(release.Hooks) > 1000 {
 		return denied
 	}
-	result := RegionReferenceInventory{Complete: true, Images: []string{}}
+	if len(release.Chart.Metadata.Name) > 253 || len(release.Chart.Metadata.Version) > 256 || len(release.Info.Status) > 64 {
+		return denied
+	}
+	if len(release.Config) > 256<<10 {
+		return denied
+	}
+	values := map[string]interface{}{}
+	if len(release.Config) > 0 && json.Unmarshal(release.Config, &values) != nil {
+		return denied
+	}
+	if values == nil {
+		values = map[string]interface{}{}
+	}
+	hashes, valid := indexHelmValues(values)
+	if !valid {
+		return denied
+	}
+	result := RegionReferenceInventory{Complete: true, Images: []string{}, HelmReleases: []HelmReleaseIdentity{{ValueHashes: hashes, Name: name, Namespace: namespace, Revision: revision, Chart: release.Chart.Metadata.Name, ChartVersion: release.Chart.Metadata.Version, Status: release.Info.Status}}}
 	images := map[string]bool{}
 	record := func(image string) {
 		if _, err := reference.ParseNormalizedNamed(image); err != nil {

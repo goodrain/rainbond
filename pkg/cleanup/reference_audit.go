@@ -17,10 +17,18 @@ type RegionReferenceAudit struct {
 	Referenced bool `json:"referenced"`
 }
 
+// HelmReleaseIdentity is internal correlation evidence, never a public inventory field.
+type HelmReleaseIdentity struct {
+	ValueHashes                                  map[string]string
+	Name, Namespace, Chart, ChartVersion, Status string
+	Revision                                     int
+}
+
 // RegionReferenceInventory contains image identities, never raw saved configs.
 type RegionReferenceInventory struct {
-	Complete bool     `json:"region_records_complete"`
-	Images   []string `json:"images"`
+	HelmReleases []HelmReleaseIdentity `json:"-"`
+	Complete     bool                  `json:"region_records_complete"`
+	Images       []string              `json:"images"`
 }
 
 var referenceAuditTag = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)

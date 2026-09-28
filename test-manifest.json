@@ -1013,6 +1013,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.deferred-helmapp-references",
+      "title": "Require settled HelmApp intent covered by retained release evidence",
+      "title_zh": "Require settled HelmApp intent covered by retained release evidence",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadHelmAppReferenceInventory",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/helmapp_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/helmapp_references_test.go",
+          "selector": "TestHelmAppReferencesRequireSettledRelease"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.durable-coordination",
       "title": "Persist coordinated operations across restarts and conflicts",
       "title_zh": "Persist coordinated operations across restarts and conflicts",
@@ -1380,6 +1398,42 @@
         }
       ],
       "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helm-release-identity",
+      "title": "Keep bounded Helm release identity private to reference correlation",
+      "title_zh": "Keep bounded Helm release identity private to reference correlation",
+      "interface_type": "workflow",
+      "interface": "cleanup.InspectHelmReleaseReferences",
+      "code_paths": [
+        "pkg/cleanup/helm_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_release_identity_test.go",
+          "selector": "TestHelmReleaseIdentityDoesNotExposeChartConfiguration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.helm-release-values-proof",
+      "title": "Match desired Helm overrides to actual release config digests",
+      "title_zh": "Match desired Helm overrides to actual release config digests",
+      "interface_type": "workflow",
+      "interface": "cleanup.HelmReleaseMatchesOverrides",
+      "code_paths": [
+        "pkg/cleanup/helm_value_evidence.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_release_identity_test.go",
+          "selector": "TestHelmReleaseOverridesRequireActualConfig"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {

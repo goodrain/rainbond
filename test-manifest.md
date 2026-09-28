@@ -58,6 +58,7 @@
 | rainbond.cleanup.coordinated-registry-delete-gc | Verify coordinated deletion and separate GC against isolated real Registry | active | integration | Region coordination API and Registry sidecar | api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC |
 | rainbond.cleanup.coordination-route-auth | Require Region authentication for every coordination route | active | regression | /v2/cleanup/stores/{storage_id}/operations | api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication |
 | rainbond.cleanup.coordinator-runtime | Run verified readiness and terminate the coordinator cleanly | active | regression | cmd/registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext |
+| rainbond.cleanup.deferred-helmapp-references | Require settled HelmApp intent covered by retained release evidence | active | regression | kubeidentity.ReadHelmAppReferenceInventory | pkg/cleanup/kubeidentity/helmapp_references_test.go::TestHelmAppReferencesRequireSettledRelease |
 | rainbond.cleanup.durable-coordination | Persist coordinated operations across restarts and conflicts | active | regression | pkg/cleanup.AcquireOperation | pkg/cleanup/coordination_test.go::TestPersistentCoordinationConflictsAndRecovery |
 | rainbond.cleanup.durable-gc-receipt | Recover only immutable GC execution evidence without replay | active | regression | registryproxy.RecoverGCReceipt | pkg/cleanup/registryproxy/gc_receipt_test.go::TestGCReceiptIsBoundImmutableAndDoesNotPermitReplay |
 | rainbond.cleanup.durable-maintenance-measurements | Persist GC measurements without releasing maintenance protection | active | regression | cleanup.RecordMaintenanceMeasurement | pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore |
@@ -75,6 +76,8 @@
 | rainbond.cleanup.gc-reject-legacy-cleaner | Reject GC while legacy automatic cleanup is enabled | active | regression | BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobRejectsLegacyAutomaticCleanup<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceTracksCleanerProcessButNotStatusHeartbeat |
 | rainbond.cleanup.generic-activation-fence | Reject generic activation of retired version records | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/store_test.go::TestActivationCannotRestoreRetiredTargetThroughGenericSave |
 | rainbond.cleanup.helm-native-mutation-admission | Coordinate native Helm mutations and track actual Kubernetes write outcomes | active | integration | helm.runCoordinatedMutation | pkg/helm/cleanup_mutation_test.go::TestHelmMutationRequiresDurableProducerAdmission<br>pkg/helm/cleanup_transport_test.go::TestHelmTracksActualReleaseStorageWrites<br>pkg/helm/cleanup_transport_test.go::TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites |
+| rainbond.cleanup.helm-release-identity | Keep bounded Helm release identity private to reference correlation | active | regression | cleanup.InspectHelmReleaseReferences | pkg/cleanup/helm_release_identity_test.go::TestHelmReleaseIdentityDoesNotExposeChartConfiguration |
+| rainbond.cleanup.helm-release-values-proof | Match desired Helm overrides to actual release config digests | active | regression | cleanup.HelmReleaseMatchesOverrides | pkg/cleanup/helm_release_identity_test.go::TestHelmReleaseOverridesRequireActualConfig |
 | rainbond.cleanup.helm-retained-reference-inventory | Protect retained Helm manifests and hooks without exposing Secret contents | active | integration | cleanup.InspectHelmReleaseReferences | pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly<br>pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess<br>pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded<br>pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory |
 | rainbond.cleanup.helmapp-mutation-admission | Protect HelmApp create update and install intents during cleanup | active | regression | ApplicationAction.CreateApp | api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission |
 | rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
@@ -1148,6 +1151,16 @@
 - 代码路径: `cmd/registry-coordinator/main.go`
 - 测试路径: `cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext`
 
+### Require settled HelmApp intent covered by retained release evidence
+
+- Capability ID: `rainbond.cleanup.deferred-helmapp-references`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.ReadHelmAppReferenceInventory`
+- 代码路径: `pkg/cleanup/kubeidentity/helmapp_references.go`
+- 测试路径: `pkg/cleanup/kubeidentity/helmapp_references_test.go::TestHelmAppReferencesRequireSettledRelease`
+
 ### Persist coordinated operations across restarts and conflicts
 
 - Capability ID: `rainbond.cleanup.durable-coordination`
@@ -1317,6 +1330,26 @@
 - 业务入口: `helm.runCoordinatedMutation`
 - 代码路径: `pkg/helm/cleanup_mutation.go`, `pkg/helm/cleanup_transport.go`, `pkg/helm/helm.go`
 - 测试路径: `pkg/helm/cleanup_mutation_test.go::TestHelmMutationRequiresDurableProducerAdmission`, `pkg/helm/cleanup_transport_test.go::TestHelmTracksActualReleaseStorageWrites`, `pkg/helm/cleanup_transport_test.go::TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites`
+
+### Keep bounded Helm release identity private to reference correlation
+
+- Capability ID: `rainbond.cleanup.helm-release-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.InspectHelmReleaseReferences`
+- 代码路径: `pkg/cleanup/helm_references.go`
+- 测试路径: `pkg/cleanup/helm_release_identity_test.go::TestHelmReleaseIdentityDoesNotExposeChartConfiguration`
+
+### Match desired Helm overrides to actual release config digests
+
+- Capability ID: `rainbond.cleanup.helm-release-values-proof`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.HelmReleaseMatchesOverrides`
+- 代码路径: `pkg/cleanup/helm_value_evidence.go`
+- 测试路径: `pkg/cleanup/helm_release_identity_test.go::TestHelmReleaseOverridesRequireActualConfig`
 
 ### Protect retained Helm manifests and hooks without exposing Secret contents
 

@@ -82,6 +82,7 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				}
 				inventory := guard.InspectHelmReleaseReferences(encoded, name, item.Namespace, revision)
 				result.Complete = result.Complete && inventory.Complete
+				result.HelmReleases = append(result.HelmReleases, inventory.HelmReleases...)
 				for _, image := range inventory.Images {
 					if len(images) >= 20000 && !images[image] {
 						return denied, ErrBinding
