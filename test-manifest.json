@@ -1336,6 +1336,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.helm-retained-reference-inventory",
+      "title": "Protect retained Helm manifests and hooks without exposing Secret contents",
+      "title_zh": "Protect retained Helm manifests and hooks without exposing Secret contents",
+      "interface_type": "workflow",
+      "interface": "cleanup.InspectHelmReleaseReferences",
+      "code_paths": [
+        "pkg/cleanup/helm_references.go",
+        "pkg/cleanup/kubeidentity/helm_references.go",
+        "api/controller/cleanup_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmRetainedManifestAndHooksProvideReferencesOnly"
+        },
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess"
+        },
+        {
+          "path": "pkg/cleanup/helm_references_test.go",
+          "selector": "TestHelmReferenceDecompressionIsBounded"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helm_references_test.go",
+          "selector": "TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",

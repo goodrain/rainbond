@@ -21,6 +21,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 )
 
 // CleanupCoordinationHandler is an internal Region API. Routes must always use
@@ -28,6 +29,7 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
+	helmReferences      func(context.Context) (guard.RegionReferenceInventory, error)
 	nodeSettings        func() kubeidentity.NodeJobSettings
 	inventorySettings   func() kubeidentity.NodeInventorySettings
 	inspectManagedCache func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
@@ -40,7 +42,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{helmReferences: systemHelmReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.
@@ -293,7 +295,7 @@ func (h *CleanupCoordinationHandler) FinishRestore(w http.ResponseWriter, r *htt
 	}{1, true})
 }
 
-// RegistryReferenceInventory returns advisory image identities for a ready store.
+// RegistryReferenceInventory returns advisory Region and retained Helm image identities.
 func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Generation string `json:"generation"`
@@ -311,6 +313,16 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		coordinationError(w, r, err)
 		return
 	}
+	if h.helmReferences == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	helm, err := h.helmReferences(r.Context())
+	if err != nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	result = guard.MergeReferenceInventories(result, helm)
 	httputil.ReturnSuccess(r, w, struct {
 		Protocol   int    `json:"protocol"`
 		StorageID  string `json:"storage_id"`
@@ -332,7 +344,22 @@ func (h *CleanupCoordinationHandler) RegistryReferences(w http.ResponseWriter, r
 		coordinationError(w, r, err)
 		return
 	}
-	result, err := guard.AuditRegionManifestReferences(h.database(), body.CoordinationRequest, body.Tags)
+	if h.helmReferences == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	state, err := guard.InspectOperation(h.database(), body.CoordinationRequest)
+	if err != nil || state != "active" {
+		coordinationError(w, r, guard.ErrCoordinationChanged)
+		return
+	}
+	helm, err := h.helmReferences(r.Context())
+	if err != nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	// The database audit rechecks the original admission after the remote read.
+	result, err := guard.AuditRegionManifestReferences(h.database(), body.CoordinationRequest, body.Tags, helm)
 	if err != nil {
 		coordinationError(w, r, err)
 		return
@@ -679,4 +706,16 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 		NodeUID      string                    `json:"node_uid"`
 		NodeName     string                    `json:"node_name"`
 	}{1, quiescent, binding, status, observed.NodeUID, observed.Mount.NodeName})
+}
+
+func systemHelmReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
+	component := k8s.Default()
+	if component == nil || component.RestConfig == nil || component.Clientset == nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	client, err := metadata.NewForConfig(component.RestConfig)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	return kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
 }

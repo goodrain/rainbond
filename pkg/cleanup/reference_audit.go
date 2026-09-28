@@ -147,7 +147,7 @@ func ReadRegionReferenceInventory(database *gorm.DB, storage, generation string)
 }
 
 // AuditRegionManifestReferences checks retained records under the original active deletion admission.
-func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tags []string) (RegionReferenceAudit, error) {
+func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tags []string, extra ...RegionReferenceInventory) (RegionReferenceAudit, error) {
 	denied := RegionReferenceAudit{}
 	if !r.valid() || r.Kind != "delete" || !registryDeletionDigest.MatchString(r.Target) || len(tags) > 256 {
 		return denied, ErrCoordinationChanged
@@ -178,6 +178,7 @@ func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tag
 	if err != nil {
 		return denied, err
 	}
+	inventory = MergeReferenceInventories(append([]RegionReferenceInventory{inventory}, extra...)...)
 	result := RegionReferenceAudit{Complete: inventory.Complete}
 	for _, image := range inventory.Images {
 		named, err := reference.ParseNormalizedNamed(image)
@@ -203,4 +204,30 @@ func AuditRegionManifestReferences(database *gorm.DB, r CoordinationRequest, tag
 		return denied, err
 	}
 	return result, nil
+}
+
+// MergeReferenceInventories preserves incompleteness and returns only validated,
+// deduplicated image identities. It never grants deletion or changes store state.
+func MergeReferenceInventories(inventories ...RegionReferenceInventory) RegionReferenceInventory {
+	result := RegionReferenceInventory{Complete: len(inventories) > 0, Images: []string{}}
+	images := map[string]bool{}
+	for _, inventory := range inventories {
+		result.Complete = result.Complete && inventory.Complete
+		for _, image := range inventory.Images {
+			if _, err := reference.ParseNormalizedNamed(image); err != nil {
+				result.Complete = false
+				continue
+			}
+			if len(images) >= 20000 && !images[image] {
+				result.Complete = false
+				continue
+			}
+			images[image] = true
+		}
+	}
+	for image := range images {
+		result.Images = append(result.Images, image)
+	}
+	sort.Strings(result.Images)
+	return result
 }

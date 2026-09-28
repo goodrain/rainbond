@@ -73,6 +73,7 @@
 | rainbond.cleanup.gc-reject-legacy-cleaner | Reject GC while legacy automatic cleanup is enabled | active | regression | BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCJobRejectsLegacyAutomaticCleanup<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceTracksCleanerProcessButNotStatusHeartbeat |
 | rainbond.cleanup.generic-activation-fence | Reject generic activation of retired version records | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/store_test.go::TestActivationCannotRestoreRetiredTargetThroughGenericSave |
 | rainbond.cleanup.helm-native-mutation-admission | Coordinate native Helm mutations and track actual Kubernetes write outcomes | active | integration | helm.runCoordinatedMutation | pkg/helm/cleanup_mutation_test.go::TestHelmMutationRequiresDurableProducerAdmission<br>pkg/helm/cleanup_transport_test.go::TestHelmTracksActualReleaseStorageWrites<br>pkg/helm/cleanup_transport_test.go::TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites |
+| rainbond.cleanup.helm-retained-reference-inventory | Protect retained Helm manifests and hooks without exposing Secret contents | active | integration | cleanup.InspectHelmReleaseReferences | pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly<br>pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess<br>pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded<br>pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory |
 | rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
 | rainbond.cleanup.managed-cache-binding | Bind managed cache enrollment to observed system storage | active | integration | POST /v2/cleanup/managed-cache/prepare | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume<br>api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.manual-gc-maintenance | Drain writes and require confirmed restoration around manual GC | active | regression | pkg/cleanup.RequestMaintenance | pkg/cleanup/maintenance_test.go::TestMaintenanceDrainsWritersAndRestoresOnlyAfterConfirmation |
@@ -1282,6 +1283,16 @@
 - 业务入口: `helm.runCoordinatedMutation`
 - 代码路径: `pkg/helm/cleanup_mutation.go`, `pkg/helm/cleanup_transport.go`, `pkg/helm/helm.go`
 - 测试路径: `pkg/helm/cleanup_mutation_test.go::TestHelmMutationRequiresDurableProducerAdmission`, `pkg/helm/cleanup_transport_test.go::TestHelmTracksActualReleaseStorageWrites`, `pkg/helm/cleanup_transport_test.go::TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites`
+
+### Protect retained Helm manifests and hooks without exposing Secret contents
+
+- Capability ID: `rainbond.cleanup.helm-retained-reference-inventory`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.InspectHelmReleaseReferences`
+- 代码路径: `pkg/cleanup/helm_references.go`, `pkg/cleanup/kubeidentity/helm_references.go`, `api/controller/cleanup_coordination.go`
+- 测试路径: `pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly`, `pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess`, `pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded`, `pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory`
 
 ### Atomically hand import references to successful versions
 

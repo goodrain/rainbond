@@ -326,7 +326,9 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if _, err := guard.AcquireOperation(database, selected); err != nil {
 		t.Fatal(err)
 	}
-	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }}
+	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, helmReferences: func(context.Context) (guard.RegionReferenceInventory, error) {
+		return guard.RegionReferenceInventory{Complete: true}, nil
+	}}
 	router := chi.NewRouter()
 	router.Use(middleware.FullToken)
 	router.Post("/stores/{storage_id}/operations/{operation_id}/registry-references", h.RegistryReferences)
@@ -346,6 +348,22 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if response := invoke(""); response.Code == 200 {
 		t.Fatal("unauthenticated reference audit")
 	}
+	// A retained Helm revision is protective without a Region version row.
+	for _, complete := range []bool{true, false} {
+		h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+			return guard.RegionReferenceInventory{Complete: complete, Images: []string{"goodrain.me/app:v1"}}, nil
+		}
+		response := invoke("Token isolated-reference-fixture")
+		var result struct {
+			Bean guard.RegionReferenceAudit `json:"bean"`
+		}
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &result) != nil || !result.Bean.Referenced || result.Bean.Complete != complete {
+			t.Fatal("Helm history omitted from execution audit", response.Code)
+		}
+	}
+	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+		return guard.RegionReferenceInventory{Complete: true}, nil
+	}
 	for _, referenced := range []bool{false, true} {
 		if referenced {
 			if err := database.Create(&model.VersionInfo{ImageName: "goodrain.me/app:v1"}).Error; err != nil {
@@ -364,6 +382,9 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 			t.Fatal("incorrect reference audit", response.Code)
 		}
 	}
+	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+		return guard.RegionReferenceInventory{Complete: true, Images: []string{"goodrain.me/helm-history:v2"}}, nil
+	}
 	request := httptest.NewRequest("POST", "/stores/owned/reference-inventory", strings.NewReader(`{"generation":"one"}`))
 	request.Header.Set("Authorization", "Token isolated-reference-fixture")
 	snapshot := httptest.NewRecorder()
@@ -375,8 +396,23 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 			guard.RegionReferenceInventory
 		} `json:"bean"`
 	}
-	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || !inventory.Bean.Complete || len(inventory.Bean.Images) != 1 {
+	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || !inventory.Bean.Complete || len(inventory.Bean.Images) != 2 || inventory.Bean.Images[1] != "goodrain.me/helm-history:v2" {
 		t.Fatal("invalid advisory reference inventory", snapshot.Code)
+	}
+	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+		return guard.RegionReferenceInventory{}, errors.New("private-fixture-detail")
+	}
+	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 || strings.Contains(response.Body.String(), "private-fixture-detail") {
+		t.Fatal("failed Helm read became valid or leaked upstream data")
+	}
+	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+		if err := guard.FinishOperation(database, selected, true); err != nil {
+			t.Fatal(err)
+		}
+		return guard.RegionReferenceInventory{Complete: true}, nil
+	}
+	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 {
+		t.Fatal("released admission accepted after remote read")
 	}
 	selected.Owner = "other"
 	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 {
