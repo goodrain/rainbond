@@ -426,6 +426,7 @@
 | rainbond.storage.minio-chunk-cleanup | Delete all owned MinIO upload chunks while preserving a sibling session | active | integration | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_minio_test.go::TestMinIOChunkCleanupOwnsExactSession |
 | rainbond.storage.no-credential-startup-logs | Never print storage access or secret keys at startup | active | regression | storage.Component.Start | pkg/component/storage/credential_logging_test.go::TestStorageStartupDoesNotLogCredentials |
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
+| rainbond.storage.upload-package-size | Measure scoped upload packages including extracted files | active | regression | storage.MeasureUploadEvent | pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles<br>pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
 | rainbond.third-component.endpoint-address-port | 从第三方组件端点地址中解析有效端口 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetPort | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetPort |
@@ -4842,6 +4843,16 @@
 - 业务入口: `pkg/component/storage.(*S3Storage).ensureBucketLifecycle`
 - 代码路径: `pkg/component/storage/s3_storage.go`
 - 测试路径: `pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured`
+
+### Measure scoped upload packages including extracted files
+
+- Capability ID: `rainbond.storage.upload-package-size`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `storage.MeasureUploadEvent`
+- 代码路径: `pkg/component/storage/upload_package_inventory.go`, `api/controller/cleanup_upload_inventory.go`
+- 测试路径: `pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles`, `pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix`
 
 ### 构造并校验第三方组件端点地址
 

@@ -38,7 +38,14 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 		}
 	}
 	measured := 0
-	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, measureUploadChunks: func(ctx context.Context, id string) (storage.UploadChunkUsage, error) {
+	packages := 0
+	h := &CleanupCoordinationHandler{measureUploadEvent: func(ctx context.Context, eventID string) (storage.UploadChunkUsage, error) {
+		packages++
+		if eventID != "owned" {
+			t.Fatal("measured foreign package event")
+		}
+		return storage.UploadChunkUsage{Bytes: 97, Objects: 3}, nil
+	}, database: func() *gorm.DB { return database }, measureUploadChunks: func(ctx context.Context, id string) (storage.UploadChunkUsage, error) {
 		measured++
 		if id == "known" {
 			return storage.UploadChunkUsage{Bytes: 17, Objects: 2}, nil
@@ -78,6 +85,10 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	}
 	var reply struct {
 		Bean struct {
+			Packages []struct {
+				EventID string `json:"event_id"`
+				Bytes   *int64 `json:"bytes"`
+			} `json:"packages"`
 			Protocol int `json:"protocol"`
 			Items    []struct {
 				ID         string `json:"id"`
@@ -91,6 +102,9 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	}
 	if reply.Bean.Protocol != 1 || len(reply.Bean.Items) != 2 || measured != 2 {
 		t.Fatal("incorrect scoped inventory")
+	}
+	if packages != 1 || len(reply.Bean.Packages) != 1 || reply.Bean.Packages[0].EventID != "owned" || reply.Bean.Packages[0].Bytes == nil || *reply.Bean.Packages[0].Bytes != 97 {
+		t.Fatal("package was omitted or counted per session")
 	}
 	known, unknown := reply.Bean.Items[0], reply.Bean.Items[1]
 	if known.ID != "known" || known.Bytes == nil || *known.Bytes != 17 || known.SizeStatus != "measured" {

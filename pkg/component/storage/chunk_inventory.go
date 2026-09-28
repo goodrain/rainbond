@@ -7,6 +7,8 @@ import (
 	"math"
 	"os"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 // UploadChunkUsage describes observed current chunk objects, not reclaimable bytes.
@@ -25,6 +27,10 @@ func (s3s *S3Storage) MeasureUploadChunks(ctx context.Context, sessionID string)
 	if err != nil {
 		return UploadChunkUsage{}, err
 	}
+	return measureUploadObjects(objects)
+}
+
+func measureUploadObjects(objects []*s3.Object) (UploadChunkUsage, error) {
 	usage := UploadChunkUsage{}
 	for _, object := range objects {
 		if object.Size == nil || *object.Size < 0 || *object.Size > math.MaxInt64-usage.Bytes {

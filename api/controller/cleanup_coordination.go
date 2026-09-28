@@ -30,6 +30,7 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
+	measureUploadEvent      func(context.Context, string) (storage.UploadChunkUsage, error)
 	measureUploadChunks     func(context.Context, string) (storage.UploadChunkUsage, error)
 	inspectRegistryCoverage func(context.Context, guard.StorageRegistration, []guard.ParticipantRegistration) (guard.RegistryCoverage, error)
 	inspectReferenceWriters func(context.Context) ([]guard.ReferenceWriter, error)
@@ -47,7 +48,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	h := &CleanupCoordinationHandler{measureUploadChunks: systemMeasureUploadChunks, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h := &CleanupCoordinationHandler{measureUploadChunks: systemMeasureUploadChunks, measureUploadEvent: systemMeasureUploadEvent, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 	h.inspectRegistryCoverage = h.observeRegistryCoverage
 	return h
 }

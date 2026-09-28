@@ -75,8 +75,11 @@ func (s3s *S3Storage) listChunkObjects(ctx context.Context, sessionID string) ([
 	if !chunkSessionIdentity.MatchString(sessionID) || s3s.s3Client == nil {
 		return nil, fmt.Errorf("invalid upload chunk inventory scope")
 	}
+	return s3s.listUploadObjects(ctx, s3s.GetChunkDir(sessionID)+"/")
+}
+
+func (s3s *S3Storage) listUploadObjects(ctx context.Context, prefix string) ([]*s3.Object, error) {
 	const bucket = "grdata"
-	prefix := s3s.GetChunkDir(sessionID) + "/"
 	objects := []*s3.Object{}
 	keys := map[string]bool{}
 	cursors := map[string]bool{}

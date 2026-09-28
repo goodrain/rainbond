@@ -8085,6 +8085,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.upload-package-size",
+      "title": "Measure scoped upload packages including extracted files",
+      "title_zh": "Measure scoped upload packages including extracted files",
+      "interface_type": "workflow",
+      "interface": "storage.MeasureUploadEvent",
+      "code_paths": [
+        "pkg/component/storage/upload_package_inventory.go",
+        "api/controller/cleanup_upload_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/upload_package_inventory_test.go",
+          "selector": "TestUploadPackageSizeIsScopedAndIncludesExtractedFiles"
+        },
+        {
+          "path": "pkg/component/storage/upload_package_inventory_test.go",
+          "selector": "TestS3UploadPackageMeasurementUsesExactEventPrefix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.third-component.endpoint-address-construct",
       "title": "Construct validated third-component endpoint addresses",
       "title_zh": "\u6784\u9020\u5e76\u6821\u9a8c\u7b2c\u4e09\u65b9\u7ec4\u4ef6\u7aef\u70b9\u5730\u5740",

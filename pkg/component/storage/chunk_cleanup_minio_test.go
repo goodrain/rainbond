@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -93,13 +94,25 @@ func TestMinIOChunkCleanupOwnsExactSession(t *testing.T) {
 	for i := 0; i < 1001; i++ {
 		key := fmt.Sprintf("%schunk_%d", selected, i)
 		if _, err := client.PutObjectWithContext(ctx, &s3.PutObjectInput{Bucket: aws.String("grdata"), Key: aws.String(key), Body: strings.NewReader("owned")}); err != nil {
+			if failure, ok := err.(awserr.Error); ok {
+				t.Fatal("owned chunk creation failed", failure.Code())
+			}
 			t.Fatal("owned chunk creation failed")
 		}
 	}
 	if _, err := client.PutObjectWithContext(ctx, &s3.PutObjectInput{Bucket: aws.String("grdata"), Key: aws.String(retained), Body: strings.NewReader("retained")}); err != nil {
 		t.Fatal("retained chunk creation failed")
 	}
+	for key, body := range map[string]string{"package_build/temp/events/owned/app.zip": "package", "package_build/temp/events/owned/extracted/source": "source"} {
+		if _, err := client.PutObjectWithContext(ctx, &s3.PutObjectInput{Bucket: aws.String("grdata"), Key: aws.String(key), Body: strings.NewReader(body)}); err != nil {
+			t.Fatal("owned package creation failed")
+		}
+	}
 	store := &S3Storage{s3Client: client}
+	packageUsage, err := store.MeasureUploadEvent(ctx, "owned")
+	if err != nil || packageUsage.Bytes != 13 || packageUsage.Objects != 2 {
+		t.Fatal("real package inventory incorrect", packageUsage, err)
+	}
 	usage, err := store.MeasureUploadChunks(ctx, "owned")
 	if err != nil || usage.Bytes != 5005 || usage.Objects != 1001 {
 		t.Fatalf("real chunk size incorrect: %+v %v", usage, err)
@@ -114,6 +127,10 @@ func TestMinIOChunkCleanupOwnsExactSession(t *testing.T) {
 	retainedUsage, err := store.MeasureUploadChunks(ctx, "owned-retained")
 	if err != nil || retainedUsage.Bytes != 8 || retainedUsage.Objects != 1 {
 		t.Fatalf("retained scope measurement incorrect: %+v %v", retainedUsage, err)
+	}
+	packageUsage, err = store.MeasureUploadEvent(ctx, "owned")
+	if err != nil || packageUsage.Bytes != 13 || packageUsage.Objects != 2 {
+		t.Fatal("chunk cleanup changed completed package", packageUsage, err)
 	}
 	remaining, err := client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("grdata"), Prefix: aws.String(selected)})
 	if err != nil || len(remaining.Contents) != 0 {
