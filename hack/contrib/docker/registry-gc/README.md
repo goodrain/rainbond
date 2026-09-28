@@ -95,3 +95,29 @@ Rotation requires separate versioned Secrets and a reviewed drain/migration.
 The control Secret supplies `key` to the coordinator and `console.json` to Console.
 The permit Secret supplies `key` only to Core API and the coordinator. Do not
 project the entire control Secret into a plugin or permit Secret into GC Jobs.
+
+### Console runtime identity
+
+The Console image must contain the private writer-announcement client. Configure
+these non-sensitive downward-API entries on `rbd-app-ui` (RbdComponent `spec.env`):
+
+```yaml
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
+- name: POD_UID
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.uid
+```
+
+After a valid signed inventory request and enterprise/region ownership check,
+Console announces its own Pod name/UID and the supported reference protocol using
+its existing verified Region TLS client. Core observes the actual container and
+image identity. No caller-provided image or writable flag is accepted. The
+registration path is deliberately absent from the plugin/system bridge allowlist.
+Missing identity or an older Core does not break read-only inventory, but supplies
+no writer evidence. Success is cached per Console process and region; the record
+is not a readiness grant. Completeness checks must still account for every live
+Console instance; one successful request does not certify other replicas.

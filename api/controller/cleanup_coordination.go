@@ -29,20 +29,21 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
-	clusterReferences   func(context.Context) (guard.RegionReferenceInventory, error)
-	nodeSettings        func() kubeidentity.NodeJobSettings
-	inventorySettings   func() kubeidentity.NodeInventorySettings
-	inspectManagedCache func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
-	gcTarget            func() (kubernetes.Interface, string, string, error)
-	database            func() *gorm.DB
-	permitKey           func() []byte
-	inspectRegistry     func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
-	inspectParticipant  func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
+	inspectConsoleWriter func(context.Context, string, string) (guard.ReferenceWriter, error)
+	clusterReferences    func(context.Context) (guard.RegionReferenceInventory, error)
+	nodeSettings         func() kubeidentity.NodeJobSettings
+	inventorySettings    func() kubeidentity.NodeInventorySettings
+	inspectManagedCache  func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
+	gcTarget             func() (kubernetes.Interface, string, string, error)
+	database             func() *gorm.DB
+	permitKey            func() []byte
+	inspectRegistry      func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
+	inspectParticipant   func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
 }
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.

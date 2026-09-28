@@ -939,6 +939,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.console-writer-announcement",
+      "title": "Authenticate Console announcements and bind observed runtime identity",
+      "title_zh": "Authenticate Console announcements and bind observed runtime identity",
+      "interface_type": "workflow",
+      "interface": "CleanupCoordinationHandler.RegisterConsoleReferenceWriter",
+      "code_paths": [
+        "api/controller/cleanup_reference_writer.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_reference_writer_test.go",
+          "selector": "TestConsoleWriterAnnouncementRequiresAuthenticationAndObservedIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.coordinated-registry-delete-gc",
       "title": "Verify coordinated deletion and separate GC against isolated real Registry",
       "title_zh": "Verify coordinated deletion and separate GC against isolated real Registry",

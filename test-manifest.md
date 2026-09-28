@@ -54,6 +54,7 @@
 | rainbond.cleanup.console-signed-coordinator | Use installation-scoped signatures for coordinator requests | active | regression | cleanup.NewConsoleCoordinationClient | pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential<br>pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry |
 | rainbond.cleanup.console-signed-coordinator-runtime | Run signed coordinator with an independent permit key | active | regression | registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorUsesSignedConsoleAndIndependentPermitKey<br>cmd/registry-coordinator/main_test.go::TestSignedCoordinatorRejectsSharedOrMissingPermitKey |
 | rainbond.cleanup.console-signed-gc-command | Authenticate original GC callbacks with installation signatures | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandUsesInstallationSignatureForOriginalReceipt |
+| rainbond.cleanup.console-writer-announcement | Authenticate Console announcements and bind observed runtime identity | active | regression | CleanupCoordinationHandler.RegisterConsoleReferenceWriter | api/controller/cleanup_reference_writer_test.go::TestConsoleWriterAnnouncementRequiresAuthenticationAndObservedIdentity |
 | rainbond.cleanup.coordinated-registry-delete-gc | Verify coordinated deletion and separate GC against isolated real Registry | active | integration | Region coordination API and Registry sidecar | api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryRealDeletionAndGC |
 | rainbond.cleanup.coordination-route-auth | Require Region authentication for every coordination route | active | regression | /v2/cleanup/stores/{storage_id}/operations | api/api_routers/version2/cleanup_coordination_test.go::TestCleanupCoordinationRoutesAlwaysRequireRegionAuthentication |
 | rainbond.cleanup.coordinator-runtime | Run verified readiness and terminate the coordinator cleanly | active | regression | cmd/registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorRunsReadinessAndStopsWithContext |
@@ -1097,6 +1098,16 @@
 - 业务入口: `registry-gc.runGC`
 - 代码路径: `cmd/registry-gc/main.go`
 - 测试路径: `cmd/registry-gc/main_test.go::TestGCCommandUsesInstallationSignatureForOriginalReceipt`
+
+### Authenticate Console announcements and bind observed runtime identity
+
+- Capability ID: `rainbond.cleanup.console-writer-announcement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `CleanupCoordinationHandler.RegisterConsoleReferenceWriter`
+- 代码路径: `api/controller/cleanup_reference_writer.go`, `api/api_routers/version2/v2Routers.go`
+- 测试路径: `api/controller/cleanup_reference_writer_test.go::TestConsoleWriterAnnouncementRequiresAuthenticationAndObservedIdentity`
 
 ### Verify coordinated deletion and separate GC against isolated real Registry
 
