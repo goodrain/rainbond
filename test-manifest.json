@@ -2416,6 +2416,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.service-mesh-mutation-admission",
+      "title": "Protect ServiceMesh mutations until reference persistence is confirmed",
+      "title_zh": "Protect ServiceMesh mutations until reference persistence is confirmed",
+      "interface_type": "workflow",
+      "interface": "ApplicationAction.CreateServiceMeshCR",
+      "code_paths": [
+        "api/handler/application_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_service_mesh_test.go",
+          "selector": "TestServiceMeshMutationsHoldCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.service_check_import_handoff",
       "title": "Preserve imported image references across component creation",
       "title_zh": "Preserve imported image references across component creation",

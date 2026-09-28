@@ -3,20 +3,21 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
-	"github.com/goodrain/rainbond/pkg/component/grpc"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/goodrain/rainbond/pkg/component/prom"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"os"
-	"sigs.k8s.io/yaml"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/prom"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/yaml"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
@@ -269,6 +270,21 @@ func (a *ApplicationAction) CreateServiceMeshCR(app *dbmodel.Application, govern
 	}
 	var resource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshes"}
 	desired := a.generateServiceMeshObj(app, governance, team)
+	body, err := yaml.Marshal(desired)
+	if err != nil {
+		return "", err
+	}
+	admission, err := admitWorkload(db.GetManager().DB(), body)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		finishErr := admission.finish(err == nil)
+		if err == nil {
+			err = finishErr
+		}
+	}()
+
 	// get service mesh cr
 	var smcr *unstructured.Unstructured
 	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Get(context.Background(), app.K8sApp, metav1.GetOptions{})
@@ -276,44 +292,47 @@ func (a *ApplicationAction) CreateServiceMeshCR(app *dbmodel.Application, govern
 		if !k8sErrors.IsNotFound(err) {
 			return "", err
 		}
+		admission.observe(true, nil)
 		smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		admission.observe(false, err)
 		if err != nil {
 			return "", err
 		}
 	}
-	return a.handleDBK8sResource(app, smcr, "create")
+	return a.handleDBK8sResource(app, smcr, "create", admission)
 }
 
-func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *unstructured.Unstructured, action string) (string, error) {
+func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *unstructured.Unstructured, action string, admission *workloadAdmission) (string, error) {
 	contentBytes, err := yaml.Marshal(smcr)
 	if err != nil {
-		logrus.Warningf("marshal service mesh cr error: %v", err)
+		return "", err
 	}
-	resource := &dbmodel.K8sResource{
-		AppID:   app.AppID,
-		Name:    app.K8sApp,
-		State:   model.CreateSuccess,
-		Content: string(contentBytes),
+	resource := &dbmodel.K8sResource{AppID: app.AppID, Name: app.K8sApp, State: model.CreateSuccess, Content: string(contentBytes)}
+	persist := func(database *gorm.DB) error {
+		dao := db.GetManager().K8sResourceDaoTransactions(database)
+		switch action {
+		case "create":
+			resource.Kind = smcr.GetKind()
+			return dao.AddModel(resource)
+		case "update":
+			old, err := dao.GetK8sResourceByName(app.AppID, app.K8sApp, smcr.GetKind())
+			if err != nil {
+				return err
+			}
+			old.Content = string(contentBytes)
+			return dao.UpdateModel(&old)
+		case "delete":
+			return dao.DeleteK8sResource(app.AppID, app.K8sApp, "ServiceMesh")
+		}
+		return nil
 	}
-	switch action {
-	case "create":
-		resource.Kind = smcr.GetKind()
-		if err := db.GetManager().K8sResourceDao().AddModel(resource); err != nil {
-			return "", err
-		}
-	case "update":
-		old, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(app.AppID, app.K8sApp, smcr.GetKind())
-		if err != nil {
-			return "", err
-		}
-		old.Content = string(contentBytes)
-		if err := db.GetManager().K8sResourceDao().UpdateModel(&old); err != nil {
-			return "", err
-		}
-	case "delete":
-		if err := db.GetManager().K8sResourceDao().DeleteK8sResource(app.AppID, app.K8sApp, "ServiceMesh"); err != nil {
-			return "", err
-		}
+	if admission != nil {
+		err = admission.write(persist)
+	} else {
+		err = persist(db.GetManager().DB())
+	}
+	if err != nil {
+		return "", err
 	}
 	return string(contentBytes), nil
 }
@@ -326,6 +345,21 @@ func (a *ApplicationAction) UpdateServiceMeshCR(app *dbmodel.Application, govern
 	}
 	var resource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshes"}
 	desired := a.generateServiceMeshObj(app, governance, team)
+	body, err := yaml.Marshal(desired)
+	if err != nil {
+		return "", err
+	}
+	admission, err := admitWorkload(db.GetManager().DB(), body)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		finishErr := admission.finish(err == nil)
+		if err == nil {
+			err = finishErr
+		}
+	}()
+
 	// get service mesh cr
 	var smcr *unstructured.Unstructured
 	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Get(context.Background(), app.K8sApp, metav1.GetOptions{})
@@ -333,17 +367,21 @@ func (a *ApplicationAction) UpdateServiceMeshCR(app *dbmodel.Application, govern
 		if !k8sErrors.IsNotFound(err) {
 			return "", err
 		}
+		admission.observe(true, nil)
 		smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		admission.observe(false, err)
 		if err != nil {
 			return "", err
 		}
 	}
 	smcr.Object["provisioner"] = governance
+	admission.observe(true, nil)
 	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Update(context.Background(), smcr, metav1.UpdateOptions{})
+	admission.observe(false, err)
 	if err != nil {
 		return "", err
 	}
-	return a.handleDBK8sResource(app, smcr, "update")
+	return a.handleDBK8sResource(app, smcr, "update", admission)
 }
 
 // DeleteServiceMeshCR delete service mesh custom resources
@@ -362,7 +400,7 @@ func (a *ApplicationAction) DeleteServiceMeshCR(app *dbmodel.Application) error 
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		return err
 	}
-	_, err = a.handleDBK8sResource(app, nil, "delete")
+	_, err = a.handleDBK8sResource(app, nil, "delete", nil)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return err
 	}

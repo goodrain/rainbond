@@ -127,6 +127,7 @@
 | rainbond.cleanup.registry-upload-lifecycle | Keep upload leases across parts and drain existing sessions safely | active | regression | pkg/cleanup.AcquireUploadRequest | pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts |
 | rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
 | rainbond.cleanup.saved-workload-reference-coordination | Serialize saved workload reference writes with cleanup admission | active | regression | K8sResourceDaoImpl | db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission |
+| rainbond.cleanup.service-mesh-mutation-admission | Protect ServiceMesh mutations until reference persistence is confirmed | active | regression | ApplicationAction.CreateServiceMeshCR | api/handler/cleanup_service_mesh_test.go::TestServiceMeshMutationsHoldCleanupAdmission |
 | rainbond.cleanup.service_check_import_handoff | Preserve imported image references across component creation | active | regression | CleanServiceCheckData | api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences |
 | rainbond.cleanup.share-task-completion | Slug sharing remains active until result persistence finishes | active | regression | exectorManager.slugShare | builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence |
 | rainbond.cleanup.signed-gc-job-template | Project GC identity without exposing permit signing authority | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret |
@@ -1833,6 +1834,16 @@
 - 业务入口: `K8sResourceDaoImpl`
 - 代码路径: `db/mysql/dao/k8s_resource.go`
 - 测试路径: `db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission`
+
+### Protect ServiceMesh mutations until reference persistence is confirmed
+
+- Capability ID: `rainbond.cleanup.service-mesh-mutation-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ApplicationAction.CreateServiceMeshCR`
+- 代码路径: `api/handler/application_handler.go`
+- 测试路径: `api/handler/cleanup_service_mesh_test.go::TestServiceMeshMutationsHoldCleanupAdmission`
 
 ### Preserve imported image references across component creation
 
