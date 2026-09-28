@@ -29,6 +29,7 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
+	inspectRegistryCoverage func(context.Context, guard.StorageRegistration, []guard.ParticipantRegistration) (guard.RegistryCoverage, error)
 	inspectReferenceWriters func(context.Context) ([]guard.ReferenceWriter, error)
 	inspectConsoleWriter    func(context.Context, string, string) (guard.ReferenceWriter, error)
 	clusterReferences       func(context.Context) (guard.RegionReferenceInventory, error)
@@ -44,7 +45,9 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h := &CleanupCoordinationHandler{inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h.inspectRegistryCoverage = h.observeRegistryCoverage
+	return h
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.
@@ -403,6 +406,15 @@ func (h *CleanupCoordinationHandler) RegistryPermit(w http.ResponseWriter, r *ht
 	}
 	if state != "active" {
 		coordinationError(w, r, guard.ErrCoordinationUncertain)
+		return
+	}
+	binding, err := guard.StorageBinding(h.database(), request.StorageID, request.Generation)
+	if err != nil {
+		coordinationError(w, r, err)
+		return
+	}
+	if _, ready, err := h.certifyRegistry(r.Context(), binding, &request); err != nil || !ready {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
 	permit, err := guard.IssueRegistryDeletionPermit(h.permitKey(), request, time.Now())

@@ -2216,6 +2216,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-permit-fresh-coverage",
+      "title": "Revalidate current registry coverage before deletion permits",
+      "title_zh": "Revalidate current registry coverage before deletion permits",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-permit",
+      "code_paths": [
+        "api/controller/cleanup_coordination.go",
+        "api/controller/cleanup_registry_readiness.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_registry_readiness_test.go",
+          "selector": "TestRegistryPermitRevalidatesCurrentCoverage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-permit-key-separation",
       "title": "Separate registry permit signing from control authentication",
       "title_zh": "Separate registry permit signing from control authentication",

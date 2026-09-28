@@ -116,6 +116,7 @@
 | rainbond.cleanup.registry-ingress-isolation | Reject registry routes that bypass the coordinator | active | regression | pkg/cleanup/kubeidentity.InspectRegistryIngress | pkg/cleanup/kubeidentity/registry_ingress_test.go::TestRegistryIngressRequiresExclusiveCoordinatedRoute |
 | rainbond.cleanup.registry-kubernetes-binding | Verify actual registry Pod and backing volume identity | active | regression | pkg/cleanup/kubeidentity.InspectRegistryMount | pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity |
 | rainbond.cleanup.registry-participant-coverage | Verify every selected registry ingress against its runtime enrollment | active | regression | kubeidentity.InspectRegistryParticipantCoverage | pkg/cleanup/kubeidentity/registry_participant_test.go::TestParticipantIdentityComesFromCurrentContainerStatus |
+| rainbond.cleanup.registry-permit-fresh-coverage | Revalidate current registry coverage before deletion permits | active | regression | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-permit | api/controller/cleanup_registry_readiness_test.go::TestRegistryPermitRevalidatesCurrentCoverage |
 | rainbond.cleanup.registry-permit-key-separation | Separate registry permit signing from control authentication | active | regression | controller.systemRegistryPermitKey | api/controller/cleanup_permit_key_test.go::TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure |
 | rainbond.cleanup.registry-preparation | Derive registry identity from controlled inspection without granting cleanup | active | regression | /v2/cleanup/registry/prepare | api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.registry-reference-bootstrap | Read collecting registry references without granting deletion | active | regression | cleanup.ReadRegionReferenceInventory | pkg/cleanup/reference_audit_test.go::TestReferenceInventoryBootstrapsWithoutGrantingDeletion |
@@ -1722,6 +1723,16 @@
 - 业务入口: `kubeidentity.InspectRegistryParticipantCoverage`
 - 代码路径: `pkg/cleanup/kubeidentity/registry_participant_coverage.go`
 - 测试路径: `pkg/cleanup/kubeidentity/registry_participant_test.go::TestParticipantIdentityComesFromCurrentContainerStatus`
+
+### Revalidate current registry coverage before deletion permits
+
+- Capability ID: `rainbond.cleanup.registry-permit-fresh-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-permit`
+- 代码路径: `api/controller/cleanup_coordination.go`, `api/controller/cleanup_registry_readiness.go`
+- 测试路径: `api/controller/cleanup_registry_readiness_test.go::TestRegistryPermitRevalidatesCurrentCoverage`
 
 ### Separate registry permit signing from control authentication
 
