@@ -1986,6 +1986,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.reference-writer-controller-coverage",
+      "title": "Require complete stable platform writer controller coverage",
+      "title_zh": "Require complete stable platform writer controller coverage",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectReferenceWriterCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/reference_writer_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_coverage_test.go",
+          "selector": "TestReferenceWriterCoverageRejectsIncompleteRollout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.reference-writer-runtime-evidence",
       "title": "Bind reference-writer protocol evidence to immutable running containers",
       "title_zh": "Bind reference-writer protocol evidence to immutable running containers",

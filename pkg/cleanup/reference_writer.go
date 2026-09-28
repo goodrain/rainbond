@@ -91,3 +91,39 @@ func ReferenceWriterRegistered(database *gorm.DB, w ReferenceWriter) (bool, erro
 	}
 	return row.Fingerprint == fingerprint, nil
 }
+
+// ReferenceWriterCoverageRegistered requires every current instance and all four
+// platform writer roles. Historical rows cannot stand in for absent live proof.
+func ReferenceWriterCoverageRegistered(database *gorm.DB, writers []ReferenceWriter) (bool, error) {
+	if database == nil {
+		return false, ErrCoordinationUnavailable
+	}
+	if len(writers) == 0 || len(writers) > 256 {
+		return false, nil
+	}
+	roles := map[string]bool{}
+	instances := map[string]bool{}
+	namespace := writers[0].Namespace
+	for _, writer := range writers {
+		if writer.Namespace != namespace {
+			return false, ErrCoordinationChanged
+		}
+		id, _, err := writer.identity()
+		if err != nil {
+			return false, err
+		}
+		if instances[id] {
+			return false, ErrCoordinationChanged
+		}
+		instances[id] = true
+		registered, err := ReferenceWriterRegistered(database, writer)
+		if err != nil {
+			return false, err
+		}
+		if !registered {
+			return false, nil
+		}
+		roles[writer.Role] = true
+	}
+	return roles["api"] && roles["worker"] && roles["builder"] && roles["console"], nil
+}
