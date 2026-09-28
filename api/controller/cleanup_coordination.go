@@ -725,7 +725,7 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if configuration.PublicConfig == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helpers, err := kubeidentity.ReadAPIHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
+	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
 	if err != nil {
 		return guard.RegionReferenceInventory{}, err
 	}

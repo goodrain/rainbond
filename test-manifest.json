@@ -1896,6 +1896,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.platform-future-helper-references",
+      "title": "Protect default and configured builder and worker helper images",
+      "title_zh": "Protect default and configured builder and worker helper images",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadPlatformHelperReferences",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/platform_helper_references.go",
+        "pkg/cleanup/kubeidentity/helper_references.go",
+        "util/constants/helper_images.go",
+        "builder/build/cnb/config.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestPlatformDefaultsRemainReferencedWithoutActiveBuilds"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/platform_helper_references_test.go",
+          "selector": "TestBuilderDaemonSetRollbackHelperReferences"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.platform-resource-admission",
       "title": "Protect namespace and cluster resource mutations from concurrent cleanup",
       "title_zh": "Protect namespace and cluster resource mutations from concurrent cleanup",

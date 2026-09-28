@@ -100,6 +100,7 @@
 | rainbond.cleanup.node-result-finalization | Finalize known original node results only after verified executor exit | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish | pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor<br>pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
 | rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
 | rainbond.cleanup.pending-import-references | Include retained tar import and check receipts in reference audits | active | regression | cleanup.collectRegionReferenceImages | pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased<br>pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence<br>pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences |
+| rainbond.cleanup.platform-future-helper-references | Protect default and configured builder and worker helper images | active | regression | kubeidentity.ReadPlatformHelperReferences | pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformDefaultsRemainReferencedWithoutActiveBuilds<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestBuilderDaemonSetRollbackHelperReferences |
 | rainbond.cleanup.platform-resource-admission | Protect namespace and cluster resource mutations from concurrent cleanup | active | regression | NsResourceHandler.CreateNsResource | api/handler/cleanup_namespace_admission_test.go::TestNamespaceMutationsCannotBypassCleanupAdmission<br>api/handler/cleanup_namespace_admission_test.go::TestClusterMutationsCannotBypassCleanupAdmission |
 | rainbond.cleanup.plugin-version-reference-coordination | Plugin version writes respect selected deletion and cannot resurrect records | active | regression | PluginBuildVersionDaoImpl | db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect |
 | rainbond.cleanup.registered-storage-discovery | Storage discovery rejects incomplete enrollment | active | regression | cleanup.DiscoverStores | pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration |
@@ -1554,6 +1555,16 @@
 - 业务入口: `cleanup.collectRegionReferenceImages`
 - 代码路径: `pkg/cleanup/reference_import.go`, `pkg/cleanup/reference_audit.go`
 - 测试路径: `pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased`, `pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence`, `pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences`
+
+### Protect default and configured builder and worker helper images
+
+- Capability ID: `rainbond.cleanup.platform-future-helper-references`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.ReadPlatformHelperReferences`
+- 代码路径: `pkg/cleanup/kubeidentity/platform_helper_references.go`, `pkg/cleanup/kubeidentity/helper_references.go`, `util/constants/helper_images.go`, `builder/build/cnb/config.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformDefaultsRemainReferencedWithoutActiveBuilds`, `pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues`, `pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestBuilderDaemonSetRollbackHelperReferences`
 
 ### Protect namespace and cluster resource mutations from concurrent cleanup
 
