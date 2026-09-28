@@ -29,7 +29,7 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
-	helmReferences      func(context.Context) (guard.RegionReferenceInventory, error)
+	clusterReferences   func(context.Context) (guard.RegionReferenceInventory, error)
 	nodeSettings        func() kubeidentity.NodeJobSettings
 	inventorySettings   func() kubeidentity.NodeInventorySettings
 	inspectManagedCache func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
@@ -42,7 +42,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{helmReferences: systemHelmReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.
@@ -313,11 +313,11 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		coordinationError(w, r, err)
 		return
 	}
-	if h.helmReferences == nil {
+	if h.clusterReferences == nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
-	helm, err := h.helmReferences(r.Context())
+	helm, err := h.clusterReferences(r.Context())
 	if err != nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
@@ -344,7 +344,7 @@ func (h *CleanupCoordinationHandler) RegistryReferences(w http.ResponseWriter, r
 		coordinationError(w, r, err)
 		return
 	}
-	if h.helmReferences == nil {
+	if h.clusterReferences == nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
@@ -353,7 +353,7 @@ func (h *CleanupCoordinationHandler) RegistryReferences(w http.ResponseWriter, r
 		coordinationError(w, r, guard.ErrCoordinationChanged)
 		return
 	}
-	helm, err := h.helmReferences(r.Context())
+	helm, err := h.clusterReferences(r.Context())
 	if err != nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
@@ -708,7 +708,7 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 	}{1, quiescent, binding, status, observed.NodeUID, observed.Mount.NodeName})
 }
 
-func systemHelmReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
+func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
 	component := k8s.Default()
 	if component == nil || component.RestConfig == nil || component.Clientset == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
@@ -717,5 +717,17 @@ func systemHelmReferenceInventory(ctx context.Context) (guard.RegionReferenceInv
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	return kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
+	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	configuration := configs.Default()
+	if configuration.PublicConfig == nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	helpers, err := kubeidentity.ReadAPIHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, err
+	}
+	return guard.MergeReferenceInventories(helm, helpers), nil
 }

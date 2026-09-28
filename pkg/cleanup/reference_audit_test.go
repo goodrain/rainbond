@@ -98,3 +98,17 @@ func TestReferenceInventoryBootstrapsWithoutGrantingDeletion(t *testing.T) {
 		})
 	}
 }
+
+func TestConfiguredHelperImagesRemainProtectedWithoutRunningPods(t *testing.T) {
+	result := ConfiguredImageReferences([]string{"goodrain.me/helpers@sha256:" + strings.Repeat("a", 64), "", "goodrain.me/helpers@sha256:" + strings.Repeat("a", 64)})
+	if !result.Complete || len(result.Images) != 1 {
+		t.Fatal("configured helper reference missing or duplicated", result)
+	}
+	invalid := ConfiguredImageReferences([]string{"invalid image value"})
+	if invalid.Complete || len(invalid.Images) != 0 {
+		t.Fatal("invalid configuration became empty success")
+	}
+	if merged := MergeReferenceInventories(RegionReferenceInventory{Complete: true}, invalid); merged.Complete {
+		t.Fatal("configuration failure lost during merge")
+	}
+}

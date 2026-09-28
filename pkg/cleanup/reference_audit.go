@@ -231,3 +231,15 @@ func MergeReferenceInventories(inventories ...RegionReferenceInventory) RegionRe
 	sort.Strings(result.Images)
 	return result
 }
+
+// ConfiguredImageReferences protects explicitly configured future job images.
+// Empty values mean the optional executor is disabled, not an unknown image.
+func ConfiguredImageReferences(values []string) RegionReferenceInventory {
+	inventory := RegionReferenceInventory{Complete: true, Images: []string{}}
+	for _, value := range values {
+		if value != "" {
+			inventory.Images = append(inventory.Images, value)
+		}
+	}
+	return MergeReferenceInventories(inventory)
+}

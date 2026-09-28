@@ -50,6 +50,7 @@
 | rainbond.cleanup.cache-writer-certification | Certify cache readiness only with current membership and no writers | active | integration | cleanup.CertifyManagedCacheWriters | pkg/cleanup/cache_certification_test.go::TestCacheCertificationRequiresMembershipAndQuiescence |
 | rainbond.cleanup.cache-writer-coverage | Verify current coordinated writer rollout and detached builds | active | regression | kubeidentity.InspectCacheWriterCoverage | pkg/cleanup/kubeidentity/cache_coverage_test.go::TestCacheCoverageRejectsRollingWritersAndDetachedBuilds |
 | rainbond.cleanup.cache-writer-native-gate | Recheck live writer coverage before native deletion grant | active | integration | POST node/enter-job | api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.configured-node-helper-references | Protect configured executor images across API rollout and rollback | active | regression | kubeidentity.ReadAPIHelperReferences | pkg/cleanup/reference_audit_test.go::TestConfiguredHelperImagesRemainProtectedWithoutRunningPods<br>pkg/cleanup/kubeidentity/helper_references_test.go::TestAPIHelperReferencesIncludeDesiredRollbackAndRunningImages<br>pkg/cleanup/kubeidentity/helper_references_test.go::TestAPIHelperDoesNotReadSecretBackedEnvironment |
 | rainbond.cleanup.console-signed-coordinator | Use installation-scoped signatures for coordinator requests | active | regression | cleanup.NewConsoleCoordinationClient | pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationUsesScopedSignatureWithoutAdminCredential<br>pkg/cleanup/console_coordination_test.go::TestConsoleCoordinationRejectsUnsafeScopePathsAndDoesNotRetry |
 | rainbond.cleanup.console-signed-coordinator-runtime | Run signed coordinator with an independent permit key | active | regression | registry-coordinator.run | cmd/registry-coordinator/main_test.go::TestCoordinatorUsesSignedConsoleAndIndependentPermitKey<br>cmd/registry-coordinator/main_test.go::TestSignedCoordinatorRejectsSharedOrMissingPermitKey |
 | rainbond.cleanup.console-signed-gc-command | Authenticate original GC callbacks with installation signatures | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandUsesInstallationSignatureForOriginalReceipt |
@@ -1053,6 +1054,16 @@
 - 业务入口: `POST node/enter-job`
 - 代码路径: `api/controller/cleanup_cache_readiness.go`, `api/controller/cleanup_node_launch.go`
 - 测试路径: `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Protect configured executor images across API rollout and rollback
+
+- Capability ID: `rainbond.cleanup.configured-node-helper-references`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.ReadAPIHelperReferences`
+- 代码路径: `pkg/cleanup/kubeidentity/helper_references.go`, `pkg/cleanup/reference_audit.go`, `api/controller/cleanup_coordination.go`
+- 测试路径: `pkg/cleanup/reference_audit_test.go::TestConfiguredHelperImagesRemainProtectedWithoutRunningPods`, `pkg/cleanup/kubeidentity/helper_references_test.go::TestAPIHelperReferencesIncludeDesiredRollbackAndRunningImages`, `pkg/cleanup/kubeidentity/helper_references_test.go::TestAPIHelperDoesNotReadSecretBackedEnvironment`
 
 ### Use installation-scoped signatures for coordinator requests
 

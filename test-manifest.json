@@ -848,6 +848,34 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.configured-node-helper-references",
+      "title": "Protect configured executor images across API rollout and rollback",
+      "title_zh": "Protect configured executor images across API rollout and rollback",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.ReadAPIHelperReferences",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/helper_references.go",
+        "pkg/cleanup/reference_audit.go",
+        "api/controller/cleanup_coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_audit_test.go",
+          "selector": "TestConfiguredHelperImagesRemainProtectedWithoutRunningPods"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helper_references_test.go",
+          "selector": "TestAPIHelperReferencesIncludeDesiredRollbackAndRunningImages"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/helper_references_test.go",
+          "selector": "TestAPIHelperDoesNotReadSecretBackedEnvironment"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.console-signed-coordinator",
       "title": "Use installation-scoped signatures for coordinator requests",
       "title_zh": "Use installation-scoped signatures for coordinator requests",

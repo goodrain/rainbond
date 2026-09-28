@@ -326,7 +326,7 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if _, err := guard.AcquireOperation(database, selected); err != nil {
 		t.Fatal(err)
 	}
-	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, helmReferences: func(context.Context) (guard.RegionReferenceInventory, error) {
+	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, clusterReferences: func(context.Context) (guard.RegionReferenceInventory, error) {
 		return guard.RegionReferenceInventory{Complete: true}, nil
 	}}
 	router := chi.NewRouter()
@@ -350,7 +350,7 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	}
 	// A retained Helm revision is protective without a Region version row.
 	for _, complete := range []bool{true, false} {
-		h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+		h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 			return guard.RegionReferenceInventory{Complete: complete, Images: []string{"goodrain.me/app:v1"}}, nil
 		}
 		response := invoke("Token isolated-reference-fixture")
@@ -361,7 +361,7 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 			t.Fatal("Helm history omitted from execution audit", response.Code)
 		}
 	}
-	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 		return guard.RegionReferenceInventory{Complete: true}, nil
 	}
 	for _, referenced := range []bool{false, true} {
@@ -382,7 +382,7 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 			t.Fatal("incorrect reference audit", response.Code)
 		}
 	}
-	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 		return guard.RegionReferenceInventory{Complete: true, Images: []string{"goodrain.me/helm-history:v2"}}, nil
 	}
 	request := httptest.NewRequest("POST", "/stores/owned/reference-inventory", strings.NewReader(`{"generation":"one"}`))
@@ -399,13 +399,13 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || !inventory.Bean.Complete || len(inventory.Bean.Images) != 2 || inventory.Bean.Images[1] != "goodrain.me/helm-history:v2" {
 		t.Fatal("invalid advisory reference inventory", snapshot.Code)
 	}
-	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 		return guard.RegionReferenceInventory{}, errors.New("private-fixture-detail")
 	}
 	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 || strings.Contains(response.Body.String(), "private-fixture-detail") {
 		t.Fatal("failed Helm read became valid or leaked upstream data")
 	}
-	h.helmReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
+	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 		if err := guard.FinishOperation(database, selected, true); err != nil {
 			t.Fatal(err)
 		}
