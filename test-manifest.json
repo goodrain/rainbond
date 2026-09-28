@@ -2068,6 +2068,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-audit-writer-coverage",
+      "title": "Require current registered platform writers in execution reference audit",
+      "title_zh": "Require current registered platform writers in execution reference audit",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-references",
+      "code_paths": [
+        "api/controller/cleanup_coordination.go",
+        "api/controller/cleanup_reference_writers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_coordination_test.go",
+          "selector": "TestRegistryReferenceAuditUsesBoundAuthenticatedOperation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-delete-permit",
       "title": "Bind registry deletion permits to immutable targets and expiry",
       "title_zh": "Bind registry deletion permits to immutable targets and expiry",

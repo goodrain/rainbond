@@ -29,21 +29,22 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
-	inspectConsoleWriter func(context.Context, string, string) (guard.ReferenceWriter, error)
-	clusterReferences    func(context.Context) (guard.RegionReferenceInventory, error)
-	nodeSettings         func() kubeidentity.NodeJobSettings
-	inventorySettings    func() kubeidentity.NodeInventorySettings
-	inspectManagedCache  func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
-	gcTarget             func() (kubernetes.Interface, string, string, error)
-	database             func() *gorm.DB
-	permitKey            func() []byte
-	inspectRegistry      func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
-	inspectParticipant   func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
+	inspectReferenceWriters func(context.Context) ([]guard.ReferenceWriter, error)
+	inspectConsoleWriter    func(context.Context, string, string) (guard.ReferenceWriter, error)
+	clusterReferences       func(context.Context) (guard.RegionReferenceInventory, error)
+	nodeSettings            func() kubeidentity.NodeJobSettings
+	inventorySettings       func() kubeidentity.NodeInventorySettings
+	inspectManagedCache     func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
+	gcTarget                func() (kubernetes.Interface, string, string, error)
+	database                func() *gorm.DB
+	permitKey               func() []byte
+	inspectRegistry         func(context.Context, string, string) (kubeidentity.RegistryPreparation, error)
+	inspectParticipant      func(context.Context, string, string, string, guard.StorageRegistration) (guard.ParticipantRegistration, error)
 }
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	return &CleanupCoordinationHandler{inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	return &CleanupCoordinationHandler{inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 }
 
 // DiscoverStores locates enrolled storage for authenticated platform producers.
@@ -357,6 +358,11 @@ func (h *CleanupCoordinationHandler) RegistryReferences(w http.ResponseWriter, r
 	helm, err := h.clusterReferences(r.Context())
 	if err != nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	// Re-observe all current platform writers before accepting absence of references.
+	if err := h.requireReferenceWriterCoverage(r.Context()); err != nil {
+		coordinationError(w, r, err)
 		return
 	}
 	// The database audit rechecks the original admission after the remote read.

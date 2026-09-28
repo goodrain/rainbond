@@ -309,6 +309,7 @@ func TestRegistryParticipantEndpointRejectsClaimedRuntimeFacts(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.cleanup.registry-audit-writer-coverage
 func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "references.db"))
 	if err != nil {
@@ -348,6 +349,32 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if response := invoke(""); response.Code == 200 {
 		t.Fatal("unauthenticated reference audit")
 	}
+	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 {
+		t.Fatal("missing platform writer coverage accepted")
+	}
+	if err := database.AutoMigrate(&model.CleanupReferenceWriter{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	writers := []guard.ReferenceWriter{}
+	for role, name := range map[string]string{"api": "rbd-api", "worker": "rbd-worker", "builder": "rbd-chaos", "console": "rbd-app-ui"} {
+		writer := guard.ReferenceWriter{Namespace: "system", PodName: name, PodUID: "pod-" + role, ContainerName: name, ContainerID: "containerd://" + role, ImageID: "image-" + role, Role: role, Protocol: guard.ReferenceWriterProtocol}
+		writers = append(writers, writer)
+	}
+	h.inspectReferenceWriters = func(context.Context) ([]guard.ReferenceWriter, error) { return writers, nil }
+	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 {
+		t.Fatal("unregistered writer accepted")
+	}
+	for _, writer := range writers {
+		if err := guard.RegisterReferenceWriter(database, writer); err != nil {
+			t.Fatal(err)
+		}
+	}
+	original := writers[0].ContainerID
+	writers[0].ContainerID = "containerd://replacement"
+	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 {
+		t.Fatal("replacement inherited old writer proof")
+	}
+	writers[0].ContainerID = original
 	// A retained Helm revision is protective without a Region version row.
 	for _, complete := range []bool{true, false} {
 		h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {

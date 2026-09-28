@@ -108,6 +108,7 @@
 | rainbond.cleanup.reference-writer-runtime-evidence | Bind reference-writer protocol evidence to immutable running containers | active | regression | cleanup.RegisterReferenceWriter | pkg/cleanup/reference_writer_test.go::TestReferenceWriterEvidenceIsIndependentAndImmutable<br>pkg/cleanup/kubeidentity/reference_writer_test.go::TestReferenceWriterIdentityUsesActualRuntime |
 | rainbond.cleanup.reference-writer-startup | Register reference writer runtime evidence at service startup | active | regression | kubeidentity.RegisterReferenceWriterStartup | pkg/cleanup/kubeidentity/reference_writer_startup_test.go::TestReferenceWriterStartupWaitsForOwnRuntimeOnly |
 | rainbond.cleanup.registered-storage-discovery | Storage discovery rejects incomplete enrollment | active | regression | cleanup.DiscoverStores | pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration |
+| rainbond.cleanup.registry-audit-writer-coverage | Require current registered platform writers in execution reference audit | active | regression | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-references | api/controller/cleanup_coordination_test.go::TestRegistryReferenceAuditUsesBoundAuthenticatedOperation |
 | rainbond.cleanup.registry-delete-permit | Bind registry deletion permits to immutable targets and expiry | active | regression | pkg/cleanup.VerifyRegistryDeletionPermit | pkg/cleanup/deletion_permit_test.go::TestRegistryDeletionPermitBindsOriginalTargetAndExpiry |
 | rainbond.cleanup.registry-gc-executor | Execute native Registry GC once against a verified storage descriptor | active | integration | registryproxy.ExecuteGC | pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission<br>api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC |
 | rainbond.cleanup.registry-identity-provision | Provision independent platform registry identities without overwrites | active | regression | provision_identity.provision | hack/contrib/docker/registry-gc/provision_identity_test.py |
@@ -1639,6 +1640,16 @@
 - 业务入口: `cleanup.DiscoverStores`
 - 代码路径: `pkg/cleanup/discovery.go`
 - 测试路径: `pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration`
+
+### Require current registered platform writers in execution reference audit
+
+- Capability ID: `rainbond.cleanup.registry-audit-writer-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-references`
+- 代码路径: `api/controller/cleanup_coordination.go`, `api/controller/cleanup_reference_writers.go`
+- 测试路径: `api/controller/cleanup_coordination_test.go::TestRegistryReferenceAuditUsesBoundAuthenticatedOperation`
 
 ### Bind registry deletion permits to immutable targets and expiry
 
