@@ -1533,6 +1533,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.native-service-mesh-references",
+      "title": "Classify only native ServiceMesh reference schemas",
+      "title_zh": "Classify only native ServiceMesh reference schemas",
+      "interface_type": "workflow",
+      "interface": "cleanup.inspectWorkloadObject",
+      "code_paths": [
+        "pkg/cleanup/reference_workloads.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_service_mesh_test.go",
+          "selector": "TestSavedServiceMeshRequiresKnownNativeProvider"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.node-cancel-before-grant",
       "title": "Cancel only node operations without a native grant",
       "title_zh": "Cancel only node operations without a native grant",

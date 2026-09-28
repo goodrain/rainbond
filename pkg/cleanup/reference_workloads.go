@@ -4,6 +4,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/goodrain/rainbond/db/model"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -42,7 +44,7 @@ func inspectWorkloadObject(object map[string]interface{}, image func(string), de
 		return false
 	}
 
-	expectedGroup := map[string]string{"Deployment": "apps", "StatefulSet": "apps", "DaemonSet": "apps", "ReplicaSet": "apps", "Job": "batch", "CronJob": "batch", "Ingress": "networking.k8s.io", "NetworkPolicy": "networking.k8s.io", "Role": "rbac.authorization.k8s.io", "RoleBinding": "rbac.authorization.k8s.io", "ClusterRole": "rbac.authorization.k8s.io", "ClusterRoleBinding": "rbac.authorization.k8s.io", "PodDisruptionBudget": "policy", "HorizontalPodAutoscaler": "autoscaling", "CustomResourceDefinition": "apiextensions.k8s.io", "RBDPlugin": "rainbond.io"}
+	expectedGroup := map[string]string{"Deployment": "apps", "StatefulSet": "apps", "DaemonSet": "apps", "ReplicaSet": "apps", "Job": "batch", "CronJob": "batch", "Ingress": "networking.k8s.io", "NetworkPolicy": "networking.k8s.io", "Role": "rbac.authorization.k8s.io", "RoleBinding": "rbac.authorization.k8s.io", "ClusterRole": "rbac.authorization.k8s.io", "ClusterRoleBinding": "rbac.authorization.k8s.io", "PodDisruptionBudget": "policy", "HorizontalPodAutoscaler": "autoscaling", "CustomResourceDefinition": "apiextensions.k8s.io", "RBDPlugin": "rainbond.io", "ServiceMesh": "rainbond.io"}
 	if group != expectedGroup[kind] {
 		return false
 	}
@@ -61,6 +63,23 @@ func inspectWorkloadObject(object map[string]interface{}, image func(string), de
 	}
 	var fields []string
 	switch kind {
+	case "ServiceMesh":
+		// Native governance uses the platform mesh/probe images collected by
+		// ReadPlatformHelperReferences, not an image field on this CR. Custom
+		// providers can inject other images and remain incomplete evidence.
+		provider, ok := object["provisioner"].(string)
+		if !ok || (provider != model.GovernanceModeBuildInServiceMesh && provider != model.GovernanceModeKubernetesNativeService) {
+			return false
+		}
+		for key := range object {
+			switch key {
+			case "apiVersion", "kind", "metadata", "provisioner", "selector", "status":
+			default:
+				return false
+			}
+		}
+		selector, found, err := unstructured.NestedStringMap(object, "selector")
+		return err == nil && found && len(selector) > 0
 	case "Pod":
 		fields = []string{"spec"}
 	case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "ReplicationController", "Job":
