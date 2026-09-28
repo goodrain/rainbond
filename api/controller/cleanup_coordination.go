@@ -17,6 +17,7 @@ import (
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/storage"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -29,6 +30,7 @@ import (
 // This API records coordination only; it never performs deletion or enables an
 // unverified store. Owner identities come from trusted Region participants.
 type CleanupCoordinationHandler struct {
+	measureUploadChunks     func(context.Context, string) (storage.UploadChunkUsage, error)
 	inspectRegistryCoverage func(context.Context, guard.StorageRegistration, []guard.ParticipantRegistration) (guard.RegistryCoverage, error)
 	inspectReferenceWriters func(context.Context) ([]guard.ReferenceWriter, error)
 	inspectConsoleWriter    func(context.Context, string, string) (guard.ReferenceWriter, error)
@@ -45,7 +47,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	h := &CleanupCoordinationHandler{inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h := &CleanupCoordinationHandler{measureUploadChunks: systemMeasureUploadChunks, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 	h.inspectRegistryCoverage = h.observeRegistryCoverage
 	return h
 }

@@ -2824,6 +2824,43 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-inventory-api",
+      "title": "Scope manual upload inventory and retain unknown measured sizes",
+      "title_zh": "Scope manual upload inventory and retain unknown measured sizes",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/inventory",
+      "code_paths": [
+        "api/controller/cleanup_upload_inventory.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_inventory_test.go",
+          "selector": "TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-inventory-bounds",
+      "title": "Bound upload inventory before physical storage reads",
+      "title_zh": "Bound upload inventory before physical storage reads",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/inventory",
+      "code_paths": [
+        "api/controller/cleanup_upload_inventory.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_inventory_test.go",
+          "selector": "TestUploadInventoryRejectsOversizedResultBeforeReadingStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.verified-client-identity",
       "title": "Cleanup requires configured token or verified platform client certificate",
       "title_zh": "Cleanup requires configured token or verified platform client certificate",

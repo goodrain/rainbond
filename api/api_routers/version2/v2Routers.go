@@ -883,6 +883,7 @@ func (v2 *V2) cleanupCoordinationRouter() chi.Router {
 	r.Use(middleware.CleanupIdentity)
 	h := controller.NewCleanupCoordinationHandler()
 	r.Post("/reference-writers/console", h.RegisterConsoleReferenceWriter)
+	r.Post("/uploads/inventory", h.UploadInventory)
 	r.Post("/stores/discover", h.DiscoverStores)
 	r.Post("/registry/prepare", h.PrepareRegistry)
 	r.Post("/managed-cache/prepare", h.PrepareManagedCache)
