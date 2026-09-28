@@ -109,11 +109,13 @@
 | rainbond.cleanup.reference-writer-startup | Register reference writer runtime evidence at service startup | active | regression | kubeidentity.RegisterReferenceWriterStartup | pkg/cleanup/kubeidentity/reference_writer_startup_test.go::TestReferenceWriterStartupWaitsForOwnRuntimeOnly |
 | rainbond.cleanup.registered-storage-discovery | Storage discovery rejects incomplete enrollment | active | regression | cleanup.DiscoverStores | pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration |
 | rainbond.cleanup.registry-audit-writer-coverage | Require current registered platform writers in execution reference audit | active | regression | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/registry-references | api/controller/cleanup_coordination_test.go::TestRegistryReferenceAuditUsesBoundAuthenticatedOperation |
+| rainbond.cleanup.registry-certification | Derive registry readiness from runtime evidence and quiescence | active | regression | cleanup.CertifyRegistry | pkg/cleanup/registry_certification_test.go::TestRegistryCertificationRequiresCompleteEvidence |
 | rainbond.cleanup.registry-delete-permit | Bind registry deletion permits to immutable targets and expiry | active | regression | pkg/cleanup.VerifyRegistryDeletionPermit | pkg/cleanup/deletion_permit_test.go::TestRegistryDeletionPermitBindsOriginalTargetAndExpiry |
 | rainbond.cleanup.registry-gc-executor | Execute native Registry GC once against a verified storage descriptor | active | integration | registryproxy.ExecuteGC | pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission<br>api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC |
 | rainbond.cleanup.registry-identity-provision | Provision independent platform registry identities without overwrites | active | regression | provision_identity.provision | hack/contrib/docker/registry-gc/provision_identity_test.py |
 | rainbond.cleanup.registry-ingress-isolation | Reject registry routes that bypass the coordinator | active | regression | pkg/cleanup/kubeidentity.InspectRegistryIngress | pkg/cleanup/kubeidentity/registry_ingress_test.go::TestRegistryIngressRequiresExclusiveCoordinatedRoute |
 | rainbond.cleanup.registry-kubernetes-binding | Verify actual registry Pod and backing volume identity | active | regression | pkg/cleanup/kubeidentity.InspectRegistryMount | pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity |
+| rainbond.cleanup.registry-participant-coverage | Verify every selected registry ingress against its runtime enrollment | active | regression | kubeidentity.InspectRegistryParticipantCoverage | pkg/cleanup/kubeidentity/registry_participant_test.go::TestParticipantIdentityComesFromCurrentContainerStatus |
 | rainbond.cleanup.registry-permit-key-separation | Separate registry permit signing from control authentication | active | regression | controller.systemRegistryPermitKey | api/controller/cleanup_permit_key_test.go::TestRegistryPermitKeyUsesDedicatedFileAndNeverFallsBackOnFailure |
 | rainbond.cleanup.registry-preparation | Derive registry identity from controlled inspection without granting cleanup | active | regression | /v2/cleanup/registry/prepare | api/controller/cleanup_coordination_test.go::TestRegistryPreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.registry-reference-bootstrap | Read collecting registry references without granting deletion | active | regression | cleanup.ReadRegionReferenceInventory | pkg/cleanup/reference_audit_test.go::TestReferenceInventoryBootstrapsWithoutGrantingDeletion |
@@ -1651,6 +1653,16 @@
 - 代码路径: `api/controller/cleanup_coordination.go`, `api/controller/cleanup_reference_writers.go`
 - 测试路径: `api/controller/cleanup_coordination_test.go::TestRegistryReferenceAuditUsesBoundAuthenticatedOperation`
 
+### Derive registry readiness from runtime evidence and quiescence
+
+- Capability ID: `rainbond.cleanup.registry-certification`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.CertifyRegistry`
+- 代码路径: `pkg/cleanup/registry_certification.go`
+- 测试路径: `pkg/cleanup/registry_certification_test.go::TestRegistryCertificationRequiresCompleteEvidence`
+
 ### Bind registry deletion permits to immutable targets and expiry
 
 - Capability ID: `rainbond.cleanup.registry-delete-permit`
@@ -1700,6 +1712,16 @@
 - 业务入口: `pkg/cleanup/kubeidentity.InspectRegistryMount`
 - 代码路径: `pkg/cleanup/kubeidentity/registry_mount.go`
 - 测试路径: `pkg/cleanup/kubeidentity/registry_mount_test.go::TestRegistryMountBindingUsesRealVolumeAndPodIdentity`
+
+### Verify every selected registry ingress against its runtime enrollment
+
+- Capability ID: `rainbond.cleanup.registry-participant-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectRegistryParticipantCoverage`
+- 代码路径: `pkg/cleanup/kubeidentity/registry_participant_coverage.go`
+- 测试路径: `pkg/cleanup/kubeidentity/registry_participant_test.go::TestParticipantIdentityComesFromCurrentContainerStatus`
 
 ### Separate registry permit signing from control authentication
 

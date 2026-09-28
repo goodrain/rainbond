@@ -14,6 +14,7 @@ import (
 	ktesting "k8s.io/client-go/testing"
 )
 
+// capability_id: rainbond.cleanup.registry-participant-coverage
 func TestParticipantIdentityComesFromCurrentContainerStatus(t *testing.T) {
 	service, pod, pvc, pv := bindingObjects()
 	service.Spec.Ports = []corev1.ServicePort{{Port: 5000, TargetPort: intstr.FromInt(5001)}}
@@ -44,6 +45,28 @@ func TestParticipantIdentityComesFromCurrentContainerStatus(t *testing.T) {
 	}
 	if _, err := InspectRegistryParticipant(context.Background(), client, "system", "rbd-hub", "hub", "pod-uid", "forged-owner", binding); err == nil {
 		t.Fatal("unbound owner accepted")
+	}
+	if _, err := InspectRegistryParticipantCoverage(context.Background(), client, "system", "rbd-hub", binding, nil); err == nil {
+		t.Fatal("unregistered ingress accepted")
+	}
+	records := []coordination.ParticipantRegistration{observed}
+	if members, err := InspectRegistryParticipantCoverage(context.Background(), client, "system", "rbd-hub", binding, records); err != nil || len(members) != 1 {
+		t.Fatal("complete ingress rejected", members, err)
+	}
+	oldID := records[0].ContainerID
+	records[0].ContainerID = "containerd://previous"
+	if _, err := InspectRegistryParticipantCoverage(context.Background(), client, "system", "rbd-hub", binding, records); err == nil {
+		t.Fatal("old container registration accepted")
+	}
+	records[0].ContainerID = oldID
+	extra := pod.DeepCopy()
+	extra.Name = "new-hub"
+	extra.UID = "new-pod"
+	if _, err := client.CoreV1().Pods("system").Create(context.Background(), extra, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InspectRegistryParticipantCoverage(context.Background(), client, "system", "rbd-hub", binding, records); err == nil {
+		t.Fatal("unregistered selected replica ignored")
 	}
 	binding.VolumeUID = "forged-volume"
 	if _, err := InspectRegistryParticipant(context.Background(), client, "system", "rbd-hub", "hub", "pod-uid", owner, binding); err == nil {

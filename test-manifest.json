@@ -2087,6 +2087,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.registry-certification",
+      "title": "Derive registry readiness from runtime evidence and quiescence",
+      "title_zh": "Derive registry readiness from runtime evidence and quiescence",
+      "interface_type": "workflow",
+      "interface": "cleanup.CertifyRegistry",
+      "code_paths": [
+        "pkg/cleanup/registry_certification.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/registry_certification_test.go",
+          "selector": "TestRegistryCertificationRequiresCompleteEvidence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registry-delete-permit",
       "title": "Bind registry deletion permits to immutable targets and expiry",
       "title_zh": "Bind registry deletion permits to immutable targets and expiry",
@@ -2174,6 +2192,24 @@
         {
           "path": "pkg/cleanup/kubeidentity/registry_mount_test.go",
           "selector": "TestRegistryMountBindingUsesRealVolumeAndPodIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.registry-participant-coverage",
+      "title": "Verify every selected registry ingress against its runtime enrollment",
+      "title_zh": "Verify every selected registry ingress against its runtime enrollment",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectRegistryParticipantCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/registry_participant_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/registry_participant_test.go",
+          "selector": "TestParticipantIdentityComesFromCurrentContainerStatus"
         }
       ],
       "test_type": "regression",

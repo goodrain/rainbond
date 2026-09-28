@@ -325,12 +325,21 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		return
 	}
 	result = guard.MergeReferenceInventories(result, helm)
+	// Manual inventory collection refreshes readiness from current deployment
+	// evidence. Health/status reads remain side-effect free. Missing evidence
+	// preserves the reference inventory but cannot certify deletion candidates.
+	ready := false
+	if binding, bindingErr := guard.StorageBinding(h.database(), storage, body.Generation); bindingErr == nil {
+		_, certified, certificationErr := h.certifyRegistry(r.Context(), binding, nil)
+		ready = certificationErr == nil && certified
+	}
 	httputil.ReturnSuccess(r, w, struct {
-		Protocol   int    `json:"protocol"`
-		StorageID  string `json:"storage_id"`
-		Generation string `json:"generation"`
+		Protocol      int    `json:"protocol"`
+		StorageID     string `json:"storage_id"`
+		Generation    string `json:"generation"`
+		RegistryReady bool   `json:"registry_ready"`
 		guard.RegionReferenceInventory
-	}{1, storage, body.Generation, result})
+	}{1, storage, body.Generation, ready, result})
 }
 
 // RegistryReferences audits retained Region records while the selected scope is held.

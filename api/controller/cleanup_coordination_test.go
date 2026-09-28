@@ -418,12 +418,13 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	router.ServeHTTP(snapshot, request)
 	var inventory struct {
 		Bean struct {
-			StorageID  string `json:"storage_id"`
-			Generation string `json:"generation"`
+			StorageID     string `json:"storage_id"`
+			Generation    string `json:"generation"`
+			RegistryReady bool   `json:"registry_ready"`
 			guard.RegionReferenceInventory
 		} `json:"bean"`
 	}
-	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || !inventory.Bean.Complete || len(inventory.Bean.Images) != 2 || inventory.Bean.Images[1] != "goodrain.me/helm-history:v2" {
+	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || inventory.Bean.RegistryReady || !inventory.Bean.Complete || len(inventory.Bean.Images) != 2 || inventory.Bean.Images[1] != "goodrain.me/helm-history:v2" {
 		t.Fatal("invalid advisory reference inventory", snapshot.Code)
 	}
 	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
