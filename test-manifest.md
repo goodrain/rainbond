@@ -147,6 +147,7 @@
 | rainbond.cleanup.tar-image-redelivery | Do not overwrite a running tar import on duplicate delivery | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportRedeliveryDoesNotPublishFailureOverActiveWork |
 | rainbond.cleanup.tar-service-check-admission | Block tar service check native work during maintenance | active | regression | exector.serviceCheck | builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance |
 | rainbond.cleanup.upload-cancel-evidence | Retain upload session evidence when physical cleanup fails | active | regression | controller.ChunkUploadManager.CancelUpload | api/controller/chunk_upload_cleanup_test.go::TestCancelUploadRetainsRecoveryEvidenceOnFailure |
+| rainbond.cleanup.upload-completion-evidence | Persist upload completion before deleting resumable chunks | active | regression | ChunkUploadManager.CompleteUpload | api/controller/chunk_upload_completion_test.go::TestUploadCompletionPreservesEvidenceBeforeChunkDeletion |
 | rainbond.cleanup.upload-expiration-evidence | Preserve unverified expired upload records without expanding background deletion | active | regression | controller.ChunkUploadManager.cleanExpiredSessions | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCleanupPreservesRecoveryEvidence |
 | rainbond.cleanup.verified-client-identity | Cleanup requires configured token or verified platform client certificate | active | regression | api.middleware.CleanupIdentity | api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken |
 | rainbond.cleanup.verified-storage-measurement | Measure only the verified registry backing filesystem | active | regression | registryproxy.MeasureStorage | pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks<br>cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials |
@@ -2047,6 +2048,16 @@
 - 业务入口: `controller.ChunkUploadManager.CancelUpload`
 - 代码路径: `api/controller/chunk_upload_manager.go`
 - 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestCancelUploadRetainsRecoveryEvidenceOnFailure`
+
+### Persist upload completion before deleting resumable chunks
+
+- Capability ID: `rainbond.cleanup.upload-completion-evidence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ChunkUploadManager.CompleteUpload`
+- 代码路径: `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/chunk_upload_completion_test.go::TestUploadCompletionPreservesEvidenceBeforeChunkDeletion`
 
 ### Preserve unverified expired upload records without expanding background deletion
 

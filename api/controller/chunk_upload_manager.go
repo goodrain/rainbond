@@ -28,6 +28,7 @@ const (
 // ChunkUploadManager 分片上传管理器
 type ChunkUploadManager struct {
 	cleanupChunks   func(string) error
+	mergeChunks     func(string, string, int) error
 	sessionCache    map[string]*model.UploadSession
 	cacheMutex      sync.RWMutex
 	uploadSemaphore chan struct{}
@@ -156,6 +157,14 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 		return "", err
 	}
 
+	// A completed upload is an immutable result, not permission to merge again.
+	if session.Status == "completed" {
+		return session.StoragePath, nil
+	}
+	if session.Status != "uploading" {
+		return "", fmt.Errorf("session status is %s, cannot complete", session.Status)
+	}
+
 	if !session.ExpiresAt.After(time.Now()) {
 		return "", fmt.Errorf("upload session expired")
 	}
@@ -168,23 +177,25 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 
 	// 合并分片
 	logrus.Infof("Merging %d chunks for session %s", session.TotalChunks, sessionID)
-	err = storage.Default().StorageCli.MergeChunks(sessionID, session.StoragePath, session.TotalChunks)
+	err = m.mergeSessionChunks(sessionID, session.StoragePath, session.TotalChunks)
 	if err != nil {
 		session.Status = "failed"
 		db.GetManager().UploadSessionDao().UpdateModel(session)
 		return "", fmt.Errorf("failed to merge chunks: %v", err)
 	}
 
-	// 清理分片文件
-	if err := storage.Default().StorageCli.CleanupChunks(sessionID); err != nil {
-		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
+	// Publish durable completion before removing the only resumable chunk set.
+	// Do not mutate the cached record if the database cannot acknowledge it.
+	completed := *session
+	completed.Status = "completed"
+	completed.UpdatedAt = time.Now()
+	if err := db.GetManager().UploadSessionDao().UpdateModel(&completed); err != nil {
+		return "", fmt.Errorf("failed to persist upload completion: %w", err)
 	}
-
-	// 更新会话状态
-	session.Status = "completed"
-	session.UpdatedAt = time.Now()
-	if err := db.GetManager().UploadSessionDao().UpdateModel(session); err != nil {
-		logrus.Errorf("Failed to update session status: %v", err)
+	m.cacheSession(&completed)
+	if err := m.cleanupSessionChunks(sessionID); err != nil {
+		// The package is complete; retain its durable record for later chunk cleanup.
+		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
 	}
 
 	m.removeFromCache(sessionID)
@@ -238,6 +249,17 @@ func (m *ChunkUploadManager) CancelUpload(sessionID string) error {
 	m.removeFromCache(sessionID)
 	logrus.Infof("Cancelled upload session: %s", sessionID)
 	return nil
+}
+
+func (m *ChunkUploadManager) mergeSessionChunks(sessionID, path string, count int) error {
+	if m.mergeChunks != nil {
+		return m.mergeChunks(sessionID, path, count)
+	}
+	configured := storage.Default()
+	if configured == nil || configured.StorageCli == nil {
+		return fmt.Errorf("upload storage unavailable")
+	}
+	return configured.StorageCli.MergeChunks(sessionID, path, count)
 }
 
 func (m *ChunkUploadManager) cleanupSessionChunks(sessionID string) error {

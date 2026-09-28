@@ -2788,6 +2788,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-completion-evidence",
+      "title": "Persist upload completion before deleting resumable chunks",
+      "title_zh": "Persist upload completion before deleting resumable chunks",
+      "interface_type": "workflow",
+      "interface": "ChunkUploadManager.CompleteUpload",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_completion_test.go",
+          "selector": "TestUploadCompletionPreservesEvidenceBeforeChunkDeletion"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.upload-expiration-evidence",
       "title": "Preserve unverified expired upload records without expanding background deletion",
       "title_zh": "Preserve unverified expired upload records without expanding background deletion",
