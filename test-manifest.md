@@ -103,6 +103,8 @@
 | rainbond.cleanup.platform-future-helper-references | Protect default and configured builder and worker helper images | active | regression | kubeidentity.ReadPlatformHelperReferences | pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformDefaultsRemainReferencedWithoutActiveBuilds<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestBuilderDaemonSetRollbackHelperReferences |
 | rainbond.cleanup.platform-resource-admission | Protect namespace and cluster resource mutations from concurrent cleanup | active | regression | NsResourceHandler.CreateNsResource | api/handler/cleanup_namespace_admission_test.go::TestNamespaceMutationsCannotBypassCleanupAdmission<br>api/handler/cleanup_namespace_admission_test.go::TestClusterMutationsCannotBypassCleanupAdmission |
 | rainbond.cleanup.plugin-version-reference-coordination | Plugin version writes respect selected deletion and cannot resurrect records | active | regression | PluginBuildVersionDaoImpl | db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect |
+| rainbond.cleanup.reference-writer-runtime-evidence | Bind reference-writer protocol evidence to immutable running containers | active | regression | cleanup.RegisterReferenceWriter | pkg/cleanup/reference_writer_test.go::TestReferenceWriterEvidenceIsIndependentAndImmutable<br>pkg/cleanup/kubeidentity/reference_writer_test.go::TestReferenceWriterIdentityUsesActualRuntime |
+| rainbond.cleanup.reference-writer-startup | Register reference writer runtime evidence at service startup | active | regression | kubeidentity.RegisterReferenceWriterStartup | pkg/cleanup/kubeidentity/reference_writer_startup_test.go::TestReferenceWriterStartupWaitsForOwnRuntimeOnly |
 | rainbond.cleanup.registered-storage-discovery | Storage discovery rejects incomplete enrollment | active | regression | cleanup.DiscoverStores | pkg/cleanup/discovery_test.go::TestDiscoverStoresRejectsIncompleteRegistration |
 | rainbond.cleanup.registry-delete-permit | Bind registry deletion permits to immutable targets and expiry | active | regression | pkg/cleanup.VerifyRegistryDeletionPermit | pkg/cleanup/deletion_permit_test.go::TestRegistryDeletionPermitBindsOriginalTargetAndExpiry |
 | rainbond.cleanup.registry-gc-executor | Execute native Registry GC once against a verified storage descriptor | active | integration | registryproxy.ExecuteGC | pkg/cleanup/registryproxy/gc_executor_test.go::TestGCExecutorDoesNotStartWithoutAdmission<br>api/controller/cleanup_registryproxy_test.go::TestCoordinatedRegistryExecutorRealDeletionAndGC |
@@ -1585,6 +1587,26 @@
 - 业务入口: `PluginBuildVersionDaoImpl`
 - 代码路径: `db/mysql/dao/plugin_cleanup.go`
 - 测试路径: `db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect`
+
+### Bind reference-writer protocol evidence to immutable running containers
+
+- Capability ID: `rainbond.cleanup.reference-writer-runtime-evidence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.RegisterReferenceWriter`
+- 代码路径: `db/model/cleanup_reference_writer.go`, `pkg/cleanup/reference_writer.go`, `pkg/cleanup/kubeidentity/reference_writer.go`
+- 测试路径: `pkg/cleanup/reference_writer_test.go::TestReferenceWriterEvidenceIsIndependentAndImmutable`, `pkg/cleanup/kubeidentity/reference_writer_test.go::TestReferenceWriterIdentityUsesActualRuntime`
+
+### Register reference writer runtime evidence at service startup
+
+- Capability ID: `rainbond.cleanup.reference-writer-startup`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.RegisterReferenceWriterStartup`
+- 代码路径: `pkg/cleanup/kubeidentity/reference_writer_startup.go`, `pkg/component/reference_writer.go`, `cmd/api/main.go`, `cmd/worker/worker.go`, `cmd/builder/builder.go`
+- 测试路径: `pkg/cleanup/kubeidentity/reference_writer_startup_test.go::TestReferenceWriterStartupWaitsForOwnRuntimeOnly`
 
 ### Storage discovery rejects incomplete enrollment
 

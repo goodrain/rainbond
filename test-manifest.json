@@ -1967,6 +1967,52 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.reference-writer-runtime-evidence",
+      "title": "Bind reference-writer protocol evidence to immutable running containers",
+      "title_zh": "Bind reference-writer protocol evidence to immutable running containers",
+      "interface_type": "workflow",
+      "interface": "cleanup.RegisterReferenceWriter",
+      "code_paths": [
+        "db/model/cleanup_reference_writer.go",
+        "pkg/cleanup/reference_writer.go",
+        "pkg/cleanup/kubeidentity/reference_writer.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/reference_writer_test.go",
+          "selector": "TestReferenceWriterEvidenceIsIndependentAndImmutable"
+        },
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_test.go",
+          "selector": "TestReferenceWriterIdentityUsesActualRuntime"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.reference-writer-startup",
+      "title": "Register reference writer runtime evidence at service startup",
+      "title_zh": "Register reference writer runtime evidence at service startup",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.RegisterReferenceWriterStartup",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/reference_writer_startup.go",
+        "pkg/component/reference_writer.go",
+        "cmd/api/main.go",
+        "cmd/worker/worker.go",
+        "cmd/builder/builder.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/reference_writer_startup_test.go",
+          "selector": "TestReferenceWriterStartupWaitsForOwnRuntimeOnly"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.registered-storage-discovery",
       "title": "Storage discovery rejects incomplete enrollment",
       "title_zh": "Storage discovery rejects incomplete enrollment",
