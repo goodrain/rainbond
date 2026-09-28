@@ -63,6 +63,8 @@
 | rainbond.cleanup.durable-gc-receipt | Recover only immutable GC execution evidence without replay | active | regression | registryproxy.RecoverGCReceipt | pkg/cleanup/registryproxy/gc_receipt_test.go::TestGCReceiptIsBoundImmutableAndDoesNotPermitReplay |
 | rainbond.cleanup.durable-maintenance-measurements | Persist GC measurements without releasing maintenance protection | active | regression | cleanup.RecordMaintenanceMeasurement | pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore |
 | rainbond.cleanup.executor-preview-authority | Reject admission changes to native executor authority | active | regression | cleanup.sameExecutorPreview | pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity<br>pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage |
+| rainbond.cleanup.expired-upload-reinitialize | Start a new session instead of resuming expired chunk metadata | active | regression | controller.ChunkUploadManager.InitUploadSession | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks |
+| rainbond.cleanup.expired-upload-writes | Reject writes and completion on expired upload sessions | active | regression | controller.ChunkUploadManager.SaveChunk | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCannotContinueWriting |
 | rainbond.cleanup.gc-executor-command | Bind native GC command to the verified Job admission | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery |
 | rainbond.cleanup.gc-executor-identity | Verify GC pod ownership image and physical volume | active | regression | kubeidentity.InspectGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestGCExecutorIdentityRejectsUntrustedPodAndStorage |
 | rainbond.cleanup.gc-executor-termination | Require actual original GC container termination and unchanged source | active | regression | kubeidentity.InspectTerminatedGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestTerminatedGCExecutorRequiresActualOriginalContainerExit<br>pkg/cleanup/kubeidentity/gc_job_template_test.go::TestGCSourceFingerprintDetectsRuntimeAndConfigurationChanges |
@@ -144,6 +146,8 @@
 | rainbond.cleanup.tar-image-entry | Reject tar import before native work and preserve original result | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportEntryReportsMaintenanceWithoutStartingNativeWork |
 | rainbond.cleanup.tar-image-redelivery | Do not overwrite a running tar import on duplicate delivery | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportRedeliveryDoesNotPublishFailureOverActiveWork |
 | rainbond.cleanup.tar-service-check-admission | Block tar service check native work during maintenance | active | regression | exector.serviceCheck | builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance |
+| rainbond.cleanup.upload-cancel-evidence | Retain upload session evidence when physical cleanup fails | active | regression | controller.ChunkUploadManager.CancelUpload | api/controller/chunk_upload_cleanup_test.go::TestCancelUploadRetainsRecoveryEvidenceOnFailure |
+| rainbond.cleanup.upload-expiration-evidence | Preserve unverified expired upload records without expanding background deletion | active | regression | controller.ChunkUploadManager.cleanExpiredSessions | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCleanupPreservesRecoveryEvidence |
 | rainbond.cleanup.verified-client-identity | Cleanup requires configured token or verified platform client certificate | active | regression | api.middleware.CleanupIdentity | api/middleware/cleanup_identity_test.go::TestCleanupIdentityRequiresVerifiedClientOrConfiguredToken |
 | rainbond.cleanup.verified-storage-measurement | Measure only the verified registry backing filesystem | active | regression | registryproxy.MeasureStorage | pkg/cleanup/registryproxy/measurement_test.go::TestMeasurementRequiresBoundStorageAndRejectsSymlinks<br>cmd/registry-coordinator/main_test.go::TestMeasurementModeDoesNotInitializeOrNeedCredentials |
 | rainbond.cleanup.version-activation-fence | Fence upgrade and rollback against version retirement | active | regression | OperationHandler.upgrade and ServiceAction.RollBack | api/handler/cleanup_rollback_test.go::TestLegacyRollbackCannotActivateRetiredVersion<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeRechecksVersionUnderRetirementLock<br>api/handler/cleanup_rollback_test.go::TestUpgradeQueueFailureCannotOverwriteNewerDeployment<br>api/handler/cleanup_rollback_test.go::TestLegacyRollbackRejectsWrongTenant<br>api/handler/cleanup_rollback_test.go::TestExplicitUpgradeEnqueuesValidatedVersion |
@@ -411,8 +415,11 @@
 | rainbond.source-sftp.close-safe | 安全关闭零值 SFTP 客户端 | active | regression | builder/sources.SFTPClient.Close | builder/sources/sftp_test.go::TestSFTPClientCloseZeroValue |
 | rainbond.source-sftp.port-parse | 解析 SFTP 端口并提供合理默认值 | active | regression | builder/sources.parseSFTPPort | builder/sources/sftp_test.go::TestParseSFTPPort |
 | rainbond.source-svn.branch-path | 解析 SVN 分支标签与 trunk 的目标路径 | active | regression | builder/sources.getBranchPath | builder/sources/svn_test.go::TestGetBranchPath |
+| rainbond.storage.chunk-cleanup-confirmation | Require complete scoped S3 chunk deletion acknowledgements | active | regression | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_s3_test.go::TestChunkCleanupRequiresCompleteScopedAcknowledgements |
 | rainbond.storage.class-summary | 汇总存储类信息 | active | regression | api/handler.StorageClassInfo | api/handler/storage_test.go::TestStorageClassInfoFields |
 | rainbond.storage.handler-singleton | 复用存储处理器单例 | active | unit | api/handler.GetStorageHandler | api/handler/storage_test.go::TestGetStorageHandlerSingleton |
+| rainbond.storage.minio-chunk-cleanup | Delete all owned MinIO upload chunks while preserving a sibling session | active | integration | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_minio_test.go::TestMinIOChunkCleanupOwnsExactSession |
+| rainbond.storage.no-credential-startup-logs | Never print storage access or secret keys at startup | active | regression | storage.Component.Start | pkg/component/storage/credential_logging_test.go::TestStorageStartupDoesNotLogCredentials |
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
@@ -1200,6 +1207,26 @@
 - 业务入口: `cleanup.sameExecutorPreview`
 - 代码路径: `pkg/cleanup/executor_preview.go`, `pkg/cleanup/node_job_submit.go`, `pkg/cleanup/gc_job_submit.go`
 - 测试路径: `pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity`, `pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage`
+
+### Start a new session instead of resuming expired chunk metadata
+
+- Capability ID: `rainbond.cleanup.expired-upload-reinitialize`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.ChunkUploadManager.InitUploadSession`
+- 代码路径: `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks`
+
+### Reject writes and completion on expired upload sessions
+
+- Capability ID: `rainbond.cleanup.expired-upload-writes`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.ChunkUploadManager.SaveChunk`
+- 代码路径: `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCannotContinueWriting`
 
 ### Bind native GC command to the verified Job admission
 
@@ -2010,6 +2037,26 @@
 - 业务入口: `exector.serviceCheck`
 - 代码路径: `builder/exector/service_check.go`, `builder/exector/cleanup_image_admission.go`
 - 测试路径: `builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance`
+
+### Retain upload session evidence when physical cleanup fails
+
+- Capability ID: `rainbond.cleanup.upload-cancel-evidence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.ChunkUploadManager.CancelUpload`
+- 代码路径: `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestCancelUploadRetainsRecoveryEvidenceOnFailure`
+
+### Preserve unverified expired upload records without expanding background deletion
+
+- Capability ID: `rainbond.cleanup.upload-expiration-evidence`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.ChunkUploadManager.cleanExpiredSessions`
+- 代码路径: `api/controller/chunk_upload_manager.go`
+- 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCleanupPreservesRecoveryEvidence`
 
 ### Cleanup requires configured token or verified platform client certificate
 
@@ -4681,6 +4728,16 @@
 - 代码路径: `builder/sources/svn.go`
 - 测试路径: `builder/sources/svn_test.go::TestGetBranchPath`
 
+### Require complete scoped S3 chunk deletion acknowledgements
+
+- Capability ID: `rainbond.storage.chunk-cleanup-confirmation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `storage.S3Storage.CleanupChunks`
+- 代码路径: `pkg/component/storage/chunk_cleanup_s3.go`
+- 测试路径: `pkg/component/storage/chunk_cleanup_s3_test.go::TestChunkCleanupRequiresCompleteScopedAcknowledgements`
+
 ### 汇总存储类信息
 
 - Capability ID: `rainbond.storage.class-summary`
@@ -4700,6 +4757,26 @@
 - 业务入口: `api/handler.GetStorageHandler`
 - 代码路径: `api/handler/storage.go`
 - 测试路径: `api/handler/storage_test.go::TestGetStorageHandlerSingleton`
+
+### Delete all owned MinIO upload chunks while preserving a sibling session
+
+- Capability ID: `rainbond.storage.minio-chunk-cleanup`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `storage.S3Storage.CleanupChunks`
+- 代码路径: `pkg/component/storage/chunk_cleanup_s3.go`
+- 测试路径: `pkg/component/storage/chunk_cleanup_minio_test.go::TestMinIOChunkCleanupOwnsExactSession`
+
+### Never print storage access or secret keys at startup
+
+- Capability ID: `rainbond.storage.no-credential-startup-logs`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `storage.Component.Start`
+- 代码路径: `pkg/component/storage/storage.go`
+- 测试路径: `pkg/component/storage/credential_logging_test.go::TestStorageStartupDoesNotLogCredentials`
 
 ### S3 生命周期已配置时不再输出 info 日志
 

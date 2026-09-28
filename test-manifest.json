@@ -1111,6 +1111,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.expired-upload-reinitialize",
+      "title": "Start a new session instead of resuming expired chunk metadata",
+      "title_zh": "Start a new session instead of resuming expired chunk metadata",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.InitUploadSession",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.expired-upload-writes",
+      "title": "Reject writes and completion on expired upload sessions",
+      "title_zh": "Reject writes and completion on expired upload sessions",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.SaveChunk",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadCannotContinueWriting"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.gc-executor-command",
       "title": "Bind native GC command to the verified Job admission",
       "title_zh": "Bind native GC command to the verified Job admission",
@@ -2728,6 +2764,42 @@
         {
           "path": "builder/exector/cleanup_service_check_test.go",
           "selector": "TestTarServiceCheckCannotPushDuringMaintenance"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-cancel-evidence",
+      "title": "Retain upload session evidence when physical cleanup fails",
+      "title_zh": "Retain upload session evidence when physical cleanup fails",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.CancelUpload",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestCancelUploadRetainsRecoveryEvidenceOnFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-expiration-evidence",
+      "title": "Preserve unverified expired upload records without expanding background deletion",
+      "title_zh": "Preserve unverified expired upload records without expanding background deletion",
+      "interface_type": "workflow",
+      "interface": "controller.ChunkUploadManager.cleanExpiredSessions",
+      "code_paths": [
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/chunk_upload_cleanup_test.go",
+          "selector": "TestExpiredUploadCleanupPreservesRecoveryEvidence"
         }
       ],
       "test_type": "regression",
@@ -7813,6 +7885,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.storage.chunk-cleanup-confirmation",
+      "title": "Require complete scoped S3 chunk deletion acknowledgements",
+      "title_zh": "Require complete scoped S3 chunk deletion acknowledgements",
+      "interface_type": "workflow",
+      "interface": "storage.S3Storage.CleanupChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_cleanup_s3_test.go",
+          "selector": "TestChunkCleanupRequiresCompleteScopedAcknowledgements"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.storage.class-summary",
       "title": "Summarize storage class info",
       "title_zh": "\u6c47\u603b\u5b58\u50a8\u7c7b\u4fe1\u606f",
@@ -7846,6 +7936,42 @@
         }
       ],
       "test_type": "unit",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.minio-chunk-cleanup",
+      "title": "Delete all owned MinIO upload chunks while preserving a sibling session",
+      "title_zh": "Delete all owned MinIO upload chunks while preserving a sibling session",
+      "interface_type": "workflow",
+      "interface": "storage.S3Storage.CleanupChunks",
+      "code_paths": [
+        "pkg/component/storage/chunk_cleanup_s3.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/chunk_cleanup_minio_test.go",
+          "selector": "TestMinIOChunkCleanupOwnsExactSession"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.no-credential-startup-logs",
+      "title": "Never print storage access or secret keys at startup",
+      "title_zh": "Never print storage access or secret keys at startup",
+      "interface_type": "workflow",
+      "interface": "storage.Component.Start",
+      "code_paths": [
+        "pkg/component/storage/storage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/credential_logging_test.go",
+          "selector": "TestStorageStartupDoesNotLogCredentials"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {
