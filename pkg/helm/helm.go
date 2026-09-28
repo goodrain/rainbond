@@ -53,6 +53,7 @@ var ociRefTagRegexp = regexp.MustCompile(`^(oci://[^:]+(:[0-9]{1,5})?[^:]+):(.*)
 
 // Helm -
 type Helm struct {
+	mutations *helmMutationTracker
 	cfg       *action.Configuration
 	settings  *cli.EnvSettings
 	namespace string
@@ -87,7 +88,9 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 		return nil, errors.Wrap(err, "create registry config dir")
 	}
 	// initializes the action configuration
-	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), helmDriver, func(format string, v ...interface{}) {
+	mutations := &helmMutationTracker{}
+	getter := helmMutationRESTGetter{RESTClientGetter: settings.RESTClientGetter(), tracker: mutations}
+	if err := cfg.Init(getter, settings.Namespace(), helmDriver, func(format string, v ...interface{}) {
 		logrus.Debugf(format, v)
 	}); err != nil {
 		return nil, errors.Wrap(err, "init config")
@@ -101,6 +104,7 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}
 	cfg.RegistryClient = registryClient
 	return &Helm{
+		mutations: mutations,
 		cfg:       cfg,
 		settings:  settings,
 		namespace: namespace,
@@ -277,7 +281,15 @@ func (h *Helm) install(name, chart, version, chartPath string, overrides []strin
 			}
 		}
 	}
-	rel, err := client.Run(chartRequested, vals)
+	var rel *release.Release
+	if dryRun {
+		rel, err = client.Run(chartRequested, vals)
+	} else {
+		rel, err = h.mutateRelease(name, "install", func() (*release.Release, error) { return client.Run(chartRequested, vals) })
+	}
+	if rel == nil {
+		return nil, err
+	}
 	rel.Manifest = strings.TrimPrefix(crdYaml+"\n"+rel.Manifest, "\n")
 	return rel, err
 }
@@ -326,7 +338,7 @@ func (h *Helm) Upgrade(name string, chart, version string, overrides []string) e
 
 	upgrade := action.NewUpgrade(h.cfg)
 	upgrade.Namespace = h.namespace
-	_, err = upgrade.Run(name, ch, vals)
+	_, err = h.mutateRelease(name, "upgrade", func() (*release.Release, error) { return upgrade.Run(name, ch, vals) })
 	return err
 }
 
@@ -342,8 +354,7 @@ func (h *Helm) Status(name string) (*release.Release, error) {
 func (h *Helm) Uninstall(name string) error {
 	logrus.Infof("uninstall helm app(%s/%s)", h.namespace, name)
 	uninstall := action.NewUninstall(h.cfg)
-	_, err := uninstall.Run(name)
-	return err
+	return h.mutate(name, "uninstall", func() error { _, err := uninstall.Run(name); return err })
 }
 
 // Rollback -
@@ -352,7 +363,7 @@ func (h *Helm) Rollback(name string, revision int) error {
 	client := action.NewRollback(h.cfg)
 	client.Version = revision
 
-	if err := client.Run(name); err != nil {
+	if err := h.mutate(name, "rollback", func() error { return client.Run(name) }); err != nil {
 		return errors.Wrap(err, "helm rollback")
 	}
 	return nil
@@ -504,7 +515,7 @@ func (h *Helm) installLoadedChart(chartPath, releaseName, version, valuesYAML st
 	}
 	removeKubeVersionFromChart(chartLoaded)
 	client := h.newInstallAction(releaseName, version)
-	return client.Run(chartLoaded, vals)
+	return h.mutateRelease(releaseName, "install", func() (*release.Release, error) { return client.Run(chartLoaded, vals) })
 }
 
 func (h *Helm) upgradeLoadedChart(chartPath, releaseName, version, valuesYAML string) (*release.Release, error) {
@@ -520,7 +531,7 @@ func (h *Helm) upgradeLoadedChart(chartPath, releaseName, version, valuesYAML st
 	client := action.NewUpgrade(h.cfg)
 	client.Namespace = h.namespace
 	client.Version = version
-	return client.Run(releaseName, chartLoaded, vals)
+	return h.mutateRelease(releaseName, "upgrade", func() (*release.Release, error) { return client.Run(releaseName, chartLoaded, vals) })
 }
 
 func (h *Helm) loginRegistryIfNeeded(chartRef, username, password string) error {

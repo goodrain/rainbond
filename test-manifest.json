@@ -1308,6 +1308,34 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.helm-native-mutation-admission",
+      "title": "Coordinate native Helm mutations and track actual Kubernetes write outcomes",
+      "title_zh": "Coordinate native Helm mutations and track actual Kubernetes write outcomes",
+      "interface_type": "workflow",
+      "interface": "helm.runCoordinatedMutation",
+      "code_paths": [
+        "pkg/helm/cleanup_mutation.go",
+        "pkg/helm/cleanup_transport.go",
+        "pkg/helm/helm.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/helm/cleanup_mutation_test.go",
+          "selector": "TestHelmMutationRequiresDurableProducerAdmission"
+        },
+        {
+          "path": "pkg/helm/cleanup_transport_test.go",
+          "selector": "TestHelmTracksActualReleaseStorageWrites"
+        },
+        {
+          "path": "pkg/helm/cleanup_transport_test.go",
+          "selector": "TestHelmTransportKeepsUncertainWritesAndRejectsUnguardedWrites"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",
