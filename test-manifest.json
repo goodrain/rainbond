@@ -1594,6 +1594,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.managed-package-binding",
+      "title": "Managed package roots bind to observed grdata storage",
+      "title_zh": "Managed package roots bind to observed grdata storage",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectManagedPackageSource",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/managed_packages.go",
+        "pkg/cleanup/registration.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/managed_cache_test.go",
+          "selector": "TestManagedPackagePreparationUsesActualGrdataVolume"
+        },
+        {
+          "path": "pkg/cleanup/registration_test.go",
+          "selector": "TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.manual-gc-maintenance",
       "title": "Drain writes and require confirmed restoration around manual GC",
       "title_zh": "Drain writes and require confirmed restoration around manual GC",

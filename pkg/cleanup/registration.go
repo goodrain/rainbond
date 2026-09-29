@@ -107,9 +107,29 @@ func ProvisionManagedCacheStorage(database *gorm.DB, volumeUID, root string) (St
 	return provisionFilesystemStorage(database, "managed-build-cache", volumeUID, root)
 }
 
+// ProvisionManagedPackageStorage enrolls one of Rainbond's two fixed package
+// directories. Both identities bind the same observed volume but never accept
+// a caller-provided path or become ready through registration alone.
+func ProvisionManagedPackageStorage(database *gorm.DB, volumeUID, kind string) (StorageRegistration, error) {
+	root := ""
+	switch kind {
+	case "upload_events":
+		root = "/grdata/package_build/temp/events"
+	case "upload_components":
+		root = "/grdata/package_build/components"
+	default:
+		return StorageRegistration{}, ErrCoordinationChanged
+	}
+	key := sha256.Sum256([]byte("node-upload-packages\x00" + volumeUID + "\x00" + kind))
+	return provisionFilesystemStorageID(database, hex.EncodeToString(key[:]), volumeUID, root)
+}
+
 func provisionFilesystemStorage(database *gorm.DB, domain, volumeUID, root string) (StorageRegistration, error) {
 	key := sha256.Sum256([]byte(domain + "\x00" + volumeUID))
-	storageID := hex.EncodeToString(key[:])
+	return provisionFilesystemStorageID(database, hex.EncodeToString(key[:]), volumeUID, root)
+}
+
+func provisionFilesystemStorageID(database *gorm.DB, storageID, volumeUID, root string) (StorageRegistration, error) {
 	read := func() (StorageRegistration, error) {
 		var stored model.CleanupStorage
 		if err := database.Where("storage_id = ?", storageID).First(&stored).Error; err != nil {

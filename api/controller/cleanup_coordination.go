@@ -42,6 +42,7 @@ type CleanupCoordinationHandler struct {
 	nodeSettings            func() kubeidentity.NodeJobSettings
 	inventorySettings       func() kubeidentity.NodeInventorySettings
 	inspectManagedCache     func(context.Context, string, string) (kubeidentity.ManagedCachePreparation, error)
+	inspectManagedPackages  func(context.Context, string, string) (kubeidentity.ManagedPackagePreparation, error)
 	gcTarget                func() (kubernetes.Interface, string, string, error)
 	database                func() *gorm.DB
 	permitKey               func() []byte
@@ -51,7 +52,7 @@ type CleanupCoordinationHandler struct {
 
 // NewCleanupCoordinationHandler uses the Region database manager.
 func NewCleanupCoordinationHandler() *CleanupCoordinationHandler {
-	h := &CleanupCoordinationHandler{uploadStorageBinding: systemUploadStorageBinding, deleteUploadChunks: systemDeleteUploadChunks, uploadPackageReferences: guard.ReadUploadPackageReferences, measureUploadChunks: systemMeasureUploadChunks, measureUploadEvent: systemMeasureUploadEvent, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
+	h := &CleanupCoordinationHandler{uploadStorageBinding: systemUploadStorageBinding, deleteUploadChunks: systemDeleteUploadChunks, uploadPackageReferences: guard.ReadUploadPackageReferences, measureUploadChunks: systemMeasureUploadChunks, measureUploadEvent: systemMeasureUploadEvent, inspectReferenceWriters: inspectSystemReferenceWriters, inspectConsoleWriter: inspectSystemConsoleWriter, clusterReferences: systemClusterReferenceInventory, inventorySettings: systemNodeInventorySettings, nodeSettings: systemNodeJobSettings, database: func() *gorm.DB { return db.GetManager().DB() }, permitKey: systemRegistryPermitKey, inspectRegistry: inspectSystemRegistry, inspectManagedCache: inspectSystemManagedCache, inspectManagedPackages: inspectSystemManagedPackages, inspectParticipant: inspectSystemRegistryParticipant, gcTarget: systemRegistryInspectionTarget}
 	h.inspectRegistryCoverage = h.observeRegistryCoverage
 	return h
 }
@@ -697,6 +698,62 @@ func inspectSystemManagedCache(ctx context.Context, pod, uid string) (kubeidenti
 		return kubeidentity.ManagedCachePreparation{}, err
 	}
 	return kubeidentity.InspectManagedBuildCacheSource(ctx, client, namespace, pod, uid)
+}
+
+func inspectSystemManagedPackages(ctx context.Context, pod, uid string) (kubeidentity.ManagedPackagePreparation, error) {
+	client, namespace, _, err := systemRegistryInspectionTarget()
+	if err != nil {
+		return kubeidentity.ManagedPackagePreparation{}, err
+	}
+	return kubeidentity.InspectManagedPackageSource(ctx, client, namespace, pod, uid)
+}
+
+// PrepareManagedPackages enrolls the two fixed package_build subtrees from one
+// observed rbd-chaos volume. It never promotes readiness or accepts paths.
+func (h *CleanupCoordinationHandler) PrepareManagedPackages(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Pod    string `json:"pod"`
+		PodUID string `json:"pod_uid"`
+	}
+	if !coordinationDecode(w, r, &body) {
+		return
+	}
+	if len(validation.IsDNS1123Subdomain(body.Pod)) != 0 || !registryPodUID.MatchString(body.PodUID) {
+		httputil.ReturnError(r, w, 400, "INVALID_MANAGED_PACKAGE_POD")
+		return
+	}
+	if h.inspectManagedPackages == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	observed, err := h.inspectManagedPackages(r.Context(), body.Pod, body.PodUID)
+	if err != nil || observed.NodeUID == "" || observed.Root != "/grdata/package_build" {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	registrations := make([]guard.StorageRegistration, 0, 2)
+	storages := make([]guard.StorageObservation, 0, 2)
+	for _, kind := range []string{"upload_events", "upload_components"} {
+		binding, err := guard.ProvisionManagedPackageStorage(h.database(), observed.Mount.VolumeUID, kind)
+		if err != nil {
+			coordinationError(w, r, err)
+			return
+		}
+		status, err := guard.InspectStorage(h.database(), binding.StorageID, binding.Generation)
+		if err != nil {
+			coordinationError(w, r, err)
+			return
+		}
+		registrations = append(registrations, binding)
+		storages = append(storages, status)
+	}
+	httputil.ReturnSuccess(r, w, struct {
+		Protocol      int                         `json:"protocol"`
+		Registrations []guard.StorageRegistration `json:"registrations"`
+		Storages      []guard.StorageObservation  `json:"storages"`
+		NodeUID       string                      `json:"node_uid"`
+		NodeName      string                      `json:"node_name"`
+	}{1, registrations, storages, observed.NodeUID, observed.Mount.NodeName})
 }
 
 // PrepareManagedCache enrolls only observed system build-cache storage. It

@@ -85,6 +85,7 @@
 | rainbond.cleanup.helmapp-mutation-admission | Protect HelmApp create update and install intents during cleanup | active | regression | ApplicationAction.CreateApp | api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission |
 | rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
 | rainbond.cleanup.managed-cache-binding | Bind managed cache enrollment to observed system storage | active | integration | POST /v2/cleanup/managed-cache/prepare | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume<br>api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady |
+| rainbond.cleanup.managed-package-binding | Managed package roots bind to observed grdata storage | active | regression | kubeidentity.InspectManagedPackageSource | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedPackagePreparationUsesActualGrdataVolume<br>pkg/cleanup/registration_test.go::TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady |
 | rainbond.cleanup.manual-gc-maintenance | Drain writes and require confirmed restoration around manual GC | active | regression | pkg/cleanup.RequestMaintenance | pkg/cleanup/maintenance_test.go::TestMaintenanceDrainsWritersAndRestoresOnlyAfterConfirmation |
 | rainbond.cleanup.market-slug-task-completion | Market slug task waits for completion before returning | active | regression | exectorManager.buildFromMarketSlug | builder/exector/cleanup_task_boundary_test.go::TestMarketSlugTaskWaitsForCompletion |
 | rainbond.cleanup.native-image-build-admission | Image builds hold durable cleanup admission through completion | active | regression | exectorManager.buildFromImage | builder/exector/cleanup_image_admission_test.go::TestImageBuildAdmissionBlocksGCAndNeverReplays |
@@ -1447,6 +1448,16 @@
 - 业务入口: `POST /v2/cleanup/managed-cache/prepare`
 - 代码路径: `pkg/cleanup/kubeidentity/managed_cache.go`, `pkg/cleanup/registration.go`, `api/controller/cleanup_coordination.go`
 - 测试路径: `pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume`, `api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady`
+
+### Managed package roots bind to observed grdata storage
+
+- Capability ID: `rainbond.cleanup.managed-package-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectManagedPackageSource`
+- 代码路径: `pkg/cleanup/kubeidentity/managed_packages.go`, `pkg/cleanup/registration.go`
+- 测试路径: `pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedPackagePreparationUsesActualGrdataVolume`, `pkg/cleanup/registration_test.go::TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady`
 
 ### Drain writes and require confirmed restoration around manual GC
 
