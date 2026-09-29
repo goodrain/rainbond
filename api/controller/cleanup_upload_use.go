@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -52,7 +53,20 @@ func admitUploadUse(database *gorm.DB, eventID, sessionID, action string) (func(
 		}
 		requests = append(requests, request)
 	}
-	return finish, nil
+	sessionRequest := guard.PackageUploadRequest{OperationID: id, SessionID: sessionID, EventID: eventID, Action: action}
+	if _, err := guard.AcquirePackageUploadRequest(database, sessionRequest); err != nil {
+		// Only explicit pre-admission rejection proves no session grant was committed.
+		rejected := errors.Is(err, guard.ErrCoordinationBusy) || errors.Is(err, guard.ErrCoordinationChanged) || errors.Is(err, guard.ErrCoordinationUncertain)
+		_ = finish(rejected)
+		return nil, err
+	}
+	return func(confirmed bool) error {
+		if err := guard.FinishPackageUploadRequest(database, sessionRequest, confirmed); err != nil {
+			_ = finish(false)
+			return err
+		}
+		return finish(confirmed)
+	}, nil
 }
 
 func (m *ChunkUploadManager) admitSessionUse(session *model.UploadSession, action string) (func(bool) error, error) {

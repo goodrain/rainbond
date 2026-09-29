@@ -21,7 +21,10 @@ func TestUploadUsePersistsAcrossStorageWorkAndUncertainResults(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer func() { database.Close() }()
-			if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+			if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}, &model.UploadSession{}, &model.PackageUploadUse{}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := database.Create(&model.UploadSession{ID: "session", EventID: "event", Status: "uploading", ExpiresAt: time.Now().Add(time.Hour)}).Error; err != nil {
 				t.Fatal(err)
 			}
 			binding := guard.StorageRegistration{StorageID: "owned", Generation: "one", VolumeUID: "isolated-volume", RootPath: "/owned"}
@@ -94,5 +97,43 @@ func TestUploadMaintenanceStopsNativeChunkWriteCancelAndExpiry(t *testing.T) {
 	}
 	if admissions != 3 || cleanups != 0 || manager.sessionCache["owned"] == nil {
 		t.Fatal("blocked mutation touched upload storage or recovery cache")
+	}
+}
+
+// capability_id: rainbond.cleanup.package-upload-exclusive-close
+func TestNativeUploadCancelCannotOverlapAnActivePart(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "native.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}, &model.UploadSession{}, &model.PackageUploadUse{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&model.UploadSession{ID: "session", EventID: "event", Status: "uploading", ExpiresAt: time.Now().Add(time.Hour)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	part, err := admitUploadUse(database, "event", "session", "chunk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitUploadUse(database, "event", "session", "cancel"); !errors.Is(err, guard.ErrCoordinationBusy) {
+		t.Fatal("native cancel overlapped active storage write", err)
+	}
+	if err := part(true); err != nil {
+		t.Fatal(err)
+	}
+	cancel, err := admitUploadUse(database, "event", "session", "cancel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitUploadUse(database, "event", "session", "chunk"); !errors.Is(err, guard.ErrCoordinationBusy) {
+		t.Fatal("part entered cancellation", err)
+	}
+	if err := cancel(false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitUploadUse(database, "event", "session", "expire"); !errors.Is(err, guard.ErrCoordinationUncertain) {
+		t.Fatal("uncertain native request lost protection", err)
 	}
 }

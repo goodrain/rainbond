@@ -1995,6 +1995,35 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.package-upload-exclusive-close",
+      "title": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",
+      "title_zh": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",
+      "interface_type": "workflow",
+      "interface": "AcquirePackageUploadRequest",
+      "code_paths": [
+        "pkg/cleanup/package_upload_use.go",
+        "db/model/package_upload_use.go",
+        "db/mysql/mysql.go",
+        "api/controller/cleanup_upload_use.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_upload_use_test.go",
+          "selector": "TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart"
+        },
+        {
+          "path": "pkg/cleanup/package_upload_use_test.go",
+          "selector": "TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest"
+        },
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestNativeUploadCancelCannotOverlapAnActivePart"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.participant-replacement",
       "title": "Participant replacement preserves active deletion protection",
       "title_zh": "Participant replacement preserves active deletion protection",
