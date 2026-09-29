@@ -106,6 +106,8 @@
 | rainbond.cleanup.node-recovery-submission | Reconcile original recovery Job after lost create response | active | regression | cleanup.SubmitSuspendedNodeRecovery | pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse |
 | rainbond.cleanup.node-recovery-template | Build receipt recovery without cache access after verified executor exit | active | regression | kubeidentity.BuildNodeRecoveryJob | pkg/cleanup/kubeidentity/node_recovery_template_test.go::TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume |
 | rainbond.cleanup.node-result-finalization | Finalize known original node results only after verified executor exit | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish | pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor<br>pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.package-check-before-enqueue | Reserve package source checks before sending MQ messages | active | regression | ServiceAction.ServiceCheck | api/handler/cleanup_queued_tar_test.go::TestServiceCheckReservesOnlyUploadedPackageSources |
+| rainbond.cleanup.package-check-queue-classification | Classify native package checks consistently before enqueue and execution | active | regression | PackageCheckIdentity | pkg/cleanup/queued_check_test.go::TestPackageChecksUseSharedQueueClassification |
 | rainbond.cleanup.package-inventory-mount | Observe and bind read-only package inventory subtree independently of cache deletion | active | regression | BuildManagedCacheInventoryJob | pkg/cleanup/kubeidentity/package_inventory_template_test.go::TestPackageInventoryUsesObservedReadOnlySubtree |
 | rainbond.cleanup.package-upload-exclusive-close | Drain concurrent upload parts before terminal mutation and preserve uncertain requests | active | regression | AcquirePackageUploadRequest | pkg/cleanup/package_upload_use_test.go::TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart<br>pkg/cleanup/package_upload_use_test.go::TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest<br>api/controller/cleanup_upload_use_test.go::TestNativeUploadCancelCannotOverlapAnActivePart |
 | rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
@@ -1650,6 +1652,26 @@
 - 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish`
 - 代码路径: `pkg/cleanup/node_result.go`, `api/controller/cleanup_node_executor.go`, `pkg/cleanup/node_executor_client.go`
 - 测试路径: `pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor`, `pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence`, `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Reserve package source checks before sending MQ messages
+
+- Capability ID: `rainbond.cleanup.package-check-before-enqueue`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `ServiceAction.ServiceCheck`
+- 代码路径: `api/handler/service_check.go`, `pkg/cleanup/queued_tar.go`
+- 测试路径: `api/handler/cleanup_queued_tar_test.go::TestServiceCheckReservesOnlyUploadedPackageSources`
+
+### Classify native package checks consistently before enqueue and execution
+
+- Capability ID: `rainbond.cleanup.package-check-queue-classification`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `PackageCheckIdentity`
+- 代码路径: `pkg/cleanup/queued_check.go`, `builder/exector/service_check.go`
+- 测试路径: `pkg/cleanup/queued_check_test.go::TestPackageChecksUseSharedQueueClassification`
 
 ### Observe and bind read-only package inventory subtree independently of cache deletion
 

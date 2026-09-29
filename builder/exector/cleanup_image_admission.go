@@ -35,8 +35,8 @@ func admitBuild(database *gorm.DB, kind, taskID string, body []byte) (*nativeBui
 		request := guard.CoordinationRequest{StorageID: store.StorageID, Generation: store.Generation, OperationID: hex.EncodeToString(identity[:]), Owner: "native-" + kind + "-builder", Kind: "producer", Scope: "*", Fingerprint: hex.EncodeToString(fingerprint[:])}
 		created := false
 		var err error
-		if kind == "tar-image" {
-			request = guard.NativeTarRequest(store, taskID, body)
+		if kind == "tar-image" || kind == "service-check" {
+			request = guard.QueuedNativeRequest(store, kind, taskID, body)
 			created, err = guard.ClaimQueuedOperation(database, request)
 		}
 		if err == nil && !created {

@@ -153,3 +153,34 @@ func TestTarConsumerClaimsOriginalQueueReservation(t *testing.T) {
 		t.Fatal("finished consumer replayed")
 	}
 }
+
+func TestPackageCheckConsumerClaimsOriginalQueueReservation(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "queued-check.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := guard.ProvisionRegistryStorage(database, "owned-volume", "/registry"); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"uuid":"check","source_type":"package_build"}`)
+	if err := guard.ReserveQueuedNativeTask(database, "service-check", "check", body); err != nil {
+		t.Fatal(err)
+	}
+	admission, err := admitBuild(database, "service-check", "check", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "service-check", "check", body); err == nil {
+		t.Fatal("duplicate check started")
+	}
+	if err := admission.finish(false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "service-check", "check", body); !errors.Is(err, guard.ErrCoordinationUncertain) {
+		t.Fatal("uncertain check replayed", err)
+	}
+}

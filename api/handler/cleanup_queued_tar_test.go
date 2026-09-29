@@ -74,3 +74,68 @@ func TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement(t *testing.T) 
 		database.Close()
 	}
 }
+
+// capability_id: rainbond.cleanup.package-check-before-enqueue
+func TestServiceCheckReservesOnlyUploadedPackageSources(t *testing.T) {
+	for _, kind := range []string{"package_build", "sourcecode-pkg", "sourcecode-git", "docker-compose", "docker-run-tar", "docker-run-image"} {
+		t.Run(kind, func(t *testing.T) {
+			database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "check.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer database.Close()
+			if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+				t.Fatal(err)
+			}
+			binding, err := guard.ProvisionRegistryStorage(database, "owned", "/registry")
+			if err != nil {
+				t.Fatal(err)
+			}
+			old := db.GetManager()
+			db.SetTestManager(queuedTarDB{database: database})
+			defer db.SetTestManager(old)
+			req := &apimodel.ServiceCheckStruct{}
+			req.Body.SourceType = kind
+			req.Body.EventID = "owned"
+			switch kind {
+			case "sourcecode-pkg":
+				req.Body.SourceType = "sourcecode"
+				req.Body.SourceBody = `{"server_type":"pkg"}`
+			case "sourcecode-git":
+				req.Body.SourceType = "sourcecode"
+				req.Body.SourceBody = `{"server_type":"git"}`
+			case "docker-run-tar":
+				req.Body.SourceType = "docker-run"
+				req.Body.SourceBody = "event owned"
+			case "docker-run-image":
+				req.Body.SourceType = "docker-run"
+				req.Body.SourceBody = "docker run nginx"
+			}
+			needs := kind != "sourcecode-git" && kind != "docker-run-image"
+			calls := 0
+			h := &ServiceAction{MQClient: queuedTarMQ{send: func(task client.TaskStruct) error {
+				calls++
+				raw, err := json.Marshal(task.TaskBody)
+				if err != nil {
+					t.Fatal(err)
+				}
+				expected := guard.QueuedNativeRequest(guard.StoreIdentity{StorageID: binding.StorageID, Generation: binding.Generation}, "service-check", req.Body.CheckUUID, raw)
+				var rows []model.CleanupOperation
+				if err := database.Find(&rows).Error; err != nil {
+					t.Fatal(err)
+				}
+				if needs {
+					if len(rows) != 1 || rows[0].OperationID != expected.OperationID || rows[0].Fingerprint != expected.Fingerprint || rows[0].State != "queued" {
+						t.Fatal("package check enqueued without matching reservation")
+					}
+				} else if len(rows) != 0 {
+					t.Fatal("ordinary source check changed behavior")
+				}
+				return nil
+			}}}
+			if _, _, err := h.ServiceCheck(req); err != nil || calls != 1 {
+				t.Fatal("check failed", err)
+			}
+		})
+	}
+}

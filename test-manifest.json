@@ -1995,6 +1995,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.package-check-before-enqueue",
+      "title": "Reserve package source checks before sending MQ messages",
+      "title_zh": "Reserve package source checks before sending MQ messages",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.ServiceCheck",
+      "code_paths": [
+        "api/handler/service_check.go",
+        "pkg/cleanup/queued_tar.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_queued_tar_test.go",
+          "selector": "TestServiceCheckReservesOnlyUploadedPackageSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-check-queue-classification",
+      "title": "Classify native package checks consistently before enqueue and execution",
+      "title_zh": "Classify native package checks consistently before enqueue and execution",
+      "interface_type": "workflow",
+      "interface": "PackageCheckIdentity",
+      "code_paths": [
+        "pkg/cleanup/queued_check.go",
+        "builder/exector/service_check.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/queued_check_test.go",
+          "selector": "TestPackageChecksUseSharedQueueClassification"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.package-inventory-mount",
       "title": "Observe and bind read-only package inventory subtree independently of cache deletion",
       "title_zh": "Observe and bind read-only package inventory subtree independently of cache deletion",
