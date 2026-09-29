@@ -27,7 +27,7 @@ func ReserveQueuedTarLoad(database *gorm.DB, loadID string, body []byte) error {
 
 // ReserveQueuedNativeTask reserves only supported package task types.
 func ReserveQueuedNativeTask(database *gorm.DB, kind, loadID string, body []byte) error {
-	if kind != "tar-image" && kind != "service-check" {
+	if !queuedNativeKind(kind) {
 		return ErrCoordinationChanged
 	}
 	if database == nil || !coordinationIdentity.MatchString(loadID) || len(body) == 0 || len(body) > 1<<20 {

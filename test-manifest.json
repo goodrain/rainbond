@@ -1623,6 +1623,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.native-queue-reservation",
+      "title": "Persist native builder task identity before queue delivery",
+      "title_zh": "Persist native builder task identity before queue delivery",
+      "interface_type": "workflow",
+      "interface": "mqClient.SendBuilderTopic",
+      "code_paths": [
+        "mq/client/client.go",
+        "pkg/cleanup/queued_task_kind.go"
+      ],
+      "tests": [
+        {
+          "path": "mq/client/cleanup_queue_test.go",
+          "selector": "TestNativeMQTaskReservesStableIdentityBeforeNetwork"
+        },
+        {
+          "path": "mq/client/cleanup_queue_test.go",
+          "selector": "TestNonNativeMQMessagesKeepExistingDelivery"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.native-service-mesh-references",
       "title": "Classify only native ServiceMesh reference schemas",
       "title_zh": "Classify only native ServiceMesh reference schemas",
