@@ -145,6 +145,10 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 		packages = append(packages, item)
 	}
 
+	binding := ""
+	if h.uploadStorageBinding != nil {
+		binding, _ = h.uploadStorageBinding()
+	}
 	writersReady := false
 	if h.inspectReferenceWriters != nil {
 		writers, err := h.inspectReferenceWriters(ctx)
@@ -153,10 +157,11 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 		}
 	}
 	httputil.ReturnSuccess(r, w, struct {
-		WritersReady bool                         `json:"writers_ready"`
-		Packages     []uploadPackageInventoryItem `json:"packages"`
-		Protocol     int                          `json:"protocol"`
-		Scope        string                       `json:"scope"`
-		Items        []uploadInventoryItem        `json:"items"`
-	}{writersReady, packages, 1, "upload_chunks", items})
+		StorageFingerprint string                       `json:"storage_fingerprint"`
+		WritersReady       bool                         `json:"writers_ready"`
+		Packages           []uploadPackageInventoryItem `json:"packages"`
+		Protocol           int                          `json:"protocol"`
+		Scope              string                       `json:"scope"`
+		Items              []uploadInventoryItem        `json:"items"`
+	}{binding, writersReady, packages, 1, "upload_chunks", items})
 }

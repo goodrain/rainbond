@@ -2999,6 +2999,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-delete-api",
+      "title": "Gate selected upload chunk deletion on current writers storage identity expiry and scanned session",
+      "title_zh": "Gate selected upload chunk deletion on current writers storage identity expiry and scanned session",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/chunks/delete",
+      "code_paths": [
+        "api/controller/cleanup_upload_delete.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_delete_test.go",
+          "selector": "TestUploadDeleteAPIRequiresWriterStorageRuleAndSelectionEvidence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.upload-expiration-evidence",
       "title": "Preserve unverified expired upload records without expanding background deletion",
       "title_zh": "Preserve unverified expired upload records without expanding background deletion",
@@ -8337,6 +8356,24 @@
         {
           "path": "pkg/component/storage/s3_storage_test.go",
           "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.upload-chunk-binding",
+      "title": "Bind native chunk storage without exposing credentials",
+      "title_zh": "Bind native chunk storage without exposing credentials",
+      "interface_type": "workflow",
+      "interface": "Component.UploadChunkBinding",
+      "code_paths": [
+        "pkg/component/storage/upload_binding.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/upload_binding_test.go",
+          "selector": "TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials"
         }
       ],
       "test_type": "regression",

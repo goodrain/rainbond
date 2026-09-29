@@ -157,6 +157,7 @@
 | rainbond.cleanup.tar-service-check-admission | Block tar service check native work during maintenance | active | regression | exector.serviceCheck | builder/exector/cleanup_service_check_test.go::TestTarServiceCheckCannotPushDuringMaintenance |
 | rainbond.cleanup.upload-cancel-evidence | Retain upload session evidence when physical cleanup fails | active | regression | controller.ChunkUploadManager.CancelUpload | api/controller/chunk_upload_cleanup_test.go::TestCancelUploadRetainsRecoveryEvidenceOnFailure |
 | rainbond.cleanup.upload-completion-evidence | Persist upload completion before deleting resumable chunks | active | regression | ChunkUploadManager.CompleteUpload | api/controller/chunk_upload_completion_test.go::TestUploadCompletionPreservesEvidenceBeforeChunkDeletion |
+| rainbond.cleanup.upload-delete-api | Gate selected upload chunk deletion on current writers storage identity expiry and scanned session | active | regression | POST /v2/cleanup/uploads/chunks/delete | api/controller/cleanup_upload_delete_test.go::TestUploadDeleteAPIRequiresWriterStorageRuleAndSelectionEvidence |
 | rainbond.cleanup.upload-expiration-evidence | Preserve unverified expired upload records without expanding background deletion | active | regression | controller.ChunkUploadManager.cleanExpiredSessions | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCleanupPreservesRecoveryEvidence |
 | rainbond.cleanup.upload-inventory-api | Scope manual upload inventory and retain unknown measured sizes | active | regression | POST /v2/cleanup/uploads/inventory | api/controller/cleanup_upload_inventory_test.go::TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes |
 | rainbond.cleanup.upload-inventory-bounds | Bound upload inventory before physical storage reads | active | regression | POST /v2/cleanup/uploads/inventory | api/controller/cleanup_upload_inventory_test.go::TestUploadInventoryRejectsOversizedResultBeforeReadingStorage |
@@ -438,6 +439,7 @@
 | rainbond.storage.minio-chunk-cleanup | Delete all owned MinIO upload chunks while preserving a sibling session | active | integration | storage.S3Storage.CleanupChunks | pkg/component/storage/chunk_cleanup_minio_test.go::TestMinIOChunkCleanupOwnsExactSession |
 | rainbond.storage.no-credential-startup-logs | Never print storage access or secret keys at startup | active | regression | storage.Component.Start | pkg/component/storage/credential_logging_test.go::TestStorageStartupDoesNotLogCredentials |
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
+| rainbond.storage.upload-chunk-binding | Bind native chunk storage without exposing credentials | active | regression | Component.UploadChunkBinding | pkg/component/storage/upload_binding_test.go::TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials |
 | rainbond.storage.upload-package-size | Measure scoped upload packages including extracted files | active | regression | storage.MeasureUploadEvent | pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles<br>pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
@@ -2165,6 +2167,16 @@
 - 业务入口: `ChunkUploadManager.CompleteUpload`
 - 代码路径: `api/controller/chunk_upload_manager.go`
 - 测试路径: `api/controller/chunk_upload_completion_test.go::TestUploadCompletionPreservesEvidenceBeforeChunkDeletion`
+
+### Gate selected upload chunk deletion on current writers storage identity expiry and scanned session
+
+- Capability ID: `rainbond.cleanup.upload-delete-api`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/cleanup/uploads/chunks/delete`
+- 代码路径: `api/controller/cleanup_upload_delete.go`, `api/api_routers/version2/v2Routers.go`
+- 测试路径: `api/controller/cleanup_upload_delete_test.go::TestUploadDeleteAPIRequiresWriterStorageRuleAndSelectionEvidence`
 
 ### Preserve unverified expired upload records without expanding background deletion
 
@@ -4975,6 +4987,16 @@
 - 业务入口: `pkg/component/storage.(*S3Storage).ensureBucketLifecycle`
 - 代码路径: `pkg/component/storage/s3_storage.go`
 - 测试路径: `pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured`
+
+### Bind native chunk storage without exposing credentials
+
+- Capability ID: `rainbond.storage.upload-chunk-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `Component.UploadChunkBinding`
+- 代码路径: `pkg/component/storage/upload_binding.go`
+- 测试路径: `pkg/component/storage/upload_binding_test.go::TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials`
 
 ### Measure scoped upload packages including extracted files
 
