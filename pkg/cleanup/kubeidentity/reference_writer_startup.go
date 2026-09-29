@@ -34,7 +34,14 @@ func RegisterReferenceWriterStartup(ctx context.Context, database *gorm.DB, clie
 		}
 		observed, err := InspectReferenceWriter(ctx, client, namespace, podName, string(original), role)
 		if err == nil {
-			return guard.RegisterReferenceWriter(database, observed)
+			if err := guard.RegisterReferenceWriter(database, observed); err != nil {
+				return err
+			}
+			if role == "api" {
+				observed.Protocol = guard.UploadWriterProtocol
+				return guard.RegisterReferenceWriter(database, observed)
+			}
+			return nil
 		}
 		timer := time.NewTimer(200 * time.Millisecond)
 		select {

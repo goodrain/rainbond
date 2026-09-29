@@ -55,7 +55,7 @@ func TestReferenceWriterStartupWaitsForOwnRuntimeOnly(t *testing.T) {
 					t.Fatal("replacement inherited startup", err, count)
 				}
 			} else {
-				if err != nil || count != 1 {
+				if err != nil || count != 2 {
 					t.Fatal(err, count)
 				}
 				observed, err := InspectReferenceWriter(ctx, client, "system", "api", "original", "api")
@@ -64,6 +64,10 @@ func TestReferenceWriterStartupWaitsForOwnRuntimeOnly(t *testing.T) {
 				}
 				if known, err := guard.ReferenceWriterRegistered(database, observed); err != nil || !known {
 					t.Fatal(known, err)
+				}
+				observed.Protocol = guard.UploadWriterProtocol
+				if known, err := guard.ReferenceWriterRegistered(database, observed); err != nil || !known {
+					t.Fatal("missing actual upload writer startup", err)
 				}
 			}
 		})

@@ -22,7 +22,7 @@ type ReferenceWriter struct {
 
 func (w ReferenceWriter) identity() (string, string, error) {
 	containers := map[string]string{"api": "rbd-api", "worker": "rbd-worker", "builder": "rbd-chaos", "console": "rbd-app-ui"}
-	if containers[w.Role] == "" || w.ContainerName != containers[w.Role] || w.Protocol != ReferenceWriterProtocol || len(validation.IsDNS1123Label(w.Namespace)) != 0 || len(validation.IsDNS1123Subdomain(w.PodName)) != 0 || !coordinationIdentity.MatchString(w.PodUID) {
+	if containers[w.Role] == "" || w.ContainerName != containers[w.Role] || (w.Protocol != ReferenceWriterProtocol && !(w.Role == "api" && w.Protocol == UploadWriterProtocol)) || len(validation.IsDNS1123Label(w.Namespace)) != 0 || len(validation.IsDNS1123Subdomain(w.PodName)) != 0 || !coordinationIdentity.MatchString(w.PodUID) {
 		return "", "", ErrCoordinationChanged
 	}
 	for _, field := range []struct {
@@ -33,7 +33,12 @@ func (w ReferenceWriter) identity() (string, string, error) {
 			return "", "", ErrCoordinationChanged
 		}
 	}
-	key := sha256.Sum256([]byte(w.Namespace + "\x00" + w.Role + "\x00" + w.PodUID + "\x00" + w.ContainerID))
+	identity := w.Namespace + "\x00" + w.Role + "\x00" + w.PodUID + "\x00" + w.ContainerID
+	// Preserve the existing registry identity; additional protocols coexist.
+	if w.Protocol == UploadWriterProtocol {
+		identity += "\x00" + w.Protocol
+	}
+	key := sha256.Sum256([]byte(identity))
 	raw, _ := json.Marshal(w)
 	fingerprint := sha256.Sum256(raw)
 	return hex.EncodeToString(key[:]), hex.EncodeToString(fingerprint[:]), nil

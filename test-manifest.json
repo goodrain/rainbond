@@ -3099,6 +3099,26 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-writer-coverage",
+      "title": "Require current API instances to register upload guard support separately from registry references",
+      "title_zh": "Require current API instances to register upload guard support separately from registry references",
+      "interface_type": "workflow",
+      "interface": "UploadWriterCoverageRegistered",
+      "code_paths": [
+        "pkg/cleanup/upload_writer.go",
+        "pkg/cleanup/reference_writer.go",
+        "pkg/cleanup/kubeidentity/reference_writer_startup.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/upload_writer_test.go",
+          "selector": "TestUploadDeletionRequiresEveryCurrentAPIWriterProtocol"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.verified-client-identity",
       "title": "Cleanup requires configured token or verified platform client certificate",
       "title_zh": "Cleanup requires configured token or verified platform client certificate",
