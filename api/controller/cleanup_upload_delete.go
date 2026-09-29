@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
@@ -11,6 +12,9 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 )
+
+var uploadInspectionOperation = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+var uploadInspectionFingerprint = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 func systemUploadStorageBinding() (string, error) { return storage.Default().UploadChunkBinding() }
 func systemDeleteUploadChunks(id string) error {
@@ -99,4 +103,48 @@ func (h *CleanupCoordinationHandler) DeleteUploadChunks(w http.ResponseWriter, r
 		return
 	}
 	httputil.ReturnSuccess(r, w, map[string]interface{}{"protocol": 1, "operation_id": body.OperationID, "event_id": body.EventID, "session_id": body.SessionID, "state": "deleted"})
+}
+
+// InspectUploadChunks reads the authoritative receipt for one original
+// operation. It never invokes the retirement or deletion paths.
+func (h *CleanupCoordinationHandler) InspectUploadChunks(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		OperationID        string `json:"operation_id"`
+		EventID            string `json:"event_id"`
+		SessionID          string `json:"session_id"`
+		StateFingerprint   string `json:"state_fingerprint"`
+		StorageFingerprint string `json:"storage_fingerprint"`
+	}
+	if !coordinationDecode(w, r, &body) {
+		return
+	}
+	if !uploadInspectionOperation.MatchString(body.OperationID) || !uploadInventoryEventID.MatchString(body.EventID) ||
+		!uploadInventoryEventID.MatchString(body.SessionID) || !uploadInspectionFingerprint.MatchString(body.StateFingerprint) ||
+		!uploadInspectionFingerprint.MatchString(body.StorageFingerprint) {
+		httputil.ReturnError(r, w, 400, "INVALID_UPLOAD_INSPECTION")
+		return
+	}
+	if h.database == nil || h.uploadStorageBinding == nil || h.measureUploadChunks == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	database := h.database()
+	if database == nil {
+		coordinationError(w, r, guard.ErrCoordinationUnavailable)
+		return
+	}
+	state := "unknown"
+	binding, err := h.uploadStorageBinding()
+	if err == nil && binding != "" && binding == body.StorageFingerprint {
+		state, err = guard.InspectExpiredUploadDeletion(database, body.OperationID, body.EventID, body.SessionID, body.StateFingerprint,
+			func(id string) (int64, int, error) {
+				usage, measureErr := h.measureUploadChunks(r.Context(), id)
+				return usage.Bytes, usage.Objects, measureErr
+			})
+		if err != nil {
+			coordinationError(w, r, err)
+			return
+		}
+	}
+	httputil.ReturnSuccess(r, w, map[string]interface{}{"protocol": 1, "operation_id": body.OperationID, "event_id": body.EventID, "session_id": body.SessionID, "state": state})
 }
