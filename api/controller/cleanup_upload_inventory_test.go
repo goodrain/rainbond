@@ -39,7 +39,7 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	}
 	measured := 0
 	packages := 0
-	h := &CleanupCoordinationHandler{measureUploadEvent: func(ctx context.Context, eventID string) (storage.UploadChunkUsage, error) {
+	h := &CleanupCoordinationHandler{uploadPackageReferences: func(*gorm.DB, []string) (map[string]bool, error) { return map[string]bool{"owned": true}, nil }, measureUploadEvent: func(ctx context.Context, eventID string) (storage.UploadChunkUsage, error) {
 		packages++
 		if eventID != "owned" {
 			t.Fatal("measured foreign package event")
@@ -86,8 +86,10 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	var reply struct {
 		Bean struct {
 			Packages []struct {
-				EventID string `json:"event_id"`
-				Bytes   *int64 `json:"bytes"`
+				Referenced         *bool  `json:"referenced"`
+				ReferencesComplete bool   `json:"references_complete"`
+				EventID            string `json:"event_id"`
+				Bytes              *int64 `json:"bytes"`
 			} `json:"packages"`
 			Protocol int `json:"protocol"`
 			Items    []struct {
@@ -105,6 +107,9 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	}
 	if packages != 1 || len(reply.Bean.Packages) != 1 || reply.Bean.Packages[0].EventID != "owned" || reply.Bean.Packages[0].Bytes == nil || *reply.Bean.Packages[0].Bytes != 97 {
 		t.Fatal("package was omitted or counted per session")
+	}
+	if reply.Bean.Packages[0].Referenced == nil || !*reply.Bean.Packages[0].Referenced || reply.Bean.Packages[0].ReferencesComplete {
+		t.Fatal("positive reference missing or partial evidence declared complete")
 	}
 	known, unknown := reply.Bean.Items[0], reply.Bean.Items[1]
 	if known.ID != "known" || known.Bytes == nil || *known.Bytes != 17 || known.SizeStatus != "measured" {

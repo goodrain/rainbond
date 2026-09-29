@@ -2910,6 +2910,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-retained-references",
+      "title": "Protect package events referenced by retained versions and source checks",
+      "title_zh": "Protect package events referenced by retained versions and source checks",
+      "interface_type": "workflow",
+      "interface": "ReadUploadPackageReferences",
+      "code_paths": [
+        "pkg/cleanup/package_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_references_test.go",
+          "selector": "TestUploadReferencesProtectRetainedVersionsAndSourceChecks"
+        },
+        {
+          "path": "pkg/cleanup/package_references_test.go",
+          "selector": "TestUploadReferencePathsAreCanonical"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.upload-use-lifetime",
       "title": "Keep native upload storage work protected through completion and restart",
       "title_zh": "Keep native upload storage work protected through completion and restart",

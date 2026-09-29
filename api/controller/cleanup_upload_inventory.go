@@ -42,10 +42,12 @@ func systemMeasureUploadChunks(ctx context.Context, id string) (storage.UploadCh
 }
 
 type uploadPackageInventoryItem struct {
-	EventID    string `json:"event_id"`
-	Bytes      *int64 `json:"bytes"`
-	Objects    *int   `json:"objects"`
-	SizeStatus string `json:"size_status"`
+	Referenced         *bool  `json:"referenced"`
+	ReferencesComplete bool   `json:"references_complete"`
+	EventID            string `json:"event_id"`
+	Bytes              *int64 `json:"bytes"`
+	Objects            *int   `json:"objects"`
+	SizeStatus         string `json:"size_status"`
 }
 
 func systemMeasureUploadEvent(ctx context.Context, id string) (storage.UploadChunkUsage, error) {
@@ -119,10 +121,18 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 		items = append(items, item)
 	}
 	packages := make([]uploadPackageInventoryItem, 0, len(body.EventIDs))
+	var references map[string]bool
+	if h.uploadPackageReferences != nil {
+		references, _ = h.uploadPackageReferences(database, body.EventIDs)
+	}
+
 	// Measure an event once, even if it has multiple upload/retry sessions.
 	// Legacy non-chunk uploads may have no UploadSession row at all.
 	for _, eventID := range body.EventIDs {
 		item := uploadPackageInventoryItem{EventID: eventID, SizeStatus: "unavailable"}
+		if used, ok := references[eventID]; ok {
+			item.Referenced = &used
+		}
 		if h.measureUploadEvent != nil && ctx.Err() == nil {
 			usage, err := h.measureUploadEvent(ctx, eventID)
 			if err == nil && usage.Bytes >= 0 && usage.Objects >= 0 {
