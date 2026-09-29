@@ -64,6 +64,7 @@
 | rainbond.cleanup.durable-maintenance-measurements | Persist GC measurements without releasing maintenance protection | active | regression | cleanup.RecordMaintenanceMeasurement | pkg/cleanup/maintenance_measurement_test.go::TestMaintenanceMeasurementsPersistWithoutGrantingRestore |
 | rainbond.cleanup.executor-preview-authority | Reject admission changes to native executor authority | active | regression | cleanup.sameExecutorPreview | pkg/cleanup/node_job_submit_test.go::TestNodeDryRunCannotChangeExecutorIdentity<br>pkg/cleanup/gc_job_submit_test.go::TestGCPreviewCannotInjectLifecycleOrStorage |
 | rainbond.cleanup.expired-upload-reinitialize | Start a new session instead of resuming expired chunk metadata | active | regression | controller.ChunkUploadManager.InitUploadSession | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks |
+| rainbond.cleanup.expired-upload-retirement | Retire original expired upload before one-shot chunk deletion and retain recovery evidence | active | regression | DeleteExpiredUploadChunks | pkg/cleanup/upload_retirement_test.go::TestExpiredUploadDeletionRetiresSessionAndDoesNotReplay<br>pkg/cleanup/upload_retirement_test.go::TestExpiredUploadDeletionRejectsChangedOrActiveEvidence<br>pkg/cleanup/upload_retirement_test.go::TestInterruptedUploadRetirementDoesNotReplayAfterRestart |
 | rainbond.cleanup.expired-upload-writes | Reject writes and completion on expired upload sessions | active | regression | controller.ChunkUploadManager.SaveChunk | api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadCannotContinueWriting |
 | rainbond.cleanup.gc-executor-command | Bind native GC command to the verified Job admission | active | regression | registry-gc.runGC | cmd/registry-gc/main_test.go::TestGCCommandValidatesBeforeExecutionAndSeparatesRecovery |
 | rainbond.cleanup.gc-executor-identity | Verify GC pod ownership image and physical volume | active | regression | kubeidentity.InspectGCExecutor | pkg/cleanup/kubeidentity/gc_executor_test.go::TestGCExecutorIdentityRejectsUntrustedPodAndStorage |
@@ -1233,6 +1234,16 @@
 - 业务入口: `controller.ChunkUploadManager.InitUploadSession`
 - 代码路径: `api/controller/chunk_upload_manager.go`
 - 测试路径: `api/controller/chunk_upload_cleanup_test.go::TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks`
+
+### Retire original expired upload before one-shot chunk deletion and retain recovery evidence
+
+- Capability ID: `rainbond.cleanup.expired-upload-retirement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `DeleteExpiredUploadChunks`
+- 代码路径: `pkg/cleanup/upload_retirement.go`, `db/model/package_upload_use.go`
+- 测试路径: `pkg/cleanup/upload_retirement_test.go::TestExpiredUploadDeletionRetiresSessionAndDoesNotReplay`, `pkg/cleanup/upload_retirement_test.go::TestExpiredUploadDeletionRejectsChangedOrActiveEvidence`, `pkg/cleanup/upload_retirement_test.go::TestInterruptedUploadRetirementDoesNotReplayAfterRestart`
 
 ### Reject writes and completion on expired upload sessions
 

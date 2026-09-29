@@ -15,16 +15,17 @@ import (
 var uploadInventoryEventID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
 type uploadInventoryItem struct {
-	ID         string    `json:"id"`
-	EventID    string    `json:"event_id"`
-	FileName   string    `json:"file_name"`
-	Status     string    `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	Bytes      *int64    `json:"bytes"`
-	Objects    *int      `json:"objects"`
-	SizeStatus string    `json:"size_status"`
+	StateFingerprint string    `json:"state_fingerprint"`
+	ID               string    `json:"id"`
+	EventID          string    `json:"event_id"`
+	FileName         string    `json:"file_name"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	ExpiresAt        time.Time `json:"expires_at"`
+	Bytes            *int64    `json:"bytes"`
+	Objects          *int      `json:"objects"`
+	SizeStatus       string    `json:"size_status"`
 }
 
 func systemMeasureUploadChunks(ctx context.Context, id string) (storage.UploadChunkUsage, error) {
@@ -97,7 +98,7 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 		return
 	}
 	rows := []model.UploadSession{}
-	if err := database.Select("id, event_id, file_name, status, created_at, updated_at, expires_at").Where("event_id IN (?)", body.EventIDs).Order("id ASC").Limit(501).Find(&rows).Error; err != nil {
+	if err := database.Select("id, event_id, file_name, status, uploaded_chunks, storage_path, created_at, updated_at, expires_at").Where("event_id IN (?)", body.EventIDs).Order("id ASC").Limit(501).Find(&rows).Error; err != nil {
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
@@ -109,7 +110,7 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 	defer cancel()
 	items := make([]uploadInventoryItem, 0, len(rows))
 	for _, row := range rows {
-		item := uploadInventoryItem{ID: row.ID, EventID: row.EventID, FileName: row.FileName, Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, ExpiresAt: row.ExpiresAt, SizeStatus: "unavailable"}
+		item := uploadInventoryItem{StateFingerprint: guard.UploadSessionFingerprint(row), ID: row.ID, EventID: row.EventID, FileName: row.FileName, Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, ExpiresAt: row.ExpiresAt, SizeStatus: "unavailable"}
 		if ctx.Err() == nil {
 			usage, err := h.measureUploadChunks(ctx, row.ID)
 			if err == nil && usage.Bytes >= 0 && usage.Objects >= 0 {

@@ -1129,6 +1129,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.expired-upload-retirement",
+      "title": "Retire original expired upload before one-shot chunk deletion and retain recovery evidence",
+      "title_zh": "Retire original expired upload before one-shot chunk deletion and retain recovery evidence",
+      "interface_type": "workflow",
+      "interface": "DeleteExpiredUploadChunks",
+      "code_paths": [
+        "pkg/cleanup/upload_retirement.go",
+        "db/model/package_upload_use.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestExpiredUploadDeletionRetiresSessionAndDoesNotReplay"
+        },
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestExpiredUploadDeletionRejectsChangedOrActiveEvidence"
+        },
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestInterruptedUploadRetirementDoesNotReplayAfterRestart"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.expired-upload-writes",
       "title": "Reject writes and completion on expired upload sessions",
       "title_zh": "Reject writes and completion on expired upload sessions",
