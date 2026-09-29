@@ -113,6 +113,8 @@
 | rainbond.cleanup.platform-future-helper-references | Protect default and configured builder and worker helper images | active | regression | kubeidentity.ReadPlatformHelperReferences | pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformDefaultsRemainReferencedWithoutActiveBuilds<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestBuilderDaemonSetRollbackHelperReferences |
 | rainbond.cleanup.platform-resource-admission | Protect namespace and cluster resource mutations from concurrent cleanup | active | regression | NsResourceHandler.CreateNsResource | api/handler/cleanup_namespace_admission_test.go::TestNamespaceMutationsCannotBypassCleanupAdmission<br>api/handler/cleanup_namespace_admission_test.go::TestClusterMutationsCannotBypassCleanupAdmission |
 | rainbond.cleanup.plugin-version-reference-coordination | Plugin version writes respect selected deletion and cannot resurrect records | active | regression | PluginBuildVersionDaoImpl | db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect |
+| rainbond.cleanup.queued-producer-handoff | Protect queued producer lifetime and atomically claim once | active | regression | QueueOperation | pkg/cleanup/queued_operation_test.go::TestQueuedProducerProtectsWaitingWorkAndClaimsExactlyOnce |
+| rainbond.cleanup.queued-tar-consumer | Claim original queued tar reservation before native execution | active | regression | admitBuild | builder/exector/cleanup_image_admission_test.go::TestTarConsumerClaimsOriginalQueueReservation |
 | rainbond.cleanup.reference-writer-controller-coverage | Require complete stable platform writer controller coverage | active | regression | kubeidentity.InspectReferenceWriterCoverage | pkg/cleanup/kubeidentity/reference_writer_coverage_test.go::TestReferenceWriterCoverageRejectsIncompleteRollout |
 | rainbond.cleanup.reference-writer-runtime-evidence | Bind reference-writer protocol evidence to immutable running containers | active | regression | cleanup.RegisterReferenceWriter | pkg/cleanup/reference_writer_test.go::TestReferenceWriterEvidenceIsIndependentAndImmutable<br>pkg/cleanup/kubeidentity/reference_writer_test.go::TestReferenceWriterIdentityUsesActualRuntime |
 | rainbond.cleanup.reference-writer-startup | Register reference writer runtime evidence at service startup | active | regression | kubeidentity.RegisterReferenceWriterStartup | pkg/cleanup/kubeidentity/reference_writer_startup_test.go::TestReferenceWriterStartupWaitsForOwnRuntimeOnly |
@@ -143,6 +145,7 @@
 | rainbond.cleanup.single-deletion-attempt | Consume deletion permission once and retain verification protection | active | regression | pkg/cleanup.BeginDeletionAttempt | pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified |
 | rainbond.cleanup.storage-enrollment | Collect writes during enrollment without granting cleanup | active | regression | pkg/cleanup.RegisterStorage | pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion |
 | rainbond.cleanup.storage-identity | Bind storage identity atomically without replacing prior markers | active | regression | pkg/cleanup/registryproxy.InitializeStorageIdentity | pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten |
+| rainbond.cleanup.tar-admission-before-enqueue | Persist exact tar task reservation before MQ and retain unknown outcome | active | regression | TarImageHandle.LoadTarImage | api/handler/cleanup_queued_tar_test.go::TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement |
 | rainbond.cleanup.tar-check-event-path | Restrict tar check input to event directory identifiers | active | regression | parser.TarImageEventID | builder/parser/tar_event_test.go::TestTarImageEventIDRejectsTraversalAndMalformedSources |
 | rainbond.cleanup.tar-image-admission | Fence tar image import through native work and result persistence | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportAdmissionCoversWorkAndResultPersistence<br>builder/exector/cleanup_tar_admission_test.go::TestTarImportUnknownOutcomeRetainsProtection<br>builder/exector/cleanup_tar_admission_test.go::TestTarImportInvalidIdentityStopsBeforeFilesystemOrDatabase |
 | rainbond.cleanup.tar-image-entry | Reject tar import before native work and preserve original result | active | regression | exector.loadTarImage | builder/exector/cleanup_tar_admission_test.go::TestTarImportEntryReportsMaintenanceWithoutStartingNativeWork |
@@ -1718,6 +1721,26 @@
 - 代码路径: `db/mysql/dao/plugin_cleanup.go`
 - 测试路径: `db/mysql/dao/version_cleanup_test.go::TestPluginVersionWritesRespectDeletionAndNeverResurrect`
 
+### Protect queued producer lifetime and atomically claim once
+
+- Capability ID: `rainbond.cleanup.queued-producer-handoff`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `QueueOperation`
+- 代码路径: `pkg/cleanup/queued_operation.go`, `pkg/cleanup/coordination.go`
+- 测试路径: `pkg/cleanup/queued_operation_test.go::TestQueuedProducerProtectsWaitingWorkAndClaimsExactlyOnce`
+
+### Claim original queued tar reservation before native execution
+
+- Capability ID: `rainbond.cleanup.queued-tar-consumer`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `admitBuild`
+- 代码路径: `builder/exector/cleanup_image_admission.go`, `pkg/cleanup/queued_tar.go`
+- 测试路径: `builder/exector/cleanup_image_admission_test.go::TestTarConsumerClaimsOriginalQueueReservation`
+
 ### Require complete stable platform writer controller coverage
 
 - Capability ID: `rainbond.cleanup.reference-writer-controller-coverage`
@@ -2017,6 +2040,16 @@
 - 业务入口: `pkg/cleanup/registryproxy.InitializeStorageIdentity`
 - 代码路径: `pkg/cleanup/registryproxy/identity.go`
 - 测试路径: `pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten`
+
+### Persist exact tar task reservation before MQ and retain unknown outcome
+
+- Capability ID: `rainbond.cleanup.tar-admission-before-enqueue`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `TarImageHandle.LoadTarImage`
+- 代码路径: `api/handler/tar_image_handler.go`
+- 测试路径: `api/handler/cleanup_queued_tar_test.go::TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement`
 
 ### Restrict tar check input to event directory identifiers
 

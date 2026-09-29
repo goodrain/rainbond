@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/mq/client"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -74,8 +75,16 @@ func (t *TarImageHandle) LoadTarImage(tenantID string, req model.LoadTarImageReq
 	logrus.Infof("[LoadTarImage] Sending task to MQ, topic: %s, task_type: %s, task_body: %+v",
 		task.Topic, task.TaskType, task.TaskBody)
 
-	// 发送任务到消息队列
-	err := t.MQClient.SendBuilderTopic(task)
+	// Bind the exact JSON map encoding used by MQ before it can be consumed.
+	body, err := json.Marshal(task.TaskBody)
+	if err != nil || db.GetManager() == nil {
+		return nil, util.CreateAPIHandleError(503, fmt.Errorf("upload task admission unavailable"))
+	}
+	if err := guard.ReserveQueuedTarLoad(db.GetManager().DB(), loadID, body); err != nil {
+		return nil, util.CreateAPIHandleError(503, fmt.Errorf("upload task admission unavailable"))
+	}
+	// A lost enqueue response is ambiguous: leave the original reservation held.
+	err = t.MQClient.SendBuilderTopic(task)
 	if err != nil {
 		logrus.Errorf("[LoadTarImage] Failed to send task to MQ: %v", err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("启动解析任务失败"))
