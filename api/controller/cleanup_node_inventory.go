@@ -13,7 +13,7 @@ import (
 )
 
 func systemNodeInventorySettings() kubeidentity.NodeInventorySettings {
-	return kubeidentity.NodeInventorySettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE")}
+	return kubeidentity.NodeInventorySettings{Region: os.Getenv("REGION_NAME"), Image: os.Getenv("CLEANUP_NODE_EXECUTOR_IMAGE"), IncludePackages: os.Getenv("CLEANUP_NODE_PACKAGE_INVENTORY") == "true"}
 }
 
 // CollectManagedCache starts an authenticated, manually requested inventory job.

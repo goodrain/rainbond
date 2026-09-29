@@ -1995,6 +1995,26 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.package-inventory-mount",
+      "title": "Observe and bind read-only package inventory subtree independently of cache deletion",
+      "title_zh": "Observe and bind read-only package inventory subtree independently of cache deletion",
+      "interface_type": "workflow",
+      "interface": "BuildManagedCacheInventoryJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/package_inventory_template.go",
+        "pkg/cleanup/kubeidentity/node_inventory_template.go",
+        "pkg/cleanup/kubeidentity/node_inventory_report.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/package_inventory_template_test.go",
+          "selector": "TestPackageInventoryUsesObservedReadOnlySubtree"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.package-upload-exclusive-close",
       "title": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",
       "title_zh": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",

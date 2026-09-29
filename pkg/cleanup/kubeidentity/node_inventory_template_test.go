@@ -56,6 +56,27 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	if pod.Spec.Containers[0].VolumeMounts[0].ReadOnly {
 		t.Fatal("source mutated")
 	}
+	settings.IncludePackages = true
+	if _, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings); err == nil {
+		t.Fatal("invented missing package mount")
+	}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "grdata", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/owned/grdata"}}})
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{Name: "grdata", MountPath: "/grdata"})
+	if _, err := client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	packageJob, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packageSpec := packageJob.Spec.Template.Spec
+	if len(packageSpec.Volumes) != 2 || len(packageSpec.Containers[0].VolumeMounts) != 2 || !packageSpec.Containers[0].VolumeMounts[1].ReadOnly {
+		t.Fatal("package inventory did not preserve read-only scope")
+	}
+	payload, _ := base64.StdEncoding.DecodeString(packageSpec.Containers[0].Env[0].Value)
+	if !strings.Contains(string(payload), "upload_components") || !strings.Contains(string(payload), "upload_events") {
+		t.Fatal("package roots omitted")
+	}
 	binding.VolumeUID = "replaced"
 	if _, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings); err == nil {
 		t.Fatal("wrong source accepted")

@@ -106,6 +106,7 @@
 | rainbond.cleanup.node-recovery-submission | Reconcile original recovery Job after lost create response | active | regression | cleanup.SubmitSuspendedNodeRecovery | pkg/cleanup/node_recovery_test.go::TestRecoverySubmissionNeverRecreatesAfterLostResponse |
 | rainbond.cleanup.node-recovery-template | Build receipt recovery without cache access after verified executor exit | active | regression | kubeidentity.BuildNodeRecoveryJob | pkg/cleanup/kubeidentity/node_recovery_template_test.go::TestNodeRecoveryRequiresOriginalExitAndOmitsCacheVolume |
 | rainbond.cleanup.node-result-finalization | Finalize known original node results only after verified executor exit | active | integration | POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish | pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor<br>pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence<br>api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce |
+| rainbond.cleanup.package-inventory-mount | Observe and bind read-only package inventory subtree independently of cache deletion | active | regression | BuildManagedCacheInventoryJob | pkg/cleanup/kubeidentity/package_inventory_template_test.go::TestPackageInventoryUsesObservedReadOnlySubtree |
 | rainbond.cleanup.package-upload-exclusive-close | Drain concurrent upload parts before terminal mutation and preserve uncertain requests | active | regression | AcquirePackageUploadRequest | pkg/cleanup/package_upload_use_test.go::TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart<br>pkg/cleanup/package_upload_use_test.go::TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest<br>api/controller/cleanup_upload_use_test.go::TestNativeUploadCancelCannotOverlapAnActivePart |
 | rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
 | rainbond.cleanup.pending-import-references | Include retained tar import and check receipts in reference audits | active | regression | cleanup.collectRegionReferenceImages | pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased<br>pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence<br>pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences |
@@ -1645,6 +1646,16 @@
 - 业务入口: `POST /v2/cleanup/stores/{storage_id}/operations/{operation_id}/node/finish`
 - 代码路径: `pkg/cleanup/node_result.go`, `api/controller/cleanup_node_executor.go`, `pkg/cleanup/node_executor_client.go`
 - 测试路径: `pkg/cleanup/node_result_test.go::TestNodeResultIsImmutableAndRequiresExitedOriginalExecutor`, `pkg/cleanup/node_result_test.go::TestNodeResultRejectsInvalidFilesystemEvidence`, `api/controller/cleanup_node_executor_test.go::TestNodeAdmissionAPIUsesKubernetesFactsAndGrantsOnce`
+
+### Observe and bind read-only package inventory subtree independently of cache deletion
+
+- Capability ID: `rainbond.cleanup.package-inventory-mount`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `BuildManagedCacheInventoryJob`
+- 代码路径: `pkg/cleanup/kubeidentity/package_inventory_template.go`, `pkg/cleanup/kubeidentity/node_inventory_template.go`, `pkg/cleanup/kubeidentity/node_inventory_report.go`
+- 测试路径: `pkg/cleanup/kubeidentity/package_inventory_template_test.go::TestPackageInventoryUsesObservedReadOnlySubtree`
 
 ### Drain concurrent upload parts before terminal mutation and preserve uncertain requests
 
