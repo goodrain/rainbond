@@ -43,3 +43,36 @@ func (t *TenantStruct) RetireBuildVersion(w http.ResponseWriter, r *http.Request
 	}
 	httputil.ReturnSuccess(r, w, result)
 }
+
+// InspectBuildVersionRetirement verifies the saved record identity without
+// invoking retirement or any Registry mutation.
+func (t *TenantStruct) InspectBuildVersionRetirement(w http.ResponseWriter, r *http.Request) {
+	var expected guard.VersionExpectation
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&expected) != nil || decoder.Decode(&struct{}{}) != io.EOF {
+		httputil.ReturnError(r, w, 400, "invalid retirement inspection request")
+		return
+	}
+	serviceID, _ := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID, _ := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	if serviceID == "" || tenantID == "" || expected.ServiceID != serviceID || expected.Version != chi.URLParam(r, "build_version") {
+		httputil.ReturnError(r, w, 400, "invalid retirement inspection scope")
+		return
+	}
+	state, err := guard.InspectVersionRetirement(db.GetManager().Begin, tenantID, expected)
+	if err != nil {
+		status := 500
+		if errors.Is(err, guard.ErrStateChanged) {
+			status = 409
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = 404
+		}
+		httputil.ReturnError(r, w, status, "version retirement inspection rejected")
+		return
+	}
+	httputil.ReturnSuccess(r, w, struct {
+		RecordState string `json:"record_state"`
+	}{state})
+}

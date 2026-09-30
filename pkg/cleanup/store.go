@@ -68,6 +68,46 @@ func RetireVersion(begin func() *gorm.DB, tenantID string, expected VersionExpec
 	return RetirementResult{RecordRetired: true}, nil
 }
 
+// InspectVersionRetirement reads the exact saved build-version identity without
+// invoking retirement. A reused version name with different immutable fields is
+// a conflict, not evidence that the original record is still present.
+func InspectVersionRetirement(begin func() *gorm.DB, tenantID string, expected VersionExpectation) (string, error) {
+	if begin == nil || tenantID == "" || expected.ServiceID == "" || expected.Version == "" || expected.EventID == "" || expected.Image == "" {
+		return "", ErrStateChanged
+	}
+	tx := begin()
+	if tx.Error != nil {
+		return "", tx.Error
+	}
+	defer tx.Rollback()
+	var service serviceRow
+	if err := tx.Table("tenant_services").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND tenant_id = ?", expected.ServiceID, tenantID).First(&service).Error; err != nil {
+		return "", err
+	}
+	var version versionRow
+	err := tx.Table("tenant_service_version").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND build_version = ?", expected.ServiceID, expected.Version).First(&version).Error
+	if gorm.IsRecordNotFoundError(err) {
+		if err := tx.Commit().Error; err != nil {
+			return "", err
+		}
+		return "absent", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	image := version.ImageName
+	if image == "" {
+		image = version.DeliveredPath
+	}
+	if version.ServiceID != expected.ServiceID || version.BuildVersion != expected.Version || version.EventID != expected.EventID || version.ActivationRevision != expected.ActivationRevision || image != expected.Image {
+		return "", ErrStateChanged
+	}
+	if err := tx.Commit().Error; err != nil {
+		return "", err
+	}
+	return "present", nil
+}
+
 // SelectRollbackVersion cannot reactivate a record that retirement already
 // removed. Both paths serialize against the same service row.
 func SelectRollbackVersion(begin func() *gorm.DB, tenantID, serviceID, version, operationID string, expectedCurrent ...string) (string, error) {
