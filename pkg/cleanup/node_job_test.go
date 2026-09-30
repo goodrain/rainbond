@@ -60,3 +60,28 @@ func TestNodeJobIntentIsImmutableAndDoesNotGrantRecreation(t *testing.T) {
 		t.Fatal("generic finish bypassed node verification", err)
 	}
 }
+
+func TestNodeJobEntryShapeFollowsRegisteredStorageKind(t *testing.T) {
+	database, _ := coordinationDB(t)
+	cache, _ := ProvisionManagedCacheStorage(database, "volume", "/cache/build")
+	components, _ := ProvisionManagedPackageStorage(database, "volume", "upload_components")
+	events, _ := ProvisionManagedPackageStorage(database, "volume", "upload_events")
+	nested := NodeJobIntent{Namespace: "system", NodeName: "node", NodeUID: "node-uid", Entry: "service/events/event", Fingerprint: strings.Repeat("a", 64), SpecHash: strings.Repeat("b", 64)}
+	if _, err := ManagedNodeRequest(cache, "owner", "cache-op", "plan", nested); err == nil {
+		t.Fatal("cache accepted nested package entry")
+	}
+	if _, err := ManagedNodeRequest(events, "owner", "events-op", "plan", nested); err == nil {
+		t.Fatal("temporary package root accepted component layout")
+	}
+	r, err := ManagedNodeRequest(components, "owner", "component-op", "plan", nested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.Model(&model.CleanupStorage{}).Where("storage_id = ?", components.StorageID).Update("mode", "ready")
+	if created, err := AcquireOperation(database, r); err != nil || !created {
+		t.Fatal(created, err)
+	}
+	if _, created, err := PrepareNodeJob(database, r, nested); err != nil || !created {
+		t.Fatal("valid component package intent rejected", created, err)
+	}
+}

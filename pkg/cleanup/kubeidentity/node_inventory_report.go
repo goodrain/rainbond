@@ -69,6 +69,11 @@ func readNodeInventoryReport(ctx context.Context, client kubernetes.Interface, j
 	if err != nil || observed.VolumeUID != binding.VolumeUID {
 		return nil, ErrBinding
 	}
+	if settings.IncludePackages {
+		if err := verifyPackageInventoryMount(ctx, client, pod); err != nil {
+			return nil, err
+		}
+	}
 	stream, err := read(ctx, job.Namespace, pod.Name, c.Name)
 	if err != nil {
 		return nil, ErrBinding

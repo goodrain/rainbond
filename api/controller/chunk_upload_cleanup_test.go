@@ -45,7 +45,7 @@ func TestCancelUploadRetainsRecoveryEvidenceOnFailure(t *testing.T) {
 			db.SetTestManager(cancelUploadDB{uploads: dao})
 			defer db.SetTestManager(old)
 			cleanups := 0
-			manager := &ChunkUploadManager{sessionCache: map[string]*model.UploadSession{"owned": {ID: "owned", Status: "uploading"}}, cleanupChunks: func(string) error {
+			manager := &ChunkUploadManager{admitUse: allowTestUploadUse, sessionCache: map[string]*model.UploadSession{"owned": {ID: "owned", Status: "uploading"}}, cleanupChunks: func(string) error {
 				cleanups++
 				if scenario == "storage-failed" {
 					return errors.New("fixture storage failure")
@@ -79,7 +79,7 @@ func TestExpiredUploadCleanupPreservesRecoveryEvidence(t *testing.T) {
 			db.SetTestManager(cancelUploadDB{uploads: dao})
 			defer db.SetTestManager(old)
 			calls := 0
-			manager := &ChunkUploadManager{sessionCache: map[string]*model.UploadSession{}, cleanupChunks: func(string) error {
+			manager := &ChunkUploadManager{admitUse: allowTestUploadUse, sessionCache: map[string]*model.UploadSession{}, cleanupChunks: func(string) error {
 				calls++
 				if scenario == "storage-failed" {
 					return errors.New("fixture storage failure")
@@ -118,7 +118,7 @@ func TestExpiredUploadCleanupPreservesRecoveryEvidence(t *testing.T) {
 
 // capability_id: rainbond.cleanup.expired-upload-writes
 func TestExpiredUploadCannotContinueWriting(t *testing.T) {
-	manager := &ChunkUploadManager{sessionCache: map[string]*model.UploadSession{"owned": {ID: "owned", Status: "uploading", ExpiresAt: time.Now().Add(-time.Hour), TotalChunks: 1, UploadedChunks: "0"}}}
+	manager := &ChunkUploadManager{admitUse: allowTestUploadUse, sessionCache: map[string]*model.UploadSession{"owned": {ID: "owned", Status: "uploading", ExpiresAt: time.Now().Add(-time.Hour), TotalChunks: 1, UploadedChunks: "0"}}}
 	if err := manager.SaveChunk("owned", 0, nil); err == nil {
 		t.Fatal("expired upload accepted a chunk")
 	}
@@ -133,9 +133,13 @@ func TestExpiredUploadStartsNewSessionInsteadOfResumingRemovedChunks(t *testing.
 	old := db.GetManager()
 	db.SetTestManager(cancelUploadDB{uploads: dao})
 	defer db.SetTestManager(old)
-	manager := &ChunkUploadManager{sessionCache: map[string]*model.UploadSession{}}
+	manager := &ChunkUploadManager{admitUse: allowTestUploadUse, sessionCache: map[string]*model.UploadSession{}}
 	session, err := manager.InitUploadSession("event", "fixture.zip", 1, "", MinChunkSize)
 	if err != nil || session.ID == "expired" || dao.adds != 1 {
 		t.Fatal("expired session resumed", err, dao.adds)
 	}
+}
+
+func allowTestUploadUse(*model.UploadSession, string) (func(bool) error, error) {
+	return func(bool) error { return nil }, nil
 }

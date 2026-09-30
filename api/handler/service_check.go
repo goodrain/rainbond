@@ -19,18 +19,21 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
+
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
 	client "github.com/goodrain/rainbond/mq/client"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	tutil "github.com/goodrain/rainbond/util"
 	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 // ServiceCheck check service build source
@@ -52,7 +55,23 @@ func (s *ServiceAction) ServiceCheck(scs *apimodel.ServiceCheckStruct) (string, 
 			}
 		}
 	}
-	err := s.MQClient.SendBuilderTopic(client.TaskStruct{
+	body, err := json.Marshal(scs.Body)
+	if err != nil {
+		return "", "", util.CreateAPIHandleError(400, fmt.Errorf("invalid check request"))
+	}
+	_, needs, err := guard.PackageCheckIdentity(body)
+	if err != nil {
+		return "", "", util.CreateAPIHandleError(400, fmt.Errorf("invalid check identity"))
+	}
+	if needs {
+		if db.GetManager() == nil {
+			return "", "", util.CreateAPIHandleError(503, fmt.Errorf("package check admission unavailable"))
+		}
+		if err := guard.ReserveQueuedNativeTask(db.GetManager().DB(), "service-check", checkUUID, body); err != nil {
+			return "", "", util.CreateAPIHandleError(503, fmt.Errorf("package check admission unavailable"))
+		}
+	}
+	err = s.MQClient.SendBuilderTopic(client.TaskStruct{
 		TaskType: "service_check",
 		TaskBody: scs.Body,
 		Topic:    topic,

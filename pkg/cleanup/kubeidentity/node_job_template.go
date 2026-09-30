@@ -50,12 +50,30 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 	if settings.ConsoleEnterprise != "" && (!nodeConsoleScope.MatchString(settings.ConsoleEnterprise) || !nodeConsoleScope.MatchString(settings.Region)) {
 		return nil, ErrBinding
 	}
-	observed, err := InspectManagedBuildCache(ctx, client, intent.Namespace, sourcePod, sourceUID)
-	if err != nil || observed.NodeUID != intent.NodeUID || observed.Mount.NodeName != intent.NodeName || observed.Mount.VolumeUID != binding.VolumeUID {
+	kind, err := coordination.ManagedNodeStorageKind(binding)
+	if err != nil || !coordination.ValidManagedNodeEntry(kind, intent.Entry) {
+		return nil, ErrBinding
+	}
+	var observedMount RegistryMountObservation
+	observedNodeUID := ""
+	if kind == "cache" {
+		observed, inspectErr := InspectManagedBuildCache(ctx, client, intent.Namespace, sourcePod, sourceUID)
+		if inspectErr != nil {
+			return nil, ErrBinding
+		}
+		observedMount, observedNodeUID = observed.Mount, observed.NodeUID
+	} else {
+		observed, inspectErr := InspectManagedPackage(ctx, client, intent.Namespace, sourcePod, sourceUID)
+		if inspectErr != nil {
+			return nil, ErrBinding
+		}
+		observedMount, observedNodeUID = observed.Mount, observed.NodeUID
+	}
+	if observedNodeUID != intent.NodeUID || observedMount.NodeName != intent.NodeName || observedMount.VolumeUID != binding.VolumeUID {
 		return nil, ErrBinding
 	}
 	pod, err := client.CoreV1().Pods(intent.Namespace).Get(ctx, sourcePod, metav1.GetOptions{})
-	if err != nil || string(pod.UID) != sourceUID || pod.ResourceVersion != observed.Mount.PodVersion {
+	if err != nil || string(pod.UID) != sourceUID || pod.ResourceVersion != observedMount.PodVersion {
 		return nil, ErrBinding
 	}
 	mount, relative, err := effectiveMount(&pod.Spec.Containers[0], binding.RootPath)
@@ -84,10 +102,15 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 		return nil, ErrBinding
 	}
 	data.Name = "node-cache"
+	managedPath := "/cache/build"
+	if kind != "cache" {
+		data.Name = "node-packages"
+		managedPath = "/managed-root"
+	}
 	mount.Name = data.Name
-	mount.MountPath = "/cache/build"
+	mount.MountPath = managedPath
 	mount.SubPath = relative
-	descriptor := nodeTaskDescriptor(settings.Region, request, intent)
+	descriptor := nodeTaskDescriptor(settings.Region, request, intent, kind, managedPath)
 	raw, err := json.Marshal(descriptor)
 	if err != nil {
 		return nil, ErrBinding
@@ -111,15 +134,33 @@ func BuildManagedNodeJob(ctx context.Context, client kubernetes.Interface, sourc
 	source, _ := json.Marshal(struct {
 		IDs  []string
 		Spec batchv1.JobSpec
-	}{[]string{sourceUID, observed.Mount.VolumeUID, string(state.UID), string(statePV.UID)}, job.Spec})
+	}{[]string{sourceUID, observedMount.VolumeUID, string(state.UID), string(statePV.UID)}, job.Spec})
 	sum := sha256.Sum256(source)
 	job.Spec.Template.Annotations = map[string]string{nodeJournalPVCUID: string(state.UID), nodeJournalPVUID: string(statePV.UID), "rainbond.io/node-source-fingerprint": hex.EncodeToString(sum[:]), "rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID}
 	return job, nil
 }
-func nodeTaskDescriptor(region string, r coordination.CoordinationRequest, intent coordination.NodeJobIntent) map[string]interface{} {
-	id := sha256.Sum256([]byte(region + "/" + r.StorageID + "\x00cache\x00" + intent.Entry))
+func nodeTaskDescriptor(region string, r coordination.CoordinationRequest, intent coordination.NodeJobIntent, kind, managedPath string) map[string]interface{} {
+	scope := region + "/" + r.StorageID
+	category, resourceType, source := "nodeResources", "cache", "node_build_cache"
+	artifact := ""
+	if kind != "cache" {
+		scope = region + "/" + intent.NodeUID + "/" + r.StorageID
+		category, resourceType = "uploads", "node_upload_package"
+		source = "node_upload_events"
+		event := intent.Entry
+		if kind == "upload_components" {
+			source = "node_upload_components"
+			event = strings.Split(intent.Entry, "/")[2]
+		}
+		artifact = "upload-event:" + region + ":" + event
+	}
+	id := sha256.Sum256([]byte(scope + "\x00" + kind + "\x00" + intent.Entry))
 	target := map[string]interface{}{"nodeUid": intent.NodeUID, "storageId": r.StorageID, "entry": intent.Entry, "fingerprint": intent.Fingerprint}
-	return map[string]interface{}{"protocol": 1, "generation": r.Generation, "owner": r.Owner, "operationId": r.OperationID, "fingerprint": r.Fingerprint, "stateDir": "/node-state", "config": map[string]interface{}{"region": region, "node": intent.NodeName, "nodeUid": intent.NodeUID, "roots": []interface{}{map[string]interface{}{"kind": "cache", "storageId": r.StorageID, "path": "/cache/build"}}}, "resource": map[string]interface{}{"id": hex.EncodeToString(id[:]), "cluster": region, "category": "nodeResources", "resourceType": "cache", "node": intent.NodeName, "nodeUid": intent.NodeUID, "name": intent.Entry, "owner": r.StorageID, "source": "node_build_cache", "decision": "direct", "managedTarget": target}}
+	resource := map[string]interface{}{"id": hex.EncodeToString(id[:]), "cluster": region, "category": category, "resourceType": resourceType, "node": intent.NodeName, "nodeUid": intent.NodeUID, "name": intent.Entry, "owner": r.StorageID, "source": source, "decision": "direct", "managedTarget": target}
+	if artifact != "" {
+		resource["artifactId"] = artifact
+	}
+	return map[string]interface{}{"protocol": 1, "generation": r.Generation, "owner": r.Owner, "operationId": r.OperationID, "fingerprint": r.Fingerprint, "stateDir": "/node-state", "config": map[string]interface{}{"region": region, "node": intent.NodeName, "nodeUid": intent.NodeUID, "roots": []interface{}{map[string]interface{}{"kind": kind, "storageId": r.StorageID, "path": managedPath}}}, "resource": resource}
 }
 
 // SameManagedNodeSource checks the freshly reconstructed source before startup.

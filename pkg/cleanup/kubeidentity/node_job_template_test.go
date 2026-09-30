@@ -129,3 +129,55 @@ func TestNodeJobTemplateBindsCacheAndDurableState(t *testing.T) {
 		t.Fatal("unbound durable state accepted")
 	}
 }
+
+func TestNodeJobTemplateBindsManagedComponentPackageRoot(t *testing.T) {
+	_, _, pvc, pv := bindingObjects()
+	pod := gcCleanerFixture()
+	pod.Spec.NodeName = "node"
+	pod.Spec.Volumes = []corev1.Volume{{Name: "grdata", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvc.Name}}}}
+	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "grdata", MountPath: "/grdata", SubPath: "owned"}}
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", UID: "node-uid"}}
+	state := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "cleanup-state", Namespace: "system", UID: "state-uid"}, Spec: corev1.PersistentVolumeClaimSpec{VolumeName: "state-volume"}, Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}}
+	statePV := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: "state-volume", UID: "state-pv-uid"}, Spec: corev1.PersistentVolumeSpec{ClaimRef: &corev1.ObjectReference{Name: state.Name, Namespace: "system", UID: state.UID}}}
+	client := fake.NewSimpleClientset(pod, pvc, pv, node, state, statePV)
+	volume := volumeIdentity("pvc", "system", string(pvc.UID), string(pv.UID), "owned/package_build")
+	binding := coordination.StorageRegistration{StorageID: packageStorageID(volume, "upload_components"), Generation: "one", RootPath: "/grdata/package_build/components", VolumeUID: volume}
+	intent := coordination.NodeJobIntent{Namespace: "system", NodeName: "node", NodeUID: "node-uid", Entry: "service/events/event", Fingerprint: strings.Repeat("a", 64)}
+	request, err := coordination.ManagedNodeRequest(binding, "owner", "operation", "plan", intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := NodeJobSettings{Region: "rainbond", Image: "example.test/plugin@sha256:" + strings.Repeat("b", 64), Endpoint: "https://core.internal:8443", CredentialSecret: "cleanup-core", StateClaim: state.Name}
+	job, err := BuildManagedNodeJob(context.Background(), client, pod.Name, string(pod.UID), binding, request, intent, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mount := job.Spec.Template.Spec.Containers[0].VolumeMounts[0]
+	if mount.MountPath != "/managed-root" || mount.SubPath != "owned/package_build/components" || mount.ReadOnly {
+		t.Fatal("package root was not bound writable and exact", mount)
+	}
+	raw, err := base64.StdEncoding.DecodeString(job.Spec.Template.Spec.Containers[0].Env[0].Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var descriptor struct {
+		Config struct {
+			Roots []struct {
+				Kind string `json:"kind"`
+				Path string `json:"path"`
+			} `json:"roots"`
+		} `json:"config"`
+		Resource struct {
+			Category     string `json:"category"`
+			ResourceType string `json:"resourceType"`
+			ArtifactID   string `json:"artifactId"`
+		} `json:"resource"`
+	}
+	if json.Unmarshal(raw, &descriptor) != nil || len(descriptor.Config.Roots) != 1 || descriptor.Config.Roots[0].Kind != "upload_components" || descriptor.Config.Roots[0].Path != "/managed-root" || descriptor.Resource.Category != "uploads" || descriptor.Resource.ResourceType != "node_upload_package" || descriptor.Resource.ArtifactID != "upload-event:rainbond:event" {
+		t.Fatal("wrong package task descriptor", string(raw))
+	}
+	intent.Entry = "service/other/event"
+	if _, err := coordination.ManagedNodeRequest(binding, "owner", "changed", "plan", intent); err == nil {
+		t.Fatal("arbitrary nested package entry accepted")
+	}
+}

@@ -27,6 +27,7 @@ const (
 
 // ChunkUploadManager 分片上传管理器
 type ChunkUploadManager struct {
+	admitUse        func(*model.UploadSession, string) (func(bool) error, error)
 	cleanupChunks   func(string) error
 	mergeChunks     func(string, string, int) error
 	sessionCache    map[string]*model.UploadSession
@@ -105,7 +106,7 @@ func (m *ChunkUploadManager) InitUploadSession(eventID, fileName string, fileSiz
 }
 
 // SaveChunk 保存分片
-func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) error {
+func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (resultErr error) {
 	// 获取会话
 	session, err := m.getSession(sessionID)
 	if err != nil {
@@ -125,9 +126,21 @@ func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader 
 		return fmt.Errorf("invalid chunk index: %d, total chunks: %d", chunkIndex, session.TotalChunks)
 	}
 
+	finish, err := m.admitSessionUse(session, "chunk")
+	if err != nil {
+		return err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
+
 	// 检查分片是否已存在（幂等性）
 	if storage.Default().StorageCli.ChunkExists(sessionID, chunkIndex) {
 		logrus.Debugf("Chunk %d already exists for session %s, skipping", chunkIndex, sessionID)
+		confirmed = true
 		return nil
 	}
 
@@ -146,12 +159,13 @@ func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader 
 		return err
 	}
 
+	confirmed = true
 	logrus.Infof("Saved chunk %d/%d for session %s", chunkIndex+1, session.TotalChunks, sessionID)
 	return nil
 }
 
 // CompleteUpload 完成上传，合并所有分片
-func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
+func (m *ChunkUploadManager) CompleteUpload(sessionID string) (resultPath string, resultErr error) {
 	session, err := m.getSession(sessionID)
 	if err != nil {
 		return "", err
@@ -175,6 +189,17 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 		return "", fmt.Errorf("not all chunks uploaded, missing: %v", missingChunks)
 	}
 
+	finish, err := m.admitSessionUse(session, "complete")
+	if err != nil {
+		return "", err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
+
 	// 合并分片
 	logrus.Infof("Merging %d chunks for session %s", session.TotalChunks, sessionID)
 	err = m.mergeSessionChunks(sessionID, session.StoragePath, session.TotalChunks)
@@ -196,6 +221,8 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 	if err := m.cleanupSessionChunks(sessionID); err != nil {
 		// The package is complete; retain its durable record for later chunk cleanup.
 		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
+	} else {
+		confirmed = true
 	}
 
 	m.removeFromCache(sessionID)
@@ -230,11 +257,22 @@ func (m *ChunkUploadManager) GetUploadStatus(sessionID string) (*UploadStatusRes
 }
 
 // CancelUpload 取消上传
-func (m *ChunkUploadManager) CancelUpload(sessionID string) error {
-	_, err := m.getSession(sessionID)
+func (m *ChunkUploadManager) CancelUpload(sessionID string) (resultErr error) {
+	session, err := m.getSession(sessionID)
 	if err != nil {
 		return err
 	}
+
+	finish, err := m.admitSessionUse(session, "cancel")
+	if err != nil {
+		return err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
 
 	// 清理分片文件
 	if err := m.cleanupSessionChunks(sessionID); err != nil {
@@ -246,6 +284,7 @@ func (m *ChunkUploadManager) CancelUpload(sessionID string) error {
 		return fmt.Errorf("failed to delete session: %v", err)
 	}
 
+	confirmed = true
 	m.removeFromCache(sessionID)
 	logrus.Infof("Cancelled upload session: %s", sessionID)
 	return nil
@@ -393,7 +432,7 @@ func (m *ChunkUploadManager) cleanExpiredSessions() error {
 		if !session.ExpiresAt.Before(now) {
 			continue
 		}
-		if err := m.cleanupSessionChunks(id); err != nil {
+		if err := m.expireSessionChunks(session); err != nil {
 			if first == nil {
 				first = fmt.Errorf("expired upload chunk cleanup failed: %w", err)
 			}

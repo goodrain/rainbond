@@ -506,3 +506,53 @@ func TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady(t *testing.
 		t.Fatal("failed inspection did not block preparation")
 	}
 }
+
+func TestManagedPackagePreparationDerivesTwoCollectingStores(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "packages.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	database.LogMode(false)
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}, &model.CleanupReferenceWriter{}, &model.PackageUploadUse{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }, inspectManagedPackages: func(_ context.Context, pod, uid string) (kubeidentity.ManagedPackagePreparation, error) {
+		calls++
+		if pod != "owned-pod" || uid != "owned-uid" {
+			return kubeidentity.ManagedPackagePreparation{}, kubeidentity.ErrBinding
+		}
+		return kubeidentity.ManagedPackagePreparation{Mount: kubeidentity.RegistryMountObservation{VolumeUID: "observed-volume"}, NodeUID: "observed-node", Root: "/grdata/package_build"}, nil
+	}}
+	t.Setenv("TOKEN", "isolated-package-fixture")
+	invoke := func(body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest("POST", "/managed-packages/prepare", strings.NewReader(body))
+		request.Header.Set("Authorization", "Token isolated-package-fixture")
+		response := httptest.NewRecorder()
+		middleware.FullToken(http.HandlerFunc(h.PrepareManagedPackages)).ServeHTTP(response, request)
+		return response
+	}
+	if response := invoke(`{"pod":"owned-pod","pod_uid":"owned-uid","root":"/foreign"}`); response.Code != 400 || calls != 0 {
+		t.Fatal("caller package root accepted")
+	}
+	response := invoke(`{"pod":"owned-pod","pod_uid":"owned-uid"}`)
+	if response.Code != 200 {
+		t.Fatal("package preparation failed", response.Code, response.Body.String())
+	}
+	var decoded struct {
+		Bean struct {
+			Registrations []guard.StorageRegistration `json:"registrations"`
+			Storages      []guard.StorageObservation  `json:"storages"`
+		} `json:"bean"`
+	}
+	if json.Unmarshal(response.Body.Bytes(), &decoded) != nil || len(decoded.Bean.Registrations) != 2 || len(decoded.Bean.Storages) != 2 {
+		t.Fatal("incomplete package registrations", response.Body.String())
+	}
+	if decoded.Bean.Registrations[0].StorageID == decoded.Bean.Registrations[1].StorageID || decoded.Bean.Storages[0].Mode != "collecting" || decoded.Bean.Storages[1].Mode != "collecting" {
+		t.Fatal("package registration became ambiguous or ready", decoded)
+	}
+	if response := invoke(`{"pod":"other","pod_uid":"owned-uid"}`); response.Code != 503 {
+		t.Fatal("failed package inspection accepted", response.Code)
+	}
+}

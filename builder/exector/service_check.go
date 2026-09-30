@@ -90,8 +90,12 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		logrus.Error("Invalid service check request")
 		return
 	}
-	_, tarSource := parser.TarImageEventID(input.SourceBody)
-	if input.SourceType != "docker-run" || !tarSource {
+	_, packageSource, identityErr := guard.PackageCheckIdentity(task.TaskBody)
+	if identityErr != nil {
+		logrus.Error("Invalid service check identity")
+		return
+	}
+	if !packageSource {
 		e.serviceCheckAdmitted(task, nil)
 		return
 	}

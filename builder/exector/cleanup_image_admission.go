@@ -33,7 +33,15 @@ func admitBuild(database *gorm.DB, kind, taskID string, body []byte) (*nativeBui
 		// Image builders may resolve source tags and choose a destination internally;
 		// unresolved repository scope must not be guessed from the requested tag.
 		request := guard.CoordinationRequest{StorageID: store.StorageID, Generation: store.Generation, OperationID: hex.EncodeToString(identity[:]), Owner: "native-" + kind + "-builder", Kind: "producer", Scope: "*", Fingerprint: hex.EncodeToString(fingerprint[:])}
-		created, err := guard.AcquireOperation(database, request)
+		created := false
+		var err error
+		if kind == "tar-image" || kind == "service-check" || kind == "image" || kind == "source" || kind == "vm" || kind == "plugin-image" || kind == "plugin-dockerfile" || kind == "image-share" || kind == "import_app" || kind == "backup_apps_restore" {
+			request = guard.QueuedNativeRequest(store, kind, taskID, body)
+			created, err = guard.ClaimQueuedOperation(database, request)
+		}
+		if err == nil && !created {
+			created, err = guard.AcquireOperation(database, request)
+		}
 		if err != nil || !created {
 			// Nothing has executed yet. Release only grants this call definitely created,
 			// never the rejected/ambiguous admission or an earlier process's operation.

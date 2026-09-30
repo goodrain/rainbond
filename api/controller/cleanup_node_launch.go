@@ -126,7 +126,7 @@ func (h *CleanupCoordinationHandler) StartNodeJob(w http.ResponseWriter, r *http
 		coordinationError(w, r, guard.ErrCoordinationChanged)
 		return
 	}
-	if _, ready, err := h.certifyCacheWriters(r.Context(), storage, &request); err != nil || !ready {
+	if _, ready, err := h.certifyManagedNodeWriters(r.Context(), storage, &request); err != nil || !ready {
 		if err == nil {
 			err = guard.ErrCoordinationBusy
 		}
@@ -173,7 +173,7 @@ func (h *CleanupCoordinationHandler) validateNodeLaunchSource(ctx context.Contex
 	if err != nil || !kubeidentity.SameManagedNodeSource(job, current) {
 		return guard.ErrCoordinationChanged
 	}
-	if _, ready, err := h.certifyCacheWriters(ctx, storage, &request); err != nil || !ready {
+	if _, ready, err := h.certifyManagedNodeWriters(ctx, storage, &request); err != nil || !ready {
 		if err != nil {
 			return err
 		}

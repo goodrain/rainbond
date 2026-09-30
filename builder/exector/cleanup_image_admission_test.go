@@ -118,3 +118,69 @@ func TestSourceBuildAdmissionUsesSeparateImmutableIdentity(t *testing.T) {
 		t.Fatal("source task payload changed", err)
 	}
 }
+
+// capability_id: rainbond.cleanup.queued-tar-consumer
+func TestTarConsumerClaimsOriginalQueueReservation(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "queued.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := guard.ProvisionRegistryStorage(database, "owned-volume", "/registry"); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"event_id":"owned","load_id":"load"}`)
+	if err := guard.ReserveQueuedTarLoad(database, "load", body); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "tar-image", "load", []byte(`{"different":true}`)); !errors.Is(err, guard.ErrCoordinationChanged) {
+		t.Fatal("changed body claimed queued task", err)
+	}
+	admission, err := admitBuild(database, "tar-image", "load", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "tar-image", "load", body); err == nil {
+		t.Fatal("duplicate consumer admitted")
+	}
+	if err := admission.finish(true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "tar-image", "load", body); err == nil {
+		t.Fatal("finished consumer replayed")
+	}
+}
+
+func TestPackageCheckConsumerClaimsOriginalQueueReservation(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "queued-check.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := guard.ProvisionRegistryStorage(database, "owned-volume", "/registry"); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"uuid":"check","source_type":"package_build"}`)
+	if err := guard.ReserveQueuedNativeTask(database, "service-check", "check", body); err != nil {
+		t.Fatal(err)
+	}
+	admission, err := admitBuild(database, "service-check", "check", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "service-check", "check", body); err == nil {
+		t.Fatal("duplicate check started")
+	}
+	if err := admission.finish(false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admitBuild(database, "service-check", "check", body); !errors.Is(err, guard.ErrCoordinationUncertain) {
+		t.Fatal("uncertain check replayed", err)
+	}
+}

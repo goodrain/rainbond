@@ -20,6 +20,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/goodrain/rainbond/db/model"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 // TestMinIOChunkCleanupOwnsExactSession starts its own local server and bucket.
@@ -86,7 +90,27 @@ func TestMinIOChunkCleanupOwnsExactSession(t *testing.T) {
 		t.Fatal("test client unavailable")
 	}
 	client := s3.New(sess)
+	// HTTP health can be ready before this MinIO version initializes the S3 API.
+	// Poll only a read operation; do not replay a bucket mutation on uncertainty.
+	apiReady := false
+	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); {
+		if _, err := client.ListBucketsWithContext(ctx, &s3.ListBucketsInput{}); err == nil {
+			apiReady = true
+			break
+		}
+		if ctx.Err() != nil {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !apiReady {
+		t.Fatal("isolated MinIO S3 API unavailable")
+	}
+
 	if _, err := client.CreateBucketWithContext(ctx, &s3.CreateBucketInput{Bucket: aws.String("grdata")}); err != nil {
+		if failure, ok := err.(awserr.Error); ok {
+			t.Fatal("owned bucket creation failed", failure.Code())
+		}
 		t.Fatal("owned bucket creation failed")
 	}
 	selected := "package_build/temp/chunks/owned/"
@@ -117,9 +141,30 @@ func TestMinIOChunkCleanupOwnsExactSession(t *testing.T) {
 	if err != nil || usage.Bytes != 5005 || usage.Objects != 1001 {
 		t.Fatalf("real chunk size incorrect: %+v %v", usage, err)
 	}
-	if err := store.CleanupChunks("owned"); err != nil {
-		t.Fatal("real chunk cleanup failed", err)
+	database, err := gorm.Open("sqlite3", filepath.Join(root, "retirement.db"))
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer database.Close()
+	if err := database.AutoMigrate(&model.UploadSession{}, &model.PackageUploadUse{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	upload := model.UploadSession{ID: "owned", EventID: "event", Status: "uploading", ExpiresAt: time.Now().Add(-time.Hour)}
+	if err := database.Create(&upload).Error; err != nil {
+		t.Fatal(err)
+	}
+	fingerprint := guard.UploadSessionFingerprint(upload)
+	deletes := 0
+	remove := func(id string) error { deletes++; return store.CleanupChunks(id) }
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := guard.DeleteExpiredUploadChunks(database, "owned-retirement", "event", "owned", fingerprint, remove); err != nil {
+			t.Fatal("real chunk retirement failed", err)
+		}
+	}
+	if deletes != 1 {
+		t.Fatal("real object deletion replayed")
+	}
+
 	usage, err = store.MeasureUploadChunks(ctx, "owned")
 	if err != nil || usage.Bytes != 0 || usage.Objects != 0 {
 		t.Fatalf("deleted scope measurement incorrect: %+v %v", usage, err)
