@@ -69,3 +69,23 @@ func TestReadOnlyCacheEnrollmentDoesNotRequireDeletionReadiness(t *testing.T) {
 		t.Fatal("legacy writer enabled native deletion")
 	}
 }
+
+// capability_id: rainbond.cleanup.managed-package-binding
+func TestManagedPackagePreparationUsesActualGrdataVolume(t *testing.T) {
+	_, _, pvc, pv := bindingObjects()
+	pod := gcCleanerFixture()
+	pod.Spec.NodeName = "node"
+	pod.Spec.Volumes = []corev1.Volume{{Name: "grdata", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvc.Name}}}}
+	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "grdata", MountPath: "/grdata", SubPath: "owned"}}
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", UID: "node-uid"}}
+	client := fake.NewSimpleClientset(pod, pvc, pv, node)
+	observed, err := InspectManagedPackageSource(context.Background(), client, "system", pod.Name, string(pod.UID))
+	if err != nil || observed.Root != "/grdata/package_build" || observed.NodeUID != "node-uid" || observed.Mount.VolumeUID != volumeIdentity("pvc", "system", string(pvc.UID), string(pv.UID), "owned/package_build") {
+		t.Fatal(observed, err)
+	}
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{Name: "nested", MountPath: "/grdata/package_build/temp"})
+	client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{})
+	if _, err := InspectManagedPackageSource(context.Background(), client, "system", pod.Name, string(pod.UID)); err == nil {
+		t.Fatal("nested package mount accepted")
+	}
+}

@@ -1129,6 +1129,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.expired-upload-retirement",
+      "title": "Retire original expired upload before one-shot chunk deletion and retain recovery evidence",
+      "title_zh": "Retire original expired upload before one-shot chunk deletion and retain recovery evidence",
+      "interface_type": "workflow",
+      "interface": "DeleteExpiredUploadChunks",
+      "code_paths": [
+        "pkg/cleanup/upload_retirement.go",
+        "db/model/package_upload_use.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestExpiredUploadDeletionRetiresSessionAndDoesNotReplay"
+        },
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestExpiredUploadDeletionRejectsChangedOrActiveEvidence"
+        },
+        {
+          "path": "pkg/cleanup/upload_retirement_test.go",
+          "selector": "TestInterruptedUploadRetirementDoesNotReplayAfterRestart"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.expired-upload-writes",
       "title": "Reject writes and completion on expired upload sessions",
       "title_zh": "Reject writes and completion on expired upload sessions",
@@ -1567,6 +1594,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.managed-package-binding",
+      "title": "Managed package roots bind to observed grdata storage",
+      "title_zh": "Managed package roots bind to observed grdata storage",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectManagedPackageSource",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/managed_packages.go",
+        "pkg/cleanup/registration.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/managed_cache_test.go",
+          "selector": "TestManagedPackagePreparationUsesActualGrdataVolume"
+        },
+        {
+          "path": "pkg/cleanup/registration_test.go",
+          "selector": "TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.manual-gc-maintenance",
       "title": "Drain writes and require confirmed restoration around manual GC",
       "title_zh": "Drain writes and require confirmed restoration around manual GC",
@@ -1617,6 +1667,29 @@
         {
           "path": "builder/exector/cleanup_image_admission_test.go",
           "selector": "TestImageBuildAdmissionBlocksGCAndNeverReplays"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.native-queue-reservation",
+      "title": "Persist native builder task identity before queue delivery",
+      "title_zh": "Persist native builder task identity before queue delivery",
+      "interface_type": "workflow",
+      "interface": "mqClient.SendBuilderTopic",
+      "code_paths": [
+        "mq/client/client.go",
+        "pkg/cleanup/queued_task_kind.go"
+      ],
+      "tests": [
+        {
+          "path": "mq/client/cleanup_queue_test.go",
+          "selector": "TestNativeMQTaskReservesStableIdentityBeforeNetwork"
+        },
+        {
+          "path": "mq/client/cleanup_queue_test.go",
+          "selector": "TestNonNativeMQMessagesKeepExistingDelivery"
         }
       ],
       "test_type": "regression",
@@ -1995,6 +2068,129 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.package-check-before-enqueue",
+      "title": "Reserve package source checks before sending MQ messages",
+      "title_zh": "Reserve package source checks before sending MQ messages",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.ServiceCheck",
+      "code_paths": [
+        "api/handler/service_check.go",
+        "pkg/cleanup/queued_tar.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_queued_tar_test.go",
+          "selector": "TestServiceCheckReservesOnlyUploadedPackageSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-check-queue-classification",
+      "title": "Classify native package checks consistently before enqueue and execution",
+      "title_zh": "Classify native package checks consistently before enqueue and execution",
+      "interface_type": "workflow",
+      "interface": "PackageCheckIdentity",
+      "code_paths": [
+        "pkg/cleanup/queued_check.go",
+        "builder/exector/service_check.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/queued_check_test.go",
+          "selector": "TestPackageChecksUseSharedQueueClassification"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-inventory-mount",
+      "title": "Observe and bind read-only package inventory subtree independently of cache deletion",
+      "title_zh": "Observe and bind read-only package inventory subtree independently of cache deletion",
+      "interface_type": "workflow",
+      "interface": "BuildManagedCacheInventoryJob",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/package_inventory_template.go",
+        "pkg/cleanup/kubeidentity/node_inventory_template.go",
+        "pkg/cleanup/kubeidentity/node_inventory_report.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/package_inventory_template_test.go",
+          "selector": "TestPackageInventoryUsesObservedReadOnlySubtree"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-upload-exclusive-close",
+      "title": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",
+      "title_zh": "Drain concurrent upload parts before terminal mutation and preserve uncertain requests",
+      "interface_type": "workflow",
+      "interface": "AcquirePackageUploadRequest",
+      "code_paths": [
+        "pkg/cleanup/package_upload_use.go",
+        "db/model/package_upload_use.go",
+        "db/mysql/mysql.go",
+        "api/controller/cleanup_upload_use.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_upload_use_test.go",
+          "selector": "TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart"
+        },
+        {
+          "path": "pkg/cleanup/package_upload_use_test.go",
+          "selector": "TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest"
+        },
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestNativeUploadCancelCannotOverlapAnActivePart"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-writer-coverage",
+      "title": "Managed package coverage rejects active builds",
+      "title_zh": "Managed package coverage rejects active builds",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectManagedPackageWriterCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/package_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/package_coverage_test.go",
+          "selector": "TestManagedPackageCoverageRejectsBuildsAndChangingRollout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-writer-readiness",
+      "title": "Managed package deletion requires current coordinated writers",
+      "title_zh": "Managed package deletion requires current coordinated writers",
+      "interface_type": "workflow",
+      "interface": "cleanup.CertifyManagedPackageWriters",
+      "code_paths": [
+        "pkg/cleanup/package_certification.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_certification_test.go",
+          "selector": "TestManagedPackageReadinessRequiresCurrentWritersAndNoUnfinishedUse"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.participant-replacement",
       "title": "Participant replacement preserves active deletion protection",
       "title_zh": "Participant replacement preserves active deletion protection",
@@ -2106,6 +2302,44 @@
         {
           "path": "db/mysql/dao/version_cleanup_test.go",
           "selector": "TestPluginVersionWritesRespectDeletionAndNeverResurrect"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.queued-producer-handoff",
+      "title": "Protect queued producer lifetime and atomically claim once",
+      "title_zh": "Protect queued producer lifetime and atomically claim once",
+      "interface_type": "workflow",
+      "interface": "QueueOperation",
+      "code_paths": [
+        "pkg/cleanup/queued_operation.go",
+        "pkg/cleanup/coordination.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/queued_operation_test.go",
+          "selector": "TestQueuedProducerProtectsWaitingWorkAndClaimsExactlyOnce"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.queued-tar-consumer",
+      "title": "Claim original queued tar reservation before native execution",
+      "title_zh": "Claim original queued tar reservation before native execution",
+      "interface_type": "workflow",
+      "interface": "admitBuild",
+      "code_paths": [
+        "builder/exector/cleanup_image_admission.go",
+        "pkg/cleanup/queued_tar.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/cleanup_image_admission_test.go",
+          "selector": "TestTarConsumerClaimsOriginalQueueReservation"
         }
       ],
       "test_type": "regression",
@@ -2669,6 +2903,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.tar-admission-before-enqueue",
+      "title": "Persist exact tar task reservation before MQ and retain unknown outcome",
+      "title_zh": "Persist exact tar task reservation before MQ and retain unknown outcome",
+      "interface_type": "handler_method",
+      "interface": "TarImageHandle.LoadTarImage",
+      "code_paths": [
+        "api/handler/tar_image_handler.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cleanup_queued_tar_test.go",
+          "selector": "TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.tar-check-event-path",
       "title": "Restrict tar check input to event directory identifiers",
       "title_zh": "Restrict tar check input to event directory identifiers",
@@ -2806,6 +3058,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.upload-delete-api",
+      "title": "Gate selected upload chunk deletion on current writers storage identity expiry and scanned session",
+      "title_zh": "Gate selected upload chunk deletion on current writers storage identity expiry and scanned session",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/cleanup/uploads/chunks/delete",
+      "code_paths": [
+        "api/controller/cleanup_upload_delete.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_delete_test.go",
+          "selector": "TestUploadDeleteAPIRequiresWriterStorageRuleAndSelectionEvidence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.upload-expiration-evidence",
       "title": "Preserve unverified expired upload records without expanding background deletion",
       "title_zh": "Preserve unverified expired upload records without expanding background deletion",
@@ -2855,6 +3126,71 @@
         {
           "path": "api/controller/cleanup_upload_inventory_test.go",
           "selector": "TestUploadInventoryRejectsOversizedResultBeforeReadingStorage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-retained-references",
+      "title": "Protect package events referenced by retained versions and source checks",
+      "title_zh": "Protect package events referenced by retained versions and source checks",
+      "interface_type": "workflow",
+      "interface": "ReadUploadPackageReferences",
+      "code_paths": [
+        "pkg/cleanup/package_references.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_references_test.go",
+          "selector": "TestUploadReferencesProtectRetainedVersionsAndSourceChecks"
+        },
+        {
+          "path": "pkg/cleanup/package_references_test.go",
+          "selector": "TestUploadReferencePathsAreCanonical"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-use-lifetime",
+      "title": "Keep native upload storage work protected through completion and restart",
+      "title_zh": "Keep native upload storage work protected through completion and restart",
+      "interface_type": "workflow",
+      "interface": "ChunkUploadManager native storage lifecycle",
+      "code_paths": [
+        "api/controller/cleanup_upload_use.go",
+        "api/controller/chunk_upload_manager.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestUploadUsePersistsAcrossStorageWorkAndUncertainResults"
+        },
+        {
+          "path": "api/controller/cleanup_upload_use_test.go",
+          "selector": "TestUploadMaintenanceStopsNativeChunkWriteCancelAndExpiry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.upload-writer-coverage",
+      "title": "Require current API instances to register upload guard support separately from registry references",
+      "title_zh": "Require current API instances to register upload guard support separately from registry references",
+      "interface_type": "workflow",
+      "interface": "UploadWriterCoverageRegistered",
+      "code_paths": [
+        "pkg/cleanup/upload_writer.go",
+        "pkg/cleanup/reference_writer.go",
+        "pkg/cleanup/kubeidentity/reference_writer_startup.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/upload_writer_test.go",
+          "selector": "TestUploadDeletionRequiresEveryCurrentAPIWriterProtocol"
         }
       ],
       "test_type": "regression",
@@ -8079,6 +8415,24 @@
         {
           "path": "pkg/component/storage/s3_storage_test.go",
           "selector": "TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.storage.upload-chunk-binding",
+      "title": "Bind native chunk storage without exposing credentials",
+      "title_zh": "Bind native chunk storage without exposing credentials",
+      "interface_type": "workflow",
+      "interface": "Component.UploadChunkBinding",
+      "code_paths": [
+        "pkg/component/storage/upload_binding.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/component/storage/upload_binding_test.go",
+          "selector": "TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials"
         }
       ],
       "test_type": "regression",

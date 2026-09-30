@@ -99,6 +99,10 @@ func advanceCleanupRevision(tx *gorm.DB, store model.CleanupStorage) error {
 // AcquireOperation returns true only for a newly persisted admission. A retry
 // returns false; callers must not execute a destructive operation a second time.
 func AcquireOperation(database *gorm.DB, r CoordinationRequest) (bool, error) {
+	return acquireOperation(database, r, false)
+}
+
+func acquireOperation(database *gorm.DB, r CoordinationRequest, queued bool) (bool, error) {
 	if !r.valid() || r.Kind == "gc" {
 		return false, ErrCoordinationChanged
 	}
@@ -120,7 +124,7 @@ func AcquireOperation(database *gorm.DB, r CoordinationRequest) (bool, error) {
 		if existing.State == "uncertain" {
 			return false, ErrCoordinationUncertain
 		}
-		if existing.State != "active" && existing.State != "finished" {
+		if existing.State != "active" && existing.State != "finished" && !(queued && existing.State == "queued") {
 			return false, ErrCoordinationChanged
 		}
 		return false, tx.Commit().Error
@@ -147,7 +151,11 @@ func AcquireOperation(database *gorm.DB, r CoordinationRequest) (bool, error) {
 			return false, ErrCoordinationBusy
 		}
 	}
-	op := model.CleanupOperation{OperationID: r.OperationID, StorageID: r.StorageID, Generation: r.Generation, Owner: r.Owner, Kind: r.Kind, Scope: r.Scope, Fingerprint: r.Fingerprint, Target: r.Target, State: "active"}
+	state := "active"
+	if queued {
+		state = "queued"
+	}
+	op := model.CleanupOperation{OperationID: r.OperationID, StorageID: r.StorageID, Generation: r.Generation, Owner: r.Owner, Kind: r.Kind, Scope: r.Scope, Fingerprint: r.Fingerprint, Target: r.Target, State: state}
 	if err := tx.Create(&op).Error; err != nil {
 		return false, err
 	}

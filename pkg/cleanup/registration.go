@@ -5,11 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
+
+var managedNodeEntryIdentity = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
 
 // StorageRegistration contains identities observed by the trusted installer.
 // Registration alone is not proof that participants or references are complete.
@@ -98,6 +101,16 @@ func ProvisionRegistryStorage(database *gorm.DB, volumeUID, root string) (Storag
 	return provisionFilesystemStorage(database, "registry-filesystem", volumeUID, root)
 }
 
+// IsRegistryStorageBinding accepts only the domain-separated Registry storage
+// identity provisioned by Core.
+func IsRegistryStorageBinding(binding StorageRegistration) bool {
+	if _, err := binding.Fingerprint(); err != nil {
+		return false
+	}
+	key := sha256.Sum256([]byte("registry-filesystem\x00" + binding.VolumeUID))
+	return binding.StorageID == hex.EncodeToString(key[:])
+}
+
 // ProvisionManagedCacheStorage enrolls observed cache storage in collecting mode.
 // It does not certify writer coverage or enable deletion.
 func ProvisionManagedCacheStorage(database *gorm.DB, volumeUID, root string) (StorageRegistration, error) {
@@ -107,9 +120,65 @@ func ProvisionManagedCacheStorage(database *gorm.DB, volumeUID, root string) (St
 	return provisionFilesystemStorage(database, "managed-build-cache", volumeUID, root)
 }
 
+// ProvisionManagedPackageStorage enrolls one of Rainbond's two fixed package
+// directories. Both identities bind the same observed volume but never accept
+// a caller-provided path or become ready through registration alone.
+func ProvisionManagedPackageStorage(database *gorm.DB, volumeUID, kind string) (StorageRegistration, error) {
+	root := ""
+	switch kind {
+	case "upload_events":
+		root = "/grdata/package_build/temp/events"
+	case "upload_components":
+		root = "/grdata/package_build/components"
+	default:
+		return StorageRegistration{}, ErrCoordinationChanged
+	}
+	key := sha256.Sum256([]byte("node-upload-packages\x00" + volumeUID + "\x00" + kind))
+	return provisionFilesystemStorageID(database, hex.EncodeToString(key[:]), volumeUID, root)
+}
+
+// ManagedNodeStorageKind validates a registered storage identity and returns
+// the only node-helper root kind that may be constructed from it.
+func ManagedNodeStorageKind(binding StorageRegistration) (string, error) {
+	if _, err := binding.Fingerprint(); err != nil {
+		return "", err
+	}
+	cache := sha256.Sum256([]byte("managed-build-cache\x00" + binding.VolumeUID))
+	if binding.RootPath == "/cache/build" && binding.StorageID == hex.EncodeToString(cache[:]) {
+		return "cache", nil
+	}
+	for kind, root := range map[string]string{
+		"upload_events":     "/grdata/package_build/temp/events",
+		"upload_components": "/grdata/package_build/components",
+	} {
+		key := sha256.Sum256([]byte("node-upload-packages\x00" + binding.VolumeUID + "\x00" + kind))
+		if binding.RootPath == root && binding.StorageID == hex.EncodeToString(key[:]) {
+			return kind, nil
+		}
+	}
+	return "", ErrCoordinationChanged
+}
+
+// ValidManagedNodeEntry permits only an immediate cache/event entry or the
+// exact retained-package shape <service>/events/<event>.
+func ValidManagedNodeEntry(kind, entry string) bool {
+	switch kind {
+	case "cache", "upload_events":
+		return managedNodeEntryIdentity.MatchString(entry)
+	case "upload_components":
+		parts := strings.Split(entry, "/")
+		return len(parts) == 3 && managedNodeEntryIdentity.MatchString(parts[0]) && parts[1] == "events" && managedNodeEntryIdentity.MatchString(parts[2])
+	default:
+		return false
+	}
+}
+
 func provisionFilesystemStorage(database *gorm.DB, domain, volumeUID, root string) (StorageRegistration, error) {
 	key := sha256.Sum256([]byte(domain + "\x00" + volumeUID))
-	storageID := hex.EncodeToString(key[:])
+	return provisionFilesystemStorageID(database, hex.EncodeToString(key[:]), volumeUID, root)
+}
+
+func provisionFilesystemStorageID(database *gorm.DB, storageID, volumeUID, root string) (StorageRegistration, error) {
 	read := func() (StorageRegistration, error) {
 		var stored model.CleanupStorage
 		if err := database.Where("storage_id = ?", storageID).First(&stored).Error; err != nil {

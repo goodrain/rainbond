@@ -56,7 +56,8 @@ func nodeJobTarget(intent NodeJobIntent) string {
 	return "managed-cache:" + hex.EncodeToString(sum[:])
 }
 func validNodeJobIntent(r CoordinationRequest, intent NodeJobIntent) bool {
-	if !r.valid() || r.Kind != "delete" || r.Scope != nodeJobScope(intent) || r.Target != nodeJobTarget(intent) || len(validation.IsDNS1123Label(intent.Namespace)) != 0 || intent.Name != nodeJobName(r) || len(validation.IsDNS1123Subdomain(intent.NodeName)) != 0 || !coordinationIdentity.MatchString(intent.NodeUID) || intent.Entry == "" || len(intent.Entry) > 255 || intent.Entry == "." || intent.Entry == ".." || strings.ContainsAny(intent.Entry, "/\\\x00\r\n") {
+	validEntry := ValidManagedNodeEntry("cache", intent.Entry) || ValidManagedNodeEntry("upload_components", intent.Entry)
+	if !r.valid() || r.Kind != "delete" || r.Scope != nodeJobScope(intent) || r.Target != nodeJobTarget(intent) || len(validation.IsDNS1123Label(intent.Namespace)) != 0 || intent.Name != nodeJobName(r) || len(validation.IsDNS1123Subdomain(intent.NodeName)) != 0 || !coordinationIdentity.MatchString(intent.NodeUID) || !validEntry {
 		return false
 	}
 	for _, hash := range []string{intent.SpecHash, intent.Fingerprint} {
@@ -119,8 +120,8 @@ func changeNodeJob(database *gorm.DB, r CoordinationRequest, change func(*gorm.D
 	if err != nil {
 		return err
 	}
-	expected := sha256.Sum256([]byte("managed-build-cache\x00" + binding.VolumeUID))
-	if binding.RootPath != "/cache/build" || binding.StorageID != hex.EncodeToString(expected[:]) {
+	kind, err := ManagedNodeStorageKind(binding)
+	if err != nil || kind == "" {
 		return ErrCoordinationChanged
 	}
 	var op model.CleanupOperation
@@ -146,8 +147,16 @@ func PrepareNodeJob(database *gorm.DB, r CoordinationRequest, intent NodeJobInte
 	if !validNodeJobIntent(r, intent) {
 		return NodeJobIntent{}, false, ErrCoordinationChanged
 	}
+	binding, err := StorageBinding(database, r.StorageID, r.Generation)
+	if err != nil {
+		return NodeJobIntent{}, false, err
+	}
+	kind, err := ManagedNodeStorageKind(binding)
+	if err != nil || !ValidManagedNodeEntry(kind, intent.Entry) {
+		return NodeJobIntent{}, false, ErrCoordinationChanged
+	}
 	created := false
-	err := changeNodeJob(database, r, func(tx *gorm.DB, store model.CleanupStorage, op model.CleanupOperation) error {
+	err = changeNodeJob(database, r, func(tx *gorm.DB, store model.CleanupStorage, op model.CleanupOperation) error {
 		if op.NodeExecutionJSON != "" {
 			previous, err := readNodeBinding(r, op)
 			if err != nil {
@@ -229,11 +238,11 @@ func ReadNodeJobBinding(database *gorm.DB, r CoordinationRequest) (NodeJobBindin
 // ManagedNodeRequest derives the scope/target of a trusted saved selection.
 // It constructs a request only; it never registers or acquires an operation.
 func ManagedNodeRequest(storage StorageRegistration, owner, operationID, fingerprint string, intent NodeJobIntent) (CoordinationRequest, error) {
-	if _, err := storage.Fingerprint(); err != nil {
+	kind, err := ManagedNodeStorageKind(storage)
+	if err != nil {
 		return CoordinationRequest{}, err
 	}
-	expected := sha256.Sum256([]byte("managed-build-cache\x00" + storage.VolumeUID))
-	if storage.RootPath != "/cache/build" || storage.StorageID != hex.EncodeToString(expected[:]) {
+	if !ValidManagedNodeEntry(kind, intent.Entry) {
 		return CoordinationRequest{}, ErrCoordinationChanged
 	}
 	r := CoordinationRequest{StorageID: storage.StorageID, Generation: storage.Generation, Owner: owner, OperationID: operationID, Kind: "delete", Scope: nodeJobScope(intent), Target: nodeJobTarget(intent), Fingerprint: fingerprint}

@@ -127,3 +127,35 @@ func TestManagedCacheRegistrationIsDistinctAndCannotChangeRoot(t *testing.T) {
 		t.Fatal("arbitrary cache root accepted")
 	}
 }
+
+// capability_id: rainbond.cleanup.managed-package-binding
+func TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady(t *testing.T) {
+	database, _ := coordinationDB(t)
+	temporary, err := ProvisionManagedPackageStorage(database, "shared-volume", "upload_events")
+	if err != nil || temporary.RootPath != "/grdata/package_build/temp/events" {
+		t.Fatal(temporary, err)
+	}
+	retained, err := ProvisionManagedPackageStorage(database, "shared-volume", "upload_components")
+	if err != nil || retained.RootPath != "/grdata/package_build/components" || retained.StorageID == temporary.StorageID {
+		t.Fatal(retained, err)
+	}
+	for _, item := range []struct {
+		kind    string
+		binding StorageRegistration
+	}{{"upload_events", temporary}, {"upload_components", retained}} {
+		binding := item.binding
+		state, err := InspectStorage(database, binding.StorageID, binding.Generation)
+		if err != nil || state.Mode != "collecting" {
+			t.Fatal("package enrollment enabled deletion", binding, state, err)
+		}
+		again, err := ProvisionManagedPackageStorage(database, "shared-volume", item.kind)
+		if err != nil || again != binding {
+			t.Fatal("package retry changed identity", again, err)
+		}
+	}
+	for _, kind := range []string{"", "cache", "../events"} {
+		if _, err := ProvisionManagedPackageStorage(database, "shared-volume", kind); err == nil {
+			t.Fatal("arbitrary package kind accepted", kind)
+		}
+	}
+}
