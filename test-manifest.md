@@ -113,6 +113,8 @@
 | rainbond.cleanup.package-check-queue-classification | Classify native package checks consistently before enqueue and execution | active | regression | PackageCheckIdentity | pkg/cleanup/queued_check_test.go::TestPackageChecksUseSharedQueueClassification |
 | rainbond.cleanup.package-inventory-mount | Observe and bind read-only package inventory subtree independently of cache deletion | active | regression | BuildManagedCacheInventoryJob | pkg/cleanup/kubeidentity/package_inventory_template_test.go::TestPackageInventoryUsesObservedReadOnlySubtree |
 | rainbond.cleanup.package-upload-exclusive-close | Drain concurrent upload parts before terminal mutation and preserve uncertain requests | active | regression | AcquirePackageUploadRequest | pkg/cleanup/package_upload_use_test.go::TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart<br>pkg/cleanup/package_upload_use_test.go::TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest<br>api/controller/cleanup_upload_use_test.go::TestNativeUploadCancelCannotOverlapAnActivePart |
+| rainbond.cleanup.package-writer-coverage | Managed package coverage rejects active builds | active | regression | kubeidentity.InspectManagedPackageWriterCoverage | pkg/cleanup/kubeidentity/package_coverage_test.go::TestManagedPackageCoverageRejectsBuildsAndChangingRollout |
+| rainbond.cleanup.package-writer-readiness | Managed package deletion requires current coordinated writers | active | regression | cleanup.CertifyManagedPackageWriters | pkg/cleanup/package_certification_test.go::TestManagedPackageReadinessRequiresCurrentWritersAndNoUnfinishedUse |
 | rainbond.cleanup.participant-replacement | Participant replacement preserves active deletion protection | active | regression | cleanup.RegisterParticipant | pkg/cleanup/participant_test.go::TestParticipantReplacementWithdrawsReadinessWithoutLosingDeletion |
 | rainbond.cleanup.pending-import-references | Include retained tar import and check receipts in reference audits | active | regression | cleanup.collectRegionReferenceImages | pkg/cleanup/reference_import_test.go::TestImportedImagesRemainReferencedUntilTheirRecordsAreReleased<br>pkg/cleanup/reference_import_test.go::TestIncompleteImportRecordsCannotProveAbsence<br>pkg/cleanup/reference_import_test.go::TestRejectedAndNonImageChecksDoNotInventReferences |
 | rainbond.cleanup.platform-future-helper-references | Protect default and configured builder and worker helper images | active | regression | kubeidentity.ReadPlatformHelperReferences | pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformDefaultsRemainReferencedWithoutActiveBuilds<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestPlatformHelperOverridesNeverExposeOtherEnvironmentValues<br>pkg/cleanup/kubeidentity/platform_helper_references_test.go::TestBuilderDaemonSetRollbackHelperReferences |
@@ -1728,6 +1730,26 @@
 - 业务入口: `AcquirePackageUploadRequest`
 - 代码路径: `pkg/cleanup/package_upload_use.go`, `db/model/package_upload_use.go`, `db/mysql/mysql.go`, `api/controller/cleanup_upload_use.go`
 - 测试路径: `pkg/cleanup/package_upload_use_test.go::TestPackageUploadCloseDrainsPartsAndRetainsUnknownAcrossRestart`, `pkg/cleanup/package_upload_use_test.go::TestPackageUploadAdmissionChecksFreshSessionAndOriginalRequest`, `api/controller/cleanup_upload_use_test.go::TestNativeUploadCancelCannotOverlapAnActivePart`
+
+### Managed package coverage rejects active builds
+
+- Capability ID: `rainbond.cleanup.package-writer-coverage`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `kubeidentity.InspectManagedPackageWriterCoverage`
+- 代码路径: `pkg/cleanup/kubeidentity/package_coverage.go`
+- 测试路径: `pkg/cleanup/kubeidentity/package_coverage_test.go::TestManagedPackageCoverageRejectsBuildsAndChangingRollout`
+
+### Managed package deletion requires current coordinated writers
+
+- Capability ID: `rainbond.cleanup.package-writer-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `cleanup.CertifyManagedPackageWriters`
+- 代码路径: `pkg/cleanup/package_certification.go`
+- 测试路径: `pkg/cleanup/package_certification_test.go::TestManagedPackageReadinessRequiresCurrentWritersAndNoUnfinishedUse`
 
 ### Participant replacement preserves active deletion protection
 

@@ -514,7 +514,7 @@ func TestManagedPackagePreparationDerivesTwoCollectingStores(t *testing.T) {
 	}
 	defer database.Close()
 	database.LogMode(false)
-	if err := database.AutoMigrate(&model.CleanupStorage{}).Error; err != nil {
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}, &model.CleanupReferenceWriter{}, &model.PackageUploadUse{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	calls := 0

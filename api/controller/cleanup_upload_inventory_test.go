@@ -108,8 +108,8 @@ func TestUploadInventoryRestrictsEventsAndPreservesUnknownSizes(t *testing.T) {
 	if packages != 1 || len(reply.Bean.Packages) != 1 || reply.Bean.Packages[0].EventID != "owned" || reply.Bean.Packages[0].Bytes == nil || *reply.Bean.Packages[0].Bytes != 97 {
 		t.Fatal("package was omitted or counted per session")
 	}
-	if reply.Bean.Packages[0].Referenced == nil || !*reply.Bean.Packages[0].Referenced || reply.Bean.Packages[0].ReferencesComplete {
-		t.Fatal("positive reference missing or partial evidence declared complete")
+	if reply.Bean.Packages[0].Referenced == nil || !*reply.Bean.Packages[0].Referenced || !reply.Bean.Packages[0].ReferencesComplete {
+		t.Fatal("positive reference or complete bounded evidence missing")
 	}
 	known, unknown := reply.Bean.Items[0], reply.Bean.Items[1]
 	if known.ID != "known" || known.Bytes == nil || *known.Bytes != 17 || known.SizeStatus != "measured" {

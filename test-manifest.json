@@ -2155,6 +2155,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.package-writer-coverage",
+      "title": "Managed package coverage rejects active builds",
+      "title_zh": "Managed package coverage rejects active builds",
+      "interface_type": "workflow",
+      "interface": "kubeidentity.InspectManagedPackageWriterCoverage",
+      "code_paths": [
+        "pkg/cleanup/kubeidentity/package_coverage.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/kubeidentity/package_coverage_test.go",
+          "selector": "TestManagedPackageCoverageRejectsBuildsAndChangingRollout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.package-writer-readiness",
+      "title": "Managed package deletion requires current coordinated writers",
+      "title_zh": "Managed package deletion requires current coordinated writers",
+      "interface_type": "workflow",
+      "interface": "cleanup.CertifyManagedPackageWriters",
+      "code_paths": [
+        "pkg/cleanup/package_certification.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/package_certification_test.go",
+          "selector": "TestManagedPackageReadinessRequiresCurrentWritersAndNoUnfinishedUse"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.participant-replacement",
       "title": "Participant replacement preserves active deletion protection",
       "title_zh": "Participant replacement preserves active deletion protection",

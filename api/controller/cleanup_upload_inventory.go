@@ -130,7 +130,7 @@ func (h *CleanupCoordinationHandler) UploadInventory(w http.ResponseWriter, r *h
 	// Measure an event once, even if it has multiple upload/retry sessions.
 	// Legacy non-chunk uploads may have no UploadSession row at all.
 	for _, eventID := range body.EventIDs {
-		item := uploadPackageInventoryItem{EventID: eventID, SizeStatus: "unavailable"}
+		item := uploadPackageInventoryItem{EventID: eventID, ReferencesComplete: references != nil, SizeStatus: "unavailable"}
 		if used, ok := references[eventID]; ok {
 			item.Referenced = &used
 		}
