@@ -69,6 +69,12 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 	volumes := []corev1.Volume{*data}
 	mounts := []corev1.VolumeMount{mount}
 	roots := []map[string]string{{"kind": "cache", "storageId": binding.StorageID, "path": "/cache/build"}}
+	runtimeEndpoint := ""
+	if runtimeVolume, runtimeMount, ok := runtimeInventoryMount(pod); ok {
+		volumes = append(volumes, runtimeVolume)
+		mounts = append(mounts, runtimeMount)
+		runtimeEndpoint = "unix:///runtime/containerd.sock"
+	}
 	if settings.IncludePackages {
 		packageVolume, packageMount, packageRoots, err := packageInventoryMount(ctx, client, pod)
 		if err != nil {
@@ -78,7 +84,7 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 		mounts = append(mounts, packageMount)
 		roots = append(roots, packageRoots...)
 	}
-	raw, err := json.Marshal(map[string]interface{}{"scanId": settings.ScanID, "region": settings.Region, "node": observed.Mount.NodeName, "nodeUid": observed.NodeUID, "roots": roots})
+	raw, err := json.Marshal(map[string]interface{}{"scanId": settings.ScanID, "region": settings.Region, "node": observed.Mount.NodeName, "nodeUid": observed.NodeUID, "runtimeEndpoint": runtimeEndpoint, "roots": roots})
 	if err != nil {
 		return nil, ErrBinding
 	}
@@ -88,4 +94,43 @@ func BuildManagedCacheInventoryJob(ctx context.Context, client kubernetes.Interf
 	deadline := int64(180)
 	c := corev1.Container{Name: "node-inventory", Image: settings.Image, Command: []string{"/app/node-inventory"}, Args: []string{"--output=-"}, Env: []corev1.EnvVar{{Name: "CLEANUP_NODE_INVENTORY_BASE64", Value: base64.StdEncoding.EncodeToString(raw)}}, VolumeMounts: mounts, SecurityContext: &corev1.SecurityContext{RunAsUser: &root, RunAsGroup: &readerGroup, AllowPrivilegeEscalation: &no, ReadOnlyRootFilesystem: &yes, Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}}}}
 	return &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Namespace: namespace}, Spec: batchv1.JobSpec{Suspend: &yes, BackoffLimit: &zero, Parallelism: &one, Completions: &one, ActiveDeadlineSeconds: &deadline, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"rainbond.io/node-source-pod": sourcePod, "rainbond.io/node-source-uid": sourceUID}}, Spec: corev1.PodSpec{NodeName: observed.Mount.NodeName, RestartPolicy: corev1.RestartPolicyNever, AutomountServiceAccountToken: &no, ImagePullSecrets: append([]corev1.LocalObjectReference(nil), pod.Spec.ImagePullSecrets...), Containers: []corev1.Container{c}, Volumes: volumes}}}}, nil
+}
+
+// runtimeInventoryMount copies only Rainbond's exact containerd socket mount
+// into the read-only inventory Job. Missing or changed mounts simply leave CRI
+// coverage unconfigured; filesystem inventory remains independently useful.
+func runtimeInventoryMount(pod *corev1.Pod) (corev1.Volume, corev1.VolumeMount, bool) {
+	if pod == nil || len(pod.Spec.Containers) != 1 {
+		return corev1.Volume{}, corev1.VolumeMount{}, false
+	}
+	const source = "/run/containerd/containerd.sock"
+	var observed *corev1.VolumeMount
+	for index := range pod.Spec.Containers[0].VolumeMounts {
+		mount := &pod.Spec.Containers[0].VolumeMounts[index]
+		if mount.MountPath == source {
+			if observed != nil {
+				return corev1.Volume{}, corev1.VolumeMount{}, false
+			}
+			observed = mount
+		}
+	}
+	if observed == nil || observed.SubPath != "" || observed.SubPathExpr != "" || (observed.MountPropagation != nil && *observed.MountPropagation != corev1.MountPropagationNone) {
+		return corev1.Volume{}, corev1.VolumeMount{}, false
+	}
+	var volume *corev1.Volume
+	for index := range pod.Spec.Volumes {
+		if pod.Spec.Volumes[index].Name == observed.Name {
+			if volume != nil {
+				return corev1.Volume{}, corev1.VolumeMount{}, false
+			}
+			volume = &pod.Spec.Volumes[index]
+		}
+	}
+	if volume == nil || volume.HostPath == nil || volume.HostPath.Path != source || (volume.HostPath.Type != nil && *volume.HostPath.Type != corev1.HostPathSocket) {
+		return corev1.Volume{}, corev1.VolumeMount{}, false
+	}
+	copy := *volume.DeepCopy()
+	copy.Name = "node-runtime"
+	mount := corev1.VolumeMount{Name: copy.Name, MountPath: "/runtime/containerd.sock", ReadOnly: true}
+	return copy, mount, true
 }

@@ -56,6 +56,24 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 	if pod.Spec.Containers[0].VolumeMounts[0].ReadOnly {
 		t.Fatal("source mutated")
 	}
+	socketType := corev1.HostPathSocket
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "runtime", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/run/containerd/containerd.sock", Type: &socketType}}})
+	pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{Name: "runtime", MountPath: "/run/containerd/containerd.sock"})
+	if _, err := client.CoreV1().Pods("system").Update(context.Background(), pod, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	runtimeJob, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeSpec := runtimeJob.Spec.Template.Spec
+	if len(runtimeSpec.Volumes) != 2 || len(runtimeSpec.Containers[0].VolumeMounts) != 2 || runtimeSpec.Containers[0].VolumeMounts[1].MountPath != "/runtime/containerd.sock" || !runtimeSpec.Containers[0].VolumeMounts[1].ReadOnly {
+		t.Fatal("runtime socket was not bounded read-only")
+	}
+	runtimePayload, _ := base64.StdEncoding.DecodeString(runtimeSpec.Containers[0].Env[0].Value)
+	if !strings.Contains(string(runtimePayload), `"runtimeEndpoint":"unix:///runtime/containerd.sock"`) {
+		t.Fatal("runtime endpoint omitted from trusted descriptor")
+	}
 	settings.IncludePackages = true
 	if _, err := BuildManagedCacheInventoryJob(context.Background(), client, "system", pod.Name, string(pod.UID), binding, settings); err == nil {
 		t.Fatal("invented missing package mount")
@@ -70,7 +88,7 @@ func TestCacheInventoryTemplateUsesObservedReadOnlyStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	packageSpec := packageJob.Spec.Template.Spec
-	if len(packageSpec.Volumes) != 2 || len(packageSpec.Containers[0].VolumeMounts) != 2 || !packageSpec.Containers[0].VolumeMounts[1].ReadOnly {
+	if len(packageSpec.Volumes) != 3 || len(packageSpec.Containers[0].VolumeMounts) != 3 || !packageSpec.Containers[0].VolumeMounts[1].ReadOnly || !packageSpec.Containers[0].VolumeMounts[2].ReadOnly {
 		t.Fatal("package inventory did not preserve read-only scope")
 	}
 	payload, _ := base64.StdEncoding.DecodeString(packageSpec.Containers[0].Env[0].Value)
