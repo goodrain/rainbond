@@ -101,6 +101,16 @@ func ProvisionRegistryStorage(database *gorm.DB, volumeUID, root string) (Storag
 	return provisionFilesystemStorage(database, "registry-filesystem", volumeUID, root)
 }
 
+// IsRegistryStorageBinding accepts only the domain-separated Registry storage
+// identity provisioned by Core.
+func IsRegistryStorageBinding(binding StorageRegistration) bool {
+	if _, err := binding.Fingerprint(); err != nil {
+		return false
+	}
+	key := sha256.Sum256([]byte("registry-filesystem\x00" + binding.VolumeUID))
+	return binding.StorageID == hex.EncodeToString(key[:])
+}
+
 // ProvisionManagedCacheStorage enrolls observed cache storage in collecting mode.
 // It does not certify writer coverage or enable deletion.
 func ProvisionManagedCacheStorage(database *gorm.DB, volumeUID, root string) (StorageRegistration, error) {

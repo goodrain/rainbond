@@ -893,6 +893,7 @@ func (v2 *V2) cleanupCoordinationRouter() chi.Router {
 	r.Post("/managed-cache/inventory", h.CollectManagedCache)
 	r.Post("/stores/{storage_id}/operations", h.Acquire)
 	r.Post("/stores/{storage_id}/status", h.StorageStatus)
+	r.Post("/stores/{storage_id}/observation-permit", h.StorageObservationPermit)
 	r.Post("/stores/{storage_id}/reference-inventory", h.RegistryReferenceInventory)
 	r.Post("/stores/{storage_id}/participants/registry", h.RegisterRegistryParticipant)
 	r.Post("/stores/{storage_id}/operations/{operation_id}/registry-permit", h.RegistryPermit)

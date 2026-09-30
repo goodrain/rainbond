@@ -4,6 +4,7 @@ package registryproxy
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"sync"
@@ -115,6 +116,36 @@ func (r *Runtime) ready(ctx context.Context) error {
 
 // ServeHTTP exposes no configuration setters or unauthenticated cleanup action.
 func (r *Runtime) ServeHTTP(w http.ResponseWriter, request *http.Request) {
+	if request.URL.Path == "/storagez" {
+		if request.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.config.PermitKey == nil {
+			http.Error(w, "storage observation denied", http.StatusForbidden)
+			return
+		}
+		binding, err := coordination.VerifyStorageObservationPermit(r.config.PermitKey(), request.Header.Get("X-Rainbond-Storage-Observation"), time.Now())
+		if err != nil || binding != r.config.Binding {
+			http.Error(w, "storage observation denied", http.StatusForbidden)
+			return
+		}
+		ctx, cancel := context.WithTimeout(request.Context(), 2*time.Second)
+		err = r.checkBinding(ctx)
+		cancel()
+		if err != nil {
+			http.Error(w, "registry storage binding unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		measured, err := MeasureStorage(r.config.Root, r.config.Binding)
+		if err != nil {
+			http.Error(w, "registry storage measurement unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(measured)
+		return
+	}
 	if request.URL.Path == "/healthz" || request.URL.Path == "/readyz" {
 		if request.Method != http.MethodGet {
 			http.Error(w, "method not allowed", 405)
