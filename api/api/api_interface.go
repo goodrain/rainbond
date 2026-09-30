@@ -147,6 +147,7 @@ type ServiceInterface interface {
 	ShareResult(w http.ResponseWriter, r *http.Request)
 	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
 	RetireBuildVersion(w http.ResponseWriter, r *http.Request)
+	InspectBuildVersionRetirement(w http.ResponseWriter, r *http.Request)
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 	AutoscalerRules(w http.ResponseWriter, r *http.Request)
 	ScalingRecords(w http.ResponseWriter, r *http.Request)

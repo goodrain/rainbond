@@ -84,6 +84,51 @@ func TestRetirementRejectsActiveOperationUnderLock(t *testing.T) {
 	}
 }
 
+func TestBuildVersionRetirementInspectionIsReadOnly(t *testing.T) {
+	for _, scenario := range []string{"present", "absent", "changed", "foreign-service"} {
+		t.Run(scenario, func(t *testing.T) {
+			database, mock := mockRetirementDB(t)
+			expected := VersionExpectation{ActivationRevision: "revision", EventID: "event", ServiceID: "service", Version: "old", CurrentVersion: "current", Image: "registry/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+			mock.ExpectBegin()
+			serviceRows := sqlmock.NewRows([]string{"service_id", "tenant_id", "deploy_version"})
+			if scenario != "foreign-service" {
+				serviceRows.AddRow("service", "tenant", "new-current")
+			}
+			mock.ExpectQuery("SELECT .*tenant_services.*FOR UPDATE").WithArgs("service", "tenant").WillReturnRows(serviceRows)
+			if scenario == "foreign-service" {
+				mock.ExpectRollback()
+				if _, err := InspectVersionRetirement(database.Begin, "tenant", expected); err == nil {
+					t.Fatal("foreign service reported as an absent retired record")
+				}
+				return
+			}
+			versionRows := sqlmock.NewRows([]string{"ID", "service_id", "build_version", "event_id", "image_name", "delivered_path", "activation_revision"})
+			switch scenario {
+			case "present":
+				versionRows.AddRow(1, "service", "old", "event", expected.Image, "", "revision")
+			case "changed":
+				versionRows.AddRow(2, "service", "old", "new-event", expected.Image, "", "revision")
+			}
+			mock.ExpectQuery("SELECT .*tenant_service_version.*FOR UPDATE").WithArgs("service", "old").WillReturnRows(versionRows)
+			if scenario == "changed" {
+				mock.ExpectRollback()
+				if _, err := InspectVersionRetirement(database.Begin, "tenant", expected); !errors.Is(err, ErrStateChanged) {
+					t.Fatalf("changed identity returned %v", err)
+				}
+				return
+			}
+			mock.ExpectCommit()
+			state, err := InspectVersionRetirement(database.Begin, "tenant", expected)
+			if err != nil || state != scenario {
+				t.Fatalf("unexpected inspection: state=%s err=%v", state, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestRollbackChangesActivationCheckpointAndSelectionTogether(t *testing.T) {
 	database, mock := mockRetirementDB(t)
 	mock.ExpectBegin()
