@@ -5,11 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
+
+var managedNodeEntryIdentity = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
 
 // StorageRegistration contains identities observed by the trusted installer.
 // Registration alone is not proof that participants or references are complete.
@@ -122,6 +125,42 @@ func ProvisionManagedPackageStorage(database *gorm.DB, volumeUID, kind string) (
 	}
 	key := sha256.Sum256([]byte("node-upload-packages\x00" + volumeUID + "\x00" + kind))
 	return provisionFilesystemStorageID(database, hex.EncodeToString(key[:]), volumeUID, root)
+}
+
+// ManagedNodeStorageKind validates a registered storage identity and returns
+// the only node-helper root kind that may be constructed from it.
+func ManagedNodeStorageKind(binding StorageRegistration) (string, error) {
+	if _, err := binding.Fingerprint(); err != nil {
+		return "", err
+	}
+	cache := sha256.Sum256([]byte("managed-build-cache\x00" + binding.VolumeUID))
+	if binding.RootPath == "/cache/build" && binding.StorageID == hex.EncodeToString(cache[:]) {
+		return "cache", nil
+	}
+	for kind, root := range map[string]string{
+		"upload_events":     "/grdata/package_build/temp/events",
+		"upload_components": "/grdata/package_build/components",
+	} {
+		key := sha256.Sum256([]byte("node-upload-packages\x00" + binding.VolumeUID + "\x00" + kind))
+		if binding.RootPath == root && binding.StorageID == hex.EncodeToString(key[:]) {
+			return kind, nil
+		}
+	}
+	return "", ErrCoordinationChanged
+}
+
+// ValidManagedNodeEntry permits only an immediate cache/event entry or the
+// exact retained-package shape <service>/events/<event>.
+func ValidManagedNodeEntry(kind, entry string) bool {
+	switch kind {
+	case "cache", "upload_events":
+		return managedNodeEntryIdentity.MatchString(entry)
+	case "upload_components":
+		parts := strings.Split(entry, "/")
+		return len(parts) == 3 && managedNodeEntryIdentity.MatchString(parts[0]) && parts[1] == "events" && managedNodeEntryIdentity.MatchString(parts[2])
+	default:
+		return false
+	}
 }
 
 func provisionFilesystemStorage(database *gorm.DB, domain, volumeUID, root string) (StorageRegistration, error) {
