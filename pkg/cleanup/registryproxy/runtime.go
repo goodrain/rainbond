@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -108,10 +109,29 @@ func (r *Runtime) ready(ctx context.Context) error {
 		return err
 	}
 	defer response.Body.Close()
-	if (response.StatusCode != 200 && response.StatusCode != 401) || response.Header.Get("Docker-Distribution-API-Version") != "registry/2.0" {
+	if !registryUpstreamReady(response) {
 		return ErrUnsupportedRequest
 	}
 	return nil
+}
+
+func registryUpstreamReady(response *http.Response) bool {
+	if response == nil || (response.StatusCode != http.StatusOK && response.StatusCode != http.StatusUnauthorized) {
+		return false
+	}
+	if response.Header.Get("Docker-Distribution-API-Version") == "registry/2.0" {
+		return true
+	}
+	if response.StatusCode != http.StatusUnauthorized {
+		return false
+	}
+	for _, challenge := range response.Header.Values("WWW-Authenticate") {
+		scheme, parameters, ok := strings.Cut(strings.TrimSpace(challenge), " ")
+		if ok && strings.TrimSpace(parameters) != "" && (strings.EqualFold(scheme, "Basic") || strings.EqualFold(scheme, "Bearer")) {
+			return true
+		}
+	}
+	return false
 }
 
 // ServeHTTP exposes no configuration setters or unauthenticated cleanup action.

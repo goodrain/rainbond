@@ -33,6 +33,8 @@ type RegionReferenceInventory struct {
 
 var referenceAuditTag = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
 
+const kubeBlocksBuildKind = "kubeblocks"
+
 func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error) {
 	denied := RegionReferenceInventory{}
 	result := RegionReferenceInventory{Complete: true, Images: []string{}}
@@ -53,7 +55,7 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		images[image] = true
 	}
 	var versions []model.VersionInfo
-	if err := tx.Select("image_name, delivered_type, delivered_path, final_status").Limit(20001).Find(&versions).Error; err != nil {
+	if err := tx.Select("image_name, delivered_type, delivered_path, final_status, kind").Limit(20001).Find(&versions).Error; err != nil {
 		return denied, err
 	}
 	if len(versions) > 20000 {
@@ -64,7 +66,10 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		if version.DeliveredType == "image" {
 			inspect(version.DeliveredPath)
 		}
-		if version.FinalStatus == "success" && version.ImageName == "" && version.DeliveredType != "slug" && (version.DeliveredType != "image" || version.DeliveredPath == "") {
+		// KubeBlocks build events only trigger custom-resource deployment and do
+		// not produce a container image. Their empty image fields are complete
+		// evidence, not an unknown Registry reference.
+		if version.FinalStatus == "success" && version.Kind != kubeBlocksBuildKind && version.ImageName == "" && version.DeliveredType != "slug" && (version.DeliveredType != "image" || version.DeliveredPath == "") {
 			result.Complete = false
 		}
 	}

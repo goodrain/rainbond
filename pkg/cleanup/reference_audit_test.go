@@ -49,6 +49,14 @@ func TestRegionReferenceAuditChecksRetainedVersionsAndPluginImages(t *testing.T)
 	if err := database.Delete(saved).Error; err != nil {
 		t.Fatal(err)
 	}
+	kubeblocks := &model.VersionInfo{ServiceID: "database-service", BuildVersion: "deployed", Kind: "kubeblocks", FinalStatus: "success"}
+	if err := database.Create(kubeblocks).Error; err != nil {
+		t.Fatal(err)
+	}
+	check(false, true)
+	if err := database.Delete(kubeblocks).Error; err != nil {
+		t.Fatal(err)
+	}
 	if err := database.Create(&model.VersionInfo{ImageName: "invalid image", FinalStatus: "success"}).Error; err != nil {
 		t.Fatal(err)
 	}
