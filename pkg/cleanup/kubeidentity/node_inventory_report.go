@@ -2,6 +2,7 @@ package kubeidentity
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"reflect"
@@ -16,6 +17,27 @@ import (
 )
 
 const inventoryReportLimit = 32 << 20
+
+func matchesPinnedImageID(expected, observed string) bool {
+	if strings.Count(expected, "@") != 1 {
+		return false
+	}
+	_, digest, found := strings.Cut(expected, "@")
+	encoded := strings.TrimPrefix(digest, "sha256:")
+	decoded, err := hex.DecodeString(encoded)
+	if !found || !strings.HasPrefix(digest, "sha256:") || len(encoded) != 64 || err != nil || hex.EncodeToString(decoded) != encoded {
+		return false
+	}
+	observed = strings.TrimPrefix(strings.TrimPrefix(observed, "docker-pullable://"), "containerd://")
+	if observed == expected || observed == digest {
+		return true
+	}
+	if strings.Count(observed, "@") != 1 {
+		return false
+	}
+	_, observedDigest, found := strings.Cut(observed, "@")
+	return found && observedDigest == digest
+}
 
 // ReadNodeInventoryReport retrieves only the verified successful collector's
 // bounded output. No cross-namespace volume or collector credentials are needed.
@@ -51,10 +73,8 @@ func readNodeInventoryReport(ctx context.Context, client kubernetes.Interface, j
 		return nil, ErrBinding
 	}
 	status := pod.Status.ContainerStatuses[0]
-	imageID := strings.TrimPrefix(strings.TrimPrefix(status.ImageID, "docker-pullable://"), "containerd://")
-	digest := c.Image[strings.LastIndex(c.Image, "@")+1:]
 	term := status.State.Terminated
-	if status.Name != c.Name || status.RestartCount != 0 || status.ContainerID == "" || status.LastTerminationState.Terminated != nil || term == nil || term.ExitCode != 0 || term.FinishedAt.IsZero() || term.StartedAt.IsZero() || (imageID != c.Image && imageID != digest) {
+	if status.Name != c.Name || status.RestartCount != 0 || status.ContainerID == "" || status.LastTerminationState.Terminated != nil || term == nil || term.ExitCode != 0 || term.FinishedAt.IsZero() || term.StartedAt.IsZero() || !matchesPinnedImageID(c.Image, status.ImageID) {
 		return nil, ErrBinding
 	}
 	node, err := client.CoreV1().Nodes().Get(ctx, spec.NodeName, metav1.GetOptions{})
