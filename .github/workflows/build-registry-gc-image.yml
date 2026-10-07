@@ -33,7 +33,7 @@ jobs:
           file: hack/contrib/docker/registry-gc/Dockerfile
           platforms: linux/amd64
           build-args: |
-            REGISTRY_IMAGE=registry.cn-hangzhou.aliyuncs.com/goodrain/registry@sha256:b8014b3c3766db8e581432d79ea10efaf209e2d6025ba2e07421a1fa0fb1507c
+            REGISTRY_IMAGE=registry.cn-hangzhou.aliyuncs.com/goodrain/registry@sha256:12202eb78732e22f8658d595bd6e3d47ef9f13ede78e94e90974c020c7d7c1b3
           push: true
           provenance: false
-          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-registry-gc:v6.9.11-devs8
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-registry-gc:v6.9.11-devs9
