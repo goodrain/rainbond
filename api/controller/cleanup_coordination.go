@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -324,7 +325,7 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 	storage := chi.URLParam(r, "storage_id")
 	result, err := guard.ReadRegionReferenceInventory(h.database(), storage, body.Generation)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{"source": "database", "storage_id": storage, "generation": body.Generation}).Error("cleanup registry reference inventory collection failed")
+		logrus.Errorf("cleanup registry reference inventory collection failed: source=database error=%v", err)
 		coordinationError(w, r, err)
 		return
 	}
@@ -334,7 +335,7 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 	}
 	helm, err := h.clusterReferences(r.Context())
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{"source": "kubernetes", "storage_id": storage, "generation": body.Generation}).Error("cleanup registry reference inventory collection failed")
+		logrus.Errorf("cleanup registry reference inventory collection failed: source=kubernetes error=%v", err)
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
@@ -826,7 +827,7 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	}
 	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, fmt.Errorf("helm releases: %w", err)
 	}
 	configuration := configs.Default()
 	if configuration.PublicConfig == nil {
@@ -834,11 +835,11 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	}
 	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, fmt.Errorf("platform helpers: %w", err)
 	}
 	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, component.RainbondClient, helm.HelmReleases)
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, fmt.Errorf("helm apps: %w", err)
 	}
 	return guard.MergeReferenceInventories(helm, helpers, desired), nil
 }
