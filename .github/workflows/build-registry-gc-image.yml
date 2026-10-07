@@ -1,0 +1,39 @@
+name: build-registry-gc-image
+
+on:
+  push:
+    branches:
+      - codex/registry-gc-devs8
+
+permissions:
+  contents: read
+
+jobs:
+  registry-gc:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Build and push Registry coordinator and GC executor
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: hack/contrib/docker/registry-gc/Dockerfile
+          platforms: linux/amd64
+          build-args: |
+            REGISTRY_IMAGE=registry.cn-hangzhou.aliyuncs.com/goodrain/registry@sha256:b8014b3c3766db8e581432d79ea10efaf209e2d6025ba2e07421a1fa0fb1507c
+          push: true
+          provenance: false
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-registry-gc:v6.9.11-devs8
