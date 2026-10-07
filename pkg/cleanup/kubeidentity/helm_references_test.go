@@ -58,4 +58,10 @@ func TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory(t *testing.
 	if result, err := ReadHelmReferenceInventory(context.Background(), client, metadataClient); err == nil || result.Complete {
 		t.Fatal("changed record certified")
 	}
+	metadataClient.PrependReactor("list", "secrets", func(ktesting.Action) (bool, runtime.Object, error) {
+		return true, &metav1.List{}, nil
+	})
+	if _, err := ReadHelmReferenceInventory(context.Background(), client, metadataClient); err == nil || !strings.Contains(err.Error(), "secrets metadata snapshot missing") {
+		t.Fatal("missing metadata snapshot was not diagnosable", err)
+	}
 }
