@@ -19,6 +19,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/sirupsen/logrus"
 )
 
 func TestStorageDiscoveryReturnsOnlyRegisteredIdentities(t *testing.T) {
@@ -427,8 +428,24 @@ func TestRegistryReferenceAuditUsesBoundAuthenticatedOperation(t *testing.T) {
 	if snapshot.Code != 200 || json.Unmarshal(snapshot.Body.Bytes(), &inventory) != nil || inventory.Bean.StorageID != "owned" || inventory.Bean.Generation != "one" || inventory.Bean.RegistryReady || !inventory.Bean.Complete || len(inventory.Bean.Images) != 2 || inventory.Bean.Images[1] != "goodrain.me/helm-history:v2" {
 		t.Fatal("invalid advisory reference inventory", snapshot.Code)
 	}
+	logOutput := &bytes.Buffer{}
+	logger := logrus.StandardLogger()
+	previousOutput, previousFormatter := logger.Out, logger.Formatter
+	logger.SetOutput(logOutput)
+	logger.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
+	defer func() {
+		logger.SetOutput(previousOutput)
+		logger.SetFormatter(previousFormatter)
+	}()
 	h.clusterReferences = func(context.Context) (guard.RegionReferenceInventory, error) {
 		return guard.RegionReferenceInventory{}, errors.New("private-fixture-detail")
+	}
+	request = httptest.NewRequest("POST", "/stores/owned/reference-inventory", strings.NewReader(`{"generation":"one"}`))
+	request.Header.Set("Authorization", "Token isolated-reference-fixture")
+	snapshot = httptest.NewRecorder()
+	router.ServeHTTP(snapshot, request)
+	if snapshot.Code == 200 || !strings.Contains(logOutput.String(), "source=kubernetes") || !strings.Contains(logOutput.String(), "private-fixture-detail") || strings.Contains(snapshot.Body.String(), "private-fixture-detail") {
+		t.Fatal("reference inventory failure was not diagnosable without leaking upstream data")
 	}
 	if response := invoke("Token isolated-reference-fixture"); response.Code == 200 || strings.Contains(response.Body.String(), "private-fixture-detail") {
 		t.Fatal("failed Helm read became valid or leaked upstream data")

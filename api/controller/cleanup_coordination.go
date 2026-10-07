@@ -20,6 +20,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
@@ -323,6 +324,7 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 	storage := chi.URLParam(r, "storage_id")
 	result, err := guard.ReadRegionReferenceInventory(h.database(), storage, body.Generation)
 	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{"source": "database", "storage_id": storage, "generation": body.Generation}).Error("cleanup registry reference inventory collection failed")
 		coordinationError(w, r, err)
 		return
 	}
@@ -332,6 +334,7 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 	}
 	helm, err := h.clusterReferences(r.Context())
 	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{"source": "kubernetes", "storage_id": storage, "generation": body.Generation}).Error("cleanup registry reference inventory collection failed")
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
