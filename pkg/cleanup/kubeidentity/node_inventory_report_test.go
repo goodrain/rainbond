@@ -40,12 +40,22 @@ func TestInventoryReportRequiresOriginalSuccessfulPod(t *testing.T) {
 	if data, err := readNodeInventoryReport(context.Background(), client, job, binding, settings, read); err != nil || len(data) == 0 {
 		t.Fatal("valid report rejected", err)
 	}
+	pod.Status.ContainerStatuses[0].ImageID = "containerd://mirror.example/plugin@sha256:" + strings.Repeat("b", 64)
+	if data, err := readNodeInventoryReport(context.Background(), client, job, binding, settings, read); err != nil || len(data) == 0 {
+		t.Fatal("digest-equivalent image alias rejected", err)
+	}
+	pod.Status.ContainerStatuses[0].ImageID = "containerd://mirror.example/plugin@sha256:" + strings.Repeat("c", 64)
+	before := reads
+	if _, err := readNodeInventoryReport(context.Background(), client, job, binding, settings, read); err == nil || reads != before {
+		t.Fatal("different image digest accepted")
+	}
+	pod.Status.ContainerStatuses[0].ImageID = "containerd://mirror.example/plugin@sha256:" + strings.Repeat("b", 64)
 	payload = strings.ReplaceAll(payload, `"scan"`, `"old-scan"`)
 	if _, err := readNodeInventoryReport(context.Background(), client, job, binding, settings, read); err == nil {
 		t.Fatal("stale report accepted")
 	}
 	pod.OwnerReferences[0].UID = "foreign-job"
-	before := reads
+	before = reads
 	if _, err := readNodeInventoryReport(context.Background(), client, job, binding, settings, read); err == nil || reads != before {
 		t.Fatal("foreign logs read")
 	}
