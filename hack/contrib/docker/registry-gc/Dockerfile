@@ -10,6 +10,8 @@ ARG REGISTRY_IMAGE
 ENV CGO_ENABLED=0 GOOS=linux
 WORKDIR /source
 COPY go.mod go.sum ./
+COPY third_party/coreos-etcd/go.mod third_party/coreos-etcd/go.mod
+COPY third_party/process-exporter/go.mod third_party/process-exporter/go.sum third_party/process-exporter/
 RUN go mod download
 COPY . .
 RUN digest="${REGISTRY_IMAGE##*@sha256:}" && \
