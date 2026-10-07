@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,6 +14,69 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 )
+
+type helmReleaseMetadata struct {
+	item     metav1.PartialObjectMetadata
+	name     string
+	revision int
+}
+
+type helmReleasePayload struct {
+	encoded   string
+	inventory guard.RegionReferenceInventory
+	err       error
+}
+
+func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, resource string, releases []helmReleaseMetadata) ([]helmReleasePayload, error) {
+	results := make([]helmReleasePayload, len(releases))
+	parallel := make(chan struct{}, 8)
+	var wait sync.WaitGroup
+	for index := range releases {
+		wait.Add(1)
+		go func(index int) {
+			defer wait.Done()
+			select {
+			case parallel <- struct{}{}:
+				defer func() { <-parallel }()
+			case <-ctx.Done():
+				results[index].err = fmt.Errorf("Helm release read canceled: %w", ctx.Err())
+				return
+			}
+			release := releases[index]
+			if resource == "secrets" {
+				secret, err := client.CoreV1().Secrets(release.item.Namespace).Get(ctx, release.item.Name, metav1.GetOptions{})
+				if err != nil {
+					results[index].err = fmt.Errorf("Helm secret read failed: %w", err)
+					return
+				}
+				if secret == nil || secret.UID != release.item.UID || secret.ResourceVersion != release.item.ResourceVersion {
+					results[index].err = fmt.Errorf("Helm secret identity changed: %w", ErrBinding)
+					return
+				}
+				results[index].encoded = string(secret.Data["release"])
+			} else {
+				config, err := client.CoreV1().ConfigMaps(release.item.Namespace).Get(ctx, release.item.Name, metav1.GetOptions{})
+				if err != nil {
+					results[index].err = fmt.Errorf("Helm configmap read failed: %w", err)
+					return
+				}
+				if config == nil || config.UID != release.item.UID || config.ResourceVersion != release.item.ResourceVersion {
+					results[index].err = fmt.Errorf("Helm configmap identity changed: %w", ErrBinding)
+					return
+				}
+				results[index].encoded = config.Data["release"]
+			}
+			results[index].inventory = guard.InspectHelmReleaseReferences(results[index].encoded, release.name, release.item.Namespace, release.revision)
+		}(index)
+	}
+	wait.Wait()
+	for _, result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+	}
+	return results, nil
+}
 
 // ReadHelmReferenceInventory lists metadata first and fetches only Helm release
 // payloads. Every retained revision and hook is protective, including records
@@ -44,6 +108,7 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				return denied, fmt.Errorf("%s metadata snapshot changed: %w", resource, ErrBinding)
 			}
 			version = list.ResourceVersion
+			pageReleases := []helmReleaseMetadata{}
 			for _, item := range list.Items {
 				if item.Name == "" || item.Namespace == "" || item.UID == "" || item.ResourceVersion == "" || seen[string(item.UID)] || len(seen) >= 16384 {
 					return denied, fmt.Errorf("%s metadata identity invalid: %w", resource, ErrBinding)
@@ -69,31 +134,18 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				if records > 1024 || ctx.Err() != nil {
 					return denied, fmt.Errorf("Helm release inventory limit exceeded: %w", ErrBinding)
 				}
-				var encoded string
-				if resource == "secrets" {
-					secret, err := client.CoreV1().Secrets(item.Namespace).Get(ctx, item.Name, metav1.GetOptions{})
-					if err != nil {
-						return denied, fmt.Errorf("Helm secret read failed: %w", err)
-					}
-					if secret == nil || secret.UID != item.UID || secret.ResourceVersion != item.ResourceVersion {
-						return denied, fmt.Errorf("Helm secret identity changed: %w", ErrBinding)
-					}
-					encoded = string(secret.Data["release"])
-				} else {
-					config, err := client.CoreV1().ConfigMaps(item.Namespace).Get(ctx, item.Name, metav1.GetOptions{})
-					if err != nil {
-						return denied, fmt.Errorf("Helm configmap read failed: %w", err)
-					}
-					if config == nil || config.UID != item.UID || config.ResourceVersion != item.ResourceVersion {
-						return denied, fmt.Errorf("Helm configmap identity changed: %w", ErrBinding)
-					}
-					encoded = config.Data["release"]
-				}
-				encodedBytes += len(encoded)
+				pageReleases = append(pageReleases, helmReleaseMetadata{item: item, name: name, revision: revision})
+			}
+			payloads, err := readHelmReleasePayloads(ctx, client, resource, pageReleases)
+			if err != nil {
+				return denied, err
+			}
+			for _, payload := range payloads {
+				encodedBytes += len(payload.encoded)
 				if encodedBytes > 32<<20 {
 					return denied, fmt.Errorf("Helm release payload limit exceeded: %w", ErrBinding)
 				}
-				inventory := guard.InspectHelmReleaseReferences(encoded, name, item.Namespace, revision)
+				inventory := payload.inventory
 				result.Complete = result.Complete && inventory.Complete
 				result.HelmReleases = append(result.HelmReleases, inventory.HelmReleases...)
 				for _, image := range inventory.Images {
