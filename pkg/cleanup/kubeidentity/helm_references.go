@@ -28,6 +28,50 @@ type helmReleasePayload struct {
 }
 
 func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, resource string, releases []helmReleaseMetadata) ([]helmReleasePayload, error) {
+	type labeledPayload struct {
+		uid, resourceVersion, encoded string
+	}
+	labeled := map[string]labeledPayload{}
+	key := func(namespace, name string) string { return namespace + "\x00" + name }
+	if resource == "secrets" {
+		list, err := client.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1025})
+		if err != nil {
+			return nil, fmt.Errorf("labeled Helm secret list failed: %w", err)
+		}
+		if list == nil || list.Continue != "" || len(list.Items) > 1024 {
+			return nil, fmt.Errorf("labeled Helm secret inventory limit exceeded: %w", ErrBinding)
+		}
+		for index := range list.Items {
+			item := &list.Items[index]
+			labeled[key(item.Namespace, item.Name)] = labeledPayload{uid: string(item.UID), resourceVersion: item.ResourceVersion, encoded: string(item.Data["release"])}
+		}
+	} else {
+		list, err := client.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1025})
+		if err != nil {
+			return nil, fmt.Errorf("labeled Helm configmap list failed: %w", err)
+		}
+		if list == nil || list.Continue != "" || len(list.Items) > 1024 {
+			return nil, fmt.Errorf("labeled Helm configmap inventory limit exceeded: %w", ErrBinding)
+		}
+		for index := range list.Items {
+			item := &list.Items[index]
+			labeled[key(item.Namespace, item.Name)] = labeledPayload{uid: string(item.UID), resourceVersion: item.ResourceVersion, encoded: item.Data["release"]}
+		}
+	}
+	expectedLabeled := map[string]bool{}
+	for _, release := range releases {
+		if release.item.Labels["owner"] == "helm" {
+			expectedLabeled[key(release.item.Namespace, release.item.Name)] = true
+		}
+	}
+	if len(labeled) != len(expectedLabeled) {
+		return nil, fmt.Errorf("labeled Helm inventory changed: %w", ErrBinding)
+	}
+	for identity := range labeled {
+		if !expectedLabeled[identity] {
+			return nil, fmt.Errorf("labeled Helm inventory changed: %w", ErrBinding)
+		}
+	}
 	results := make([]helmReleasePayload, len(releases))
 	parallel := make(chan struct{}, 8)
 	var wait sync.WaitGroup
@@ -43,6 +87,16 @@ func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, r
 				return
 			}
 			release := releases[index]
+			if release.item.Labels["owner"] == "helm" {
+				payload, ok := labeled[key(release.item.Namespace, release.item.Name)]
+				if !ok || payload.uid != string(release.item.UID) || payload.resourceVersion != release.item.ResourceVersion {
+					results[index].err = fmt.Errorf("labeled Helm release identity changed: %w", ErrBinding)
+					return
+				}
+				results[index].encoded = payload.encoded
+				results[index].inventory = guard.InspectHelmReleaseReferences(payload.encoded, release.name, release.item.Namespace, release.revision)
+				return
+			}
 			if resource == "secrets" {
 				secret, err := client.CoreV1().Secrets(release.item.Namespace).Get(ctx, release.item.Name, metav1.GetOptions{})
 				if err != nil {
@@ -93,6 +147,7 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 		cursor, version := "", ""
 		cursors := map[string]bool{}
 		seen := map[string]bool{}
+		resourceReleases := []helmReleaseMetadata{}
 		for pages := 0; ; pages++ {
 			if pages >= 128 || ctx.Err() != nil {
 				return denied, fmt.Errorf("%s metadata pagination stopped: %w", resource, ErrBinding)
@@ -108,7 +163,6 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				return denied, fmt.Errorf("%s metadata snapshot changed: %w", resource, ErrBinding)
 			}
 			version = list.ResourceVersion
-			pageReleases := []helmReleaseMetadata{}
 			for _, item := range list.Items {
 				if item.Name == "" || item.Namespace == "" || item.UID == "" || item.ResourceVersion == "" || seen[string(item.UID)] || len(seen) >= 16384 {
 					return denied, fmt.Errorf("%s metadata identity invalid: %w", resource, ErrBinding)
@@ -134,26 +188,7 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				if records > 1024 || ctx.Err() != nil {
 					return denied, fmt.Errorf("Helm release inventory limit exceeded: %w", ErrBinding)
 				}
-				pageReleases = append(pageReleases, helmReleaseMetadata{item: item, name: name, revision: revision})
-			}
-			payloads, err := readHelmReleasePayloads(ctx, client, resource, pageReleases)
-			if err != nil {
-				return denied, err
-			}
-			for _, payload := range payloads {
-				encodedBytes += len(payload.encoded)
-				if encodedBytes > 32<<20 {
-					return denied, fmt.Errorf("Helm release payload limit exceeded: %w", ErrBinding)
-				}
-				inventory := payload.inventory
-				result.Complete = result.Complete && inventory.Complete
-				result.HelmReleases = append(result.HelmReleases, inventory.HelmReleases...)
-				for _, image := range inventory.Images {
-					if len(images) >= 20000 && !images[image] {
-						return denied, ErrBinding
-					}
-					images[image] = true
-				}
+				resourceReleases = append(resourceReleases, helmReleaseMetadata{item: item, name: name, revision: revision})
 			}
 			if list.Continue == "" {
 				break
@@ -163,6 +198,25 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 			}
 			cursors[list.Continue] = true
 			cursor = list.Continue
+		}
+		payloads, err := readHelmReleasePayloads(ctx, client, resource, resourceReleases)
+		if err != nil {
+			return denied, err
+		}
+		for _, payload := range payloads {
+			encodedBytes += len(payload.encoded)
+			if encodedBytes > 32<<20 {
+				return denied, fmt.Errorf("Helm release payload limit exceeded: %w", ErrBinding)
+			}
+			inventory := payload.inventory
+			result.Complete = result.Complete && inventory.Complete
+			result.HelmReleases = append(result.HelmReleases, inventory.HelmReleases...)
+			for _, image := range inventory.Images {
+				if len(images) >= 20000 && !images[image] {
+					return denied, ErrBinding
+				}
+				images[image] = true
+			}
 		}
 	}
 	for image := range images {
