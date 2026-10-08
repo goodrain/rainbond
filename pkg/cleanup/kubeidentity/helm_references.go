@@ -152,7 +152,7 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 			if pages >= 128 || ctx.Err() != nil {
 				return denied, fmt.Errorf("%s metadata pagination stopped: %w", resource, ErrBinding)
 			}
-			list, err := metaClient.Resource(schema.GroupVersionResource{Version: "v1", Resource: resource}).Namespace(metav1.NamespaceAll).List(ctx, metav1.ListOptions{Limit: 128, Continue: cursor})
+			list, err := metaClient.Resource(schema.GroupVersionResource{Version: "v1", Resource: resource}).Namespace(metav1.NamespaceAll).List(ctx, metav1.ListOptions{Limit: 512, Continue: cursor})
 			if err != nil {
 				return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
 			}
