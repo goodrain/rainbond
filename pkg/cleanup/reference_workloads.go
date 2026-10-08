@@ -96,7 +96,7 @@ func inspectWorkloadObject(object map[string]interface{}, image func(string), de
 		fields = []string{"spec", "template", "spec"}
 	case "CronJob":
 		fields = []string{"spec", "jobTemplate", "spec", "template", "spec"}
-	case "Namespace", "Service", "Secret", "ConfigMap", "Ingress", "PersistentVolumeClaim", "PersistentVolume", "ServiceAccount", "Role", "RoleBinding", "ClusterRole", "ClusterRoleBinding", "NetworkPolicy", "ResourceQuota", "LimitRange", "PodDisruptionBudget", "HorizontalPodAutoscaler", "CustomResourceDefinition", "RBDPlugin":
+	case "Namespace", "Service", "Endpoints", "Secret", "ConfigMap", "Ingress", "PersistentVolumeClaim", "PersistentVolume", "ServiceAccount", "Role", "RoleBinding", "ClusterRole", "ClusterRoleBinding", "NetworkPolicy", "ResourceQuota", "LimitRange", "PodDisruptionBudget", "HorizontalPodAutoscaler", "CustomResourceDefinition", "RBDPlugin":
 		return true
 	default:
 		return false
