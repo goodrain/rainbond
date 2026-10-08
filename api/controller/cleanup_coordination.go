@@ -19,12 +19,15 @@ import (
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/storage"
+	rainbondclient "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 )
 
 // CleanupCoordinationHandler is an internal Region API. Routes must always use
@@ -822,16 +825,39 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 	}{1, quiescent, binding, status, observed.NodeUID, observed.Mount.NodeName})
 }
 
+func cleanupReferenceRestConfig(source *rest.Config) *rest.Config {
+	if source == nil {
+		return nil
+	}
+	configured := rest.CopyConfig(source)
+	configured.RateLimiter = nil
+	configured.QPS = 20
+	configured.Burst = 40
+	return configured
+}
+
 func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
 	component := k8s.Default()
-	if component == nil || component.RestConfig == nil || component.Clientset == nil {
+	if component == nil || component.RestConfig == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	client, err := metadata.NewForConfig(component.RestConfig)
+	coreClient, err := kubernetes.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
+	metadataClient, err := metadata.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	dynamicClient, err := dynamic.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	rainbondClient, err := rainbondclient.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, coreClient, metadataClient)
 	if err != nil {
 		return guard.RegionReferenceInventory{}, fmt.Errorf("helm releases: %w", err)
 	}
@@ -839,11 +865,11 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if configuration.PublicConfig == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
+	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, coreClient, dynamicClient, configuration.PublicConfig.RbdNamespace)
 	if err != nil {
 		return guard.RegionReferenceInventory{}, fmt.Errorf("platform helpers: %w", err)
 	}
-	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, component.RainbondClient, helm.HelmReleases)
+	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, rainbondClient, helm.HelmReleases)
 	if err != nil {
 		return guard.RegionReferenceInventory{}, fmt.Errorf("helm apps: %w", err)
 	}
