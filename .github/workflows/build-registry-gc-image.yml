@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   registry-gc:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     environment: release-v6
     steps:
@@ -63,4 +64,4 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs16
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs17
