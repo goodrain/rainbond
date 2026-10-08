@@ -36,7 +36,10 @@ import (
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 )
 
-const k8sResourceDeletionRequestTimeout = 75 * time.Second
+const (
+	k8sResourceDeletionRequestTimeout = 75 * time.Second
+	cleanupCoordinationRequestTimeout = 30 * time.Second
+)
 
 // Recoverer -
 func Recoverer(next http.Handler) http.Handler {
@@ -146,6 +149,9 @@ func requestTimeout(method, path string, defaultTimeout time.Duration) time.Dura
 		strings.Contains(path, "/platform/backend/plugins/") ||
 		isEventLogStreamPath(path) {
 		return time.Hour
+	}
+	if path == "/v2/cleanup" || strings.HasPrefix(path, "/v2/cleanup/") {
+		return cleanupCoordinationRequestTimeout
 	}
 	if method == http.MethodDelete && isK8sResourceDeletionPath(path) {
 		return k8sResourceDeletionRequestTimeout
