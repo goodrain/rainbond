@@ -44,6 +44,36 @@ func installRegistryCoverageFixture(t *testing.T, h *CleanupCoordinationHandler,
 	return &writers
 }
 
+func TestRegistryCertificationReturnsCollectedReferences(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	database.LogMode(false)
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	binding, err := guard.ProvisionRegistryStorage(database, "owned-volume", "/owned/registry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }}
+	installRegistryCoverageFixture(t, h, binding)
+	inspect := h.inspectRegistryCoverage
+	calls := 0
+	h.inspectRegistryCoverage = func(ctx context.Context, binding guard.StorageRegistration, records []guard.ParticipantRegistration) (guard.RegistryCoverage, error) {
+		calls++
+		coverage, err := inspect(ctx, binding, records)
+		coverage.References.Images = []string{"goodrain.me/retained:v1"}
+		return coverage, err
+	}
+	_, ready, references, collected, err := h.certifyRegistryInventory(context.Background(), binding, nil)
+	if err != nil || !ready || !collected || calls != 1 || len(references.Images) != 1 || references.Images[0] != "goodrain.me/retained:v1" {
+		t.Fatal("certification did not return its exact reference observation", ready, collected, calls, references, err)
+	}
+}
+
 // capability_id: rainbond.cleanup.registry-permit-fresh-coverage
 func TestRegistryPermitRevalidatesCurrentCoverage(t *testing.T) {
 	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "permit.db"))
