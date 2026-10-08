@@ -27,6 +27,10 @@ type helmReleasePayload struct {
 	err       error
 }
 
+func helmMetadataListOptions() metav1.ListOptions {
+	return metav1.ListOptions{}
+}
+
 func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, resource string, releases []helmReleaseMetadata) ([]helmReleasePayload, error) {
 	type labeledPayload struct {
 		uid, resourceVersion, encoded string
@@ -144,60 +148,44 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 	images := map[string]bool{}
 	records, encodedBytes := 0, 0
 	for _, resource := range []string{"secrets", "configmaps"} {
-		cursor, version := "", ""
-		cursors := map[string]bool{}
 		seen := map[string]bool{}
 		resourceReleases := []helmReleaseMetadata{}
-		for pages := 0; ; pages++ {
-			if pages >= 128 || ctx.Err() != nil {
-				return denied, fmt.Errorf("%s metadata pagination stopped: %w", resource, ErrBinding)
+		list, err := metaClient.Resource(schema.GroupVersionResource{Version: "v1", Resource: resource}).Namespace(metav1.NamespaceAll).List(ctx, helmMetadataListOptions())
+		if err != nil {
+			return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
+		}
+		if list == nil || list.ResourceVersion == "" {
+			return denied, fmt.Errorf("%s metadata snapshot missing: %w", resource, ErrBinding)
+		}
+		if list.Continue != "" || len(list.Items) > 16384 {
+			return denied, fmt.Errorf("%s metadata snapshot limit exceeded: %w", resource, ErrBinding)
+		}
+		for _, item := range list.Items {
+			if item.Name == "" || item.Namespace == "" || item.UID == "" || item.ResourceVersion == "" || seen[string(item.UID)] {
+				return denied, fmt.Errorf("%s metadata identity invalid: %w", resource, ErrBinding)
 			}
-			list, err := metaClient.Resource(schema.GroupVersionResource{Version: "v1", Resource: resource}).Namespace(metav1.NamespaceAll).List(ctx, metav1.ListOptions{Limit: 512, Continue: cursor})
-			if err != nil {
-				return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
-			}
-			if list == nil || list.ResourceVersion == "" {
-				return denied, fmt.Errorf("%s metadata snapshot missing: %w", resource, ErrBinding)
-			}
-			if version != "" && version != list.ResourceVersion {
-				return denied, fmt.Errorf("%s metadata snapshot changed: %w", resource, ErrBinding)
-			}
-			version = list.ResourceVersion
-			for _, item := range list.Items {
-				if item.Name == "" || item.Namespace == "" || item.UID == "" || item.ResourceVersion == "" || seen[string(item.UID)] || len(seen) >= 16384 {
-					return denied, fmt.Errorf("%s metadata identity invalid: %w", resource, ErrBinding)
+			seen[string(item.UID)] = true
+			const prefix = "sh.helm.release.v1."
+			if !strings.HasPrefix(item.Name, prefix) {
+				if item.Labels["owner"] == "helm" {
+					return denied, fmt.Errorf("%s Helm owner name invalid: %w", resource, ErrBinding)
 				}
-				seen[string(item.UID)] = true
-				const prefix = "sh.helm.release.v1."
-				if !strings.HasPrefix(item.Name, prefix) {
-					if item.Labels["owner"] == "helm" {
-						return denied, fmt.Errorf("%s Helm owner name invalid: %w", resource, ErrBinding)
-					}
-					continue
-				}
-				end := strings.LastIndex(item.Name, ".v")
-				if end <= len(prefix) {
-					return denied, fmt.Errorf("%s Helm release name invalid: %w", resource, ErrBinding)
-				}
-				name := item.Name[len(prefix):end]
-				revision, err := strconv.Atoi(item.Name[end+2:])
-				if err != nil || revision < 1 || strconv.Itoa(revision) != item.Name[end+2:] {
-					return denied, fmt.Errorf("%s Helm release revision invalid: %w", resource, ErrBinding)
-				}
-				records++
-				if records > 1024 || ctx.Err() != nil {
-					return denied, fmt.Errorf("Helm release inventory limit exceeded: %w", ErrBinding)
-				}
-				resourceReleases = append(resourceReleases, helmReleaseMetadata{item: item, name: name, revision: revision})
+				continue
 			}
-			if list.Continue == "" {
-				break
+			end := strings.LastIndex(item.Name, ".v")
+			if end <= len(prefix) {
+				return denied, fmt.Errorf("%s Helm release name invalid: %w", resource, ErrBinding)
 			}
-			if cursors[list.Continue] {
-				return denied, fmt.Errorf("%s metadata cursor repeated: %w", resource, ErrBinding)
+			name := item.Name[len(prefix):end]
+			revision, err := strconv.Atoi(item.Name[end+2:])
+			if err != nil || revision < 1 || strconv.Itoa(revision) != item.Name[end+2:] {
+				return denied, fmt.Errorf("%s Helm release revision invalid: %w", resource, ErrBinding)
 			}
-			cursors[list.Continue] = true
-			cursor = list.Continue
+			records++
+			if records > 1024 || ctx.Err() != nil {
+				return denied, fmt.Errorf("Helm release inventory limit exceeded: %w", ErrBinding)
+			}
+			resourceReleases = append(resourceReleases, helmReleaseMetadata{item: item, name: name, revision: revision})
 		}
 		payloads, err := readHelmReleasePayloads(ctx, client, resource, resourceReleases)
 		if err != nil {
