@@ -22,6 +22,7 @@ import "time"
 
 // BuildListRespVO is the response value object for build-list api.
 type BuildListRespVO struct {
+	Retirement    interface{} `json:"retirement,omitempty"`
 	DeployVersion string      `json:"deploy_version"`
 	List          interface{} `json:"list"`
 }

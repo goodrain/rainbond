@@ -62,6 +62,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
+	cleanupguard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
@@ -2748,26 +2749,20 @@ func (s *ServiceAction) RollBack(rs *apimodel.RollbackStruct) error {
 	if err != nil {
 		return err
 	}
-	oldDeployVersion := service.DeployVersion
+	if service.TenantID != rs.TenantID {
+		return fmt.Errorf("invalid rollback tenant")
+	}
 	if service.DeployVersion == rs.DeployVersion {
 		return fmt.Errorf("current version is %v, don't need rollback", rs.DeployVersion)
 	}
-	service.DeployVersion = rs.DeployVersion
-	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+	previous, err := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID, service.ServiceID, rs.DeployVersion, rs.EventID, service.DeployVersion)
+	if err != nil {
 		return err
 	}
-	//发送重启消息到MQ
-	startStopStruct := &apimodel.StartStopStruct{
-		TenantID:  rs.TenantID,
-		ServiceID: rs.ServiceID,
-		EventID:   rs.EventID,
-		TaskType:  "rolling_upgrade",
-	}
+	startStopStruct := &apimodel.StartStopStruct{TenantID: service.TenantID, ServiceID: service.ServiceID, EventID: rs.EventID, TaskType: "rolling_upgrade"}
 	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
-		// rollback
-		service.DeployVersion = oldDeployVersion
-		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
-			logrus.Warningf("error deploy version rollback: %v", err)
+		if _, restoreErr := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID, service.ServiceID, previous, rs.EventID+"-undo", rs.DeployVersion); restoreErr != nil {
+			logrus.Warnf("failed to restore previous rollback target for component %s", service.ServiceID)
 		}
 		return err
 	}
@@ -3537,6 +3532,10 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*apimodel.BuildListRe
 	result := &apimodel.BuildListRespVO{
 		DeployVersion: svc.DeployVersion,
 		List:          bversions,
+	}
+	// Legacy rows remain visible if inspection fails, but no retirement evidence is advertised.
+	if inspection, inspectErr := cleanupguard.InspectVersions(db.GetManager().Begin, serviceID); inspectErr == nil && inspection.CurrentVersion == svc.DeployVersion {
+		result.Retirement = inspection
 	}
 	return result, nil
 }

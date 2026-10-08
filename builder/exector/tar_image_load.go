@@ -20,10 +20,13 @@ package exector
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/builder"
@@ -33,6 +36,7 @@ import (
 	pb "github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/goodrain/rainbond/util"
+	"github.com/google/uuid"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 )
@@ -45,15 +49,52 @@ type TarImageLoadTaskBody struct {
 	TenantID    string `json:"tenant_id"`
 }
 
-// loadTarImage 执行tar包镜像加载任务
+// loadTarImage guards the entire import, including image publication and result persistence.
 func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
+	var body TarImageLoadTaskBody
+	if task == nil || ffjson.Unmarshal(task.TaskBody, &body) != nil {
+		logrus.Error("Invalid tar image import request")
+		return
+	}
+	id, err := uuid.Parse(body.LoadID)
+	if err != nil || id.String() != body.LoadID {
+		logrus.Error("Invalid tar image import identity")
+		return
+	}
+	key := "/rainbond/tarload/" + body.LoadID
+	prior, err := db.GetManager().KeyValueDao().Get(key)
+	if err != nil {
+		logrus.Error("Tar image import result lookup unavailable")
+		return
+	}
+	if prior != nil {
+		return
+	}
+	err = runTarImageWithAdmission(db.GetManager().DB(), body.LoadID, task.TaskBody, func(admission *nativeBuildAdmission) bool { return e.loadTarImageAdmitted(task, admission) })
+	if err != nil {
+		logrus.Error("Tar image import blocked or requires coordination verification")
+		// A duplicate/uncertain admission may still belong to a running import.
+		// Only a definite pre-execution maintenance rejection may publish failure.
+		if !errors.Is(err, guard.ErrCoordinationBusy) {
+			return
+		}
+		// Insert-only result storage cannot overwrite a prior result on redelivery.
+		result, _ := json.Marshal(model.TarLoadResult{LoadID: body.LoadID, Status: "failure", Message: "镜像导入被清理协调保护阻止或需要核验，请检查原任务状态"})
+		if saveErr := db.GetManager().KeyValueDao().Put(key, string(result)); saveErr != nil {
+			logrus.Error("Tar image import coordination error could not be recorded")
+		}
+	}
+}
+
+// loadTarImage 执行tar包镜像加载任务
+func (e *exectorManager) loadTarImageAdmitted(task *pb.TaskMessage, admission *nativeBuildAdmission) bool {
 	logrus.Infof("[LoadTarImage] Received task from MQ, task_id: %s, task_body_length: %d", task.TaskId, len(task.TaskBody))
 
 	// 1. 解析任务体
 	var taskBody TarImageLoadTaskBody
 	if err := ffjson.Unmarshal(task.TaskBody, &taskBody); err != nil {
-		logrus.Errorf("[LoadTarImage] Failed to unmarshal task body: %v, raw_body: %s", err, string(task.TaskBody))
-		return
+		logrus.Error("[LoadTarImage] Invalid admitted task body")
+		return true
 	}
 
 	logrus.Infof("[LoadTarImage] Parsed task body: load_id=%s, event_id=%s, tenant_id=%s, tar_file_path=%s",
@@ -72,6 +113,7 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 	var targetImages map[string]string
 	var err error
 	var imageNames []string
+	var nativeStarted, resultSaved bool
 
 	// 3. 构造完整的MinIO路径
 	// 如果 TarFilePath 只是文件名（不包含路径分隔符），则构造完整路径
@@ -121,6 +163,7 @@ func (e *exectorManager) loadTarImage(task *pb.TaskMessage) {
 		logger.Info("正在从tar包加载镜像...", map[string]string{"step": "load-tar", "status": "loading"})
 		logrus.Infof("[LoadTarImage] Starting to load images from local tar file: %s", localTarPath)
 
+		nativeStarted = true
 		imageNames, err = e.imageClient.ImageLoad(localTarPath, logger)
 		if err != nil {
 			logrus.Errorf("[LoadTarImage] Failed to load images: %v", err)
@@ -240,16 +283,19 @@ SaveResult:
 	key := fmt.Sprintf("/rainbond/tarload/%s", taskBody.LoadID)
 	logrus.Infof("[LoadTarImage] Saving result to etcd, key: %s, status: %s, images_count: %d", key, status, len(images))
 
-	if err := db.GetManager().KeyValueDao().Put(key, string(resultJSON)); err != nil {
+	if err := admission.saveTarImageResult(taskBody.LoadID, string(resultJSON)); err != nil {
 		logrus.Errorf("[LoadTarImage] Failed to save result to etcd: %v", err)
 		logger.Error("保存解析结果失败", map[string]string{"step": "save-result", "status": "failure"})
+		status = "failure"
 	} else {
-		logrus.Infof("[LoadTarImage] Result saved successfully to etcd, key: %s", key)
+		resultSaved = true
+		logrus.Infof("[LoadTarImage] Result saved successfully, key: %s", key)
 		logger.Info("解析结果已保存", map[string]string{"step": "save-result", "status": "success"})
 	}
 
 	logrus.Infof("[LoadTarImage] Task completed, load_id: %s, final_status: %s", taskBody.LoadID, status)
 	logger.Info("tar包镜像解析任务完成", map[string]string{"step": "last", "status": status})
+	return resultSaved && (!nativeStarted || status == "success")
 }
 
 // getImageNameWithoutRegistry 从完整镜像名中提取镜像名和tag（不包含registry和路径）

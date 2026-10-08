@@ -22,17 +22,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/builder/parser"
-	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/pkg/component/storage"
-	utils "github.com/goodrain/rainbond/util"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/builder/parser"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component/storage"
+	utils "github.com/goodrain/rainbond/util"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,6 +56,7 @@ import (
 
 // SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
+	cleanupAdmission *nativeBuildAdmission
 	Namespace        string       `json:"namespace"`
 	TenantName       string       `json:"tenant_name"`
 	GRDataPVCName    string       `json:"gr_data_pvc_name"`
@@ -604,7 +606,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CodeVersion = vi.CodeVersion
 	version.CodeBranch = vi.CodeBranch
 	version.FinishTime = time.Now()
-	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+	if err := i.cleanupAdmission.saveVersion(version); err != nil {
 		return err
 	}
 	return nil

@@ -20,8 +20,10 @@ package dao
 
 import (
 	"fmt"
+
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/db/model"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -38,7 +40,7 @@ func (t *K8sResourceDaoImpl) AddModel(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("mo.(*model.K8sResource) err")
 	}
-	return t.DB.Create(resource).Error
+	return guard.WithReferenceMutation(t.DB, nil, func(tx *gorm.DB) error { return tx.Create(resource).Error })
 }
 
 // UpdateModel update model
@@ -47,7 +49,7 @@ func (t *K8sResourceDaoImpl) UpdateModel(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("mo.(*model.K8sResource) err")
 	}
-	return t.DB.Save(resource).Error
+	return guard.WithReferenceMutation(t.DB, nil, func(tx *gorm.DB) error { return tx.Save(resource).Error })
 }
 
 // ListByAppID list by app id
@@ -78,25 +80,32 @@ func (t *K8sResourceDaoImpl) DeleteK8sResourceByIDs(ids []uint) error {
 
 // CreateK8sResource -
 func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource) error {
-	dbType := t.DB.Dialect().GetName()
-	if dbType == "sqlite3" {
-		for _, cg := range k8sResources {
-			cgBak := cg
-			if err := t.DB.Create(&cgBak).Error; err != nil {
-				logrus.Error("batch Update or update k8sResources error:", err)
-				return err
-			}
-		}
+	if len(k8sResources) == 0 {
 		return nil
 	}
-	var objects []interface{}
-	for _, cg := range k8sResources {
-		objects = append(objects, *cg)
-	}
-	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
-		return pkgerr.Wrap(err, "create K8sResource groups in batch")
-	}
-	return nil
+	// Saved manifests can contain arbitrary workload kinds; unresolved scopes
+	// protect all repositories until every reference can be resolved safely.
+	return guard.WithReferenceMutation(t.DB, nil, func(tx *gorm.DB) error {
+		dbType := tx.Dialect().GetName()
+		if dbType == "sqlite3" {
+			for _, cg := range k8sResources {
+				cgBak := cg
+				if err := tx.Create(&cgBak).Error; err != nil {
+					logrus.Error("batch Update or update k8sResources error:", err)
+					return err
+				}
+			}
+			return nil
+		}
+		var objects []interface{}
+		for _, cg := range k8sResources {
+			objects = append(objects, *cg)
+		}
+		if err := gormbulkups.BulkUpsert(tx, objects, 2000); err != nil {
+			return pkgerr.Wrap(err, "create K8sResource groups in batch")
+		}
+		return nil
+	})
 }
 
 // DeleteK8sResource -

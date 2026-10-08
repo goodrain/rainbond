@@ -6,26 +6,27 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	// DefaultCNBBuilder is the default online CNB builder image
-	DefaultCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-builder:0.0.98"
+	DefaultCNBBuilder = constants.DefOnlineImageRepository + "/" + constants.CNBBuilderImageName
 	// DefaultCNBRunImage is the default online CNB run image
-	DefaultCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/ubuntu-noble-run:0.0.73"
+	DefaultCNBRunImage = constants.DefOnlineImageRepository + "/" + constants.CNBRunImageName
 	// DefaultPHPCNBBuilder is the default Jammy Full builder image for PHP CNB builds.
-	DefaultPHPCNBBuilder = "registry.cn-hangzhou.aliyuncs.com/goodrain/builder-jammy-full:0.3.613"
+	DefaultPHPCNBBuilder = constants.DefOnlineImageRepository + "/" + constants.PHPCNBBuilderImageName
 	// DefaultPHPCNBRunImage is the default Jammy Full run image for PHP CNB builds.
-	DefaultPHPCNBRunImage = "registry.cn-hangzhou.aliyuncs.com/goodrain/run-jammy-full:0.1.141"
+	DefaultPHPCNBRunImage = constants.DefOnlineImageRepository + "/" + constants.PHPCNBRunImageName
 	// CNBLifecycleCreatorPath is the path to the lifecycle creator binary
 	CNBLifecycleCreatorPath = "/lifecycle/creator"
 
 	// Short image names for constructing internal registry references
-	cnbBuilderShortName = "ubuntu-noble-builder:0.0.98"
-	cnbRunShortName     = "ubuntu-noble-run:0.0.73"
-	phpBuilderShortName = "builder-jammy-full:0.3.613"
-	phpRunShortName     = "run-jammy-full:0.1.141"
+	cnbBuilderShortName = constants.CNBBuilderImageName
+	cnbRunShortName     = constants.CNBRunImageName
+	phpBuilderShortName = constants.PHPCNBBuilderImageName
+	phpRunShortName     = constants.PHPCNBRunImageName
 )
 
 // isOfflineMode checks whether the cluster is in offline/air-gapped mode

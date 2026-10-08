@@ -46,12 +46,24 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 
 	logrus.Info("start exec build plugin from image worker")
 	defer event.GetManager().ReleaseLogger(logger)
+	admission, admissionErr := admitBuild(db.GetManager().DB(), "plugin-image", task.TaskId, task.TaskBody)
+	if admissionErr != nil {
+		logger.Error("Plugin build blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	confirmed := false
+	defer func() {
+		if err := admission.finish(confirmed); err != nil {
+			logrus.Error("Plugin build coordination outcome was not persisted")
+		}
+	}()
 	for retry := 0; retry < 2; retry++ {
-		err := e.run(&tb, logger)
+		err := e.run(&tb, logger, admission)
 		if err != nil {
 			logrus.Errorf("exec plugin build from image error:%s", err.Error())
 			logger.Info("镜像构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 		} else {
+			confirmed = true
 			return
 		}
 	}
@@ -61,14 +73,18 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 		return
 	}
 	version.Status = "failure"
-	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+	if err := admission.savePluginVersion(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
 	}
 	MetricErrorTaskNum++
 	logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 }
 
-func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
+func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger, admissions ...*nativeBuildAdmission) error {
+	var admission *nativeBuildAdmission
+	if len(admissions) > 0 {
+		admission = admissions[0]
+	}
 	// 验证镜像名称格式
 	if strings.TrimSpace(t.ImageURL) == "" {
 		failCause := "插件镜像名称为空，请检查构建配置"
@@ -112,7 +128,7 @@ func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) 
 	}
 	version.BuildLocalImage = newTag
 	version.Status = "complete"
-	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+	if err := admission.savePluginVersion(version); err != nil {
 		logger.Error(util.Translation("Update version info failed"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}

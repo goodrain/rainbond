@@ -23,6 +23,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/goodrain/rainbond/db"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
+	"github.com/google/uuid"
+
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
@@ -33,6 +37,8 @@ import (
 
 // BuilderTopic builder for linux
 var BuilderTopic = "builder"
+
+// BuilderHealth is the builder health-report topic.
 var BuilderHealth = "builder-health"
 
 // WindowsBuilderTopic builder for windows
@@ -40,6 +46,8 @@ var WindowsBuilderTopic = "windows_builder"
 
 // WorkerTopic worker topic
 var WorkerTopic = "worker"
+
+// WorkerHealth is the worker health-report topic.
 var WorkerHealth = "worker-health"
 
 // SourceScanTopic source code scan topic
@@ -135,6 +143,16 @@ func (m *mqClient) SendBuilderTopic(t TaskStruct) error {
 	request, err := buildTask(t)
 	if err != nil {
 		return fmt.Errorf("create task body error %s", err.Error())
+	}
+	if kind := guard.QueuedTaskKind(t.TaskType); kind != "" && (t.Topic == BuilderTopic || t.Topic == WindowsBuilderTopic) {
+		manager := db.GetManager()
+		if manager == nil {
+			return fmt.Errorf("native task admission unavailable")
+		}
+		request.Message.TaskId = uuid.New().String()
+		if err := guard.ReserveQueuedNativeTask(manager.DB(), kind, request.Message.TaskId, request.Message.TaskBody); err != nil {
+			return fmt.Errorf("native task admission unavailable")
+		}
 	}
 	ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
 	defer cancel()

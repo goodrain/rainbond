@@ -19,11 +19,13 @@
 package dao
 
 import (
+	"time"
+
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	cleanupguard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
-	"time"
 )
 
 // DeleteVersionByEventID DeleteVersionByEventID
@@ -52,14 +54,28 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	if len(result.CommitMsg) > 1024 {
 		result.CommitMsg = result.CommitMsg[:1024]
 	}
-	var oldResult model.VersionInfo
-	if ok := c.DB.Where("build_version=? and service_id=?", result.BuildVersion, result.ServiceID).Find(&oldResult).RecordNotFound(); ok {
-		if err := c.DB.Create(result).Error; err != nil {
+	return cleanupguard.WithReferenceMutation(c.DB, versionReferenceScopes(result), func(tx *gorm.DB) error {
+		var oldResult model.VersionInfo
+		err := tx.Where("build_version=? and service_id=?", result.BuildVersion, result.ServiceID).First(&oldResult).Error
+		if err == nil {
+			return errors.ErrRecordAlreadyExist
+		}
+		if !gorm.IsRecordNotFoundError(err) {
 			return err
 		}
+		revision, err := cleanupguard.NewActivationRevision()
+		if err != nil {
+			return err
+		}
+		result.ActivationRevision = revision
+		if err := tx.Create(result).Error; err != nil {
+			return err
+		}
+		if result.FinalStatus == "success" {
+			return cleanupguard.TransferImportedReferencesToVersions(tx)
+		}
 		return nil
-	}
-	return errors.ErrRecordAlreadyExist
+	})
 }
 
 // UpdateModel UpdateModel
@@ -68,10 +84,54 @@ func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	if len(result.CommitMsg) > 1024 {
 		result.CommitMsg = result.CommitMsg[:1024]
 	}
-	if err := c.DB.Save(result).Error; err != nil {
-		return err
+	if result.ID == 0 || result.ServiceID == "" || result.BuildVersion == "" {
+		return gorm.ErrRecordNotFound
 	}
-	return nil
+	return cleanupguard.WithReferenceMutation(c.DB, versionReferenceScopes(result), func(tx *gorm.DB) error {
+		// Save performs FirstOrCreate when an UPDATE affects no rows. A late build
+		// callback must never resurrect a retired version or overwrite a newer
+		// activation checkpoint copied into an earlier in-memory VersionInfo.
+		changes := map[string]interface{}{}
+		for _, field := range tx.NewScope(result).Fields() {
+			if !field.IsNormal || field.IsPrimaryKey {
+				continue
+			}
+			switch field.DBName {
+			case "activation_revision", "create_time", "event_id", "service_id", "build_version":
+				continue
+			}
+			changes[field.DBName] = field.Field.Interface()
+		}
+		condition := "ID = ? AND service_id = ? AND build_version = ? AND event_id = ?"
+		args := []interface{}{result.ID, result.ServiceID, result.BuildVersion, result.EventID}
+		updated := tx.Model(&model.VersionInfo{}).Where(condition, args...).Updates(changes)
+		if updated.Error != nil {
+			return updated.Error
+		}
+		if updated.RowsAffected == 0 {
+			// MySQL can report zero for an unchanged row; distinguish that from a
+			// record deleted concurrently, without inserting it again.
+			var count int
+			if err := tx.Model(&model.VersionInfo{}).Where(condition, args...).Count(&count).Error; err != nil {
+				return err
+			}
+			if count == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		if result.FinalStatus == "success" {
+			return cleanupguard.TransferImportedReferencesToVersions(tx)
+		}
+		return nil
+	})
+}
+
+func versionReferenceScopes(result *model.VersionInfo) []string {
+	image := result.ImageName
+	if image == "" && result.DeliveredType == "image" {
+		image = result.DeliveredPath
+	}
+	return cleanupguard.ReferenceScopesForImage(image)
 }
 
 // VersionInfoDaoImpl VersionInfoDaoImpl
