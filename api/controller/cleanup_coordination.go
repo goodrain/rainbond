@@ -588,7 +588,7 @@ func (h *CleanupCoordinationHandler) StorageStatus(w http.ResponseWriter, r *htt
 func systemRegistryInspectionTarget() (kubernetes.Interface, string, string, error) {
 	component := k8s.Default()
 	configuration := configs.Default()
-	if component == nil || component.Clientset == nil || configuration.PublicConfig == nil || configuration.ServerConfig == nil {
+	if component == nil || component.RestConfig == nil || configuration.PublicConfig == nil || configuration.ServerConfig == nil {
 		return nil, "", "", kubeidentity.ErrBinding
 	}
 	namespace := configuration.PublicConfig.RbdNamespace
@@ -601,7 +601,11 @@ func systemRegistryInspectionTarget() (kubernetes.Interface, string, string, err
 	if host != service && host != service+"."+namespace && host != service+"."+namespace+".svc" && host != service+"."+namespace+".svc.cluster.local" {
 		return nil, "", "", kubeidentity.ErrBinding
 	}
-	return component.Clientset, namespace, service, nil
+	client, err := kubernetes.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return nil, "", "", kubeidentity.ErrBinding
+	}
+	return client, namespace, service, nil
 }
 func inspectSystemRegistry(ctx context.Context, pod, uid string) (kubeidentity.RegistryPreparation, error) {
 	client, namespace, service, err := systemRegistryInspectionTarget()
