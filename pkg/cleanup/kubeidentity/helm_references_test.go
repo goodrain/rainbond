@@ -16,6 +16,13 @@ import (
 	ktesting "k8s.io/client-go/testing"
 )
 
+func TestHelmMetadataSnapshotDoesNotRequestPaginatedStorage(t *testing.T) {
+	options := helmMetadataListOptions()
+	if options.Limit != 0 || options.Continue != "" {
+		t.Fatal("Helm metadata snapshot requested slow storage pagination", options)
+	}
+}
+
 func TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory(t *testing.T) {
 	manifest := "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - image: goodrain.me/history:v1\n"
 	raw, _ := json.Marshal(map[string]interface{}{"name": "app", "namespace": "team", "version": 1, "manifest": manifest})
