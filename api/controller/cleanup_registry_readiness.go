@@ -32,6 +32,54 @@ func (h *CleanupCoordinationHandler) certifyRegistryInventory(ctx context.Contex
 	return observation, ready, references, collected, err
 }
 
+func collectRegistryCoverageSources(
+	ctx context.Context,
+	inspectIngress func(context.Context) ([]guard.ParticipantRegistration, error),
+	inspectWriters func(context.Context) ([]guard.ReferenceWriter, error),
+	inspectReferences func(context.Context) (guard.RegionReferenceInventory, error),
+) ([]guard.ParticipantRegistration, []guard.ReferenceWriter, guard.RegionReferenceInventory, error) {
+	type ingressResult struct {
+		value []guard.ParticipantRegistration
+		err   error
+	}
+	type writersResult struct {
+		value []guard.ReferenceWriter
+		err   error
+	}
+	type referencesResult struct {
+		value guard.RegionReferenceInventory
+		err   error
+	}
+	ingressResults := make(chan ingressResult, 1)
+	writersResults := make(chan writersResult, 1)
+	referencesResults := make(chan referencesResult, 1)
+	go func() {
+		value, err := inspectIngress(ctx)
+		ingressResults <- ingressResult{value: value, err: err}
+	}()
+	go func() {
+		value, err := inspectWriters(ctx)
+		writersResults <- writersResult{value: value, err: err}
+	}()
+	go func() {
+		value, err := inspectReferences(ctx)
+		referencesResults <- referencesResult{value: value, err: err}
+	}()
+	ingress := <-ingressResults
+	writers := <-writersResults
+	references := <-referencesResults
+	if ingress.err != nil {
+		return nil, nil, guard.RegionReferenceInventory{}, ingress.err
+	}
+	if writers.err != nil {
+		return nil, nil, guard.RegionReferenceInventory{}, writers.err
+	}
+	if references.err != nil {
+		return nil, nil, guard.RegionReferenceInventory{}, references.err
+	}
+	return ingress.value, writers.value, references.value, nil
+}
+
 func (h *CleanupCoordinationHandler) observeRegistryCoverage(ctx context.Context, binding guard.StorageRegistration, records []guard.ParticipantRegistration) (guard.RegistryCoverage, error) {
 	if h.gcTarget == nil || h.inspectReferenceWriters == nil || h.clusterReferences == nil {
 		return guard.RegistryCoverage{}, guard.ErrCoordinationUnavailable
@@ -40,15 +88,14 @@ func (h *CleanupCoordinationHandler) observeRegistryCoverage(ctx context.Context
 	if err != nil {
 		return guard.RegistryCoverage{}, guard.ErrCoordinationUnavailable
 	}
-	ingress, err := kubeidentity.InspectRegistryParticipantCoverage(ctx, client, namespace, service, binding, records)
-	if err != nil {
-		return guard.RegistryCoverage{}, err
-	}
-	writers, err := h.inspectReferenceWriters(ctx)
-	if err != nil {
-		return guard.RegistryCoverage{}, err
-	}
-	references, err := h.clusterReferences(ctx)
+	ingress, writers, references, err := collectRegistryCoverageSources(
+		ctx,
+		func(ctx context.Context) ([]guard.ParticipantRegistration, error) {
+			return kubeidentity.InspectRegistryParticipantCoverage(ctx, client, namespace, service, binding, records)
+		},
+		h.inspectReferenceWriters,
+		h.clusterReferences,
+	)
 	if err != nil {
 		return guard.RegistryCoverage{}, err
 	}
