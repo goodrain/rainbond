@@ -19,7 +19,7 @@ import (
 func TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory(t *testing.T) {
 	manifest := "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - image: goodrain.me/history:v1\n"
 	raw, _ := json.Marshal(map[string]interface{}{"name": "app", "namespace": "team", "version": 1, "manifest": manifest})
-	release := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sh.helm.release.v1.app.v1", Namespace: "team", UID: types.UID("release"), ResourceVersion: "7"}, Data: map[string][]byte{"release": []byte(base64.StdEncoding.EncodeToString(raw))}}
+	release := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sh.helm.release.v1.app.v1", Namespace: "team", UID: types.UID("release"), ResourceVersion: "7", Labels: map[string]string{"owner": "helm"}}, Data: map[string][]byte{"release": []byte(base64.StdEncoding.EncodeToString(raw))}}
 	ordinary := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "ordinary", Namespace: "team", UID: types.UID("ordinary"), ResourceVersion: "8"}}
 	legacyRaw := strings.ReplaceAll(string(raw), "history:v1", "history:v2")
 	legacyRaw = strings.ReplaceAll(legacyRaw, `"version":1`, `"version":2`)
@@ -43,11 +43,21 @@ func TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory(t *testing.
 		t.Fatal(result, err)
 	}
 	for _, action := range client.Actions() {
+		if action.GetVerb() == "list" {
+			selector := action.(ktesting.ListAction).GetListRestrictions().Labels
+			if selector == nil || selector.String() != "owner=helm" {
+				t.Fatal("read unrelated secret data")
+			}
+			continue
+		}
 		if action.GetVerb() != "get" || (action.(ktesting.GetAction).GetName() != release.Name && action.(ktesting.GetAction).GetName() != config.Name) {
 			t.Fatal("read unrelated secret data")
 		}
 	}
 	release.ResourceVersion = "replaced"
+	if err := client.Tracker().Update(corev1.SchemeGroupVersion.WithResource("secrets"), release.DeepCopy(), release.Namespace); err != nil {
+		t.Fatal(err)
+	}
 	client.PrependReactor("get", "secrets", func(ktesting.Action) (bool, runtime.Object, error) { return true, release.DeepCopy(), nil })
 	// Keep the metadata snapshot old to simulate replacement between LIST and GET.
 	metadataClient.PrependReactor("list", "secrets", func(ktesting.Action) (bool, runtime.Object, error) {
