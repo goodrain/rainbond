@@ -49,6 +49,22 @@ func TestRegionReferenceAuditChecksRetainedVersionsAndPluginImages(t *testing.T)
 	if err := database.Delete(saved).Error; err != nil {
 		t.Fatal(err)
 	}
+	crd := &model.K8sResource{Kind: "CustomResourceDefinition", Content: strings.Repeat("x", (1<<20)+1)}
+	if err := database.Create(crd).Error; err != nil {
+		t.Fatal(err)
+	}
+	check(false, true)
+	if err := database.Delete(crd).Error; err != nil {
+		t.Fatal(err)
+	}
+	oversizedWorkload := &model.K8sResource{Kind: "Deployment", Content: strings.Repeat("x", (1<<20)+1)}
+	if err := database.Create(oversizedWorkload).Error; err != nil {
+		t.Fatal(err)
+	}
+	check(false, false)
+	if err := database.Delete(oversizedWorkload).Error; err != nil {
+		t.Fatal(err)
+	}
 	kubeblocks := &model.VersionInfo{ServiceID: "database-service", BuildVersion: "deployed", Kind: "kubeblocks", FinalStatus: "success"}
 	if err := database.Create(kubeblocks).Error; err != nil {
 		t.Fatal(err)
