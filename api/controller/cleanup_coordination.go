@@ -333,20 +333,26 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
-	helm, err := h.clusterReferences(r.Context())
-	if err != nil {
-		logrus.Errorf("cleanup registry reference inventory collection failed: source=kubernetes error=%v", err)
-		coordinationError(w, r, guard.ErrCoordinationUnavailable)
-		return
-	}
-	result = guard.MergeReferenceInventories(result, helm)
 	// Manual inventory collection refreshes readiness from current deployment
 	// evidence. Health/status reads remain side-effect free. Missing evidence
 	// preserves the reference inventory but cannot certify deletion candidates.
-	ready := false
+	ready, referencesCollected := false, false
 	if binding, bindingErr := guard.StorageBinding(h.database(), storage, body.Generation); bindingErr == nil {
-		_, certified, certificationErr := h.certifyRegistry(r.Context(), binding, nil)
+		_, certified, references, collected, certificationErr := h.certifyRegistryInventory(r.Context(), binding, nil)
 		ready = certificationErr == nil && certified
+		if collected {
+			result = guard.MergeReferenceInventories(result, references)
+			referencesCollected = true
+		}
+	}
+	if !referencesCollected {
+		references, referenceErr := h.clusterReferences(r.Context())
+		if referenceErr != nil {
+			logrus.Errorf("cleanup registry reference inventory collection failed: source=kubernetes error=%v", referenceErr)
+			coordinationError(w, r, guard.ErrCoordinationUnavailable)
+			return
+		}
+		result = guard.MergeReferenceInventories(result, references)
 	}
 	httputil.ReturnSuccess(r, w, struct {
 		Protocol      int    `json:"protocol"`
