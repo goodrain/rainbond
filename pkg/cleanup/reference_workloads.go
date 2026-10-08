@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/db/model"
@@ -9,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
+
+var customImageTemplate = regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*\}`)
 
 // Inspect only the API-defined pod template fields. Unknown custom resources
 // cannot provide a negative-reference proof. Raw documents are never returned.
@@ -151,7 +154,9 @@ func inspectCustomImageReferences(value interface{}, image func(string), depth i
 				if !ok || name == "" {
 					return false
 				}
-				image(name)
+				if !customImageTemplate.MatchString(name) {
+					image(name)
+				}
 			case "images":
 				if !inspectImageReferenceValues(child, image, depth+1, visited) {
 					return false
@@ -185,7 +190,9 @@ func inspectImageReferenceValues(value interface{}, image func(string), depth in
 		if current == "" {
 			return false
 		}
-		image(current)
+		if !customImageTemplate.MatchString(current) {
+			image(current)
+		}
 		return true
 	case map[string]interface{}:
 		for _, child := range current {
