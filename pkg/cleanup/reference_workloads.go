@@ -39,6 +39,13 @@ func inspectWorkloadObject(object map[string]interface{}, image func(string), de
 	if slash := strings.IndexByte(version, '/'); slash >= 0 {
 		group = version[:slash]
 	}
+	if strings.HasSuffix(group, ".kubeblocks.io") {
+		visited := 0
+		return inspectCustomImageReferences(object, image, 0, &visited)
+	}
+	if version == "aquasecurity.github.io/v1alpha1" && kind == "ClusterComplianceReport" {
+		return true
+	}
 	validVersion := map[string]bool{"v1": true, "apps/v1": true, "batch/v1": true, "networking.k8s.io/v1": true, "rbac.authorization.k8s.io/v1": true, "policy/v1": true, "autoscaling/v1": true, "autoscaling/v2": true, "apiextensions.k8s.io/v1": true, "rainbond.io/v1alpha1": true}
 	if !validVersion[version] {
 		return false
@@ -125,4 +132,76 @@ func inspectWorkloadObject(object map[string]interface{}, image func(string), de
 		}
 	}
 	return true
+}
+
+func inspectCustomImageReferences(value interface{}, image func(string), depth int, visited *int) bool {
+	if depth > 16 || visited == nil {
+		return false
+	}
+	(*visited)++
+	if *visited > 20000 {
+		return false
+	}
+	switch current := value.(type) {
+	case map[string]interface{}:
+		for key, child := range current {
+			switch key {
+			case "image":
+				name, ok := child.(string)
+				if !ok || name == "" {
+					return false
+				}
+				image(name)
+			case "images":
+				if !inspectImageReferenceValues(child, image, depth+1, visited) {
+					return false
+				}
+			default:
+				if !inspectCustomImageReferences(child, image, depth+1, visited) {
+					return false
+				}
+			}
+		}
+	case []interface{}:
+		for _, child := range current {
+			if !inspectCustomImageReferences(child, image, depth+1, visited) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func inspectImageReferenceValues(value interface{}, image func(string), depth int, visited *int) bool {
+	if depth > 16 || visited == nil {
+		return false
+	}
+	(*visited)++
+	if *visited > 20000 {
+		return false
+	}
+	switch current := value.(type) {
+	case string:
+		if current == "" {
+			return false
+		}
+		image(current)
+		return true
+	case map[string]interface{}:
+		for _, child := range current {
+			if !inspectImageReferenceValues(child, image, depth+1, visited) {
+				return false
+			}
+		}
+		return true
+	case []interface{}:
+		for _, child := range current {
+			if !inspectImageReferenceValues(child, image, depth+1, visited) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
