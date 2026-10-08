@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 )
 
@@ -845,10 +844,6 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	metadataClient, err := metadata.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
-	if err != nil {
-		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
-	}
 	dynamicClient, err := dynamic.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
@@ -857,7 +852,7 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, coreClient, metadataClient)
+	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, coreClient)
 	if err != nil {
 		return guard.RegionReferenceInventory{}, fmt.Errorf("helm releases: %w", err)
 	}

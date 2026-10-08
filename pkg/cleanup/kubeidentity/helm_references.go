@@ -10,9 +10,7 @@ import (
 
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
 )
 
 type helmReleaseMetadata struct {
@@ -27,8 +25,8 @@ type helmReleasePayload struct {
 	err       error
 }
 
-func helmMetadataListOptions() metav1.ListOptions {
-	return metav1.ListOptions{}
+func helmReleaseListOptions() metav1.ListOptions {
+	return metav1.ListOptions{LabelSelector: "owner=helm"}
 }
 
 func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, resource string, releases []helmReleaseMetadata) ([]helmReleasePayload, error) {
@@ -38,7 +36,7 @@ func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, r
 	labeled := map[string]labeledPayload{}
 	key := func(namespace, name string) string { return namespace + "\x00" + name }
 	if resource == "secrets" {
-		list, err := client.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1025})
+		list, err := client.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, helmReleaseListOptions())
 		if err != nil {
 			return nil, fmt.Errorf("labeled Helm secret list failed: %w", err)
 		}
@@ -50,7 +48,7 @@ func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, r
 			labeled[key(item.Namespace, item.Name)] = labeledPayload{uid: string(item.UID), resourceVersion: item.ResourceVersion, encoded: string(item.Data["release"])}
 		}
 	} else {
-		list, err := client.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm", Limit: 1025})
+		list, err := client.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, helmReleaseListOptions())
 		if err != nil {
 			return nil, fmt.Errorf("labeled Helm configmap list failed: %w", err)
 		}
@@ -136,12 +134,12 @@ func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, r
 	return results, nil
 }
 
-// ReadHelmReferenceInventory lists metadata first and fetches only Helm release
-// payloads. Every retained revision and hook is protective, including records
-// whose owner label was removed. No Secret value or chart config is returned.
-func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface, metaClient metadata.Interface) (guard.RegionReferenceInventory, error) {
+// ReadHelmReferenceInventory fetches only standard owner=helm release payloads.
+// Every retained labeled revision and hook is protective. Unrelated Secret
+// values and chart configuration are never read.
+func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface) (guard.RegionReferenceInventory, error) {
 	denied := guard.RegionReferenceInventory{}
-	if client == nil || metaClient == nil {
+	if client == nil {
 		return denied, fmt.Errorf("helm clients unavailable: %w", ErrBinding)
 	}
 	result := guard.RegionReferenceInventory{Complete: true, Images: []string{}}
@@ -150,14 +148,30 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 	for _, resource := range []string{"secrets", "configmaps"} {
 		seen := map[string]bool{}
 		resourceReleases := []helmReleaseMetadata{}
-		list, err := metaClient.Resource(schema.GroupVersionResource{Version: "v1", Resource: resource}).Namespace(metav1.NamespaceAll).List(ctx, helmMetadataListOptions())
-		if err != nil {
-			return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
+		list := &metav1.PartialObjectMetadataList{}
+		if resource == "secrets" {
+			items, err := client.CoreV1().Secrets(metav1.NamespaceAll).List(ctx, helmReleaseListOptions())
+			if err != nil {
+				return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
+			}
+			list.ListMeta = items.ListMeta
+			for index := range items.Items {
+				list.Items = append(list.Items, metav1.PartialObjectMetadata{ObjectMeta: items.Items[index].ObjectMeta})
+			}
+		} else {
+			items, err := client.CoreV1().ConfigMaps(metav1.NamespaceAll).List(ctx, helmReleaseListOptions())
+			if err != nil {
+				return denied, fmt.Errorf("%s metadata list failed: %w", resource, err)
+			}
+			list.ListMeta = items.ListMeta
+			for index := range items.Items {
+				list.Items = append(list.Items, metav1.PartialObjectMetadata{ObjectMeta: items.Items[index].ObjectMeta})
+			}
 		}
 		if list == nil || list.ResourceVersion == "" {
 			return denied, fmt.Errorf("%s metadata snapshot missing: %w", resource, ErrBinding)
 		}
-		if list.Continue != "" || len(list.Items) > 16384 {
+		if list.Continue != "" || len(list.Items) > 1024 {
 			return denied, fmt.Errorf("%s metadata snapshot limit exceeded: %w", resource, ErrBinding)
 		}
 		for _, item := range list.Items {
