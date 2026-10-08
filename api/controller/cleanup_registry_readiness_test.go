@@ -8,12 +8,55 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db/model"
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/jinzhu/gorm"
 )
+
+func TestRegistryCoverageSourcesRunConcurrently(t *testing.T) {
+	started := make(chan string, 3)
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	wait := func(name string) {
+		started <- name
+		<-release
+	}
+	go func() {
+		_, _, _, err := collectRegistryCoverageSources(
+			context.Background(),
+			func(context.Context) ([]guard.ParticipantRegistration, error) {
+				wait("ingress")
+				return []guard.ParticipantRegistration{{PodUID: "registry"}}, nil
+			},
+			func(context.Context) ([]guard.ReferenceWriter, error) {
+				wait("writers")
+				return []guard.ReferenceWriter{{PodUID: "writer"}}, nil
+			},
+			func(context.Context) (guard.RegionReferenceInventory, error) {
+				wait("references")
+				return guard.RegionReferenceInventory{Complete: true}, nil
+			},
+		)
+		done <- err
+	}()
+
+	seen := map[string]bool{}
+	for len(seen) < 3 {
+		select {
+		case name := <-started:
+			seen[name] = true
+		case <-time.After(time.Second):
+			t.Fatal("registry coverage sources ran serially", seen)
+		}
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
 
 // The observed fixtures exercise SQL/HTTP contracts, not production deployment proof.
 func installRegistryCoverageFixture(t *testing.T, h *CleanupCoordinationHandler, binding guard.StorageRegistration) *[]guard.ReferenceWriter {
