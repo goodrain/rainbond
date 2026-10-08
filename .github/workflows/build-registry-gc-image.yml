@@ -36,7 +36,7 @@ jobs:
             REGISTRY_IMAGE=registry.cn-hangzhou.aliyuncs.com/goodrain/registry@sha256:12202eb78732e22f8658d595bd6e3d47ef9f13ede78e94e90974c020c7d7c1b3
           push: true
           provenance: false
-          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-registry-gc:v6.9.11-devs15
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-registry-gc:v6.9.11-devs16
 
   api:
     runs-on: ubuntu-latest
@@ -63,4 +63,4 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs15
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs16
