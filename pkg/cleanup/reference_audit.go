@@ -88,7 +88,7 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		}
 	}
 	// Stream bounded documents rather than loading every saved manifest at once.
-	rows, err := tx.Model(&model.K8sResource{}).Select("CASE WHEN LENGTH(content) <= 1048576 THEN content ELSE '' END").Limit(20001).Rows()
+	rows, err := tx.Model(&model.K8sResource{}).Select("kind, CASE WHEN LENGTH(content) <= 1048576 THEN content ELSE '' END").Limit(20001).Rows()
 	if err != nil {
 		return denied, err
 	}
@@ -99,9 +99,15 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		if count > 20000 {
 			return denied, ErrCoordinationUnavailable
 		}
-		var content string
-		if err := rows.Scan(&content); err != nil {
+		var kind, content string
+		if err := rows.Scan(&kind, &content); err != nil {
 			return denied, err
+		}
+		// CRD schemas describe APIs rather than runnable Pod templates. Large
+		// KubeBlocks CRDs are not Registry references and must not turn a
+		// complete workload audit into unknown coverage.
+		if kind == "CustomResourceDefinition" {
+			continue
 		}
 		if !inspectSavedWorkload(content, inspect) {
 			result.Complete = false
