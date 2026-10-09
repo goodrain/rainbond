@@ -43,6 +43,7 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 	overflow := false
 	stage := "versions"
 	invalidImages := map[string]int{}
+	invalidSamples := map[string][]string{}
 	versionIncomplete, pluginIncomplete, workloadIncomplete := 0, 0, 0
 	inspect := func(image string) {
 		if image == "" {
@@ -51,6 +52,9 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		if _, err := reference.ParseNormalizedNamed(image); err != nil {
 			result.Complete = false
 			invalidImages[stage]++
+			if len(invalidSamples[stage]) < 20 {
+				invalidSamples[stage] = append(invalidSamples[stage], image)
+			}
 			return
 		}
 		if len(images) >= 20000 && !images[image] {
@@ -139,6 +143,9 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		logrus.Warnf("cleanup reference inventory incomplete: versions=%d plugins=%d workloads=%d imports=%t invalid_versions=%d invalid_plugins=%d invalid_workloads=%d invalid_imports=%d",
 			versionIncomplete, pluginIncomplete, workloadIncomplete, importComplete,
 			invalidImages["versions"], invalidImages["plugins"], invalidImages["workloads"], invalidImages["imports"])
+		if len(invalidSamples["workloads"]) > 0 {
+			logrus.Warnf("cleanup invalid saved workload images: %q", invalidSamples["workloads"])
+		}
 	}
 	if overflow {
 		return denied, ErrCoordinationUnavailable
