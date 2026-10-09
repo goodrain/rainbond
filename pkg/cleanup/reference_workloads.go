@@ -11,7 +11,7 @@ import (
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
-var customImageTemplate = regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*\}`)
+var customImageTemplate = regexp.MustCompile(`\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|\([A-Za-z_][A-Za-z0-9_]*\))`)
 
 // Inspect only the API-defined pod template fields. Unknown custom resources
 // cannot provide a negative-reference proof. Raw documents are never returned.

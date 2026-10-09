@@ -16,6 +16,8 @@ spec:
       image: goodrain.me/database:v1
     - name: templated
       image: goodrain.me/database:${IMAGE_TAG}
+    - name: shell-templated
+      image: goodrain.me/database:$(IMAGE_TAG)
   releases:
     images:
       exporter: goodrain.me/exporter:v2
