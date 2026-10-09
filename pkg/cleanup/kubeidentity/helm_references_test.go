@@ -23,7 +23,7 @@ func TestHelmReleaseListFiltersWithoutPagination(t *testing.T) {
 }
 
 func TestHelmInventoryReadsOnlyStandardLabeledReleaseData(t *testing.T) {
-	manifest := "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - image: goodrain.me/history:v1\n"
+	manifest := "apiVersion: v1\nkind: Pod\nspec:\n  containers:\n  - image: goodrain.me/history:v1\n---\napiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: retained\n"
 	raw, _ := json.Marshal(map[string]interface{}{"name": "app", "namespace": "team", "version": 1, "manifest": manifest})
 	release := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "sh.helm.release.v1.app.v1", Namespace: "team", UID: types.UID("release"), ResourceVersion: "7", Labels: map[string]string{"owner": "helm"}}, Data: map[string][]byte{"release": []byte(base64.StdEncoding.EncodeToString(raw))}}
 	ordinary := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "ordinary", Namespace: "team", UID: types.UID("ordinary"), ResourceVersion: "8"}}
