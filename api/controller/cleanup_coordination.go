@@ -872,5 +872,10 @@ func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReference
 	if err != nil {
 		return guard.RegionReferenceInventory{}, fmt.Errorf("helm apps: %w", err)
 	}
-	return guard.MergeReferenceInventories(helm, helpers, desired), nil
+	result := guard.MergeReferenceInventories(helm, helpers, desired)
+	if !result.Complete {
+		logrus.Warnf("cleanup Kubernetes reference inventory incomplete: helm=%t helpers=%t helm_apps=%t helm_images=%d helper_images=%d helm_app_images=%d",
+			helm.Complete, helpers.Complete, desired.Complete, len(helm.Images), len(helpers.Images), len(desired.Images))
+	}
+	return result, nil
 }
