@@ -65,3 +65,30 @@ jobs:
           push: true
           provenance: false
           tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs35
+
+  worker:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Build and push Worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: hack/contrib/docker/worker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.11-devs8
