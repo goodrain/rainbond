@@ -217,7 +217,13 @@ func ReadHelmReferenceInventory(ctx context.Context, client kubernetes.Interface
 				return denied, fmt.Errorf("Helm release payload limit exceeded: %w", ErrBinding)
 			}
 			inventory := payload.inventory
-			result.Complete = result.Complete && inventory.Complete
+			// Helm is not a cleanup target. Retain every positively discovered
+			// image reference, while unsupported non-workload manifest kinds do
+			// not block Registry cleanup. A payload that cannot establish its
+			// release identity still fails closed.
+			if len(inventory.HelmReleases) != 1 {
+				result.Complete = false
+			}
 			result.HelmReleases = append(result.HelmReleases, inventory.HelmReleases...)
 			for _, image := range inventory.Images {
 				if len(images) >= 20000 && !images[image] {
