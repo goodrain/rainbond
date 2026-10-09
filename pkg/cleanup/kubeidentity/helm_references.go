@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -126,9 +127,14 @@ func readHelmReleasePayloads(ctx context.Context, client kubernetes.Interface, r
 		}(index)
 	}
 	wait.Wait()
-	for _, result := range results {
+	for index, result := range results {
 		if result.err != nil {
 			return nil, result.err
+		}
+		if !result.inventory.Complete {
+			release := releases[index]
+			logrus.Warnf("cleanup Helm release reference incomplete: resource=%s namespace=%s release=%s revision=%d payload_bytes=%d",
+				resource, release.item.Namespace, release.name, release.revision, len(result.encoded))
 		}
 	}
 	return results, nil
