@@ -512,6 +512,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.application.delete-config-secrets",
+      "title": "Delete config group Secrets with applications",
+      "title_zh": "Delete config group Secrets with applications",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ApplicationAction.deleteApplicationConfigSecrets",
+      "code_paths": [
+        "api/handler/application_handler.go",
+        "api/handler/application_config_group.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/application_handler_test.go",
+          "selector": "TestApplicationActionDeleteApplicationConfigSecrets"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.build.select-builder-by-language",
       "title": "Select builder implementation by source language and build type",
       "title_zh": "\u6309\u6e90\u7801\u8bed\u8a00\u548c\u6784\u5efa\u7c7b\u578b\u9009\u62e9\u6784\u5efa\u5668",

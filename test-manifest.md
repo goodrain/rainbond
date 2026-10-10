@@ -32,6 +32,7 @@
 | rainbond.app-restore.unzip-all-data | 在恢复时解压完整备份数据包 | active | regression | builder/exector.BackupAPPRestore | builder/exector/groupapp_restore_test.go::TestUnzipAllDataFile |
 | rainbond.app-upgrade.cross-app-config-mount | Preserve cross-application config-file mounts during upgrade | active | regression | api/handler.ServiceAction.SyncComponentVolumeRels | api/handler/service_sync_volume_relations_test.go::TestSyncComponentVolumeRelsPreservesCrossApplicationConfigFileMount<br>api/handler/service_sync_volume_relations_test.go::TestSyncComponentVolumeRelsRejectsInvalidExternalProviders<br>api/handler/service_sync_volume_relations_test.go::TestSyncComponentVolumeRelsReturnsExternalProviderLookupError |
 | rainbond.application.check-port-k8s-service-name-duplicate | 校验应用端口 Kubernetes Service 名称重复 | active | regression | api/handler.ApplicationAction.checkPorts | api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName |
+| rainbond.application.delete-config-secrets | Delete config group Secrets with applications | active | regression | api/handler.ApplicationAction.deleteApplicationConfigSecrets | api/handler/application_handler_test.go::TestApplicationActionDeleteApplicationConfigSecrets |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
 | rainbond.builder.dynamic-mirror-config | Dynamic mirror config defaults and env overrides | active | unit | builder/mirror.LoadConfig | builder/mirror/config_test.go::TestLoadConfigDefaults |
 | rainbond.builder.dynamic-mirror-fetch | Fetch mirror candidates from remote JSON source with schema validation | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidates |
@@ -926,6 +927,16 @@
 - 业务入口: `api/handler.ApplicationAction.checkPorts`
 - 代码路径: `api/handler/application_handler.go`
 - 测试路径: `api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName`
+
+### Delete config group Secrets with applications
+
+- Capability ID: `rainbond.application.delete-config-secrets`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ApplicationAction.deleteApplicationConfigSecrets`
+- 代码路径: `api/handler/application_handler.go`, `api/handler/application_config_group.go`
+- 测试路径: `api/handler/application_handler_test.go::TestApplicationActionDeleteApplicationConfigSecrets`
 
 ### 按源码语言和构建类型选择构建器
 

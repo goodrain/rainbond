@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"context"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 // AddConfigGroup -
@@ -193,6 +196,9 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 
 // DeleteConfigGroup -
 func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) error {
+	if err := a.deleteConfigGroupSecrets(appID, []string{configGroupName}); err != nil {
+		return err
+	}
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -226,6 +232,9 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 // BatchDeleteConfigGroup -
 func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames string) error {
 	names := strings.Split(configGroupNames, ",")
+	if err := a.deleteConfigGroupSecrets(appID, names); err != nil {
+		return err
+	}
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).BatchDeleteConfigGroupService(appID, names); err != nil {
 			return err
@@ -238,6 +247,20 @@ func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames strin
 		}
 		return nil
 	})
+}
+
+func (a *ApplicationAction) deleteConfigGroupSecrets(appID string, configGroupNames []string) error {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(appID)
+	if err != nil {
+		return err
+	}
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return a.deleteApplicationConfigSecrets(ctx, tenant.Namespace, appID, configGroupNames)
 }
 
 // ListConfigGroups -

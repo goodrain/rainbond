@@ -507,7 +507,7 @@ func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Applicat
 		return a.deleteHelmApp(ctx, app)
 	}
 
-	return a.deleteRainbondApp(app)
+	return a.deleteRainbondApp(ctx, app)
 }
 
 // DeleteAppByK8sApp -
@@ -519,11 +519,14 @@ func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
 	return nil
 }
 
-func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
+func (a *ApplicationAction) deleteRainbondApp(ctx context.Context, app *dbmodel.Application) error {
 	// Get tenant info for namespace
 	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
 	if err != nil {
 		return errors.Wrap(err, "get tenant for app failed")
+	}
+	if err := a.deleteApplicationConfigSecrets(ctx, tenant.Namespace, app.AppID, nil); err != nil {
+		return errors.Wrap(err, "delete application config secrets")
 	}
 
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
@@ -535,6 +538,35 @@ func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
 
 		return errors.WithMessage(a.deleteApp(tx, app), "delete app from db")
 	})
+}
+
+func (a *ApplicationAction) deleteApplicationConfigSecrets(ctx context.Context, namespace, appID string, configGroupNames []string) error {
+	secrets := a.kubeClient.CoreV1().Secrets(namespace)
+	if len(configGroupNames) > 0 {
+		for _, configGroupName := range configGroupNames {
+			name := strings.TrimSpace(configGroupName)
+			if name == "" {
+				continue
+			}
+			secretName := fmt.Sprintf("%s-%s", name, appID)
+			if err := secrets.Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
+				return errors.Wrapf(err, "delete config group secret %s", secretName)
+			}
+		}
+		return nil
+	}
+
+	selector := labels.Set{"app_id": appID}.String()
+	items, err := secrets.List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return errors.Wrapf(err, "list application config secrets with selector %s", selector)
+	}
+	for _, secret := range items.Items {
+		if err := secrets.Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
+			return errors.Wrapf(err, "delete application config secret %s", secret.Name)
+		}
+	}
+	return nil
 }
 
 // isContainComponents checks if the app contains components.
