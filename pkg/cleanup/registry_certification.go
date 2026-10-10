@@ -110,6 +110,11 @@ func CertifyRegistry(database *gorm.DB, binding StorageRegistration, self *Coord
 	if !MergeReferenceInventories(references, coverage.References).Complete {
 		return finish(false)
 	}
+	if reconciled, err := reconcileRetiredProducerEpoch(tx, binding, coverage, &row); err != nil {
+		return denied, false, err
+	} else if reconciled {
+		observed.Revision = row.Revision
+	}
 	query := tx.Model(&model.CleanupOperation{}).Where("storage_id = ? AND state <> ?", binding.StorageID, "finished")
 	if self != nil {
 		var original model.CleanupOperation
