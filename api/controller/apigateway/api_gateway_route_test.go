@@ -11,7 +11,10 @@ import (
 	"testing"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	apisixfake "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned/fake"
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
@@ -27,10 +30,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	controllerfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 type tcpRouteTestManager struct {
@@ -204,6 +209,135 @@ func TestHTTPRouteCreateFailure(t *testing.T) {
 			}
 		})
 	}
+}
+
+// capability_id: rainbond.gateway.auto-certificate-route-lifecycle
+func TestEnsureCertManagerResourcesAdoptsExistingRouteOwnership(t *testing.T) {
+	const (
+		namespace = "tenant-ns"
+		routeName = "dmxapi.lchuike.comp-p"
+		domain    = "dmxapi.lchuike.com"
+	)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, cmapi.AddToScheme(scheme))
+
+	oldOwner := v1.OwnerReference{
+		APIVersion: util.APIVersion,
+		Kind:       util.ApisixRoute,
+		Name:       routeName,
+		UID:        types.UID("old-route-uid"),
+	}
+	existingCert := &cmapi.Certificate{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            routeName,
+			Namespace:       namespace,
+			Labels:          map[string]string{"app_id": "old-app", "keep": "label"},
+			OwnerReferences: []v1.OwnerReference{oldOwner},
+		},
+		Spec: cmapi.CertificateSpec{
+			DNSNames:   []string{domain},
+			SecretName: routeName,
+		},
+	}
+	existingTLS := &v2.ApisixTls{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            routeName,
+			Namespace:       namespace,
+			Labels:          map[string]string{"app_id": "old-app", "keep": "label"},
+			OwnerReferences: []v1.OwnerReference{oldOwner},
+		},
+		Spec: &v2.ApisixTlsSpec{
+			IngressClassName: "apisix",
+			Hosts:            []v2.HostType{v2.HostType(domain)},
+			Secret:           v2.ApisixSecret{Name: routeName, Namespace: namespace},
+			Client: &v2.ApisixMutualTlsClientConfig{
+				CASecret: v2.ApisixSecret{Name: "client-ca", Namespace: namespace},
+			},
+		},
+	}
+
+	certificateClient := controllerfake.NewClientBuilder().WithScheme(scheme).WithObjects(existingCert).Build()
+	apisixClient := apisixfake.NewSimpleClientset(existingTLS)
+	route := &v2.ApisixRoute{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      routeName,
+			Namespace: namespace,
+			UID:       types.UID("new-route-uid"),
+		},
+	}
+	desiredCert, desiredTLS := certManagerResourcesForRoute(route, "new-app", []string{domain})
+
+	require.NoError(t, ensureCertManagerResources(
+		context.Background(),
+		certificateClient,
+		apisixClient.ApisixV2(),
+		desiredCert,
+		desiredTLS,
+	))
+
+	updatedCert := &cmapi.Certificate{}
+	require.NoError(t, certificateClient.Get(
+		context.Background(),
+		types.NamespacedName{Namespace: namespace, Name: routeName},
+		updatedCert,
+	))
+	assert.Equal(t, "new-app", updatedCert.Labels["app_id"])
+	assert.Equal(t, "label", updatedCert.Labels["keep"])
+	require.Len(t, updatedCert.OwnerReferences, 1)
+	assert.Equal(t, types.UID("new-route-uid"), updatedCert.OwnerReferences[0].UID)
+	assert.Equal(t, []string{domain}, updatedCert.Spec.DNSNames)
+
+	updatedTLS, err := apisixClient.ApisixV2().ApisixTlses(namespace).Get(
+		context.Background(), routeName, v1.GetOptions{},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "new-app", updatedTLS.Labels["app_id"])
+	assert.Equal(t, "label", updatedTLS.Labels["keep"])
+	require.Len(t, updatedTLS.OwnerReferences, 1)
+	assert.Equal(t, types.UID("new-route-uid"), updatedTLS.OwnerReferences[0].UID)
+	require.NotNil(t, updatedTLS.Spec.Client)
+	assert.Equal(t, "client-ca", updatedTLS.Spec.Client.CASecret.Name)
+}
+
+// capability_id: rainbond.gateway.auto-certificate-route-lifecycle
+func TestDeleteCertManagerResourcesRemovesCertificateAndTLS(t *testing.T) {
+	const (
+		namespace = "tenant-ns"
+		routeName = "dmxapi.lchuike.comp-p"
+	)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, cmapi.AddToScheme(scheme))
+	certificateClient := controllerfake.NewClientBuilder().WithScheme(scheme).WithObjects(&cmapi.Certificate{
+		ObjectMeta: v1.ObjectMeta{Name: routeName, Namespace: namespace},
+	}).Build()
+	apisixClient := apisixfake.NewSimpleClientset(&v2.ApisixTls{
+		ObjectMeta: v1.ObjectMeta{Name: routeName, Namespace: namespace},
+		Spec:       &v2.ApisixTlsSpec{},
+	})
+
+	require.NoError(t, deleteCertManagerResources(
+		context.Background(), certificateClient, apisixClient.ApisixV2(), namespace, routeName,
+	))
+
+	err := certificateClient.Get(
+		context.Background(),
+		types.NamespacedName{Namespace: namespace, Name: routeName},
+		&cmapi.Certificate{},
+	)
+	assert.True(t, errors.IsNotFound(err))
+	_, err = apisixClient.ApisixV2().ApisixTlses(namespace).Get(context.Background(), routeName, v1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err))
+}
+
+// capability_id: rainbond.gateway.auto-certificate-route-lifecycle
+func TestCertManagerRouteNameUsesResourceSegment(t *testing.T) {
+	assert.Equal(
+		t,
+		"dmxapi.lchuike.comp-p",
+		certManagerRouteName("162|dmxapi.lchuike.comp-p|-gr2550c7"),
+	)
 }
 
 func (m tcpRouteTestManager) TenantServiceDao() dbdao.TenantServiceDao {

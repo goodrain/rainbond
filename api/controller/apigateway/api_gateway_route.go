@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -515,11 +516,31 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	var deleteName = make([]string, 0)
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-	name = removeLeadingDigits(name)
+	name = certManagerRouteName(name)
 	c := k8s.Default().ApiSixClient.ApisixV2()
+	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("get route %s before delete error: %v", name, err)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
+		return
+	}
+	certManagerEnabled := route.Labels["cert-manager-enabled"] == "true"
 
-	err := c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+	err = c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err == nil {
+		if certManagerEnabled {
+			certificateClient, clientErr := newCertManagerCertificateClient()
+			if clientErr != nil {
+				logrus.Errorf("create cert-manager client after deleting route %s error: %v", name, clientErr)
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("create cert-manager client error: %v", clientErr))
+				return
+			}
+			if clientErr = deleteCertManagerResources(r.Context(), certificateClient, c, tenant.Namespace, name); clientErr != nil {
+				logrus.Errorf("delete cert-manager resources for route %s error: %v", name, clientErr)
+				httputil.ReturnError(r, w, 500, fmt.Sprintf("delete cert-manager resources error: %v", clientErr))
+				return
+			}
+		}
 		deleteName = append(deleteName, name)
 		httputil.ReturnSuccess(r, w, deleteName)
 		return
@@ -1050,6 +1071,160 @@ func removeLeadingDigits(name string) string {
 	return strings.Join(parts[:len(parts)-1], "-")
 }
 
+func certManagerRouteName(name string) string {
+	parts := strings.SplitN(name, "|", 3)
+	if len(parts) >= 2 && parts[1] != "" {
+		return parts[1]
+	}
+	return removeLeadingDigits(name)
+}
+
+func newCertManagerCertificateClient() (client.Client, error) {
+	scheme := runtime.NewScheme()
+	if err := cmapi.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	return client.New(config.GetConfigOrDie(), client.Options{Scheme: scheme})
+}
+
+func certManagerResourcesForRoute(route *v2.ApisixRoute, appID string, domains []string) (*cmapi.Certificate, *v2.ApisixTls) {
+	resourceLabels := map[string]string{"app_id": appID}
+	ownerReferences := []v1.OwnerReference{{
+		APIVersion: util.APIVersion,
+		Kind:       util.ApisixRoute,
+		Name:       route.Name,
+		UID:        route.UID,
+	}}
+	certificate := &cmapi.Certificate{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            route.Name,
+			Namespace:       route.Namespace,
+			Labels:          resourceLabels,
+			OwnerReferences: ownerReferences,
+		},
+		Spec: cmapi.CertificateSpec{
+			DNSNames:   append([]string(nil), domains...),
+			SecretName: route.Name,
+			IssuerRef: v12.ObjectReference{
+				Kind: "ClusterIssuer",
+				Name: "letsencrypt-http",
+			},
+		},
+	}
+	hosts := make([]v2.HostType, len(domains))
+	for i, domain := range domains {
+		hosts[i] = v2.HostType(domain)
+	}
+	tls := &v2.ApisixTls{
+		TypeMeta: v1.TypeMeta{
+			Kind:       util.ApisixTLS,
+			APIVersion: util.APIVersion,
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:            route.Name,
+			Namespace:       route.Namespace,
+			Labels:          map[string]string{"app_id": appID},
+			OwnerReferences: append([]v1.OwnerReference(nil), ownerReferences...),
+		},
+		Spec: &v2.ApisixTlsSpec{
+			IngressClassName: "apisix",
+			Hosts:            hosts,
+			Secret: v2.ApisixSecret{
+				Name:      route.Name,
+				Namespace: route.Namespace,
+			},
+		},
+	}
+	return certificate, tls
+}
+
+func mergeResourceLabels(current, desired map[string]string) map[string]string {
+	merged := make(map[string]string, len(current)+len(desired))
+	for key, value := range current {
+		merged[key] = value
+	}
+	for key, value := range desired {
+		merged[key] = value
+	}
+	return merged
+}
+
+func reconcileRouteOwnerReference(current []v1.OwnerReference, desired v1.OwnerReference) []v1.OwnerReference {
+	reconciled := make([]v1.OwnerReference, 0, len(current)+1)
+	for _, owner := range current {
+		if owner.APIVersion == desired.APIVersion && owner.Kind == desired.Kind && owner.Name == desired.Name {
+			continue
+		}
+		reconciled = append(reconciled, owner)
+	}
+	return append(reconciled, desired)
+}
+
+func ensureCertManagerResources(ctx context.Context, certificateClient client.Client, c versionedApisixV2,
+	certificate *cmapi.Certificate, tls *v2.ApisixTls) error {
+	if err := certificateClient.Create(ctx, certificate); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		current := &cmapi.Certificate{}
+		if err = certificateClient.Get(ctx, client.ObjectKeyFromObject(certificate), current); err != nil {
+			return err
+		}
+		labels := mergeResourceLabels(current.Labels, certificate.Labels)
+		ownerReferences := reconcileRouteOwnerReference(current.OwnerReferences, certificate.OwnerReferences[0])
+		spec := *certificate.Spec.DeepCopy()
+		if !reflect.DeepEqual(current.Labels, labels) ||
+			!reflect.DeepEqual(current.OwnerReferences, ownerReferences) ||
+			!reflect.DeepEqual(current.Spec, spec) {
+			current.Labels = labels
+			current.OwnerReferences = ownerReferences
+			current.Spec = spec
+			if err = certificateClient.Update(ctx, current); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := c.ApisixTlses(tls.Namespace).Create(ctx, tls, v1.CreateOptions{}); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		current, getErr := c.ApisixTlses(tls.Namespace).Get(ctx, tls.Name, v1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		labels := mergeResourceLabels(current.Labels, tls.Labels)
+		ownerReferences := reconcileRouteOwnerReference(current.OwnerReferences, tls.OwnerReferences[0])
+		spec := tls.Spec.DeepCopy()
+		if current.Spec != nil && current.Spec.Client != nil && spec.Client == nil {
+			spec.Client = current.Spec.Client.DeepCopy()
+		}
+		if !reflect.DeepEqual(current.Labels, labels) ||
+			!reflect.DeepEqual(current.OwnerReferences, ownerReferences) ||
+			!reflect.DeepEqual(current.Spec, spec) {
+			current.Labels = labels
+			current.OwnerReferences = ownerReferences
+			current.Spec = spec
+			if _, err = c.ApisixTlses(tls.Namespace).Update(ctx, current, v1.UpdateOptions{}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func deleteCertManagerResources(ctx context.Context, certificateClient client.Client, c versionedApisixV2,
+	namespace, name string) error {
+	certificate := &cmapi.Certificate{ObjectMeta: v1.ObjectMeta{Name: name, Namespace: namespace}}
+	if err := certificateClient.Delete(ctx, certificate); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if err := c.ApisixTlses(namespace).Delete(ctx, name, v1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 // CheckCertManager reports whether the cert-manager Certificate CRD is installed.
 func (g Struct) CheckCertManager(w http.ResponseWriter, r *http.Request) {
 	// 创建 Kubernetes 客户端
@@ -1099,50 +1274,24 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, err.Error())
 		return
 	}
-	resourceLabel := make(map[string]string)
-	resourceLabel["app_id"] = req.RegionAppID
 	// Validate request
 	if len(req.Domains) == 0 {
 		httputil.ReturnError(r, w, 400, "domains cannot be empty")
 		return
 	}
-	req.RouteName = removeLeadingDigits(req.RouteName)
-	cert := &cmapi.Certificate{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      req.RouteName,
-			Namespace: tenant.Namespace,
-			Labels:    resourceLabel,
-		},
-		Spec: cmapi.CertificateSpec{
-			DNSNames:   req.Domains,
-			SecretName: req.RouteName,
-			IssuerRef: v12.ObjectReference{
-				Kind: "ClusterIssuer",
-				Name: "letsencrypt-http",
-			},
-		},
-	}
-
-	// Create Certificate using controller-runtime client
-	scheme := runtime.NewScheme()
-	_ = cmapi.AddToScheme(scheme)
-	kubeConfig := config.GetConfigOrDie()
-	k8sClient, err := client.New(kubeConfig, client.Options{Scheme: scheme})
+	req.RouteName = certManagerRouteName(req.RouteName)
+	c := k8s.Default().ApiSixClient.ApisixV2()
+	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), req.RouteName, v1.GetOptions{})
 	if err != nil {
-		logrus.Errorf("failed to create k8s client: %v", err)
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create k8s client: %v", err))
+		logrus.Errorf("get apisix route error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("get apisix route error: %v", err))
+		return
+	}
+	if routeAppID := route.Labels["app_id"]; routeAppID != "" && routeAppID != req.RegionAppID {
+		httputil.ReturnError(r, w, http.StatusConflict, "route belongs to another application")
 		return
 	}
 
-	// Create Certificate
-	err = k8sClient.Create(r.Context(), cert)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		logrus.Errorf("create certificate error: %v", err)
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("create certificate error: %v", err))
-		return
-	}
-
-	// Create ApisixTls resource
 	hosts := make([]v2.HostType, len(req.Domains))
 	for i, domain := range req.Domains {
 		hosts[i] = v2.HostType(domain)
@@ -1155,40 +1304,16 @@ func (g Struct) CreateCertManager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apisixTLS := &v2.ApisixTls{
-		TypeMeta: v1.TypeMeta{
-			Kind:       util.ApisixTLS,
-			APIVersion: util.APIVersion,
-		},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      req.RouteName,
-			Namespace: tenant.Namespace,
-			Labels:    resourceLabel,
-		},
-		Spec: &v2.ApisixTlsSpec{
-			IngressClassName: "apisix",
-			Hosts:            hosts,
-			Secret: v2.ApisixSecret{
-				Name:      req.RouteName,
-				Namespace: tenant.Namespace,
-			},
-		},
-	}
-
-	// Create the ApisixTls resource
-	c := k8s.Default().ApiSixClient.ApisixV2()
-	_, err = c.ApisixTlses(tenant.Namespace).Create(r.Context(), apisixTLS, v1.CreateOptions{})
-	if err != nil && !errors.IsAlreadyExists(err) {
-		logrus.Errorf("create certificate error: %v", err)
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("create certificate error: %v", err))
+	certificateClient, err := newCertManagerCertificateClient()
+	if err != nil {
+		logrus.Errorf("failed to create cert-manager client: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("failed to create cert-manager client: %v", err))
 		return
 	}
-
-	// Update ApisixRoute with cert-manager label
-	route, err := c.ApisixRoutes(tenant.Namespace).Get(r.Context(), req.RouteName, v1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("get apisix route error: %v", err)
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("get apisix route error: %v", err))
+	certificate, tls := certManagerResourcesForRoute(route, req.RegionAppID, req.Domains)
+	if err = ensureCertManagerResources(r.Context(), certificateClient, c, certificate, tls); err != nil {
+		logrus.Errorf("reconcile cert-manager resources error: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("reconcile cert-manager resources error: %v", err))
 		return
 	}
 
@@ -1357,7 +1482,7 @@ func (g Struct) DeleteCertManager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if RouteName != "" {
-		RouteName = removeLeadingDigits(RouteName)
+		RouteName = certManagerRouteName(RouteName)
 	}
 
 	// 删除 Certificate 资源

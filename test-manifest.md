@@ -282,6 +282,7 @@
 | rainbond.framework-detect.version-normalization | 规范化框架依赖版本号 | active | regression | builder/parser/code.cleanVersion | builder/parser/code/framework_test.go::TestCleanVersion |
 | rainbond.framework-detect.vite | 识别 Vite 框架 | active | regression | builder/parser/code.DetectFramework | builder/parser/code/framework_test.go::TestDetectFramework_Vite |
 | rainbond.gateway.allocate-lb-port | 分配可用网关负载均衡端口 | active | regression | api/handler.selectAvailablePort | api/handler/gateway_action_test.go::TestSelectAvailablePort |
+| rainbond.gateway.auto-certificate-route-lifecycle | Reconcile automatic certificate resources across route ownership changes | active | regression | automatic certificate route lifecycle | api/controller/apigateway/api_gateway_route_test.go::TestEnsureCertManagerResourcesAdoptsExistingRouteOwnership<br>api/controller/apigateway/api_gateway_route_test.go::TestDeleteCertManagerResourcesRemovesCertificateAndTLS<br>api/controller/apigateway/api_gateway_route_test.go::TestCertManagerRouteNameUsesResourceSegment |
 | rainbond.gateway.certificate-resource-consistency | Keep gateway certificate resources consistent | active | regression | api/handler.GatewayAction.AddGatewayCertificate | api/handler/gateway_action_test.go::TestGatewayCertificateResourceConsistency |
 | rainbond.gateway.client-ca-lifecycle | Manage gateway client CA lifecycle | active | regression | api/handler.GatewayAction.AddGatewayClientCA | api/handler/gateway_action_test.go::TestGatewayClientCALifecycle |
 | rainbond.gateway.domain-mtls | Configure inbound mTLS per gateway domain | active | regression | api/handler.GatewayAction.ConfigureGatewayDomainMTLS | api/handler/gateway_action_test.go::TestGatewayDomainMTLS |
@@ -3423,6 +3424,16 @@
 - 业务入口: `api/handler.selectAvailablePort`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestSelectAvailablePort`
+
+### Reconcile automatic certificate resources across route ownership changes
+
+- Capability ID: `rainbond.gateway.auto-certificate-route-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `automatic certificate route lifecycle`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestEnsureCertManagerResourcesAdoptsExistingRouteOwnership`, `api/controller/apigateway/api_gateway_route_test.go::TestDeleteCertManagerResourcesRemovesCertificateAndTLS`, `api/controller/apigateway/api_gateway_route_test.go::TestCertManagerRouteNameUsesResourceSegment`
 
 ### Keep gateway certificate resources consistent
 

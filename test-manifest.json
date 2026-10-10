@@ -5406,6 +5406,32 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.auto-certificate-route-lifecycle",
+      "title": "Reconcile automatic certificate resources across route ownership changes",
+      "title_zh": "Reconcile automatic certificate resources across route ownership changes",
+      "interface_type": "workflow",
+      "interface": "automatic certificate route lifecycle",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestEnsureCertManagerResourcesAdoptsExistingRouteOwnership"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteCertManagerResourcesRemovesCertificateAndTLS"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCertManagerRouteNameUsesResourceSegment"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.certificate-resource-consistency",
       "title": "Keep gateway certificate resources consistent",
       "title_zh": "Keep gateway certificate resources consistent",
