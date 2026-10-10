@@ -7523,6 +7523,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.resource-center.rfc3339-timestamps",
+      "title": "Serialize resource center timestamps as RFC3339",
+      "title_zh": "Serialize resource center timestamps as RFC3339",
+      "interface_type": "package_function",
+      "interface": "api/handler.formatResourceTimestamp",
+      "code_paths": [
+        "api/handler/resource_center.go",
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_center_test.go",
+          "selector": "TestFormatResourceTimestamp"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.resource-import.daemonset-component",
       "title": "Import DaemonSet as component",
       "title_zh": "\u5c06 DaemonSet \u5bfc\u5165\u4e3a\u7ec4\u4ef6",

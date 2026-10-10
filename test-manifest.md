@@ -392,6 +392,7 @@
 | rainbond.resource-center.collect-ingress-services | 收集 Ingress 后端服务名 | active | regression | api/handler.collectIngressServiceNames | api/handler/resource_center_test.go::TestCollectIngressServiceNames |
 | rainbond.resource-center.event-summary | 汇总资源事件信息 | active | regression | api/handler.toResourceEventInfo | api/handler/resource_center_test.go::TestToResourceEventInfo |
 | rainbond.resource-center.match-selector | 按选择器匹配资源标签 | active | regression | api/handler.labelsMatchSelector | api/handler/resource_center_test.go::TestLabelsMatchSelector |
+| rainbond.resource-center.rfc3339-timestamps | Serialize resource center timestamps as RFC3339 | active | regression | api/handler.formatResourceTimestamp | api/handler/resource_center_test.go::TestFormatResourceTimestamp |
 | rainbond.resource-import.daemonset-component | 将 DaemonSet 导入为组件 | active | regression | api.handler.ComponentController.CreateComponent | api/handler/resource_import_daemonset_test.go::TestExtendMethodForResourceTypeSupportsDaemonSet |
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
 | rainbond.runtime.node-cnb-framework-detection | CNB 构建检测 Node.js 框架信息 | active | regression | builder/parser/code.CheckRuntimeByStrategy | builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines |
@@ -4524,6 +4525,16 @@
 - 业务入口: `api/handler.labelsMatchSelector`
 - 代码路径: `api/handler/resource_center.go`
 - 测试路径: `api/handler/resource_center_test.go::TestLabelsMatchSelector`
+
+### Serialize resource center timestamps as RFC3339
+
+- Capability ID: `rainbond.resource-center.rfc3339-timestamps`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/handler.formatResourceTimestamp`
+- 代码路径: `api/handler/resource_center.go`, `api/handler/ns_resource.go`
+- 测试路径: `api/handler/resource_center_test.go::TestFormatResourceTimestamp`
 
 ### 将 DaemonSet 导入为组件
 

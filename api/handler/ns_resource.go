@@ -437,7 +437,7 @@ func toNsResourceInfo(obj unstructured.Unstructured) NsResourceInfo {
 		Kind:       obj.GetKind(),
 		APIVersion: obj.GetAPIVersion(),
 		Source:     source,
-		CreatedAt:  obj.GetCreationTimestamp().String(),
+		CreatedAt:  formatResourceTimestamp(obj.GetCreationTimestamp().Time),
 		Status:     computeNsResourceStatus(obj),
 	}
 	fillNsResourceInfo(&info, obj)

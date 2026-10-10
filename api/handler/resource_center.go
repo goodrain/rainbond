@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"sort"
+	"time"
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	corev1 "k8s.io/api/core/v1"
@@ -68,6 +69,13 @@ type ResourceEventInfo struct {
 
 type ResourceCenterHandler struct{}
 
+func formatResourceTimestamp(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
+}
+
 func (h *ResourceCenterHandler) GetWorkloadDetail(tenantName, group, version, resource, name string) (*WorkloadDetail, error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
@@ -100,7 +108,7 @@ func (h *ResourceCenterHandler) GetWorkloadDetail(tenantName, group, version, re
 		Kind:          workload.GetKind(),
 		Namespace:     ns,
 		Status:        computeNsResourceStatus(*workload),
-		CreatedAt:     workload.GetCreationTimestamp().String(),
+		CreatedAt:     formatResourceTimestamp(workload.GetCreationTimestamp().Time),
 		Selector:      selector,
 		Replicas:      extractWorkloadReplicas(workload),
 		ReadyReplicas: extractWorkloadReadyReplicas(workload),
@@ -161,7 +169,7 @@ func (h *ResourceCenterHandler) GetPodDetail(tenantName, podName string) (*PodRe
 			Phase:     string(pod.Status.Phase),
 			NodeName:  pod.Spec.NodeName,
 			PodIP:     pod.Status.PodIP,
-			CreatedAt: pod.CreationTimestamp.String(),
+			CreatedAt: formatResourceTimestamp(pod.CreationTimestamp.Time),
 		},
 		Pod:        pod,
 		Detail:     detail,
@@ -339,12 +347,12 @@ func uniqueStrings(values []string) []string {
 }
 
 func toResourceEventInfo(event corev1.Event) ResourceEventInfo {
-	lastTimestamp := event.LastTimestamp.String()
-	if lastTimestamp == "" || lastTimestamp == "<nil>" {
-		lastTimestamp = event.EventTime.String()
+	lastTimestamp := formatResourceTimestamp(event.LastTimestamp.Time)
+	if lastTimestamp == "" {
+		lastTimestamp = formatResourceTimestamp(event.EventTime.Time)
 	}
-	if lastTimestamp == "" || lastTimestamp == "<nil>" {
-		lastTimestamp = event.FirstTimestamp.String()
+	if lastTimestamp == "" {
+		lastTimestamp = formatResourceTimestamp(event.FirstTimestamp.Time)
 	}
 	return ResourceEventInfo{
 		Type:          event.Type,
