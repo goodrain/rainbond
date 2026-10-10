@@ -6640,6 +6640,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.lifecycle.stop-suppresses-exit-event",
+      "title": "Suppress container exit events during intentional stop",
+      "title_zh": "Suppress container exit events during intentional stop",
+      "interface_type": "package_function",
+      "interface": "worker/master/podevent.shouldReportContainerExit",
+      "code_paths": [
+        "worker/master/podevent/podevent.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/master/podevent/health_event_test.go",
+          "selector": "TestShouldReportContainerExit"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
       "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",

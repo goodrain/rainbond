@@ -348,6 +348,7 @@
 | rainbond.lifecycle.service-reconcile-preserves-identity | Service reconciliation preserves allocated Kubernetes identity | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceReconcilesOwnedServiceAndPreservesIdentity |
 | rainbond.lifecycle.service-reconcile-rejects-foreign-owner | Service reconciliation rejects foreign ownership | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService |
 | rainbond.lifecycle.stop-preserves-service | Stopping a component preserves its generated Service identity | active | regression | worker/appm/controller.stopController.stopOne | worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService |
+| rainbond.lifecycle.stop-suppresses-exit-event | Suppress container exit events during intentional stop | active | regression | worker/master/podevent.shouldReportContainerExit | worker/master/podevent/health_event_test.go::TestShouldReportContainerExit |
 | rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
 | rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
 | rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
@@ -4085,6 +4086,16 @@
 - 业务入口: `worker/appm/controller.stopController.stopOne`
 - 代码路径: `worker/appm/controller/stop.go`
 - 测试路径: `worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService`
+
+### Suppress container exit events during intentional stop
+
+- Capability ID: `rainbond.lifecycle.stop-suppresses-exit-event`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/master/podevent.shouldReportContainerExit`
+- 代码路径: `worker/master/podevent/podevent.go`
+- 测试路径: `worker/master/podevent/health_event_test.go::TestShouldReportContainerExit`
 
 ### Preserve bound manual PVC immutable spec fields during app upgrade
 

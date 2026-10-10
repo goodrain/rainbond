@@ -557,7 +557,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 			}
 
 			// Container terminated with error (check before other states)
-			if terminated != nil && terminated.ExitCode != 0 && terminated.Reason != "OOMKilled" {
+			if shouldReportContainerExit(pod, terminated) {
 				exitErrorEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "ContainerExitError")
 				if err != nil && err != gorm.ErrRecordNotFound {
 					logrus.Warningf("error fetching container exit error event: %v", err)
@@ -1245,6 +1245,13 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 			p.healthStateCache.Unlock()
 		}
 	}
+}
+
+func shouldReportContainerExit(pod *corev1.Pod, terminated *corev1.ContainerStateTerminated) bool {
+	if pod == nil || terminated == nil || terminated.ExitCode == 0 || terminated.Reason == "OOMKilled" {
+		return false
+	}
+	return pod.DeletionTimestamp == nil
 }
 
 // checkLivenessRestart detects container restarts caused by liveness probe failures
