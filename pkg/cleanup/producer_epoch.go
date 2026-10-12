@@ -46,6 +46,44 @@ func earlierEpoch(current, candidate time.Time) time.Time {
 	return current
 }
 
+func reconcileRetiredProducerOperations(tx *gorm.DB, binding StorageRegistration, cutoff time.Time, store *model.CleanupStorage) (bool, error) {
+	if tx == nil || store == nil || store.StorageID != binding.StorageID || store.Generation != binding.Generation || cutoff.IsZero() {
+		return false, ErrCoordinationChanged
+	}
+	var operations []model.CleanupOperation
+	if err := tx.Where("storage_id = ? AND state <> ?", binding.StorageID, "finished").Limit(4097).Find(&operations).Error; err != nil {
+		return false, err
+	}
+	if len(operations) == 0 {
+		return false, nil
+	}
+	if len(operations) > 4096 {
+		return false, ErrCoordinationBusy
+	}
+	ids := make([]string, 0, len(operations))
+	for _, operation := range operations {
+		if operation.Generation != binding.Generation {
+			return false, ErrCoordinationChanged
+		}
+		if operation.Kind != "producer" || !reconcilableProducerOwner(operation.Owner) || operation.UpdatedAt.IsZero() || !operation.UpdatedAt.Before(cutoff) {
+			return false, nil
+		}
+		ids = append(ids, operation.OperationID)
+	}
+	result := tx.Model(&model.CleanupOperation{}).Where("operation_id IN (?) AND state <> ?", ids, "finished").Updates(map[string]interface{}{"state": "finished", "outcome": "reconciled"})
+	if result.Error != nil {
+		return false, result.Error
+	}
+	if result.RowsAffected != int64(len(ids)) {
+		return false, ErrCoordinationChanged
+	}
+	if err := advanceCleanupRevision(tx, *store); err != nil {
+		return false, err
+	}
+	store.Revision++
+	return true, nil
+}
+
 // reconcileRetiredProducerEpoch releases only producer records that predate
 // every currently verified Registry ingress and platform writer instance. The
 // caller has already re-read Registry and Region references under the storage
@@ -88,36 +126,30 @@ func reconcileRetiredProducerEpoch(tx *gorm.DB, binding StorageRegistration, cov
 	if cutoff.IsZero() {
 		return false, ErrCoordinationChanged
 	}
-	var operations []model.CleanupOperation
-	if err := tx.Where("storage_id = ? AND state <> ?", binding.StorageID, "finished").Limit(4097).Find(&operations).Error; err != nil {
-		return false, err
-	}
-	if len(operations) == 0 {
-		return false, nil
-	}
-	if len(operations) > 4096 {
-		return false, ErrCoordinationBusy
-	}
-	ids := make([]string, 0, len(operations))
-	for _, operation := range operations {
-		if operation.Generation != binding.Generation {
-			return false, ErrCoordinationChanged
-		}
-		if operation.Kind != "producer" || !reconcilableProducerOwner(operation.Owner) || operation.UpdatedAt.IsZero() || !operation.UpdatedAt.Before(cutoff) {
-			return false, nil
-		}
-		ids = append(ids, operation.OperationID)
-	}
-	result := tx.Model(&model.CleanupOperation{}).Where("operation_id IN (?) AND state <> ?", ids, "finished").Updates(map[string]interface{}{"state": "finished", "outcome": "reconciled"})
-	if result.Error != nil {
-		return false, result.Error
-	}
-	if result.RowsAffected != int64(len(ids)) {
+	return reconcileRetiredProducerOperations(tx, binding, cutoff, store)
+}
+
+// reconcileRetiredCacheProducerEpoch releases stale build admissions only
+// after the live cache-writer set has moved to a newer, independently verified
+// runtime epoch. Current or unknown operations remain protective.
+func reconcileRetiredCacheProducerEpoch(tx *gorm.DB, binding StorageRegistration, members []ParticipantRegistration, store *model.CleanupStorage) (bool, error) {
+	if tx == nil || store == nil || store.StorageID != binding.StorageID || store.Generation != binding.Generation || len(members) == 0 {
 		return false, ErrCoordinationChanged
 	}
-	if err := advanceCleanupRevision(tx, *store); err != nil {
-		return false, err
+	cutoff := time.Time{}
+	for _, member := range members {
+		id, fingerprint, err := participantIdentity(member)
+		if err != nil || member.StorageID != binding.StorageID || member.Generation != binding.Generation || member.Role != "cache-builder" {
+			return false, ErrCoordinationChanged
+		}
+		var row model.CleanupParticipant
+		if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+			return false, err
+		}
+		if row.RegistrationHash != fingerprint || row.CreatedAt.IsZero() {
+			return false, ErrCoordinationChanged
+		}
+		cutoff = earlierEpoch(cutoff, row.CreatedAt)
 	}
-	store.Revision++
-	return true, nil
+	return reconcileRetiredProducerOperations(tx, binding, cutoff, store)
 }
