@@ -98,3 +98,13 @@ func TestTerminatedGCExecutorRequiresActualOriginalContainerExit(t *testing.T) {
 		t.Fatal("wrong Pod accepted")
 	}
 }
+
+func TestGCExecutorReportsTransientStartupState(t *testing.T) {
+	service, job, pod, pvc, pv, binding := gcExecutorObjects()
+	pod.Status.Phase = corev1.PodPending
+	pod.Status.ContainerStatuses = nil
+	client := fake.NewSimpleClientset(service, job, pod, pvc, pv)
+	if _, err := InspectGCExecutor(context.Background(), client, service.Name, job, pod.Name, string(pod.UID), binding); !errors.Is(err, ErrExecutorStarting) {
+		t.Fatal("pending executor was not reported as transient", err)
+	}
+}

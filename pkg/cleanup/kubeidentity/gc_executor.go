@@ -17,6 +17,10 @@ import (
 // ErrExecutorRunning distinguishes a verified live executor from changed identity.
 var ErrExecutorRunning = errors.New("original GC executor has not exited")
 
+// ErrExecutorStarting reports that the exact bound Pod exists but Kubernetes
+// has not published its running container identity yet.
+var ErrExecutorStarting = errors.New("original GC executor is still starting")
+
 // InspectGCExecutor verifies a live executor against an already reconciled,
 // durably bound Job. The caller must obtain Job and storage from Core, not from
 // request JSON. The executor image must be pinned to its platform manifest.
@@ -71,13 +75,22 @@ func inspectGCExecutor(ctx context.Context, client kubernetes.Interface, service
 		return denied, ErrBinding
 	}
 	if len(pod.Status.ContainerStatuses) != 1 {
+		if !terminal && len(pod.Status.ContainerStatuses) == 0 && (pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning) {
+			return denied, ErrExecutorStarting
+		}
 		return denied, ErrBinding
 	}
 	status := pod.Status.ContainerStatuses[0]
+	if !terminal && status.Name == container.Name && status.RestartCount == 0 && status.LastTerminationState.Terminated == nil && status.State.Terminated == nil && (status.ContainerID == "" || status.ImageID == "") {
+		return denied, ErrExecutorStarting
+	}
 	if status.Name != container.Name || status.RestartCount != 0 || status.ContainerID == "" || status.LastTerminationState.Terminated != nil {
 		return denied, ErrBinding
 	}
 	running := pod.Status.Phase == corev1.PodRunning && status.State.Running != nil && status.State.Terminated == nil
+	if !terminal && !running && status.State.Terminated == nil && (pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning) {
+		return denied, ErrExecutorStarting
+	}
 	if terminal && !running {
 		if (pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed) || status.State.Terminated == nil || status.State.Running != nil || status.State.Terminated.FinishedAt.IsZero() {
 			return denied, ErrBinding
