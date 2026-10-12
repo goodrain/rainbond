@@ -23,6 +23,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
@@ -32,10 +37,6 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"path"
-	"strings"
-	"time"
 )
 
 func dockerfileBuilder() (Build, error) {
@@ -204,12 +205,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if len(re.BuildKitArgs) > 0 {
 		container.Args = append(container.Args, re.BuildKitArgs...)
 	}
-	for key := range re.BuildEnvs {
-		if strings.HasPrefix(key, "ARG_") {
-			envKey := strings.Replace(key, "ARG_", "", -1)
-			container.Args = append(container.Args, fmt.Sprintf("--opt=build-arg:%s=%s", envKey, re.BuildEnvs[key]))
-		}
-	}
+	container.Args = append(container.Args, dockerfileBuildArgs(re.BuildEnvs)...)
 
 	// 添加 BuildKit 缓存支持
 	if re.BuildKitCache {

@@ -20,7 +20,6 @@ package exector
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/storage"
 	"io/ioutil"
 	"os"
 	"path"
@@ -28,6 +27,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/component/storage"
+	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser"
@@ -44,6 +46,7 @@ import (
 
 // BackupAPPRestore restrore the  group app backup
 type BackupAPPRestore struct {
+	cleanupAdmission *nativeBuildAdmission
 	//full-online,full-offline
 	EventID  string
 	BackupID string `json:"backup_id"`
@@ -182,7 +185,9 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	}
 
 	//save result
-	b.saveResult("success", "")
+	if err := b.saveResult("success", ""); err != nil {
+		return &restoreResultPersistenceError{cause: err}
+	}
 	logrus.Infof("backup id: %s; successfully restore backup.", b.BackupID)
 	b.Logger.Info("恢复成功", map[string]string{"step": "restore_builder", "status": "success"})
 	return nil
@@ -555,52 +560,61 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 
 	return nil
 }
-func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
+func (b *BackupAPPRestore) setCleanupAdmission(admission *nativeBuildAdmission) {
+	b.cleanupAdmission = admission
+}
+
+func (b *BackupAPPRestore) withMetadataWrite(write func(*gorm.DB) error) error {
+	if b.cleanupAdmission != nil && len(b.cleanupAdmission.requests) > 0 {
+		return b.cleanupAdmission.write(write)
+	}
 	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer tx.Rollback()
+	if err := write(tx); err != nil {
+		return err
+	}
+	return tx.Commit().Error
+}
+
+func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
+	return b.withMetadataWrite(func(tx *gorm.DB) error { return b.restoreMetadataInTransaction(tx, appSnapshot) })
+}
+func (b *BackupAPPRestore) restoreMetadataInTransaction(tx *gorm.DB, appSnapshot *AppSnapshot) error {
 	for _, app := range appSnapshot.Services {
 		app.Service.ID = 0
 		if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(app.Service); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create app when restore backup error. %s", err.Error())
 		}
 		for _, a := range app.ServiceProbe {
 			a.ID = 0
 			if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app probe when restore backup error. %s", err.Error())
 			}
 		}
 		for _, a := range app.ServiceEnv {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app envs when restore backup error. %s", err.Error())
 			}
 		}
 		for _, a := range app.ServiceLabel {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app labels when restore backup error. %s", err.Error())
 			}
 		}
 		for _, a := range app.ServiceMntRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app mount relation when restore backup error. %s", err.Error())
 			}
 		}
 		for _, a := range app.ServiceRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app relation when restore backup error. %s", err.Error())
 			}
 		}
@@ -630,29 +644,25 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 				}
 			}
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app volume when restore backup error. %s", err.Error())
 			}
 			b.volumeIDMap[oldVolumeID] = a.ID
 		}
 		for _, a := range app.ServiceConfigFile {
 			a.ID = 0
-			if err := db.GetManager().TenantServiceConfigFileDao().AddModel(a); err != nil {
-				tx.Rollback()
+			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).AddModel(a); err != nil {
 				return fmt.Errorf("create app config file when restore backup errro. %s", err.Error())
 			}
 		}
 		for _, a := range app.ServicePort {
 			a.ID = 0
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app ports when restore backup error. %s", err.Error())
 			}
 		}
 		for _, a := range app.Versions {
 			a.ID = 0
 			if err := db.GetManager().VersionInfoDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("create app versions when restore backup error. %s", err.Error())
 			}
 		}
@@ -660,28 +670,24 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 		for _, a := range app.PluginRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("error creating plugin relation: %v", err)
 			}
 		}
 		for _, pc := range app.PluginConfigs {
 			pc.ID = 0
 			if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(pc); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("error creating plugin config: %v", err)
 			}
 		}
 		for _, pe := range app.PluginEnvs {
 			pe.ID = 0
 			if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(pe); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("error creating plugin version env: %v", err)
 			}
 		}
 		for _, psp := range app.PluginStreamPorts {
 			psp.ID = 0
 			if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).AddModel(psp); err != nil {
-				tx.Rollback()
 				return fmt.Errorf("error creating plugin stream port: %v", err)
 			}
 		}
@@ -693,7 +699,6 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 			if err == errors.ErrRecordAlreadyExist {
 				continue
 			}
-			tx.Rollback()
 			return fmt.Errorf("error creating plugin: %v", err)
 		}
 	}
@@ -704,15 +709,10 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 			if err == errors.ErrRecordAlreadyExist {
 				continue
 			}
-			tx.Rollback()
 			return fmt.Errorf("error creating plugin build version: %v", err)
 		}
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
 	return nil
 }
 
@@ -840,13 +840,26 @@ func (b *BackupAPPRestore) GetLogger() event.Logger {
 	return b.Logger
 }
 
-// ErrorCallBack if run error will callback
+type restoreResultPersistenceError struct{ cause error }
+
+func (e *restoreResultPersistenceError) Error() string {
+	return "restore result persistence requires verification"
+}
+func (e *restoreResultPersistenceError) Unwrap() error { return e.cause }
+
+// ErrorCallBack records failure without rolling back a completed restore on receipt loss.
 func (b *BackupAPPRestore) ErrorCallBack(err error) {
+	if _, uncertain := err.(*restoreResultPersistenceError); uncertain {
+		b.Logger.Error("Restore result requires verification; restored metadata is preserved", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
 	if err != nil {
 		logrus.Errorf("restore backup group app failure %s", err)
 		b.Logger.Error(util.Translation("restore backup group app failure"), map[string]string{"step": "callback", "status": "failure"})
 		b.clear()
-		b.saveResult("failed", err.Error())
+		if saveErr := b.saveResult("failed", err.Error()); saveErr != nil {
+			logrus.Error("Restore failure receipt could not be persisted")
+		}
 	}
 }
 
@@ -863,7 +876,7 @@ type RestoreResult struct {
 	CacheDir      string           `json:"cache_dir"`
 }
 
-func (b *BackupAPPRestore) saveResult(status, message string) {
+func (b *BackupAPPRestore) saveResult(status, message string) error {
 	var rr = RestoreResult{
 		Status:        status,
 		Message:       message,
@@ -875,15 +888,15 @@ func (b *BackupAPPRestore) saveResult(status, message string) {
 		RestoreID:     b.RestoreID,
 		CacheDir:      b.cacheDir,
 	}
-	body, _ := ffjson.Marshal(rr)
-	key := "/rainbond/backup_restore/" + rr.RestoreID
-
-	// Delete existing record first to avoid duplicate key error
-	_ = db.GetManager().KeyValueDao().Delete(key)
-
-	// Create new record
-	err := db.GetManager().KeyValueDao().Put(key, string(body))
+	body, err := ffjson.Marshal(rr)
 	if err != nil {
-		logrus.Errorf("save restore result error %s", err.Error())
+		return err
 	}
+	key := "/rainbond/backup_restore/" + rr.RestoreID
+	return b.withMetadataWrite(func(tx *gorm.DB) error {
+		if err := tx.Where("k = ?", key).Delete(dbmodel.KeyValue{}).Error; err != nil {
+			return err
+		}
+		return tx.Create(&dbmodel.KeyValue{K: key, V: string(body)}).Error
+	})
 }

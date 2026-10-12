@@ -2,6 +2,9 @@ package storage
 
 import (
 	"context"
+	"mime/multipart"
+	"net/http"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -9,32 +12,30 @@ import (
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/event"
 	"github.com/sirupsen/logrus"
-	"mime/multipart"
-	"net/http"
 )
 
-// StorageComponent -
-type StorageComponent struct {
+// Component configures the platform storage client.
+type Component struct {
 	StorageCli    InterfaceStorage
 	storageConfig *configs.StorageConfig
 }
 
-var defaultStorageComponent *StorageComponent
+var defaultComponent *Component
 
 // New -
-func New() *StorageComponent {
+func New() *Component {
 	storageConfig := configs.Default().StorageConfig
 
-	defaultStorageComponent = &StorageComponent{
+	defaultComponent = &Component{
 		storageConfig: storageConfig,
 	}
-	return defaultStorageComponent
+	return defaultComponent
 }
 
 // Start -
-func (s *StorageComponent) Start(ctx context.Context) error {
+func (s *Component) Start(ctx context.Context) error {
 	var storageCli InterfaceStorage
-	logrus.Infof("create s3 client %v,----%v,----%v", s.storageConfig.StorageType, s.storageConfig.S3AccessKeyID, s.storageConfig.S3SecretAccessKey)
+	logrus.Infof("initialize storage client type=%s", s.storageConfig.StorageType)
 	if s.storageConfig.StorageType == "s3" {
 		sess, err := session.NewSession(&aws.Config{
 			Endpoint:         aws.String(s.storageConfig.S3Endpoint),
@@ -67,14 +68,15 @@ func (s *StorageComponent) Start(ctx context.Context) error {
 }
 
 // CloseHandle -
-func (s *StorageComponent) CloseHandle() {
+func (s *Component) CloseHandle() {
 }
 
 // Default -
-func Default() *StorageComponent {
-	return defaultStorageComponent
+func Default() *Component {
+	return defaultComponent
 }
 
+// InterfaceStorage defines the platform file and chunk operations.
 type InterfaceStorage interface {
 	MkdirAll(path string) error
 	Unzip(archive, target string, currentDirectory bool) error
@@ -95,11 +97,13 @@ type InterfaceStorage interface {
 	GetChunkDir(sessionID string) string
 }
 
+// ReadCloser reads a stored object and releases its resources.
 type ReadCloser interface {
 	Read(p []byte) (n int, err error)
 	Close() error
 }
 
+// SrcFile is a readable copy source.
 type SrcFile interface {
 	Read([]byte) (int, error)
 }

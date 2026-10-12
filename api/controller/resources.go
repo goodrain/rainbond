@@ -21,16 +21,17 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	validation "github.com/goodrain/rainbond/util/endpoint"
 	"io/ioutil"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+
+	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	validation "github.com/goodrain/rainbond/util/endpoint"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -642,9 +643,6 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// clean database data(source check)
-	handler.GetCleanDateBaseHandler().CleanServiceCheckData(ss.EtcdKey)
-
 	values := url.Values{}
 	if ss.Endpoints != nil {
 		for _, endpoint := range ss.Endpoints.Static {
@@ -693,6 +691,8 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
 	}
+
+	handler.GetCleanDateBaseHandler().CleanServiceCheckData(ss.EtcdKey)
 
 	httputil.ReturnSuccess(r, w, nil)
 }

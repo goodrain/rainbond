@@ -20,8 +20,11 @@ package exector
 
 import (
 	"fmt"
+
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
+
+	"time"
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
@@ -29,7 +32,6 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	"time"
 )
 
 // ImageShareItem ImageShareItem
@@ -218,6 +220,7 @@ func (i *ImageShareItem) UpdateShareStatus(status string) error {
 	if err != nil {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
 		i.Logger.Error(util.Translation("Save share result failed"), map[string]string{"step": "callback", "status": "failure"})
+		return err
 	}
 	if status == "success" {
 		i.Logger.Info("创建分享结果成功,分享成功", map[string]string{"step": "last", "status": "success"})

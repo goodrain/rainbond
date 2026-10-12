@@ -11,6 +11,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -179,4 +180,40 @@ func TestApplicationActionGetPVCDiskRequestsKBFromAppPods(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(10*1024*1024), got)
+}
+
+// capability_id: rainbond.application.delete-config-secrets
+func TestApplicationActionDeleteApplicationConfigSecrets(t *testing.T) {
+	t.Run("delete named config group secret", func(t *testing.T) {
+		kubeClient := k8sfake.NewSimpleClientset(
+			&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "settings-app-1", Namespace: "demo", Labels: map[string]string{"app_id": "app-1"}}},
+			&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "other-app-1", Namespace: "demo", Labels: map[string]string{"app_id": "app-1"}}},
+		)
+		action := &ApplicationAction{kubeClient: kubeClient}
+
+		err := action.deleteApplicationConfigSecrets(context.Background(), "demo", "app-1", []string{"settings"})
+
+		assert.NoError(t, err)
+		_, err = kubeClient.CoreV1().Secrets("demo").Get(context.Background(), "settings-app-1", metav1.GetOptions{})
+		assert.True(t, k8serrors.IsNotFound(err))
+		_, err = kubeClient.CoreV1().Secrets("demo").Get(context.Background(), "other-app-1", metav1.GetOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete all app labelled secrets", func(t *testing.T) {
+		kubeClient := k8sfake.NewSimpleClientset(
+			&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "settings-app-1", Namespace: "demo", Labels: map[string]string{"app_id": "app-1"}}},
+			&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "runtime-app-1", Namespace: "demo", Labels: map[string]string{"app_id": "app-1"}}},
+			&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "settings-app-2", Namespace: "demo", Labels: map[string]string{"app_id": "app-2"}}},
+		)
+		action := &ApplicationAction{kubeClient: kubeClient}
+
+		err := action.deleteApplicationConfigSecrets(context.Background(), "demo", "app-1", nil)
+
+		assert.NoError(t, err)
+		remaining, err := kubeClient.CoreV1().Secrets("demo").List(context.Background(), metav1.ListOptions{})
+		assert.NoError(t, err)
+		assert.Len(t, remaining.Items, 1)
+		assert.Equal(t, "settings-app-2", remaining.Items[0].Name)
+	})
 }

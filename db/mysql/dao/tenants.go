@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 	dberr "github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	cleanupguard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -228,10 +229,9 @@ func (t *TenantServicesDaoImpl) ListServicesByTenantID(tenantID string) ([]*mode
 
 // UpdateDeployVersion update service current deploy version
 func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion string) error {
-	if err := t.DB.Exec("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error; err != nil {
-		return err
-	}
-	return nil
+	return cleanupguard.TrackServiceActivation(t.DB, serviceID, deployversion, func(tx *gorm.DB) error {
+		return tx.Exec("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error
+	})
 }
 
 func (t *TenantServicesDaoImpl) UpdateSafety(serviceID string, safety bool) error {
@@ -255,10 +255,9 @@ func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 // UpdateModel 更新租户应用
 func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
-	if err := t.DB.Save(service).Error; err != nil {
-		return err
-	}
-	return nil
+	return cleanupguard.TrackServiceActivation(t.DB, service.ServiceID, service.DeployVersion, func(tx *gorm.DB) error {
+		return tx.Save(service).Error
+	})
 }
 
 func (t *TenantServicesDaoImpl) UpdateComponentStatusModel(serviceID string, status bool) error {

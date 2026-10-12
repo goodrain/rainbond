@@ -16,16 +16,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Upload chunk sizing and session lifetime limits.
 const (
 	DefaultChunkSize     = 5 * 1024 * 1024  // 5MB
 	MinChunkSize         = 1 * 1024 * 1024  // 1MB
 	MaxChunkSize         = 20 * 1024 * 1024 // 20MB
-	SessionExpiryHours   = 24                // 24小时过期
-	MaxConcurrentUploads = 10                // 最大并发上传数
+	SessionExpiryHours   = 24               // 24小时过期
+	MaxConcurrentUploads = 10               // 最大并发上传数
 )
 
 // ChunkUploadManager 分片上传管理器
 type ChunkUploadManager struct {
+	admitUse        func(*model.UploadSession, string) (func(bool) error, error)
+	cleanupChunks   func(string) error
+	mergeChunks     func(string, string, int) error
 	sessionCache    map[string]*model.UploadSession
 	cacheMutex      sync.RWMutex
 	uploadSemaphore chan struct{}
@@ -65,7 +69,7 @@ func (m *ChunkUploadManager) InitUploadSession(eventID, fileName string, fileSiz
 		return nil, fmt.Errorf("failed to check existing session: %v", err)
 	}
 
-	if existingSession != nil && existingSession.Status == "uploading" {
+	if existingSession != nil && existingSession.Status == "uploading" && existingSession.ExpiresAt.After(time.Now()) {
 		// 返回现有会话（支持断点续传）
 		logrus.Infof("Resume existing upload session: %s", existingSession.ID)
 		m.cacheSession(existingSession)
@@ -102,13 +106,16 @@ func (m *ChunkUploadManager) InitUploadSession(eventID, fileName string, fileSiz
 }
 
 // SaveChunk 保存分片
-func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) error {
+func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader multipart.File) (resultErr error) {
 	// 获取会话
 	session, err := m.getSession(sessionID)
 	if err != nil {
 		return err
 	}
 
+	if !session.ExpiresAt.After(time.Now()) {
+		return fmt.Errorf("upload session expired")
+	}
 	// 验证会话状态
 	if session.Status != "uploading" {
 		return fmt.Errorf("session status is %s, cannot upload", session.Status)
@@ -119,9 +126,21 @@ func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader 
 		return fmt.Errorf("invalid chunk index: %d, total chunks: %d", chunkIndex, session.TotalChunks)
 	}
 
+	finish, err := m.admitSessionUse(session, "chunk")
+	if err != nil {
+		return err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
+
 	// 检查分片是否已存在（幂等性）
 	if storage.Default().StorageCli.ChunkExists(sessionID, chunkIndex) {
 		logrus.Debugf("Chunk %d already exists for session %s, skipping", chunkIndex, sessionID)
+		confirmed = true
 		return nil
 	}
 
@@ -140,17 +159,29 @@ func (m *ChunkUploadManager) SaveChunk(sessionID string, chunkIndex int, reader 
 		return err
 	}
 
+	confirmed = true
 	logrus.Infof("Saved chunk %d/%d for session %s", chunkIndex+1, session.TotalChunks, sessionID)
 	return nil
 }
 
 // CompleteUpload 完成上传，合并所有分片
-func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
+func (m *ChunkUploadManager) CompleteUpload(sessionID string) (resultPath string, resultErr error) {
 	session, err := m.getSession(sessionID)
 	if err != nil {
 		return "", err
 	}
 
+	// A completed upload is an immutable result, not permission to merge again.
+	if session.Status == "completed" {
+		return session.StoragePath, nil
+	}
+	if session.Status != "uploading" {
+		return "", fmt.Errorf("session status is %s, cannot complete", session.Status)
+	}
+
+	if !session.ExpiresAt.After(time.Now()) {
+		return "", fmt.Errorf("upload session expired")
+	}
 	// 验证所有分片是否已上传
 	uploadedChunks := m.parseUploadedChunks(session.UploadedChunks)
 	if len(uploadedChunks) != session.TotalChunks {
@@ -158,25 +189,40 @@ func (m *ChunkUploadManager) CompleteUpload(sessionID string) (string, error) {
 		return "", fmt.Errorf("not all chunks uploaded, missing: %v", missingChunks)
 	}
 
+	finish, err := m.admitSessionUse(session, "complete")
+	if err != nil {
+		return "", err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
+
 	// 合并分片
 	logrus.Infof("Merging %d chunks for session %s", session.TotalChunks, sessionID)
-	err = storage.Default().StorageCli.MergeChunks(sessionID, session.StoragePath, session.TotalChunks)
+	err = m.mergeSessionChunks(sessionID, session.StoragePath, session.TotalChunks)
 	if err != nil {
 		session.Status = "failed"
 		db.GetManager().UploadSessionDao().UpdateModel(session)
 		return "", fmt.Errorf("failed to merge chunks: %v", err)
 	}
 
-	// 清理分片文件
-	if err := storage.Default().StorageCli.CleanupChunks(sessionID); err != nil {
-		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
+	// Publish durable completion before removing the only resumable chunk set.
+	// Do not mutate the cached record if the database cannot acknowledge it.
+	completed := *session
+	completed.Status = "completed"
+	completed.UpdatedAt = time.Now()
+	if err := db.GetManager().UploadSessionDao().UpdateModel(&completed); err != nil {
+		return "", fmt.Errorf("failed to persist upload completion: %w", err)
 	}
-
-	// 更新会话状态
-	session.Status = "completed"
-	session.UpdatedAt = time.Now()
-	if err := db.GetManager().UploadSessionDao().UpdateModel(session); err != nil {
-		logrus.Errorf("Failed to update session status: %v", err)
+	m.cacheSession(&completed)
+	if err := m.cleanupSessionChunks(sessionID); err != nil {
+		// The package is complete; retain its durable record for later chunk cleanup.
+		logrus.Warnf("Failed to cleanup chunks for session %s: %v", sessionID, err)
+	} else {
+		confirmed = true
 	}
 
 	m.removeFromCache(sessionID)
@@ -211,15 +257,26 @@ func (m *ChunkUploadManager) GetUploadStatus(sessionID string) (*UploadStatusRes
 }
 
 // CancelUpload 取消上传
-func (m *ChunkUploadManager) CancelUpload(sessionID string) error {
-	_, err := m.getSession(sessionID)
+func (m *ChunkUploadManager) CancelUpload(sessionID string) (resultErr error) {
+	session, err := m.getSession(sessionID)
 	if err != nil {
 		return err
 	}
 
+	finish, err := m.admitSessionUse(session, "cancel")
+	if err != nil {
+		return err
+	}
+	confirmed := false
+	defer func() {
+		if err := finish(confirmed); resultErr == nil {
+			resultErr = err
+		}
+	}()
+
 	// 清理分片文件
-	if err := storage.Default().StorageCli.CleanupChunks(sessionID); err != nil {
-		logrus.Warnf("Failed to cleanup chunks: %v", err)
+	if err := m.cleanupSessionChunks(sessionID); err != nil {
+		return fmt.Errorf("failed to cleanup upload chunks: %w", err)
 	}
 
 	// 删除会话记录
@@ -227,9 +284,32 @@ func (m *ChunkUploadManager) CancelUpload(sessionID string) error {
 		return fmt.Errorf("failed to delete session: %v", err)
 	}
 
+	confirmed = true
 	m.removeFromCache(sessionID)
 	logrus.Infof("Cancelled upload session: %s", sessionID)
 	return nil
+}
+
+func (m *ChunkUploadManager) mergeSessionChunks(sessionID, path string, count int) error {
+	if m.mergeChunks != nil {
+		return m.mergeChunks(sessionID, path, count)
+	}
+	configured := storage.Default()
+	if configured == nil || configured.StorageCli == nil {
+		return fmt.Errorf("upload storage unavailable")
+	}
+	return configured.StorageCli.MergeChunks(sessionID, path, count)
+}
+
+func (m *ChunkUploadManager) cleanupSessionChunks(sessionID string) error {
+	if m.cleanupChunks != nil {
+		return m.cleanupChunks(sessionID)
+	}
+	configured := storage.Default()
+	if configured == nil || configured.StorageCli == nil {
+		return fmt.Errorf("upload storage unavailable")
+	}
+	return configured.StorageCli.CleanupChunks(sessionID)
 }
 
 // 内部方法
@@ -342,25 +422,27 @@ func (m *ChunkUploadManager) startCleanupWorker() {
 
 // cleanExpiredSessions 清理过期的会话
 func (m *ChunkUploadManager) cleanExpiredSessions() error {
-	if err := db.GetManager().UploadSessionDao().CleanExpiredSessions(); err != nil {
-		return err
-	}
-
-	// 清理缓存中的过期会话
+	// Preserve uncached records after a restart: expiry alone does not prove
+	// their chunks were removed. Keep the existing cached-session cleanup scope.
 	m.cacheMutex.Lock()
 	defer m.cacheMutex.Unlock()
-
 	now := time.Now()
+	var first error
 	for id, session := range m.sessionCache {
-		if session.ExpiresAt.Before(now) {
-			// 清理分片文件
-			storage.Default().StorageCli.CleanupChunks(id)
-			delete(m.sessionCache, id)
+		if !session.ExpiresAt.Before(now) {
+			continue
 		}
+		if err := m.expireSessionChunks(session); err != nil {
+			if first == nil {
+				first = fmt.Errorf("expired upload chunk cleanup failed: %w", err)
+			}
+			continue
+		}
+		// Expiration is not an explicit cancellation. Retain the durable row,
+		// including a row another API instance may have completed meanwhile.
+		delete(m.sessionCache, id)
 	}
-
-	logrus.Debug("Cleaned up expired upload sessions")
-	return nil
+	return first
 }
 
 // UploadStatusResponse 上传状态响应

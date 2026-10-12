@@ -1,4 +1,13 @@
 FROM golang:1.25-alpine AS compile
+ARG ALPINE_MIRROR=default
+# Keep the image's Alpine release and package signature checks intact.
+RUN case "$ALPINE_MIRROR" in \
+      default) ;; \
+      aliyun) sed -i -e 's#http://dl-cdn\.alpinelinux\.org/#https://mirrors.aliyun.com/#g' -e 's#https://dl-cdn\.alpinelinux\.org/#https://mirrors.aliyun.com/#g' /etc/apk/repositories ;; \
+      *) exit 1 ;; \
+    esac && \
+    apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev zeromq-dev libsodium-dev
+
 ARG TARGETARCH
 ARG RELEASE_DESC
 ARG GOPROXY
@@ -10,14 +19,13 @@ ENV GOOS=linux
 
 COPY . /go/src/github.com/goodrain/rainbond
 WORKDIR /go/src/github.com/goodrain/rainbond
-RUN apk --no-cache add binutils-gold gcc g++ git musl-dev sqlite-dev zeromq-dev libsodium-dev && \
-    CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api;
+RUN CGO_CFLAGS="-D_LARGEFILE64_SOURCE -D_GNU_SOURCE" go build -tags "sqlite_omit_load_extension netgo" -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=$RELEASE_DESC" -o /run/rainbond-api ./cmd/api;
 
 FROM ubuntu:24.04 AS compress
+RUN apt-get update && apt -y install upx
 COPY --from=compile /run/rainbond-api /run/rainbond-api
 
-RUN apt-get update && apt -y install upx && \
-    upx --best --lzma /run/rainbond-api
+RUN upx --best --lzma /run/rainbond-api
 RUN mkdir -p /logs && touch /logs/request.log
 
 FROM rainbond/alpine:3

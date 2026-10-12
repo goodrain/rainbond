@@ -2,11 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/util/zip"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -15,11 +10,19 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/zip"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
+// LocalStorage implements storage operations on the shared filesystem.
 type LocalStorage struct {
 }
 
+// MkdirAll creates the requested local directory tree.
 func (l *LocalStorage) MkdirAll(path string) error {
 	if !util.DirIsEmpty(path) {
 		os.RemoveAll(path)
@@ -30,6 +33,7 @@ func (l *LocalStorage) MkdirAll(path string) error {
 	return nil
 }
 
+// ServeFile serves the local file through HTTP.
 func (l *LocalStorage) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	http.ServeFile(w, r, filePath)
 }
@@ -99,6 +103,7 @@ func (l *LocalStorage) Unzip(archive, target string, currentDirectory bool) erro
 	return nil
 }
 
+// SaveFile persists an uploaded file locally.
 func (l *LocalStorage) SaveFile(fileName string, reader multipart.File) error {
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -113,7 +118,7 @@ func (l *LocalStorage) SaveFile(fileName string, reader multipart.File) error {
 	return nil
 }
 
-// CopyFileWithProgress 复制文件，带进度
+// UploadFileToFile copies a local file with progress reporting.
 func (l *LocalStorage) UploadFileToFile(src, dst string, logger event.Logger) error {
 	srcFile, err := os.OpenFile(src, os.O_RDONLY, 0644)
 	if err != nil {
@@ -153,6 +158,7 @@ func (l *LocalStorage) UploadFileToFile(src, dst string, logger event.Logger) er
 	return CopyWithProgress(srcFile, dstFile, allSize, logger)
 }
 
+// ReadDir lists paths in the local directory.
 func (l *LocalStorage) ReadDir(dirName string) ([]string, error) {
 	packages, err := ioutil.ReadDir(dirName)
 	if err != nil {
@@ -222,10 +228,12 @@ func CopyWithProgress(srcFile SrcFile, dstFile DstFile, allSize int64, logger ev
 	return nil
 }
 
+// DownloadDirToDir is a no-op for already-local storage.
 func (l *LocalStorage) DownloadDirToDir(srcDir, dstDir string) error {
 	return nil
 }
 
+// DownloadFileToDir is a no-op for already-local storage.
 func (l *LocalStorage) DownloadFileToDir(srcFile, dstDir string) error {
 	return nil
 }
@@ -316,6 +324,9 @@ func (l *LocalStorage) MergeChunks(sessionID string, outputPath string, totalChu
 
 // CleanupChunks 清理分片文件
 func (l *LocalStorage) CleanupChunks(sessionID string) error {
+	if !chunkSessionIdentity.MatchString(sessionID) {
+		return fmt.Errorf("invalid upload chunk cleanup scope")
+	}
 	chunkDir := l.GetChunkDir(sessionID)
 	if err := os.RemoveAll(chunkDir); err != nil {
 		logrus.Errorf("Failed to cleanup chunks: %v", err)

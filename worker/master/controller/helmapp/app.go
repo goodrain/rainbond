@@ -219,7 +219,7 @@ func (a *App) UpdateStatus() error {
 	return status.Update()
 }
 
-// UpdateSpec updates the helm app spec.
+// UpdateSpec fills only missing startup defaults, preserving current references.
 func (a *App) UpdateSpec() error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		ctx, cancel := context.WithTimeout(a.ctx, defaultTimeout)
@@ -230,11 +230,18 @@ func (a *App) UpdateSpec() error {
 			return errors.Wrap(err, "get helm app before update")
 		}
 
-		a.helmApp.ResourceVersion = helmApp.ResourceVersion
-		if _, err := a.rainbondClient.RainbondV1alpha1().HelmApps(a.helmApp.Namespace).Update(ctx, a.helmApp, metav1.UpdateOptions{}); err != nil {
+		// Setup may race with a user configuration. Only fill the startup
+		// default on the latest object; never replay stale chart/image intent.
+		if helmApp.Spec.PreStatus != "" {
+			a.helmApp = helmApp
+			return nil
+		}
+		helmApp.Spec.PreStatus = v1alpha1.HelmAppPreStatusNotConfigured
+		updated, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Update(ctx, helmApp, metav1.UpdateOptions{})
+		if err != nil {
 			return errors.Wrap(err, "update helm app spec")
 		}
-
+		a.helmApp = updated
 		return nil
 	})
 }

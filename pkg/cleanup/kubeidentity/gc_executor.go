@@ -1,0 +1,120 @@
+package kubeidentity
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"strings"
+
+	coordination "github.com/goodrain/rainbond/pkg/cleanup"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
+)
+
+// ErrExecutorRunning distinguishes a verified live executor from changed identity.
+var ErrExecutorRunning = errors.New("original GC executor has not exited")
+
+// InspectGCExecutor verifies a live executor against an already reconciled,
+// durably bound Job. The caller must obtain Job and storage from Core, not from
+// request JSON. The executor image must be pinned to its platform manifest.
+func InspectGCExecutor(ctx context.Context, client kubernetes.Interface, serviceName string, job *batchv1.Job, podName, podUID string, binding coordination.StorageRegistration) (RegistryMountObservation, error) {
+	return inspectGCExecutor(ctx, client, serviceName, job, podName, podUID, binding, false)
+}
+
+// InspectTerminatedGCExecutor verifies the original container has exited; Job
+// phase, Pod name and a caller-provided success flag are not termination proof.
+func InspectTerminatedGCExecutor(ctx context.Context, client kubernetes.Interface, serviceName string, job *batchv1.Job, podName, podUID string, binding coordination.StorageRegistration) (RegistryMountObservation, error) {
+	return inspectGCExecutor(ctx, client, serviceName, job, podName, podUID, binding, true)
+}
+
+func inspectGCExecutor(ctx context.Context, client kubernetes.Interface, serviceName string, job *batchv1.Job, podName, podUID string, binding coordination.StorageRegistration, terminal bool) (RegistryMountObservation, error) {
+	denied := RegistryMountObservation{}
+	if client == nil || job == nil || job.UID == "" || job.Namespace == "" || job.Spec.Suspend == nil || *job.Spec.Suspend || job.DeletionTimestamp != nil || podName == "" || podUID == "" {
+		return denied, ErrBinding
+	}
+	if _, err := binding.Fingerprint(); err != nil {
+		return denied, ErrBinding
+	}
+	pod, err := client.CoreV1().Pods(job.Namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil || string(pod.UID) != podUID || pod.DeletionTimestamp != nil || len(pod.OwnerReferences) != 1 {
+		return denied, ErrBinding
+	}
+	owner := pod.OwnerReferences[0]
+	if owner.APIVersion != "batch/v1" || owner.Kind != "Job" || owner.Name != job.Name || owner.UID != job.UID || owner.Controller == nil || !*owner.Controller {
+		return denied, ErrBinding
+	}
+	spec := &pod.Spec
+	expected := &job.Spec.Template.Spec
+	if spec.NodeName == "" || expected.NodeName != "" && spec.NodeName != expected.NodeName || spec.HostNetwork || spec.HostIPC || spec.HostPID || spec.RestartPolicy != corev1.RestartPolicyNever || spec.AutomountServiceAccountToken == nil || *spec.AutomountServiceAccountToken || len(spec.Containers) != 1 || len(spec.EphemeralContainers) > 0 {
+		return denied, ErrBinding
+	}
+	// Do not accept admission-injected commands, environment, mounts or sidecars.
+	if !reflect.DeepEqual(spec.Containers, expected.Containers) || !reflect.DeepEqual(spec.InitContainers, expected.InitContainers) || !reflect.DeepEqual(spec.Volumes, expected.Volumes) || !reflect.DeepEqual(spec.SecurityContext, expected.SecurityContext) || !reflect.DeepEqual(spec.ImagePullSecrets, expected.ImagePullSecrets) {
+		return denied, ErrBinding
+	}
+	account := expected.ServiceAccountName
+	if account == "" {
+		account = "default"
+	}
+	actualAccount := spec.ServiceAccountName
+	if actualAccount == "" {
+		actualAccount = "default"
+	}
+	if actualAccount != account {
+		return denied, ErrBinding
+	}
+	container := &spec.Containers[0]
+	if container.Name != "gc" || len(container.Command) != 1 || container.Command[0] != "/registry-gc" || !strings.Contains(container.Image, "@sha256:") {
+		return denied, ErrBinding
+	}
+	if len(pod.Status.ContainerStatuses) != 1 {
+		return denied, ErrBinding
+	}
+	status := pod.Status.ContainerStatuses[0]
+	if status.Name != container.Name || status.RestartCount != 0 || status.ContainerID == "" || status.LastTerminationState.Terminated != nil {
+		return denied, ErrBinding
+	}
+	running := pod.Status.Phase == corev1.PodRunning && status.State.Running != nil && status.State.Terminated == nil
+	if terminal && !running {
+		if (pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed) || status.State.Terminated == nil || status.State.Running != nil || status.State.Terminated.FinishedAt.IsZero() {
+			return denied, ErrBinding
+		}
+	} else if !terminal && !running {
+		return denied, ErrBinding
+	}
+	imageID := strings.TrimPrefix(strings.TrimPrefix(status.ImageID, "docker-pullable://"), "containerd://")
+	// Runtime may report only the digest rather than the repository-qualified ID.
+	digest := container.Image[strings.LastIndex(container.Image, "@")+1:]
+	if imageID != container.Image && imageID != digest {
+		return denied, ErrBinding
+	}
+	service, err := client.CoreV1().Services(job.Namespace).Get(ctx, serviceName, metav1.GetOptions{})
+	if err != nil || service.Spec.Type == corev1.ServiceTypeExternalName || len(service.Spec.Selector) == 0 || labels.SelectorFromSet(service.Spec.Selector).Matches(labels.Set(pod.Labels)) {
+		return denied, ErrBinding
+	}
+	mount, relative, err := effectiveMount(container, binding.RootPath)
+	if err != nil || mount.ReadOnly || mount.MountPropagation != nil && *mount.MountPropagation != corev1.MountPropagationNone {
+		return denied, ErrBinding
+	}
+	observed, err := inspectVolume(ctx, client, pod, mount.Name, relative)
+	if err != nil || observed.VolumeUID != binding.VolumeUID {
+		return denied, ErrBinding
+	}
+	// Reject an object changing across this multi-object observation. Native GC
+	// additionally pins and verifies the actual directory descriptor at execution.
+	current, err := client.CoreV1().Pods(job.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+	if err != nil || current.UID != pod.UID || current.ResourceVersion != pod.ResourceVersion {
+		return denied, ErrBinding
+	}
+	currentJob, err := client.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
+	if err != nil || currentJob.UID != job.UID || currentJob.ResourceVersion != job.ResourceVersion {
+		return denied, ErrBinding
+	}
+	if terminal && running {
+		return denied, ErrExecutorRunning
+	}
+	return observed, nil
+}

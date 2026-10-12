@@ -21,12 +21,13 @@ package main
 
 import (
 	"context"
+	"os"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
-	"os"
 
 	"github.com/goodrain/rainbond/cmd"
 )
@@ -45,6 +46,7 @@ func main() {
 		Registry(component.Event()).
 		Registry(component.EventLog()).
 		Registry(component.K8sClient()).
+		Registry(component.ReferenceWriter("api")).
 		Registry(component.CRDEnsure()).
 		Registry(component.StorageClient()).
 		Registry(component.Cleanup()).

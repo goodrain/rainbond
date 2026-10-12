@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -128,6 +129,8 @@ func NewManager() (Manager, error) {
 }
 
 type exectorManager struct {
+	startupOnce       sync.Once
+	startupErr        error
 	BuildKitImage     string
 	BuildKitArgs      []string
 	BuildKitCache     bool
@@ -293,7 +296,7 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	}
 }
 
-func (e *exectorManager) exec(task *pb.TaskMessage) error {
+func (e *exectorManager) exec(task *pb.TaskMessage) (resultErr error) {
 	creator, ok := workerCreaterList[task.TaskType]
 	if !ok {
 		return fmt.Errorf("`%s` tasktype can't support", task.TaskType)
@@ -309,14 +312,32 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 			fmt.Println(r)
 			debug.PrintStack()
 			worker.GetLogger().Error(util.Translation("Please try again or contact customer service"), map[string]string{"step": "callback", "status": "failure"})
-			worker.ErrorCallBack(fmt.Errorf("%s", r))
+			resultErr = fmt.Errorf("native worker panicked")
+			worker.ErrorCallBack(resultErr)
 		}
 	}()
+	completed := false
+	if task.TaskType == "share-plugin" || task.TaskType == "import_app" || task.TaskType == "backup_apps_restore" {
+		admission, err := admitBuild(db.GetManager().DB(), task.TaskType, task.TaskId, task.TaskBody)
+		if err != nil {
+			return err
+		}
+		if bound, ok := worker.(interface{ setCleanupAdmission(*nativeBuildAdmission) }); ok {
+			bound.setCleanupAdmission(admission)
+		}
+		defer func() {
+			if err := admission.finish(completed); err != nil {
+				resultErr = err
+			}
+		}()
+	}
 	if err := worker.Run(time.Minute * 10); err != nil {
-		logrus.Errorf("task type: %s; body: %s; run task: %+v", task.TaskType, task.TaskBody, err)
+		logrus.Errorf("native task execution failed: %s", task.TaskType)
 		MetricErrorTaskNum++
 		worker.ErrorCallBack(err)
+		return err
 	}
+	completed = true
 	return nil
 }
 
@@ -337,6 +358,18 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	defer func() {
 		logrus.Debugf("complete build from source code, consuming time %s", time.Since(start).String())
 	}()
+	admission, admissionErr := admitBuild(db.GetManager().DB(), "image", task.TaskId, task.TaskBody)
+	if admissionErr != nil {
+		i.Logger.Error("Image build blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	i.cleanupAdmission = admission
+	confirmed := false
+	defer func() {
+		if err := admission.finish(confirmed); err != nil {
+			logrus.Error("Image build coordination outcome was not persisted")
+		}
+	}()
 	for n := 0; n < 2; n++ {
 		err := i.Run(time.Minute * 30)
 		if err != nil {
@@ -355,7 +388,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			for k, v := range i.Configs {
 				configs[k] = v.String()
 			}
-			if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+			if err := i.cleanupAdmission.activateVersion(i.ServiceID, i.DeployVersion); err != nil {
 				logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
 				break
 			}
@@ -363,6 +396,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			if err != nil {
 				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 			}
+			confirmed = err == nil
 			break
 		}
 	}
@@ -489,6 +523,18 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	defer func() {
 		logrus.Debugf("Complete build from source code, consuming time %s", time.Now().Sub(start).String())
 	}()
+	admission, admissionErr := admitBuild(db.GetManager().DB(), "source", task.TaskId, task.TaskBody)
+	if admissionErr != nil {
+		i.Logger.Error("Source build blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	i.cleanupAdmission = admission
+	confirmed := false
+	defer func() {
+		if err := admission.finish(confirmed); err != nil {
+			logrus.Error("Source build coordination outcome was not persisted")
+		}
+	}()
 	err := i.Run(time.Minute * 30)
 	if err != nil {
 		logrus.Errorf("build from source code error: %s", err.Error())
@@ -511,7 +557,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		for k, v := range i.Configs {
 			configs[k] = v.String()
 		}
-		if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+		if err := i.cleanupAdmission.activateVersion(i.ServiceID, i.DeployVersion); err != nil {
 			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
 			return
 		}
@@ -519,6 +565,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		if err != nil {
 			i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 		}
+		confirmed = err == nil
 	}
 }
 
@@ -542,7 +589,20 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	defer func() {
 		logrus.Debugf("complete build from source code, consuming time %s", time.Since(start).String())
 	}()
+	confirmed := false
 	if v.VMImageSource != "" {
+		admission, admissionErr := admitBuild(db.GetManager().DB(), "vm", task.TaskId, task.TaskBody)
+		if admissionErr != nil {
+			v.Logger.Error("VM build blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+			return
+		}
+		v.cleanupAdmission = admission
+		defer func() {
+			if err := admission.finish(confirmed); err != nil {
+				logrus.Error("VM build coordination outcome was not persisted")
+			}
+		}()
+
 		err := v.RunVMBuild()
 		if err != nil {
 			logrus.Errorf("build from vm error: %v", err)
@@ -557,13 +617,16 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	for k, u := range v.Configs {
 		configs[k] = u.String()
 	}
-	if err := e.UpdateDeployVersion(v.ServiceID, v.DeployVersion); err != nil {
+	if err := v.cleanupAdmission.activateVersion(v.ServiceID, v.DeployVersion); err != nil {
 		logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), v.ServiceID)
+		v.Logger.Error("VM version activation rejected; deployment was not dispatched", map[string]string{"step": "callback", "status": "failure"})
+		return
 	}
 	err := e.sendAction(v.TenantID, v.ServiceID, v.EventID, v.DeployVersion, v.Action, configs, v.Logger)
 	if err != nil {
 		v.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 	}
+	confirmed = err == nil
 }
 
 // buildFromMarketSlug build app from market slug
@@ -576,7 +639,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 		logrus.Error("create build from market slug task error.", err.Error())
 		return
 	}
-	go func() {
+	func() {
 		start := time.Now()
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
@@ -647,8 +710,8 @@ func (e *exectorManager) buildFromKubeBlocks(task *pb.TaskMessage) {
 	}
 
 	var configs = make(map[string]string)
-	if configsJson := gjson.GetBytes(task.TaskBody, "configs"); configsJson.Exists() {
-		configsJson.ForEach(func(key, value gjson.Result) bool {
+	if configsJSON := gjson.GetBytes(task.TaskBody, "configs"); configsJSON.Exists() {
+		configsJSON.ForEach(func(key, value gjson.Result) bool {
 			configs[key.String()] = value.String()
 			return true
 		})
@@ -728,35 +791,33 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 	}
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
-	go func() {
-		defer event.GetManager().ReleaseLogger(i.Logger)
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println(r)
-				debug.PrintStack()
-				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
-			}
-		}()
-		for n := 0; n < 2; n++ {
-			err := i.ShareService()
-			if err != nil {
-				logrus.Errorf("image share error: %s", err.Error())
-				if n < 1 {
-					i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					MetricErrorTaskNum++
-					i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
-					status = "failure"
-				}
-			} else {
-				status = "success"
-				break
-			}
-		}
-		if err := i.UpdateShareStatus(status); err != nil {
-			logrus.Debugf("Add image share result error: %s", err.Error())
+	defer event.GetManager().ReleaseLogger(i.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			debug.PrintStack()
+			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
+	for n := 0; n < 2; n++ {
+		err := i.ShareService()
+		if err != nil {
+			logrus.Errorf("image share error: %s", err.Error())
+			if n < 1 {
+				i.Logger.Error(fmt.Sprintf("应用分享失败，开始重试: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+			} else {
+				MetricErrorTaskNum++
+				i.Logger.Error(fmt.Sprintf("分享应用任务执行失败: %s", err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+				status = "failure"
+			}
+		} else {
+			status = "success"
+			break
+		}
+	}
+	if err := i.UpdateShareStatus(status); err != nil {
+		logrus.Debugf("Add image share result error: %s", err.Error())
+	}
 }
 
 // imageShare share app of docker image
@@ -776,6 +837,17 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
+	admission, admissionErr := admitBuild(db.GetManager().DB(), "image-share", task.TaskId, task.TaskBody)
+	if admissionErr != nil {
+		i.Logger.Error("Image publication blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	confirmed := false
+	defer func() {
+		if err := admission.finish(confirmed); err != nil {
+			logrus.Error("Image publication coordination outcome was not persisted")
+		}
+	}()
 	status, err = executeImageShareOnce(i.ShareService)
 	if err != nil {
 		logrus.Errorf("image share error: %s", err.Error())
@@ -784,7 +856,9 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	}
 	if err := i.UpdateShareStatus(status); err != nil {
 		logrus.Debugf("Add image share result error: %s", err.Error())
+		return
 	}
+	confirmed = status == "success"
 }
 
 func executeImageShareOnce(share func() error) (string, error) {
@@ -809,7 +883,22 @@ func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) Start() error {
-	return nil
+	e.startupOnce.Do(func() {
+		manager := db.GetManager()
+		if manager == nil {
+			e.startupErr = fmt.Errorf("builder database is unavailable")
+			return
+		}
+		podName, err := os.Hostname()
+		if err != nil {
+			e.startupErr = err
+			return
+		}
+		ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+		defer cancel()
+		e.startupErr = registerCacheBuilderStartup(ctx, manager.DB(), e.KubeClient, configs.Default().PublicConfig.RbdNamespace, podName)
+	})
+	return e.startupErr
 }
 func (e *exectorManager) Stop() error {
 	e.cancel()

@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -81,5 +82,21 @@ func TestToResourceEventInfo(t *testing.T) {
 	assert.Equal(t, "FailedScheduling", info.Reason)
 	assert.Equal(t, "0/3 nodes are available", info.Message)
 	assert.Equal(t, int32(2), info.Count)
-	assert.Equal(t, lastTime.String(), info.LastTimestamp)
+	assert.Equal(t, "2026-03-18T10:00:00Z", info.LastTimestamp)
+}
+
+// capability_id: rainbond.resource-center.rfc3339-timestamps
+func TestFormatResourceTimestamp(t *testing.T) {
+	timestamp := metav1.NewTime(time.Date(2026, 10, 9, 10, 45, 55, 0, time.UTC))
+
+	assert.Equal(t, "2026-10-09T10:45:55Z", formatResourceTimestamp(timestamp.Time))
+	assert.Empty(t, formatResourceTimestamp(time.Time{}))
+
+	resource := unstructured.Unstructured{}
+	resource.SetName("demo")
+	resource.SetKind("ConfigMap")
+	resource.SetAPIVersion("v1")
+	resource.SetCreationTimestamp(timestamp)
+
+	assert.Equal(t, "2026-10-09T10:45:55Z", toNsResourceInfo(resource).CreatedAt)
 }

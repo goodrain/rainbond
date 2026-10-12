@@ -20,9 +20,10 @@ package exector
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond-operator/util/constants"
 	"os"
 	"strings"
+
+	"github.com/goodrain/rainbond-operator/util/constants"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -56,12 +57,24 @@ func (e *exectorManager) pluginDockerfileBuild(task *pb.TaskMessage) {
 	logger.Info("从dockerfile构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
 	logrus.Info("start exec build plugin from image worker")
 	defer event.GetManager().ReleaseLogger(logger)
+	admission, admissionErr := admitBuild(db.GetManager().DB(), "plugin-dockerfile", task.TaskId, task.TaskBody)
+	if admissionErr != nil {
+		logger.Error("Plugin build blocked by cleanup coordination", map[string]string{"step": "callback", "status": "failure"})
+		return
+	}
+	confirmed := false
+	defer func() {
+		if err := admission.finish(confirmed); err != nil {
+			logrus.Error("Plugin build coordination outcome was not persisted")
+		}
+	}()
 	for retry := 0; retry < 2; retry++ {
-		err := e.runD(&tb, logger)
+		err := e.runD(&tb, logger, admission)
 		if err != nil {
 			logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
 			logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 		} else {
+			confirmed = true
 			return
 		}
 	}
@@ -71,14 +84,18 @@ func (e *exectorManager) pluginDockerfileBuild(task *pb.TaskMessage) {
 		return
 	}
 	version.Status = "failure"
-	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+	if err := admission.savePluginVersion(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
 	}
 	MetricErrorTaskNum++
 	logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 }
 
-func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger) error {
+func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger, admissions ...*nativeBuildAdmission) error {
+	var admission *nativeBuildAdmission
+	if len(admissions) > 0 {
+		admission = admissions[0]
+	}
 	logger.Info("开始拉取代码", map[string]string{"step": "build-exector"})
 	sourceDir := fmt.Sprintf(formatSourceDir, t.TenantID, t.VersionID)
 	if t.Repo == "" {
@@ -121,7 +138,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	}
 	version.BuildLocalImage = buildImageName
 	version.Status = "complete"
-	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+	if err := admission.savePluginVersion(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
 		return err
 	}

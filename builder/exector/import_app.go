@@ -22,9 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/goodrain/rainbond/pkg/component/storage"
 
-	"github.com/goodrain/rainbond/builder/sources"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,6 +32,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/builder/sources"
 
 	"github.com/goodrain/rainbond-oam/pkg/localimport"
 	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
@@ -172,16 +174,17 @@ func (i *ImportApp) importApp() error {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
 	}
-	if err := i.updateStatus("success"); err != nil {
-		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
+	return completeImportedMetadata(func() error {
+		return storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
+	}, func() error { return i.updateStatus("success") })
+}
+
+// Publish success only after the artifact used by the next import stage exists.
+func completeImportedMetadata(upload, publish func() error) error {
+	if err := upload(); err != nil {
 		return err
 	}
-	err = storage.Default().StorageCli.UploadFileToFile(metadatasFile, metadatasFile, nil)
-	if err != nil {
-		logrus.Errorf("Failed to upload apps %s metadatas.json: %v", i.SourceDir, err)
-		return err
-	}
-	return nil
+	return publish()
 }
 
 func runImportAppTasks(apps []string, task func(string) (*v1alpha1.RainbondApplicationConfig, error)) ([]v1alpha1.RainbondApplicationConfig, error) {

@@ -1,0 +1,59 @@
+name: cleanup-gc-integration
+
+on:
+  push:
+    branches: [feat/cleanup-version-retirement]
+    paths:
+      - 'pkg/cleanup/**'
+      - 'api/controller/cleanup_registryproxy_test.go'
+      - 'api/controller/cleanup_coordination.go'
+      - 'api/api_routers/version2/v2Routers.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/cleanup-gc-integration.yml'
+  pull_request:
+    paths:
+      - 'pkg/cleanup/**'
+      - 'api/controller/cleanup_registryproxy_test.go'
+      - 'api/controller/cleanup_coordination.go'
+      - 'api/api_routers/version2/v2Routers.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/cleanup-gc-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-registry-gc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install native test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libzmq3-dev
+      - name: Build pinned Distribution test binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          module_info="$RUNNER_TEMP/cleanup-registry-module.json"
+          (cd "$RUNNER_TEMP" && GOWORK=off go mod download -json github.com/distribution/distribution/v3@v3.0.0 > "$module_info")
+          registry_dir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["Dir"])' "$module_info")
+          (cd "$registry_dir" && GOWORK=off go build -mod=readonly -o "$RUNNER_TEMP/cleanup-registry" ./cmd/registry)
+          test -x "$RUNNER_TEMP/cleanup-registry"
+      - name: Verify actual deletion, GC, retained content and write restoration
+        env:
+          CLEANUP_TEST_REGISTRY_BINARY: ${{ runner.temp }}/cleanup-registry
+          CGO_ENABLED: '1'
+        run: |
+          set -euo pipefail
+          test -x "$CLEANUP_TEST_REGISTRY_BINARY"
+          go test -p 1 ./pkg/cleanup/registryproxy -run '^(TestGCExecutor|TestGCReceipt|TestUnknownGCReceipt|TestGCRecorder)' -count=1 -v
+          go test -p 1 ./api/controller -run '^TestCoordinatedRegistryExecutorRealDeletionAndGC$' -count=1 -v

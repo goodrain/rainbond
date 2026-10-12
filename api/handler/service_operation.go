@@ -29,6 +29,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
+	cleanupguard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -231,39 +232,41 @@ func (o *OperationHandler) upgrade(batchOpReq model.ComponentOpReq) error {
 	if err != nil {
 		return err
 	}
-
+	explicitVersion := batchOpReq.GetVersion() != ""
 	batchOpReq.SetVersion(component.DeployVersion)
-
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(batchOpReq.GetVersion(), batchOpReq.GetComponentID())
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && (!errors.Is(err, gorm.ErrRecordNotFound) || explicitVersion) {
 		return err
 	}
-	oldDeployVersion := component.DeployVersion
-	var rollback = func() {
-		component.DeployVersion = oldDeployVersion
-		_ = db.GetManager().TenantServiceDao().UpdateModel(component)
+	if explicitVersion && version == nil {
+		return gorm.ErrRecordNotFound
 	}
-
+	previous := component.DeployVersion
+	selected := false
+	eventID := batchOpReq.GetEventID()
 	if version != nil {
 		if version.FinalStatus != "success" {
+			if explicitVersion && batchOpReq.GetVersion() != component.DeployVersion {
+				return cleanupguard.ErrVersionProtected
+			}
 			logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", batchOpReq.GetVersion())
 		} else {
-			component.DeployVersion = batchOpReq.GetVersion()
-			err = db.GetManager().TenantServiceDao().UpdateModel(component)
+			// Selection and retirement serialize against the same service/version rows.
+			previous, err = cleanupguard.SelectRollbackVersion(db.GetManager().Begin, component.TenantID, component.ServiceID, batchOpReq.GetVersion(), eventID, component.DeployVersion)
 			if err != nil {
 				return err
 			}
+			selected = true
+			component.DeployVersion = batchOpReq.GetVersion()
 		}
 	}
-
-	body := batchOpReq.TaskBody(component)
-	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
-		TaskBody: body,
-		TaskType: "rolling_upgrade",
-		Topic:    gclient.WorkerTopic,
-	})
+	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{TaskBody: batchOpReq.TaskBody(component), TaskType: "rolling_upgrade", Topic: gclient.WorkerTopic})
 	if err != nil {
-		rollback()
+		if selected {
+			if _, restoreErr := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, component.TenantID, component.ServiceID, previous, eventID+"-undo", batchOpReq.GetVersion()); restoreErr != nil {
+				logrus.Warnf("failed to restore previous upgrade target for component %s", component.ServiceID)
+			}
+		}
 		return err
 	}
 	return nil
@@ -291,19 +294,24 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	}
 	oldDeployVersion := service.DeployVersion
 	var rollbackFunc = func() {
-		service.DeployVersion = oldDeployVersion
-		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
+		// Do not overwrite a newer operation if enqueueing this rollback failed.
+		if _, restoreErr := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID,
+			service.ServiceID, oldDeployVersion, rollback.EventID+"-undo", rollback.RollBackVersion); restoreErr != nil {
+			logrus.Warnf("failed to restore previous rollback target for component %s", service.ServiceID)
+		}
 	}
 
 	if service.DeployVersion == rollback.RollBackVersion {
 		logrus.Warningf("rollback version is same of current version")
 	}
-	service.DeployVersion = rollback.RollBackVersion
-	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
-		logrus.Errorf("update service %s version failure %s", rollback.ServiceID, err.Error())
-		re.ErrMsg = fmt.Sprintf("update service %s version failure", rollback.ServiceID)
+	previousVersion, err := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID, service.ServiceID, rollback.RollBackVersion, rollback.EventID, oldDeployVersion)
+	if err != nil {
+		re.ErrMsg = "rollback version is no longer available"
 		return
 	}
+	oldDeployVersion = previousVersion
+	service.DeployVersion = rollback.RollBackVersion
+
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		TaskBody: dmodel.RollingUpgradeTaskBody{
 			TenantID:         service.TenantID,

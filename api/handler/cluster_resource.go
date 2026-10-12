@@ -5,12 +5,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/goodrain/rainbond/db"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -28,6 +30,9 @@ type ResourceTypeInfo struct {
 // ClusterResourceHandler handles cluster-scoped K8s resource operations
 type ClusterResourceHandler struct{}
 
+var clusterResourceDynamicClient = func() dynamic.Interface { return k8s.Default().DynamicClient }
+
+// ListResourceTypes lists discoverable cluster resource types.
 func (h *ClusterResourceHandler) ListResourceTypes() ([]ResourceTypeInfo, error) {
 	dc := k8s.Default().Clientset.Discovery()
 	_, resList, err := dc.ServerGroupsAndResources()
@@ -55,6 +60,7 @@ func (h *ClusterResourceHandler) ListResourceTypes() ([]ResourceTypeInfo, error)
 	return types, nil
 }
 
+// ListResources lists objects for a validated cluster resource type.
 func (h *ClusterResourceHandler) ListResources(group, version, resource string) ([]unstructured.Unstructured, error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
@@ -67,6 +73,7 @@ func (h *ClusterResourceHandler) ListResources(group, version, resource string) 
 	return list.Items, nil
 }
 
+// GetResource reads one cluster-scoped object.
 func (h *ClusterResourceHandler) GetResource(group, version, resource, name string) (*unstructured.Unstructured, error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
@@ -75,7 +82,8 @@ func (h *ClusterResourceHandler) GetResource(group, version, resource, name stri
 	return k8s.Default().DynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
 }
 
-func (h *ClusterResourceHandler) CreateResource(group, version, resource string, yamlBody []byte) (*unstructured.Unstructured, error) {
+// CreateResource coordinates a cluster-scoped creation with cleanup.
+func (h *ClusterResourceHandler) CreateResource(group, version, resource string, yamlBody []byte) (out *unstructured.Unstructured, resultErr error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
 	}
@@ -84,17 +92,37 @@ func (h *ClusterResourceHandler) CreateResource(group, version, resource string,
 	if err := decoder.Decode(obj); err != nil {
 		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
 	}
+	dynamicClient := clusterResourceDynamicClient()
+	if dynamicClient == nil {
+		return nil, fmt.Errorf("kubernetes dynamic client is not initialized")
+	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
-	result, err := k8s.Default().DynamicClient.Resource(gvr).Create(context.Background(), obj, metav1.CreateOptions{})
+	admission, err := admitWorkload(db.GetManager().DB(), yamlBody)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := admission.finish(true); err != nil && resultErr == nil {
+			resultErr = err
+		}
+	}()
+	admission.observe(true, nil)
+	result, err := dynamicClient.Resource(gvr).Create(context.Background(), obj, metav1.CreateOptions{})
+	admission.observe(false, err)
 	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
 		return nil, httputil.NewErrBadRequest(err)
 	}
 	return result, err
 }
 
-func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name string, yamlBody []byte) (*unstructured.Unstructured, error) {
+// UpdateResource coordinates a cluster-scoped update with cleanup.
+func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name string, yamlBody []byte) (out *unstructured.Unstructured, resultErr error) {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return nil, err
+	}
+	dynamicClient := clusterResourceDynamicClient()
+	if dynamicClient == nil {
+		return nil, fmt.Errorf("kubernetes dynamic client is not initialized")
 	}
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
 	obj := &unstructured.Unstructured{}
@@ -103,19 +131,31 @@ func (h *ClusterResourceHandler) UpdateResource(group, version, resource, name s
 		return nil, httputil.NewErrBadRequest(fmt.Errorf("invalid YAML: %v", err))
 	}
 	if obj.GetResourceVersion() == "" {
-		current, err := k8s.Default().DynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
+		current, err := dynamicClient.Resource(gvr).Get(context.Background(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 		obj.SetResourceVersion(current.GetResourceVersion())
 	}
-	result, err := k8s.Default().DynamicClient.Resource(gvr).Update(context.Background(), obj, metav1.UpdateOptions{})
+	admission, err := admitWorkload(db.GetManager().DB(), yamlBody)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := admission.finish(true); err != nil && resultErr == nil {
+			resultErr = err
+		}
+	}()
+	admission.observe(true, nil)
+	result, err := dynamicClient.Resource(gvr).Update(context.Background(), obj, metav1.UpdateOptions{})
+	admission.observe(false, err)
 	if err != nil && (errors.IsInvalid(err) || errors.IsBadRequest(err)) {
 		return nil, httputil.NewErrBadRequest(err)
 	}
 	return result, err
 }
 
+// DeleteResource removes one cluster-scoped object.
 func (h *ClusterResourceHandler) DeleteResource(group, version, resource, name string) error {
 	if err := validateGVRParams(group, version, resource); err != nil {
 		return err

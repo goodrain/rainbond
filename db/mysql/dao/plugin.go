@@ -245,7 +245,7 @@ type PluginBuildVersionDaoImpl struct {
 }
 
 //AddModel 添加插件构建版本信息
-func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
+func (t *PluginBuildVersionDaoImpl) addBuildVersionRecord(mo model.Interface) error {
 	version := mo.(*model.TenantPluginBuildVersion)
 	var oldVersion model.TenantPluginBuildVersion
 	if ok := t.DB.Where("plugin_id =? and version_id = ? and deploy_version=?", version.PluginID, version.VersionID, version.DeployVersion).Find(&oldVersion).RecordNotFound(); ok {
@@ -255,19 +255,6 @@ func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
 	} else {
 		logrus.Infof("plugin id: %s; version_id: %s; deploy_version: %s; tenant plugin build versoin already exist", version.PluginID, version.VersionID, version.DeployVersion)
 		return errors.ErrRecordAlreadyExist
-	}
-	return nil
-}
-
-//UpdateModel 更新插件默认变量
-//主体信息一般不变更，仅构建的本地镜像名与status需要变更
-func (t *PluginBuildVersionDaoImpl) UpdateModel(mo model.Interface) error {
-	version := mo.(*model.TenantPluginBuildVersion)
-	if version.ID == 0 {
-		return fmt.Errorf("id can not be empty when update build verion")
-	}
-	if err := t.DB.Save(version).Error; err != nil {
-		return err
 	}
 	return nil
 }

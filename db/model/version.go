@@ -28,6 +28,7 @@ import (
 
 // VersionInfo version info struct
 type VersionInfo struct {
+	ActivationRevision string `gorm:"column:activation_revision;size:64" json:"activation_revision"`
 	Model
 	BuildVersion string `gorm:"column:build_version;size:40" json:"build_version"` //唯一
 	EventID      string `gorm:"column:event_id;size:40;uniqueIndex:event_id" json:"event_id"`

@@ -37,23 +37,24 @@ import (
 
 // ImageBuildItem ImageBuildItem
 type ImageBuildItem struct {
-	Namespace     string       `json:"namespace"`
-	TenantName    string       `json:"tenant_name"`
-	ServiceAlias  string       `json:"service_alias"`
-	Image         string       `json:"image"`
-	DestImage     string       `json:"dest_image"`
-	VMImageSource string       `json:"vm_image_source"`
-	Logger        event.Logger `json:"logger"`
-	EventID       string       `json:"event_id"`
-	ImageClient   sources.ImageClient
-	TenantID      string
-	ServiceID     string
-	DeployVersion string
-	HubUser       string
-	HubPassword   string
-	Action        string
-	Configs       map[string]gjson.Result `json:"configs"`
-	FailCause     string
+	cleanupAdmission *nativeBuildAdmission
+	Namespace        string       `json:"namespace"`
+	TenantName       string       `json:"tenant_name"`
+	ServiceAlias     string       `json:"service_alias"`
+	Image            string       `json:"image"`
+	DestImage        string       `json:"dest_image"`
+	VMImageSource    string       `json:"vm_image_source"`
+	Logger           event.Logger `json:"logger"`
+	EventID          string       `json:"event_id"`
+	ImageClient      sources.ImageClient
+	TenantID         string
+	ServiceID        string
+	DeployVersion    string
+	HubUser          string
+	HubPassword      string
+	Action           string
+	Configs          map[string]gjson.Result `json:"configs"`
+	FailCause        string
 }
 
 // NewImageBuildItem 创建实体
@@ -153,7 +154,7 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	version.RepoURL = i.Image
 	version.FinalStatus = "success"
 	version.FinishTime = time.Now()
-	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+	if err := i.cleanupAdmission.saveVersion(version); err != nil {
 		return err
 	}
 	return nil
@@ -168,7 +169,7 @@ func (i *ImageBuildItem) UpdateVersionInfo(status string) error {
 	version.FinalStatus = status
 	version.RepoURL = i.Image
 	version.FinishTime = time.Now()
-	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+	if err := i.cleanupAdmission.saveVersion(version); err != nil {
 		return err
 	}
 	return nil
