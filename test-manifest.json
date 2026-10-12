@@ -2886,6 +2886,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.sqlite-activation",
+      "title": "Support activation tracking on SQLite",
+      "title_zh": "Support activation tracking on SQLite",
+      "interface_type": "workflow",
+      "interface": "cleanup.TrackServiceActivation",
+      "code_paths": [
+        "pkg/cleanup/activation.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/activation_sqlite_test.go",
+          "selector": "TestTrackServiceActivationSupportsSQLite"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.storage-enrollment",
       "title": "Collect writes during enrollment without granting cleanup",
       "title_zh": "Collect writes during enrollment without granting cleanup",
