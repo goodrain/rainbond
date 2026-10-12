@@ -64,7 +64,7 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs36
+          tags: registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-devs37
 
   worker:
     if: ${{ false }}
