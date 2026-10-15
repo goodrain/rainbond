@@ -74,7 +74,7 @@ func TestRegistryCertificationReconcilesOnlyRetiredProducerEpoch(t *testing.T) {
 
 func TestRetiredProducerEpochRecognizesOnlyPlatformOwners(t *testing.T) {
 	for _, owner := range []string{
-		"registry-coordinator:current", "native-source-builder", "native-plugin-dockerfile-builder",
+		"registry-coordinator:current", "console-reference:current", "native-source-builder", "native-plugin-dockerfile-builder",
 		"api-workload", "helm-upgrade", "api-package-complete",
 	} {
 		if !reconcilableProducerOwner(owner) {

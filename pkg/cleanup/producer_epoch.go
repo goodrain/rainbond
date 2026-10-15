@@ -26,6 +26,9 @@ func reconcilableProducerOwner(owner string) bool {
 	if strings.HasPrefix(owner, "registry-coordinator:") {
 		return coordinationIdentity.MatchString(strings.TrimPrefix(owner, "registry-coordinator:"))
 	}
+	if strings.HasPrefix(owner, "console-reference:") {
+		return coordinationIdentity.MatchString(strings.TrimPrefix(owner, "console-reference:"))
+	}
 	if strings.HasPrefix(owner, "native-") && strings.HasSuffix(owner, "-builder") {
 		kind := strings.TrimSuffix(strings.TrimPrefix(owner, "native-"), "-builder")
 		return retiredNativeProducerKinds[kind]
