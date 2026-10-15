@@ -44,6 +44,16 @@ jobs:
   rainbond-unit-test:
     runs-on: ubuntu-latest
     steps:
+      # An amd64-only build pushes the plain <version> tag, which would replace
+      # the published amd64+arm64 manifest and break arm64 installs.
+      - name: Refuse single-arch builds of release versions
+        if: ${{ endsWith(github.event.inputs.version, '-release') && github.event.inputs.platforms != 'linux/amd64,linux/arm64' }}
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          echo "::error::${RELEASE_VERSION} is a release version; build it with platforms=linux/amd64,linux/arm64 or use a non -release tag"
+          exit 1
+
       - name: Checkout repository
         if: ${{ github.event.inputs.build-who == 'all' || github.event.inputs.build-who == 'region' }}
         uses: actions/checkout@v4
