@@ -1,0 +1,308 @@
+name: release-publish
+
+# 发版后的发布步骤：rainbond 发布 release 后，把 chart、快速安装脚本、
+# upgrade-versions.json 和文档版本表一起发出去，替代原来的手工清单。
+#
+#   prepare  （无凭证）校验多架构镜像 → 生成全部产物 → 摘要里展示差异
+#   publish  （environment: release-publish，需审批人批准）推 chart / 上传 TOS /
+#             回写 upgrade-versions.json / 文档 PR
+#   verify   从线上重新下载，确认与产物一致
+#
+# 使用说明与需要配置的 secrets / vars 见 hack/release/README.md。
+#
+# 安全：只由 release 发布或手动触发，绝不响应 pull_request；所有外部输入经 env 传入
+# 并先由 release.py check-tag 校验，不直接插值进 shell。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v6.9.12-release
+        required: true
+        type: string
+      dry_run:
+        description: Only build and show artifacts, do not publish
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-publish-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  CHART_REPO_URL: https://chart.rainbond.com
+  PUBLIC_BASE_URL: https://get.rainbond.com
+  CONSOLE_REPO: goodrain/rainbond-console
+  CHART_REPO: goodrain/rainbond-chart
+  DOCS_REPO: goodrain/rainbond-docs
+
+jobs:
+  prepare:
+    if: endsWith(github.event.release.tag_name || inputs.tag, '-release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      chart_version: ${{ steps.tag.outputs.chart_version }}
+      docs_changed: ${{ steps.docs.outputs.changed }}
+    steps:
+      - name: Checkout rainbond main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Unit tests for release helpers
+        run: python3 -m unittest discover -s hack/release -p '*_test.py'
+
+      - name: Validate tag
+        id: tag
+        run: python3 hack/release/release.py check-tag "$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release images are multi-arch
+        run: python3 hack/release/release.py verify-images "$TAG"
+
+      # trigger-downstream-releases.yml 同时在给 console 打 tag，这里等它出现。
+      - name: Wait for rainbond-console tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in $(seq 1 30); do
+            if gh api "repos/${CONSOLE_REPO}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+              echo "found ${CONSOLE_REPO}@${TAG}"; exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::${CONSOLE_REPO} has no tag ${TAG} after 10 minutes"
+          exit 1
+
+      - name: Build upgrade feed and install script
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          published_at=$(gh release view "$TAG" --repo goodrain/rainbond --json publishedAt --jq .publishedAt)
+          python3 hack/release/release.py upgrade-versions "$TAG" \
+            --published-at "$published_at" --output dist/upgrade-versions.json
+          curl -fsSL "https://raw.githubusercontent.com/${CONSOLE_REPO}/${TAG}/script/install-rainbond.sh" \
+            -o "$RUNNER_TEMP/install-src.sh"
+          python3 hack/release/release.py install-script "$TAG" \
+            --source "$RUNNER_TEMP/install-src.sh" --output dist/install.sh
+
+      - name: Checkout rainbond-chart main
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/rainbond-chart
+          ref: main
+          path: chart
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Bump and package chart
+        run: |
+          set -euo pipefail
+          python3 hack/release/release.py chart-bump "$TAG" --chart-dir chart
+          git -C chart diff > dist/chart.patch
+          helm lint chart
+          helm package chart -d dist
+
+      - name: Checkout rainbond-docs main
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/rainbond-docs
+          ref: main
+          path: docs
+
+      - name: Roll docs version table on a new minor release
+        id: docs
+        run: |
+          set -euo pipefail
+          python3 hack/release/release.py docs-versions "$TAG" --file docs/docs/versions.md >> "$GITHUB_OUTPUT"
+          git -C docs diff > dist/docs.patch
+
+      - name: Summary
+        run: |
+          {
+            echo "## ${TAG} 发布预览"
+            echo
+            echo "| 项目 | 结果 |"
+            echo "|---|---|"
+            echo "| 多架构镜像 | ✅ 全部 amd64 + arm64 |"
+            echo "| chart 版本 | \`$(grep -m1 '^version:' chart/Chart.yaml)\` |"
+            echo "| 文档版本表 | ${{ steps.docs.outputs.changed == 'true' && '需要更新（将提 PR）' || '无需更新' }} |"
+            echo
+            echo "### upgrade-versions.json 变更"
+            echo '```diff'
+            diff hack/release/upgrade-versions.json dist/upgrade-versions.json || true
+            echo '```'
+            echo "### chart 变更"
+            echo '```diff'
+            cat dist/chart.patch
+            echo '```'
+            echo "### 安装脚本版本行"
+            echo '```'
+            grep -m1 '^RAINBOND_VERSION=' dist/install.sh
+            echo '```'
+            echo "### 产物 sha256"
+            echo '```'
+            (cd dist && sha256sum ./*)
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-publish-${{ env.TAG }}
+          path: dist/
+          retention-days: 30
+
+  publish:
+    needs: prepare
+    if: github.event_name == 'release' || inputs.dry_run == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-publish
+    permissions:
+      contents: write
+    env:
+      CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
+    steps:
+      - name: Checkout rainbond main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-publish-${{ env.TAG }}
+          path: dist
+
+      # 先提交版本号再让 rainbond-chart 打 tag，避免 tag 里还是旧版本号。
+      - name: Commit chart version and create chart release
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -s dist/chart.patch ]; then
+            gh auth setup-git
+            git clone --depth 1 "https://github.com/${CHART_REPO}.git" "$RUNNER_TEMP/chart"
+            cd "$RUNNER_TEMP/chart"
+            git apply "$GITHUB_WORKSPACE/dist/chart.patch"
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -am "chore: release ${TAG}"
+            git push origin HEAD:main
+          else
+            echo "chart already at ${CHART_VERSION}, nothing to commit"
+          fi
+          gh workflow run auto-release-from-rainbond.yml --repo "$CHART_REPO" --ref main \
+            -f tag="$TAG" -f rainbond_release_url="https://github.com/goodrain/rainbond/releases/tag/${TAG}"
+
+      - name: Upload chart to chart.rainbond.com
+        env:
+          CHART_REPO_USERNAME: ${{ secrets.CHART_REPO_USERNAME }}
+          CHART_REPO_PASSWORD: ${{ secrets.CHART_REPO_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"; then
+            echo "rainbond-${CHART_VERSION}.tgz is already on ${CHART_REPO_URL}, skip (never overwrite)"
+            exit 0
+          fi
+          # 凭证经 stdin 传给 curl，不出现在命令行参数里。
+          printf 'user = "%s:%s"\n' "$CHART_REPO_USERNAME" "$CHART_REPO_PASSWORD" \
+            | curl -fsS -K - --data-binary "@dist/rainbond-${CHART_VERSION}.tgz" "${CHART_REPO_URL}/api/charts"
+          echo
+
+      - name: Install tosutil
+        env:
+          TOSUTIL_URL: ${{ vars.TOSUTIL_URL }}
+          TOSUTIL_SHA256: ${{ vars.TOSUTIL_SHA256 }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "$TOSUTIL_URL" -o "$RUNNER_TEMP/tosutil"
+          echo "${TOSUTIL_SHA256}  $RUNNER_TEMP/tosutil" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/tosutil"
+
+      - name: Upload install script and upgrade feed to TOS
+        env:
+          TOS_ACCESS_KEY: ${{ secrets.TOS_ACCESS_KEY }}
+          TOS_SECRET_KEY: ${{ secrets.TOS_SECRET_KEY }}
+          TOS_ENDPOINT: ${{ vars.TOS_ENDPOINT }}
+          TOS_REGION: ${{ vars.TOS_REGION }}
+          TOS_BUCKET: ${{ vars.TOS_BUCKET }}
+          TOS_KEY_INSTALL_SCRIPT: ${{ vars.TOS_KEY_INSTALL_SCRIPT }}
+          TOS_KEY_UPGRADE_VERSIONS: ${{ vars.TOS_KEY_UPGRADE_VERSIONS }}
+        run: |
+          set -euo pipefail
+          tos="$RUNNER_TEMP/tosutil"
+          "$tos" config -i "$TOS_ACCESS_KEY" -k "$TOS_SECRET_KEY" -e "$TOS_ENDPOINT" -re "$TOS_REGION" >/dev/null
+          # 先传安装脚本，再传 upgrade feed：feed 一更新，存量控制台就会提示升级。
+          "$tos" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
+          "$tos" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
+
+      - name: Record upgrade feed in repository
+        run: |
+          set -euo pipefail
+          cp dist/upgrade-versions.json hack/release/upgrade-versions.json
+          if git diff --quiet; then
+            echo "upgrade-versions.json already recorded"; exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "chore: record ${TAG} in upgrade feed"
+          git push origin HEAD:main
+
+      - name: Open docs pull request
+        if: needs.prepare.outputs.docs_changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git clone --depth 1 "https://github.com/${DOCS_REPO}.git" "$RUNNER_TEMP/docs"
+          cd "$RUNNER_TEMP/docs"
+          branch="release/${TAG}-versions"
+          git checkout -b "$branch"
+          git apply "$GITHUB_WORKSPACE/dist/docs.patch"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "docs: roll version table for ${TAG}"
+          git push origin "$branch"
+          gh pr create --repo "$DOCS_REPO" --base main --head "$branch" --draft \
+            --title "docs: roll version table for ${TAG}" \
+            --body "Automated by release-publish. Archive the previous minor docs site before merging."
+
+  verify:
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout rainbond main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-publish-${{ env.TAG }}
+          path: dist
+
+      - name: Published files match artifacts
+        env:
+          TOS_KEY_UPGRADE_VERSIONS: ${{ vars.TOS_KEY_UPGRADE_VERSIONS }}
+        run: |
+          set -euo pipefail
+          python3 hack/release/release.py verify-url "${PUBLIC_BASE_URL}/${TOS_KEY_UPGRADE_VERSIONS}" --file dist/upgrade-versions.json
+          python3 hack/release/release.py verify-url "${PUBLIC_BASE_URL}" --file dist/install.sh
+
+      - name: Chart is on chart.rainbond.com
+        env:
+          CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
+        run: curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"
