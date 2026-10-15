@@ -32,8 +32,8 @@ jobs:
             ref: main
           - repo: goodrain/rainbond-operator
             ref: main
-          - repo: goodrain/rainbond-chart
-            ref: main
+          # rainbond-chart is released by release-publish.yml, after its
+          # version has been bumped, so the chart tag carries the new version.
 
     steps:
       - name: Trigger downstream release workflow
