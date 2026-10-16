@@ -35,13 +35,20 @@ concurrency:
   group: release-publish-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
+# Targets default to the production ones. A fork rehearsal overrides them with
+# repository variables (RELEASE_*) so it can never write to goodrain repos or
+# the production bucket by accident; see hack/release/README.md.
 env:
   TAG: ${{ github.event.release.tag_name || inputs.tag }}
-  CHART_REPO_URL: https://chart.rainbond.com
-  PUBLIC_BASE_URL: https://get.rainbond.com
-  CONSOLE_REPO: goodrain/rainbond-console
-  CHART_REPO: goodrain/rainbond-chart
-  DOCS_REPO: goodrain/rainbond-docs
+  SOURCE_BRANCH: ${{ github.event.repository.default_branch }}
+  RAINBOND_REPO: ${{ vars.RELEASE_RAINBOND_REPO || 'goodrain/rainbond' }}
+  CONSOLE_REPO: ${{ vars.RELEASE_CONSOLE_REPO || 'goodrain/rainbond-console' }}
+  CHART_REPO: ${{ vars.RELEASE_CHART_REPO || 'goodrain/rainbond-chart' }}
+  DOCS_REPO: ${{ vars.RELEASE_DOCS_REPO || 'goodrain/rainbond-docs' }}
+  CHART_REPO_URL: ${{ vars.RELEASE_CHART_REPO_URL || 'https://chart.rainbond.com' }}
+  CHART_UPLOAD: ${{ vars.RELEASE_CHART_UPLOAD || 'true' }}
+  INSTALL_SCRIPT_URL: ${{ vars.RELEASE_INSTALL_SCRIPT_URL || 'https://get.rainbond.com' }}
+  UPGRADE_VERSIONS_URL: ${{ vars.RELEASE_UPGRADE_VERSIONS_URL || 'https://get.rainbond.com/upgrade-versions.json' }}
 
 jobs:
   prepare:
@@ -52,10 +59,10 @@ jobs:
       chart_version: ${{ steps.tag.outputs.chart_version }}
       docs_changed: ${{ steps.docs.outputs.changed }}
     steps:
-      - name: Checkout rainbond main
+      - name: Checkout rainbond default branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - name: Unit tests for release helpers
         run: python3 -m unittest discover -s hack/release -p '*_test.py'
@@ -87,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          published_at=$(gh release view "$TAG" --repo goodrain/rainbond --json publishedAt --jq .publishedAt)
+          published_at=$(gh release view "$TAG" --repo "$RAINBOND_REPO" --json publishedAt --jq .publishedAt)
           python3 hack/release/release.py upgrade-versions "$TAG" \
             --published-at "$published_at" --output dist/upgrade-versions.json
           curl -fsSL "https://raw.githubusercontent.com/${CONSOLE_REPO}/${TAG}/script/install-rainbond.sh" \
@@ -95,10 +102,10 @@ jobs:
           python3 hack/release/release.py install-script "$TAG" \
             --source "$RUNNER_TEMP/install-src.sh" --output dist/install.sh
 
-      - name: Checkout rainbond-chart main
+      - name: Checkout chart repository main
         uses: actions/checkout@v4
         with:
-          repository: goodrain/rainbond-chart
+          repository: ${{ env.CHART_REPO }}
           ref: main
           path: chart
 
@@ -114,10 +121,10 @@ jobs:
           helm lint chart
           helm package chart -d dist
 
-      - name: Checkout rainbond-docs main
+      - name: Checkout docs repository main
         uses: actions/checkout@v4
         with:
-          repository: goodrain/rainbond-docs
+          repository: ${{ env.DOCS_REPO }}
           ref: main
           path: docs
 
@@ -173,18 +180,80 @@ jobs:
       contents: write
     env:
       CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
+      TOS_ENDPOINT: ${{ vars.TOS_ENDPOINT }}
+      TOS_REGION: ${{ vars.TOS_REGION }}
+      TOS_BUCKET: ${{ vars.TOS_BUCKET }}
+      TOS_KEY_INSTALL_SCRIPT: ${{ vars.TOS_KEY_INSTALL_SCRIPT }}
+      TOS_KEY_UPGRADE_VERSIONS: ${{ vars.TOS_KEY_UPGRADE_VERSIONS }}
+      TOSUTIL_URL: ${{ vars.TOSUTIL_URL }}
+      TOSUTIL_SHA256: ${{ vars.TOSUTIL_SHA256 }}
     steps:
-      - name: Checkout rainbond main
+      # 先把缺的配置一次性列出来，而不是传到一半才失败。只打印名称，不打印值。
+      - name: Check configuration
+        env:
+          HAS_CROSS_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN != '' }}
+          HAS_TOS_AK: ${{ secrets.TOS_ACCESS_KEY != '' }}
+          HAS_TOS_SK: ${{ secrets.TOS_SECRET_KEY != '' }}
+          HAS_CHART_USER: ${{ secrets.CHART_REPO_USERNAME != '' }}
+          HAS_CHART_PASS: ${{ secrets.CHART_REPO_PASSWORD != '' }}
+        run: |
+          missing=()
+          for v in TOS_ENDPOINT TOS_REGION TOS_BUCKET TOS_KEY_INSTALL_SCRIPT TOS_KEY_UPGRADE_VERSIONS TOSUTIL_URL TOSUTIL_SHA256; do
+            [ -n "${!v}" ] || missing+=("var $v")
+          done
+          [ "$HAS_CROSS_TOKEN" = true ] || missing+=("secret CROSS_REPO_RELEASE_TOKEN")
+          [ "$HAS_TOS_AK" = true ] || missing+=("secret TOS_ACCESS_KEY")
+          [ "$HAS_TOS_SK" = true ] || missing+=("secret TOS_SECRET_KEY")
+          if [ "$CHART_UPLOAD" = true ]; then
+            [ "$HAS_CHART_USER" = true ] || missing+=("secret CHART_REPO_USERNAME")
+            [ "$HAS_CHART_PASS" = true ] || missing+=("secret CHART_REPO_PASSWORD")
+          fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::error::release-publish environment is missing %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "targets: chart=${CHART_REPO} docs=${DOCS_REPO} install=${INSTALL_SCRIPT_URL} feed=${UPGRADE_VERSIONS_URL} chart_upload=${CHART_UPLOAD}"
+
+      - name: Checkout rainbond default branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - uses: actions/download-artifact@v4
         with:
           name: release-publish-${{ env.TAG }}
           path: dist
 
-      # 先提交版本号再让 rainbond-chart 打 tag，避免 tag 里还是旧版本号。
+      - name: Install and configure tosutil
+        env:
+          TOS_ACCESS_KEY: ${{ secrets.TOS_ACCESS_KEY }}
+          TOS_SECRET_KEY: ${{ secrets.TOS_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "$TOSUTIL_URL" -o "$RUNNER_TEMP/tosutil"
+          echo "${TOSUTIL_SHA256}  $RUNNER_TEMP/tosutil" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/tosutil"
+          "$RUNNER_TEMP/tosutil" config -i "$TOS_ACCESS_KEY" -k "$TOS_SECRET_KEY" -e "$TOS_ENDPOINT" -re "$TOS_REGION" >/dev/null
+
+      # 写之前确认每个对象 key 背后就是对应的公开地址：key 配错时宁可失败，
+      # 也不能把别的文件（比如 roi 二进制）覆盖掉。放在任何写操作之前。
+      - name: Check TOS keys back the public URLs
+        run: |
+          set -euo pipefail
+          check() {
+            local key=$1 url=$2 origin="$RUNNER_TEMP/origin-$3" public="$RUNNER_TEMP/public-$3"
+            "$RUNNER_TEMP/tosutil" cp "tos://${TOS_BUCKET}/${key}" "$origin" >/dev/null
+            curl -fsSL -H 'Cache-Control: no-cache' "$url" -o "$public"
+            if ! cmp -s "$origin" "$public"; then
+              echo "::error::tos://${TOS_BUCKET}/${key} is not what ${url} serves; check TOS_BUCKET / TOS_KEY_* (or wait for the CDN to refresh) before publishing"
+              exit 1
+            fi
+            echo "tos://${TOS_BUCKET}/${key} backs ${url} ($(sha256sum < "$origin" | cut -c1-12))"
+          }
+          check "$TOS_KEY_INSTALL_SCRIPT" "$INSTALL_SCRIPT_URL" install
+          check "$TOS_KEY_UPGRADE_VERSIONS" "$UPGRADE_VERSIONS_URL" feed
+
+      # 先提交版本号再让 chart 仓库打 tag，避免 tag 里还是旧版本号。
       - name: Commit chart version and create chart release
         env:
           GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
@@ -203,9 +272,10 @@ jobs:
             echo "chart already at ${CHART_VERSION}, nothing to commit"
           fi
           gh workflow run auto-release-from-rainbond.yml --repo "$CHART_REPO" --ref main \
-            -f tag="$TAG" -f rainbond_release_url="https://github.com/goodrain/rainbond/releases/tag/${TAG}"
+            -f tag="$TAG" -f rainbond_release_url="https://github.com/${RAINBOND_REPO}/releases/tag/${TAG}"
 
-      - name: Upload chart to chart.rainbond.com
+      - name: Upload chart to the chart repository
+        if: env.CHART_UPLOAD == 'true'
         env:
           CHART_REPO_USERNAME: ${{ secrets.CHART_REPO_USERNAME }}
           CHART_REPO_PASSWORD: ${{ secrets.CHART_REPO_PASSWORD }}
@@ -220,32 +290,12 @@ jobs:
             | curl -fsS -K - --data-binary "@dist/rainbond-${CHART_VERSION}.tgz" "${CHART_REPO_URL}/api/charts"
           echo
 
-      - name: Install tosutil
-        env:
-          TOSUTIL_URL: ${{ vars.TOSUTIL_URL }}
-          TOSUTIL_SHA256: ${{ vars.TOSUTIL_SHA256 }}
-        run: |
-          set -euo pipefail
-          curl -fsSL "$TOSUTIL_URL" -o "$RUNNER_TEMP/tosutil"
-          echo "${TOSUTIL_SHA256}  $RUNNER_TEMP/tosutil" | sha256sum -c -
-          chmod +x "$RUNNER_TEMP/tosutil"
-
       - name: Upload install script and upgrade feed to TOS
-        env:
-          TOS_ACCESS_KEY: ${{ secrets.TOS_ACCESS_KEY }}
-          TOS_SECRET_KEY: ${{ secrets.TOS_SECRET_KEY }}
-          TOS_ENDPOINT: ${{ vars.TOS_ENDPOINT }}
-          TOS_REGION: ${{ vars.TOS_REGION }}
-          TOS_BUCKET: ${{ vars.TOS_BUCKET }}
-          TOS_KEY_INSTALL_SCRIPT: ${{ vars.TOS_KEY_INSTALL_SCRIPT }}
-          TOS_KEY_UPGRADE_VERSIONS: ${{ vars.TOS_KEY_UPGRADE_VERSIONS }}
         run: |
           set -euo pipefail
-          tos="$RUNNER_TEMP/tosutil"
-          "$tos" config -i "$TOS_ACCESS_KEY" -k "$TOS_SECRET_KEY" -e "$TOS_ENDPOINT" -re "$TOS_REGION" >/dev/null
           # 先传安装脚本，再传 upgrade feed：feed 一更新，存量控制台就会提示升级。
-          "$tos" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
-          "$tos" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
+          "$RUNNER_TEMP/tosutil" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
+          "$RUNNER_TEMP/tosutil" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
 
       - name: Record upgrade feed in repository
         run: |
@@ -257,7 +307,7 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "chore: record ${TAG} in upgrade feed"
-          git push origin HEAD:main
+          git push origin "HEAD:${SOURCE_BRANCH}"
 
       - name: Open docs pull request
         if: needs.prepare.outputs.docs_changed == 'true'
@@ -284,10 +334,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout rainbond main
+      - name: Checkout rainbond default branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.SOURCE_BRANCH }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -295,14 +345,13 @@ jobs:
           path: dist
 
       - name: Published files match artifacts
-        env:
-          TOS_KEY_UPGRADE_VERSIONS: ${{ vars.TOS_KEY_UPGRADE_VERSIONS }}
         run: |
           set -euo pipefail
-          python3 hack/release/release.py verify-url "${PUBLIC_BASE_URL}/${TOS_KEY_UPGRADE_VERSIONS}" --file dist/upgrade-versions.json
-          python3 hack/release/release.py verify-url "${PUBLIC_BASE_URL}" --file dist/install.sh
+          python3 hack/release/release.py verify-url "$UPGRADE_VERSIONS_URL" --file dist/upgrade-versions.json
+          python3 hack/release/release.py verify-url "$INSTALL_SCRIPT_URL" --file dist/install.sh
 
-      - name: Chart is on chart.rainbond.com
+      - name: Chart is on the chart repository
+        if: env.CHART_UPLOAD == 'true'
         env:
           CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
         run: curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"

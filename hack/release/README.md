@@ -69,6 +69,28 @@ Variables（非机密，但不写进仓库）：
 仓库已有的 `CROSS_REPO_RELEASE_TOKEN` 还需要对 rainbond-chart（contents、actions）和
 rainbond-docs（contents、pull requests）有写权限。
 
+publish 开始时会先检查上面这些配置是否齐全（只列名称，不打印值），并在任何写操作之前
+确认 `tos://$TOS_BUCKET/$TOS_KEY_*` 的现有内容与对应公开地址返回的内容一致，
+不一致就失败，防止 key 配错时覆盖别的文件。
+
+## 发布目标（默认即生产，fork 演练时覆盖）
+
+以下是**仓库级** Variables，生产环境不需要设置：
+
+| 名称 | 默认值 |
+|---|---|
+| `RELEASE_RAINBOND_REPO` | `goodrain/rainbond` |
+| `RELEASE_CONSOLE_REPO` | `goodrain/rainbond-console` |
+| `RELEASE_CHART_REPO` | `goodrain/rainbond-chart` |
+| `RELEASE_DOCS_REPO` | `goodrain/rainbond-docs` |
+| `RELEASE_CHART_REPO_URL` | `https://chart.rainbond.com` |
+| `RELEASE_CHART_UPLOAD` | `true`；设为 `false` 时跳过 chart 上传和校验 |
+| `RELEASE_INSTALL_SCRIPT_URL` | `https://get.rainbond.com` |
+| `RELEASE_UPGRADE_VERSIONS_URL` | `https://get.rainbond.com/upgrade-versions.json` |
+
+在 fork 上演练时，把 chart / docs 指向自己的 fork、TOS 指向测试桶、两个公开地址指向测试桶
+的公开访问地址，并先把线上两个文件的当前版本放进测试桶，即可端到端演练而不碰生产。
+
 ## 回滚
 
 upgrade feed 和安装脚本都来自仓库：回退 `hack/release/upgrade-versions.json` 的提交，
