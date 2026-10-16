@@ -403,6 +403,7 @@
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
 | rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
 | rainbond.service-check.eventlog-progress | 将服务检测进度消息同步写入事件日志 | active | regression | builder/exector.logServiceCheckProgress | builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger |
+| rainbond.service-probe.reconcile-duplicate-mode | 协调重复的组件探针模式 | active | regression | db/mysql/dao.ServiceProbeDaoImpl.AddModel | db/mysql/dao/service_probe_test.go::TestServiceProbeDaoAddModelReconcilesExistingMode |
 | rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
@@ -4638,6 +4639,16 @@
 - 业务入口: `builder/exector.logServiceCheckProgress`
 - 代码路径: `builder/exector/service_check.go`
 - 测试路径: `builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger`
+
+### 协调重复的组件探针模式
+
+- Capability ID: `rainbond.service-probe.reconcile-duplicate-mode`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.ServiceProbeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/k8s.go`
+- 测试路径: `db/mysql/dao/service_probe_test.go::TestServiceProbeDaoAddModelReconcilesExistingMode`
 
 ### DaemonSet 组件类型分类
 

@@ -7724,6 +7724,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service-probe.reconcile-duplicate-mode",
+      "title": "Reconcile duplicate service probe modes",
+      "title_zh": "\u534f\u8c03\u91cd\u590d\u7684\u7ec4\u4ef6\u63a2\u9488\u6a21\u5f0f",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.ServiceProbeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/k8s.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/service_probe_test.go",
+          "selector": "TestServiceProbeDaoAddModelReconcilesExistingMode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.service-type.daemonset",
       "title": "DaemonSet service type classification",
       "title_zh": "DaemonSet \u7ec4\u4ef6\u7c7b\u578b\u5206\u7c7b",
