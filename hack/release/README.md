@@ -6,18 +6,25 @@ rainbond 发布 release 之后，原来要手工做的发布步骤由
 
 ## 发一个版本
 
-1. 用 `release-v6` 构建镜像，`platforms` 选 `linux/amd64,linux/arm64`。
-   版本号以 `-release` 结尾时，单架构构建会被拒绝，防止覆盖已发布的多架构镜像。
-2. 在 goodrain/rainbond 发布 release（如 `v6.9.12-release`）。
-   - `trigger-downstream-releases` 给 console / ui / operator 打 tag（已有）。
-   - `release-publish` 自动开始。
-3. 打开 `release-publish` 这次运行，看 **prepare** 的摘要：镜像检查、chart 和
-   upgrade feed 的差异、安装脚本版本行、产物 sha256。
-4. 确认无误后，在 **publish** 处点「Review deployments → Approve」。
-5. **verify** 从线上重新下载并比对，全绿即发布完成。
+前提：三个仓库（rainbond、rainbond-console、rainbond-ui）的 main 已经跑过一次全量 E2E
+（rainbond-e2e-tests 的 `prerelease`），而且之后 main 没有新提交。
 
-想先看看会发什么而不发布：Actions → release-publish → Run workflow，填 tag，
-`dry_run` 保持勾选，只跑 prepare。
+1. Actions → **release** → Run workflow，只填版本号（如 `v6.9.12-release`）。它会依次：
+   - **gate**：确认最近一次全量 E2E 是绿的，且测的就是三个仓库当前 main 的 commit；
+   - **build**：按 gate 固定的 commit 调用 `release-v6` 构建双架构镜像；
+   - **images**：确认 15 个镜像都是 amd64 + arm64；
+   - **draft**：创建草稿 release（自动生成说明，需要的话在发布前编辑）；
+   - **go**：等待审批 1。
+2. 在 **go** 处审批（能不能发）。审批后再次确认 main 没有变，然后发布 release，
+   并自动触发 `trigger-downstream-releases`（console / ui / operator 打 tag）和 `release-publish`。
+3. 在 `release-publish` 的 **publish** 处审批 2（对外发布），先看 prepare 摘要里与线上的差异。
+4. **verify** 全绿即发布完成。roi 二进制和离线包目前仍需单独处理。
+
+只想重新发布 chart / 安装脚本 / upgrade feed（例如回滚），直接运行 `release-publish`，
+`dry_run` 保持勾选可以只看预览。
+
+`release-v6` 仍可手动运行（例如构建 dev 镜像）；它拒绝在 goodrain/rainbond 以外构建
+`-release` 版本，也拒绝单架构构建 `-release` 版本。
 
 ## 它替代了哪些手工步骤
 
@@ -73,6 +80,9 @@ publish 开始时会先检查上面这些配置是否齐全（只列名称，不
 确认 `tos://$TOS_BUCKET/$TOS_KEY_*` 的现有内容与对应公开地址返回的内容一致，
 不一致就失败，防止 key 配错时覆盖别的文件。
 
+另外新建 **`release-go`** environment（审批 1），同样设置 Required reviewers、只允许 `main`。
+仓库级 secret **`E2E_READ_TOKEN`**：能读取 rainbond-e2e-tests Actions 运行结果和 artifact 的只读令牌。
+
 ## 发布目标（默认即生产，fork 演练时覆盖）
 
 以下是**仓库级** Variables，生产环境不需要设置：
@@ -87,6 +97,10 @@ publish 开始时会先检查上面这些配置是否齐全（只列名称，不
 | `RELEASE_CHART_UPLOAD` | `true`；设为 `false` 时跳过 chart 上传和校验 |
 | `RELEASE_INSTALL_SCRIPT_URL` | `https://get.rainbond.com` |
 | `RELEASE_UPGRADE_VERSIONS_URL` | `https://get.rainbond.com/upgrade-versions.json` |
+| `RELEASE_DOWNSTREAM_REPOS` | console / ui / operator 三个 goodrain 仓库；设为 `[]` 不触发下游 |
+| `RELEASE_E2E_REPO` / `RELEASE_E2E_WORKFLOW` | `goodrain/rainbond-e2e-tests` / `prerelease.yml` |
+| `RELEASE_E2E_GATE` | `required`；`skip` 只允许在 fork 上使用 |
+| `RELEASE_REUSE_IMAGES` | `false`；`true` 时不构建、只校验已发布镜像，只允许在 fork 上使用 |
 
 在 fork 上演练时，把 chart / docs 指向自己的 fork、TOS 指向测试桶、两个公开地址指向测试桶
 的公开访问地址，并先把线上两个文件的当前版本放进测试桶，即可端到端演练而不碰生产。
