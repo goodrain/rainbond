@@ -83,6 +83,14 @@ publish 开始时会先检查上面这些配置是否齐全（只列名称，不
 另外新建 **`release-go`** environment（审批 1），同样设置 Required reviewers、只允许 `main`。
 仓库级 secret **`E2E_READ_TOKEN`**：能读取 rainbond-e2e-tests Actions 运行结果和 artifact 的只读令牌。
 
+飞书通知（可选，仓库级 secret）：`FEISHU_WEBHOOK` 为飞书群自定义机器人的 webhook，机器人开启了签名校验时再配置
+`FEISHU_SECRET`。配置后会在等待审批 1、等待审批 2、发布完成和任何一步失败时发消息；未配置则跳过，
+发送失败只会记为警告，不影响发版。
+
+下游仓库（rainbond-console / ui / operator / chart）的 `auto-release-from-rainbond.yml` 需要支持可选输入 `target`，
+release 流程会把 gate 固定的 commit 传过去，tag 精确打在测过的 commit 上。**这些下游改动必须先于本仓库合并**，
+否则带 `target` 的触发会被下游拒绝。
+
 ## 发布目标（默认即生产，fork 演练时覆盖）
 
 以下是**仓库级** Variables，生产环境不需要设置：
