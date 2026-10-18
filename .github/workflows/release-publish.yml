@@ -141,6 +141,9 @@ jobs:
           git -C docs diff > dist/docs.patch
 
       - name: Summary
+        env:
+          CHART_MAIN_VERSION: ${{ steps.chart.outputs.main_version }}
+          CHART_TARGET_VERSION: ${{ steps.tag.outputs.chart_version }}
         run: |
           {
             echo "## ${TAG} 发布预览"
@@ -168,13 +171,19 @@ jobs:
             }
             show_diff "upgrade-versions.json 变更" "$UPGRADE_VERSIONS_URL" dist/upgrade-versions.json
             show_diff "安装脚本变更" "$INSTALL_SCRIPT_URL" dist/install.sh
-            echo "### chart 变更"
-            echo '```diff'
-            cat dist/chart.patch
-            echo '```'
+            echo "### chart 变更（${CHART_REPO} main）"
+            if [ -s dist/chart.patch ]; then
+              echo '```diff'
+              cat dist/chart.patch
+              echo '```'
+            elif [ "$CHART_MAIN_VERSION" != "$CHART_TARGET_VERSION" ]; then
+              echo "main 已是 \`${CHART_MAIN_VERSION}\`，比本次版本新：按回滚处理，不改动 chart，也不打 tag、不上传"
+            else
+              echo "main 已是 \`${CHART_MAIN_VERSION}\`，无需提交；publish 只会补打 tag（已存在则跳过）"
+            fi
             echo "### 产物 sha256"
             echo '```'
-            (cd dist && sha256sum ./*)
+            (cd dist && find . -type f -size +0 | sort | xargs sha256sum)
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
