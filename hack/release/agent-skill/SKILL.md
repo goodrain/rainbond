@@ -34,6 +34,27 @@ description: "Run a Rainbond release end to end as the release assistant: when s
 
 下文 `$REPO` 指目标仓库，`$TAG` 指版本号，`$PREV` 指上一个已发布版本（`gh release list -R $REPO --exclude-drafts --limit 1`）。
 
+## 跟踪工作流（每次触发或等待审批时都要用）
+
+触发工作流后**不要结束这一轮**，在同一轮里持续跟踪，直到它停在审批、运行结束或失败，再汇报：
+
+```bash
+for i in $(seq 1 120); do            # 最多约 60 分钟
+  s=$(gh run view "$RUN_ID" -R "$REPO" --json status,conclusion,jobs \
+      --jq '"\(.status)/\(.conclusion) " + ([.jobs[] | "\(.name)=\(.status)"] | join(" "))')
+  echo "$(date +%H:%M) $s"          # 每次都输出一行，避免被判定为长时间无响应
+  case "$s" in completed/*|*=waiting*) break;; esac
+  sleep 30
+done
+```
+
+- 停在审批（某个 job 为 `waiting`）：立即在任务里发审批链接和说明，然后**继续用同样的方法等待**，
+  直到这个 job 不再是 waiting（人已批准或拒绝），再往下做。
+- 等审批超过 60 分钟：在任务里说明「仍在等待审批，批准后在这里回复任意内容，我会继续」，然后结束这一轮。
+  被唤醒后先查看运行的当前状态，从那里接着做，不要重新触发。
+- `release.yml` 的 go 批准后，它会触发新的 `release-publish` 运行：用
+  `gh run list -R $REPO --workflow release-publish.yml --limit 1` 找到它，再按同样方法跟踪到审批 2 和 verify。
+
 ## 流程
 
 ### 第 1 步：发版准备报告（只读，不需要审批）
