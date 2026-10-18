@@ -58,6 +58,7 @@ jobs:
     outputs:
       chart_version: ${{ steps.tag.outputs.chart_version }}
       docs_changed: ${{ steps.docs.outputs.changed }}
+      chart_main_version: ${{ steps.chart.outputs.main_version }}
     steps:
       - name: Checkout rainbond default branch
         uses: actions/checkout@v4
@@ -113,10 +114,14 @@ jobs:
         with:
           version: v3.16.4
 
+      # chart-bump never moves the chart backwards, so on a rollback run main_version
+      # stays newer than the tag and publish leaves the chart repository alone.
       - name: Bump and package chart
+        id: chart
         run: |
           set -euo pipefail
           python3 hack/release/release.py chart-bump "$TAG" --chart-dir chart
+          echo "main_version=$(awk '/^version:/ {print $2; exit}' chart/Chart.yaml)" >> "$GITHUB_OUTPUT"
           git -C chart diff > dist/chart.patch
           helm lint chart
           helm package chart -d dist
@@ -143,7 +148,7 @@ jobs:
             echo "| 项目 | 结果 |"
             echo "|---|---|"
             echo "| 多架构镜像 | ✅ 全部 amd64 + arm64 |"
-            echo "| chart 版本 | \`$(grep -m1 '^version:' chart/Chart.yaml)\` |"
+            echo "| chart 版本 | \`$(grep -m1 '^version:' chart/Chart.yaml)\`${{ steps.chart.outputs.main_version != steps.tag.outputs.chart_version && '（比本次版本新：按回滚处理，不改动 chart）' || '' }} |"
             echo "| 文档版本表 | ${{ steps.docs.outputs.changed == 'true' && '需要更新（将提 PR）' || '无需更新' }} |"
             echo
             # 对比的是「当前线上文件」而不是仓库：审批人要看的是批准后线上会变成什么。
@@ -189,6 +194,8 @@ jobs:
       contents: write
     env:
       CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
+      # false on a rollback run (re-publishing an older release): chart stays as is.
+      CHART_CURRENT: ${{ needs.prepare.outputs.chart_main_version == needs.prepare.outputs.chart_version }}
       TOS_ENDPOINT: ${{ vars.TOS_ENDPOINT }}
       TOS_REGION: ${{ vars.TOS_REGION }}
       TOS_BUCKET: ${{ vars.TOS_BUCKET }}
@@ -264,6 +271,7 @@ jobs:
 
       # 先提交版本号再让 chart 仓库打 tag，避免 tag 里还是旧版本号。
       - name: Commit chart version and create chart release
+        if: env.CHART_CURRENT == 'true'
         env:
           GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
         run: |
@@ -284,7 +292,7 @@ jobs:
             -f tag="$TAG" -f rainbond_release_url="https://github.com/${RAINBOND_REPO}/releases/tag/${TAG}"
 
       - name: Upload chart to the chart repository
-        if: env.CHART_UPLOAD == 'true'
+        if: env.CHART_UPLOAD == 'true' && env.CHART_CURRENT == 'true'
         env:
           CHART_REPO_USERNAME: ${{ secrets.CHART_REPO_USERNAME }}
           CHART_REPO_PASSWORD: ${{ secrets.CHART_REPO_PASSWORD }}
@@ -360,7 +368,7 @@ jobs:
           python3 hack/release/release.py verify-url "$INSTALL_SCRIPT_URL" --file dist/install.sh
 
       - name: Chart is on the chart repository
-        if: env.CHART_UPLOAD == 'true'
+        if: env.CHART_UPLOAD == 'true' && needs.prepare.outputs.chart_main_version == needs.prepare.outputs.chart_version
         env:
           CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
         run: curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"
