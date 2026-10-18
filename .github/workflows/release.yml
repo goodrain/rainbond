@@ -39,6 +39,9 @@ env:
   E2E_WORKFLOW: ${{ vars.RELEASE_E2E_WORKFLOW || 'prerelease.yml' }}
   E2E_GATE: ${{ vars.RELEASE_E2E_GATE || 'required' }}
   REUSE_IMAGES: ${{ vars.RELEASE_REUSE_IMAGES || 'false' }}
+  # Repository whose main E2E has to cover. Only a fork rehearsal points it at
+  # goodrain/rainbond; on goodrain/rainbond it must be the repository itself.
+  RAINBOND_SOURCE_REPO: ${{ vars.RELEASE_RAINBOND_SOURCE_REPO || github.repository }}
   CONSOLE_REPO: ${{ vars.RELEASE_CONSOLE_REPO || 'goodrain/rainbond-console' }}
   UI_REPO: ${{ vars.RELEASE_UI_REPO || 'goodrain/rainbond-ui' }}
   OPERATOR_REPO: ${{ vars.RELEASE_OPERATOR_REPO || 'goodrain/rainbond-operator' }}
@@ -50,6 +53,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       rainbond_sha: ${{ steps.mains.outputs.rainbond }}
+      self_sha: ${{ steps.mains.outputs.self }}
       console_sha: ${{ steps.mains.outputs.console }}
       ui_sha: ${{ steps.mains.outputs.ui }}
       operator_sha: ${{ steps.mains.outputs.operator }}
@@ -68,6 +72,7 @@ jobs:
           if [ "$GITHUB_REPOSITORY" = goodrain/rainbond ]; then
             [ "$E2E_GATE" = required ] || { echo "::error::the E2E gate cannot be skipped on goodrain/rainbond"; exit 1; }
             [ "$REUSE_IMAGES" = false ] || { echo "::error::goodrain/rainbond must build the images it releases"; exit 1; }
+            [ "$RAINBOND_SOURCE_REPO" = goodrain/rainbond ] || { echo "::error::RELEASE_RAINBOND_SOURCE_REPO cannot be overridden on goodrain/rainbond"; exit 1; }
           fi
           if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
             echo "::error::${TAG} is already published; use release-publish to re-publish its files"
@@ -82,7 +87,8 @@ jobs:
           set -euo pipefail
           sha() { gh api "repos/$1/commits/main" --jq .sha; }
           {
-            echo "rainbond=$(sha "$GITHUB_REPOSITORY")"
+            echo "rainbond=$(sha "$RAINBOND_SOURCE_REPO")"
+            echo "self=$(sha "$GITHUB_REPOSITORY")"
             echo "console=$(sha "$CONSOLE_REPO")"
             echo "ui=$(sha "$UI_REPO")"
             echo "operator=$(sha "$OPERATOR_REPO")"
@@ -152,7 +158,7 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          RAINBOND_SHA: ${{ needs.gate.outputs.rainbond_sha }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
           NOTES: ${{ inputs.notes }}
         run: |
           set -euo pipefail
@@ -167,7 +173,7 @@ jobs:
             echo "draft ${TAG} already exists, keeping its notes"
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
-              --target "$RAINBOND_SHA" --title "$TAG" "${notes_args[@]}"
+              --target "$SELF_SHA" --title "$TAG" "${notes_args[@]}"
           fi
           url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
           {
@@ -196,6 +202,7 @@ jobs:
           CONSOLE_SHA: ${{ needs.gate.outputs.console_sha }}
           UI_SHA: ${{ needs.gate.outputs.ui_sha }}
           OPERATOR_SHA: ${{ needs.gate.outputs.operator_sha }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
         run: |
           set -euo pipefail
           moved=0
@@ -203,7 +210,8 @@ jobs:
             local now; now=$(gh api "repos/$1/commits/main" --jq .sha)
             if [ "$now" != "$2" ]; then echo "::error::$1 main moved ${2:0:12} -> ${now:0:12}"; moved=1; fi
           }
-          check "$GITHUB_REPOSITORY" "$RAINBOND_SHA"
+          check "$RAINBOND_SOURCE_REPO" "$RAINBOND_SHA"
+          [ "$RAINBOND_SOURCE_REPO" = "$GITHUB_REPOSITORY" ] || check "$GITHUB_REPOSITORY" "$SELF_SHA"
           check "$CONSOLE_REPO" "$CONSOLE_SHA"
           check "$UI_REPO" "$UI_SHA"
           check "$OPERATOR_REPO" "$OPERATOR_SHA"
