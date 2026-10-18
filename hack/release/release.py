@@ -12,6 +12,7 @@ only wires them together:
   chart-bump       set Chart.yaml version and values.yaml installVersion
   docs-versions    roll the docs version table when the minor version changes
   verify-url       compare a published URL with the local artifact
+  check-e2e        make sure an E2E provenance covers the commits about to ship
 
 Only the Python standard library is used so the script runs on a bare runner.
 """
@@ -226,6 +227,29 @@ def roll_docs_versions(text, tag):
     return text[:h.end()] + archived + text[h.end():], True
 
 
+
+# --------------------------------------------------------------------------
+# E2E gate
+# --------------------------------------------------------------------------
+
+def check_e2e_provenance(prov, expected_sources):
+    """Problems that stop a release: the E2E run must be a green full run of
+    exactly the commits that are about to be built (see rainbond-e2e-tests
+    e2e-provenance.json)."""
+    problems = []
+    if prov.get("result") != "success":
+        problems.append(f"latest E2E result is {prov.get('result')!r}, not 'success'")
+    if prov.get("suite") != "full":
+        problems.append(f"latest E2E suite is {prov.get('suite')!r}, not 'full'")
+    sources = prov.get("sources") or {}
+    for repo, sha in sorted(expected_sources.items()):
+        tested = sources.get(repo)
+        if not tested:
+            problems.append(f"E2E did not record which {repo} commit it tested")
+        elif tested != sha:
+            problems.append(f"{repo}: E2E tested {tested[:12]} but main is now {sha[:12]}; rerun E2E")
+    return problems
+
 # --------------------------------------------------------------------------
 # registries
 # --------------------------------------------------------------------------
@@ -363,6 +387,23 @@ def cmd_verify_url(args):
                        "(CDN may still be caching the old file)")
 
 
+def cmd_check_e2e(args):
+    expected = {}
+    for item in args.source:
+        repo, _, sha = item.partition("=")
+        if not repo or not sha:
+            raise ReleaseError(f"--source must be repo=sha, got {item!r}")
+        expected[repo] = sha
+    with open(args.file, encoding="utf-8") as f:
+        prov = json.load(f)
+    problems = check_e2e_provenance(prov, expected)
+    for p in problems:
+        print(f"::error::{p}")
+    if problems:
+        raise ReleaseError("E2E does not cover this release")
+    print(f"E2E run {prov.get('run_id')} ({prov.get('tested_at')}) covers {', '.join(sorted(expected))}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -406,6 +447,11 @@ def main(argv=None):
     s.add_argument("--retries", type=int, default=10)
     s.add_argument("--interval", type=int, default=30)
     s.set_defaults(func=cmd_verify_url)
+
+    s = sub.add_parser("check-e2e")
+    s.add_argument("--file", required=True, help="e2e-provenance.json")
+    s.add_argument("--source", action="append", default=[], help="repo=sha, repeatable")
+    s.set_defaults(func=cmd_check_e2e)
 
     args = p.parse_args(argv)
     try:

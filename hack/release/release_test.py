@@ -198,5 +198,32 @@ class VerifyImagesTest(unittest.TestCase):
         self.assertEqual(calls[2][1]["Authorization"], "Bearer t0k")
 
 
+class E2EGateTest(unittest.TestCase):
+    SHAS = {"goodrain/rainbond": "a" * 40, "goodrain/rainbond-console": "b" * 40, "goodrain/rainbond-ui": "c" * 40}
+
+    def prov(self, **kw):
+        p = {"suite": "full", "result": "success", "run_id": 1, "sources": dict(self.SHAS)}
+        p.update(kw)
+        return p
+
+    def test_green_full_run_of_same_commits_passes(self):
+        self.assertEqual(release.check_e2e_provenance(self.prov(), self.SHAS), [])
+
+    def test_failed_or_env_failure_blocks(self):
+        for result in ["failure", "env_failure", None]:
+            self.assertTrue(release.check_e2e_provenance(self.prov(result=result), self.SHAS), result)
+
+    def test_fast_tier_does_not_count(self):
+        self.assertTrue(release.check_e2e_provenance(self.prov(suite="fast"), self.SHAS))
+
+    def test_main_moved_since_e2e_blocks(self):
+        moved = dict(self.SHAS, **{"goodrain/rainbond-ui": "d" * 40})
+        problems = release.check_e2e_provenance(self.prov(), moved)
+        self.assertTrue(any("rainbond-ui" in p and "rerun E2E" in p for p in problems))
+
+    def test_nightly_without_sources_blocks(self):
+        self.assertTrue(release.check_e2e_provenance(self.prov(sources={}), self.SHAS))
+
+
 if __name__ == "__main__":
     unittest.main()
