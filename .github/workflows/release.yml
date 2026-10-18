@@ -170,7 +170,12 @@ jobs:
             notes_args=(--generate-notes)
           fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "draft ${TAG} already exists, keeping its notes"
+            # 草稿可能来自之前失败的运行：目标必须改成本次 gate 固定的 commit，
+            # 否则发布时 tag 会打在一个没有经过本次 gate 的 commit 上。
+            edit_args=(--target "$SELF_SHA")
+            [ -z "$NOTES" ] || edit_args+=(--notes-file "$RUNNER_TEMP/notes.md")
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" "${edit_args[@]}"
+            echo "draft ${TAG} already existed: target set to ${SELF_SHA}${NOTES:+, notes replaced}"
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
               --target "$SELF_SHA" --title "$TAG" "${notes_args[@]}"
@@ -222,8 +227,14 @@ jobs:
       - name: Publish release and start downstream
         env:
           GH_TOKEN: ${{ github.token }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
         run: |
           set -euo pipefail
+          target=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
+          if [ "$target" != "$SELF_SHA" ]; then
+            echo "::error::draft ${TAG} targets ${target:0:12}, not the gated commit ${SELF_SHA:0:12}"
+            exit 1
+          fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
           url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
           gh workflow run trigger-downstream-releases.yml --repo "$GITHUB_REPOSITORY" \
