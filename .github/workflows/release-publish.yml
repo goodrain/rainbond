@@ -146,17 +146,26 @@ jobs:
             echo "| chart 版本 | \`$(grep -m1 '^version:' chart/Chart.yaml)\` |"
             echo "| 文档版本表 | ${{ steps.docs.outputs.changed == 'true' && '需要更新（将提 PR）' || '无需更新' }} |"
             echo
-            echo "### upgrade-versions.json 变更"
-            echo '```diff'
-            diff hack/release/upgrade-versions.json dist/upgrade-versions.json || true
-            echo '```'
+            # 对比的是「当前线上文件」而不是仓库：审批人要看的是批准后线上会变成什么。
+            show_diff() {
+              local title=$1 url=$2 file=$3 current
+              current="$RUNNER_TEMP/current-${3##*/}"
+              echo "### ${title}（对比当前线上 ${url}）"
+              if ! curl -fsSL -H 'Cache-Control: no-cache' "$url" -o "$current"; then
+                echo "⚠️ 无法下载当前线上文件，未能对比"
+              elif cmp -s "$current" "$file"; then
+                echo "与线上相比无变化"
+              else
+                echo '```diff'
+                diff -u --label "线上" --label "将发布" "$current" "$file" || true
+                echo '```'
+              fi
+            }
+            show_diff "upgrade-versions.json 变更" "$UPGRADE_VERSIONS_URL" dist/upgrade-versions.json
+            show_diff "安装脚本变更" "$INSTALL_SCRIPT_URL" dist/install.sh
             echo "### chart 变更"
             echo '```diff'
             cat dist/chart.patch
-            echo '```'
-            echo "### 安装脚本版本行"
-            echo '```'
-            grep -m1 '^RAINBOND_VERSION=' dist/install.sh
             echo '```'
             echo "### 产物 sha256"
             echo '```'
