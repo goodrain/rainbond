@@ -19,28 +19,24 @@ permissions:
 
 jobs:
   dispatch:
-    if: endsWith(github.event_name == 'release' && github.event.release.tag_name || inputs.tag, '-release')
+    if: endsWith(github.event_name == 'release' && github.event.release.tag_name || inputs.tag, '-release') && vars.RELEASE_DOWNSTREAM_REPOS != '[]'
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
+      # Downstream repositories that tag a release after rainbond. A fork sets
+      # vars.RELEASE_DOWNSTREAM_REPOS to '[]' so it never dispatches upstream.
+      # rainbond-chart is released by release-publish.yml after its version
+      # has been bumped, so the chart tag carries the new version.
       matrix:
-        include:
-          - repo: goodrain/rainbond-console
-            ref: main
-          - repo: goodrain/rainbond-ui
-            ref: main
-          - repo: goodrain/rainbond-operator
-            ref: main
-          # rainbond-chart is released by release-publish.yml, after its
-          # version has been bumped, so the chart tag carries the new version.
+        repo: ${{ fromJSON(vars.RELEASE_DOWNSTREAM_REPOS || '["goodrain/rainbond-console","goodrain/rainbond-ui","goodrain/rainbond-operator"]') }}
 
     steps:
       - name: Trigger downstream release workflow
         env:
           GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
           TARGET_REPO: ${{ matrix.repo }}
-          TARGET_REF: ${{ matrix.ref }}
+          TARGET_REF: main
           TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
           RAINBOND_RELEASE_URL: ${{ github.event_name == 'release' && github.event.release.html_url || inputs.rainbond_release_url }}
         run: |
