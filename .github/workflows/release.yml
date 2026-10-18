@@ -228,6 +228,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SELF_SHA: ${{ needs.gate.outputs.self_sha }}
+          CONSOLE_SHA: ${{ needs.gate.outputs.console_sha }}
+          UI_SHA: ${{ needs.gate.outputs.ui_sha }}
+          OPERATOR_SHA: ${{ needs.gate.outputs.operator_sha }}
         run: |
           set -euo pipefail
           target=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
@@ -238,7 +241,8 @@ jobs:
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
           url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
           gh workflow run trigger-downstream-releases.yml --repo "$GITHUB_REPOSITORY" \
-            --ref "$DEFAULT_BRANCH" -f tag="$TAG" -f rainbond_release_url="$url"
+            --ref "$DEFAULT_BRANCH" -f tag="$TAG" -f rainbond_release_url="$url" \
+            -f console_target="$CONSOLE_SHA" -f ui_target="$UI_SHA" -f operator_target="$OPERATOR_SHA"
           gh workflow run release-publish.yml --repo "$GITHUB_REPOSITORY" \
             --ref "$DEFAULT_BRANCH" -f tag="$TAG" -f dry_run=false
           {

@@ -294,11 +294,15 @@ jobs:
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
                 commit -am "chore: release ${TAG}"
             git push origin HEAD:main
+            chart_sha=$(git rev-parse HEAD)
           else
             echo "chart already at ${CHART_VERSION}, nothing to commit"
+            chart_sha=$(gh api "repos/${CHART_REPO}/commits/main" --jq .sha)
           fi
+          # Tag the commit that carries this version, not whatever main is later.
           gh workflow run auto-release-from-rainbond.yml --repo "$CHART_REPO" --ref main \
-            -f tag="$TAG" -f rainbond_release_url="https://github.com/${RAINBOND_REPO}/releases/tag/${TAG}"
+            -f tag="$TAG" -f rainbond_release_url="https://github.com/${RAINBOND_REPO}/releases/tag/${TAG}" \
+            -f target="$chart_sha"
 
       - name: Upload chart to the chart repository
         if: env.CHART_UPLOAD == 'true' && env.CHART_CURRENT == 'true'
