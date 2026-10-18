@@ -270,7 +270,7 @@ jobs:
           set -euo pipefail
           if [ -s dist/chart.patch ]; then
             gh auth setup-git
-            git clone --depth 1 "https://github.com/${CHART_REPO}.git" "$RUNNER_TEMP/chart"
+            git clone --depth 1 --branch main "https://github.com/${CHART_REPO}.git" "$RUNNER_TEMP/chart"
             cd "$RUNNER_TEMP/chart"
             git apply "$GITHUB_WORKSPACE/dist/chart.patch"
             git -c user.name="github-actions[bot]" \
@@ -325,7 +325,7 @@ jobs:
         run: |
           set -euo pipefail
           gh auth setup-git
-          git clone --depth 1 "https://github.com/${DOCS_REPO}.git" "$RUNNER_TEMP/docs"
+          git clone --depth 1 --branch main "https://github.com/${DOCS_REPO}.git" "$RUNNER_TEMP/docs"
           cd "$RUNNER_TEMP/docs"
           branch="release/${TAG}-versions"
           git checkout -b "$branch"
