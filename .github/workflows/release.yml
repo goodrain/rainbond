@@ -20,6 +20,11 @@ on:
         description: Release version, for example v6.9.12-release
         required: true
         type: string
+      notes:
+        description: Release notes (Markdown). Empty = GitHub generated notes
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -148,13 +153,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RAINBOND_SHA: ${{ needs.gate.outputs.rainbond_sha }}
+          NOTES: ${{ inputs.notes }}
         run: |
           set -euo pipefail
+          # 说明通过输入传进来，发版助理只需要触发工作流的权限，不需要仓库写权限。
+          if [ -n "$NOTES" ]; then
+            printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+            notes_args=(--notes-file "$RUNNER_TEMP/notes.md")
+          else
+            notes_args=(--generate-notes)
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "draft ${TAG} already exists, keeping its notes"
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
-              --target "$RAINBOND_SHA" --title "$TAG" --generate-notes
+              --target "$RAINBOND_SHA" --title "$TAG" "${notes_args[@]}"
           fi
           url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
           {
