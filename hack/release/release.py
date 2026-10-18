@@ -13,14 +13,18 @@ only wires them together:
   docs-versions    roll the docs version table when the minor version changes
   verify-url       compare a published URL with the local artifact
   check-e2e        make sure an E2E provenance covers the commits about to ship
+  notify           post a release message to a Feishu bot (never fails the release)
 
 Only the Python standard library is used so the script runs on a bare runner.
 """
 
 import argparse
+import base64
 import datetime
 import hashlib
+import hmac
 import json
+import os
 import re
 import sys
 import time
@@ -250,6 +254,29 @@ def check_e2e_provenance(prov, expected_sources):
             problems.append(f"{repo}: E2E tested {tested[:12]} but main is now {sha[:12]}; rerun E2E")
     return problems
 
+
+# --------------------------------------------------------------------------
+# Feishu notifications
+# --------------------------------------------------------------------------
+
+def feishu_sign(secret, timestamp):
+    """Signature for a Feishu custom bot with signature verification enabled."""
+    string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
+    digest = hmac.new(string_to_sign, b"", digestmod=hashlib.sha256).digest()
+    return base64.b64encode(digest).decode("utf-8")
+
+
+def feishu_payload(title, lines, link=None, link_text="查看详情", secret=None, timestamp=None):
+    content = [[{"tag": "text", "text": line}] for line in lines if line]
+    if link:
+        content.append([{"tag": "a", "text": link_text, "href": link}])
+    payload = {"msg_type": "post", "content": {"post": {"zh_cn": {"title": title, "content": content}}}}
+    if secret:
+        timestamp = int(timestamp if timestamp is not None else time.time())
+        payload["timestamp"] = str(timestamp)
+        payload["sign"] = feishu_sign(secret, timestamp)
+    return payload
+
 # --------------------------------------------------------------------------
 # registries
 # --------------------------------------------------------------------------
@@ -404,6 +431,29 @@ def cmd_check_e2e(args):
     print(f"E2E run {prov.get('run_id')} ({prov.get('tested_at')}) covers {', '.join(sorted(expected))}")
 
 
+def cmd_notify(args):
+    webhook = os.environ.get("FEISHU_WEBHOOK", "")
+    if not webhook:
+        print("FEISHU_WEBHOOK not configured, skip notification")
+        return
+    payload = feishu_payload(args.title, args.line, args.link, args.link_text,
+                             secret=os.environ.get("FEISHU_SECRET") or None)
+    req = urllib.request.Request(webhook, data=json.dumps(payload).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"})
+    # A notification must never break a release: report problems as warnings.
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read() or b"{}")
+    except Exception as err:  # noqa: BLE001
+        print(f"::warning::Feishu notification failed: {type(err).__name__}")
+        return
+    code = result.get("code", result.get("StatusCode", 0))
+    if code != 0:
+        print(f"::warning::Feishu notification rejected: code={code} msg={result.get('msg', '')}")
+    else:
+        print("Feishu notification sent")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -452,6 +502,13 @@ def main(argv=None):
     s.add_argument("--file", required=True, help="e2e-provenance.json")
     s.add_argument("--source", action="append", default=[], help="repo=sha, repeatable")
     s.set_defaults(func=cmd_check_e2e)
+
+    s = sub.add_parser("notify")
+    s.add_argument("--title", required=True)
+    s.add_argument("--line", action="append", default=[], help="message line, repeatable")
+    s.add_argument("--link")
+    s.add_argument("--link-text", default="查看详情")
+    s.set_defaults(func=cmd_notify)
 
     args = p.parse_args(argv)
     try:

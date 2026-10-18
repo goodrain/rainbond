@@ -225,5 +225,42 @@ class E2EGateTest(unittest.TestCase):
         self.assertTrue(release.check_e2e_provenance(self.prov(sources={}), self.SHAS))
 
 
+class FeishuTest(unittest.TestCase):
+    def test_signature_matches_feishu_algorithm(self):
+        # HmacSHA256 keyed by "timestamp\nsecret" over an empty message, base64 encoded.
+        import base64, hashlib, hmac
+        expected = base64.b64encode(hmac.new(b"1599360473\ndemo", b"", hashlib.sha256).digest()).decode()
+        self.assertEqual(release.feishu_sign("demo", 1599360473), expected)
+
+    def test_payload_without_secret(self):
+        p = release.feishu_payload("标题", ["第一行", "", "第二行"], "https://x/run/1")
+        self.assertEqual(p["msg_type"], "post")
+        body = p["content"]["post"]["zh_cn"]
+        self.assertEqual(body["title"], "标题")
+        self.assertEqual([c[0]["text"] for c in body["content"][:2]], ["第一行", "第二行"])
+        self.assertEqual(body["content"][-1][0]["href"], "https://x/run/1")
+        self.assertNotIn("sign", p)
+
+    def test_payload_with_secret_is_signed(self):
+        p = release.feishu_payload("t", ["x"], secret="demo", timestamp=1599360473)
+        self.assertEqual(p["timestamp"], "1599360473")
+        self.assertEqual(p["sign"], release.feishu_sign("demo", 1599360473))
+
+    def test_notify_without_webhook_is_a_no_op(self):
+        env = os.environ.pop("FEISHU_WEBHOOK", None)
+        try:
+            self.assertEqual(release.main(["notify", "--title", "t", "--line", "x"]), 0)
+        finally:
+            if env is not None:
+                os.environ["FEISHU_WEBHOOK"] = env
+
+    def test_notify_failure_does_not_fail(self):
+        os.environ["FEISHU_WEBHOOK"] = "http://127.0.0.1:9/unreachable"
+        try:
+            self.assertEqual(release.main(["notify", "--title", "t", "--line", "x"]), 0)
+        finally:
+            del os.environ["FEISHU_WEBHOOK"]
+
+
 if __name__ == "__main__":
     unittest.main()

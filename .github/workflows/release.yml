@@ -155,6 +155,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -188,6 +193,17 @@ jobs:
             echo "- 下一步：在本次运行的 **go** 处审批，即发布 release 并开始对外发布流程"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Notify approval 1
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【待审批 1】${TAG} 能不能发" \
+            --line "E2E 门禁、镜像校验已通过，草稿 release 已创建。" \
+            --line "批准后会正式发布 release 并通知下游仓库打 tag，不可撤回。" \
+            --link "$RUN_URL" --link-text "去审批"
+
   go:
     needs: [gate, draft]
     if: always() && needs.draft.result == 'success'
@@ -198,6 +214,11 @@ jobs:
       contents: write
       actions: write
     steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
       # 审批可能等了很久：发布前再确认 main 没有变，否则发出去的就不是 E2E 测过的代码。
       - name: Mains unchanged since the gate
         if: env.E2E_GATE == 'required'
@@ -251,3 +272,33 @@ jobs:
             echo "- release：${url}"
             echo "- 已触发 trigger-downstream-releases 和 release-publish；release-publish 会在对外发布前等待审批 2"
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "RELEASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Notify published
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: |
+          python3 hack/release/release.py notify --title "【已发布】${TAG} release 已发布" \
+            --line "下游仓库正在打 tag；release-publish 准备好后会再通知审批 2（对外发布）。" \
+            --link "$RELEASE_URL" --link-text "查看 release"
+
+  notify-failure:
+    needs: [gate, build, images, draft, go]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Notify failure
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【失败】${TAG} 发版入口失败" \
+            --line "release 工作流有步骤失败，没有发布任何内容。请查看运行日志。" \
+            --link "$RUN_URL" --link-text "查看运行"

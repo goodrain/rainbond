@@ -193,6 +193,18 @@ jobs:
           path: dist/
           retention-days: 30
 
+      - name: Notify approval 2
+        if: github.event_name == 'release' || inputs.dry_run == false
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【待审批 2】${TAG} 对外发布" \
+            --line "chart、安装脚本和 upgrade feed 已生成，审批前请先看运行摘要里与线上的差异。" \
+            --line "批准后所有用户的控制台会看到新版本提示，安装脚本默认版本也会变化。" \
+            --link "$RUN_URL" --link-text "去审批"
+
   publish:
     needs: prepare
     if: github.event_name == 'release' || inputs.dry_run == false
@@ -385,3 +397,34 @@ jobs:
         env:
           CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
         run: curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"
+
+      - name: Notify done
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【发布完成】${TAG}" \
+            --line "安装脚本和 upgrade feed 已从线上回读校验通过。" \
+            --line "离线包和 roi 二进制如需更新，请按发版手册单独处理。" \
+            --link "$RUN_URL" --link-text "查看运行"
+
+  notify-failure:
+    needs: [prepare, publish, verify]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Notify failure
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【失败】${TAG} 对外发布失败" \
+            --line "release-publish 有步骤失败，请查看日志；已发布的部分不会被回滚，可修复后直接重跑。" \
+            --link "$RUN_URL" --link-text "查看运行"
