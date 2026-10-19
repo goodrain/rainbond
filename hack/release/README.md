@@ -119,3 +119,10 @@ upgrade feed 和安装脚本都来自仓库：回退 `hack/release/upgrade-versi
 再用上一个版本号手动运行 release-publish（`dry_run` 取消勾选），控制台的升级提示和
 安装脚本的默认版本就会回到上一版。版本号比当前旧时，chart 和文档保持不动，
 已存在的 chart 包也会跳过。已发布的镜像和 chart 不覆盖，问题版本请发补丁版本修复。
+
+## 紧急发版
+
+E2E 门禁在 goodrain/rainbond 上不能跳过。确实需要紧急发版、而 E2E 环境不可用时，
+按原来的手工发版清单（飞书「发版流程」文档）操作，由发版审批人决定并在发版群里说明原因。
+事后补跑一次 prerelease，并用 release-publish 的 dry run 核对 upgrade feed、安装脚本和
+chart 与仓库一致；不一致时按上面「回滚」的方式用 release-publish 重新发布一次。
