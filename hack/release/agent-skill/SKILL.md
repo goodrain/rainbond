@@ -67,6 +67,8 @@ done
 ### 第 1 步：发版准备报告（只读，不需要审批）
 
 1. 确认 `$TAG` 尚未发布：`gh release view $TAG -R $REPO`。已发布就停止，说明情况。
+   **只看 `$REPO` 的实际状态**：Multica 里以前做过同版本的任务（例如演练）不影响本次，不要因此停下来问是否重做。
+   在 `$REPO` 上没有发布就照常进行；同一版本的发版说明可以直接参考以前的任务。
 2. 收集 `$PREV` 以来合并的 PR，四个仓库都要看：goodrain/rainbond、rainbond-console、rainbond-ui、rainbond-operator。
    用 `gh api repos/<repo>/compare/$PREV...main` 拿提交，再用 `gh pr list -R <repo> --state merged --search "<sha>"` 或提交信息里的 `#编号` 对应到 PR。
 3. 查 Multica 里这个版本对应项目或标签下仍未完成的任务。
@@ -85,6 +87,8 @@ done
    `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --status completed --limit 1`。
 2. 下载它的 `e2e-provenance` artifact，检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
    goodrain/rainbond、rainbond-console、rainbond-ui 的 SHA 与三个仓库当前 main 一致。
+   **读不到 rainbond-e2e-tests**（404 / 403，机器人账号可能没有这个私有仓库的权限）时不要停下：在报告里注明
+   「E2E 由 release.yml 的 gate 检查」，直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。
 3. 满足就进入第 3 步。不满足时：
    - 先在任务里说明原因（失败、不是全量、或 main 之后又有新提交），并提醒：
      **prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502。**
