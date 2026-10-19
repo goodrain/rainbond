@@ -29,10 +29,17 @@ description: "Run a Rainbond release end to end as the release assistant: when s
 - 版本号格式 `vX.Y.Z-release`。用户只说 `6.9.12` 或 `v6.9.12` 时补全为 `v6.9.12-release` 并在回复中写明。
 - 用户没给版本号时，按语义化版本建议一个：只有 bug 修复 → 补丁位 +1；有新功能 → 次版本位 +1、补丁位归 0。
   **建议之后必须等人确认**，不能自己决定。
-- 目标仓库默认 `goodrain/rainbond`；任务里写明演练仓库（如 `yangkaa/rainbond`）时，所有命令改用该仓库。
-  E2E 仓库固定为 `goodrain/rainbond-e2e-tests`。
+- **只有版本号是必需的。** 「发版 v6.9.12」这样一句话就够了，其他信息按下面的规则自己确定，
+  不要要求对方补写，只在第一次汇报里写明你用了什么：
+  - 目标仓库：任务里写了就用任务里的；否则用 agent 指令里的默认目标仓库；都没有时用 `goodrain/rainbond`。
+    E2E 仓库固定为 `goodrain/rainbond-e2e-tests`。
+  - 上一个版本：**总是按 `goodrain/rainbond` 计算**（演练仓库的 release 不完整，不能用），取已发布
+    release 中比 `$TAG` 小的最大版本：
+    `gh release list -R goodrain/rainbond --exclude-drafts --limit 50 --json tagName --jq '.[].tagName'`，
+    再按版本号排序筛选。任务里明确写了上一个版本时以任务为准。
+  - 审批人：@ 任务的创建人；任务里另外指定了审批人时 @ 指定的人。
 
-下文 `$REPO` 指目标仓库，`$TAG` 指版本号，`$PREV` 指上一个已发布版本（`gh release list -R $REPO --exclude-drafts --limit 1`）。
+下文 `$REPO` 指目标仓库，`$TAG` 指版本号，`$PREV` 指上一个已发布版本。
 
 ## 跟踪工作流（每次触发或等待审批时都要用）
 
