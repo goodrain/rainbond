@@ -84,7 +84,8 @@ done
 ### 第 2 步：确认全量 E2E 覆盖本次发布
 
 1. 取 `prerelease.yml` 最近一次已完成的运行：
-   `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --status completed --limit 1`。
+   `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status completed --limit 1`
+   （只认 main 上的运行，和 gate 一致）。
 2. 下载它的 `e2e-provenance` artifact，检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
    goodrain/rainbond、rainbond-console、rainbond-ui 的 SHA 与三个仓库当前 main 一致。
    **读不到 rainbond-e2e-tests**（404 / 403，机器人账号可能没有这个私有仓库的权限）时不要停下：在报告里注明
@@ -92,7 +93,7 @@ done
 3. 满足就进入第 3 步。不满足时：
    - 先在任务里说明原因（失败、不是全量、或 main 之后又有新提交），并提醒：
      **prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502。**
-   - **等人同意后**再触发：`gh workflow run prerelease.yml -R goodrain/rainbond-e2e-tests`，然后等待完成。
+   - **等人同意后**再触发：`gh workflow run prerelease.yml -R goodrain/rainbond-e2e-tests --ref main`，然后等待完成。
    - 失败时读日志判断类别并汇报：
      - `env_failure`：环境故障（console 不可达、登录失败、region 不可用），不是产品问题，交给环境负责人；
      - 用例失败：列出失败用例、错误摘要、可能相关的 PR；

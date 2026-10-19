@@ -105,9 +105,10 @@ jobs:
         run: |
           set -euo pipefail
           [ -n "$GH_TOKEN" ] || { echo "::error::secret E2E_READ_TOKEN is not configured"; exit 1; }
-          run_id=$(gh run list --repo "$E2E_REPO" --workflow "$E2E_WORKFLOW" --status completed --limit 1 \
+          # 只认 main 上的运行：从其他分支触发的 prerelease 可以改过用例或脚本，它的记录不能作为门禁依据。
+          run_id=$(gh run list --repo "$E2E_REPO" --workflow "$E2E_WORKFLOW" --branch main --status completed --limit 1 \
             --json databaseId --jq '.[0].databaseId // empty')
-          [ -n "$run_id" ] || { echo "::error::no completed ${E2E_WORKFLOW} run in ${E2E_REPO}"; exit 1; }
+          [ -n "$run_id" ] || { echo "::error::no completed ${E2E_WORKFLOW} run on main in ${E2E_REPO}"; exit 1; }
           gh run download "$run_id" --repo "$E2E_REPO" --name e2e-provenance --dir "$RUNNER_TEMP/e2e"
           python3 hack/release/release.py check-e2e --file "$RUNNER_TEMP/e2e/e2e-provenance.json" \
             --source "goodrain/rainbond=${RAINBOND_SHA}" \
