@@ -13,36 +13,49 @@ on:
         description: Rainbond release URL. Leave empty to build it from the tag.
         required: false
         type: string
+      # Commits pinned by release.yml. When set, each downstream repository tags
+      # exactly that commit instead of its current main.
+      console_target:
+        description: rainbond-console commit to tag (optional)
+        required: false
+        type: string
+      ui_target:
+        description: rainbond-ui commit to tag (optional)
+        required: false
+        type: string
+      operator_target:
+        description: rainbond-operator commit to tag (optional)
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   dispatch:
-    if: endsWith(github.event_name == 'release' && github.event.release.tag_name || inputs.tag, '-release')
+    if: endsWith(github.event_name == 'release' && github.event.release.tag_name || inputs.tag, '-release') && vars.RELEASE_DOWNSTREAM_REPOS != '[]'
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
+      # Downstream repositories that tag a release after rainbond. A fork sets
+      # vars.RELEASE_DOWNSTREAM_REPOS to '[]' so it never dispatches upstream.
+      # rainbond-chart is released by release-publish.yml after its version
+      # has been bumped, so the chart tag carries the new version.
       matrix:
-        include:
-          - repo: goodrain/rainbond-console
-            ref: main
-          - repo: goodrain/rainbond-ui
-            ref: main
-          - repo: goodrain/rainbond-operator
-            ref: main
-          - repo: goodrain/rainbond-chart
-            ref: main
+        repo: ${{ fromJSON(vars.RELEASE_DOWNSTREAM_REPOS || '["goodrain/rainbond-console","goodrain/rainbond-ui","goodrain/rainbond-operator"]') }}
 
     steps:
       - name: Trigger downstream release workflow
         env:
           GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
           TARGET_REPO: ${{ matrix.repo }}
-          TARGET_REF: ${{ matrix.ref }}
+          TARGET_REF: main
           TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
           RAINBOND_RELEASE_URL: ${{ github.event_name == 'release' && github.event.release.html_url || inputs.rainbond_release_url }}
+          CONSOLE_TARGET: ${{ inputs.console_target }}
+          UI_TARGET: ${{ inputs.ui_target }}
+          OPERATOR_TARGET: ${{ inputs.operator_target }}
         run: |
           set -euo pipefail
 
@@ -50,10 +63,22 @@ jobs:
             RAINBOND_RELEASE_URL="https://github.com/goodrain/rainbond/releases/tag/${TAG}"
           fi
 
+          case "${TARGET_REPO##*/}" in
+            rainbond-console) target="$CONSOLE_TARGET" ;;
+            rainbond-ui) target="$UI_TARGET" ;;
+            rainbond-operator) target="$OPERATOR_TARGET" ;;
+            *) target="" ;;
+          esac
+          # Only pass target when pinned: older downstream workflows do not
+          # accept the input and would reject the dispatch.
+          extra=()
+          [ -z "$target" ] || extra=(-f target="$target")
+
           gh workflow run auto-release-from-rainbond.yml \
             --repo "$TARGET_REPO" \
             --ref "$TARGET_REF" \
             -f tag="$TAG" \
-            -f rainbond_release_url="$RAINBOND_RELEASE_URL"
+            -f rainbond_release_url="$RAINBOND_RELEASE_URL" \
+            ${extra[@]+"${extra[@]}"}
 
-          echo "Triggered $TARGET_REPO for $TAG"
+          echo "Triggered $TARGET_REPO for $TAG${target:+ at $target}"

@@ -1,0 +1,305 @@
+name: release
+
+# 发版入口：只填一次版本号，按顺序完成「检查 E2E → 构建镜像 → 草稿 release →
+# 审批 1（能不能发）→ 发布 release」，随后自动触发下游打 tag 和 release-publish
+# （审批 2：对外发布）。规则都在这里强制执行，不依赖人或 AI 记住步骤。
+#
+#   gate    最近一次全量 E2E 是绿的，且测的就是三个仓库当前 main 的 commit
+#   build   按 gate 固定的 commit 调用 release-v6 构建双架构镜像
+#   images  15 个镜像都是 amd64 + arm64
+#   draft   创建草稿 release（自动生成说明，可在发布前编辑）
+#   go      environment: release-go，审批后再次确认 main 未变化，发布 release
+#
+# fork 演练：设置 RELEASE_REUSE_IMAGES=true（复用已发布镜像，不构建）、
+# RELEASE_E2E_GATE=skip。两者在 goodrain/rainbond 上都会被拒绝。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example v6.9.12-release
+        required: true
+        type: string
+      notes:
+        description: Release notes (Markdown). Empty = GitHub generated notes
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.version }}
+  E2E_REPO: ${{ vars.RELEASE_E2E_REPO || 'goodrain/rainbond-e2e-tests' }}
+  E2E_WORKFLOW: ${{ vars.RELEASE_E2E_WORKFLOW || 'prerelease.yml' }}
+  E2E_GATE: ${{ vars.RELEASE_E2E_GATE || 'required' }}
+  REUSE_IMAGES: ${{ vars.RELEASE_REUSE_IMAGES || 'false' }}
+  # Repository whose main E2E has to cover. Only a fork rehearsal points it at
+  # goodrain/rainbond; on goodrain/rainbond it must be the repository itself.
+  RAINBOND_SOURCE_REPO: ${{ vars.RELEASE_RAINBOND_SOURCE_REPO || github.repository }}
+  CONSOLE_REPO: ${{ vars.RELEASE_CONSOLE_REPO || 'goodrain/rainbond-console' }}
+  UI_REPO: ${{ vars.RELEASE_UI_REPO || 'goodrain/rainbond-ui' }}
+  OPERATOR_REPO: ${{ vars.RELEASE_OPERATOR_REPO || 'goodrain/rainbond-operator' }}
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      rainbond_sha: ${{ steps.mains.outputs.rainbond }}
+      self_sha: ${{ steps.mains.outputs.self }}
+      console_sha: ${{ steps.mains.outputs.console }}
+      ui_sha: ${{ steps.mains.outputs.ui }}
+      operator_sha: ${{ steps.mains.outputs.operator }}
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Validate version and mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 hack/release/release.py check-tag "$TAG"
+          if [ "$GITHUB_REPOSITORY" = goodrain/rainbond ]; then
+            [ "$E2E_GATE" = required ] || { echo "::error::the E2E gate cannot be skipped on goodrain/rainbond"; exit 1; }
+            [ "$REUSE_IMAGES" = false ] || { echo "::error::goodrain/rainbond must build the images it releases"; exit 1; }
+            [ "$RAINBOND_SOURCE_REPO" = goodrain/rainbond ] || { echo "::error::RELEASE_RAINBOND_SOURCE_REPO cannot be overridden on goodrain/rainbond"; exit 1; }
+          fi
+          if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
+            echo "::error::${TAG} is already published; use release-publish to re-publish its files"
+            exit 1
+          fi
+
+      - name: Resolve main commits
+        id: mains
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha() { gh api "repos/$1/commits/main" --jq .sha; }
+          {
+            echo "rainbond=$(sha "$RAINBOND_SOURCE_REPO")"
+            echo "self=$(sha "$GITHUB_REPOSITORY")"
+            echo "console=$(sha "$CONSOLE_REPO")"
+            echo "ui=$(sha "$UI_REPO")"
+            echo "operator=$(sha "$OPERATOR_REPO")"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      # 只看最近一次已完成的运行：最近一次失败就拦住，不会回退去找更早的绿色运行。
+      - name: Latest full E2E covers these commits
+        if: env.E2E_GATE == 'required'
+        env:
+          GH_TOKEN: ${{ secrets.E2E_READ_TOKEN }}
+          RAINBOND_SHA: ${{ steps.mains.outputs.rainbond }}
+          CONSOLE_SHA: ${{ steps.mains.outputs.console }}
+          UI_SHA: ${{ steps.mains.outputs.ui }}
+        run: |
+          set -euo pipefail
+          [ -n "$GH_TOKEN" ] || { echo "::error::secret E2E_READ_TOKEN is not configured"; exit 1; }
+          # 只认 main 上的运行：从其他分支触发的 prerelease 可以改过用例或脚本，它的记录不能作为门禁依据。
+          run_id=$(gh run list --repo "$E2E_REPO" --workflow "$E2E_WORKFLOW" --branch main --status completed --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          [ -n "$run_id" ] || { echo "::error::no completed ${E2E_WORKFLOW} run on main in ${E2E_REPO}"; exit 1; }
+          gh run download "$run_id" --repo "$E2E_REPO" --name e2e-provenance --dir "$RUNNER_TEMP/e2e"
+          python3 hack/release/release.py check-e2e --file "$RUNNER_TEMP/e2e/e2e-provenance.json" \
+            --source "goodrain/rainbond=${RAINBOND_SHA}" \
+            --source "${CONSOLE_REPO}=${CONSOLE_SHA}" \
+            --source "${UI_REPO}=${UI_SHA}"
+          echo "E2E: https://github.com/${E2E_REPO}/actions/runs/${run_id}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: E2E gate skipped (rehearsal)
+        if: env.E2E_GATE != 'required'
+        run: echo "::warning::E2E gate skipped by RELEASE_E2E_GATE=${E2E_GATE} (allowed outside goodrain/rainbond only)"
+
+  build:
+    needs: gate
+    if: vars.RELEASE_REUSE_IMAGES != 'true'
+    uses: ./.github/workflows/release-v6.yml
+    with:
+      version: ${{ inputs.version }}
+      build-who: all
+      platforms: linux/amd64,linux/arm64
+      rainbond_ref: ${{ needs.gate.outputs.rainbond_sha }}
+      console_ref: ${{ needs.gate.outputs.console_sha }}
+      ui_ref: ${{ needs.gate.outputs.ui_sha }}
+      operator_ref: ${{ needs.gate.outputs.operator_sha }}
+    secrets: inherit
+
+  images:
+    needs: [gate, build]
+    if: always() && needs.gate.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Verify release images are multi-arch
+        run: python3 hack/release/release.py verify-images "$TAG"
+
+  draft:
+    needs: [gate, images]
+    if: always() && needs.images.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          set -euo pipefail
+          # 说明通过输入传进来，发版助理只需要触发工作流的权限，不需要仓库写权限。
+          if [ -n "$NOTES" ]; then
+            printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+            notes_args=(--notes-file "$RUNNER_TEMP/notes.md")
+          else
+            notes_args=(--generate-notes)
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # 草稿可能来自之前失败的运行：目标必须改成本次 gate 固定的 commit，
+            # 否则发布时 tag 会打在一个没有经过本次 gate 的 commit 上。
+            edit_args=(--target "$SELF_SHA")
+            [ -z "$NOTES" ] || edit_args+=(--notes-file "$RUNNER_TEMP/notes.md")
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" "${edit_args[@]}"
+            echo "draft ${TAG} already existed: target set to ${SELF_SHA}${NOTES:+, notes replaced}"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
+              --target "$SELF_SHA" --title "$TAG" "${notes_args[@]}"
+          fi
+          url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          {
+            echo "## ${TAG} 待发布"
+            echo
+            echo "- 草稿 release：${url}（发布前可以编辑说明）"
+            echo "- 下一步：在本次运行的 **go** 处审批，即发布 release 并开始对外发布流程"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify approval 1
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【待审批 1】${TAG} 能不能发" \
+            --line "E2E 门禁、镜像校验已通过，草稿 release 已创建。" \
+            --line "批准后会正式发布 release 并通知下游仓库打 tag，不可撤回。" \
+            --link "$RUN_URL" --link-text "去审批"
+
+  go:
+    needs: [gate, draft]
+    if: always() && needs.draft.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release-go
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      # 审批可能等了很久：发布前再确认 main 没有变，否则发出去的就不是 E2E 测过的代码。
+      - name: Mains unchanged since the gate
+        if: env.E2E_GATE == 'required'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAINBOND_SHA: ${{ needs.gate.outputs.rainbond_sha }}
+          CONSOLE_SHA: ${{ needs.gate.outputs.console_sha }}
+          UI_SHA: ${{ needs.gate.outputs.ui_sha }}
+          OPERATOR_SHA: ${{ needs.gate.outputs.operator_sha }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
+        run: |
+          set -euo pipefail
+          moved=0
+          check() {
+            local now; now=$(gh api "repos/$1/commits/main" --jq .sha)
+            if [ "$now" != "$2" ]; then echo "::error::$1 main moved ${2:0:12} -> ${now:0:12}"; moved=1; fi
+          }
+          check "$RAINBOND_SOURCE_REPO" "$RAINBOND_SHA"
+          [ "$RAINBOND_SOURCE_REPO" = "$GITHUB_REPOSITORY" ] || check "$GITHUB_REPOSITORY" "$SELF_SHA"
+          check "$CONSOLE_REPO" "$CONSOLE_SHA"
+          check "$UI_REPO" "$UI_SHA"
+          check "$OPERATOR_REPO" "$OPERATOR_SHA"
+          [ "$moved" = 0 ] || { echo "::error::rerun E2E and the release workflow"; exit 1; }
+
+      # 用 GITHUB_TOKEN 发布不会触发 release 事件，所以这里显式触发后续两个工作流，
+      # 也就不会重复运行。手工在网页上发布 release 时，它们照常由 release 事件触发。
+      - name: Publish release and start downstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELF_SHA: ${{ needs.gate.outputs.self_sha }}
+          CONSOLE_SHA: ${{ needs.gate.outputs.console_sha }}
+          UI_SHA: ${{ needs.gate.outputs.ui_sha }}
+          OPERATOR_SHA: ${{ needs.gate.outputs.operator_sha }}
+        run: |
+          set -euo pipefail
+          target=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
+          if [ "$target" != "$SELF_SHA" ]; then
+            echo "::error::draft ${TAG} targets ${target:0:12}, not the gated commit ${SELF_SHA:0:12}"
+            exit 1
+          fi
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          gh workflow run trigger-downstream-releases.yml --repo "$GITHUB_REPOSITORY" \
+            --ref "$DEFAULT_BRANCH" -f tag="$TAG" -f rainbond_release_url="$url" \
+            -f console_target="$CONSOLE_SHA" -f ui_target="$UI_SHA" -f operator_target="$OPERATOR_SHA"
+          gh workflow run release-publish.yml --repo "$GITHUB_REPOSITORY" \
+            --ref "$DEFAULT_BRANCH" -f tag="$TAG" -f dry_run=false
+          {
+            echo "## ${TAG} 已发布"
+            echo
+            echo "- release：${url}"
+            echo "- 已触发 trigger-downstream-releases 和 release-publish；release-publish 会在对外发布前等待审批 2"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "RELEASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Notify published
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: |
+          python3 hack/release/release.py notify --title "【已发布】${TAG} release 已发布" \
+            --line "下游仓库正在打 tag；release-publish 准备好后会再通知审批 2（对外发布）。" \
+            --link "$RELEASE_URL" --link-text "查看 release"
+
+  notify-failure:
+    needs: [gate, build, images, draft, go]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Notify failure
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 hack/release/release.py notify --title "【失败】${TAG} 发版入口失败" \
+            --line "release 工作流有步骤失败，没有发布任何内容。请查看运行日志。" \
+            --link "$RUN_URL" --link-text "查看运行"
