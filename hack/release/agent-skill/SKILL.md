@@ -102,10 +102,13 @@ done
 ### 第 3 步：触发发版入口（审批 1）
 
 1. 把第 1 步确认过的发版说明作为输入传给工作流（你没有仓库写权限，不能直接编辑 release）：
-   `gh workflow run release.yml -R $REPO --ref main -f version=$TAG -f notes="$(cat notes.md)"`，
+   先把说明写进文件 `notes.md`（第一行单独一行 `## What's Changed`，后面空一行），再**从文件读取**传入，
+   不要把多行说明拼在命令行里（容易丢换行）：
+   `gh workflow run release.yml -R $REPO --ref main -f version=$TAG -F notes=@notes.md`，
    然后找到这次运行：`gh run list -R $REPO --workflow release.yml --limit 1`。
 2. 跟踪 gate → build → images → draft。任何一步失败就停止并汇报原因和日志摘要。
-3. 草稿创建后，人仍然可以在 GitHub 网页上修改说明，审批 1 之前改都来得及。
+3. 草稿创建后核对说明：`gh release view $TAG -R $REPO --json body --jq .body | diff - notes.md`。
+   有差异（例如标题和第一条连在一起）就在审批 1 的汇报里指出，请人在网页上修正；审批 1 之前改都来得及。
 4. 当 **go** 处于等待审批时，在任务里发：
    - 审批链接：`https://github.com/$REPO/actions/runs/<run_id>`
    - 草稿 release 链接、本次固定的四个 commit、E2E 运行链接
@@ -117,7 +120,16 @@ done
 1. go 通过后，确认 `trigger-downstream-releases` 和 `release-publish` 都已被触发。
 2. 当 `release-publish` 的 **publish** 处于等待审批时，在任务里发：
    - 审批链接
-   - 从 prepare 摘要里摘出的要点：upgrade feed 与线上的差异、安装脚本是否变化、chart 是否需要提交
+   - 从 prepare 的预览里摘出的要点：upgrade feed 与线上的差异、安装脚本的变化、chart 的变化。
+     预览也打印在 prepare 的日志里（prepare 完成后就能读，不用等整个运行结束）：
+     ```bash
+     JOB=$(gh run view "$RUN_ID" -R "$REPO" --json jobs --jq '.jobs[]|select(.name=="prepare").databaseId')
+     gh run view -R "$REPO" --job "$JOB" --log | cut -f3- | sed -E 's/^[^0-9]*[0-9T:.Z-]+Z //' \
+       | sed -n '/^## v[0-9.]*-release 发布预览$/,/^### 产物 sha256$/p'
+     ```
+     差异就在这段输出里，直接引用，不要说「未取得差异」。
+   - chart：仓库里的版本号提交和 tag 都由 publish 自动完成，**不需要人另外提交**。预览里的「chart 上传」
+     一行只说明是否上传到 chart 仓库地址（演练时关闭）。
    - 一句话说明：批准后所有用户的控制台会看到新版本提示，安装脚本默认版本也会变化
 3. 跟踪 publish → verify。verify 因 CDN 缓存失败时说明原因，等人决定是否稍后重跑。
 

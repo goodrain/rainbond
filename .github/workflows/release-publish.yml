@@ -152,6 +152,7 @@ jobs:
             echo "|---|---|"
             echo "| 多架构镜像 | ✅ 全部 amd64 + arm64 |"
             echo "| chart 版本 | \`$(grep -m1 '^version:' chart/Chart.yaml)\`${{ steps.chart.outputs.main_version != steps.tag.outputs.chart_version && '（比本次版本新：按回滚处理，不改动 chart）' || '' }} |"
+            echo "| chart 上传到 ${CHART_REPO_URL} | ${{ env.CHART_UPLOAD == 'true' && '是' || '否（RELEASE_CHART_UPLOAD=false；chart 仓库的提交和 tag 仍由 publish 完成）' }} |"
             echo "| 文档版本表 | ${{ steps.docs.outputs.changed == 'true' && '需要更新（将提 PR）' || '无需更新' }} |"
             echo
             # 对比的是「当前线上文件」而不是仓库：审批人要看的是批准后线上会变成什么。
@@ -185,7 +186,7 @@ jobs:
             echo '```'
             (cd dist && find . -type f -size +0 | sort | xargs sha256sum)
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"   # tee: the release assistant reads the preview from the job log
 
       - uses: actions/upload-artifact@v4
         with:
