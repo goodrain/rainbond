@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -772,38 +773,6 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	pods := make(map[string][]corev1.Pod)
-	ComponentAllPods := make(map[string]int)
-	ComponentRunPods := make(map[string]int)
-	appNameMap := make(map[string]int)
-	for _, pod := range podList.Items {
-		labels := pod.Labels
-		appName := labels["name"]
-		if len(appName) == 0 {
-			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
-			continue
-		}
-		appNameMap[appName]++
-		pods[appName] = append(pods[appName], pod)
-		if pod.Status.Phase == "Running" {
-			// 检查容器是否处于等待或崩溃重启状态
-			isContainerRunning := true
-			for _, containerStatus := range pod.Status.ContainerStatuses {
-				if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
-					isContainerRunning = false
-					break
-				}
-			}
-			if isContainerRunning {
-				ComponentRunPods[appName]++
-			}
-		}
-		ComponentAllPods[appName]++
-	}
-	var appNames []string
-	for name := range appNameMap {
-		appNames = append(appNames, name)
-	}
 	// rainbond operator
 	roPods, err := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(ctx, metav1.ListOptions{
 		LabelSelector: fields.SelectorFromSet(map[string]string{
@@ -813,23 +782,95 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	pods["rainbond-operator"] = roPods.Items
-	for _, ropod := range roPods.Items {
-		if ropod.Status.Phase == "Running" {
-			ComponentRunPods["rainbond-operator"]++
+	allPods := make([]corev1.Pod, 0, len(podList.Items)+len(roPods.Items))
+	allPods = append(allPods, podList.Items...)
+	allPods = append(allPods, roPods.Items...)
+	allPods = deduplicateRainbondComponentPods(allPods)
+	res = finalizeRainbondComponentOverview(buildRainbondComponentOverview(allPods))
+	return res, nil
+}
+
+func deduplicateRainbondComponentPods(pods []corev1.Pod) []corev1.Pod {
+	result := make([]corev1.Pod, 0, len(pods))
+	seen := make(map[string]struct{}, len(pods))
+	for _, pod := range pods {
+		key := "uid:" + string(pod.UID)
+		if pod.UID == "" {
+			key = "name:" + pod.Namespace + "/" + pod.Name
 		}
-		ComponentAllPods["rainbond-operator"]++
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, pod)
 	}
-	appNames = append(appNames, "rainbond-operator")
-	for _, name := range appNames {
-		res = append(res, &model.RainbondComponent{
-			Name:    name,
-			Pods:    pods[name],
-			AllPods: ComponentAllPods[name],
-			RunPods: ComponentRunPods[name],
+	return result
+}
+
+func finalizeRainbondComponentOverview(components []*model.RainbondComponent) []*model.RainbondComponent {
+	result := append([]*model.RainbondComponent(nil), components...)
+	operatorFound := false
+	for _, component := range result {
+		if component.Name == "rainbond-operator" {
+			operatorFound = true
+			break
+		}
+	}
+	if !operatorFound {
+		result = append(result, &model.RainbondComponent{
+			Name: "rainbond-operator",
+			Pods: []corev1.Pod{},
 		})
 	}
-	return res, nil
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+	return result
+}
+
+func podReadyForOverview(pod corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func buildRainbondComponentOverview(pods []corev1.Pod) []*model.RainbondComponent {
+	components := make(map[string]*model.RainbondComponent)
+	for _, pod := range pods {
+		componentName := pod.Labels["name"]
+		if componentName == "" {
+			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
+			continue
+		}
+		component, ok := components[componentName]
+		if !ok {
+			component = &model.RainbondComponent{Name: componentName}
+			components[componentName] = component
+		}
+		component.Pods = append(component.Pods, pod)
+		component.AllPods++
+		if podReadyForOverview(pod) {
+			component.RunPods++
+		}
+	}
+
+	componentNames := make([]string, 0, len(components))
+	for name := range components {
+		componentNames = append(componentNames, name)
+	}
+	sort.Strings(componentNames)
+
+	result := make([]*model.RainbondComponent, 0, len(componentNames))
+	for _, name := range componentNames {
+		result = append(result, components[name])
+	}
+	return result
 }
 
 // ListPlugins -

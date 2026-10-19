@@ -185,6 +185,7 @@
 | rainbond.cluster-resource.exclude-terminal-pods | 从集群资源分配统计中排除终态 Pod | active | regression | api/handler.(*TenantAction).initClusterResource | api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods |
 | rainbond.cluster-resource.handler-singleton | 复用集群资源处理器单例 | active | unit | api/handler.GetClusterResourceHandler | api/handler/cluster_resource_test.go::TestGetClusterResourceHandlerSingleton |
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
+| rainbond.cluster.rbd-component-readiness | Rainbond component readiness overview | active | regression | api/handler.clusterAction.ListRainbondComponents | api/handler/cluster_overview_test.go::TestPodReadyForOverview<br>api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName<br>api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted<br>api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts |
 | rainbond.cluster.upgrade-preserves-component-config | Preserve custom component configuration during image upgrades | active | regression | POST /v2/cluster/rbd-upgrade | api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
 | rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
@@ -2459,6 +2460,16 @@
 - 业务入口: `api/handler.validateGVRParams`
 - 代码路径: `api/handler/cluster_resource.go`
 - 测试路径: `api/handler/cluster_resource_test.go::TestValidateGVRParams`
+
+### Rainbond component readiness overview
+
+- Capability ID: `rainbond.cluster.rbd-component-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.clusterAction.ListRainbondComponents`
+- 代码路径: `api/handler/cluster.go`
+- 测试路径: `api/handler/cluster_overview_test.go::TestPodReadyForOverview`, `api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName`, `api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted`, `api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts`
 
 ### Preserve custom component configuration during image upgrades
 

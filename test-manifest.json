@@ -3549,6 +3549,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster.rbd-component-readiness",
+      "title": "Rainbond component readiness overview",
+      "title_zh": "Rainbond component readiness overview",
+      "interface_type": "handler_method",
+      "interface": "api/handler.clusterAction.ListRainbondComponents",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestPodReadyForOverview"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestBuildRainbondComponentOverviewSortsByName"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cluster.upgrade-preserves-component-config",
       "title": "Preserve custom component configuration during image upgrades",
       "title_zh": "Preserve custom component configuration during image upgrades",
