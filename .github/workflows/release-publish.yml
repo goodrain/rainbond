@@ -234,6 +234,8 @@ jobs:
           HAS_TOS_SK: ${{ secrets.TOS_SECRET_KEY != '' }}
           HAS_CHART_USER: ${{ secrets.CHART_REPO_USERNAME != '' }}
           HAS_CHART_PASS: ${{ secrets.CHART_REPO_PASSWORD != '' }}
+          HAS_RAINBOND_KEY: ${{ secrets.RAINBOND_DEPLOY_KEY != '' }}
+          HAS_CHART_KEY: ${{ secrets.CHART_DEPLOY_KEY != '' }}
         run: |
           missing=()
           for v in TOS_ENDPOINT TOS_REGION TOS_BUCKET TOS_KEY_INSTALL_SCRIPT TOS_KEY_UPGRADE_VERSIONS TOSUTIL_URL TOSUTIL_SHA256; do
@@ -242,6 +244,8 @@ jobs:
           [ "$HAS_CROSS_TOKEN" = true ] || missing+=("secret CROSS_REPO_RELEASE_TOKEN")
           [ "$HAS_TOS_AK" = true ] || missing+=("secret TOS_ACCESS_KEY")
           [ "$HAS_TOS_SK" = true ] || missing+=("secret TOS_SECRET_KEY")
+          [ "$HAS_RAINBOND_KEY" = true ] || missing+=("secret RAINBOND_DEPLOY_KEY")
+          [ "$HAS_CHART_KEY" = true ] || missing+=("secret CHART_DEPLOY_KEY")
           if [ "$CHART_UPLOAD" = true ]; then
             [ "$HAS_CHART_USER" = true ] || missing+=("secret CHART_REPO_USERNAME")
             [ "$HAS_CHART_PASS" = true ] || missing+=("secret CHART_REPO_PASSWORD")
@@ -261,6 +265,24 @@ jobs:
         with:
           name: release-publish-${{ env.TAG }}
           path: dist
+
+      # main 受规则集保护（必须走 PR、chart 要求签名），GITHUB_TOKEN 和普通令牌都推不上去。
+      # 两次推送改用各仓库的部署密钥，规则集里只放行部署密钥；私钥只在本环境（审批 2 之后）可用。
+      # 配置方法见 hack/release/setup-deploy-keys.sh。
+      - name: Set up deploy keys
+        env:
+          RAINBOND_DEPLOY_KEY: ${{ secrets.RAINBOND_DEPLOY_KEY }}
+          CHART_DEPLOY_KEY: ${{ secrets.CHART_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          d="$RUNNER_TEMP/ssh"; mkdir -p "$d"
+          printf '%s\n' "$RAINBOND_DEPLOY_KEY" > "$d/rainbond"
+          printf '%s\n' "$CHART_DEPLOY_KEY" > "$d/chart"
+          curl -fsSL https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com " + .' > "$d/known_hosts"
+          for k in rainbond chart; do
+            echo "GIT_SSH_${k^^}=ssh -i $d/$k -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$d/known_hosts" >> "$GITHUB_ENV"
+          done
 
       - name: Install and configure tosutil
         env:
@@ -306,7 +328,7 @@ jobs:
             git -c user.name="github-actions[bot]" \
                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
                 commit -am "chore: release ${TAG}"
-            git push origin HEAD:main
+            GIT_SSH_COMMAND="$GIT_SSH_CHART" git push "git@github.com:${CHART_REPO}.git" HEAD:main
             chart_sha=$(git rev-parse HEAD)
           else
             echo "chart already at ${CHART_VERSION}, nothing to commit"
@@ -333,13 +355,8 @@ jobs:
             | curl -fsS -K - --data-binary "@dist/rainbond-${CHART_VERSION}.tgz" "${CHART_REPO_URL}/api/charts"
           echo
 
-      - name: Upload install script and upgrade feed to TOS
-        run: |
-          set -euo pipefail
-          # 先传安装脚本，再传 upgrade feed：feed 一更新，存量控制台就会提示升级。
-          "$RUNNER_TEMP/tosutil" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
-          "$RUNNER_TEMP/tosutil" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
-
+      # 先记录到仓库、再上传到 TOS：下一次发版从仓库里的这份文件生成 feed，
+      # 推送失败时必须在线上还没变之前停下，否则下一版会把这一版从 feed 里丢掉。
       - name: Record upgrade feed in repository
         run: |
           set -euo pipefail
@@ -350,7 +367,14 @@ jobs:
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -am "chore: record ${TAG} in upgrade feed"
-          git push origin "HEAD:${SOURCE_BRANCH}"
+          GIT_SSH_COMMAND="$GIT_SSH_RAINBOND" git push "git@github.com:${GITHUB_REPOSITORY}.git" "HEAD:${SOURCE_BRANCH}"
+
+      - name: Upload install script and upgrade feed to TOS
+        run: |
+          set -euo pipefail
+          # 先传安装脚本，再传 upgrade feed：feed 一更新，存量控制台就会提示升级。
+          "$RUNNER_TEMP/tosutil" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
+          "$RUNNER_TEMP/tosutil" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
 
       - name: Open docs pull request
         if: needs.prepare.outputs.docs_changed == 'true'

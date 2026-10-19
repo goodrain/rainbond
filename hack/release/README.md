@@ -63,6 +63,7 @@ Secrets（只放在这个 environment 里）：
 |---|---|
 | `CHART_REPO_USERNAME` / `CHART_REPO_PASSWORD` | chart.rainbond.com 上传账号 |
 | `TOS_ACCESS_KEY` / `TOS_SECRET_KEY` | 只授权写下面两个对象的 TOS 子账号 |
+| `RAINBOND_DEPLOY_KEY` / `CHART_DEPLOY_KEY` | 推送 feed 记录和 chart 版本号用的部署密钥，由 `setup-deploy-keys.sh` 生成并写入 |
 
 Variables（非机密，但不写进仓库）：
 
@@ -72,6 +73,17 @@ Variables（非机密，但不写进仓库）：
 | `TOS_KEY_INSTALL_SCRIPT` | `https://get.rainbond.com` 对应的对象 key |
 | `TOS_KEY_UPGRADE_VERSIONS` | `upgrade-versions.json` 的对象 key（也用于拼线上校验地址） |
 | `TOSUTIL_URL` / `TOSUTIL_SHA256` | tosutil 下载地址与校验值，下载后先校验再执行 |
+
+**部署密钥**：rainbond 和 rainbond-chart 的 main 受规则集保护（必须走 PR，chart 还要求签名），
+publish 需要往这两个 main 各推一个提交。用仓库管理员身份运行一次：
+
+```bash
+bash hack/release/setup-deploy-keys.sh goodrain/rainbond goodrain/rainbond-chart
+```
+
+它为两个仓库各生成一个有写权限的部署密钥，私钥直接写入上面的 environment secret，不落盘、不打印。
+然后在两个仓库保护 main 的规则集里，把 **Deploy keys** 加入 Bypass list（Always allow）。
+两个仓库原本都没有部署密钥，所以只有这两把能绕过。轮换时加 `--replace` 再运行一次。
 
 仓库已有的 `CROSS_REPO_RELEASE_TOKEN` 还需要对 rainbond-chart（contents、actions）和
 rainbond-docs（contents、pull requests）有写权限。
