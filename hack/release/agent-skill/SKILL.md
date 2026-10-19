@@ -124,7 +124,8 @@ done
      预览也打印在 prepare 的日志里（prepare 完成后就能读，不用等整个运行结束）：
      ```bash
      JOB=$(gh run view "$RUN_ID" -R "$REPO" --json jobs --jq '.jobs[]|select(.name=="prepare").databaseId')
-     gh run view -R "$REPO" --job "$JOB" --log | cut -f3- | sed -E 's/^[^0-9]*[0-9T:.Z-]+Z //' \
+     # 运行还在等审批时 `gh run view --log` 不可用，直接取这个 job 的日志
+     gh api "repos/$REPO/actions/jobs/$JOB/logs" | sed -E 's/^[^0-9]*[0-9T:.Z-]+Z //' \
        | sed -n '/^## v[0-9.]*-release 发布预览$/,/^### 产物 sha256$/p'
      ```
      差异就在这段输出里，直接引用，不要说「未取得差异」。
