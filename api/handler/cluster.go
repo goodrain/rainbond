@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,7 +35,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	workerclient "github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/pkg/errors"
@@ -139,6 +137,9 @@ type clusterAction struct {
 	clusterInfoCache *model.ClusterResource
 	cacheTime        time.Time
 	cacheMu          sync.Mutex
+	infoRefresh      *clusterInfoRefresh
+	diskUsage        func(string) (*disk.UsageStat, error)
+	localDisk        clusterLocalDiskSample
 	config           *rest.Config
 	mapper           meta.RESTMapper
 	grctlImage       string
@@ -162,132 +163,45 @@ type clusterNodePodResources struct {
 
 // GetClusterInfo -
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
-	if timeout == 0 {
-		// default is 30 seconds
+	if timeout <= 0 {
 		timeout = 30
 	}
 	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
 	if c.clusterInfoCache != nil && c.cacheTime.Add(time.Second*time.Duration(timeout)).After(time.Now()) {
-		return c.clusterInfoCache, nil
+		result := c.clusterInfoCache
+		c.cacheMu.Unlock()
+		return c.withLocalDiskStats(result), nil
 	}
-	if c.clusterInfoCache != nil {
-		logrus.Debugf("cluster info cache is timeout, will calculate a new value")
-	}
-
-	nodes, err := c.listNodes(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("[GetClusterInfo] list nodes: %v", err)
-	}
-
-	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
-	usedNodeList := make([]*corev1.Node, len(nodes))
-	var nodeReady int32
-
-	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
-	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
-	var maxAllocatableMemory *model.NodeResource
-	query := fmt.Sprint(`rbd_api_exporter_cluster_pod_number`)
-	podNumber := c.prometheusCli.GetMetric(query, time.Now())
-	var instance string
-	var runPodNumber int
-	for _, podNum := range podNumber.MetricData.MetricValues {
-		if podNum.Sample == nil {
-			continue
-		}
-		instance = podNum.Metadata["instance"]
-		runPodNumber = int(podNum.Sample.Value())
-	}
-	nodeMap := c.getClusterPodResources(instance)
-
-	for i := range nodes {
-		node := nodes[i]
-		if !isNodeReady(node) {
-			logrus.Debugf("[GetClusterInfo] node(%s) not ready", node.GetName())
-			unhealthCapCPU += node.Status.Allocatable.Cpu().Value()
-			unhealthCapMem += node.Status.Allocatable.Memory().Value()
-			continue
-		}
-		nodeReady++
-		healthCapCPU += node.Status.Allocatable.Cpu().Value()
-		healthCapMem += node.Status.Allocatable.Memory().Value()
-		if node.Spec.Unschedulable == false {
-			usedNodeList[i] = node
-		}
-		nodeAllocatableResource := model.NewResource(node.Status.Allocatable)
-		if nodePods, ok := nodeMap[node.Name]; ok {
-			nodeAllocatableResource.AllowedPodNumber -= int(nodePods.PodNumber)
-			nodeAllocatableResource.Memory -= nodePods.Memory
-			nodeAllocatableResource.MilliCPU -= nodePods.CPU
-			nodeAllocatableResource.EphemeralStorage -= nodePods.EphemeralStorage
-			if isNodeReady(node) {
-				healthcpuR += nodePods.CPU
-				healthmemR += nodePods.Memory
-			} else {
-				unhealthCPUR += nodePods.CPU
-				unhealthMemR += nodePods.Memory
-			}
-			rbdMemR += nodePods.RainbondMemory
-			rbdCPUR += nodePods.RainbondCPU
-			nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
-			// Gets the node resource with the maximum remaining scheduling memory
-			if maxAllocatableMemory == nil {
-				maxAllocatableMemory = nodeAllocatableResource
-			} else {
-				if nodeAllocatableResource.Memory > maxAllocatableMemory.Memory {
-					maxAllocatableMemory = nodeAllocatableResource
-				}
-			}
+	if pending := c.infoRefresh; pending != nil {
+		c.cacheMu.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-pending.done:
+			return c.withLocalDiskStats(pending.result), pending.err
 		}
 	}
+	pending := &clusterInfoRefresh{done: make(chan struct{})}
+	c.infoRefresh = pending
+	c.cacheMu.Unlock()
 
-	var diskstauts *disk.UsageStat
-	if runtime.GOOS != "windows" {
-		diskstauts, _ = disk.Usage("/grdata")
-	} else {
-		diskstauts, _ = disk.Usage(`z:\\`)
+	queryCtx, cancel := context.WithTimeout(ctx, clusterInfoQueryTimeout)
+	defer cancel()
+	result, err := c.loadClusterInfo(queryCtx)
+	c.cacheMu.Lock()
+	if err == nil {
+		c.clusterInfoCache = result
+		c.cacheTime = time.Now()
 	}
-	var diskCap, reqDisk uint64
-	if diskstauts != nil {
-		diskCap = diskstauts.Total
-		reqDisk = diskstauts.Used
-	}
-
-	result := &model.ClusterResource{
-		CapCPU:                           int(healthCapCPU + unhealthCapCPU),
-		CapMem:                           int(healthCapMem+unhealthCapMem) / 1024 / 1024,
-		HealthCapCPU:                     int(healthCapCPU),
-		HealthCapMem:                     int(healthCapMem) / 1024 / 1024,
-		UnhealthCapCPU:                   int(unhealthCapCPU),
-		UnhealthCapMem:                   int(unhealthCapMem) / 1024 / 1024,
-		ReqCPU:                           float32(healthcpuR+unhealthCPUR) / 1000,
-		ReqMem:                           int(healthmemR+unhealthMemR) / 1024 / 1024,
-		RainbondReqCPU:                   float32(rbdCPUR) / 1000,
-		RainbondReqMem:                   int(rbdMemR) / 1024 / 1024,
-		HealthReqCPU:                     float32(healthcpuR) / 1000,
-		HealthReqMem:                     int(healthmemR) / 1024 / 1024,
-		UnhealthReqCPU:                   float32(unhealthCPUR) / 1000,
-		UnhealthReqMem:                   int(unhealthMemR) / 1024 / 1024,
-		ComputeNode:                      len(nodes),
-		CapDisk:                          diskCap,
-		ReqDisk:                          reqDisk,
-		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
-		ResourceProxyStatus:              true,
-		K8sVersion:                       k8sutil.GetKubeVersion().String(),
-		NodeReady:                        nodeReady,
-		RunPodNumber:                     runPodNumber,
-	}
-
-	result.AllNode = len(nodes)
-	for _, node := range nodes {
-		if !isNodeReady(node) {
-			result.NotReadyNode++
-		}
-	}
-	c.clusterInfoCache = result
-	c.cacheTime = time.Now()
-	return result, nil
+	pending.result, pending.err = result, err
+	c.infoRefresh = nil
+	close(pending.done)
+	c.cacheMu.Unlock()
+	return c.withLocalDiskStats(result), err
 }
 
 func (c *clusterAction) getClusterPodResources(instance string) map[string]*clusterNodePodResources {
@@ -875,6 +789,7 @@ func buildRainbondComponentOverview(pods []corev1.Pod) []*model.RainbondComponen
 
 // ListPlugins -
 func (c *clusterAction) ListPlugins(official bool) (plugins []*model.RainbondPlugins, err error) {
+	plugins = make([]*model.RainbondPlugins, 0)
 	res, err := c.HandlePlugins()
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
@@ -1059,9 +974,13 @@ func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Un
 
 // HandlePlugins -
 func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err error) {
+	plugins = make([]*model.RainbondPlugins, 0)
 	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
+	}
+	if len(list.Items) == 0 {
+		return plugins, nil
 	}
 	// list plugin status
 	var appIDs []string

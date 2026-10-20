@@ -373,6 +373,12 @@
 | rainbond.ns-resource.ingress-summary | 汇总 Ingress 资源路由元数据 | active | regression | api/handler.toNsResourceInfo | api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
+| rainbond.overview.disk-availability | Distinguish missing node filesystem measurements | active | regression | nodesHandle.ListNodes | api/handler/overview_truthful_data_test.go::TestOverviewDiskStatsAvailability |
+| rainbond.overview.empty-installed-plugins | Empty installed plugin results encode as an array | active | regression | clusterAction.ListPlugins | api/handler/overview_truthful_data_test.go::TestOverviewEmptyInstalledPluginsAreAnArray |
+| rainbond.overview.kubernetes-cluster-resources | Read truthful bounded Kubernetes workload resource snapshots | active | regression | clusterAction.GetClusterInfo | api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesUseKubernetesNotPrometheus<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesCoalesceConcurrentRefresh<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesIncludeEmptySchedulableNodes<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRefreshWaitRespectsCancellation<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceOptionalVersionCannotBlockResources |
+| rainbond.overview.lightweight-nodes | Lightweight node health skips optional statistics | active | regression | nodesHandle.ListNodesWithOptions | api/handler/overview_truthful_data_test.go::TestOverviewLightweightNodesSkipStats |
+| rainbond.overview.nodes-request-context | Preserve node request context and optional statistics default | active | regression | GET /v2/nodes | api/controller/overview_nodes_test.go::TestOverviewNodesRequestPreservesContextAndDefaults |
+| rainbond.overview.nonblocking-local-disk | Optional local disk sampling never blocks cluster resources | active | regression | clusterAction.withLocalDiskStats | api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceCannotBeBlockedByLocalDisk<br>api/handler/overview_truthful_data_test.go::TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample |
 | rainbond.package-build.clean-extracted-content | 解压前清理旧包展开内容 | active | regression | builder/parser.cleanPackageExtractDir | builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly |
 | rainbond.package-build.select-archive-over-extracted-content | 优先选择上传压缩包而不是旧解压内容 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveSkipsExtractedDirectories |
 | rainbond.package-build.select-latest-archive | 二次上传时选择最新压缩包 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveUsesLatestArchiveForSecondUpload |
@@ -4340,6 +4346,66 @@
 - 业务入口: `api/handler.(*NsResourceHandler).getTenantNamespace`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField`, `api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty`
+
+### Distinguish missing node filesystem measurements
+
+- Capability ID: `rainbond.overview.disk-availability`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `nodesHandle.ListNodes`
+- 代码路径: `api/handler/nodes.go`, `api/handler/node_filesystem_stats.go`, `api/model/nodes.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewDiskStatsAvailability`
+
+### Empty installed plugin results encode as an array
+
+- Capability ID: `rainbond.overview.empty-installed-plugins`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.ListPlugins`
+- 代码路径: `api/handler/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewEmptyInstalledPluginsAreAnArray`
+
+### Read truthful bounded Kubernetes workload resource snapshots
+
+- Capability ID: `rainbond.overview.kubernetes-cluster-resources`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.GetClusterInfo`
+- 代码路径: `api/handler/cluster.go`, `api/handler/cluster_overview_resources.go`, `api/handler/tenant.go`, `api/model/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesUseKubernetesNotPrometheus`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesCoalesceConcurrentRefresh`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesIncludeEmptySchedulableNodes`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRefreshWaitRespectsCancellation`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceOptionalVersionCannotBlockResources`
+
+### Lightweight node health skips optional statistics
+
+- Capability ID: `rainbond.overview.lightweight-nodes`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `nodesHandle.ListNodesWithOptions`
+- 代码路径: `api/handler/nodes.go`, `api/model/nodes.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewLightweightNodesSkipStats`
+
+### Preserve node request context and optional statistics default
+
+- Capability ID: `rainbond.overview.nodes-request-context`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `GET /v2/nodes`
+- 代码路径: `api/controller/nodes.go`
+- 测试路径: `api/controller/overview_nodes_test.go::TestOverviewNodesRequestPreservesContextAndDefaults`
+
+### Optional local disk sampling never blocks cluster resources
+
+- Capability ID: `rainbond.overview.nonblocking-local-disk`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clusterAction.withLocalDiskStats`
+- 代码路径: `api/handler/cluster.go`, `api/handler/cluster_overview_resources.go`, `api/model/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceCannotBeBlockedByLocalDisk`, `api/handler/overview_truthful_data_test.go::TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample`
 
 ### 解压前清理旧包展开内容
 

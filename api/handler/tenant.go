@@ -54,6 +54,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	podresource "k8s.io/kubectl/pkg/util/resource"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -529,11 +530,10 @@ func podResourceInformationFromPod(pod *v1.Pod) PodResourceInformation {
 	if appID, ok := pod.Labels["app_id"]; ok {
 		info.AppID = appID
 	}
-	for _, container := range pod.Spec.Containers {
-		info.Memory += container.Resources.Requests.Memory().Value()
-		info.CPU += container.Resources.Requests.Cpu().MilliValue()
-		info.StorageEphemeral += container.Resources.Requests.StorageEphemeral().Value()
-	}
+	requests, _ := podresource.PodRequestsAndLimits(pod)
+	info.Memory = requests.Memory().Value()
+	info.CPU = requests.Cpu().MilliValue()
+	info.StorageEphemeral = requests.StorageEphemeral().Value()
 	return info
 }
 

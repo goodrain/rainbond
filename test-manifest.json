@@ -7165,6 +7165,154 @@
       "status": "active"
     },
     {
+      "id": "rainbond.overview.disk-availability",
+      "title": "Distinguish missing node filesystem measurements",
+      "title_zh": "Distinguish missing node filesystem measurements",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodes",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/handler/node_filesystem_stats.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewDiskStatsAvailability"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.empty-installed-plugins",
+      "title": "Empty installed plugin results encode as an array",
+      "title_zh": "Empty installed plugin results encode as an array",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListPlugins",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewEmptyInstalledPluginsAreAnArray"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.kubernetes-cluster-resources",
+      "title": "Read truthful bounded Kubernetes workload resource snapshots",
+      "title_zh": "Read truthful bounded Kubernetes workload resource snapshots",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.GetClusterInfo",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/handler/tenant.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesUseKubernetesNotPrometheus"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesCoalesceConcurrentRefresh"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesIncludeEmptySchedulableNodes"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRefreshWaitRespectsCancellation"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceOptionalVersionCannotBlockResources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.lightweight-nodes",
+      "title": "Lightweight node health skips optional statistics",
+      "title_zh": "Lightweight node health skips optional statistics",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodesWithOptions",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLightweightNodesSkipStats"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nodes-request-context",
+      "title": "Preserve node request context and optional statistics default",
+      "title_zh": "Preserve node request context and optional statistics default",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/nodes",
+      "code_paths": [
+        "api/controller/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/overview_nodes_test.go",
+          "selector": "TestOverviewNodesRequestPreservesContextAndDefaults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nonblocking-local-disk",
+      "title": "Optional local disk sampling never blocks cluster resources",
+      "title_zh": "Optional local disk sampling never blocks cluster resources",
+      "interface_type": "workflow",
+      "interface": "clusterAction.withLocalDiskStats",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceCannotBeBlockedByLocalDisk"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.package-build.clean-extracted-content",
       "title": "Clean stale extracted package content before unpacking",
       "title_zh": "\u89e3\u538b\u524d\u6e05\u7406\u65e7\u5305\u5c55\u5f00\u5185\u5bb9",
