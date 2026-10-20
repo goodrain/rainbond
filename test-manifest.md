@@ -368,6 +368,8 @@
 | rainbond.node-version.parse-package-json | 从 package.json 解析 Node 版本要求 | active | regression | builder/parser/code.ParseNodeVersionFromPackageJSON | builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoEngines<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoPackageJSON |
 | rainbond.node-version.resolve-range | 解析范围形式的 Node.js 版本约束 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Range |
 | rainbond.node-version.resolve-spec | 将 Node 版本表达式解析为支持的运行时版本 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion |
+| rainbond.nodes.certificate-expiration | Read current public RKE2 certificate expiration safely | active | regression | pkg/nodecert.Collect | pkg/nodecert/collector_test.go::TestCollectCertificateExpiration |
+| rainbond.nodes.certificate-payload | Validate and retrieve fresh node certificate metadata | active | regression | nodesHandle.setNodesCertificates | api/handler/node_certificates_test.go::TestValidateCertificatePayload<br>api/handler/node_certificates_test.go::TestCertificateHealthPathAndUnavailable |
 | rainbond.ns-resource.batch-create | 批量创建命名空间资源 | active | regression | api/handler.NsResourceHandler.CreateNsResource | api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess<br>api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace |
 | rainbond.ns-resource.detect-source | 识别命名空间资源来源 | active | regression | api/handler.detectResourceSource | api/handler/ns_resource_test.go::TestDetectResourceSource |
 | rainbond.ns-resource.handler-singleton | 复用命名空间资源处理器单例 | active | unit | api/handler.GetNsResourceHandler | api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton |
@@ -4298,6 +4300,26 @@
 - 业务入口: `builder/parser/code.ResolveNodeVersion`
 - 代码路径: `builder/parser/code/node_version.go`
 - 测试路径: `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion`
+
+### Read current public RKE2 certificate expiration safely
+
+- Capability ID: `rainbond.nodes.certificate-expiration`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `pkg/nodecert.Collect`
+- 代码路径: `pkg/nodecert/collector.go`
+- 测试路径: `pkg/nodecert/collector_test.go::TestCollectCertificateExpiration`
+
+### Validate and retrieve fresh node certificate metadata
+
+- Capability ID: `rainbond.nodes.certificate-payload`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `nodesHandle.setNodesCertificates`
+- 代码路径: `api/handler/node_certificates.go`
+- 测试路径: `api/handler/node_certificates_test.go::TestValidateCertificatePayload`, `api/handler/node_certificates_test.go::TestCertificateHealthPathAndUnavailable`
 
 ### 批量创建命名空间资源
 

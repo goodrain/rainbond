@@ -7064,6 +7064,46 @@
       "status": "active"
     },
     {
+      "id": "rainbond.nodes.certificate-expiration",
+      "title": "Read current public RKE2 certificate expiration safely",
+      "title_zh": "Read current public RKE2 certificate expiration safely",
+      "interface_type": "package_function",
+      "interface": "pkg/nodecert.Collect",
+      "code_paths": [
+        "pkg/nodecert/collector.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/nodecert/collector_test.go",
+          "selector": "TestCollectCertificateExpiration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.nodes.certificate-payload",
+      "title": "Validate and retrieve fresh node certificate metadata",
+      "title_zh": "Validate and retrieve fresh node certificate metadata",
+      "interface_type": "workflow",
+      "interface": "nodesHandle.setNodesCertificates",
+      "code_paths": [
+        "api/handler/node_certificates.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/node_certificates_test.go",
+          "selector": "TestValidateCertificatePayload"
+        },
+        {
+          "path": "api/handler/node_certificates_test.go",
+          "selector": "TestCertificateHealthPathAndUnavailable"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.ns-resource.batch-create",
       "title": "Create namespace resources from multi-document YAML",
       "title_zh": "\u6279\u91cf\u521b\u5efa\u547d\u540d\u7a7a\u95f4\u8d44\u6e90",

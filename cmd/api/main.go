@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/nodecert"
 	sentryobs "github.com/goodrain/rainbond/pkg/observability/sentry"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
@@ -33,6 +34,12 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "certificate-collector" {
+		if err := nodecert.Run(); err != nil {
+			logrus.Fatal(err)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("api")
 	}
