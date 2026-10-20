@@ -6725,6 +6725,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.manual-pvc-upgrade-delete-idempotent",
+      "title": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "title_zh": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "interface_type": "workflow",
+      "interface": "upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/f/function.go",
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
       "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",

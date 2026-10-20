@@ -352,6 +352,7 @@
 | rainbond.lifecycle.service-reconcile-rejects-foreign-owner | Service reconciliation rejects foreign ownership | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService |
 | rainbond.lifecycle.stop-preserves-service | Stopping a component preserves its generated Service identity | active | regression | worker/appm/controller.stopController.stopOne | worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService |
 | rainbond.lifecycle.stop-suppresses-exit-event | Suppress container exit events during intentional stop | active | regression | worker/master/podevent.shouldReportContainerExit | worker/master/podevent/health_event_test.go::TestShouldReportContainerExit |
+| rainbond.manual-pvc-upgrade-delete-idempotent | Manual PVC cleanup tolerates absent claims and preserves deletion errors | active | regression | upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims |
 | rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
 | rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
 | rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
@@ -4137,6 +4138,16 @@
 - 业务入口: `worker/master/podevent.shouldReportContainerExit`
 - 代码路径: `worker/master/podevent/podevent.go`
 - 测试路径: `worker/master/podevent/health_event_test.go::TestShouldReportContainerExit`
+
+### Manual PVC cleanup tolerates absent claims and preserves deletion errors
+
+- Capability ID: `rainbond.manual-pvc-upgrade-delete-idempotent`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`, `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims`
 
 ### Preserve bound manual PVC immutable spec fields during app upgrade
 
