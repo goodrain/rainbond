@@ -12200,6 +12200,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.pod-check-leader-lifecycle",
+      "title": "Pod probe checks stop when leadership ends",
+      "title_zh": "Pod probe checks stop when leadership ends",
+      "interface_type": "workflow",
+      "interface": "worker/master/podevent.PodEvent.Handle",
+      "code_paths": [
+        "worker/master/master.go",
+        "worker/master/podevent/podevent.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/master/podevent/lifecycle_test.go",
+          "selector": "TestHandleStopsAcrossLeaderTerms"
+        },
+        {
+          "path": "worker/master/podevent/lifecycle_test.go",
+          "selector": "TestHandleCancelsInFlightProbeRequests"
+        },
+        {
+          "path": "worker/master/podevent/lifecycle_test.go",
+          "selector": "TestHandleWaitsForPreviousLeaderTerm"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.pod-status.describe",
       "title": "Describe pod status from conditions container states and events",
       "title_zh": "\u6839\u636e\u6761\u4ef6\u5bb9\u5668\u72b6\u6001\u4e0e\u4e8b\u4ef6\u5f52\u7c7b Pod \u72b6\u6001",
