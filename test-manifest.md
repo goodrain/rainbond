@@ -460,6 +460,7 @@
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
 | rainbond.storage.upload-chunk-binding | Bind native chunk storage without exposing credentials | active | regression | Component.UploadChunkBinding | pkg/component/storage/upload_binding_test.go::TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials |
 | rainbond.storage.upload-package-size | Measure scoped upload packages including extracted files | active | regression | storage.MeasureUploadEvent | pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles<br>pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix |
+| rainbond.tenant-resources.skip-unused-cluster-scans | Skip cluster scans when tenant limit records are complete | active | regression | api/handler.TenantAction.GetTenantsResources | api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsSkipsClusterReads<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesDAOErrors<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
 | rainbond.third-component.endpoint-address-port | 从第三方组件端点地址中解析有效端口 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetPort | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetPort |
@@ -5216,6 +5217,16 @@
 - 业务入口: `storage.MeasureUploadEvent`
 - 代码路径: `pkg/component/storage/upload_package_inventory.go`, `api/controller/cleanup_upload_inventory.go`
 - 测试路径: `pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles`, `pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix`
+
+### Skip cluster scans when tenant limit records are complete
+
+- Capability ID: `rainbond.tenant-resources.skip-unused-cluster-scans`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.TenantAction.GetTenantsResources`
+- 代码路径: `api/handler/tenant.go`
+- 测试路径: `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsSkipsClusterReads`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesDAOErrors`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure`
 
 ### 构造并校验第三方组件端点地址
 

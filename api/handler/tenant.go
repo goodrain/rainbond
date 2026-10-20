@@ -387,6 +387,9 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 	if err != nil {
 		return nil, err
 	}
+	if len(ids) == 0 {
+		return map[string]map[string]interface{}{}, nil
+	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(ids)
 	if err != nil {
 		return nil, err
@@ -395,10 +398,17 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.Ten
 	for _, s := range services {
 		serviceTenantCount[s.TenantID]++
 	}
-	// get cluster resources
-	clusterStats, err := t.GetAllocatableResources(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
+	// Tenant limit records, including zero limits, do not need cluster totals.
+	var clusterStats *ClusterResourceStats
+	for _, tenantID := range ids {
+		if limit, ok := limits[tenantID]; ok && limit != nil {
+			continue
+		}
+		clusterStats, err = t.GetAllocatableResources(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
+		}
+		break
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
 	resources := t.getRequestedTenantResources(ids)

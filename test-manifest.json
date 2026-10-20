@@ -8812,6 +8812,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.tenant-resources.skip-unused-cluster-scans",
+      "title": "Skip cluster scans when tenant limit records are complete",
+      "title_zh": "Skip cluster scans when tenant limit records are complete",
+      "interface_type": "handler_method",
+      "interface": "api/handler.TenantAction.GetTenantsResources",
+      "code_paths": [
+        "api/handler/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsSkipsClusterReads"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesDAOErrors"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.third-component.endpoint-address-construct",
       "title": "Construct validated third-component endpoint addresses",
       "title_zh": "\u6784\u9020\u5e76\u6821\u9a8c\u7b2c\u4e09\u65b9\u7ec4\u4ef6\u7aef\u70b9\u5730\u5740",
