@@ -146,7 +146,8 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	job.Spec = podSpec
 
-	writer := re.Logger.GetWriter("builder", "info")
+	writer := newCNBPhaseWriter(re.Logger.GetWriter("builder", "info"), re.Logger)
+	defer writer.finish()
 	reChan := channels.NewRingChannel(10)
 
 	logrus.Debugf("create CNB job[name: %s; namespace: %s]", job.Name, job.Namespace)
@@ -161,7 +162,9 @@ func (b *Builder) runCNBBuildJob(re *build.Request, buildImageName string) error
 
 	defer b.jobCtrl.DeleteJob(job.Name)
 
-	return b.waitingComplete(re, reChan)
+	err = b.waitingComplete(re, reChan)
+	writer.finish()
+	return err
 }
 
 // buildCreatorArgs builds the lifecycle creator arguments
@@ -174,8 +177,6 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		logLevel = v
 	}
 
-	noCache := truthyBuildEnv(re.BuildEnvs["NO_CACHE"]) || truthyBuildEnv(re.BuildEnvs["BUILD_NO_CACHE"])
-
 	args := []string{
 		"-app=/workspace",
 		"-layers=/layers",
@@ -186,14 +187,15 @@ func (b *Builder) buildCreatorArgs(re *build.Request, buildImageName, runImage s
 		"-log-level=" + logLevel,
 	}
 
-	if noCache {
-		// Skip both cache restore and image layer reuse
+	policy := resolveCNBCachePolicy(re)
+	policy.log(re)
+	if !policy.reuseImage {
 		args = append(args, "-skip-restore")
 	} else {
-		// Enable registry cache, previous image layer reuse, and parallel export
-		args = append(args, "-cache-image="+stableImageTag(buildImageName, "cnb-cache"))
 		args = append(args, "-previous-image="+latestImage)
-		args = append(args, "-parallel")
+		if policy.registryCache {
+			args = append(args, "-cache-image="+stableImageTag(buildImageName, "cnb-cache"), "-parallel")
+		}
 	}
 
 	// Custom order from language config (e.g., pure static projects need nginx-only order)

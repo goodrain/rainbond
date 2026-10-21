@@ -3947,6 +3947,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb.npm-cache-policy",
+      "title": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "title_zh": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.buildCreatorArgs",
+      "code_paths": [
+        "builder/build/cnb/cache_policy.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBNPMCachePolicy"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyExplainsAutomaticBypass"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyPreservesCacheForUnknownSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb.npm-global-registry",
       "title": "Export NPM_CONFIG_REGISTRY for global npm installs",
       "title_zh": "\u4e3a\u5168\u5c40 npm \u5b89\u88c5\u5bfc\u51fa NPM_CONFIG_REGISTRY",
@@ -4044,6 +4071,41 @@
         {
           "path": "builder/build/cnb/cnb_test.go",
           "selector": "TestWriteCustomOrderFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb.phase-timing",
+      "title": "Report observed CNB lifecycle phase durations without changing build output",
+      "title_zh": "Report observed CNB lifecycle phase durations without changing build output",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.runCNBBuildJob",
+      "code_paths": [
+        "builder/build/cnb/phase_logger.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTiming"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingHandlesFragmentedLogs"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingPreservesWriterErrors"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingSerializesConcurrentWrites"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBJobEmitsFinalPhaseTiming"
         }
       ],
       "test_type": "regression",

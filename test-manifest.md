@@ -206,11 +206,13 @@
 | rainbond.cnb.mirror-config | 按来源模式注入 CNB 镜像配置 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfig |
 | rainbond.cnb.mirror-config-write-error | 传播 CNB 镜像配置写入失败 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfigWriteError |
 | rainbond.cnb.new-builder | 创建 CNB 构建器实例 | active | regression | builder/build/cnb.NewBuilder | builder/build/cnb/cnb_test.go::TestNewBuilder |
+| rainbond.cnb.npm-cache-policy | Avoid ineffective npm registry caching while retaining image layer reuse | active | regression | builder/build/cnb.Builder.buildCreatorArgs | builder/build/cnb/cache_policy_test.go::TestCNBNPMCachePolicy<br>builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyExplainsAutomaticBypass<br>builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyPreservesCacheForUnknownSources |
 | rainbond.cnb.npm-global-registry | 为全局 npm 安装导出 NPM_CONFIG_REGISTRY | active | regression | builder/build/cnb.resolveNpmRegistry | builder/build/cnb/cnb_test.go::TestResolveNpmRegistry<br>builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation |
 | rainbond.cnb.npmrc-registry-parse | 从 .npmrc 内容中解析默认 registry 配置项 | active | unit | builder/build/cnb.npmRegistryFromNpmrc | builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc |
 | rainbond.cnb.offline-mode | 解析离线模式下的 CNB 镜像行为 | active | regression | builder/build/cnb offline mode helpers | builder/build/cnb/cnb_test.go::TestIsOfflineMode<br>builder/build/cnb/cnb_test.go::TestGetCNBBuilderImageOffline<br>builder/build/cnb/cnb_test.go::TestGetCNBRunImageOffline |
 | rainbond.cnb.order-toml | 写入自定义 CNB order 定义 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrder |
 | rainbond.cnb.order-write-failure | CNB order 文件写入失败时返回空标记 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure |
+| rainbond.cnb.phase-timing | Report observed CNB lifecycle phase durations without changing build output | active | regression | builder/build/cnb.Builder.runCNBBuildJob | builder/build/cnb/phase_logger_test.go::TestCNBPhaseTiming<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingHandlesFragmentedLogs<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingPreservesWriterErrors<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingSerializesConcurrentWrites<br>builder/build/cnb/phase_logger_test.go::TestCNBJobEmitsFinalPhaseTiming |
 | rainbond.cnb.platform-annotations | 根据构建环境生成 CNB 平台注解 | active | regression | builder/build/cnb.Builder.buildPlatformAnnotations | builder/build/cnb/cnb_test.go::TestBuildPlatformAnnotations |
 | rainbond.cnb.platform-volume | 根据注解创建 CNB 平台卷 | active | regression | builder/build/cnb.Builder.createPlatformVolume | builder/build/cnb/cnb_test.go::TestCreatePlatformVolume<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeEmpty<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeNonCNBKeys |
 | rainbond.cnb.prebuild-job-cleanup | 清理历史 CNB 预构建任务 | active | regression | builder/build/cnb.Builder.stopPreBuildJob | builder/build/cnb/cnb_test.go::TestStopPreBuildJob |
@@ -2680,6 +2682,16 @@
 - 代码路径: `builder/build/cnb/build.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestNewBuilder`
 
+### Avoid ineffective npm registry caching while retaining image layer reuse
+
+- Capability ID: `rainbond.cnb.npm-cache-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.Builder.buildCreatorArgs`
+- 代码路径: `builder/build/cnb/cache_policy.go`, `builder/build/cnb/job.go`
+- 测试路径: `builder/build/cnb/cache_policy_test.go::TestCNBNPMCachePolicy`, `builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyExplainsAutomaticBypass`, `builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyPreservesCacheForUnknownSources`
+
 ### 为全局 npm 安装导出 NPM_CONFIG_REGISTRY
 
 - Capability ID: `rainbond.cnb.npm-global-registry`
@@ -2729,6 +2741,16 @@
 - 业务入口: `builder/build/cnb.Builder.writeCustomOrder`
 - 代码路径: `builder/build/cnb/order.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure`
+
+### Report observed CNB lifecycle phase durations without changing build output
+
+- Capability ID: `rainbond.cnb.phase-timing`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.Builder.runCNBBuildJob`
+- 代码路径: `builder/build/cnb/phase_logger.go`, `builder/build/cnb/job.go`
+- 测试路径: `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTiming`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingHandlesFragmentedLogs`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingPreservesWriterErrors`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingSerializesConcurrentWrites`, `builder/build/cnb/phase_logger_test.go::TestCNBJobEmitsFinalPhaseTiming`
 
 ### 根据构建环境生成 CNB 平台注解
 
