@@ -7074,12 +7074,12 @@
       ],
       "tests": [
         {
-          "path": "api/handler/node_certificates_test.go",
-          "selector": "TestValidateCertificatePayload"
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateEvents"
         },
         {
-          "path": "api/handler/node_certificates_test.go",
-          "selector": "TestCertificateHealthPathAndUnavailable"
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateEventRequests"
         }
       ],
       "test_type": "regression",
