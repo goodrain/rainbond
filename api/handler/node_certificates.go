@@ -2,11 +2,10 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
-	"io"
+	"path"
+	"regexp"
+	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -15,135 +14,147 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// certificateCollectionCursor rotates node priority across requests, including new handler instances.
-var certificateCollectionCursor atomic.Uint64
+const certificateEventSource = "rke2-cert-monitor"
 
-func validCertificateResult(result nodecert.Result, now time.Time) bool {
-	collected, err := time.Parse(time.RFC3339, result.CollectedAt)
-	if err != nil || now.Sub(collected) > 5*time.Minute || collected.Sub(now) > time.Minute {
-		return false
-	}
-	count := len(result.Certificates)
-	switch result.CertificateStatus {
-	case "ok":
-		if count != len(nodecert.RequiredFiles) {
-			return false
-		}
-	case "partial":
-		if count == 0 || count >= len(nodecert.RequiredFiles) {
-			return false
-		}
-	case "unavailable":
-		return count == 0
-	default:
-		return false
-	}
-	seen := map[string]bool{}
-	for _, cert := range result.Certificates {
-		allowed := false
-		for _, name := range nodecert.RequiredFiles {
-			if name == cert.Name {
-				allowed = true
-				break
-			}
-		}
-		if !allowed || seen[cert.Name] {
-			return false
-		}
-		seen[cert.Name] = true
-		if _, err := time.Parse(time.RFC3339, cert.ExpiresAt); err != nil {
-			return false
-		}
-	}
-	return true
-}
+var certificateRecord = regexp.MustCompile(`([A-Za-z0-9_./-]+\.crt): certificate `)
+var certificateExpiry = regexp.MustCompile(`(?:will expire within [0-9]+ days at|expired at) ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)$`)
 
 func (n *nodesHandle) setNodesCertificates(ctx context.Context, nodes []model.NodeInfo) {
-	needsCollection := false
+	needed := false
 	for i := range nodes {
 		if nodes[i].CertificateStatus == "unavailable" {
-			needsCollection = true
+			needed = true
 			break
 		}
 	}
-	if !needsCollection {
+	if !needed {
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	pods, err := n.clientset.CoreV1().Pods(n.namespace).List(ctx, metav1.ListOptions{LabelSelector: "app=rbd-certificate-collector"})
+	events, err := n.clientset.CoreV1().Events("default").List(ctx, metav1.ListOptions{FieldSelector: "involvedObject.kind=Node"})
 	if err != nil {
 		return
 	}
-	collectors := map[string]string{}
-	for _, pod := range pods.Items {
-		if pod.Spec.NodeName != "" && pod.DeletionTimestamp == nil && string(pod.Status.Phase) == "Running" && collectorReady(pod.Status.Conditions) {
-			collectors[pod.Spec.NodeName] = pod.Name
-		}
-	}
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	workers := 8
-	if len(nodes) < workers {
-		workers = len(nodes)
-	}
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for index := range jobs {
-				node := &nodes[index]
-				pod := collectors[node.Name]
-				if node.CertificateStatus != "unavailable" || pod == "" {
-					continue
-				}
-				proxyCtx, cancelProxy := context.WithTimeout(ctx, 400*time.Millisecond)
-				stream, err := n.clientset.CoreV1().Pods(n.namespace).ProxyGet("http", pod, "9351", "certificates", nil).Stream(proxyCtx)
-				if err != nil {
-					cancelProxy()
-					continue
-				}
-				raw, err := io.ReadAll(io.LimitReader(stream, 64*1024+1))
-				stream.Close()
-				cancelProxy()
-				if err != nil || len(raw) > 64*1024 {
-					continue
-				}
-				var result nodecert.Result
-				if json.Unmarshal(raw, &result) != nil || !validCertificateResult(result, time.Now()) {
-					continue
-				}
-				node.CertificateStatus = result.CertificateStatus
-				node.Certificates = result.Certificates
-			}
-		}()
-	}
-	start := int(certificateCollectionCursor.Add(uint64(workers))-uint64(workers)) % len(nodes)
-queue:
-	for offset := range nodes {
-		i := (start + offset) % len(nodes)
-		select {
-		case jobs <- i:
-		case <-ctx.Done():
-			break queue
-		}
-	}
-	close(jobs)
-	wg.Wait()
+	applyCertificateEvents(nodes, events.Items, time.Now())
 }
 
+func certificateEventTime(event v1.Event, now time.Time) time.Time {
+	candidates := []time.Time{event.LastTimestamp.Time, event.EventTime.Time, event.FirstTimestamp.Time, event.CreationTimestamp.Time}
+	if event.Series != nil {
+		candidates = append(candidates, event.Series.LastObservedTime.Time)
+	}
+	var latest time.Time
+	for _, candidate := range candidates {
+		if candidate.After(now.Add(time.Minute)) {
+			return time.Time{}
+		}
+		if candidate.After(latest) {
+			latest = candidate
+		}
+	}
+	if latest.IsZero() || now.Sub(latest) > 65*time.Minute {
+		return time.Time{}
+	}
+	return latest
+}
+
+func applyCertificateEvents(nodes []model.NodeInfo, events []v1.Event, now time.Time) {
+	type observation struct {
+		event    v1.Event
+		observed time.Time
+	}
+	latest := map[string]observation{}
+	for _, event := range events {
+		if event.InvolvedObject.Kind != "Node" || (event.Source.Component != certificateEventSource && event.ReportingController != certificateEventSource) || (event.Reason != "CertificateExpirationWarning" && event.Reason != "CertificateExpirationOK") {
+			continue
+		}
+		// Conflicting provenance is not a native monitor event.
+		if event.Source.Component != "" && event.Source.Component != certificateEventSource || event.ReportingController != "" && event.ReportingController != certificateEventSource {
+			continue
+		}
+		observed := certificateEventTime(event, now)
+		if observed.IsZero() {
+			continue
+		}
+		previous, exists := latest[event.InvolvedObject.Name]
+		if !exists || observed.After(previous.observed) || (observed.Equal(previous.observed) && event.Reason == "CertificateExpirationOK") {
+			latest[event.InvolvedObject.Name] = observation{event, observed}
+		}
+	}
+	for i := range nodes {
+		node := &nodes[i]
+		if node.CertificateStatus != "unavailable" {
+			continue
+		}
+		observation, exists := latest[node.Name]
+		if !exists || (!node.CreateTime.IsZero() && observation.observed.Before(node.CreateTime)) {
+			continue
+		}
+		node.CertificateSource = "rke2_events"
+		node.CertificateObservedAt = observation.observed.UTC().Format(time.RFC3339)
+		node.Certificates = []nodecert.Certificate{}
+		if observation.event.Reason == "CertificateExpirationOK" {
+			node.CertificateStatus = "ok"
+			continue
+		}
+		certificates, complete := parseCertificateWarning(observation.event.Message)
+		node.Certificates = certificates
+		if complete && len(certificates) > 0 {
+			node.CertificateStatus = "ok"
+		} else if len(certificates) > 0 {
+			node.CertificateStatus = "partial"
+		}
+	}
+}
+
+func parseCertificateWarning(message string) ([]nodecert.Certificate, bool) {
+	const prefix = "Node certificates require attention - restart rke2 on this node to trigger automatic rotation: "
+	if !strings.HasPrefix(message, prefix) {
+		return []nodecert.Certificate{}, false
+	}
+	message = strings.TrimPrefix(message, prefix)
+	matches := certificateRecord.FindAllStringSubmatchIndex(message, -1)
+	complete := len(matches) > 0 && matches[0][0] == 0
+	expirations := map[string]time.Time{}
+	for i, match := range matches {
+		end := len(message)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+		record := strings.TrimRight(message[match[1]:end], ", \r\n\t")
+		name := ""
+		basename := path.Base(message[match[2]:match[3]])
+		for _, known := range nodecert.RequiredFiles {
+			if path.Base(known) == basename {
+				name = known
+				break
+			}
+		}
+		expiryMatch := certificateExpiry.FindStringSubmatch(record)
+		if name == "" || len(expiryMatch) != 2 {
+			complete = false
+			continue
+		}
+		expiry, err := time.Parse(time.RFC3339, expiryMatch[1])
+		if err != nil {
+			complete = false
+			continue
+		}
+		if previous, exists := expirations[name]; !exists || expiry.Before(previous) {
+			expirations[name] = expiry
+		}
+	}
+	certificates := make([]nodecert.Certificate, 0, len(expirations))
+	for name, expiry := range expirations {
+		certificates = append(certificates, nodecert.Certificate{Name: name, ExpiresAt: expiry.UTC().Format(time.RFC3339)})
+	}
+	sort.Slice(certificates, func(i, j int) bool { return certificates[i].Name < certificates[j].Name })
+	return certificates, complete
+}
 func initialCertificateStatus(kubeletVersion string) string {
 	if strings.Contains(strings.ToLower(kubeletVersion), "rke2") {
 		return "unavailable"
 	}
 	return "not_applicable"
-}
-
-func collectorReady(conditions []v1.PodCondition) bool {
-	for _, condition := range conditions {
-		if condition.Type == v1.PodReady && condition.Status == v1.ConditionTrue {
-			return true
-		}
-	}
-	return false
 }

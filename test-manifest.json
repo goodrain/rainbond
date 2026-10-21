@@ -7064,27 +7064,9 @@
       "status": "active"
     },
     {
-      "id": "rainbond.nodes.certificate-expiration",
-      "title": "Read current public RKE2 certificate expiration safely",
-      "title_zh": "Read current public RKE2 certificate expiration safely",
-      "interface_type": "package_function",
-      "interface": "pkg/nodecert.Collect",
-      "code_paths": [
-        "pkg/nodecert/collector.go"
-      ],
-      "tests": [
-        {
-          "path": "pkg/nodecert/collector_test.go",
-          "selector": "TestCollectCertificateExpiration"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.nodes.certificate-payload",
-      "title": "Validate and retrieve fresh node certificate metadata",
-      "title_zh": "Validate and retrieve fresh node certificate metadata",
+      "id": "rainbond.nodes.native-certificate-events",
+      "title": "Read fresh native RKE2 certificate warning and recovery events",
+      "title_zh": "Read fresh native RKE2 certificate warning and recovery events",
       "interface_type": "workflow",
       "interface": "nodesHandle.setNodesCertificates",
       "code_paths": [
