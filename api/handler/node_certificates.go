@@ -65,8 +65,9 @@ func applyCertificateEvents(nodes []model.NodeInfo, events []v1.Event, now time.
 		observed time.Time
 	}
 	latest := map[string]observation{}
+	latestCAWarning := map[string]time.Time{}
 	for _, event := range events {
-		if event.InvolvedObject.Kind != "Node" || (event.Source.Component != certificateEventSource && event.ReportingController != certificateEventSource) || (event.Reason != "CertificateExpirationWarning" && event.Reason != "CertificateExpirationOK") {
+		if event.InvolvedObject.Kind != "Node" || (event.Source.Component != certificateEventSource && event.ReportingController != certificateEventSource) || (event.Reason != "CertificateExpirationWarning" && event.Reason != "CertificateExpirationOK" && event.Reason != "CACertificateExpirationWarning") {
 			continue
 		}
 		// Conflicting provenance is not a native monitor event.
@@ -75,6 +76,13 @@ func applyCertificateEvents(nodes []model.NodeInfo, events []v1.Event, now time.
 		}
 		observed := certificateEventTime(event, now)
 		if observed.IsZero() {
+			continue
+		}
+		// Leaf OK events do not establish that the separate CA warning cleared.
+		if event.Reason == "CACertificateExpirationWarning" {
+			if observed.After(latestCAWarning[event.InvolvedObject.Name]) {
+				latestCAWarning[event.InvolvedObject.Name] = observed
+			}
 			continue
 		}
 		previous, exists := latest[event.InvolvedObject.Name]
@@ -87,20 +95,53 @@ func applyCertificateEvents(nodes []model.NodeInfo, events []v1.Event, now time.
 		if node.CertificateStatus != "unavailable" {
 			continue
 		}
-		observation, exists := latest[node.Name]
-		if !exists || (!node.CreateTime.IsZero() && observation.observed.Before(node.CreateTime)) {
+		// A successful event query is not a complete certificate validity check:
+		// older RKE2 versions emit only warnings, and startup OK events expire.
+		node.CertificateStatus = "not_observed"
+		node.CertificateSource = "rke2_events"
+		node.CertificateCheckedAt = now.UTC().Format(time.RFC3339)
+		node.CertificateObservedAt = ""
+		node.Certificates = []nodecert.Certificate{}
+		node.CertificateWarnings = nil
+		observation, hasLeaf := latest[node.Name]
+		if hasLeaf && !node.CreateTime.IsZero() && observation.observed.Before(node.CreateTime) {
+			hasLeaf = false
+		}
+		caObserved, hasCA := latestCAWarning[node.Name]
+		if hasCA && !node.CreateTime.IsZero() && caObserved.Before(node.CreateTime) {
+			hasCA = false
+		}
+		if !hasLeaf && !hasCA {
 			continue
 		}
-		node.CertificateSource = "rke2_events"
+		// Unparsed native warnings must not become "no current warning".
+		node.CertificateStatus = "unavailable"
+		if hasCA {
+			node.CertificateObservedAt = caObserved.UTC().Format(time.RFC3339)
+			node.CertificateWarnings = append(node.CertificateWarnings, model.CertificateWarning{
+				Reason: "CACertificateExpirationWarning", ObservedAt: node.CertificateObservedAt,
+			})
+		}
+		if !hasLeaf {
+			continue
+		}
+		// Parsed leaf certificates must be dated by their own event. CA warnings
+		// retain independent timestamps so neither result refreshes the other.
 		node.CertificateObservedAt = observation.observed.UTC().Format(time.RFC3339)
-		node.Certificates = []nodecert.Certificate{}
 		if observation.event.Reason == "CertificateExpirationOK" {
-			node.CertificateStatus = "ok"
+			if !hasCA {
+				node.CertificateStatus = "ok"
+			}
 			continue
 		}
 		certificates, complete := parseCertificateWarning(observation.event.Message)
 		node.Certificates = certificates
-		if complete && len(certificates) > 0 {
+		if !complete || len(certificates) == 0 {
+			node.CertificateWarnings = append(node.CertificateWarnings, model.CertificateWarning{
+				Reason: "CertificateExpirationWarning", ObservedAt: observation.observed.UTC().Format(time.RFC3339),
+			})
+		}
+		if complete && len(certificates) > 0 && !hasCA {
 			node.CertificateStatus = "ok"
 		} else if len(certificates) > 0 {
 			node.CertificateStatus = "partial"

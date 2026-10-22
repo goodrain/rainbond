@@ -370,7 +370,7 @@
 | rainbond.node-version.parse-package-json | 从 package.json 解析 Node 版本要求 | active | regression | builder/parser/code.ParseNodeVersionFromPackageJSON | builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoEngines<br>builder/parser/code/node_version_test.go::TestParseNodeVersionFromPackageJSON_NoPackageJSON |
 | rainbond.node-version.resolve-range | 解析范围形式的 Node.js 版本约束 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Range |
 | rainbond.node-version.resolve-spec | 将 Node 版本表达式解析为支持的运行时版本 | active | regression | builder/parser/code.ResolveNodeVersion | builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly<br>builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion |
-| rainbond.nodes.native-certificate-events | Read fresh native RKE2 certificate warning and recovery events | active | regression | nodesHandle.setNodesCertificates | api/handler/node_certificate_events_test.go::TestNativeCertificateEvents<br>api/handler/node_certificate_events_test.go::TestNativeCertificateEventRequests |
+| rainbond.nodes.native-certificate-events | Preserve native RKE2 certificate risks without requiring health heartbeats | active | regression | nodesHandle.setNodesCertificates | api/handler/node_certificate_events_test.go::TestNativeCertificateEvents<br>api/handler/node_certificate_events_test.go::TestNativeCertificateEventRequests<br>api/handler/node_certificate_events_test.go::TestNativeCertificateObservedTimeAndDuplicateRisks<br>api/handler/node_certificate_events_test.go::TestNativeCertificateEventsRejectReplacedNode<br>api/handler/node_certificate_events_test.go::TestNativeCertificateWarningsPreserveUnparsedRisks<br>api/handler/node_certificate_events_test.go::TestNativeCertificateLeafObservationDoesNotInheritCAAge |
 | rainbond.ns-resource.batch-create | 批量创建命名空间资源 | active | regression | api/handler.NsResourceHandler.CreateNsResource | api/handler/ns_resource_test.go::TestCreateNsResourceBatchAggregatesPartialSuccess<br>api/handler/ns_resource_test.go::TestCreateNsResourceBatchPreservesExplicitNamespace |
 | rainbond.ns-resource.detect-source | 识别命名空间资源来源 | active | regression | api/handler.detectResourceSource | api/handler/ns_resource_test.go::TestDetectResourceSource |
 | rainbond.ns-resource.handler-singleton | 复用命名空间资源处理器单例 | active | unit | api/handler.GetNsResourceHandler | api/handler/ns_resource_test.go::TestGetNsResourceHandlerSingleton |
@@ -4322,15 +4322,15 @@
 - 代码路径: `builder/parser/code/node_version.go`
 - 测试路径: `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Empty`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Wildcard`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_GreaterThanOrEqual`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Caret`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_Tilde`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_XNotation`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_MajorOnly`, `builder/parser/code/node_version_test.go::TestResolveNodeVersion_ExactVersion`
 
-### Read fresh native RKE2 certificate warning and recovery events
+### Preserve native RKE2 certificate risks without requiring health heartbeats
 
 - Capability ID: `rainbond.nodes.native-certificate-events`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
 - 业务入口: `nodesHandle.setNodesCertificates`
-- 代码路径: `api/handler/node_certificates.go`
-- 测试路径: `api/handler/node_certificate_events_test.go::TestNativeCertificateEvents`, `api/handler/node_certificate_events_test.go::TestNativeCertificateEventRequests`
+- 代码路径: `api/handler/node_certificates.go`, `api/model/nodes.go`
+- 测试路径: `api/handler/node_certificate_events_test.go::TestNativeCertificateEvents`, `api/handler/node_certificate_events_test.go::TestNativeCertificateEventRequests`, `api/handler/node_certificate_events_test.go::TestNativeCertificateObservedTimeAndDuplicateRisks`, `api/handler/node_certificate_events_test.go::TestNativeCertificateEventsRejectReplacedNode`, `api/handler/node_certificate_events_test.go::TestNativeCertificateWarningsPreserveUnparsedRisks`, `api/handler/node_certificate_events_test.go::TestNativeCertificateLeafObservationDoesNotInheritCAAge`
 
 ### 批量创建命名空间资源
 

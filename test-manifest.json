@@ -7127,12 +7127,13 @@
     },
     {
       "id": "rainbond.nodes.native-certificate-events",
-      "title": "Read fresh native RKE2 certificate warning and recovery events",
-      "title_zh": "Read fresh native RKE2 certificate warning and recovery events",
+      "title": "Preserve native RKE2 certificate risks without requiring health heartbeats",
+      "title_zh": "Preserve native RKE2 certificate risks without requiring health heartbeats",
       "interface_type": "workflow",
       "interface": "nodesHandle.setNodesCertificates",
       "code_paths": [
-        "api/handler/node_certificates.go"
+        "api/handler/node_certificates.go",
+        "api/model/nodes.go"
       ],
       "tests": [
         {
@@ -7142,6 +7143,22 @@
         {
           "path": "api/handler/node_certificate_events_test.go",
           "selector": "TestNativeCertificateEventRequests"
+        },
+        {
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateObservedTimeAndDuplicateRisks"
+        },
+        {
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateEventsRejectReplacedNode"
+        },
+        {
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateWarningsPreserveUnparsedRisks"
+        },
+        {
+          "path": "api/handler/node_certificate_events_test.go",
+          "selector": "TestNativeCertificateLeafObservationDoesNotInheritCAAge"
         }
       ],
       "test_type": "regression",
