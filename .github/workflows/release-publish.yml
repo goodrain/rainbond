@@ -346,7 +346,9 @@ jobs:
           CHART_REPO_PASSWORD: ${{ secrets.CHART_REPO_PASSWORD }}
         run: |
           set -euo pipefail
-          if curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"; then
+          # 先落盘再 grep：`curl | grep -q` 在 grep 提前退出时 curl 会报错（23），pipefail 下会被误判为「不存在」。
+          curl -fsSL "${CHART_REPO_URL}/index.yaml" -o "$RUNNER_TEMP/chart-index.yaml"
+          if grep -q "charts/rainbond-${CHART_VERSION}.tgz" "$RUNNER_TEMP/chart-index.yaml"; then
             echo "rainbond-${CHART_VERSION}.tgz is already on ${CHART_REPO_URL}, skip (never overwrite)"
             exit 0
           fi
@@ -421,7 +423,9 @@ jobs:
         if: env.CHART_UPLOAD == 'true' && needs.prepare.outputs.chart_main_version == needs.prepare.outputs.chart_version
         env:
           CHART_VERSION: ${{ needs.prepare.outputs.chart_version }}
-        run: curl -fsSL "${CHART_REPO_URL}/index.yaml" | grep -q "charts/rainbond-${CHART_VERSION}.tgz"
+        run: |
+          curl -fsSL "${CHART_REPO_URL}/index.yaml" -o "$RUNNER_TEMP/chart-index.yaml"
+          grep -q "charts/rainbond-${CHART_VERSION}.tgz" "$RUNNER_TEMP/chart-index.yaml"
 
       - name: Notify done
         env:
