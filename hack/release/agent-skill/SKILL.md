@@ -86,7 +86,8 @@ done
 1. 取 `prerelease.yml` 最近一次已完成的运行：
    `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status completed --limit 1`
    （只认 main 上的运行，和 gate 一致）。
-2. 下载它的 `e2e-provenance` artifact，检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
+2. 下载它的 `e2e-provenance` artifact（组织存储配额满时可能没有，改从该运行的 job 日志里取最后一行 `E2E-PROVENANCE: {...}`，
+   和 gate 的做法一致），检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
    goodrain/rainbond、rainbond-console、rainbond-ui 的 SHA 与三个仓库当前 main 一致。
    **读不到 rainbond-e2e-tests**（404 / 403，机器人账号可能没有这个私有仓库的权限）时不要停下：在报告里注明
    「E2E 由 release.yml 的 gate 检查」，直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。

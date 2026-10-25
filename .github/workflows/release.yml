@@ -109,7 +109,19 @@ jobs:
           run_id=$(gh run list --repo "$E2E_REPO" --workflow "$E2E_WORKFLOW" --branch main --status completed --limit 1 \
             --json databaseId --jq '.[0].databaseId // empty')
           [ -n "$run_id" ] || { echo "::error::no completed ${E2E_WORKFLOW} run on main in ${E2E_REPO}"; exit 1; }
-          gh run download "$run_id" --repo "$E2E_REPO" --name e2e-provenance --dir "$RUNNER_TEMP/e2e"
+          mkdir -p "$RUNNER_TEMP/e2e"
+          if ! gh run download "$run_id" --repo "$E2E_REPO" --name e2e-provenance --dir "$RUNNER_TEMP/e2e"; then
+            # 组织存储配额满时 artifact 传不上去；E2E 工作流同时把 provenance 打进了 job 日志
+            # （单行 `E2E-PROVENANCE: {...}`），取最后一行。日志在运行结束后不可修改。
+            echo "::warning::e2e-provenance artifact not found in run ${run_id}; reading it from the job log"
+            : > "$RUNNER_TEMP/e2e/e2e-provenance.json"
+            for job in $(gh api "repos/${E2E_REPO}/actions/runs/${run_id}/jobs" --jq '.jobs[].id'); do
+              line=$(gh api "repos/${E2E_REPO}/actions/jobs/${job}/logs" | grep -o 'E2E-PROVENANCE: {.*}$' | tail -n 1 || true)
+              if [ -n "$line" ]; then printf '%s\n' "${line#E2E-PROVENANCE: }" > "$RUNNER_TEMP/e2e/e2e-provenance.json"; fi
+            done
+            [ -s "$RUNNER_TEMP/e2e/e2e-provenance.json" ] || {
+              echo "::error::run ${run_id} has neither an e2e-provenance artifact nor an E2E-PROVENANCE log line"; exit 1; }
+          fi
           python3 hack/release/release.py check-e2e --file "$RUNNER_TEMP/e2e/e2e-provenance.json" \
             --source "goodrain/rainbond=${RAINBOND_SHA}" \
             --source "${CONSOLE_REPO}=${CONSOLE_SHA}" \
