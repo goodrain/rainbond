@@ -1,0 +1,676 @@
+[
+  {
+    "version": "v6.9.11-release",
+    "detail": {
+      "update_time": "2026-10-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.11-release",
+      "tag_name": "v6.9.11-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.11-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.11-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.11-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.11-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.11-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.11-release"
+    }
+  },
+  {
+    "version": "v6.9.10-release",
+    "detail": {
+      "update_time": "2026-09-14",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.10-release",
+      "tag_name": "v6.9.10-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.10-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.10-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.10-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.10-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.10-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.10-release"
+    }
+  },
+  {
+    "version": "v6.9.9-release",
+    "detail": {
+      "update_time": "2026-08-30",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.9-release",
+      "tag_name": "v6.9.9-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.9-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.9-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.9-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.9-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.9-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.9-release"
+    }
+  },
+  {
+    "version": "v6.9.8-release",
+    "detail": {
+      "update_time": "2026-08-17",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.8-release",
+      "tag_name": "v6.9.8-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.8-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.8-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.8-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.8-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.8-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.8-release"
+    }
+  },
+  {
+    "version": "v6.9.7-release",
+    "detail": {
+      "update_time": "2026-08-06",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.7-release",
+      "tag_name": "v6.9.7-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.7-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.7-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.7-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.7-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.7-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.7-release"
+    }
+  },
+  {
+    "version": "v6.9.6-release",
+    "detail": {
+      "update_time": "2026-07-31",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.6-release",
+      "tag_name": "v6.9.6-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.6-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.6-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.6-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.6-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.6-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.6-release"
+    }
+  },
+  {
+    "version": "v6.9.5-release",
+    "detail": {
+      "update_time": "2026-07-27",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.5-release",
+      "tag_name": "v6.9.5-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.5-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.5-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.5-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.5-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.5-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.5-release"
+    }
+  },
+  {
+    "version": "v6.9.4-release",
+    "detail": {
+      "update_time": "2026-07-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.4-release",
+      "tag_name": "v6.9.4-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.4-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.4-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.4-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.4-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.4-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.4-release"
+    }
+  },
+  {
+    "version": "v6.9.3-release",
+    "detail": {
+      "update_time": "2026-07-02",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.3-release",
+      "tag_name": "v6.9.3-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.3-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.3-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.3-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.3-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.3-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.3-release"
+    }
+  },
+  {
+    "version": "v6.9.2-release",
+    "detail": {
+      "update_time": "2026-06-24",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.2-release",
+      "tag_name": "v6.9.2-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.2-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.2-release"
+    }
+  },
+  {
+    "version": "v6.9.1-release",
+    "detail": {
+      "update_time": "2026-06-15",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.1-release",
+      "tag_name": "v6.9.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.1-release"
+    }
+  },
+  {
+    "version": "v6.9.0-release",
+    "detail": {
+      "update_time": "2026-06-07",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.9.0-release",
+      "tag_name": "v6.9.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.9.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.9.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.9.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.9.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.9.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.9.0-release"
+    }
+  },
+  {
+    "version": "v6.8.1-release",
+    "detail": {
+      "update_time": "2026-05-29",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.8.1-release",
+      "tag_name": "v6.8.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.8.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.8.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.8.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.8.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.8.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.8.1-release"
+    }
+  },
+  {
+    "version": "v6.8.0-release",
+    "detail": {
+      "update_time": "2026-05-25",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.8.0-release",
+      "tag_name": "v6.8.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.8.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.8.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.8.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.8.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.8.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.8.0-release"
+    }
+  },
+  {
+    "version": "v6.7.4-release",
+    "detail": {
+      "update_time": "2026-05-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.7.4-release",
+      "tag_name": "v6.7.4-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.7.4-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.7.4-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.7.4-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.7.4-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.7.4-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.7.4-release"
+    }
+  },
+  {
+    "version": "v6.7.3-release",
+    "detail": {
+      "update_time": "2026-05-07",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.7.3-release",
+      "tag_name": "v6.7.3-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.7.3-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.7.3-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.7.3-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.7.3-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.7.3-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.7.3-release"
+    }
+  },
+  {
+    "version": "v6.7.2-release",
+    "detail": {
+      "update_time": "2026-04-29",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.7.2-release",
+      "tag_name": "v6.7.2-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.7.2-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.7.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.7.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.7.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.7.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.7.2-release"
+    }
+  },
+  {
+    "version": "v6.7.1-release",
+    "detail": {
+      "update_time": "2026-04-13",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.7.1-release",
+      "tag_name": "v6.7.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.7.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.7.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.7.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.7.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.7.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.7.1-release"
+    }
+  },
+  {
+    "version": "v6.7.0-release",
+    "detail": {
+      "update_time": "2026-04-08",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.7.0-release",
+      "tag_name": "v6.7.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.7.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.7.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.7.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.7.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.7.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.7.0-release"
+    }
+  },
+  {
+    "version": "v6.6.2-release",
+    "detail": {
+      "update_time": "2026-03-23",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.6.2-release",
+      "tag_name": "v6.6.2-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.6.2-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.6.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.6.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.6.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.6.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.6.2-release"
+    }
+  },
+  {
+    "version": "v6.6.1-release",
+    "detail": {
+      "update_time": "2026-03-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.6.1-release",
+      "tag_name": "v6.6.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.6.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.6.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.6.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.6.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.6.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.6.1-release"
+    }
+  },
+  {
+    "version": "v6.6.0-release",
+    "detail": {
+      "update_time": "2026-02-28",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.6.0-release",
+      "tag_name": "v6.6.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.6.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.6.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.6.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.6.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.6.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.6.0-release"
+    }
+  },
+  {
+    "version": "v6.5.2-release",
+    "detail": {
+      "update_time": "2026-01-19",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.5.2-release",
+      "tag_name": "v6.5.2-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.5.2-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.5.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.5.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.5.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.5.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.5.2-release"
+    }
+  },
+  {
+    "version": "v6.5.1-release",
+    "detail": {
+      "update_time": "2026-01-05",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.5.1-release",
+      "tag_name": "v6.5.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.5.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.5.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.5.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.5.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.5.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.5.1-release"
+    }
+  },
+  {
+    "version": "v6.5.0-release",
+    "detail": {
+      "update_time": "2025-12-29",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.5.0-release",
+      "tag_name": "v6.5.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.5.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.5.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.5.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.5.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.5.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.5.0-release"
+    }
+  },
+  {
+    "version": "v6.4.1-release",
+    "detail": {
+      "update_time": "2025-12-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.4.1-release",
+      "tag_name": "v6.4.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.4.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.4.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.4.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.4.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.4.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.4.1-release"
+    }
+  },
+  {
+    "version": "v6.4.0-release",
+    "detail": {
+      "update_time": "2025-11-22",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.4.0-release",
+      "tag_name": "v6.4.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.4.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.4.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.4.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.4.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.4.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.4.0-release"
+    }
+  },
+  {
+    "version": "v6.3.4-release",
+    "detail": {
+      "update_time": "2025-09-28",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.3.4-release",
+      "tag_name": "v6.3.4-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.3.4-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.3.4-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.3.4-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.3.4-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.3.4-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.3.4-release"
+    }
+  },
+  {
+    "version": "v6.3.3-release",
+    "detail": {
+      "update_time": "2025-09-04",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.3.3-release",
+      "tag_name": "v6.3.3-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.3.3-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.3.3-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.3.3-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.3.3-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.3.3-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.3.3-release"
+    }
+  },
+  {
+    "version": "v6.3.2-release",
+    "detail": {
+      "update_time": "2025-07-25",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.3.2-release",
+      "tag_name": "v6.3.2-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.3.2-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.3.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.3.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.3.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.3.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.3.2-release",
+      "rbd-gateway": "registry.cn-hangzhou.aliyuncs.com/goodrain/apisix-ingress-controller:v1.8.3@registry.cn-hangzhou.aliyuncs.com/goodrain/apisix:3.9.1-debian-fix"
+    }
+  },
+  {
+    "version": "v6.3.1-release",
+    "detail": {
+      "update_time": "2025-06-14",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.3.1-release",
+      "tag_name": "v6.3.1-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.3.1-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.3.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.3.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.3.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.3.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.3.1-release"
+    }
+  },
+  {
+    "version": "v6.3.0-release",
+    "detail": {
+      "update_time": "2025-05-20",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.3.0-release",
+      "tag_name": "v6.3.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.3.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.3.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.3.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.3.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.3.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.3.0-release"
+    }
+  },
+  {
+    "version": "v6.2.1-release",
+    "detail": {
+      "update_time": "2025-04-17",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.2.1-release",
+      "tag_name": "v6.2.1-release",
+      "body": "## What's Changes\r\n ### Bug Fixes\r\n+ Fix incomplete export of application templates.\r\n+ Fix gateway inaccessibility after restarting components post-shutdown.\r\n+ Fix rbd-worker service restarts caused by probe failures #2205\r\n+ Fix inability to start components when K8S resource CPU/memory parameters are unspecified.\r\n+ Fix page loading failure when team has no associated cluster after cluster deletion. \r\n+ Change component CPU resource monitoring to track actual usage"
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.2.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.2.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.2.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.2.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.2.1-release"
+    }
+  },
+  {
+    "version": "v6.2.0-release",
+    "detail": {
+      "update_time": "2025-04-03",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.2.0-release",
+      "tag_name": "v6.2.0-release",
+      "body": "## What's Changes\r\n ### New Features\r\n+ Pages now support automatic certificate issuance via CertManager.\r\n+ Added redirect, real-ip, proxy-rewrite, and cors plugins to the gateway.\r\n+ Gateway now supports timeout configuration\r\n ### Feature Enhancements and Bug Fixes\r\n+ Fix gateway could not Reload automatically.\r\n+ Improved health probes for cluster components (e.g., rbd-api, rbd-app-ui).\r\n+ Adjusted log levels for the console and cluster\r\n+ Optimized the cluster command-line tool.\r\n+ Enhanced software package upload and build logic.\r\n+ Improved file management functionality.\r\n+ Fixed permission issues preventing regular users from exporting templates.\r\n+ Resolved a bug where invited team members lacked application deployment permissions."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.2.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.2.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.2.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.2.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.2.0-release"
+    }
+  },
+  {
+    "version": "v6.1.3-release",
+    "detail": {
+      "update_time": "2025-03-13",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.1.3-release",
+      "tag_name": "v6.1.3-release",
+      "body": "## What's Changes\r\n+ Fixed an issue where shared storage from other components was not displayed in component sharing. #2160.\r\n+ Fixed the inability to save gateway routes containing uppercase/lowercase and special characters when adding them. #2154\r\n+ Added domain name validation rules for gateway additions.\r\n+ Fixed an issue with pagination display in certificate management.\r\n+ Fixed issues related to Helm.\r\n+ Fixed a memory leak in rbd-api."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.1.3-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.1.3-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.1.3-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.1.3-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.1.3-release"
+    }
+  },
+  {
+    "version": "v6.1.2-release",
+    "detail": {
+      "update_time": "2025-02-12",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.1.2-release",
+      "tag_name": "v6.1.2-release",
+      "body": "## What's Changes\r\n ### Bug Fixes\r\n+ Registry Storage Optimization: Changed default Registry storage backend from Minio to local-path storage.\r\n+ Fixed Registry garbage collection issues.\r\n+ Resolved large image build limitation: Now supports building images larger than 3GB.\r\n+ Fixed external database configuration issue in host installation mode.\r\n+ Optimized large-scale application template import: Resolved import failures for large templates.\r\n+ Fixed permission issues when installing applications from the platform management app store.\r\n+ Resolved component startup issues caused by circular dependencies.\r\n\r\n ### Feature Improvements\r\n+ Adjusted Ingress default listening port to 7080.\r\n+ Enhanced cluster connection experience with improved error messages during host cluster integration.\r\n+ Removed TCP route port range restrictions, now automatically obtains port range from underlying configuration.\r\n+ Improved startup log messages for component dependencies."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.1.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.1.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.1.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.1.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.1.2-release"
+    }
+  },
+  {
+    "version": "v6.1.1-release",
+    "detail": {
+      "update_time": "2025-01-15",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.1.1-release",
+      "tag_name": "v6.1.1-release",
+      "body": "## What's Changes\r\n+ Fixed the issue where the role information was empty when adding a new node.\r\n+ Fixed the issue where node information was not cleared after deleting a cluster.\r\n+ Fixed the issue where service resources were not deleted after a component build was abandoned.\r\n+ Fixed the issue where gateway records were not deleted when a component port was removed.\r\n+ Fixed incorrect storage statistics in the team application list.\r\n+ Fixed the issue where refreshing the application list resulted in an empty page.\r\n+ Fixed the issue where the pipeline plugin did not have an entry displayed.\r\n+ Fixed the issue where configuration files shared with other components were incorrectly displayed in shared storage.\r\n+ Fixed the issue where rbd-db failed to start during K3S installation.\r\n+ Fixed the inability to manually add custom TCP routes.\r\n+ Fixed the issue where external port routes for TCP components were not deleted.\r\n+ Fixed the error when adding a certificate with the name *.\r\n+ Fixed the issue where Java Maven multi-module source build parameters could not be saved correctly.\r\n+ Fixed the scrolling behavior at the bottom of the Web terminal.\r\n+ Fixed the error when switching the build source of a component to image-based builds.\r\n+ Added validation rules for HTTP routes in gateway management to disallow purely numeric entries.\r\n+ Fixed the issue where selecting a component without ports caused abnormal refreshing when adding routes in the gateway."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.1.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.1.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.1.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.1.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.1.1-release"
+    }
+  },
+  {
+    "version": "v6.1.0-release",
+    "detail": {
+      "update_time": "2024-12-31",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.1.0-release",
+      "tag_name": "v6.1.0-release",
+      "body": "## What's Changes\r\n+ Added file management functionality\r\n+ Gateway now supports adding domain multi-paths\r\n+ Cert Manager supports automatic certificate issuance\r\n+ Redesigned Team Dashboard page with card and list view toggles\r\n+ Added Docker image repository integration functionality\r\n+ Adjusted Git and image repository authentication to user granularity\r\n+ Fixed an issue with quick installation binding to IPv6 addresses\r\n+ Fixed an issue where gateway target services could not be added\r\n+ Fixed permission issues for regular users creating components\r\n+ Fixed an issue where deleting ports in components did not remove related routes in gateway management\r\n+ Fixed an issue where the default cluster could not be deleted after console migration"
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.1.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.1.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.1.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.1.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.1.0-release"
+    }
+  },
+  {
+    "version": "v6.0.3-release",
+    "detail": {
+      "update_time": "2024-12-19",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.0.3-release",
+      "tag_name": "v6.0.3-release",
+      "body": "## Bug Fixes\r\n+ Fixed an issue where component logs could not be paused, log retrieval was ineffective, and the most recent 1000 logs were empty.\r\n+ Fixed incorrect data statistics in component resource monitoring.\r\n+ Fixed an issue where the rbd-hub multi-replica setup failed to push images.\r\n+ Fixed an issue where applications installed from the local component library with TCP ports failed to make the TCP ports accessible after installation.\r\n+ Fixed an issue where deleting an application did not remove gateway HTTP and TCP policies.\r\n+ Fixed an issue where newly added TCP routes under a team were not visible under the application.\r\n+ Fixed an issue where the SSH protocol repository could not load SSH keys.\r\n+ Optimized gateway management by setting the HTTP policy's target service to the component name.\r\n+ Optimized gateway management to support domain name search in HTTP policies.\r\n+ Fixed an issue where installing old-version plugins caused the page to fail to load.\r\n+ Fixed incorrect display of component statuses in cluster management.\r\n+ Fixed an issue where incorrect UI validation rules in platform-managed image repositories prevented access to private repositories.\r\n+ Fixed an issue where local storage node affinity settings were not applied."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.0.3-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.0.3-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.0.3-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.0.3-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.0.3-release",
+      "local-path-provisioner": "registry.cn-hangzhou.aliyuncs.com/goodrain/local-path-provisioner:v0.0.30"
+    }
+  },
+  {
+    "version": "v6.0.2-release",
+    "detail": {
+      "update_time": "2024-12-06",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.0.2-release",
+      "tag_name": "v6.0.2-release",
+      "body": "## Bug Fixes\r\n+ Fixed the issue where MinIO's newer versions do not support older CPU architectures.\r\n+ Fixed the inability to save edited gateway paths.\r\n+ Fixed the error when connecting the gateway to a component in the topology editor.\r\n+ Added textual descriptions for host installation.\r\n+ Fixed incorrect display of component status in cluster management.\r\n+ Fixed the issue where deleting the last registered node did not re-sync the server.\r\n+ Fixed errors during the installation of some applications in the open-source application store, including initialization wait time."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.0.2-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.0.2-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.0.2-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.0.2-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.0.2-release"
+    }
+  },
+  {
+    "version": "v6.0.1-release",
+    "detail": {
+      "update_time": "2024-11-30",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.0.1-release",
+      "tag_name": "v6.0.1-release",
+      "body": "## Bug Fixes\r\n+ Support for deleting registered nodes during host installation\r\n+ Missing default HTTP domain name for host cluster integration\r\n+ Alibaba Cloud Linux 3.2 ARM64 quick installation fails to start\r\n+ Console migration fails to start\r\n+ Modify internal component repository form validation rules\r\n+ Unable to integrate with K8s clusters\r\n+ Fix logic error in quick installation script\r\n+ Plugin installation causes Sqlite lock\r\n+ Offline import of application record ID does not auto-increment"
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.0.1-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.0.1-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.0.1-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.0.1-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.0.1-release"
+    }
+  },
+  {
+    "version": "v6.0.0-release",
+    "detail": {
+      "update_time": "2024-11-22",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.0.0-release",
+      "tag_name": "v6.0.0-release",
+      "body": "## 版本变更\r\n\r\n+ 重构主机安装流程，升级默认安装的 K8s 版本至 1.30\r\n+ 支持通过界面在线升级平台\r\n+ 平台UI界面风格和样式统一升级和调整\r\n+ 升级平台级插件扩展体系\r\n+ 支持源码构建，手动选择语言，如 dockerfile 或直接选择源码构建\r\n+ 移除对共享存储的强依赖，使用 S3 存储部分共享文件\r\n+ 底层网关实现更换为apisix，提升网关稳定性，支持多种网关插件\r\n+ 精简底层组件，移除底层 node 模块，合并 eventlog 和 webcli模块\r\n+ 移除底层组件对 etcd 的依赖\r\n+ 优化接口响应速度\r\n+ 高并发性能优化\r\n+ 移除 ServiceMesh 治理模式\r\n+ 监控模块更换为 prometheus 官方镜像，支持配置文件定义规则\r\n+ 更改平台默认注入的环境变量，避免冲突\r\n+ 修复默认组件注入变量都以_起始，避免冲突"
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.0.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.0.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.0.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.0.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.0.0-release"
+    }
+  }
+]
