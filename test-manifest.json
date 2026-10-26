@@ -7126,45 +7126,6 @@
       "status": "active"
     },
     {
-      "id": "rainbond.nodes.native-certificate-events",
-      "title": "Preserve native RKE2 certificate risks without requiring health heartbeats",
-      "title_zh": "Preserve native RKE2 certificate risks without requiring health heartbeats",
-      "interface_type": "workflow",
-      "interface": "nodesHandle.setNodesCertificates",
-      "code_paths": [
-        "api/handler/node_certificates.go",
-        "api/model/nodes.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateEvents"
-        },
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateEventRequests"
-        },
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateObservedTimeAndDuplicateRisks"
-        },
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateEventsRejectReplacedNode"
-        },
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateWarningsPreserveUnparsedRisks"
-        },
-        {
-          "path": "api/handler/node_certificate_events_test.go",
-          "selector": "TestNativeCertificateLeafObservationDoesNotInheritCAAge"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
       "id": "rainbond.ns-resource.batch-create",
       "title": "Create namespace resources from multi-document YAML",
       "title_zh": "\u6279\u91cf\u521b\u5efa\u547d\u540d\u7a7a\u95f4\u8d44\u6e90",

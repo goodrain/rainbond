@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/pkg/nodecert"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -117,14 +116,9 @@ func (n *nodesHandle) ListNodesWithOptions(ctx context.Context, includeStats boo
 		res = append(res, nodeInfo)
 	}
 	if !includeStats || len(res) == 0 {
-		n.setNodesCertificates(ctx, res)
 		return res, ctx.Err()
 	}
-	var enrichment sync.WaitGroup
-	enrichment.Add(1)
-	go func() { defer enrichment.Done(); n.setNodesCertificates(ctx, res) }()
 	n.setNodesFilesystemStats(ctx, res)
-	enrichment.Wait()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -174,9 +168,6 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 		logrus.Error("get node info handle error:", err)
 		return res, err
 	}
-	certificateNodes := []model.NodeInfo{res}
-	n.setNodesCertificates(ctx, certificateNodes)
-	res = certificateNodes[0]
 	statsErr := n.setNodeFilesystemStats(ctx, nodeName, &res.Resource)
 	res.DiskStatsStatus = nodeDiskStatsStatus(res.Resource, statsErr)
 	if statsErr != nil {
@@ -192,8 +183,6 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 
 func (n *nodesHandle) handleNodeInfo(node v1.Node, includeRequestedResources bool) (nodeinfo model.NodeInfo, err error) {
 	nodeinfo.DiskStatsStatus = "not_requested"
-	nodeinfo.CertificateStatus = initialCertificateStatus(node.Status.NodeInfo.KubeletVersion)
-	nodeinfo.Certificates = []nodecert.Certificate{}
 	var condition model.NodeCondition
 	for _, addr := range node.Status.Addresses {
 		switch addr.Type {
