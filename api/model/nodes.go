@@ -1,8 +1,9 @@
 package model
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NodeInfo -
@@ -20,6 +21,8 @@ type NodeInfo struct {
 	OperatingSystem  string          `json:"operating_system"`
 	OSVersion        string          `json:"os_version"`
 	Resource         Resource        `json:"resource"`
+	// DiskStatsStatus distinguishes missing measurements from a healthy disk.
+	DiskStatsStatus string `json:"disk_stats_status"`
 }
 
 type Resource struct {

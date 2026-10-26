@@ -3549,6 +3549,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster.rbd-component-readiness",
+      "title": "Rainbond component readiness overview",
+      "title_zh": "Rainbond component readiness overview",
+      "interface_type": "handler_method",
+      "interface": "api/handler.clusterAction.ListRainbondComponents",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestPodReadyForOverview"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestBuildRainbondComponentOverviewSortsByName"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cluster.upgrade-preserves-component-config",
       "title": "Preserve custom component configuration during image upgrades",
       "title_zh": "Preserve custom component configuration during image upgrades",
@@ -3917,6 +3947,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb.npm-cache-policy",
+      "title": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "title_zh": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.buildCreatorArgs",
+      "code_paths": [
+        "builder/build/cnb/cache_policy.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBNPMCachePolicy"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyExplainsAutomaticBypass"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyPreservesCacheForUnknownSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb.npm-global-registry",
       "title": "Export NPM_CONFIG_REGISTRY for global npm installs",
       "title_zh": "\u4e3a\u5168\u5c40 npm \u5b89\u88c5\u5bfc\u51fa NPM_CONFIG_REGISTRY",
@@ -4014,6 +4071,41 @@
         {
           "path": "builder/build/cnb/cnb_test.go",
           "selector": "TestWriteCustomOrderFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb.phase-timing",
+      "title": "Report observed CNB lifecycle phase durations without changing build output",
+      "title_zh": "Report observed CNB lifecycle phase durations without changing build output",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.runCNBBuildJob",
+      "code_paths": [
+        "builder/build/cnb/phase_logger.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTiming"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingHandlesFragmentedLogs"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingPreservesWriterErrors"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingSerializesConcurrentWrites"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBJobEmitsFinalPhaseTiming"
         }
       ],
       "test_type": "regression",
@@ -6695,6 +6787,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.manual-pvc-upgrade-delete-idempotent",
+      "title": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "title_zh": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "interface_type": "workflow",
+      "interface": "upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/f/function.go",
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
       "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",
@@ -7129,6 +7240,154 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.disk-availability",
+      "title": "Distinguish missing node filesystem measurements",
+      "title_zh": "Distinguish missing node filesystem measurements",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodes",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/handler/node_filesystem_stats.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewDiskStatsAvailability"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.empty-installed-plugins",
+      "title": "Empty installed plugin results encode as an array",
+      "title_zh": "Empty installed plugin results encode as an array",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListPlugins",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewEmptyInstalledPluginsAreAnArray"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.kubernetes-cluster-resources",
+      "title": "Read truthful bounded Kubernetes workload resource snapshots",
+      "title_zh": "Read truthful bounded Kubernetes workload resource snapshots",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.GetClusterInfo",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/handler/tenant.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesUseKubernetesNotPrometheus"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesCoalesceConcurrentRefresh"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesIncludeEmptySchedulableNodes"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRefreshWaitRespectsCancellation"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceOptionalVersionCannotBlockResources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.lightweight-nodes",
+      "title": "Lightweight node health skips optional statistics",
+      "title_zh": "Lightweight node health skips optional statistics",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodesWithOptions",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLightweightNodesSkipStats"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nodes-request-context",
+      "title": "Preserve node request context and optional statistics default",
+      "title_zh": "Preserve node request context and optional statistics default",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/nodes",
+      "code_paths": [
+        "api/controller/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/overview_nodes_test.go",
+          "selector": "TestOverviewNodesRequestPreservesContextAndDefaults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nonblocking-local-disk",
+      "title": "Optional local disk sampling never blocks cluster resources",
+      "title_zh": "Optional local disk sampling never blocks cluster resources",
+      "interface_type": "workflow",
+      "interface": "clusterAction.withLocalDiskStats",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceCannotBeBlockedByLocalDisk"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample"
         }
       ],
       "test_type": "regression",
@@ -7718,6 +7977,24 @@
         {
           "path": "builder/exector/service_check_test.go",
           "selector": "TestLogServiceCheckProgressMirrorsMessageToEventLogger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service-probe.reconcile-duplicate-mode",
+      "title": "Reconcile duplicate service probe modes",
+      "title_zh": "\u534f\u8c03\u91cd\u590d\u7684\u7ec4\u4ef6\u63a2\u9488\u6a21\u5f0f",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.ServiceProbeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/k8s.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/service_probe_test.go",
+          "selector": "TestServiceProbeDaoAddModelReconcilesExistingMode"
         }
       ],
       "test_type": "regression",
@@ -8610,6 +8887,44 @@
         {
           "path": "pkg/component/storage/upload_package_inventory_test.go",
           "selector": "TestS3UploadPackageMeasurementUsesExactEventPrefix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.tenant-resources.skip-unused-cluster-scans",
+      "title": "Skip cluster scans when tenant limit records are complete",
+      "title_zh": "Skip cluster scans when tenant limit records are complete",
+      "interface_type": "handler_method",
+      "interface": "api/handler.TenantAction.GetTenantsResources",
+      "code_paths": [
+        "api/handler/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsSkipsClusterReads"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesDAOErrors"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure"
         }
       ],
       "test_type": "regression",
@@ -11428,6 +11743,28 @@
         {
           "path": "api/webcli/term/term_writer_test.go",
           "selector": "TestWordWrapWriter"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.app-status-no-unused-component-query",
+      "title": "Single application status avoids unused component query",
+      "title_zh": "\u5355\u5e94\u7528\u72b6\u6001\u907f\u514d\u65e0\u7528\u7ec4\u4ef6\u67e5\u8be2\u4e14\u4fdd\u7559\u8d44\u6e90\u53caHelm\u884c\u4e3a",
+      "interface_type": "workflow",
+      "interface": "worker/server.RuntimeServer.GetAppStatus",
+      "code_paths": [
+        "worker/server/server.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusSkipsUnusedComponentRead"
+        },
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusPreservesHelmStatusAndErrors"
         }
       ],
       "test_type": "regression",

@@ -31,6 +31,11 @@ type ClusterResource struct {
 	K8sVersion                       string        `json:"k8s_version"`
 	NodeReady                        int32         `json:"node_ready"`
 	RunPodNumber                     int           `json:"run_pod_number"`
+	RunningPodNumber                 int           `json:"running_pod_number"`
+	CapCPUMillicores                 int64         `json:"cap_cpu_millicores"`
+	ResourceSource                   string        `json:"resource_source"`
+	ResourceScope                    string        `json:"resource_scope"`
+	LocalDiskStatsStatus             string        `json:"local_disk_stats_status"`
 }
 
 // NodeResource is a collection of compute resource.
@@ -82,7 +87,7 @@ type GatewayResource struct {
 
 // RegionReadiness describes whether the region API is ready to serve requests.
 type RegionReadiness struct {
-	Ready          bool              `json:"ready"`
-	Checks         map[string]string `json:"checks,omitempty"`
-	Message        string            `json:"message,omitempty"`
+	Ready   bool              `json:"ready"`
+	Checks  map[string]string `json:"checks,omitempty"`
+	Message string            `json:"message,omitempty"`
 }

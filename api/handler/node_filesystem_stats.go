@@ -69,6 +69,16 @@ func (n *nodesHandle) setNodeFilesystemStats(ctx context.Context, nodeName strin
 	return nil
 }
 
+func nodeDiskStatsStatus(resource model.Resource, err error) string {
+	if err != nil || resource.CapDisk == 0 && resource.CapContainerDisk == 0 {
+		return "unavailable"
+	}
+	if resource.CapDisk == 0 || resource.CapContainerDisk == 0 {
+		return "partial"
+	}
+	return "ok"
+}
+
 func parseNodeFilesystemStats(raw []byte) (nodeFilesystemStats, error) {
 	var summary kubeletStatsSummary
 	if err := json.Unmarshal(raw, &summary); err != nil {

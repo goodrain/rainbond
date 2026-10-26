@@ -185,6 +185,7 @@
 | rainbond.cluster-resource.exclude-terminal-pods | 从集群资源分配统计中排除终态 Pod | active | regression | api/handler.(*TenantAction).initClusterResource | api/handler/resource_query_scope_test.go::TestInitClusterResourceExcludesTerminalPods |
 | rainbond.cluster-resource.handler-singleton | 复用集群资源处理器单例 | active | unit | api/handler.GetClusterResourceHandler | api/handler/cluster_resource_test.go::TestGetClusterResourceHandlerSingleton |
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
+| rainbond.cluster.rbd-component-readiness | Rainbond component readiness overview | active | regression | api/handler.clusterAction.ListRainbondComponents | api/handler/cluster_overview_test.go::TestPodReadyForOverview<br>api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName<br>api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted<br>api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts |
 | rainbond.cluster.upgrade-preserves-component-config | Preserve custom component configuration during image upgrades | active | regression | POST /v2/cluster/rbd-upgrade | api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
 | rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
@@ -205,11 +206,13 @@
 | rainbond.cnb.mirror-config | 按来源模式注入 CNB 镜像配置 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfig |
 | rainbond.cnb.mirror-config-write-error | 传播 CNB 镜像配置写入失败 | active | regression | builder/build/cnb.nodejsConfig.InjectMirrorConfig | builder/build/cnb/cnb_test.go::TestInjectMirrorConfigWriteError |
 | rainbond.cnb.new-builder | 创建 CNB 构建器实例 | active | regression | builder/build/cnb.NewBuilder | builder/build/cnb/cnb_test.go::TestNewBuilder |
+| rainbond.cnb.npm-cache-policy | Avoid ineffective npm registry caching while retaining image layer reuse | active | regression | builder/build/cnb.Builder.buildCreatorArgs | builder/build/cnb/cache_policy_test.go::TestCNBNPMCachePolicy<br>builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyExplainsAutomaticBypass<br>builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyPreservesCacheForUnknownSources |
 | rainbond.cnb.npm-global-registry | 为全局 npm 安装导出 NPM_CONFIG_REGISTRY | active | regression | builder/build/cnb.resolveNpmRegistry | builder/build/cnb/cnb_test.go::TestResolveNpmRegistry<br>builder/build/cnb/cnb_test.go::TestNodejsNpmRegistryAnnotation |
 | rainbond.cnb.npmrc-registry-parse | 从 .npmrc 内容中解析默认 registry 配置项 | active | unit | builder/build/cnb.npmRegistryFromNpmrc | builder/build/cnb/cnb_test.go::TestNpmRegistryFromNpmrc |
 | rainbond.cnb.offline-mode | 解析离线模式下的 CNB 镜像行为 | active | regression | builder/build/cnb offline mode helpers | builder/build/cnb/cnb_test.go::TestIsOfflineMode<br>builder/build/cnb/cnb_test.go::TestGetCNBBuilderImageOffline<br>builder/build/cnb/cnb_test.go::TestGetCNBRunImageOffline |
 | rainbond.cnb.order-toml | 写入自定义 CNB order 定义 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrder |
 | rainbond.cnb.order-write-failure | CNB order 文件写入失败时返回空标记 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure |
+| rainbond.cnb.phase-timing | Report observed CNB lifecycle phase durations without changing build output | active | regression | builder/build/cnb.Builder.runCNBBuildJob | builder/build/cnb/phase_logger_test.go::TestCNBPhaseTiming<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingHandlesFragmentedLogs<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingPreservesWriterErrors<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingSerializesConcurrentWrites<br>builder/build/cnb/phase_logger_test.go::TestCNBJobEmitsFinalPhaseTiming |
 | rainbond.cnb.platform-annotations | 根据构建环境生成 CNB 平台注解 | active | regression | builder/build/cnb.Builder.buildPlatformAnnotations | builder/build/cnb/cnb_test.go::TestBuildPlatformAnnotations |
 | rainbond.cnb.platform-volume | 根据注解创建 CNB 平台卷 | active | regression | builder/build/cnb.Builder.createPlatformVolume | builder/build/cnb/cnb_test.go::TestCreatePlatformVolume<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeEmpty<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeNonCNBKeys |
 | rainbond.cnb.prebuild-job-cleanup | 清理历史 CNB 预构建任务 | active | regression | builder/build/cnb.Builder.stopPreBuildJob | builder/build/cnb/cnb_test.go::TestStopPreBuildJob |
@@ -351,6 +354,7 @@
 | rainbond.lifecycle.service-reconcile-rejects-foreign-owner | Service reconciliation rejects foreign ownership | active | regression | worker/appm/controller.CreateKubeService | worker/appm/controller/kube-controller_test.go::TestCreateKubeServiceRejectsForeignService |
 | rainbond.lifecycle.stop-preserves-service | Stopping a component preserves its generated Service identity | active | regression | worker/appm/controller.stopController.stopOne | worker/appm/controller/stop_test.go::TestStopPreservesGeneratedService |
 | rainbond.lifecycle.stop-suppresses-exit-event | Suppress container exit events during intentional stop | active | regression | worker/master/podevent.shouldReportContainerExit | worker/master/podevent/health_event_test.go::TestShouldReportContainerExit |
+| rainbond.manual-pvc-upgrade-delete-idempotent | Manual PVC cleanup tolerates absent claims and preserves deletion errors | active | regression | upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims |
 | rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec | Preserve bound manual PVC immutable spec fields during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesBoundClaimImmutableSpec |
 | rainbond.manual-pvc-upgrade-preserves-existing-metadata | Preserve existing manual PVC metadata during app upgrade | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsPreservesExistingMetadata |
 | rainbond.manual-pvc-upgrade-skips-unchanged-storage | Skip manual PVC updates when storage request is unchanged | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsSkipsUnchangedStorage |
@@ -372,6 +376,12 @@
 | rainbond.ns-resource.ingress-summary | 汇总 Ingress 资源路由元数据 | active | regression | api/handler.toNsResourceInfo | api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
+| rainbond.overview.disk-availability | Distinguish missing node filesystem measurements | active | regression | nodesHandle.ListNodes | api/handler/overview_truthful_data_test.go::TestOverviewDiskStatsAvailability |
+| rainbond.overview.empty-installed-plugins | Empty installed plugin results encode as an array | active | regression | clusterAction.ListPlugins | api/handler/overview_truthful_data_test.go::TestOverviewEmptyInstalledPluginsAreAnArray |
+| rainbond.overview.kubernetes-cluster-resources | Read truthful bounded Kubernetes workload resource snapshots | active | regression | clusterAction.GetClusterInfo | api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesUseKubernetesNotPrometheus<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesCoalesceConcurrentRefresh<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesIncludeEmptySchedulableNodes<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRefreshWaitRespectsCancellation<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceOptionalVersionCannotBlockResources |
+| rainbond.overview.lightweight-nodes | Lightweight node health skips optional statistics | active | regression | nodesHandle.ListNodesWithOptions | api/handler/overview_truthful_data_test.go::TestOverviewLightweightNodesSkipStats |
+| rainbond.overview.nodes-request-context | Preserve node request context and optional statistics default | active | regression | GET /v2/nodes | api/controller/overview_nodes_test.go::TestOverviewNodesRequestPreservesContextAndDefaults |
+| rainbond.overview.nonblocking-local-disk | Optional local disk sampling never blocks cluster resources | active | regression | clusterAction.withLocalDiskStats | api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceCannotBeBlockedByLocalDisk<br>api/handler/overview_truthful_data_test.go::TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample |
 | rainbond.package-build.clean-extracted-content | 解压前清理旧包展开内容 | active | regression | builder/parser.cleanPackageExtractDir | builder/parser/package_archive_test.go::TestCleanPackageExtractDirKeepsSelectedArchiveOnly |
 | rainbond.package-build.select-archive-over-extracted-content | 优先选择上传压缩包而不是旧解压内容 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveSkipsExtractedDirectories |
 | rainbond.package-build.select-latest-archive | 二次上传时选择最新压缩包 | active | regression | builder/parser.selectPackageArchive | builder/parser/package_archive_test.go::TestSelectPackageArchiveUsesLatestArchiveForSecondUpload |
@@ -403,6 +413,7 @@
 | rainbond.runtime.static-empty | 静态语言返回空运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_StaticReturnsEmptyRuntimeInfo |
 | rainbond.service-check.completion-log-summary | 服务检测完成摘要日志反映真实检测状态 | active | regression | builder/exector.serviceCheckCompletionLogSummary | builder/exector/service_check_test.go::TestServiceCheckCompletionLogSummary |
 | rainbond.service-check.eventlog-progress | 将服务检测进度消息同步写入事件日志 | active | regression | builder/exector.logServiceCheckProgress | builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger |
+| rainbond.service-probe.reconcile-duplicate-mode | 协调重复的组件探针模式 | active | regression | db/mysql/dao.ServiceProbeDaoImpl.AddModel | db/mysql/dao/service_probe_test.go::TestServiceProbeDaoAddModelReconcilesExistingMode |
 | rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
@@ -452,6 +463,7 @@
 | rainbond.storage.s3-lifecycle-skip-logs | S3 生命周期已配置时不再输出 info 日志 | active | regression | pkg/component/storage.(*S3Storage).ensureBucketLifecycle | pkg/component/storage/s3_storage_test.go::TestEnsureBucketExistsDoesNotLogInfoWhenLifecycleAlreadyConfigured |
 | rainbond.storage.upload-chunk-binding | Bind native chunk storage without exposing credentials | active | regression | Component.UploadChunkBinding | pkg/component/storage/upload_binding_test.go::TestUploadStorageBindingChangesWithTargetWithoutExposingCredentials |
 | rainbond.storage.upload-package-size | Measure scoped upload packages including extracted files | active | regression | storage.MeasureUploadEvent | pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles<br>pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix |
+| rainbond.tenant-resources.skip-unused-cluster-scans | Skip cluster scans when tenant limit records are complete | active | regression | api/handler.TenantAction.GetTenantsResources | api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsSkipsClusterReads<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesDAOErrors<br>api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure |
 | rainbond.third-component.endpoint-address-construct | 构造并校验第三方组件端点地址 | active | regression | pkg/apis/rainbond/v1alpha1.NewEndpointAddress | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestNewEndpointAddress |
 | rainbond.third-component.endpoint-address-ip | 解析端点 IP 与域名哨兵地址 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetIP | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetIP |
 | rainbond.third-component.endpoint-address-port | 从第三方组件端点地址中解析有效端口 | active | regression | pkg/apis/rainbond/v1alpha1.EndpointAddress.GetPort | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestEndpointAddressGetPort |
@@ -599,6 +611,7 @@
 | rainbond.webcli.missing-container-guard | 请求的容器不存在时拒绝建立 exec 会话 | active | regression | api/webcli/app.App.GetContainerArgs | api/webcli/app/app_test.go::TestGetContainerArgsRejectsMissingContainer |
 | rainbond.webcli.terminal-resize | 为 WebCLI 执行会话排队并应用终端尺寸变更 | active | regression | api/webcli/app.execContext.ResizeTerminal | api/webcli/app/tty_test.go::TestResizeTerminalQueuesWindowSize |
 | rainbond.webcli.word-wrap | 按单词折行 WebCLI 终端输出 | active | regression | api/webcli/term.NewWordWrapWriter | api/webcli/term/term_writer_test.go::TestWordWrapWriter |
+| rainbond.worker.app-status-no-unused-component-query | 单应用状态避免无用组件查询且保留资源及Helm行为 | active | regression | worker/server.RuntimeServer.GetAppStatus | worker/server/app_status_query_test.go::TestGetAppStatusSkipsUnusedComponentRead<br>worker/server/app_status_query_test.go::TestGetAppStatusPreservesHelmStatusAndErrors |
 | rainbond.worker.appm.autoscaler.build-hpa-spec | 根据自动伸缩规则构建 HPA 指标与对象 | active | regression | worker/appm/conversion.newHPA | worker/appm/conversion/autoscaler_test.go::TestNewHPA |
 | rainbond.worker.appm.discovery.etcd-config | 配置 appm 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | worker/appm/thirdparty/discovery.NewEtcd | worker/appm/thirdparty/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.worker.appm.discovery.unsupported-type | 对不支持的 appm 发现后端返回错误 | active | regression | worker/appm/thirdparty/discovery.NewDiscoverier | worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
@@ -2459,6 +2472,16 @@
 - 代码路径: `api/handler/cluster_resource.go`
 - 测试路径: `api/handler/cluster_resource_test.go::TestValidateGVRParams`
 
+### Rainbond component readiness overview
+
+- Capability ID: `rainbond.cluster.rbd-component-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.clusterAction.ListRainbondComponents`
+- 代码路径: `api/handler/cluster.go`
+- 测试路径: `api/handler/cluster_overview_test.go::TestPodReadyForOverview`, `api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName`, `api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted`, `api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts`
+
 ### Preserve custom component configuration during image upgrades
 
 - Capability ID: `rainbond.cluster.upgrade-preserves-component-config`
@@ -2659,6 +2682,16 @@
 - 代码路径: `builder/build/cnb/build.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestNewBuilder`
 
+### Avoid ineffective npm registry caching while retaining image layer reuse
+
+- Capability ID: `rainbond.cnb.npm-cache-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.Builder.buildCreatorArgs`
+- 代码路径: `builder/build/cnb/cache_policy.go`, `builder/build/cnb/job.go`
+- 测试路径: `builder/build/cnb/cache_policy_test.go::TestCNBNPMCachePolicy`, `builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyExplainsAutomaticBypass`, `builder/build/cnb/cache_policy_test.go::TestCNBCachePolicyPreservesCacheForUnknownSources`
+
 ### 为全局 npm 安装导出 NPM_CONFIG_REGISTRY
 
 - Capability ID: `rainbond.cnb.npm-global-registry`
@@ -2708,6 +2741,16 @@
 - 业务入口: `builder/build/cnb.Builder.writeCustomOrder`
 - 代码路径: `builder/build/cnb/order.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure`
+
+### Report observed CNB lifecycle phase durations without changing build output
+
+- Capability ID: `rainbond.cnb.phase-timing`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.Builder.runCNBBuildJob`
+- 代码路径: `builder/build/cnb/phase_logger.go`, `builder/build/cnb/job.go`
+- 测试路径: `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTiming`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingHandlesFragmentedLogs`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingPreservesWriterErrors`, `builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingSerializesConcurrentWrites`, `builder/build/cnb/phase_logger_test.go::TestCNBJobEmitsFinalPhaseTiming`
 
 ### 根据构建环境生成 CNB 平台注解
 
@@ -4119,6 +4162,16 @@
 - 代码路径: `worker/master/podevent/podevent.go`
 - 测试路径: `worker/master/podevent/health_event_test.go::TestShouldReportContainerExit`
 
+### Manual PVC cleanup tolerates absent claims and preserves deletion errors
+
+- Capability ID: `rainbond.manual-pvc-upgrade-delete-idempotent`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `upgradeController.upgradeManualClaims`
+- 代码路径: `worker/appm/f/function.go`, `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims`
+
 ### Preserve bound manual PVC immutable spec fields during app upgrade
 
 - Capability ID: `rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec`
@@ -4328,6 +4381,66 @@
 - 业务入口: `api/handler.(*NsResourceHandler).getTenantNamespace`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField`, `api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty`
+
+### Distinguish missing node filesystem measurements
+
+- Capability ID: `rainbond.overview.disk-availability`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `nodesHandle.ListNodes`
+- 代码路径: `api/handler/nodes.go`, `api/handler/node_filesystem_stats.go`, `api/model/nodes.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewDiskStatsAvailability`
+
+### Empty installed plugin results encode as an array
+
+- Capability ID: `rainbond.overview.empty-installed-plugins`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.ListPlugins`
+- 代码路径: `api/handler/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewEmptyInstalledPluginsAreAnArray`
+
+### Read truthful bounded Kubernetes workload resource snapshots
+
+- Capability ID: `rainbond.overview.kubernetes-cluster-resources`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.GetClusterInfo`
+- 代码路径: `api/handler/cluster.go`, `api/handler/cluster_overview_resources.go`, `api/handler/tenant.go`, `api/model/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesUseKubernetesNotPrometheus`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesCoalesceConcurrentRefresh`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesIncludeEmptySchedulableNodes`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRefreshWaitRespectsCancellation`, `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceOptionalVersionCannotBlockResources`
+
+### Lightweight node health skips optional statistics
+
+- Capability ID: `rainbond.overview.lightweight-nodes`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `nodesHandle.ListNodesWithOptions`
+- 代码路径: `api/handler/nodes.go`, `api/model/nodes.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewLightweightNodesSkipStats`
+
+### Preserve node request context and optional statistics default
+
+- Capability ID: `rainbond.overview.nodes-request-context`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `GET /v2/nodes`
+- 代码路径: `api/controller/nodes.go`
+- 测试路径: `api/controller/overview_nodes_test.go::TestOverviewNodesRequestPreservesContextAndDefaults`
+
+### Optional local disk sampling never blocks cluster resources
+
+- Capability ID: `rainbond.overview.nonblocking-local-disk`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clusterAction.withLocalDiskStats`
+- 代码路径: `api/handler/cluster.go`, `api/handler/cluster_overview_resources.go`, `api/model/cluster.go`
+- 测试路径: `api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceCannotBeBlockedByLocalDisk`, `api/handler/overview_truthful_data_test.go::TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample`
 
 ### 解压前清理旧包展开内容
 
@@ -4638,6 +4751,16 @@
 - 业务入口: `builder/exector.logServiceCheckProgress`
 - 代码路径: `builder/exector/service_check.go`
 - 测试路径: `builder/exector/service_check_test.go::TestLogServiceCheckProgressMirrorsMessageToEventLogger`
+
+### 协调重复的组件探针模式
+
+- Capability ID: `rainbond.service-probe.reconcile-duplicate-mode`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `db/mysql/dao.ServiceProbeDaoImpl.AddModel`
+- 代码路径: `db/mysql/dao/k8s.go`
+- 测试路径: `db/mysql/dao/service_probe_test.go::TestServiceProbeDaoAddModelReconcilesExistingMode`
 
 ### DaemonSet 组件类型分类
 
@@ -5128,6 +5251,16 @@
 - 业务入口: `storage.MeasureUploadEvent`
 - 代码路径: `pkg/component/storage/upload_package_inventory.go`, `api/controller/cleanup_upload_inventory.go`
 - 测试路径: `pkg/component/storage/upload_package_inventory_test.go::TestUploadPackageSizeIsScopedAndIncludesExtractedFiles`, `pkg/component/storage/upload_package_inventory_test.go::TestS3UploadPackageMeasurementUsesExactEventPrefix`
+
+### Skip cluster scans when tenant limit records are complete
+
+- Capability ID: `rainbond.tenant-resources.skip-unused-cluster-scans`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.TenantAction.GetTenantsResources`
+- 代码路径: `api/handler/tenant.go`
+- 测试路径: `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsSkipsClusterReads`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesDAOErrors`, `api/handler/tenant_resources_performance_test.go::TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure`
 
 ### 构造并校验第三方组件端点地址
 
@@ -6598,6 +6731,16 @@
 - 业务入口: `api/webcli/term.NewWordWrapWriter`
 - 代码路径: `api/webcli/term/term_writer.go`
 - 测试路径: `api/webcli/term/term_writer_test.go::TestWordWrapWriter`
+
+### 单应用状态避免无用组件查询且保留资源及Helm行为
+
+- Capability ID: `rainbond.worker.app-status-no-unused-component-query`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/server.RuntimeServer.GetAppStatus`
+- 代码路径: `worker/server/server.go`
+- 测试路径: `worker/server/app_status_query_test.go::TestGetAppStatusSkipsUnusedComponentRead`, `worker/server/app_status_query_test.go::TestGetAppStatusPreservesHelmStatusAndErrors`
 
 ### 根据自动伸缩规则构建 HPA 指标与对象
 

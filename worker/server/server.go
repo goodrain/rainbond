@@ -21,13 +21,14 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/grafana/pyroscope-go"
-	"net"
-	"strings"
-	"time"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
@@ -138,7 +139,6 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 // GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (status *pb.AppStatus, err error) {
 	var app *model.Application
-	var services []*model.TenantServices
 	pyroscope.TagWrapper(ctx, pyroscope.Labels("controller", "WORKER-GetAppStatus"), func(ctx context.Context) {
 		app, err = db.GetManager().ApplicationDao().GetAppByID(in.AppId)
 		if err != nil {
@@ -148,11 +148,6 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (
 		if app.AppType == model.AppTypeHelm {
 			status, err = r.getHelmAppStatus(app)
 			return
-		}
-		services, err = db.GetManager().TenantServiceDao().ListByAppIDs([]string{app.AppID})
-		var serviceIDs []string
-		for _, service := range services {
-			serviceIDs = append(serviceIDs, service.ServiceID)
 		}
 		status, err = r.getRainbondAppStatus(app)
 	})
