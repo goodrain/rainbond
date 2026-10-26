@@ -611,6 +611,7 @@
 | rainbond.webcli.missing-container-guard | 请求的容器不存在时拒绝建立 exec 会话 | active | regression | api/webcli/app.App.GetContainerArgs | api/webcli/app/app_test.go::TestGetContainerArgsRejectsMissingContainer |
 | rainbond.webcli.terminal-resize | 为 WebCLI 执行会话排队并应用终端尺寸变更 | active | regression | api/webcli/app.execContext.ResizeTerminal | api/webcli/app/tty_test.go::TestResizeTerminalQueuesWindowSize |
 | rainbond.webcli.word-wrap | 按单词折行 WebCLI 终端输出 | active | regression | api/webcli/term.NewWordWrapWriter | api/webcli/term/term_writer_test.go::TestWordWrapWriter |
+| rainbond.worker.app-status-no-unused-component-query | 单应用状态避免无用组件查询且保留资源及Helm行为 | active | regression | worker/server.RuntimeServer.GetAppStatus | worker/server/app_status_query_test.go::TestGetAppStatusSkipsUnusedComponentRead<br>worker/server/app_status_query_test.go::TestGetAppStatusPreservesHelmStatusAndErrors |
 | rainbond.worker.appm.autoscaler.build-hpa-spec | 根据自动伸缩规则构建 HPA 指标与对象 | active | regression | worker/appm/conversion.newHPA | worker/appm/conversion/autoscaler_test.go::TestNewHPA |
 | rainbond.worker.appm.discovery.etcd-config | 配置 appm 的 etcd 发现器并在无客户端时保护抓取逻辑 | active | regression | worker/appm/thirdparty/discovery.NewEtcd | worker/appm/thirdparty/discovery/etcd_test.go::TestNewEtcdAndFetchGuard |
 | rainbond.worker.appm.discovery.unsupported-type | 对不支持的 appm 发现后端返回错误 | active | regression | worker/appm/thirdparty/discovery.NewDiscoverier | worker/appm/thirdparty/discovery/discovery_unit_test.go::TestNewDiscoverierUnsupportedType |
@@ -6730,6 +6731,16 @@
 - 业务入口: `api/webcli/term.NewWordWrapWriter`
 - 代码路径: `api/webcli/term/term_writer.go`
 - 测试路径: `api/webcli/term/term_writer_test.go::TestWordWrapWriter`
+
+### 单应用状态避免无用组件查询且保留资源及Helm行为
+
+- Capability ID: `rainbond.worker.app-status-no-unused-component-query`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/server.RuntimeServer.GetAppStatus`
+- 代码路径: `worker/server/server.go`
+- 测试路径: `worker/server/app_status_query_test.go::TestGetAppStatusSkipsUnusedComponentRead`, `worker/server/app_status_query_test.go::TestGetAppStatusPreservesHelmStatusAndErrors`
 
 ### 根据自动伸缩规则构建 HPA 指标与对象
 

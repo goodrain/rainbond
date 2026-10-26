@@ -11749,6 +11749,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.app-status-no-unused-component-query",
+      "title": "Single application status avoids unused component query",
+      "title_zh": "\u5355\u5e94\u7528\u72b6\u6001\u907f\u514d\u65e0\u7528\u7ec4\u4ef6\u67e5\u8be2\u4e14\u4fdd\u7559\u8d44\u6e90\u53caHelm\u884c\u4e3a",
+      "interface_type": "workflow",
+      "interface": "worker/server.RuntimeServer.GetAppStatus",
+      "code_paths": [
+        "worker/server/server.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusSkipsUnusedComponentRead"
+        },
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusPreservesHelmStatusAndErrors"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.appm.autoscaler.build-hpa-spec",
       "title": "Build HPA metric specs and manifests from autoscaler rules",
       "title_zh": "\u6839\u636e\u81ea\u52a8\u4f38\u7f29\u89c4\u5219\u6784\u5efa HPA \u6307\u6807\u4e0e\u5bf9\u8c61",
