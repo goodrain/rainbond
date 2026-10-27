@@ -212,6 +212,7 @@
 | rainbond.cnb.offline-mode | 解析离线模式下的 CNB 镜像行为 | active | regression | builder/build/cnb offline mode helpers | builder/build/cnb/cnb_test.go::TestIsOfflineMode<br>builder/build/cnb/cnb_test.go::TestGetCNBBuilderImageOffline<br>builder/build/cnb/cnb_test.go::TestGetCNBRunImageOffline |
 | rainbond.cnb.order-toml | 写入自定义 CNB order 定义 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrder |
 | rainbond.cnb.order-write-failure | CNB order 文件写入失败时返回空标记 | active | regression | builder/build/cnb.Builder.writeCustomOrder | builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure |
+| rainbond.cnb.package-workspace-isolation | 隔离源码包 CNB 构建工作目录并保留原始上传内容 | active | regression | builder/build/cnb.Builder.Build | builder/build/cnb/package_workspace_test.go::TestCNBPackageBuildUsesPristineWorkspace<br>builder/build/cnb/package_workspace_test.go::TestCNBNonPackageBuildKeepsSourceDirectory<br>builder/parser/package_workspace_test.go::TestPreparePackageBuildWorkspace<br>builder/parser/package_workspace_test.go::TestPreparePackageBuildWorkspaceRejectsInvalidInput |
 | rainbond.cnb.phase-timing | Report observed CNB lifecycle phase durations without changing build output | active | regression | builder/build/cnb.Builder.runCNBBuildJob | builder/build/cnb/phase_logger_test.go::TestCNBPhaseTiming<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingHandlesFragmentedLogs<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingPreservesWriterErrors<br>builder/build/cnb/phase_logger_test.go::TestCNBPhaseTimingSerializesConcurrentWrites<br>builder/build/cnb/phase_logger_test.go::TestCNBJobEmitsFinalPhaseTiming |
 | rainbond.cnb.platform-annotations | 根据构建环境生成 CNB 平台注解 | active | regression | builder/build/cnb.Builder.buildPlatformAnnotations | builder/build/cnb/cnb_test.go::TestBuildPlatformAnnotations |
 | rainbond.cnb.platform-volume | 根据注解创建 CNB 平台卷 | active | regression | builder/build/cnb.Builder.createPlatformVolume | builder/build/cnb/cnb_test.go::TestCreatePlatformVolume<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeEmpty<br>builder/build/cnb/cnb_test.go::TestCreatePlatformVolumeNonCNBKeys |
@@ -2742,6 +2743,16 @@
 - 业务入口: `builder/build/cnb.Builder.writeCustomOrder`
 - 代码路径: `builder/build/cnb/order.go`
 - 测试路径: `builder/build/cnb/cnb_test.go::TestWriteCustomOrderFailure`
+
+### 隔离源码包 CNB 构建工作目录并保留原始上传内容
+
+- Capability ID: `rainbond.cnb.package-workspace-isolation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/build/cnb.Builder.Build`
+- 代码路径: `builder/build/cnb/build.go`, `builder/parser/package_workspace.go`, `util/comman.go`
+- 测试路径: `builder/build/cnb/package_workspace_test.go::TestCNBPackageBuildUsesPristineWorkspace`, `builder/build/cnb/package_workspace_test.go::TestCNBNonPackageBuildKeepsSourceDirectory`, `builder/parser/package_workspace_test.go::TestPreparePackageBuildWorkspace`, `builder/parser/package_workspace_test.go::TestPreparePackageBuildWorkspaceRejectsInvalidInput`
 
 ### Report observed CNB lifecycle phase durations without changing build output
 
