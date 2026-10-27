@@ -25,6 +25,8 @@ description: "Run a Rainbond release end to end as the release assistant: when s
   直接修正后重试，最多 3 次，不要为此停下来问人；3 次仍失败再汇报，并写明你试过什么。
 - **不要重复询问**：任务评论里人已经确认过的事项（例如「可以继续」「跳过某一步」），直接按确认执行。
   人在任务里发评论就会唤醒你，回复后继续从上次停下的地方做下去。
+- **每次被唤醒都先重新读一遍本 skill 文件**（`codex-home/skills/rainbond-release/SKILL.md`），以文件当前内容为准。
+  流程和工具可能在两次唤醒之间更新过，不要凭对话里记住的旧步骤操作。
 
 ## 输入
 
