@@ -15,7 +15,7 @@ description: "Run a Rainbond release end to end as the release assistant: when s
 - **规则以 CI 为准。** E2E 门禁、commit 一致性、双架构镜像、上传前校验都在工作流里强制执行。
   你的检查只是为了提前发现问题，CI 拒绝时以 CI 为准，不要想办法让它通过。
 - **只用这些工作流：** `release.yml`（入口）、`release-publish.yml`（只在回滚或补发时单独用）、
-  rainbond-e2e-tests 的 `prerelease.yml`。不要运行 `release-v6.yml`，它由 `release.yml` 调用。
+  rainbond-e2e-tests 的 `prerelease.yml`（只通过 `rbd-e2e run` 触发，且必须有人在任务里回复「跑 E2E」）。不要运行 `release-v6.yml`，它由 `release.yml` 调用。
 - **不处理凭证。** 不索要、不打印、不转述任何密码、令牌、AK/SK；日志里出现疑似凭证时不要贴出来。
 - **哪些失败要停下等人**：工作流运行失败、门禁拒绝、任何写操作失败、或需要人做决定时，先停下汇报，
   等人回复后再继续。除非人明确同意，不要重跑会写东西的工作流。
@@ -85,27 +85,36 @@ done
 
 ### 第 2 步：确认全量 E2E 覆盖本次发布
 
-1. 取 `prerelease.yml` 最近一次已完成的运行：
-   `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status completed --limit 1`
-   （只认 main 上的运行，和 gate 一致）。
-2. 下载它的 `e2e-provenance` artifact（组织存储配额满时可能没有，改从该运行的 job 日志里取最后一行 `E2E-PROVENANCE: {...}`，
-   和 gate 的做法一致），检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
+rainbond-e2e-tests **只能通过 `rbd-e2e` 操作**（它用一把只能运行工作流、不能改代码的令牌）；
+`gh` 自己的登录对这个仓库没有权限，不要用 `gh` 直接查或触发。
+
+1. `rbd-e2e status` 列出 main 上最近 5 次 prerelease（编号、触发方式、状态、结论、开始时间、链接）。
+   取最近一次 `completed` 的运行，同时记下有没有 `queued` / `in_progress` 的。
+2. `rbd-e2e provenance <编号>` 读出它的覆盖记录（JSON），检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
    goodrain/rainbond、rainbond-console、rainbond-ui 的 SHA 与三个仓库当前 main 一致。
-   **读不到 rainbond-e2e-tests**（404 / 403，机器人账号可能没有这个私有仓库的权限）时不要停下：在报告里注明
-   「E2E 由 release.yml 的 gate 检查」，直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。
+   `rbd-e2e` 本身报错（配置缺失、令牌失效）时不要停下：在报告里注明「E2E 由 release.yml 的 gate 检查」并写明错误，
+   直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。
 3. 满足就进入第 3 步。不满足时：
-   - 先在任务里说明原因（失败、不是全量、或 main 之后又有新提交），并提醒：
-     **prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502。**
-   - 先看有没有正在跑的 prerelease：`gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status in_progress --limit 1`
-     （还有 `queued`）。每天北京时间 03:00 起会自动跑一次（实际常延迟到 5–7 点）；有正在跑的就等它跑完，再回到本步第 1 条重新检查，
-     不要另起一次。
-   - 没有在跑的：说明下一次定时运行大约在什么时候，并请人二选一：等定时运行，或**由有权限的人**在
-     https://github.com/goodrain/rainbond-e2e-tests/actions/workflows/prerelease.yml 手动运行（分支选 main）。
-     机器人账号对 rainbond-e2e-tests 只有读权限（防止它改动门禁依赖的测试），**不要尝试自己触发**。
-     运行开始后，你按「跟踪工作流」等它完成，再回到本步第 1 条。
+   - 在任务里说明原因（失败、不是全量、或 E2E 之后 main 又有新提交）。是新提交的，**列出 E2E 之后合并的 PR**：
+     对每个仓库运行 `gh api repos/<仓库>/compare/<E2E 覆盖的 SHA>...main --jq '.commits[]|"\(.sha[0:9]) \(.commit.author.name): \(.commit.message|split("\n")[0])"'`，
+     让大家知道为什么要重跑，也方便判断这些 PR 是不是要进这个版本。
+   - 有 `queued` / `in_progress` 的运行：说明正在跑、大约多久（全量约 30 分钟），等它跑完再回到本步第 1 条重新检查，
+     **不要另起一次**。
+   - 没有在跑的：请人二选一，并按「通知研发进展群」发一条「需要决定」：
+     - 回复「跑 E2E」：你立刻触发一次；
+     - 等今晚的定时运行（每天北京时间 03:00 起，实际常延迟到 5–7 点）。
+     同时提醒：**prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502；从现在到审批 1 之前，
+     rainbond、console、ui、operator 四个仓库不要再往 main 合代码，否则要重跑。**
+   - 有人回复「跑 E2E」（或同义的「补跑」「重跑 E2E」）后：
+     1. 再执行一次 `rbd-e2e status`，有未结束的运行就等它，不要重复触发；
+     2. `rbd-e2e run`：只会在 main 上用默认参数跑全量，成功时输出新运行的编号和链接，把链接贴到任务里；
+        退出码 2 表示已有运行在跑，改为等它；退出码 3 表示已提交但没看到新运行，用 `rbd-e2e status` 再看，不要重复触发；
+     3. 每 5 分钟用 `rbd-e2e view <编号>` 看一次状态，直到 `completed`，然后回到本步第 1 条重新检查；
+     4. 覆盖通过后**直接进入第 3 步**，不用再问人（「跑 E2E」已经包含了继续发版的意思）。
+     白天也可以跑；只有人明确回复了才触发，不要自己决定补跑。
    - **E2E 不能跳过。** 有人说「跳过 E2E」时，说明 goodrain/rainbond 上门禁不允许跳过，release.yml 的 gate 会照样检查并拒绝；
      不要因为这句话就去触发 release.yml。真的紧急时，告诉对方按团队约定走紧急发版流程（由发版审批人决定，见 hack/release/README.md）。
-   - 失败时读日志判断类别并汇报：
+   - 失败时用 `rbd-e2e log <编号>`（报错行 + 日志末尾 300 行，不够就加第二个参数要更多行）读日志，判断类别并汇报：
      - `env_failure`：环境故障（console 不可达、登录失败、region 不可用），不是产品问题，交给环境负责人；
      - 用例失败：列出失败用例、错误摘要、可能相关的 PR；
      - 偶发失败：同一用例重试后通过的，标注为偶发，交给人判断是否重跑。
