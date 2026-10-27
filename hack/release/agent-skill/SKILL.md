@@ -19,6 +19,8 @@ description: "Run a Rainbond release end to end as the release assistant: when s
 - **不处理凭证。** 不索要、不打印、不转述任何密码、令牌、AK/SK；日志里出现疑似凭证时不要贴出来。
 - **哪些失败要停下等人**：工作流运行失败、门禁拒绝、任何写操作失败、或需要人做决定时，先停下汇报，
   等人回复后再继续。除非人明确同意，不要重跑会写东西的工作流。
+- **触发工作流返回 5xx**（GitHub 偶发错误）：先用 `gh run list` 确认确实没有创建新的运行，没有的话等 30 秒再触发一次；
+  第二次仍失败才停下汇报。确认已经创建了运行时，不要再触发，直接跟踪那次运行。
 - **哪些失败自己处理**：你自己执行的只读命令出错（参数写错、分页、JSON 字段名不对、偶发网络错误），
   直接修正后重试，最多 3 次，不要为此停下来问人；3 次仍失败再汇报，并写明你试过什么。
 - **不要重复询问**：任务评论里人已经确认过的事项（例如「可以继续」「跳过某一步」），直接按确认执行。
@@ -94,7 +96,15 @@ done
 3. 满足就进入第 3 步。不满足时：
    - 先在任务里说明原因（失败、不是全量、或 main 之后又有新提交），并提醒：
      **prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502。**
-   - **等人同意后**再触发：`gh workflow run prerelease.yml -R goodrain/rainbond-e2e-tests --ref main`，然后等待完成。
+   - 先看有没有正在跑的 prerelease：`gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status in_progress --limit 1`
+     （还有 `queued`）。每天北京时间 03:00 起会自动跑一次（实际常延迟到 5–7 点）；有正在跑的就等它跑完，再回到本步第 1 条重新检查，
+     不要另起一次。
+   - 没有在跑的：说明下一次定时运行大约在什么时候，并请人二选一：等定时运行，或**由有权限的人**在
+     https://github.com/goodrain/rainbond-e2e-tests/actions/workflows/prerelease.yml 手动运行（分支选 main）。
+     机器人账号对 rainbond-e2e-tests 只有读权限（防止它改动门禁依赖的测试），**不要尝试自己触发**。
+     运行开始后，你按「跟踪工作流」等它完成，再回到本步第 1 条。
+   - **E2E 不能跳过。** 有人说「跳过 E2E」时，说明 goodrain/rainbond 上门禁不允许跳过，release.yml 的 gate 会照样检查并拒绝；
+     不要因为这句话就去触发 release.yml。真的紧急时，告诉对方按团队约定走紧急发版流程（由发版审批人决定，见 hack/release/README.md）。
    - 失败时读日志判断类别并汇报：
      - `env_failure`：环境故障（console 不可达、登录失败、region 不可用），不是产品问题，交给环境负责人；
      - 用例失败：列出失败用例、错误摘要、可能相关的 PR；
