@@ -653,6 +653,7 @@
 | rainbond.worker.helmapp.store-full-name | 根据 EID 与商店名构建完整应用商店名称 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppSpec.FullName | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppSpecFullName |
 | rainbond.worker.helmapp.update-required | 判断已配置 HelmApp 是否需要安装或更新 | active | regression | worker/master/controller/helmapp.App.NeedUpdate | worker/master/controller/helmapp/unit_test.go::TestAppNeedUpdate |
 | rainbond.worker.patch.daemonset-upgrade | DaemonSet 升级补丁生成 | active | regression | worker.appm.types.v1.AppService.SetUpgradePatch | worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch |
+| rainbond.worker.pod-check-leader-lifecycle | Pod probe checks stop when leadership ends | active | regression | worker/master/podevent.PodEvent.Handle | worker/master/podevent/lifecycle_test.go::TestHandleStopsAcrossLeaderTerms<br>worker/master/podevent/lifecycle_test.go::TestHandleCancelsInFlightProbeRequests<br>worker/master/podevent/lifecycle_test.go::TestHandleWaitsForPreviousLeaderTerm |
 | rainbond.worker.pod-status.describe | 根据条件容器状态与事件归类 Pod 状态 | active | regression | worker/util.DescribePodStatus | worker/util/pod_test.go::TestDescribePodStatus |
 | rainbond.worker.status.daemonset | DaemonSet 运行状态计算 | active | regression | worker.appm.types.v1.AppService.GetServiceStatus | worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsRunningForReadyDaemonSet<br>worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod |
 | rainbond.worker.thirdcomponent.prober.execute-endpoint-probe | 执行第三方组件端点探测并映射结果 | active | regression | worker/master/controller/thirdcomponent/prober.prober.probe | worker/master/controller/thirdcomponent/prober/prober_test.go::TestProbe |
@@ -7152,6 +7153,16 @@
 - 业务入口: `worker.appm.types.v1.AppService.SetUpgradePatch`
 - 代码路径: `worker/appm/types/v1/patch.go`
 - 测试路径: `worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch`
+
+### Pod probe checks stop when leadership ends
+
+- Capability ID: `rainbond.worker.pod-check-leader-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/master/podevent.PodEvent.Handle`
+- 代码路径: `worker/master/master.go`, `worker/master/podevent/podevent.go`
+- 测试路径: `worker/master/podevent/lifecycle_test.go::TestHandleStopsAcrossLeaderTerms`, `worker/master/podevent/lifecycle_test.go::TestHandleCancelsInFlightProbeRequests`, `worker/master/podevent/lifecycle_test.go::TestHandleWaitsForPreviousLeaderTerm`
 
 ### 根据条件容器状态与事件归类 Pod 状态
 
