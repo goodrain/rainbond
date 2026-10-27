@@ -626,6 +626,7 @@
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-default-interface-virtio | 所有虚拟机统一使用 VirtIO 网络接口 | active | regression | worker/appm/conversion.resolveVMInterfaceModel | worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
+| rainbond.worker.config-group-component-isolation | Isolate rendered application configuration by component | active | regression | worker/appm/conversion.createEnv | worker/appm/conversion/configgroup_test.go::TestConfigGroupComponentIsolation |
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
 | rainbond.worker.conversion.pod-security-context | 组件 Pod 安全上下文属性 | active | regression | worker.appm.conversion.createPodSecurityContext | worker/appm/conversion/version_security_context_test.go::TestCreatePodSecurityContextUsesK8sAttribute |
@@ -6881,6 +6882,16 @@
 - 业务入口: `worker/appm/conversion.buildStandardVMMemory`
 - 代码路径: `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor`
+
+### Isolate rendered application configuration by component
+
+- Capability ID: `rainbond.worker.config-group-component-isolation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.createEnv`
+- 代码路径: `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/configgroup_test.go::TestConfigGroupComponentIsolation`
 
 ### Parse component cmd and args attributes as YAML arrays
 
