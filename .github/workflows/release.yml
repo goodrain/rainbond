@@ -116,7 +116,9 @@ jobs:
             echo "::warning::e2e-provenance artifact not found in run ${run_id}; reading it from the job log"
             : > "$RUNNER_TEMP/e2e/e2e-provenance.json"
             for job in $(gh api "repos/${E2E_REPO}/actions/runs/${run_id}/jobs" --jq '.jobs[].id'); do
-              line=$(gh api "repos/${E2E_REPO}/actions/jobs/${job}/logs" | grep -o 'E2E-PROVENANCE: {.*}$' | tail -n 1 || true)
+              # 新版 gh 遇到含终端转义序列的日志会拒绝输出，这里直接用 curl 下载
+              line=$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${E2E_REPO}/actions/jobs/${job}/logs" | grep -o 'E2E-PROVENANCE: {.*}$' | tail -n 1 || true)
               if [ -n "$line" ]; then printf '%s\n' "${line#E2E-PROVENANCE: }" > "$RUNNER_TEMP/e2e/e2e-provenance.json"; fi
             done
             [ -s "$RUNNER_TEMP/e2e/e2e-provenance.json" ] || {
