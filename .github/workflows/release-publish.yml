@@ -5,8 +5,10 @@ name: release-publish
 #
 #   prepare  （无凭证）校验多架构镜像 → 生成全部产物 → 摘要里展示差异
 #   publish  （environment: release-publish，需审批人批准）推 chart / 上传 TOS /
-#             回写 upgrade-versions.json / 文档 PR
+#             回写 upgrade-versions.json
 #   verify   从线上重新下载，确认与产物一致
+#   docs     次版本发布时给文档仓库提版本表草稿 PR（失败不影响 verify）
+#   roi      触发 roi 仓库的发版工作流，构建并上传对应版本的 roi 二进制，跟踪到结束
 #
 # 使用说明与需要配置的 secrets / vars 见 hack/release/README.md。
 #
@@ -45,6 +47,10 @@ env:
   CONSOLE_REPO: ${{ vars.RELEASE_CONSOLE_REPO || 'goodrain/rainbond-console' }}
   CHART_REPO: ${{ vars.RELEASE_CHART_REPO || 'goodrain/rainbond-chart' }}
   DOCS_REPO: ${{ vars.RELEASE_DOCS_REPO || 'goodrain/rainbond-docs' }}
+  # roi 发版工作流配置好之前保持关闭（RELEASE_ROI=true 才触发）。
+  ROI_REPO: ${{ vars.RELEASE_ROI_REPO || 'goodrain/roi' }}
+  ROI_WORKFLOW: release-from-rainbond.yml
+  ROI_PUBLIC_URL: ${{ vars.RELEASE_ROI_PUBLIC_URL || 'https://get.rainbond.com/roi/roi-amd64' }}
   CHART_REPO_URL: ${{ vars.RELEASE_CHART_REPO_URL || 'https://chart.rainbond.com' }}
   CHART_UPLOAD: ${{ vars.RELEASE_CHART_UPLOAD || 'true' }}
   INSTALL_SCRIPT_URL: ${{ vars.RELEASE_INSTALL_SCRIPT_URL || 'https://get.rainbond.com' }}
@@ -378,26 +384,6 @@ jobs:
           "$RUNNER_TEMP/tosutil" cp dist/install.sh "tos://${TOS_BUCKET}/${TOS_KEY_INSTALL_SCRIPT}" -contentType=application/x-sh
           "$RUNNER_TEMP/tosutil" cp dist/upgrade-versions.json "tos://${TOS_BUCKET}/${TOS_KEY_UPGRADE_VERSIONS}" -contentType=application/json
 
-      - name: Open docs pull request
-        if: needs.prepare.outputs.docs_changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
-        run: |
-          set -euo pipefail
-          gh auth setup-git
-          git clone --depth 1 --branch main "https://github.com/${DOCS_REPO}.git" "$RUNNER_TEMP/docs"
-          cd "$RUNNER_TEMP/docs"
-          branch="release/${TAG}-versions"
-          git checkout -b "$branch"
-          git apply "$GITHUB_WORKSPACE/dist/docs.patch"
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -am "docs: roll version table for ${TAG}"
-          git push origin "$branch"
-          gh pr create --repo "$DOCS_REPO" --base main --head "$branch" --draft \
-            --title "docs: roll version table for ${TAG}" \
-            --body "Automated by release-publish. Archive the previous minor docs site before merging."
-
   verify:
     needs: [prepare, publish]
     runs-on: ubuntu-latest
@@ -435,11 +421,100 @@ jobs:
         run: |
           python3 hack/release/release.py notify --title "【发布完成】${TAG}" \
             --line "安装脚本和 upgrade feed 已从线上回读校验通过。" \
-            --line "离线包和 roi 二进制如需更新，请按发版手册单独处理。" \
+            --line "${{ vars.RELEASE_ROI == 'true' && 'roi 二进制由本运行的 roi 任务发布；离线包如需更新，请按发版手册单独处理。' || '离线包和 roi 二进制如需更新，请按发版手册单独处理。' }}" \
             --link "$RUN_URL" --link-text "查看运行"
 
+  # 文档 PR 和 roi 不放进 publish：它们失败时不应挡住线上校验，也可以单独重跑这一个 job。
+  # 只用仓库级的 CROSS_REPO_RELEASE_TOKEN，不进 release-publish environment，避免再审批一次。
+  docs:
+    needs: [prepare, publish]
+    if: needs.prepare.outputs.docs_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-publish-${{ env.TAG }}
+          path: dist
+
+      - name: Open docs pull request
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="release/${TAG}-versions"
+          existing=$(gh pr list --repo "$DOCS_REPO" --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$existing" ]; then
+            echo "docs PR already open: $existing"
+            echo "文档 PR：$existing" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh auth setup-git
+          git clone --depth 1 --branch main "https://github.com/${DOCS_REPO}.git" "$RUNNER_TEMP/docs"
+          cd "$RUNNER_TEMP/docs"
+          git checkout -b "$branch"
+          git apply "$GITHUB_WORKSPACE/dist/docs.patch"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "docs: roll version table for ${TAG}"
+          git push --force origin "$branch"
+          url=$(gh pr create --repo "$DOCS_REPO" --base main --head "$branch" --draft \
+            --title "docs: roll version table for ${TAG}" \
+            --body "Automated by release-publish. Archive the previous minor docs site before merging.")
+          echo "文档 PR：$url" >> "$GITHUB_STEP_SUMMARY"
+
+  roi:
+    needs: [prepare, publish]
+    # 回滚旧版本时（chart 不是最新）不动 roi。
+    if: vars.RELEASE_ROI == 'true' && needs.prepare.outputs.chart_main_version == needs.prepare.outputs.chart_version
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout rainbond default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_BRANCH }}
+
+      - name: Run the roi release workflow
+        id: roi
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 重跑时：线上 roi 已经是这个版本就不再构建。
+          if curl -fsSL "$ROI_PUBLIC_URL" -o "$RUNNER_TEMP/roi" && strings "$RUNNER_TEMP/roi" | grep -Fq "$TAG"; then
+            echo "roi at ${ROI_PUBLIC_URL} already embeds ${TAG}; nothing to do"
+            echo "url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run "$ROI_WORKFLOW" --repo "$ROI_REPO" --ref main -f tag="$TAG"
+          run_id=
+          for _ in $(seq 1 24); do
+            sleep 5
+            run_id=$(gh run list --repo "$ROI_REPO" --workflow "$ROI_WORKFLOW" --event workflow_dispatch --limit 5 \
+              --json databaseId,createdAt --jq "[.[] | select(.createdAt >= \"${since}\")] | last | .databaseId // empty")
+            [ -n "$run_id" ] && break
+          done
+          [ -n "$run_id" ] || { echo "::error::dispatched ${ROI_WORKFLOW} but no run showed up in ${ROI_REPO}"; exit 1; }
+          url="https://github.com/${ROI_REPO}/actions/runs/${run_id}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "roi 发版运行：$url" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$run_id" --repo "$ROI_REPO" --interval 30 --exit-status > /dev/null
+
+      - name: Notify roi published
+        if: steps.roi.outputs.url != ''
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          ROI_RUN_URL: ${{ steps.roi.outputs.url }}
+        run: |
+          python3 hack/release/release.py notify --title "【roi 已发布】${TAG}" \
+            --line "amd64 / arm64 二进制已上传，并从线上回读校验了嵌入的版本。" \
+            --link "$ROI_RUN_URL" --link-text "查看 roi 运行"
+
   notify-failure:
-    needs: [prepare, publish, verify]
+    needs: [prepare, publish, verify, docs, roi]
     if: failure()
     runs-on: ubuntu-latest
     steps:

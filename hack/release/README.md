@@ -18,7 +18,11 @@ rainbond 发布 release 之后，原来要手工做的发布步骤由
 2. 在 **go** 处审批（能不能发）。审批后再次确认 main 没有变，然后发布 release，
    并自动触发 `trigger-downstream-releases`（console / ui / operator 打 tag）和 `release-publish`。
 3. 在 `release-publish` 的 **publish** 处审批 2（对外发布），先看 prepare 摘要里与线上的差异。
-4. **verify** 全绿即发布完成。roi 二进制和离线包目前仍需单独处理。
+4. **verify** 全绿即发布完成。同时有两个不需要审批的收尾任务，失败都不影响 verify，可以单独重跑：
+   - **docs**：中版本号变化时给 rainbond-docs 提版本表 draft PR（已有同名 PR 就跳过）；
+   - **roi**：`RELEASE_ROI=true` 时触发 goodrain/roi 的 `release-from-rainbond.yml`，构建、上传并回读校验
+     roi 二进制，跟踪到结束（线上 roi 已经是这个版本就跳过）。
+   离线包目前仍需单独处理。
 
 只想重新发布 chart / 安装脚本 / upgrade feed（例如回滚），直接运行 `release-publish`，
 `dry_run` 保持勾选可以只看预览。
@@ -37,7 +41,7 @@ rainbond 发布 release 之后，原来要手工做的发布步骤由
 | versions.json | 即 `upgrade-versions.json`，控制台「版本升级」读取。由本目录的同名文件加上新版本生成 |
 | 文档版本号 | 中版本号变化（如 6.9→6.10）时给 rainbond-docs 提 draft PR；补丁版本不改 |
 
-离线包（roi）仍在火山云服务器上手工打包，不在本流程内。
+离线包仍在火山云服务器上手工打包，不在本流程内。
 
 ## 文件
 
@@ -85,8 +89,9 @@ bash hack/release/setup-deploy-keys.sh goodrain/rainbond goodrain/rainbond-chart
 然后在两个仓库保护 main 的规则集里，把 **Deploy keys** 加入 Bypass list（Always allow）。
 两个仓库原本都没有部署密钥，所以只有这两把能绕过。轮换时加 `--replace` 再运行一次。
 
-仓库已有的 `CROSS_REPO_RELEASE_TOKEN` 还需要对 rainbond-chart（contents、actions）和
-rainbond-docs（contents、pull requests）有写权限。
+仓库已有的 `CROSS_REPO_RELEASE_TOKEN`（**仓库级** secret，docs / roi 两个 job 不进 environment，
+不会再要求审批）还需要：rainbond-chart（contents、actions 写）、rainbond-docs（contents、pull requests 写）、
+roi（actions 写）。它是 fine-grained 令牌时，这几个仓库都要在令牌的 Repository access 里勾上。
 
 publish 开始时会先检查上面这些配置是否齐全（只列名称，不打印值），并在任何写操作之前
 确认 `tos://$TOS_BUCKET/$TOS_KEY_*` 的现有内容与对应公开地址返回的内容一致，
@@ -113,6 +118,9 @@ release 流程会把 gate 固定的 commit 传过去，tag 精确打在测过的
 | `RELEASE_CONSOLE_REPO` | `goodrain/rainbond-console` |
 | `RELEASE_CHART_REPO` | `goodrain/rainbond-chart` |
 | `RELEASE_DOCS_REPO` | `goodrain/rainbond-docs` |
+| `RELEASE_ROI` | 不设即关闭；roi 仓库的发版工作流配置好后设为 `true` |
+| `RELEASE_ROI_REPO` | `goodrain/roi` |
+| `RELEASE_ROI_PUBLIC_URL` | `https://get.rainbond.com/roi/roi-amd64`（用来判断线上 roi 是否已是本版本） |
 | `RELEASE_CHART_REPO_URL` | `https://chart.rainbond.com` |
 | `RELEASE_CHART_UPLOAD` | `true`；设为 `false` 时跳过 chart 上传和校验 |
 | `RELEASE_INSTALL_SCRIPT_URL` | `https://get.rainbond.com` |
