@@ -12069,6 +12069,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.config-group-component-isolation",
+      "title": "Isolate rendered application configuration by component",
+      "title_zh": "Isolate rendered application configuration by component",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.createEnv",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/configgroup_test.go",
+          "selector": "TestConfigGroupComponentIsolation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.conversion.cmd-args-yaml",
       "title": "Parse component cmd and args attributes as YAML arrays",
       "title_zh": "Parse component cmd and args attributes as YAML arrays",
