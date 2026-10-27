@@ -1,5 +1,21 @@
 [
   {
+    "version": "v6.10.0-release",
+    "detail": {
+      "update_time": "2026-10-27",
+      "html_url": "https://github.com/goodrain/rainbond/releases/tag/v6.10.0-release",
+      "tag_name": "v6.10.0-release",
+      "body": "For update details, reference: https://github.com/goodrain/rainbond/releases/tag/v6.10.0-release."
+    },
+    "images": {
+      "rbd-api": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-api:v6.10.0-release",
+      "rbd-app-ui": "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v6.10.0-release",
+      "rbd-chaos": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-chaos:v6.10.0-release",
+      "rbd-mq": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-mq:v6.10.0-release",
+      "rbd-worker": "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-worker:v6.10.0-release"
+    }
+  },
+  {
     "version": "v6.9.11-release",
     "detail": {
       "update_time": "2026-10-12",
