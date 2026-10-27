@@ -33,38 +33,51 @@ func readCNBMessages(t *testing.T, logs chan []byte) []map[string]string {
 
 // capability_id: rainbond.cnb.phase-timing
 func TestCNBPhaseTiming(t *testing.T) {
-	logs := make(chan []byte, 20)
-	var output bytes.Buffer
-	writer := newCNBPhaseWriter(&output, event.NewLogger("test", logs))
-	now := time.Unix(0, 0)
-	writer.now = func() time.Time { return now }
-	var input strings.Builder
-	phases := []string{"ANALYZING", "DETECTING", "RESTORING", "BUILDING", "EXPORTING"}
-	for i, phase := range phases {
-		line := "===> " + phase + "\r\n"
-		input.WriteString(line)
-		if _, err := writer.Write([]byte(line)); err != nil {
-			t.Fatal(err)
-		}
-		now = now.Add(time.Duration(i+1) * time.Second)
-	}
-	writer.finish()
-	writer.finish()
-	if output.String() != input.String() {
-		t.Fatalf("original logs changed: %q", output.String())
-	}
-	entries := readCNBMessages(t, logs)
-	if len(entries) != len(phases) {
-		t.Fatalf("got %d timing records, want %d: %v", len(entries), len(phases), entries)
-	}
-	for i, entry := range entries {
-		want := time.Duration(i+1) * time.Second
-		if entry["step"] != "build-timing" || entry["phase"] != phases[i] || !strings.Contains(entry["message"], want.String()) {
-			t.Errorf("unexpected timing entry: %v", entry)
-		}
-		if strings.Contains(entry["message"], "success") {
-			t.Errorf("elapsed time must not imply build success: %v", entry)
-		}
+	for _, style := range []struct {
+		name   string
+		prefix string
+		suffix string
+	}{
+		{name: "plain"},
+		{name: "lifecycle cyan", prefix: "\x1b[36m", suffix: "\x1b[0m"},
+		{name: "bold cyan", prefix: "\x1b[1;36m", suffix: "\x1b[0m"},
+		{name: "true color", prefix: "\x1b[38:2:0:200:200m", suffix: "\x1b[m"},
+	} {
+		t.Run(style.name, func(t *testing.T) {
+			logs := make(chan []byte, 20)
+			var output bytes.Buffer
+			writer := newCNBPhaseWriter(&output, event.NewLogger("test", logs))
+			now := time.Unix(0, 0)
+			writer.now = func() time.Time { return now }
+			var input strings.Builder
+			phases := []string{"ANALYZING", "DETECTING", "RESTORING", "BUILDING", "EXPORTING"}
+			for i, phase := range phases {
+				line := style.prefix + "===> " + phase + style.suffix + "\r\n"
+				input.WriteString(line)
+				if _, err := writer.Write([]byte(line)); err != nil {
+					t.Fatal(err)
+				}
+				now = now.Add(time.Duration(i+1) * time.Second)
+			}
+			writer.finish()
+			writer.finish()
+			if output.String() != input.String() {
+				t.Fatalf("original logs changed: %q", output.String())
+			}
+			entries := readCNBMessages(t, logs)
+			if len(entries) != len(phases) {
+				t.Fatalf("got %d timing records, want %d: %v", len(entries), len(phases), entries)
+			}
+			for i, entry := range entries {
+				want := time.Duration(i+1) * time.Second
+				if entry["step"] != "build-timing" || entry["phase"] != phases[i] || !strings.Contains(entry["message"], want.String()) {
+					t.Errorf("unexpected timing entry: %v", entry)
+				}
+				if strings.Contains(entry["message"], "success") {
+					t.Errorf("elapsed time must not imply build success: %v", entry)
+				}
+			}
+		})
 	}
 }
 
