@@ -4077,6 +4077,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb.package-workspace-isolation",
+      "title": "Isolate each CNB source package build from retained generated files",
+      "title_zh": "\u9694\u79bb\u6e90\u7801\u5305 CNB \u6784\u5efa\u5de5\u4f5c\u76ee\u5f55\u5e76\u4fdd\u7559\u539f\u59cb\u4e0a\u4f20\u5185\u5bb9",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.Build",
+      "code_paths": [
+        "builder/build/cnb/build.go",
+        "builder/parser/package_workspace.go",
+        "util/comman.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/package_workspace_test.go",
+          "selector": "TestCNBPackageBuildUsesPristineWorkspace"
+        },
+        {
+          "path": "builder/build/cnb/package_workspace_test.go",
+          "selector": "TestCNBNonPackageBuildKeepsSourceDirectory"
+        },
+        {
+          "path": "builder/parser/package_workspace_test.go",
+          "selector": "TestPreparePackageBuildWorkspace"
+        },
+        {
+          "path": "builder/parser/package_workspace_test.go",
+          "selector": "TestPreparePackageBuildWorkspaceRejectsInvalidInput"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb.phase-timing",
       "title": "Report observed CNB lifecycle phase durations without changing build output",
       "title_zh": "Report observed CNB lifecycle phase durations without changing build output",
