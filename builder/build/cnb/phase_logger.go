@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/goodrain/rainbond/event"
 )
+
+var cnbANSISequence = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
 
 // cnbPhaseWriter preserves build output and reports observed lifecycle phase
 // durations. The final phase includes the wait for job and log completion;
@@ -54,7 +57,9 @@ func (w *cnbPhaseWriter) Write(data []byte) (int, error) {
 
 func (w *cnbPhaseWriter) observeLine(line string) {
 	var phase string
-	switch strings.TrimSpace(line) {
+	// Lifecycle colors phase markers even in captured logs. Normalize only the
+	// detection text; the original output, including its colors, is preserved.
+	switch strings.TrimSpace(cnbANSISequence.ReplaceAllString(line, "")) {
 	case "===> ANALYZING":
 		phase = "ANALYZING"
 	case "===> DETECTING":
