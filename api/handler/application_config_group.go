@@ -28,14 +28,8 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		}
 	}()
 	// Create application configGroup-services
-	for _, s := range services {
-		serviceConfigGroup := dbmodel.ConfigGroupService{
-			AppID:           appID,
-			ConfigGroupName: req.ConfigGroupName,
-			ServiceID:       s.ServiceID,
-			ServiceAlias:    s.ServiceAlias,
-		}
-		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+	for _, serviceConfigGroup := range configGroupServiceBindings(appID, req.ConfigGroupName, req.ServiceIDs, services) {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(serviceConfigGroup); err != nil {
 			if err == bcode.ErrConfigGroupServiceExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -132,14 +126,8 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		tx.Rollback()
 		return nil, err
 	}
-	for _, s := range services {
-		serviceConfigGroup := dbmodel.ConfigGroupService{
-			AppID:           appID,
-			ConfigGroupName: configGroupName,
-			ServiceID:       s.ServiceID,
-			ServiceAlias:    s.ServiceAlias,
-		}
-		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+	for _, serviceConfigGroup := range configGroupServiceBindings(appID, configGroupName, req.ServiceIDs, services) {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(serviceConfigGroup); err != nil {
 			if err == bcode.ErrConfigGroupServiceExist {
 				logrus.Debugf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -356,4 +344,25 @@ func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appCon
 		}
 		return db.GetManager().AppConfigGroupItemDaoTransactions(tx).CreateOrUpdateConfigGroupItemsInBatch(cgitems)
 	})
+}
+
+// configGroupServiceBindings preserves selected components that have not reached
+// the region yet. Their IDs are already assigned by the console during creation.
+func configGroupServiceBindings(appID, groupName string, serviceIDs []string, services []*dbmodel.TenantServices) []*dbmodel.ConfigGroupService {
+	aliases := make(map[string]string, len(services))
+	for _, service := range services {
+		aliases[service.ServiceID] = service.ServiceAlias
+	}
+	seen := make(map[string]bool, len(serviceIDs))
+	var bindings []*dbmodel.ConfigGroupService
+	for _, id := range serviceIDs {
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		bindings = append(bindings, &dbmodel.ConfigGroupService{
+			AppID: appID, ConfigGroupName: groupName, ServiceID: id, ServiceAlias: aliases[id],
+		})
+	}
+	return bindings
 }
