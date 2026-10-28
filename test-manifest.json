@@ -10575,7 +10575,7 @@
     {
       "id": "rainbond.version.commit-message-utf8",
       "title": "Version commit messages retain valid UTF-8 when truncated",
-      "title_zh": "Version commit messages retain valid UTF-8 when truncated",
+      "title_zh": "\u7248\u672c\u63d0\u4ea4\u4fe1\u606f\u5b89\u5168\u622a\u65ad\u5e76\u5b8c\u6210\u6784\u5efa\u5165\u5e93",
       "interface_type": "dao_method",
       "interface": "VersionInfoDaoImpl.AddModel/UpdateModel",
       "code_paths": [
@@ -10585,6 +10585,18 @@
         {
           "path": "db/mysql/dao/version_commit_msg_test.go",
           "selector": "TestTruncateVersionCommitMsg"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsgMalformedInputDoesNotPanic"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestVersionCommitMsgPersistence"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "FuzzTruncateVersionCommitMsg"
         }
       ],
       "test_type": "regression",

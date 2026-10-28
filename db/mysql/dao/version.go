@@ -263,7 +263,7 @@ func truncateVersionCommitMsg(message string) string {
 		return message
 	}
 	end := maxBytes
-	for !utf8.RuneStart(message[end]) {
+	for end > 0 && !utf8.RuneStart(message[end]) {
 		end--
 	}
 	return message[:end]
