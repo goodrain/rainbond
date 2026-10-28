@@ -10573,6 +10573,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.version.commit-message-utf8",
+      "title": "Version commit messages retain valid UTF-8 when truncated",
+      "title_zh": "Version commit messages retain valid UTF-8 when truncated",
+      "interface_type": "dao_method",
+      "interface": "VersionInfoDaoImpl.AddModel/UpdateModel",
+      "code_paths": [
+        "db/mysql/dao/version.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsg"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.buildkit-startup-retry",
       "title": "Increase VM BuildKit startup retry window",
       "title_zh": "\u589e\u52a0\u865a\u62df\u673a BuildKit \u542f\u52a8\u7b49\u5f85\u6b21\u6570",

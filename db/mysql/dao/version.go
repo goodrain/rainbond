@@ -20,6 +20,7 @@ package dao
 
 import (
 	"time"
+	"unicode/utf8"
 
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
@@ -51,9 +52,7 @@ func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
 // AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
-	if len(result.CommitMsg) > 1024 {
-		result.CommitMsg = result.CommitMsg[:1024]
-	}
+	result.CommitMsg = truncateVersionCommitMsg(result.CommitMsg)
 	return cleanupguard.WithReferenceMutation(c.DB, versionReferenceScopes(result), func(tx *gorm.DB) error {
 		var oldResult model.VersionInfo
 		err := tx.Where("build_version=? and service_id=?", result.BuildVersion, result.ServiceID).First(&oldResult).Error
@@ -81,9 +80,7 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 // UpdateModel UpdateModel
 func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
-	if len(result.CommitMsg) > 1024 {
-		result.CommitMsg = result.CommitMsg[:1024]
-	}
+	result.CommitMsg = truncateVersionCommitMsg(result.CommitMsg)
 	if result.ID == 0 || result.ServiceID == "" || result.BuildVersion == "" {
 		return gorm.ErrRecordNotFound
 	}
@@ -257,4 +254,17 @@ func (c *VersionInfoDaoImpl) ListVersionsByComponentIDs(componentIDs []string) (
 		return nil, pkgerr.Wrap(err, "list versions by componentIDs")
 	}
 	return result, nil
+}
+
+// truncateVersionCommitMsg keeps the existing byte limit without splitting UTF-8 characters.
+func truncateVersionCommitMsg(message string) string {
+	const maxBytes = 1024
+	if len(message) <= maxBytes {
+		return message
+	}
+	end := maxBytes
+	for !utf8.RuneStart(message[end]) {
+		end--
+	}
+	return message[:end]
 }

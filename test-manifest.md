@@ -553,6 +553,7 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.version.commit-message-utf8 | Version commit messages retain valid UTF-8 when truncated | active | regression | VersionInfoDaoImpl.AddModel/UpdateModel | db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg |
 | rainbond.vm-build.buildkit-startup-retry | 增加虚拟机 BuildKit 启动等待次数 | active | regression | builder/sources.buildctlConnectRetriesMax | builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild<br>builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv |
 | rainbond.vm-build.retain-failed-build-pod | 保留失败的虚拟机构建 Pod 便于诊断 | active | regression | builder/sources.shouldRetainFailedBuildKitJob | builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault<br>builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
@@ -6154,6 +6155,16 @@
 - 业务入口: `util.detectZipStructure`
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
+
+### Version commit messages retain valid UTF-8 when truncated
+
+- Capability ID: `rainbond.version.commit-message-utf8`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `VersionInfoDaoImpl.AddModel/UpdateModel`
+- 代码路径: `db/mysql/dao/version.go`
+- 测试路径: `db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg`
 
 ### 增加虚拟机 BuildKit 启动等待次数
 
