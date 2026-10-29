@@ -153,6 +153,7 @@
 | rainbond.cleanup.signed-gc-job-template | Project GC identity without exposing permit signing authority | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret |
 | rainbond.cleanup.single-deletion-attempt | Consume deletion permission once and retain verification protection | active | regression | pkg/cleanup.BeginDeletionAttempt | pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified |
 | rainbond.cleanup.sqlite-activation | Support activation tracking on SQLite | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_sqlite_test.go::TestTrackServiceActivationSupportsSQLite |
+| rainbond.cleanup.sqlite-version-store | SQLite version selection inspection and retirement | active | regression | pkg/cleanup.SelectRollbackVersion | pkg/cleanup/store_sqlite_test.go::TestVersionStoreSupportsSQLite |
 | rainbond.cleanup.storage-enrollment | Collect writes during enrollment without granting cleanup | active | regression | pkg/cleanup.RegisterStorage | pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion |
 | rainbond.cleanup.storage-identity | Bind storage identity atomically without replacing prior markers | active | regression | pkg/cleanup/registryproxy.InitializeStorageIdentity | pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten |
 | rainbond.cleanup.tar-admission-before-enqueue | Persist exact tar task reservation before MQ and retain unknown outcome | active | regression | TarImageHandle.LoadTarImage | api/handler/cleanup_queued_tar_test.go::TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement |
@@ -2155,6 +2156,16 @@
 - 业务入口: `cleanup.TrackServiceActivation`
 - 代码路径: `pkg/cleanup/activation.go`
 - 测试路径: `pkg/cleanup/activation_sqlite_test.go::TestTrackServiceActivationSupportsSQLite`
+
+### SQLite version selection inspection and retirement
+
+- Capability ID: `rainbond.cleanup.sqlite-version-store`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.SelectRollbackVersion`
+- 代码路径: `pkg/cleanup/store.go`
+- 测试路径: `pkg/cleanup/store_sqlite_test.go::TestVersionStoreSupportsSQLite`
 
 ### Collect writes during enrollment without granting cleanup
 

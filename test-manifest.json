@@ -2923,6 +2923,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.sqlite-version-store",
+      "title": "SQLite version selection inspection and retirement",
+      "title_zh": "SQLite version selection inspection and retirement",
+      "interface_type": "workflow",
+      "interface": "pkg/cleanup.SelectRollbackVersion",
+      "code_paths": [
+        "pkg/cleanup/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/store_sqlite_test.go",
+          "selector": "TestVersionStoreSupportsSQLite"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.storage-enrollment",
       "title": "Collect writes during enrollment without granting cleanup",
       "title_zh": "Collect writes during enrollment without granting cleanup",
