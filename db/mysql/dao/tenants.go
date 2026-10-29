@@ -247,9 +247,7 @@ func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		// 带上 app_id / service_id，便于定位「谁在重复创建」（2026-10-27 事故里只有别名和租户，排查困难）。
-		return fmt.Errorf("service name %s and is exist in tenant %s (app_id=%d service_id=%s)",
-			service.ServiceAlias, service.TenantID, service.AppID, service.ServiceID)
+		return fmt.Errorf("service name  %s and  is exist in tenant %s", service.ServiceAlias, service.TenantID)
 	}
 	return nil
 }

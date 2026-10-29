@@ -1255,21 +1255,10 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 		}
 	}()
 	//create app
-	// 幂等：组件已存在时不能整笔事务回滚——回滚会连同端口/环境变量等子资源一起丢掉，
-	// 最终 region 里没有端口记录、k8s 里没有 Service，访问地址 404（2026-10-27 事故）。
-	// 已存在时跳过插入，继续同步可安全 upsert 的子资源（envs / ports）。
-	serviceAlreadyExists := false
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
-		if !strings.Contains(err.Error(), "is exist in tenant") {
-			logrus.Errorf("add service error, %v", err)
-			tx.Rollback()
-			return err
-		}
-		serviceAlreadyExists = true
-		logrus.Warnf(
-			"add service skipped (already exists), continue syncing sub resources: service=%s tenant=%s app_id=%d",
-			ts.ServiceAlias, ts.TenantID, ts.AppID,
-		)
+		logrus.Errorf("add service error, %v", err)
+		tx.Rollback()
+		return err
 	}
 	//set app envs
 	if len(envs) > 0 {
@@ -1302,7 +1291,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 		}
 	}
 	//set app volumns
-	if !serviceAlreadyExists && len(volumns) > 0 {
+	if len(volumns) > 0 {
 		localPath := os.Getenv("LOCAL_DATA_PATH")
 		sharePath := os.Getenv("SHARE_DATA_PATH")
 		if localPath == "" {
@@ -1385,7 +1374,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 		}
 	}
 	//set app dependVolumes
-	if !serviceAlreadyExists && len(dependVolumes) > 0 {
+	if len(dependVolumes) > 0 {
 		for _, depVolume := range dependVolumes {
 			depVolume.ServiceID = ts.ServiceID
 			depVolume.TenantID = ts.TenantID
@@ -1403,7 +1392,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 		}
 	}
 	//set app depends
-	if !serviceAlreadyExists && len(dependIds) > 0 {
+	if len(dependIds) > 0 {
 		for _, id := range dependIds {
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(&id); err != nil {
 				logrus.Errorf("add depend_id %v error, %v", id.DependServiceID, err)
@@ -1413,7 +1402,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 		}
 	}
 	//set app label
-	if !serviceAlreadyExists && sc.OSType == "windows" {
+	if sc.OSType == "windows" {
 		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{
 			ServiceID:  ts.ServiceID,
 			LabelKey:   dbmodel.LabelKeyNodeSelector,
@@ -1426,7 +1415,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 	}
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
-	if !serviceAlreadyExists && sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
+	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
 		if sc.Endpoints == nil {
 			tx.Rollback()
 			return fmt.Errorf("endpoints can not be empty for third-party service")
@@ -1480,7 +1469,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
-	if !serviceAlreadyExists && len(probes) > 0 {
+	if len(probes) > 0 {
 		for _, pb := range probes {
 			probe := s.convertProbeModel(&pb, ts.ServiceID)
 			if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(probe); err != nil {
@@ -1490,7 +1479,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
-	if !serviceAlreadyExists && len(monitors) > 0 {
+	if len(monitors) > 0 {
 		for _, m := range monitors {
 			monitor := dbmodel.TenantServiceMonitor{
 				Name:            m.Name,
@@ -1508,7 +1497,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
-	if !serviceAlreadyExists && len(httpRules) > 0 {
+	if len(httpRules) > 0 {
 		for _, httpRule := range httpRules {
 			if err := GetGatewayHandler().CreateHTTPRule(tx, &httpRule); err != nil {
 				logrus.Errorf("add service http rule error %v", err)
@@ -1517,7 +1506,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
-	if !serviceAlreadyExists && len(tcpRules) > 0 {
+	if len(tcpRules) > 0 {
 		for _, tcpRule := range tcpRules {
 			if GetGatewayHandler().TCPIPPortExists(tcpRule.IP, tcpRule.Port) {
 				logrus.Debugf("tcp rule %v:%v exists", tcpRule.IP, tcpRule.Port)
@@ -1530,7 +1519,7 @@ func (s *ServiceAction) ServiceCreate(sc *apimodel.ServiceStruct) error {
 			}
 		}
 	}
-	if !serviceAlreadyExists && len(sc.ComponentK8sAttributes) > 0 {
+	if len(sc.ComponentK8sAttributes) > 0 {
 		var batchAttrs []*dbmodel.ComponentK8sAttributes
 		for _, k8sAttr := range sc.ComponentK8sAttributes {
 			attr := k8sAttr
