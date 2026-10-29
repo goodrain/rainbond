@@ -45,6 +45,7 @@
 | rainbond.builder.mirror-docker-ref-rewrite | docker daemon pulls rewrite docker.io refs to mirrors with fallback order | active | unit | builder/sources.mirrorPullRefs | builder/sources/mirror_hosts_test.go::TestMirrorPullRefs |
 | rainbond.builder.mirror-merge-manual-priority | Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup | active | unit | builder/sources.mergeMirrors | builder/sources/mirror_merge_test.go::TestMergeMirrors |
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
+| rainbond.builder.source-type-compatibility | Normalize blank source build types without changing explicit protocols | active | regression | builder/exector.NewSouceCodeBuildItem | builder/exector/source_server_type_test.go::TestNewSourceBuildServerType |
 | rainbond.cleanup.activation-registry-coordination | Rollback and activation cannot reference deleting images | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_coordination_test.go::TestActivationAndRollbackRejectDeletingImage |
 | rainbond.cleanup.app-import-admission | Hold application import admission through metadata publication | active | integration | exector.exec.import_app | builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication<br>builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload |
 | rainbond.cleanup.cache-builder-startup | Enroll actual cache writer before task consumption | active | integration | exector.registerCacheBuilderStartup | builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion |
@@ -1076,6 +1077,16 @@
 - 业务入口: `builder/exector.exectorManager.RunTask`
 - 代码路径: `builder/exector/exector.go`
 - 测试路径: `builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker`
+
+### Normalize blank source build types without changing explicit protocols
+
+- Capability ID: `rainbond.builder.source-type-compatibility`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.NewSouceCodeBuildItem`
+- 代码路径: `builder/exector/build_from_sourcecode_run.go`
+- 测试路径: `builder/exector/source_server_type_test.go::TestNewSourceBuildServerType`
 
 ### Rollback and activation cannot reference deleting images
 

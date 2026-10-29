@@ -748,6 +748,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.source-type-compatibility",
+      "title": "Normalize blank source build types without changing explicit protocols",
+      "title_zh": "Normalize blank source build types without changing explicit protocols",
+      "interface_type": "workflow",
+      "interface": "builder/exector.NewSouceCodeBuildItem",
+      "code_paths": [
+        "builder/exector/build_from_sourcecode_run.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/source_server_type_test.go",
+          "selector": "TestNewSourceBuildServerType"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.activation-registry-coordination",
       "title": "Rollback and activation cannot reference deleting images",
       "title_zh": "Rollback and activation cannot reference deleting images",
