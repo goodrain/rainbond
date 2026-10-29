@@ -155,7 +155,13 @@ rainbond-e2e-tests **只能通过 `rbd-e2e` 操作**（它用一把只能运行�
    - chart：仓库里的版本号提交和 tag 都由 publish 自动完成，**不需要人另外提交**。预览里的「chart 上传」
      一行只说明是否上传到 chart 仓库地址（演练时关闭）。
    - 一句话说明：批准后所有用户的控制台会看到新版本提示，安装脚本默认版本也会变化
-3. 跟踪 publish → verify。verify 因 CDN 缓存失败时说明原因，等人决定是否稍后重跑。
+3. 跟踪 publish → verify，以及 publish 成功后自动运行的 **docs**、**roi** 两个 job（不需要审批）：
+   - docs：中版本变化时在 rainbond-docs 提草稿 PR `release/$TAG-versions`；小版本没有变化时会跳过。
+   - roi：触发 goodrain/roi 的 `release-from-rainbond` 并等它结束，把线上 roi 二进制更新到 `$TAG`；
+     回滚发布（chart 版本不是最新）时会跳过。
+   - verify 因 CDN 缓存失败时说明原因，等人决定是否稍后重跑。
+   - docs 或 roi 失败时，汇报失败原因和对应运行链接（roi 失败要看 roi 仓库那次运行的日志）。
+     问题修好后，请人在这次 `release-publish` 运行上点 **Re-run failed jobs**：只重跑失败的 job，不需要再审批。
 
 ### 第 5 步：发版完成报告
 
@@ -163,9 +169,12 @@ rainbond-e2e-tests **只能通过 `rbd-e2e` 操作**（它用一把只能运行�
    - `$REPO` 的 release 已发布；console、ui、operator、chart 的同名 tag 都已存在；
    - `https://get.rainbond.com/upgrade-versions.json` 的第一条是 `$TAG`；
    - 安装脚本里的 `RAINBOND_VERSION` 默认值是 `$TAG`；
-   - `https://chart.rainbond.com/index.yaml` 里有对应的 chart 版本。
-2. 列出**仍需人工处理**的事项：离线包（roi 的 package-scripts，在火山云服务器上执行）、
-   roi 二进制（自动化完成前）、需要人工处理的文档 PR（中版本发布时会自动提出）。
+   - `https://chart.rainbond.com/index.yaml` 里有对应的 chart 版本；
+   - roi 二进制已更新：`curl -fsSL https://get.rainbond.com/roi/roi-amd64 | strings | grep -F "$TAG"` 有输出
+     （回滚发布时 roi 不更新，跳过这项）；
+   - 中版本发布时，文档草稿 PR 已提出：`gh pr list -R goodrain/rainbond-docs --head "release/$TAG-versions"`。
+2. 列出**仍需人工处理**的事项：离线包（roi 的 package-scripts，在火山云服务器上执行）；
+   有文档草稿 PR 时，合并前要先把上一个中版本的文档站归档（例如 v6.9.rainbond.com），再合并 PR。
 3. 发完成报告到任务里，然后关闭任务。飞书群的通知（待审批、完成、失败）由工作流自动发送，你不需要另外发。
 
 ## 发版说明格式
