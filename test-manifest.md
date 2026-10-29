@@ -153,6 +153,7 @@
 | rainbond.cleanup.signed-gc-job-template | Project GC identity without exposing permit signing authority | active | regression | kubeidentity.BuildRegistryGCJob | pkg/cleanup/kubeidentity/gc_job_template_test.go::TestSignedGCJobCopiesScopeButNeverPermitSigningSecret |
 | rainbond.cleanup.single-deletion-attempt | Consume deletion permission once and retain verification protection | active | regression | pkg/cleanup.BeginDeletionAttempt | pkg/cleanup/deletion_attempt_test.go::TestDeletionAttemptIsConsumedOnceAndRemainsProtectedUntilVerified |
 | rainbond.cleanup.sqlite-activation | Support activation tracking on SQLite | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_sqlite_test.go::TestTrackServiceActivationSupportsSQLite |
+| rainbond.cleanup.sqlite-version-store | SQLite version selection inspection and retirement | active | regression | pkg/cleanup.SelectRollbackVersion | pkg/cleanup/store_sqlite_test.go::TestVersionStoreSupportsSQLite |
 | rainbond.cleanup.storage-enrollment | Collect writes during enrollment without granting cleanup | active | regression | pkg/cleanup.RegisterStorage | pkg/cleanup/registration_test.go::TestStorageRegistrationCollectsWritesWithoutEnablingDeletion |
 | rainbond.cleanup.storage-identity | Bind storage identity atomically without replacing prior markers | active | regression | pkg/cleanup/registryproxy.InitializeStorageIdentity | pkg/cleanup/registryproxy/identity_test.go::TestStorageIdentityIsBoundAndNeverOverwritten |
 | rainbond.cleanup.tar-admission-before-enqueue | Persist exact tar task reservation before MQ and retain unknown outcome | active | regression | TarImageHandle.LoadTarImage | api/handler/cleanup_queued_tar_test.go::TestTarAPIReservesBeforeEnqueueAndRetainsLostAcknowledgement |
@@ -553,6 +554,7 @@
 | rainbond.util.whitespace-filter | 从字符串切片中过滤空白与仅空格项 | active | regression | util.RemoveSpaces | util/comman_test.go::TestRemoveSpaces |
 | rainbond.util.zip-archive | 将目录归档为 zip 文件 | active | regression | util.Zip | util/comman_test.go::TestZip |
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
+| rainbond.version.commit-message-utf8 | 版本提交信息安全截断并完成构建入库 | active | regression | VersionInfoDaoImpl.AddModel/UpdateModel | db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg<br>db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsgMalformedInputDoesNotPanic<br>db/mysql/dao/version_commit_msg_test.go::TestVersionCommitMsgPersistence<br>db/mysql/dao/version_commit_msg_test.go::FuzzTruncateVersionCommitMsg |
 | rainbond.vm-build.buildkit-startup-retry | 增加虚拟机 BuildKit 启动等待次数 | active | regression | builder/sources.buildctlConnectRetriesMax | builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild<br>builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv |
 | rainbond.vm-build.retain-failed-build-pod | 保留失败的虚拟机构建 Pod 便于诊断 | active | regression | builder/sources.shouldRetainFailedBuildKitJob | builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault<br>builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
@@ -2154,6 +2156,16 @@
 - 业务入口: `cleanup.TrackServiceActivation`
 - 代码路径: `pkg/cleanup/activation.go`
 - 测试路径: `pkg/cleanup/activation_sqlite_test.go::TestTrackServiceActivationSupportsSQLite`
+
+### SQLite version selection inspection and retirement
+
+- Capability ID: `rainbond.cleanup.sqlite-version-store`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/cleanup.SelectRollbackVersion`
+- 代码路径: `pkg/cleanup/store.go`
+- 测试路径: `pkg/cleanup/store_sqlite_test.go::TestVersionStoreSupportsSQLite`
 
 ### Collect writes during enrollment without granting cleanup
 
@@ -6154,6 +6166,16 @@
 - 业务入口: `util.detectZipStructure`
 - 代码路径: `util/comman.go`
 - 测试路径: `util/comman_test.go::TestDetectZipStructure`
+
+### 版本提交信息安全截断并完成构建入库
+
+- Capability ID: `rainbond.version.commit-message-utf8`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `dao_method`
+- 业务入口: `VersionInfoDaoImpl.AddModel/UpdateModel`
+- 代码路径: `db/mysql/dao/version.go`
+- 测试路径: `db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg`, `db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsgMalformedInputDoesNotPanic`, `db/mysql/dao/version_commit_msg_test.go::TestVersionCommitMsgPersistence`, `db/mysql/dao/version_commit_msg_test.go::FuzzTruncateVersionCommitMsg`
 
 ### 增加虚拟机 BuildKit 启动等待次数
 

@@ -2923,6 +2923,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.sqlite-version-store",
+      "title": "SQLite version selection inspection and retirement",
+      "title_zh": "SQLite version selection inspection and retirement",
+      "interface_type": "workflow",
+      "interface": "pkg/cleanup.SelectRollbackVersion",
+      "code_paths": [
+        "pkg/cleanup/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/store_sqlite_test.go",
+          "selector": "TestVersionStoreSupportsSQLite"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.storage-enrollment",
       "title": "Collect writes during enrollment without granting cleanup",
       "title_zh": "Collect writes during enrollment without granting cleanup",
@@ -10567,6 +10585,36 @@
         {
           "path": "util/comman_test.go",
           "selector": "TestDetectZipStructure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.version.commit-message-utf8",
+      "title": "Version commit messages retain valid UTF-8 when truncated",
+      "title_zh": "\u7248\u672c\u63d0\u4ea4\u4fe1\u606f\u5b89\u5168\u622a\u65ad\u5e76\u5b8c\u6210\u6784\u5efa\u5165\u5e93",
+      "interface_type": "dao_method",
+      "interface": "VersionInfoDaoImpl.AddModel/UpdateModel",
+      "code_paths": [
+        "db/mysql/dao/version.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsg"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsgMalformedInputDoesNotPanic"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestVersionCommitMsgPersistence"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "FuzzTruncateVersionCommitMsg"
         }
       ],
       "test_type": "regression",
