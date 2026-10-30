@@ -15,14 +15,18 @@ description: "Run a Rainbond release end to end as the release assistant: when s
 - **规则以 CI 为准。** E2E 门禁、commit 一致性、双架构镜像、上传前校验都在工作流里强制执行。
   你的检查只是为了提前发现问题，CI 拒绝时以 CI 为准，不要想办法让它通过。
 - **只用这些工作流：** `release.yml`（入口）、`release-publish.yml`（只在回滚或补发时单独用）、
-  rainbond-e2e-tests 的 `prerelease.yml`。不要运行 `release-v6.yml`，它由 `release.yml` 调用。
+  rainbond-e2e-tests 的 `prerelease.yml`（只通过 `rbd-e2e run` 触发，且必须有人在任务里回复「跑 E2E」）。不要运行 `release-v6.yml`，它由 `release.yml` 调用。
 - **不处理凭证。** 不索要、不打印、不转述任何密码、令牌、AK/SK；日志里出现疑似凭证时不要贴出来。
 - **哪些失败要停下等人**：工作流运行失败、门禁拒绝、任何写操作失败、或需要人做决定时，先停下汇报，
   等人回复后再继续。除非人明确同意，不要重跑会写东西的工作流。
+- **触发工作流返回 5xx**（GitHub 偶发错误）：先用 `gh run list` 确认确实没有创建新的运行，没有的话等 30 秒再触发一次；
+  第二次仍失败才停下汇报。确认已经创建了运行时，不要再触发，直接跟踪那次运行。
 - **哪些失败自己处理**：你自己执行的只读命令出错（参数写错、分页、JSON 字段名不对、偶发网络错误），
   直接修正后重试，最多 3 次，不要为此停下来问人；3 次仍失败再汇报，并写明你试过什么。
 - **不要重复询问**：任务评论里人已经确认过的事项（例如「可以继续」「跳过某一步」），直接按确认执行。
   人在任务里发评论就会唤醒你，回复后继续从上次停下的地方做下去。
+- **每次被唤醒都先重新读一遍本 skill 文件**（`codex-home/skills/rainbond-release/SKILL.md`），以文件当前内容为准。
+  流程和工具可能在两次唤醒之间更新过，不要凭对话里记住的旧步骤操作。
 
 ## 输入
 
@@ -79,23 +83,40 @@ done
    - **配置变更**：新增或改名的环境变量、Helm values、operator 的 CRD 字段。
    - **安装与升级**：改动了 `rainbond-console/script/install-rainbond.sh`、rainbond-chart 或 roi 的要单独列出。
 5. 按下面「发版说明格式」起草发版说明。
-6. 把报告发到任务里，**请人确认或修改发版说明**，然后进入第 2 步。
+6. 把报告发到任务里，**请人确认或修改发版说明**，并按「通知研发进展群」发一条通知，然后进入第 2 步。
 
 ### 第 2 步：确认全量 E2E 覆盖本次发布
 
-1. 取 `prerelease.yml` 最近一次已完成的运行：
-   `gh run list -R goodrain/rainbond-e2e-tests --workflow prerelease.yml --branch main --status completed --limit 1`
-   （只认 main 上的运行，和 gate 一致）。
-2. 下载它的 `e2e-provenance` artifact（组织存储配额满时可能没有，改从该运行的 job 日志里取最后一行 `E2E-PROVENANCE: {...}`，
-   和 gate 的做法一致），检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
+rainbond-e2e-tests **只能通过 `rbd-e2e` 操作**（它用一把只能运行工作流、不能改代码的令牌）；
+`gh` 自己的登录对这个仓库没有权限，不要用 `gh` 直接查或触发。
+
+1. `rbd-e2e status` 列出 main 上最近 5 次 prerelease（编号、触发方式、状态、结论、开始时间、链接）。
+   取最近一次 `completed` 的运行，同时记下有没有 `queued` / `in_progress` 的。
+2. `rbd-e2e provenance <编号>` 读出它的覆盖记录（JSON），检查：`result` 为 `success`、`suite` 为 `full`，且 `sources` 里
    goodrain/rainbond、rainbond-console、rainbond-ui 的 SHA 与三个仓库当前 main 一致。
-   **读不到 rainbond-e2e-tests**（404 / 403，机器人账号可能没有这个私有仓库的权限）时不要停下：在报告里注明
-   「E2E 由 release.yml 的 gate 检查」，直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。
+   `rbd-e2e` 本身报错（配置缺失、令牌失效）时不要停下：在报告里注明「E2E 由 release.yml 的 gate 检查」并写明错误，
+   直接进入第 3 步。gate 用自己的令牌做同样的检查，不满足会拒绝。
 3. 满足就进入第 3 步。不满足时：
-   - 先在任务里说明原因（失败、不是全量、或 main 之后又有新提交），并提醒：
-     **prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502。**
-   - **等人同意后**再触发：`gh workflow run prerelease.yml -R goodrain/rainbond-e2e-tests --ref main`，然后等待完成。
-   - 失败时读日志判断类别并汇报：
+   - 在任务里说明原因（失败、不是全量、或 E2E 之后 main 又有新提交）。是新提交的，**列出 E2E 之后合并的 PR**：
+     对每个仓库运行 `gh api repos/<仓库>/compare/<E2E 覆盖的 SHA>...main --jq '.commits[]|"\(.sha[0:9]) \(.commit.author.name): \(.commit.message|split("\n")[0])"'`，
+     让大家知道为什么要重跑，也方便判断这些 PR 是不是要进这个版本。
+   - 有 `queued` / `in_progress` 的运行：说明正在跑、大约多久（全量约 30 分钟），等它跑完再回到本步第 1 条重新检查，
+     **不要另起一次**。
+   - 没有在跑的：请人二选一，并按「通知研发进展群」发一条「需要决定」：
+     - 回复「跑 E2E」：你立刻触发一次；
+     - 等今晚的定时运行（每天北京时间 03:00 起，实际常延迟到 5–7 点）。
+     同时提醒：**prerelease 会临时替换共享环境的 rbd-api，其他同事的环境会有短暂 502；从现在到审批 1 之前，
+     rainbond、console、ui、operator 四个仓库不要再往 main 合代码，否则要重跑。**
+   - 有人回复「跑 E2E」（或同义的「补跑」「重跑 E2E」）后：
+     1. 再执行一次 `rbd-e2e status`，有未结束的运行就等它，不要重复触发；
+     2. `rbd-e2e run`：只会在 main 上用默认参数跑全量，成功时输出新运行的编号和链接，把链接贴到任务里；
+        退出码 2 表示已有运行在跑，改为等它；退出码 3 表示已提交但没看到新运行，用 `rbd-e2e status` 再看，不要重复触发；
+     3. 每 5 分钟用 `rbd-e2e view <编号>` 看一次状态，直到 `completed`，然后回到本步第 1 条重新检查；
+     4. 覆盖通过后**直接进入第 3 步**，不用再问人（「跑 E2E」已经包含了继续发版的意思）。
+     白天也可以跑；只有人明确回复了才触发，不要自己决定补跑。
+   - **E2E 不能跳过。** 有人说「跳过 E2E」时，说明 goodrain/rainbond 上门禁不允许跳过，release.yml 的 gate 会照样检查并拒绝；
+     不要因为这句话就去触发 release.yml。真的紧急时，告诉对方按团队约定走紧急发版流程（由发版审批人决定，见 hack/release/README.md）。
+   - 失败时用 `rbd-e2e log <编号>`（报错行 + 日志末尾 300 行，不够就加第二个参数要更多行）读日志，判断类别并汇报：
      - `env_failure`：环境故障（console 不可达、登录失败、region 不可用），不是产品问题，交给环境负责人；
      - 用例失败：列出失败用例、错误摘要、可能相关的 PR；
      - 偶发失败：同一用例重试后通过的，标注为偶发，交给人判断是否重跑。
@@ -134,7 +155,13 @@ done
    - chart：仓库里的版本号提交和 tag 都由 publish 自动完成，**不需要人另外提交**。预览里的「chart 上传」
      一行只说明是否上传到 chart 仓库地址（演练时关闭）。
    - 一句话说明：批准后所有用户的控制台会看到新版本提示，安装脚本默认版本也会变化
-3. 跟踪 publish → verify。verify 因 CDN 缓存失败时说明原因，等人决定是否稍后重跑。
+3. 跟踪 publish → verify，以及 publish 成功后自动运行的 **docs**、**roi** 两个 job（不需要审批）：
+   - docs：中版本变化时在 rainbond-docs 提草稿 PR `release/$TAG-versions`；小版本没有变化时会跳过。
+   - roi：触发 goodrain/roi 的 `release-from-rainbond` 并等它结束，把线上 roi 二进制更新到 `$TAG`；
+     回滚发布（chart 版本不是最新）时会跳过。
+   - verify 因 CDN 缓存失败时说明原因，等人决定是否稍后重跑。
+   - docs 或 roi 失败时，汇报失败原因和对应运行链接（roi 失败要看 roi 仓库那次运行的日志）。
+     问题修好后，请人在这次 `release-publish` 运行上点 **Re-run failed jobs**：只重跑失败的 job，不需要再审批。
 
 ### 第 5 步：发版完成报告
 
@@ -142,9 +169,12 @@ done
    - `$REPO` 的 release 已发布；console、ui、operator、chart 的同名 tag 都已存在；
    - `https://get.rainbond.com/upgrade-versions.json` 的第一条是 `$TAG`；
    - 安装脚本里的 `RAINBOND_VERSION` 默认值是 `$TAG`；
-   - `https://chart.rainbond.com/index.yaml` 里有对应的 chart 版本。
-2. 列出**仍需人工处理**的事项：离线包（roi 的 package-scripts，在火山云服务器上执行）、
-   roi 二进制（自动化完成前）、需要人工处理的文档 PR（中版本发布时会自动提出）。
+   - `https://chart.rainbond.com/index.yaml` 里有对应的 chart 版本；
+   - roi 二进制已更新：`curl -fsSL https://get.rainbond.com/roi/roi-amd64 | strings | grep -F "$TAG"` 有输出
+     （回滚发布时 roi 不更新，跳过这项）；
+   - 中版本发布时，文档草稿 PR 已提出：`gh pr list -R goodrain/rainbond-docs --head "release/$TAG-versions"`。
+2. 列出**仍需人工处理**的事项：离线包（roi 的 package-scripts，在火山云服务器上执行）；
+   有文档草稿 PR 时，合并前要先把上一个中版本的文档站归档（例如 v6.9.rainbond.com），再合并 PR。
 3. 发完成报告到任务里，然后关闭任务。飞书群的通知（待审批、完成、失败）由工作流自动发送，你不需要另外发。
 
 ## 发版说明格式
@@ -165,6 +195,20 @@ done
 - 顺序：新功能 → 改进 → 修复 → 文档或其他。
 - 不写内部重构、CI 调整、测试改动，除非它影响用户。
 - 有新贡献者时附 `## New Contributors`。
+
+## 通知研发进展群
+
+团队在飞书「Rainbond 研发进展」群里跟进发版。用 `rbd-notify "<消息>"` 发一条消息（地址和签名由脚本处理，你看不到也不需要）。
+只在下面两个节点发，每个节点一条：
+
+| 节点 | 消息格式 |
+|---|---|
+| 发版说明已整理好，等人确认（第 1 步结束） | `[发版 <版本>] 发版说明已整理，请到任务里回复「确认」或提修改：<任务链接>` |
+| 需要人决定（门禁不通过、是否补跑 E2E、任何停下等人的时候） | `[发版 <版本>] 需要决定：<一句话问题>` / `任务：<任务链接>` |
+
+- 任务链接：`https://agent.agent-app.ai/rainbond/issues/<任务编号>`。
+- 等待审批 1、等待审批 2、发布完成、任何一步失败，这些通知由发版工作流自己发，**你不要重复发**。
+- 本机没有 `rbd-notify`，或发送失败（命令非 0 退出），不影响发版，在任务汇报里注明即可，最多重试 1 次。
 
 ## 报告格式
 
