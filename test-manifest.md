@@ -35,6 +35,7 @@
 | rainbond.application.check-port-k8s-service-name-duplicate | 校验应用端口 Kubernetes Service 名称重复 | active | regression | api/handler.ApplicationAction.checkPorts | api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName |
 | rainbond.application.delete-config-secrets | Delete config group Secrets with applications | active | regression | api/handler.ApplicationAction.deleteApplicationConfigSecrets | api/handler/application_handler_test.go::TestApplicationActionDeleteApplicationConfigSecrets |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
+| rainbond.builder.build-pod-resources | Chaos 环境变量控制构建 Pod CPU 和内存 | active | regression | builder/job.controller.ExecJob | builder/job/resources_test.go::TestApplyBuildPodResourcesFromEnv<br>builder/job/resources_test.go::TestApplyBuildPodResourcesRejectsInvalidConfig<br>builder/job/resources_test.go::TestExecJobAppliesResourcesBeforeCreate<br>builder/job/resources_test.go::TestExecJobReusesExistingPodWithoutApplyingResources |
 | rainbond.builder.dynamic-mirror-config | Dynamic mirror config defaults and env overrides | active | unit | builder/mirror.LoadConfig | builder/mirror/config_test.go::TestLoadConfigDefaults |
 | rainbond.builder.dynamic-mirror-fetch | Fetch mirror candidates from remote JSON source with schema validation | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidates |
 | rainbond.builder.dynamic-mirror-fetch-fallback | Mirror source fetch falls back to next URL on failure | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidatesFallsBackToNextURL |
@@ -979,6 +980,16 @@
 - 业务入口: `builder/build.GetBuildByType`
 - 代码路径: `builder/build/build.go`
 - 测试路径: `builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix`
+
+### Chaos 环境变量控制构建 Pod CPU 和内存
+
+- Capability ID: `rainbond.builder.build-pod-resources`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/job.controller.ExecJob`
+- 代码路径: `builder/job/job.go`, `builder/job/resources.go`
+- 测试路径: `builder/job/resources_test.go::TestApplyBuildPodResourcesFromEnv`, `builder/job/resources_test.go::TestApplyBuildPodResourcesRejectsInvalidConfig`, `builder/job/resources_test.go::TestExecJobAppliesResourcesBeforeCreate`, `builder/job/resources_test.go::TestExecJobReusesExistingPodWithoutApplyingResources`
 
 ### Dynamic mirror config defaults and env overrides
 

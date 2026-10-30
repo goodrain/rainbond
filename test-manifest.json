@@ -568,6 +568,37 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.build-pod-resources",
+      "title": "Build pod CPU and memory from chaos environment",
+      "title_zh": "Chaos \u73af\u5883\u53d8\u91cf\u63a7\u5236\u6784\u5efa Pod CPU \u548c\u5185\u5b58",
+      "interface_type": "workflow",
+      "interface": "builder/job.controller.ExecJob",
+      "code_paths": [
+        "builder/job/job.go",
+        "builder/job/resources.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesFromEnv"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesRejectsInvalidConfig"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobAppliesResourcesBeforeCreate"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobReusesExistingPodWithoutApplyingResources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.builder.dynamic-mirror-config",
       "title": "Dynamic mirror config defaults and env overrides",
       "title_zh": "Dynamic mirror config defaults and env overrides",
