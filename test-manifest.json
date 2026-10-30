@@ -568,6 +568,37 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.build-pod-resources",
+      "title": "Build pod CPU and memory from chaos environment",
+      "title_zh": "Chaos \u73af\u5883\u53d8\u91cf\u63a7\u5236\u6784\u5efa Pod CPU \u548c\u5185\u5b58",
+      "interface_type": "workflow",
+      "interface": "builder/job.controller.ExecJob",
+      "code_paths": [
+        "builder/job/job.go",
+        "builder/job/resources.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesFromEnv"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesRejectsInvalidConfig"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobAppliesResourcesBeforeCreate"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobReusesExistingPodWithoutApplyingResources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.builder.dynamic-mirror-config",
       "title": "Dynamic mirror config defaults and env overrides",
       "title_zh": "Dynamic mirror config defaults and env overrides",
@@ -742,6 +773,24 @@
         {
           "path": "builder/exector/exector_test.go",
           "selector": "TestRunTaskDoesNotWarnForRegisteredWorker"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.source-type-compatibility",
+      "title": "Normalize blank source build types without changing explicit protocols",
+      "title_zh": "Normalize blank source build types without changing explicit protocols",
+      "interface_type": "workflow",
+      "interface": "builder/exector.NewSouceCodeBuildItem",
+      "code_paths": [
+        "builder/exector/build_from_sourcecode_run.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/source_server_type_test.go",
+          "selector": "TestNewSourceBuildServerType"
         }
       ],
       "test_type": "regression",
@@ -6999,6 +7048,37 @@
       "status": "active"
     },
     {
+      "id": "rainbond.mq.cancelable-dequeue",
+      "title": "Cancelable MQ dequeues preserve queued messages",
+      "title_zh": "\u6d88\u606f\u961f\u5217\u51fa\u961f\u54cd\u5e94\u53d6\u6d88\u5e76\u4fdd\u7559\u5f85\u5904\u7406\u6d88\u606f",
+      "interface_type": "workflow",
+      "interface": "mq/api/mq.etcdQueue.Dequeue",
+      "code_paths": [
+        "mq/api/mq/mq.go",
+        "mq/api/mq/store.go"
+      ],
+      "tests": [
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueCanceledRequestPreservesQueuedMessage"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueHonorsCallerDeadline"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestCanceledDequeueDoesNotConsumeLaterMessage"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueWaitsForMessagesInFIFOOrder"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.multisvc.ignore-non-java",
       "title": "Ignore non-Java languages in multi-service parser selection",
       "title_zh": "\u5728\u591a\u670d\u52a1\u89e3\u6790\u5668\u9009\u62e9\u4e2d\u5ffd\u7565\u975e Java \u8bed\u8a00",
@@ -12162,6 +12242,62 @@
         {
           "path": "worker/appm/conversion/version_vm_test.go",
           "selector": "TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.bounded-mq-health-check",
+      "title": "Bounded and shared worker MQ health checks",
+      "title_zh": "Worker \u6d88\u606f\u961f\u5217\u5065\u5eb7\u68c0\u67e5\u8d85\u65f6\u4e0e\u5e76\u53d1\u4fdd\u62a4",
+      "interface_type": "package_function",
+      "interface": "worker/discover.HealthCheckContext",
+      "code_paths": [
+        "worker/discover/health.go",
+        "worker/discover/manager.go",
+        "worker/monitor/exporter.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckReturnsPromptlyWhenMQIsHealthy"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckBoundsBackgroundCaller"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckStopsOnCallerCancellation"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCoalescesConcurrentProbes"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckRejectsFailedOrEmptyRoundTrips"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckRecoversAfterTransientMQFailure"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCanceledRoundTripDoesNotCacheFailure"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckContextReportsMissingMQ"
         }
       ],
       "test_type": "regression",

@@ -35,6 +35,7 @@
 | rainbond.application.check-port-k8s-service-name-duplicate | 校验应用端口 Kubernetes Service 名称重复 | active | regression | api/handler.ApplicationAction.checkPorts | api/handler/application_handler_test.go::TestApplicationActionCheckPortsRejectsDuplicateK8sServiceName |
 | rainbond.application.delete-config-secrets | Delete config group Secrets with applications | active | regression | api/handler.ApplicationAction.deleteApplicationConfigSecrets | api/handler/application_handler_test.go::TestApplicationActionDeleteApplicationConfigSecrets |
 | rainbond.build.select-builder-by-language | 按源码语言和构建类型选择构建器 | active | regression | builder/build.GetBuildByType | builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix |
+| rainbond.builder.build-pod-resources | Chaos 环境变量控制构建 Pod CPU 和内存 | active | regression | builder/job.controller.ExecJob | builder/job/resources_test.go::TestApplyBuildPodResourcesFromEnv<br>builder/job/resources_test.go::TestApplyBuildPodResourcesRejectsInvalidConfig<br>builder/job/resources_test.go::TestExecJobAppliesResourcesBeforeCreate<br>builder/job/resources_test.go::TestExecJobReusesExistingPodWithoutApplyingResources |
 | rainbond.builder.dynamic-mirror-config | Dynamic mirror config defaults and env overrides | active | unit | builder/mirror.LoadConfig | builder/mirror/config_test.go::TestLoadConfigDefaults |
 | rainbond.builder.dynamic-mirror-fetch | Fetch mirror candidates from remote JSON source with schema validation | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidates |
 | rainbond.builder.dynamic-mirror-fetch-fallback | Mirror source fetch falls back to next URL on failure | active | unit | builder/mirror.FetchCandidates | builder/mirror/fetcher_test.go::TestFetchCandidatesFallsBackToNextURL |
@@ -45,6 +46,7 @@
 | rainbond.builder.mirror-docker-ref-rewrite | docker daemon pulls rewrite docker.io refs to mirrors with fallback order | active | unit | builder/sources.mirrorPullRefs | builder/sources/mirror_hosts_test.go::TestMirrorPullRefs |
 | rainbond.builder.mirror-merge-manual-priority | Manual REGISTRY_MIRRORS take priority over dynamic mirrors with host dedup | active | unit | builder/sources.mergeMirrors | builder/sources/mirror_merge_test.go::TestMergeMirrors |
 | rainbond.builder.registered-worker-dispatch | 已注册 worker 分发时不再误报未知任务 | active | regression | builder/exector.exectorManager.RunTask | builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker |
+| rainbond.builder.source-type-compatibility | Normalize blank source build types without changing explicit protocols | active | regression | builder/exector.NewSouceCodeBuildItem | builder/exector/source_server_type_test.go::TestNewSourceBuildServerType |
 | rainbond.cleanup.activation-registry-coordination | Rollback and activation cannot reference deleting images | active | regression | cleanup.TrackServiceActivation | pkg/cleanup/activation_coordination_test.go::TestActivationAndRollbackRejectDeletingImage |
 | rainbond.cleanup.app-import-admission | Hold application import admission through metadata publication | active | integration | exector.exec.import_app | builder/exector/cleanup_import_admission_test.go::TestImportWorkerHoldsAdmissionUntilPublication<br>builder/exector/cleanup_import_admission_test.go::TestImportSuccessWaitsForMetadataUpload |
 | rainbond.cleanup.cache-builder-startup | Enroll actual cache writer before task consumption | active | integration | exector.registerCacheBuilderStartup | builder/exector/cleanup_cache_startup_test.go::TestCacheStartupRegistersActualInstanceWithoutEnablingDeletion |
@@ -365,6 +367,7 @@
 | rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
 | rainbond.maven.parse-pom | 解析 Maven 父 pom 的模块与打包方式 | active | regression | builder/parser/code/multisvc.parsePom | builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom |
+| rainbond.mq.cancelable-dequeue | 消息队列出队响应取消并保留待处理消息 | active | regression | mq/api/mq.etcdQueue.Dequeue | mq/api/mq/store_test.go::TestDequeueCanceledRequestPreservesQueuedMessage<br>mq/api/mq/store_test.go::TestDequeueHonorsCallerDeadline<br>mq/api/mq/store_test.go::TestCanceledDequeueDoesNotConsumeLaterMessage<br>mq/api/mq/store_test.go::TestDequeueWaitsForMessagesInFIFOOrder |
 | rainbond.multisvc.ignore-non-java | 在多服务解析器选择中忽略非 Java 语言 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_IgnoresLanguagesWithoutJavaMaven |
 | rainbond.multisvc.select-java-maven | 为复合语言选择 Java Maven 多服务解析器 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_SupportsCompositeJavaMaven |
 | rainbond.node-version.display-info | 汇总 Node 版本展示与派生信息 | active | regression | builder/parser/code.NodeVersionInfo helpers | builder/parser/code/node_version_test.go::TestCleanVersionSpec<br>builder/parser/code/node_version_test.go::TestExtractMajorVersion<br>builder/parser/code/node_version_test.go::TestExtractMinorPatch<br>builder/parser/code/node_version_test.go::TestNodeVersionInfo_IsLTS<br>builder/parser/code/node_version_test.go::TestNodeVersionInfo_GetNodeVersionDisplay |
@@ -630,6 +633,7 @@
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-default-interface-virtio | 所有虚拟机统一使用 VirtIO 网络接口 | active | regression | worker/appm/conversion.resolveVMInterfaceModel | worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
+| rainbond.worker.bounded-mq-health-check | Worker 消息队列健康检查超时与并发保护 | active | regression | worker/discover.HealthCheckContext | worker/discover/health_test.go::TestHealthCheckReturnsPromptlyWhenMQIsHealthy<br>worker/discover/health_test.go::TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue<br>worker/discover/health_test.go::TestHealthCheckBoundsBackgroundCaller<br>worker/discover/health_test.go::TestHealthCheckStopsOnCallerCancellation<br>worker/discover/health_test.go::TestHealthCheckCoalescesConcurrentProbes<br>worker/discover/health_test.go::TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip<br>worker/discover/health_test.go::TestHealthCheckRejectsFailedOrEmptyRoundTrips<br>worker/discover/health_test.go::TestHealthCheckRecoversAfterTransientMQFailure<br>worker/discover/health_test.go::TestHealthCheckCanceledRoundTripDoesNotCacheFailure<br>worker/discover/health_test.go::TestHealthCheckContextReportsMissingMQ |
 | rainbond.worker.config-group-component-isolation | Isolate rendered application configuration by component | active | regression | worker/appm/conversion.createEnv | worker/appm/conversion/configgroup_test.go::TestConfigGroupComponentIsolation |
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
@@ -977,6 +981,16 @@
 - 代码路径: `builder/build/build.go`
 - 测试路径: `builder/build/build_type_matrix_test.go::TestGetBuildByType_SourceBuildLanguageMatrix`
 
+### Chaos 环境变量控制构建 Pod CPU 和内存
+
+- Capability ID: `rainbond.builder.build-pod-resources`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/job.controller.ExecJob`
+- 代码路径: `builder/job/job.go`, `builder/job/resources.go`
+- 测试路径: `builder/job/resources_test.go::TestApplyBuildPodResourcesFromEnv`, `builder/job/resources_test.go::TestApplyBuildPodResourcesRejectsInvalidConfig`, `builder/job/resources_test.go::TestExecJobAppliesResourcesBeforeCreate`, `builder/job/resources_test.go::TestExecJobReusesExistingPodWithoutApplyingResources`
+
 ### Dynamic mirror config defaults and env overrides
 
 - Capability ID: `rainbond.builder.dynamic-mirror-config`
@@ -1076,6 +1090,16 @@
 - 业务入口: `builder/exector.exectorManager.RunTask`
 - 代码路径: `builder/exector/exector.go`
 - 测试路径: `builder/exector/exector_test.go::TestRunTaskDoesNotWarnForRegisteredWorker`
+
+### Normalize blank source build types without changing explicit protocols
+
+- Capability ID: `rainbond.builder.source-type-compatibility`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.NewSouceCodeBuildItem`
+- 代码路径: `builder/exector/build_from_sourcecode_run.go`
+- 测试路径: `builder/exector/source_server_type_test.go::TestNewSourceBuildServerType`
 
 ### Rollback and activation cannot reference deleting images
 
@@ -4277,6 +4301,16 @@
 - 代码路径: `builder/parser/code/multisvc/maven.go`
 - 测试路径: `builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom`
 
+### 消息队列出队响应取消并保留待处理消息
+
+- Capability ID: `rainbond.mq.cancelable-dequeue`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `mq/api/mq.etcdQueue.Dequeue`
+- 代码路径: `mq/api/mq/mq.go`, `mq/api/mq/store.go`
+- 测试路径: `mq/api/mq/store_test.go::TestDequeueCanceledRequestPreservesQueuedMessage`, `mq/api/mq/store_test.go::TestDequeueHonorsCallerDeadline`, `mq/api/mq/store_test.go::TestCanceledDequeueDoesNotConsumeLaterMessage`, `mq/api/mq/store_test.go::TestDequeueWaitsForMessagesInFIFOOrder`
+
 ### 在多服务解析器选择中忽略非 Java 语言
 
 - Capability ID: `rainbond.multisvc.ignore-non-java`
@@ -6926,6 +6960,16 @@
 - 业务入口: `worker/appm/conversion.buildStandardVMMemory`
 - 代码路径: `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor`
+
+### Worker 消息队列健康检查超时与并发保护
+
+- Capability ID: `rainbond.worker.bounded-mq-health-check`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/discover.HealthCheckContext`
+- 代码路径: `worker/discover/health.go`, `worker/discover/manager.go`, `worker/monitor/exporter.go`
+- 测试路径: `worker/discover/health_test.go::TestHealthCheckReturnsPromptlyWhenMQIsHealthy`, `worker/discover/health_test.go::TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue`, `worker/discover/health_test.go::TestHealthCheckBoundsBackgroundCaller`, `worker/discover/health_test.go::TestHealthCheckStopsOnCallerCancellation`, `worker/discover/health_test.go::TestHealthCheckCoalescesConcurrentProbes`, `worker/discover/health_test.go::TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip`, `worker/discover/health_test.go::TestHealthCheckRejectsFailedOrEmptyRoundTrips`, `worker/discover/health_test.go::TestHealthCheckRecoversAfterTransientMQFailure`, `worker/discover/health_test.go::TestHealthCheckCanceledRoundTripDoesNotCacheFailure`, `worker/discover/health_test.go::TestHealthCheckContextReportsMissingMQ`
 
 ### Isolate rendered application configuration by component
 

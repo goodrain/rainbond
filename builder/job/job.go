@@ -158,12 +158,16 @@ func (c *controller) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
 func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
 	// one job, one job container channel
 	jobContainerCh := make(chan struct{}, 1)
-	c.jobContainerStatus.Store(job.Name, jobContainerCh)
 	if j, _ := c.GetJob(job.Name); j != nil {
+		c.jobContainerStatus.Store(job.Name, jobContainerCh)
 		go c.getLogger(ctx, job.Name, logger, result, jobContainerCh)
 		c.subJobStatus.Store(job.Name, result)
 		return nil
 	}
+	if err := applyBuildPodResources(job); err != nil {
+		return fmt.Errorf("configure build pod resources: %w", err)
+	}
+	c.jobContainerStatus.Store(job.Name, jobContainerCh)
 	_, err := c.KubeClient.CoreV1().Pods(c.namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return err
