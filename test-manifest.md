@@ -366,6 +366,7 @@
 | rainbond.manual-pvc-upgrade-updates-existing-claim | 应用升级时更新已有手动 PVC | active | regression | worker/appm/controller.upgradeController.upgradeManualClaims | worker/appm/controller/upgrade_manual_claim_test.go::TestUpgradeControllerUpgradeManualClaimsUpdatesExistingClaim |
 | rainbond.maven.list-modules | 列出 Maven 多服务模块 | active | regression | builder/parser/code/multisvc.maven.ListModules | builder/parser/code/multisvc/maven_test.go::TestMaven_ListModules |
 | rainbond.maven.parse-pom | 解析 Maven 父 pom 的模块与打包方式 | active | regression | builder/parser/code/multisvc.parsePom | builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom |
+| rainbond.mq.cancelable-dequeue | 消息队列出队响应取消并保留待处理消息 | active | regression | mq/api/mq.etcdQueue.Dequeue | mq/api/mq/store_test.go::TestDequeueCanceledRequestPreservesQueuedMessage<br>mq/api/mq/store_test.go::TestDequeueHonorsCallerDeadline<br>mq/api/mq/store_test.go::TestCanceledDequeueDoesNotConsumeLaterMessage<br>mq/api/mq/store_test.go::TestDequeueWaitsForMessagesInFIFOOrder |
 | rainbond.multisvc.ignore-non-java | 在多服务解析器选择中忽略非 Java 语言 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_IgnoresLanguagesWithoutJavaMaven |
 | rainbond.multisvc.select-java-maven | 为复合语言选择 Java Maven 多服务解析器 | active | regression | builder/parser/code/multisvc.NewMultiServiceI | builder/parser/code/multisvc/multi_services_test.go::TestNewMultiServiceI_SupportsCompositeJavaMaven |
 | rainbond.node-version.display-info | 汇总 Node 版本展示与派生信息 | active | regression | builder/parser/code.NodeVersionInfo helpers | builder/parser/code/node_version_test.go::TestCleanVersionSpec<br>builder/parser/code/node_version_test.go::TestExtractMajorVersion<br>builder/parser/code/node_version_test.go::TestExtractMinorPatch<br>builder/parser/code/node_version_test.go::TestNodeVersionInfo_IsLTS<br>builder/parser/code/node_version_test.go::TestNodeVersionInfo_GetNodeVersionDisplay |
@@ -631,6 +632,7 @@
 | rainbond.worker.appm.vm-container-disk-cdrom | VM container disk CD-ROM media | active | regression | worker/appm/conversion.appendVMContainerDiskCDROMs | worker/appm/conversion/vm_runtime_test.go::TestBuildVMDiskLayoutKeepsContainerDiskImage<br>worker/appm/conversion/vm_runtime_test.go::TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk |
 | rainbond.worker.appm.vm-default-interface-virtio | 所有虚拟机统一使用 VirtIO 网络接口 | active | regression | worker/appm/conversion.resolveVMInterfaceModel | worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomNetwork<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio |
 | rainbond.worker.appm.vm-memory-hotplug-headroom | 默认虚拟机内存热插拔上限预留 | active | regression | worker/appm/conversion.buildStandardVMMemory | worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi<br>worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor |
+| rainbond.worker.bounded-mq-health-check | Worker 消息队列健康检查超时与并发保护 | active | regression | worker/discover.HealthCheckContext | worker/discover/health_test.go::TestHealthCheckReturnsPromptlyWhenMQIsHealthy<br>worker/discover/health_test.go::TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue<br>worker/discover/health_test.go::TestHealthCheckBoundsBackgroundCaller<br>worker/discover/health_test.go::TestHealthCheckStopsOnCallerCancellation<br>worker/discover/health_test.go::TestHealthCheckCoalescesConcurrentProbes<br>worker/discover/health_test.go::TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip<br>worker/discover/health_test.go::TestHealthCheckRejectsFailedOrEmptyRoundTrips<br>worker/discover/health_test.go::TestHealthCheckRecoversAfterTransientMQFailure<br>worker/discover/health_test.go::TestHealthCheckCanceledRoundTripDoesNotCacheFailure<br>worker/discover/health_test.go::TestHealthCheckContextReportsMissingMQ |
 | rainbond.worker.config-group-component-isolation | Isolate rendered application configuration by component | active | regression | worker/appm/conversion.createEnv | worker/appm/conversion/configgroup_test.go::TestConfigGroupComponentIsolation |
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
@@ -4288,6 +4290,16 @@
 - 代码路径: `builder/parser/code/multisvc/maven.go`
 - 测试路径: `builder/parser/code/multisvc/maven_test.go::TestMaven_ParsePom`
 
+### 消息队列出队响应取消并保留待处理消息
+
+- Capability ID: `rainbond.mq.cancelable-dequeue`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `mq/api/mq.etcdQueue.Dequeue`
+- 代码路径: `mq/api/mq/mq.go`, `mq/api/mq/store.go`
+- 测试路径: `mq/api/mq/store_test.go::TestDequeueCanceledRequestPreservesQueuedMessage`, `mq/api/mq/store_test.go::TestDequeueHonorsCallerDeadline`, `mq/api/mq/store_test.go::TestCanceledDequeueDoesNotConsumeLaterMessage`, `mq/api/mq/store_test.go::TestDequeueWaitsForMessagesInFIFOOrder`
+
 ### 在多服务解析器选择中忽略非 Java 语言
 
 - Capability ID: `rainbond.multisvc.ignore-non-java`
@@ -6937,6 +6949,16 @@
 - 业务入口: `worker/appm/conversion.buildStandardVMMemory`
 - 代码路径: `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemorySetsGuestAndMaxGuest`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryAlignsGuestMemoryToTwoMi`, `worker/appm/conversion/version_vm_test.go::TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor`
+
+### Worker 消息队列健康检查超时与并发保护
+
+- Capability ID: `rainbond.worker.bounded-mq-health-check`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/discover.HealthCheckContext`
+- 代码路径: `worker/discover/health.go`, `worker/discover/manager.go`, `worker/monitor/exporter.go`
+- 测试路径: `worker/discover/health_test.go::TestHealthCheckReturnsPromptlyWhenMQIsHealthy`, `worker/discover/health_test.go::TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue`, `worker/discover/health_test.go::TestHealthCheckBoundsBackgroundCaller`, `worker/discover/health_test.go::TestHealthCheckStopsOnCallerCancellation`, `worker/discover/health_test.go::TestHealthCheckCoalescesConcurrentProbes`, `worker/discover/health_test.go::TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip`, `worker/discover/health_test.go::TestHealthCheckRejectsFailedOrEmptyRoundTrips`, `worker/discover/health_test.go::TestHealthCheckRecoversAfterTransientMQFailure`, `worker/discover/health_test.go::TestHealthCheckCanceledRoundTripDoesNotCacheFailure`, `worker/discover/health_test.go::TestHealthCheckContextReportsMissingMQ`
 
 ### Isolate rendered application configuration by component
 
