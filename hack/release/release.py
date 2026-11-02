@@ -208,12 +208,12 @@ def bump_chart(chart_yaml, values_yaml, tag):
 CURRENT_ROW_RE = re.compile(
     r"^\| v(\d+)\.(\d+)\.x-release (\s*)\| (\[https://www\.rainbond\.com/docs\]\(https://www\.rainbond\.com/docs\)) \| (.*) \|$",
     re.M)
-PAST_HEADER_RE = re.compile(r"^## 过往版本.*?\n(?:.*\n)*?\|[ -]+\|[ -]+\|[ -]+\|\n", re.M)
 
 
 def roll_docs_versions(text, tag):
-    """When tag starts a new minor line, make it current and archive the old
-    one. Returns (text, changed)."""
+    """When tag starts a new minor line, make it the current version. Past
+    versions are not archived, so the past versions table stays as it is.
+    Returns (text, changed)."""
     major, minor, _ = parse_tag(tag)
     m = CURRENT_ROW_RE.search(text)
     if not m:
@@ -222,14 +222,7 @@ def roll_docs_versions(text, tag):
     if (major, minor) <= (cur_major, cur_minor):
         return text, False
     new_current = (f"| v{major}.{minor}.x-release {m.group(3)}| {m.group(4)} | {m.group(5)} |")
-    text = text[:m.start()] + new_current + text[m.end():]
-    archived = (f"| v{cur_major}.{cur_minor}.x-release | https://v{cur_major}.{cur_minor}.rainbond.com/docs "
-                f"| [版本变更日志](https://github.com/goodrain/rainbond/releases/tag/v{cur_major}.{cur_minor}.0-release) |\n")
-    h = PAST_HEADER_RE.search(text)
-    if not h:
-        raise ReleaseError("past versions table not found in docs/versions.md")
-    return text[:h.end()] + archived + text[h.end():], True
-
+    return text[:m.start()] + new_current + text[m.end():], True
 
 
 # --------------------------------------------------------------------------

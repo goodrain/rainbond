@@ -145,10 +145,9 @@ class DocsVersionsTest(unittest.TestCase):
         text, changed = release.roll_docs_versions(DOCS, "v6.10.0-release")
         self.assertTrue(changed)
         self.assertIn("| v6.10.x-release | [https://www.rainbond.com/docs]", text)
-        archived = ("| v6.9.x-release | https://v6.9.rainbond.com/docs | "
-                    "[版本变更日志](https://github.com/goodrain/rainbond/releases/tag/v6.9.0-release) |\n"
-                    "| v6.8.x-release")
-        self.assertIn(archived, text)
+        self.assertNotIn("v6.9.x-release", text)
+        # Past versions are not archived: only the current row changes.
+        self.assertEqual(text, DOCS.replace("| v6.9.x-release |", "| v6.10.x-release |"))
 
     def test_older_release_leaves_docs_alone(self):
         text, changed = release.roll_docs_versions(DOCS, "v6.8.9-release")
