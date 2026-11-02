@@ -6,26 +6,52 @@ on:
       - edited
       - reopened
       - synchronize
-  push:
-    branches: [main, V5.*, fixbug*, Develop*]
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   check-commit-message:
+    # The rulesets require this check by name, keep it in sync when renaming.
     name: Check Commit Message
     runs-on: ubuntu-latest
     steps:
-      - name: Check Commit Type
-        uses: gsactions/commit-message-checker@v1
-        with:
-          pattern: '^\s*(feat|fix|docs|style|refactor|test|ci|perf|revert|chore|to)(\(.+\))?\: .+'
-          flags: 'gm'
-          error: 'Your first line has to contain a commit type like "feat: xxx".'
-      - name: Check Line Length
-        uses: gsactions/commit-message-checker@v1
-        with:
-          pattern: '^.{1,72}$'
-          error: 'The maximum line length of 72 characters is exceeded.'
-          excludeDescription: 'true' # optional: this excludes the description body of a pull request
-          excludeTitle: 'true' # optional: this excludes the title of a pull request
-          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
-          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true
+      - name: Check PR title and commit subjects
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: python3 {0}
+        run: |
+          import json, os, re, subprocess, sys
+
+          MAX_LENGTH = 72
+          TITLE_RE = re.compile(r"(feat|fix|docs|style|refactor|test|ci|perf|revert|chore|to)(\(.+\))?!?: \S.*")
+
+          problems = []
+          # Squash merges use the PR title as the commit on main.
+          title = os.environ["PR_TITLE"]
+          if not TITLE_RE.fullmatch(title):
+              problems.append(f'PR title must look like "feat: xxx" or "fix(scope): xxx": {title}')
+          if len(title) > MAX_LENGTH:
+              problems.append(f"PR title is {len(title)} characters, the limit is {MAX_LENGTH}: {title}")
+
+          out = subprocess.run(
+              ["gh", "api", "--paginate", "--jq", ".[] | {sha, message: .commit.message}",
+               f"repos/{os.environ['REPO']}/pulls/{os.environ['PR_NUMBER']}/commits"],
+              check=True, capture_output=True, text=True).stdout
+          for line in out.splitlines():
+              commit = json.loads(line)
+              subject = commit["message"].split("\n", 1)[0]
+              # Generated merge commits are named after the branch, not by the author.
+              if subject.startswith("Merge "):
+                  continue
+              if len(subject) > MAX_LENGTH:
+                  problems.append(f"Commit {commit['sha'][:8]} subject is {len(subject)} characters, "
+                                  f"the limit is {MAX_LENGTH}: {subject}")
+
+          for problem in problems:
+              print(f"::error::{problem}")
+          sys.exit(1 if problems else 0)
