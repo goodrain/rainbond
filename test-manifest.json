@@ -5753,6 +5753,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.http-route-source-ip-validation",
+      "title": "Normalize and validate HTTP route source IP restrictions",
+      "title_zh": "Normalize and validate HTTP route source IP restrictions",
+      "interface_type": "handler_method",
+      "interface": "api/controller/apigateway.Struct.CreateHTTPAPIRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_remote_addrs_test.go",
+          "selector": "TestCreateHTTPAPIRouteNormalizesRemoteAddrs"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.http-route-stable-rule-name",
       "title": "Keep APISIX HTTP route rule identity stable",
       "title_zh": "Keep APISIX HTTP route rule identity stable",

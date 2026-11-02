@@ -3,6 +3,7 @@ package apigateway
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -66,6 +67,23 @@ func httpRouteCreateFailure(err error) (updateExisting bool, responseErr error) 
 		return true, nil
 	}
 	return false, bcode.ErrRouteCreate
+}
+
+func normalizeHTTPRouteRemoteAddrs(addrs []string) ([]string, error) {
+	var normalized []string
+	for _, addr := range addrs {
+		addr = strings.TrimSpace(addr)
+		if addr == "" {
+			continue
+		}
+		if net.ParseIP(addr) == nil {
+			if _, _, err := net.ParseCIDR(addr); err != nil {
+				return nil, fmt.Errorf("invalid source IP %q: must be an IPv4 address, IPv6 address or CIDR", addr)
+			}
+		}
+		normalized = append(normalized, addr)
+	}
+	return normalized, nil
 }
 
 func httpRouteResourceName(route *v2.ApisixRouteHTTP) (string, error) {
@@ -395,6 +413,12 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	var apisixRouteHTTP v2.ApisixRouteHTTP
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteHTTP, nil) {
+		return
+	}
+	var err error
+	apisixRouteHTTP.Match.RemoteAddrs, err = normalizeHTTPRouteRemoteAddrs(apisixRouteHTTP.Match.RemoteAddrs)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, err.Error())
 		return
 	}
 	sa := r.URL.Query().Get("service_alias")
