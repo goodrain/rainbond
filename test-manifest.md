@@ -5,6 +5,7 @@
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
 | rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
+| rainbond.api.apiserver-request-metrics | Collect missing API server request counters through existing rbd-api metrics | active | regression | api/metric.NewAPIServerCollector | api/metric/apiserver_test.go<br>api/client/prometheus/prometheus_timeout_test.go::TestGetMetricHonorsCallerDeadline<br>api/client/prometheus/prometheus_timeout_test.go::TestGetMetricCallerContextPreservesSuccessfulResults |
 | rainbond.api.kubeblocks.adapter-service-namespace | KubeBlocks adapter service namespace | active | regression | api/controller.KubeBlocksController.forwardRequest | api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace |
 | rainbond.api.kubeblocks.backup-repo-mutation-proxy | KubeBlocks backup repo mutation proxy | active | regression | api/controller.KubeBlocksController.CreateBackupRepo | api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
@@ -681,6 +682,16 @@
 - 业务入口: `api.controller.apigateway.Struct.CreateTCPRoute`
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
+
+### Collect missing API server request counters through existing rbd-api metrics
+
+- Capability ID: `rainbond.api.apiserver-request-metrics`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/metric.NewAPIServerCollector`
+- 代码路径: `api/metric/apiserver.go`, `api/server/api.go`, `api/client/prometheus/prometheus.go`
+- 测试路径: `api/metric/apiserver_test.go`, `api/client/prometheus/prometheus_timeout_test.go::TestGetMetricHonorsCallerDeadline`, `api/client/prometheus/prometheus_timeout_test.go::TestGetMetricCallerContextPreservesSuccessfulResults`
 
 ### KubeBlocks adapter service namespace
 

@@ -84,8 +84,13 @@ func NewPrometheus(options *Options) (Interface, error) {
 }
 
 func (p prometheus) GetMetric(expr string, ts time.Time) Metric {
+	return p.GetMetricWithContext(context.Background(), expr, ts)
+}
+
+// GetMetricWithContext preserves the configured timeout while respecting a caller's earlier deadline.
+func (p prometheus) GetMetricWithContext(parent context.Context, expr string, ts time.Time) Metric {
 	var parsedResp Metric
-	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout())
+	ctx, cancel := context.WithTimeout(parent, queryTimeout())
 	defer cancel()
 
 	value, _, err := p.client.Query(ctx, expr, ts)

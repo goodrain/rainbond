@@ -21,6 +21,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.api.apiserver-request-metrics",
+      "title": "Collect missing API server request counters through existing rbd-api metrics",
+      "title_zh": "Collect missing API server request counters through existing rbd-api metrics",
+      "interface_type": "workflow",
+      "interface": "api/metric.NewAPIServerCollector",
+      "code_paths": [
+        "api/metric/apiserver.go",
+        "api/server/api.go",
+        "api/client/prometheus/prometheus.go"
+      ],
+      "tests": [
+        {
+          "path": "api/metric/apiserver_test.go"
+        },
+        {
+          "path": "api/client/prometheus/prometheus_timeout_test.go",
+          "selector": "TestGetMetricHonorsCallerDeadline"
+        },
+        {
+          "path": "api/client/prometheus/prometheus_timeout_test.go",
+          "selector": "TestGetMetricCallerContextPreservesSuccessfulResults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.api.kubeblocks.adapter-service-namespace",
       "title": "KubeBlocks adapter service namespace",
       "title_zh": "KubeBlocks adapter service namespace",
