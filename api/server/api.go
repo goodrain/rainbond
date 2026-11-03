@@ -25,7 +25,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // Register handlers for the dedicated diagnostics server.
 	"os"
 	"strings"
 	"time"
@@ -34,11 +34,13 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
+	k8scomponent "github.com/goodrain/rainbond/pkg/component/k8s"
+	promcomponent "github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/goodrain/rainbond/pkg/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	_ "k8s.io/component-base/metrics/prometheus/version"
+	_ "k8s.io/component-base/metrics/prometheus/version" // Register Kubernetes build-version metrics.
 
 	"github.com/goodrain/rainbond/util"
 
@@ -250,6 +252,15 @@ func (m *Manager) Metric() {
 	exporter := metric.NewExporter()
 	m.exporter = exporter
 	prometheus.MustRegister(exporter)
+	kube, monitor := k8scomponent.Default(), promcomponent.Default()
+	if kube != nil && monitor != nil {
+		collector, err := metric.NewAPIServerCollector(kube.Clientset, kube.RestConfig, monitor.PrometheusCli)
+		if err != nil {
+			logrus.WithError(err).Warning("API server request-counter collector unavailable")
+		} else {
+			prometheus.MustRegister(collector)
+		}
+	}
 	m.r.Handle("/metrics", promhttp.Handler())
 }
 

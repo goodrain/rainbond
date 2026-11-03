@@ -5,6 +5,7 @@
 | Capability ID | 中文标题 | 状态 | 测试类型 | 业务入口 | 测试文件 |
 |---|---|---|---|---|---|
 | rainbond.api-gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM NodePort services | active | regression | api.controller.apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService |
+| rainbond.api.apiserver-request-metrics | Collect missing API server request counters through existing rbd-api metrics | active | regression | api/metric.NewAPIServerCollector | api/metric/apiserver_test.go<br>api/client/prometheus/prometheus_timeout_test.go::TestGetMetricHonorsCallerDeadline<br>api/client/prometheus/prometheus_timeout_test.go::TestGetMetricCallerContextPreservesSuccessfulResults |
 | rainbond.api.kubeblocks.adapter-service-namespace | KubeBlocks adapter service namespace | active | regression | api/controller.KubeBlocksController.forwardRequest | api/controller/kubeblocks_test.go::TestKubeBlocksAdapterBaseURLUsesPluginNamespace |
 | rainbond.api.kubeblocks.backup-repo-mutation-proxy | KubeBlocks backup repo mutation proxy | active | regression | api/controller.KubeBlocksController.CreateBackupRepo | api/controller/kubeblocks_test.go::TestKubeBlocksBackupRepoMutationProxy |
 | rainbond.app-backup.metadata-version-detect | 识别旧版与新版应用备份元数据结构 | active | regression | builder/exector.judgeMetadataVersion | builder/exector/groupapp_backup_test.go::TestJudgeMetadataVersion |
@@ -297,6 +298,7 @@
 | rainbond.gateway.client-ca-lifecycle | Manage gateway client CA lifecycle | active | regression | api/handler.GatewayAction.AddGatewayClientCA | api/handler/gateway_action_test.go::TestGatewayClientCALifecycle |
 | rainbond.gateway.domain-mtls | Configure inbound mTLS per gateway domain | active | regression | api/handler.GatewayAction.ConfigureGatewayDomainMTLS | api/handler/gateway_action_test.go::TestGatewayDomainMTLS |
 | rainbond.gateway.http-route-delete-component-event | 删除网关 HTTPRoute 时记录组件事件 | active | regression | github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute | api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents |
+| rainbond.gateway.http-route-source-ip-validation | Normalize and validate HTTP route source IP restrictions | active | regression | api/controller/apigateway.Struct.CreateHTTPAPIRoute | api/controller/apigateway/api_gateway_route_remote_addrs_test.go::TestCreateHTTPAPIRouteNormalizesRemoteAddrs |
 | rainbond.gateway.http-route-stable-rule-name | Keep APISIX HTTP route rule identity stable | active | regression | api/controller/apigateway.Struct.CreateHTTPAPIRoute | api/controller/apigateway/api_gateway_route_test.go::TestStableHTTPRouteRuleName<br>api/controller/apigateway/api_gateway_route_test.go::TestHTTPRouteCreateFailure |
 | rainbond.gateway.prevent-tcp-route-delete-recreation-race | Protect recreated TCP route Services with UID delete preconditions | active | regression | api/controller/apigateway.Struct.DeleteTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestDeleteTCPRouteDoesNotDeleteRecreatedServiceWithStaleUID |
 | rainbond.gateway.protect-tcp-route-service-ownership | Reject TCP route updates for missing or different Service owners | active | regression | api/controller/apigateway.Struct.CreateTCPRoute | api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteRejectsExistingServiceWithoutMatchingOwner |
@@ -680,6 +682,16 @@
 - 业务入口: `api.controller.apigateway.Struct.CreateTCPRoute`
 - 代码路径: `api/controller/apigateway/api_gateway_route.go`
 - 测试路径: `api/controller/apigateway/api_gateway_route_test.go::TestCreateTCPRouteSetsExternalTrafficPolicyLocalForVMService`
+
+### Collect missing API server request counters through existing rbd-api metrics
+
+- Capability ID: `rainbond.api.apiserver-request-metrics`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/metric.NewAPIServerCollector`
+- 代码路径: `api/metric/apiserver.go`, `api/server/api.go`, `api/client/prometheus/prometheus.go`
+- 测试路径: `api/metric/apiserver_test.go`, `api/client/prometheus/prometheus_timeout_test.go::TestGetMetricHonorsCallerDeadline`, `api/client/prometheus/prometheus_timeout_test.go::TestGetMetricCallerContextPreservesSuccessfulResults`
 
 ### KubeBlocks adapter service namespace
 
@@ -3600,6 +3612,16 @@
 - 业务入口: `github.com/goodrain/rainbond/api/handler.(*GatewayAction).DeleteGatewayHTTPRoute`
 - 代码路径: `api/handler/gateway_action.go`
 - 测试路径: `api/handler/gateway_action_test.go::TestCreateGatewayHTTPRouteDeleteEvents`
+
+### Normalize and validate HTTP route source IP restrictions
+
+- Capability ID: `rainbond.gateway.http-route-source-ip-validation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/controller/apigateway.Struct.CreateHTTPAPIRoute`
+- 代码路径: `api/controller/apigateway/api_gateway_route.go`
+- 测试路径: `api/controller/apigateway/api_gateway_route_remote_addrs_test.go::TestCreateHTTPAPIRouteNormalizesRemoteAddrs`
 
 ### Keep APISIX HTTP route rule identity stable
 
