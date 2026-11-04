@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,47 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// capability_id: rainbond.api.apiserver-request-metrics
+func TestGetMetricCallerContextPreservesSuccessfulResults(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1,"1"]}]}}`))
+	}))
+	defer server.Close()
+	client, err := NewPrometheus(&Options{Endpoint: server.URL})
+	require.NoError(t, err)
+	metric := client.GetMetric("up", time.Now())
+	require.Empty(t, metric.Error)
+	require.Equal(t, MetricTypeVector, metric.MetricType)
+	require.Len(t, metric.MetricValues, 1)
+	require.NotNil(t, metric.MetricValues[0].Sample)
+	assert.Equal(t, float64(1), metric.MetricValues[0].Sample.Value())
+}
+
+// capability_id: rainbond.api.apiserver-request-metrics
+func TestGetMetricHonorsCallerDeadline(t *testing.T) {
+	t.Setenv("PROMETHEUS_QUERY_TIMEOUT", "5s")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(time.Second):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+		}
+	}))
+	defer server.Close()
+	client, err := NewPrometheus(&Options{Endpoint: server.URL})
+	require.NoError(t, err)
+	reader, ok := client.(interface {
+		GetMetricWithContext(context.Context, string, time.Time) Metric
+	})
+	require.True(t, ok, "a scrape caller must be able to enforce its own total collection deadline")
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	metric := reader.GetMetricWithContext(ctx, "up", time.Now())
+	assert.Less(t, time.Since(started), 500*time.Millisecond)
+	assert.Contains(t, metric.Error, "context deadline")
+}
 
 func TestGetMetricStopsAtConfiguredQueryTimeout(t *testing.T) {
 	t.Setenv("PROMETHEUS_QUERY_TIMEOUT", "50ms")

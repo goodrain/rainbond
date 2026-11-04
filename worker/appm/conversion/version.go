@@ -734,11 +734,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
-	for _, sec := range envVarSecrets {
-		for i, data := range sec.Data {
-			sec.Data[i] = []byte(util.ParseVariable(string(data), config))
-		}
-	}
+	envs = appendConfigGroupEnvs(envs, envVarSecrets, config)
 	// set Extension set config item
 	for k, v := range config {
 		if strings.HasPrefix(k, "ES_") {
@@ -2379,4 +2375,27 @@ func adjustResource(original resource.Quantity, rate float64, cpu bool) resource
 	originalValue := original.Value()
 	adjustedValue := int64(float64(originalValue) * rate)
 	return *resource.NewQuantity(adjustedValue, original.Format)
+}
+
+// appendConfigGroupEnvs renders shared configuration templates into the component's
+// own environment. Never write component-specific values into a shared Secret.
+func appendConfigGroupEnvs(envs []corev1.EnvVar, secrets []*corev1.Secret, config map[string]string) []corev1.EnvVar {
+	existing := make(map[string]bool, len(envs))
+	for _, env := range envs {
+		existing[env.Name] = true
+	}
+	var keys []string
+	for _, secret := range secrets {
+		for key := range secret.Data {
+			if !existing[key] {
+				keys = append(keys, key)
+				existing[key] = true
+			}
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		envs = append(envs, corev1.EnvVar{Name: key, Value: util.ParseVariable(config[key], config)})
+	}
+	return envs
 }

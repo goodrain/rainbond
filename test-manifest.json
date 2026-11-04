@@ -21,6 +21,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.api.apiserver-request-metrics",
+      "title": "Collect missing API server request counters through existing rbd-api metrics",
+      "title_zh": "Collect missing API server request counters through existing rbd-api metrics",
+      "interface_type": "workflow",
+      "interface": "api/metric.NewAPIServerCollector",
+      "code_paths": [
+        "api/metric/apiserver.go",
+        "api/server/api.go",
+        "api/client/prometheus/prometheus.go"
+      ],
+      "tests": [
+        {
+          "path": "api/metric/apiserver_test.go"
+        },
+        {
+          "path": "api/client/prometheus/prometheus_timeout_test.go",
+          "selector": "TestGetMetricHonorsCallerDeadline"
+        },
+        {
+          "path": "api/client/prometheus/prometheus_timeout_test.go",
+          "selector": "TestGetMetricCallerContextPreservesSuccessfulResults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.api.kubeblocks.adapter-service-namespace",
       "title": "KubeBlocks adapter service namespace",
       "title_zh": "KubeBlocks adapter service namespace",
@@ -273,6 +300,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.app-config-group.pending-component-bindings",
+      "title": "Preserve configuration bindings before component creation",
+      "title_zh": "Preserve configuration bindings before component creation",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ApplicationAction.AddConfigGroup/UpdateConfigGroup",
+      "code_paths": [
+        "api/handler/application_config_group.go",
+        "worker/appm/conversion/configgroup.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/application_config_group_test.go",
+          "selector": "TestConfigGroupRetainsPendingComponentBindings"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.app-config-group.unbind-components",
       "title": "Remove component bindings from app config group",
       "title_zh": "\u79fb\u9664\u5e94\u7528\u914d\u7f6e\u7ec4\u7ec4\u4ef6\u7ed1\u5b9a",
@@ -512,6 +558,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.application.delete-config-secrets",
+      "title": "Delete config group Secrets with applications",
+      "title_zh": "Delete config group Secrets with applications",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ApplicationAction.deleteApplicationConfigSecrets",
+      "code_paths": [
+        "api/handler/application_handler.go",
+        "api/handler/application_config_group.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/application_handler_test.go",
+          "selector": "TestApplicationActionDeleteApplicationConfigSecrets"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.build.select-builder-by-language",
       "title": "Select builder implementation by source language and build type",
       "title_zh": "\u6309\u6e90\u7801\u8bed\u8a00\u548c\u6784\u5efa\u7c7b\u578b\u9009\u62e9\u6784\u5efa\u5668",
@@ -524,6 +589,37 @@
         {
           "path": "builder/build/build_type_matrix_test.go",
           "selector": "TestGetBuildByType_SourceBuildLanguageMatrix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.build-pod-resources",
+      "title": "Build pod CPU and memory from chaos environment",
+      "title_zh": "Chaos \u73af\u5883\u53d8\u91cf\u63a7\u5236\u6784\u5efa Pod CPU \u548c\u5185\u5b58",
+      "interface_type": "workflow",
+      "interface": "builder/job.controller.ExecJob",
+      "code_paths": [
+        "builder/job/job.go",
+        "builder/job/resources.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesFromEnv"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestApplyBuildPodResourcesRejectsInvalidConfig"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobAppliesResourcesBeforeCreate"
+        },
+        {
+          "path": "builder/job/resources_test.go",
+          "selector": "TestExecJobReusesExistingPodWithoutApplyingResources"
         }
       ],
       "test_type": "regression",
@@ -704,6 +800,24 @@
         {
           "path": "builder/exector/exector_test.go",
           "selector": "TestRunTaskDoesNotWarnForRegisteredWorker"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.builder.source-type-compatibility",
+      "title": "Normalize blank source build types without changing explicit protocols",
+      "title_zh": "Normalize blank source build types without changing explicit protocols",
+      "interface_type": "workflow",
+      "interface": "builder/exector.NewSouceCodeBuildItem",
+      "code_paths": [
+        "builder/exector/build_from_sourcecode_run.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/source_server_type_test.go",
+          "selector": "TestNewSourceBuildServerType"
         }
       ],
       "test_type": "regression",
@@ -2867,6 +2981,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.sqlite-activation",
+      "title": "Support activation tracking on SQLite",
+      "title_zh": "Support activation tracking on SQLite",
+      "interface_type": "workflow",
+      "interface": "cleanup.TrackServiceActivation",
+      "code_paths": [
+        "pkg/cleanup/activation.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/activation_sqlite_test.go",
+          "selector": "TestTrackServiceActivationSupportsSQLite"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.sqlite-version-store",
+      "title": "SQLite version selection inspection and retirement",
+      "title_zh": "SQLite version selection inspection and retirement",
+      "interface_type": "workflow",
+      "interface": "pkg/cleanup.SelectRollbackVersion",
+      "code_paths": [
+        "pkg/cleanup/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/store_sqlite_test.go",
+          "selector": "TestVersionStoreSupportsSQLite"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.storage-enrollment",
       "title": "Collect writes during enrollment without granting cleanup",
       "title_zh": "Collect writes during enrollment without granting cleanup",
@@ -3512,6 +3662,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster.rbd-component-readiness",
+      "title": "Rainbond component readiness overview",
+      "title_zh": "Rainbond component readiness overview",
+      "interface_type": "handler_method",
+      "interface": "api/handler.clusterAction.ListRainbondComponents",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestPodReadyForOverview"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestBuildRainbondComponentOverviewSortsByName"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted"
+        },
+        {
+          "path": "api/handler/cluster_overview_test.go",
+          "selector": "TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cluster.upgrade-preserves-component-config",
       "title": "Preserve custom component configuration during image upgrades",
       "title_zh": "Preserve custom component configuration during image upgrades",
@@ -3880,6 +4060,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cnb.npm-cache-policy",
+      "title": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "title_zh": "Avoid ineffective npm registry caching while retaining image layer reuse",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.buildCreatorArgs",
+      "code_paths": [
+        "builder/build/cnb/cache_policy.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBNPMCachePolicy"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyExplainsAutomaticBypass"
+        },
+        {
+          "path": "builder/build/cnb/cache_policy_test.go",
+          "selector": "TestCNBCachePolicyPreservesCacheForUnknownSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb.npm-global-registry",
       "title": "Export NPM_CONFIG_REGISTRY for global npm installs",
       "title_zh": "\u4e3a\u5168\u5c40 npm \u5b89\u88c5\u5bfc\u51fa NPM_CONFIG_REGISTRY",
@@ -3977,6 +4184,73 @@
         {
           "path": "builder/build/cnb/cnb_test.go",
           "selector": "TestWriteCustomOrderFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb.package-workspace-isolation",
+      "title": "Isolate each CNB source package build from retained generated files",
+      "title_zh": "\u9694\u79bb\u6e90\u7801\u5305 CNB \u6784\u5efa\u5de5\u4f5c\u76ee\u5f55\u5e76\u4fdd\u7559\u539f\u59cb\u4e0a\u4f20\u5185\u5bb9",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.Build",
+      "code_paths": [
+        "builder/build/cnb/build.go",
+        "builder/parser/package_workspace.go",
+        "util/comman.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/package_workspace_test.go",
+          "selector": "TestCNBPackageBuildUsesPristineWorkspace"
+        },
+        {
+          "path": "builder/build/cnb/package_workspace_test.go",
+          "selector": "TestCNBNonPackageBuildKeepsSourceDirectory"
+        },
+        {
+          "path": "builder/parser/package_workspace_test.go",
+          "selector": "TestPreparePackageBuildWorkspace"
+        },
+        {
+          "path": "builder/parser/package_workspace_test.go",
+          "selector": "TestPreparePackageBuildWorkspaceRejectsInvalidInput"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cnb.phase-timing",
+      "title": "Report observed CNB lifecycle phase durations without changing build output",
+      "title_zh": "Report observed CNB lifecycle phase durations without changing build output",
+      "interface_type": "workflow",
+      "interface": "builder/build/cnb.Builder.runCNBBuildJob",
+      "code_paths": [
+        "builder/build/cnb/phase_logger.go",
+        "builder/build/cnb/job.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTiming"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingHandlesFragmentedLogs"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingPreservesWriterErrors"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBPhaseTimingSerializesConcurrentWrites"
+        },
+        {
+          "path": "builder/build/cnb/phase_logger_test.go",
+          "selector": "TestCNBJobEmitsFinalPhaseTiming"
         }
       ],
       "test_type": "regression",
@@ -4938,6 +5212,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.event-log.require-log-identity",
+      "title": "Reject log list requests without a component identity",
+      "title_zh": "Reject log list requests without a component identity",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/cluster/log-file",
+      "code_paths": [
+        "api/controller/event_log.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/event_log_test.go",
+          "selector": "TestLogListRejectsMissingLogIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.eventlog.file-store",
       "title": "Append, read, delete and clean event log file store",
       "title_zh": "\u4e8b\u4ef6\u65e5\u5fd7\u6587\u4ef6\u5b58\u50a8\u7684\u8ffd\u52a0\u8bfb\u53d6\u4e0e\u6e05\u7406",
@@ -5388,6 +5680,32 @@
       "status": "active"
     },
     {
+      "id": "rainbond.gateway.auto-certificate-route-lifecycle",
+      "title": "Reconcile automatic certificate resources across route ownership changes",
+      "title_zh": "Reconcile automatic certificate resources across route ownership changes",
+      "interface_type": "workflow",
+      "interface": "automatic certificate route lifecycle",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestEnsureCertManagerResourcesAdoptsExistingRouteOwnership"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestDeleteCertManagerResourcesRemovesCertificateAndTLS"
+        },
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestCertManagerRouteNameUsesResourceSegment"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.gateway.certificate-resource-consistency",
       "title": "Keep gateway certificate resources consistent",
       "title_zh": "Keep gateway certificate resources consistent",
@@ -5456,6 +5774,24 @@
         {
           "path": "api/handler/gateway_action_test.go",
           "selector": "TestCreateGatewayHTTPRouteDeleteEvents"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.http-route-source-ip-validation",
+      "title": "Normalize and validate HTTP route source IP restrictions",
+      "title_zh": "Normalize and validate HTTP route source IP restrictions",
+      "interface_type": "handler_method",
+      "interface": "api/controller/apigateway.Struct.CreateHTTPAPIRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_remote_addrs_test.go",
+          "selector": "TestCreateHTTPAPIRouteNormalizesRemoteAddrs"
         }
       ],
       "test_type": "regression",
@@ -5644,6 +5980,24 @@
         {
           "path": "api/controller/apigateway/api_gateway_route_test.go",
           "selector": "TestCreateTCPRouteReportsServiceCreateErrorDetails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.gateway.validate-http-route-match",
+      "title": "Reject HTTP gateway routes without hosts or paths",
+      "title_zh": "Reject HTTP gateway routes without hosts or paths",
+      "interface_type": "workflow",
+      "interface": "api/controller/apigateway.Struct.CreateHTTPAPIRoute",
+      "code_paths": [
+        "api/controller/apigateway/api_gateway_route.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/apigateway/api_gateway_route_test.go",
+          "selector": "TestHTTPRouteResourceNameValidatesMatch"
         }
       ],
       "test_type": "regression",
@@ -6578,6 +6932,43 @@
       "status": "active"
     },
     {
+      "id": "rainbond.lifecycle.stop-suppresses-exit-event",
+      "title": "Suppress container exit events during intentional stop",
+      "title_zh": "Suppress container exit events during intentional stop",
+      "interface_type": "package_function",
+      "interface": "worker/master/podevent.shouldReportContainerExit",
+      "code_paths": [
+        "worker/master/podevent/podevent.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/master/podevent/health_event_test.go",
+          "selector": "TestShouldReportContainerExit"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.manual-pvc-upgrade-delete-idempotent",
+      "title": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "title_zh": "Manual PVC cleanup tolerates absent claims and preserves deletion errors",
+      "interface_type": "workflow",
+      "interface": "upgradeController.upgradeManualClaims",
+      "code_paths": [
+        "worker/appm/f/function.go",
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_manual_claim_test.go",
+          "selector": "TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.manual-pvc-upgrade-preserves-bound-claim-immutable-spec",
       "title": "Preserve bound manual PVC immutable spec fields during app upgrade",
       "interface_type": "workflow",
@@ -6696,6 +7087,37 @@
         {
           "path": "builder/parser/code/multisvc/maven_test.go",
           "selector": "TestMaven_ParsePom"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.mq.cancelable-dequeue",
+      "title": "Cancelable MQ dequeues preserve queued messages",
+      "title_zh": "\u6d88\u606f\u961f\u5217\u51fa\u961f\u54cd\u5e94\u53d6\u6d88\u5e76\u4fdd\u7559\u5f85\u5904\u7406\u6d88\u606f",
+      "interface_type": "workflow",
+      "interface": "mq/api/mq.etcdQueue.Dequeue",
+      "code_paths": [
+        "mq/api/mq/mq.go",
+        "mq/api/mq/store.go"
+      ],
+      "tests": [
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueCanceledRequestPreservesQueuedMessage"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueHonorsCallerDeadline"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestCanceledDequeueDoesNotConsumeLaterMessage"
+        },
+        {
+          "path": "mq/api/mq/store_test.go",
+          "selector": "TestDequeueWaitsForMessagesInFIFOOrder"
         }
       ],
       "test_type": "regression",
@@ -7012,6 +7434,154 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.disk-availability",
+      "title": "Distinguish missing node filesystem measurements",
+      "title_zh": "Distinguish missing node filesystem measurements",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodes",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/handler/node_filesystem_stats.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewDiskStatsAvailability"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.empty-installed-plugins",
+      "title": "Empty installed plugin results encode as an array",
+      "title_zh": "Empty installed plugin results encode as an array",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListPlugins",
+      "code_paths": [
+        "api/handler/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewEmptyInstalledPluginsAreAnArray"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.kubernetes-cluster-resources",
+      "title": "Read truthful bounded Kubernetes workload resource snapshots",
+      "title_zh": "Read truthful bounded Kubernetes workload resource snapshots",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.GetClusterInfo",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/handler/tenant.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesUseKubernetesNotPrometheus"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesCoalesceConcurrentRefresh"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourcesIncludeEmptySchedulableNodes"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceRefreshWaitRespectsCancellation"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceOptionalVersionCannotBlockResources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.lightweight-nodes",
+      "title": "Lightweight node health skips optional statistics",
+      "title_zh": "Lightweight node health skips optional statistics",
+      "interface_type": "handler_method",
+      "interface": "nodesHandle.ListNodesWithOptions",
+      "code_paths": [
+        "api/handler/nodes.go",
+        "api/model/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLightweightNodesSkipStats"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nodes-request-context",
+      "title": "Preserve node request context and optional statistics default",
+      "title_zh": "Preserve node request context and optional statistics default",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/nodes",
+      "code_paths": [
+        "api/controller/nodes.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/overview_nodes_test.go",
+          "selector": "TestOverviewNodesRequestPreservesContextAndDefaults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.nonblocking-local-disk",
+      "title": "Optional local disk sampling never blocks cluster resources",
+      "title_zh": "Optional local disk sampling never blocks cluster resources",
+      "interface_type": "workflow",
+      "interface": "clusterAction.withLocalDiskStats",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/cluster_overview_resources.go",
+        "api/model/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewClusterResourceCannotBeBlockedByLocalDisk"
+        },
+        {
+          "path": "api/handler/overview_truthful_data_test.go",
+          "selector": "TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample"
         }
       ],
       "test_type": "regression",
@@ -7461,6 +8031,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.resource-center.rfc3339-timestamps",
+      "title": "Serialize resource center timestamps as RFC3339",
+      "title_zh": "Serialize resource center timestamps as RFC3339",
+      "interface_type": "package_function",
+      "interface": "api/handler.formatResourceTimestamp",
+      "code_paths": [
+        "api/handler/resource_center.go",
+        "api/handler/ns_resource.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/resource_center_test.go",
+          "selector": "TestFormatResourceTimestamp"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.resource-import.daemonset-component",
       "title": "Import DaemonSet as component",
       "title_zh": "\u5c06 DaemonSet \u5bfc\u5165\u4e3a\u7ec4\u4ef6",
@@ -7588,6 +8177,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service-probe.reconcile-duplicate-mode",
+      "title": "Reconcile duplicate service probe modes",
+      "title_zh": "\u534f\u8c03\u91cd\u590d\u7684\u7ec4\u4ef6\u63a2\u9488\u6a21\u5f0f",
+      "interface_type": "dao_method",
+      "interface": "db/mysql/dao.ServiceProbeDaoImpl.AddModel",
+      "code_paths": [
+        "db/mysql/dao/k8s.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/service_probe_test.go",
+          "selector": "TestServiceProbeDaoAddModelReconcilesExistingMode"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.service-type.daemonset",
       "title": "DaemonSet service type classification",
       "title_zh": "DaemonSet \u7ec4\u4ef6\u7c7b\u578b\u5206\u7c7b",
@@ -7636,6 +8243,24 @@
         {
           "path": "api/handler/service_file_manage_test.go",
           "selector": "TestWrapFileManageExecErrorIncludesStderr"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.port-outer-idempotent-close",
+      "title": "Keep repeated external port closes idempotent",
+      "title_zh": "Keep repeated external port closes idempotent",
+      "interface_type": "handler_method",
+      "interface": "api/handler.(*ServiceAction).PortOuter",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_port_outer_test.go",
+          "selector": "TestServiceActionPortOuterAlreadyClosedReturnsPort"
         }
       ],
       "test_type": "regression",
@@ -8456,6 +9081,44 @@
         {
           "path": "pkg/component/storage/upload_package_inventory_test.go",
           "selector": "TestS3UploadPackageMeasurementUsesExactEventPrefix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.tenant-resources.skip-unused-cluster-scans",
+      "title": "Skip cluster scans when tenant limit records are complete",
+      "title_zh": "Skip cluster scans when tenant limit records are complete",
+      "interface_type": "handler_method",
+      "interface": "api/handler.TenantAction.GetTenantsResources",
+      "code_paths": [
+        "api/handler/tenant.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsSkipsClusterReads"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesWithLimitsDoesNotWaitForClusterCache"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesMissingLimitsUsesOneClusterFallback"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesEmptyIDsSkipsDownstreamCalls"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesDAOErrors"
+        },
+        {
+          "path": "api/handler/tenant_resources_performance_test.go",
+          "selector": "TestGetTenantsResourcesPreservesZeroFallbackAfterKubernetesFailure"
         }
       ],
       "test_type": "regression",
@@ -10053,6 +10716,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.version.commit-message-utf8",
+      "title": "Version commit messages retain valid UTF-8 when truncated",
+      "title_zh": "\u7248\u672c\u63d0\u4ea4\u4fe1\u606f\u5b89\u5168\u622a\u65ad\u5e76\u5b8c\u6210\u6784\u5efa\u5165\u5e93",
+      "interface_type": "dao_method",
+      "interface": "VersionInfoDaoImpl.AddModel/UpdateModel",
+      "code_paths": [
+        "db/mysql/dao/version.go"
+      ],
+      "tests": [
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsg"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestTruncateVersionCommitMsgMalformedInputDoesNotPanic"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "TestVersionCommitMsgPersistence"
+        },
+        {
+          "path": "db/mysql/dao/version_commit_msg_test.go",
+          "selector": "FuzzTruncateVersionCommitMsg"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.buildkit-startup-retry",
       "title": "Increase VM BuildKit startup retry window",
       "title_zh": "\u589e\u52a0\u865a\u62df\u673a BuildKit \u542f\u52a8\u7b49\u5f85\u6b21\u6570",
@@ -11280,6 +11973,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.app-status-no-unused-component-query",
+      "title": "Single application status avoids unused component query",
+      "title_zh": "\u5355\u5e94\u7528\u72b6\u6001\u907f\u514d\u65e0\u7528\u7ec4\u4ef6\u67e5\u8be2\u4e14\u4fdd\u7559\u8d44\u6e90\u53caHelm\u884c\u4e3a",
+      "interface_type": "workflow",
+      "interface": "worker/server.RuntimeServer.GetAppStatus",
+      "code_paths": [
+        "worker/server/server.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusSkipsUnusedComponentRead"
+        },
+        {
+          "path": "worker/server/app_status_query_test.go",
+          "selector": "TestGetAppStatusPreservesHelmStatusAndErrors"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.appm.autoscaler.build-hpa-spec",
       "title": "Build HPA metric specs and manifests from autoscaler rules",
       "title_zh": "\u6839\u636e\u81ea\u52a8\u4f38\u7f29\u89c4\u5219\u6784\u5efa HPA \u6307\u6807\u4e0e\u5bf9\u8c61",
@@ -11572,6 +12287,80 @@
         {
           "path": "worker/appm/conversion/version_vm_test.go",
           "selector": "TestBuildStandardVMMemoryUsesFourTimesGuestAboveFloor"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.bounded-mq-health-check",
+      "title": "Bounded and shared worker MQ health checks",
+      "title_zh": "Worker \u6d88\u606f\u961f\u5217\u5065\u5eb7\u68c0\u67e5\u8d85\u65f6\u4e0e\u5e76\u53d1\u4fdd\u62a4",
+      "interface_type": "package_function",
+      "interface": "worker/discover.HealthCheckContext",
+      "code_paths": [
+        "worker/discover/health.go",
+        "worker/discover/manager.go",
+        "worker/monitor/exporter.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckReturnsPromptlyWhenMQIsHealthy"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckUsesOneDeadlineForEnqueueAndDequeue"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckBoundsBackgroundCaller"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckStopsOnCallerCancellation"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCoalescesConcurrentProbes"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCanceledWaiterDoesNotStartAnotherRoundTrip"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckRejectsFailedOrEmptyRoundTrips"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckRecoversAfterTransientMQFailure"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckCanceledRoundTripDoesNotCacheFailure"
+        },
+        {
+          "path": "worker/discover/health_test.go",
+          "selector": "TestHealthCheckContextReportsMissingMQ"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.config-group-component-isolation",
+      "title": "Isolate rendered application configuration by component",
+      "title_zh": "Isolate rendered application configuration by component",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.createEnv",
+      "code_paths": [
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/configgroup_test.go",
+          "selector": "TestConfigGroupComponentIsolation"
         }
       ],
       "test_type": "regression",

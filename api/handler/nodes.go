@@ -3,6 +3,10 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+	"sync"
+
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -20,9 +24,6 @@ import (
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"sort"
-	"strings"
-	"sync"
 
 	"github.com/goodrain/rainbond/api/model"
 
@@ -59,6 +60,7 @@ const (
 // NodesHandler -
 type NodesHandler interface {
 	ListNodes(ctx context.Context) ([]model.NodeInfo, error)
+	ListNodesWithOptions(ctx context.Context, includeStats bool) ([]model.NodeInfo, error)
 	ListChaosNodeArch(ctx context.Context) ([]string, error)
 	GetNodeInfo(ctx context.Context, nodeName string) (model.NodeInfo, error)
 	NodeAction(ctx context.Context, nodeName, action string) error
@@ -94,11 +96,17 @@ type nodesHandle struct {
 
 // ListNodes -
 func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err error) {
+	return n.ListNodesWithOptions(ctx, true)
+}
+
+// ListNodesWithOptions skips optional kubelet and Prometheus work for health-only callers.
+func (n *nodesHandle) ListNodesWithOptions(ctx context.Context, includeStats bool) (res []model.NodeInfo, err error) {
 	nodeList, err := n.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("get node list error: %v", err)
 		return nil, err
 	}
+	res = make([]model.NodeInfo, 0, len(nodeList.Items))
 	for _, node := range nodeList.Items {
 		nodeInfo, err := n.handleNodeInfo(node, false)
 		if err != nil {
@@ -107,9 +115,15 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 		}
 		res = append(res, nodeInfo)
 	}
+	if !includeStats || len(res) == 0 {
+		return res, ctx.Err()
+	}
 	n.setNodesFilesystemStats(ctx, res)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	n.setNodesRequestedResources(res)
-	return res, nil
+	return res, ctx.Err()
 }
 
 // ListChaosNodeArch -
@@ -154,8 +168,10 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 		logrus.Error("get node info handle error:", err)
 		return res, err
 	}
-	if err := n.setNodeFilesystemStats(ctx, nodeName, &res.Resource); err != nil {
-		logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodeName, err)
+	statsErr := n.setNodeFilesystemStats(ctx, nodeName, &res.Resource)
+	res.DiskStatsStatus = nodeDiskStatsStatus(res.Resource, statsErr)
+	if statsErr != nil {
+		logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodeName, statsErr)
 	}
 	return res, nil
 }
@@ -166,6 +182,7 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 }
 
 func (n *nodesHandle) handleNodeInfo(node v1.Node, includeRequestedResources bool) (nodeinfo model.NodeInfo, err error) {
+	nodeinfo.DiskStatsStatus = "not_requested"
 	var condition model.NodeCondition
 	for _, addr := range node.Status.Addresses {
 		switch addr.Type {
@@ -269,14 +286,21 @@ func (n *nodesHandle) setNodesFilesystemStats(ctx context.Context, nodes []model
 		go func() {
 			defer wg.Done()
 			for index := range jobs {
-				if err := n.setNodeFilesystemStats(ctx, nodes[index].Name, &nodes[index].Resource); err != nil {
+				err := n.setNodeFilesystemStats(ctx, nodes[index].Name, &nodes[index].Resource)
+				nodes[index].DiskStatsStatus = nodeDiskStatsStatus(nodes[index].Resource, err)
+				if err != nil {
 					logrus.Warnf("get kubelet filesystem stats for node %s: %v", nodes[index].Name, err)
 				}
 			}
 		}()
 	}
+queueJobs:
 	for i := range nodes {
-		jobs <- i
+		select {
+		case jobs <- i:
+		case <-ctx.Done():
+			break queueJobs
+		}
 	}
 	close(jobs)
 	wg.Wait()

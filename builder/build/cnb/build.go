@@ -8,6 +8,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/build"
 	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,19 @@ func NewBuilder() (build.Build, error) {
 // Build executes the CNB build process
 func (b *Builder) Build(re *build.Request) (*build.Response, error) {
 	re.Logger.Info("Starting CNB build", map[string]string{"step": "builder-exector"})
+
+	if re.ServerType == "pkg" {
+		workspace, cleanup, err := parser.PreparePackageBuildWorkspace(re.SourceDir, re.Commit.Message)
+		if err != nil {
+			re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})
+			return nil, err
+		}
+		defer cleanup()
+		request := *re
+		request.SourceDir = workspace
+		re = &request
+		re.Logger.Info("Prepared source package build input", map[string]string{"step": "build-code"})
+	}
 
 	if err := applyVersionPolicy(re); err != nil {
 		re.Logger.Error(err.Error(), map[string]string{"step": "build-code", "status": "failure"})

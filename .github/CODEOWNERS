@@ -1,0 +1,6 @@
+# Release publishing: upgrade-versions.json is read by every Rainbond console
+# that checks for upgrades, so changes here need a release owner's review.
+/hack/release/                                  @yangkaa
+/.github/workflows/release-publish.yml          @yangkaa
+/.github/workflows/release-v6.yml               @yangkaa
+/.github/workflows/trigger-downstream-releases.yml @yangkaa

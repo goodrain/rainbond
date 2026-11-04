@@ -570,7 +570,8 @@ func UpgradeClaims(clientset kubernetes.Interface, as *v1.AppService, old, new [
 	}
 	for _, claim := range oldMap {
 		if claim != nil {
-			if err := clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{}); err != nil {
+			// A stale claim may already have been removed by an earlier upgrade or externally.
+			if err := clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
 				if err := handleErr(fmt.Sprintf("error deleting claim: %+v: err: %v", claim, err), err); err != nil {
 					return err
 				}

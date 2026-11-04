@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -31,16 +32,18 @@ func (kv *KeyValueStore) Put(key, value string) {
 }
 
 // Get 根据键获取第一个值并删除该键值对中的第一个值
-func (kv *KeyValueStore) Get(key string) (string, bool) {
-	deadline := time.Now().Add(5 * time.Second)
-
+func (kv *KeyValueStore) Get(ctx context.Context, key string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 	for {
-		// 检查是否超时
-		if time.Now().After(deadline) {
-			return "", false
-		}
-
 		kv.mu.Lock()
+		// Recheck cancellation while holding the lock before removing a message.
+		if err := ctx.Err(); err != nil {
+			kv.mu.Unlock()
+			return "", err
+		}
 		values, ok := kv.data[key]
 		if ok && len(values) > 0 {
 			// 获取第一个值并从切片中删除
@@ -51,12 +54,15 @@ func (kv *KeyValueStore) Get(key string) (string, bool) {
 				kv.data[key] = values[1:]
 			}
 			kv.mu.Unlock()
-			return firstValue, true
+			return firstValue, nil
 		}
 		kv.mu.Unlock()
 
-		// 短暂休眠后重试，避免忙等待
-		time.Sleep(100 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-ticker.C:
+		}
 	}
 }
 

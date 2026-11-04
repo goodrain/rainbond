@@ -2,6 +2,7 @@ package conversion
 
 import (
 	"fmt"
+
 	"github.com/goodrain/rainbond/db"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
@@ -19,6 +20,11 @@ func TenantServiceConfigGroup(as *v1.AppService, dbm db.Manager) error {
 
 	var secrets []*corev1.Secret
 	for _, group := range groups {
+		// A binding may precede component creation. Only materialize it once
+		// the component actually belongs to the configuration group's app.
+		if group.AppID != as.AppID {
+			continue
+		}
 		cg := createConfigGroup(as, as.GetNamespace(), group.AppID, group.ConfigGroupName)
 		secret, err := cg.secretForConfigGroup()
 		if err != nil {

@@ -88,7 +88,12 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	if rbdName != "" {
 		serviceID = rbdName
 	} else {
-		serviceID = r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+		contextServiceID, ok := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+		if !ok || contextServiceID == "" {
+			httputil.ReturnError(r, w, http.StatusBadRequest, "rbd_name or service_id is required")
+			return
+		}
+		serviceID = contextServiceID
 	}
 	fileList, err := handler.GetEventHandler().GetLogList(GetServiceAliasID(serviceID))
 	if err != nil {

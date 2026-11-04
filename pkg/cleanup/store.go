@@ -35,12 +35,15 @@ func RetireVersion(begin func() *gorm.DB, tenantID string, expected VersionExpec
 		return RetirementResult{}, tx.Error
 	}
 	defer tx.Rollback()
+	if err := lockSQLiteVersionStore(tx); err != nil {
+		return RetirementResult{}, err
+	}
 	var service serviceRow
-	if err := tx.Table("tenant_services").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND tenant_id = ?", expected.ServiceID, tenantID).First(&service).Error; err != nil {
+	if err := versionStoreQuery(tx).Table("tenant_services").Where("service_id = ? AND tenant_id = ?", expected.ServiceID, tenantID).First(&service).Error; err != nil {
 		return RetirementResult{}, err
 	}
 	var version versionRow
-	if err := tx.Table("tenant_service_version").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND build_version = ?", expected.ServiceID, expected.Version).First(&version).Error; err != nil {
+	if err := versionStoreQuery(tx).Table("tenant_service_version").Where("service_id = ? AND build_version = ?", expected.ServiceID, expected.Version).First(&version).Error; err != nil {
 		return RetirementResult{}, err
 	}
 	var active int
@@ -80,12 +83,15 @@ func InspectVersionRetirement(begin func() *gorm.DB, tenantID string, expected V
 		return "", tx.Error
 	}
 	defer tx.Rollback()
+	if err := lockSQLiteVersionStore(tx); err != nil {
+		return "", err
+	}
 	var service serviceRow
-	if err := tx.Table("tenant_services").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND tenant_id = ?", expected.ServiceID, tenantID).First(&service).Error; err != nil {
+	if err := versionStoreQuery(tx).Table("tenant_services").Where("service_id = ? AND tenant_id = ?", expected.ServiceID, tenantID).First(&service).Error; err != nil {
 		return "", err
 	}
 	var version versionRow
-	err := tx.Table("tenant_service_version").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND build_version = ?", expected.ServiceID, expected.Version).First(&version).Error
+	err := versionStoreQuery(tx).Table("tenant_service_version").Where("service_id = ? AND build_version = ?", expected.ServiceID, expected.Version).First(&version).Error
 	if gorm.IsRecordNotFoundError(err) {
 		if err := tx.Commit().Error; err != nil {
 			return "", err
@@ -119,10 +125,13 @@ func SelectRollbackVersion(begin func() *gorm.DB, tenantID, serviceID, version, 
 		return "", tx.Error
 	}
 	defer tx.Rollback()
+	if err := lockSQLiteVersionStore(tx); err != nil {
+		return "", err
+	}
 	var service serviceRow
 	var record versionRow
 	prepare := func(tx *gorm.DB) ([]string, error) {
-		if err := tx.Table("tenant_services").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND tenant_id = ?", serviceID, tenantID).First(&service).Error; err != nil {
+		if err := versionStoreQuery(tx).Table("tenant_services").Where("service_id = ? AND tenant_id = ?", serviceID, tenantID).First(&service).Error; err != nil {
 			return nil, err
 		}
 		if len(expectedCurrent) > 0 && service.DeployVersion != expectedCurrent[0] {
@@ -131,7 +140,7 @@ func SelectRollbackVersion(begin func() *gorm.DB, tenantID, serviceID, version, 
 		if version == "" && len(expectedCurrent) > 0 {
 			return nil, nil
 		}
-		if err := tx.Table("tenant_service_version").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ? AND build_version = ?", serviceID, version).First(&record).Error; err != nil {
+		if err := versionStoreQuery(tx).Table("tenant_service_version").Where("service_id = ? AND build_version = ?", serviceID, version).First(&record).Error; err != nil {
 			return nil, err
 		}
 		if record.FinalStatus != "success" {
@@ -169,8 +178,11 @@ func InspectVersions(begin func() *gorm.DB, serviceID string) (Inspection, error
 		return Inspection{}, tx.Error
 	}
 	defer tx.Rollback()
+	if err := lockSQLiteVersionStore(tx); err != nil {
+		return Inspection{}, err
+	}
 	var service serviceRow
-	if err := tx.Table("tenant_services").Set("gorm:query_option", "FOR UPDATE").Where("service_id = ?", serviceID).First(&service).Error; err != nil {
+	if err := versionStoreQuery(tx).Table("tenant_services").Where("service_id = ?", serviceID).First(&service).Error; err != nil {
 		return Inspection{}, err
 	}
 	var active int
@@ -191,4 +203,20 @@ func InspectVersions(begin func() *gorm.DB, serviceID string) (Inspection, error
 		return Inspection{}, err
 	}
 	return result, nil
+}
+
+// SQLite has no SELECT FOR UPDATE. Acquire its transaction write lock before
+// reading so retirement and activation cannot race on a stale snapshot.
+func lockSQLiteVersionStore(tx *gorm.DB) error {
+	if tx.Dialect().GetName() != "sqlite3" {
+		return nil
+	}
+	return tx.Exec("UPDATE tenant_services SET deploy_version = deploy_version WHERE 1 = 0").Error
+}
+
+func versionStoreQuery(tx *gorm.DB) *gorm.DB {
+	if tx.Dialect().GetName() == "sqlite3" {
+		return tx
+	}
+	return tx.Set("gorm:query_option", "FOR UPDATE")
 }

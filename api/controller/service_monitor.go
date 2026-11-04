@@ -170,6 +170,7 @@ func (f FileManage) UploadEvent(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// UploadFile uploads files to a container in the selected pod.
 func (f FileManage) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	origin := r.Header.Get("Origin")
@@ -357,6 +358,7 @@ func resolveUploadRelativePath(fileHeader *multipart.FileHeader) (string, bool, 
 	return cleaned, strings.Contains(cleaned, "/"), nil
 }
 
+// DownloadFile serves a file downloaded from a container in the selected pod.
 func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("接收到文件下载请求: Method=%s, ContentType=%s", r.Method, r.Header.Get("Content-Type"))
 
@@ -400,14 +402,14 @@ func (f FileManage) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// 设置成功状态和文件下载头
-	w.Header().Set("status", "success")
-	w.Header().Set("Content-Disposition", "attachment;filename="+fileName)
-
 	logrus.Debugf("开始传输文件: %s", fileName)
-	http.ServeFile(w, r, fileName)
+	if err := serveDownloadedFile(w, r, fileName); err != nil {
+		logrus.Errorf("读取下载文件失败: %v", err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("下载文件失败: %v", err))
+	}
 }
 
+// AppFileDownload copies a file or directory from a container to local storage.
 func (f FileManage) AppFileDownload(containerName, podName, filePath, namespace string) error {
 	// Check if the file exists first
 	checkCmd := []string{"test", "-e", filePath}
@@ -568,6 +570,7 @@ func (f FileManage) downloadUsingTar(containerName, podName, filePath, namespace
 	return nil
 }
 
+// AppFileUpload copies a local file or directory into a container.
 func (f FileManage) AppFileUpload(containerName, podName, srcPath, destPath, namespace string) error {
 	logrus.Debugf("开始上传目录/文件: 源路径=%s, 目标路径=%s", srcPath, destPath)
 

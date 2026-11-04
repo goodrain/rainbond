@@ -20,13 +20,12 @@ package discover
 
 import (
 	"context"
-	"encoding/json"
+	"os"
+	"time"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
-	"os"
-	"sync"
-	"time"
 
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
@@ -38,9 +37,6 @@ import (
 	"github.com/sirupsen/logrus"
 	grpc1 "google.golang.org/grpc"
 )
-
-var healthStatus = make(map[string]string, 1)
-var healthStatusLock sync.Mutex
 
 // TaskNum exec task number
 var TaskNum float64
@@ -64,10 +60,6 @@ func NewTaskManager(store store.Storer,
 	garbageCollector *gc.GarbageCollector) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	handleManager := handle.NewManager(ctx, store, controllermanager, garbageCollector)
-	healthStatusLock.Lock()
-	healthStatus["status"] = "health"
-	healthStatus["info"] = "worker service health"
-	healthStatusLock.Unlock()
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -146,79 +138,4 @@ func (t *TaskManager) Stop() error {
 		t.client.Close()
 	}
 	return nil
-}
-
-// HealthCheck health check
-func HealthCheck() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	mqClient := mq.Default().MqClient
-	if mqClient == nil {
-		healthStatusLock.Lock()
-		healthStatus["status"] = "un_health"
-		healthStatus["info"] = "worker service un_health"
-		result := make(map[string]string)
-		for k, v := range healthStatus {
-			result[k] = v
-		}
-		healthStatusLock.Unlock()
-		return result
-	}
-	taskBody, _ := json.Marshal("health check")
-	err := mqClient.SendBuilderTopic(client.TaskStruct{
-		Topic:    client.WorkerHealth,
-		TaskType: "check_worker_health",
-		TaskBody: taskBody,
-		Arch:     "test",
-	})
-	if err != nil {
-		logrus.Errorf("worker check send worker topic failure: %v", err)
-		healthStatusLock.Lock()
-		healthStatus["status"] = "un_health"
-		healthStatus["info"] = "worker service un_health"
-		result := make(map[string]string)
-		for k, v := range healthStatus {
-			result[k] = v
-		}
-		healthStatusLock.Unlock()
-		return result
-	}
-	// 等待一小段时间确保消息有时间被发送
-	hostName, _ := os.Hostname()
-	// 接收健康检测任务
-	dequeueReq := &pb.DequeueRequest{
-		Topic:      client.WorkerHealth,
-		ClientHost: hostName + "health-worker",
-	}
-	for i := 0; i < 3; i++ {
-		time.Sleep(2 * time.Second)
-		msg, err := mqClient.Dequeue(ctx, dequeueReq)
-		if err != nil {
-			logrus.Errorf("failed to dequeue health check message: %v", err)
-			continue
-		}
-
-		if msg == nil || len(msg.TaskBody) == 0 {
-			continue
-		}
-		healthStatusLock.Lock()
-		healthStatus["status"] = "health"
-		healthStatus["info"] = "worker service health"
-		result := make(map[string]string)
-		for k, v := range healthStatus {
-			result[k] = v
-		}
-		healthStatusLock.Unlock()
-		return result
-	}
-
-	healthStatusLock.Lock()
-	healthStatus["status"] = "un_health"
-	healthStatus["info"] = "worker service un_health"
-	result := make(map[string]string)
-	for k, v := range healthStatus {
-		result[k] = v
-	}
-	healthStatusLock.Unlock()
-	return result
 }

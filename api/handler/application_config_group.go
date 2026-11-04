@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"context"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 // AddConfigGroup -
@@ -25,14 +28,8 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		}
 	}()
 	// Create application configGroup-services
-	for _, s := range services {
-		serviceConfigGroup := dbmodel.ConfigGroupService{
-			AppID:           appID,
-			ConfigGroupName: req.ConfigGroupName,
-			ServiceID:       s.ServiceID,
-			ServiceAlias:    s.ServiceAlias,
-		}
-		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+	for _, serviceConfigGroup := range configGroupServiceBindings(appID, req.ConfigGroupName, req.ServiceIDs, services) {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(serviceConfigGroup); err != nil {
 			if err == bcode.ErrConfigGroupServiceExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -129,14 +126,8 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		tx.Rollback()
 		return nil, err
 	}
-	for _, s := range services {
-		serviceConfigGroup := dbmodel.ConfigGroupService{
-			AppID:           appID,
-			ConfigGroupName: configGroupName,
-			ServiceID:       s.ServiceID,
-			ServiceAlias:    s.ServiceAlias,
-		}
-		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+	for _, serviceConfigGroup := range configGroupServiceBindings(appID, configGroupName, req.ServiceIDs, services) {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(serviceConfigGroup); err != nil {
 			if err == bcode.ErrConfigGroupServiceExist {
 				logrus.Debugf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -193,6 +184,9 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 
 // DeleteConfigGroup -
 func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) error {
+	if err := a.deleteConfigGroupSecrets(appID, []string{configGroupName}); err != nil {
+		return err
+	}
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -226,6 +220,9 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 // BatchDeleteConfigGroup -
 func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames string) error {
 	names := strings.Split(configGroupNames, ",")
+	if err := a.deleteConfigGroupSecrets(appID, names); err != nil {
+		return err
+	}
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).BatchDeleteConfigGroupService(appID, names); err != nil {
 			return err
@@ -238,6 +235,20 @@ func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames strin
 		}
 		return nil
 	})
+}
+
+func (a *ApplicationAction) deleteConfigGroupSecrets(appID string, configGroupNames []string) error {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(appID)
+	if err != nil {
+		return err
+	}
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return a.deleteApplicationConfigSecrets(ctx, tenant.Namespace, appID, configGroupNames)
 }
 
 // ListConfigGroups -
@@ -333,4 +344,25 @@ func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appCon
 		}
 		return db.GetManager().AppConfigGroupItemDaoTransactions(tx).CreateOrUpdateConfigGroupItemsInBatch(cgitems)
 	})
+}
+
+// configGroupServiceBindings preserves selected components that have not reached
+// the region yet. Their IDs are already assigned by the console during creation.
+func configGroupServiceBindings(appID, groupName string, serviceIDs []string, services []*dbmodel.TenantServices) []*dbmodel.ConfigGroupService {
+	aliases := make(map[string]string, len(services))
+	for _, service := range services {
+		aliases[service.ServiceID] = service.ServiceAlias
+	}
+	seen := make(map[string]bool, len(serviceIDs))
+	var bindings []*dbmodel.ConfigGroupService
+	for _, id := range serviceIDs {
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		bindings = append(bindings, &dbmodel.ConfigGroupService{
+			AppID: appID, ConfigGroupName: groupName, ServiceID: id, ServiceAlias: aliases[id],
+		})
+	}
+	return bindings
 }

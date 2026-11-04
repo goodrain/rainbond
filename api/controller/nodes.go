@@ -21,13 +21,15 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
-	"net/http"
 )
 
 // NodesController -
@@ -36,12 +38,16 @@ type NodesController struct {
 
 // ListNodes -
 func (n *NodesController) ListNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := handler.GetNodesHandler().ListNodes(context.Background())
+	nodes, err := listNodesForRequest(r, handler.GetNodesHandler())
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
 	httputil.ReturnSuccess(r, w, nodes)
+}
+
+func listNodesForRequest(r *http.Request, nodes handler.NodesHandler) ([]model.NodeInfo, error) {
+	return nodes.ListNodesWithOptions(r.Context(), r.URL.Query().Get("include_stats") != "false")
 }
 
 // ListNodeArch -

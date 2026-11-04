@@ -2208,7 +2208,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 				return nil, "", err
 			}
 		} else {
-			return nil, "", nil
+			return vsPort, p.Protocol, nil
 		}
 
 	case "open":

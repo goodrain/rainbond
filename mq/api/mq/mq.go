@@ -19,12 +19,13 @@
 package mq
 
 import (
-	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
-	"github.com/goodrain/rainbond/mq/client"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
+	"github.com/goodrain/rainbond/mq/client"
 
 	"golang.org/x/net/context"
 
@@ -123,11 +124,7 @@ func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
 	DequeueNumber++
-	res, ok := e.client.Get(e.queueKey(topic))
-	if !ok {
-		return "", context.DeadlineExceeded
-	}
-	return res, nil
+	return e.client.Get(ctx, e.queueKey(topic))
 }
 
 func (e *etcdQueue) MessageQueueSize(topic string) int64 {

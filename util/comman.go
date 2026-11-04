@@ -545,6 +545,7 @@ func Unzip(archive, target string) error {
 	if err != nil {
 		return fmt.Errorf("error opening archive: %v", err)
 	}
+	defer reader.Close()
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
 	}

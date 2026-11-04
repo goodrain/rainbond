@@ -232,3 +232,55 @@ func TestUpgradeControllerUpgradeManualClaimsReturnsUpdateError(t *testing.T) {
 		t.Fatalf("expected update error to be returned, got %v", err)
 	}
 }
+
+// capability_id: rainbond.manual-pvc-upgrade-delete-idempotent
+func TestUpgradeControllerUpgradeManualClaimsDeletesStaleClaims(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		exists    bool
+		deleteErr error
+	}{
+		{name: "already absent"},
+		{name: "existing", exists: true},
+		{name: "delete failure", exists: true, deleteErr: errors.New("delete denied")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+			claim := manualClaimForTest("manual305", "100Gi")
+			oldApp := &appmtypes.AppService{}
+			oldApp.SetTenant(namespace)
+			oldApp.SetClaimManually(claim.DeepCopy())
+			newApp := &appmtypes.AppService{}
+			newApp.SetTenant(namespace)
+			client := k8sfake.NewSimpleClientset(namespace)
+			if tc.exists {
+				if _, err := client.CoreV1().PersistentVolumeClaims("default").Create(context.Background(), claim, metav1.CreateOptions{}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.deleteErr != nil {
+				client.PrependReactor("delete", "persistentvolumeclaims", func(k8stesting.Action) (bool, runtime.Object, error) {
+					return true, nil, tc.deleteErr
+				})
+			}
+			controller := &upgradeController{manager: &Manager{client: client}}
+			// Repeated upgrades must tolerate a PVC removed by an earlier attempt.
+			for attempt := 0; attempt < 2; attempt++ {
+				if err := controller.upgradeManualClaims(oldApp, newApp); !errors.Is(err, tc.deleteErr) {
+					t.Fatalf("attempt %d: expected %v, got %v", attempt, tc.deleteErr, err)
+				}
+			}
+			claims, err := client.CoreV1().PersistentVolumeClaims("default").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := 0
+			if tc.deleteErr != nil {
+				want = 1
+			}
+			if len(claims.Items) != want {
+				t.Fatalf("expected %d claims, got %d", want, len(claims.Items))
+			}
+		})
+	}
+}

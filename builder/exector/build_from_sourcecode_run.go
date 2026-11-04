@@ -107,8 +107,12 @@ type Commit struct {
 func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
+	serverType := strings.TrimSpace(strings.Replace(gjson.GetBytes(in, "server_type").String(), " ", "", -1))
+	if serverType == "" {
+		serverType = "git"
+	}
 	csi := sources.CodeSourceInfo{
-		ServerType:     strings.Replace(gjson.GetBytes(in, "server_type").String(), " ", "", -1),
+		ServerType:     serverType,
 		RepositoryURL:  gjson.GetBytes(in, "repo_url").String(),
 		Branch:         gjson.GetBytes(in, "branch").String(),
 		User:           gjson.GetBytes(in, "user").String(),
