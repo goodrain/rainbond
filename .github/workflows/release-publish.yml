@@ -9,6 +9,7 @@ name: release-publish
 #   verify   从线上重新下载，确认与产物一致
 #   docs     次版本发布时给文档仓库提版本表草稿 PR（失败不影响 verify）
 #   roi      触发 roi 仓库的发版工作流，构建并上传对应版本的 roi 二进制，跟踪到结束
+#   standalone 构建并推送单机版镜像（RELEASE_STANDALONE=true 才运行）
 #
 # 使用说明与需要配置的 secrets / vars 见 hack/release/README.md。
 #
@@ -513,8 +514,19 @@ jobs:
             --line "amd64 / arm64 二进制已上传，并从线上回读校验了嵌入的版本。" \
             --link "$ROI_RUN_URL" --link-text "查看 roi 运行"
 
+  standalone:
+    needs: [prepare, publish]
+    # 和 roi 一样：回滚旧版本时（chart 不是最新）不动单机版。
+    if: vars.RELEASE_STANDALONE == 'true' && needs.prepare.outputs.chart_main_version == needs.prepare.outputs.chart_version
+    uses: ./.github/workflows/release-v6-standalone.yml
+    with:
+      branch: ${{ github.event.release.tag_name || inputs.tag }}
+      version: ${{ github.event.release.tag_name || inputs.tag }}
+      platforms: linux/amd64,linux/arm64
+    secrets: inherit
+
   notify-failure:
-    needs: [prepare, publish, verify, docs, roi]
+    needs: [prepare, publish, verify, docs, roi, standalone]
     if: failure()
     runs-on: ubuntu-latest
     steps:
