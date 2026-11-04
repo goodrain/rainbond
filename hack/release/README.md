@@ -22,12 +22,11 @@ rainbond 发布 release 之后，原来要手工做的发布步骤由
    - **docs**：中版本号变化时给 rainbond-docs 提版本表 draft PR（已有同名 PR 就跳过）；
    - **roi**：`RELEASE_ROI=true` 时触发 goodrain/roi 的 `release-from-rainbond.yml`，构建、上传并回读校验
      roi 二进制，跟踪到结束（线上 roi 已经是这个版本就跳过）。
-   - **standalone**：`RELEASE_STANDALONE=true` 时构建并推送 amd64、arm64 单机版镜像，
-     使用 rainbond-console 对应 tag 的代码。回滚旧版本时跳过。
    离线包不在本流程内，由打包机自动处理，见下文。
 
-单机版用的 `<版本>-esgz` 镜像在发布前由 `release.yml` 的 `esgz` job 生成：把已构建的镜像转成
-eStargz，不重新编译，内容和普通镜像一致。需要补某个版本时手动运行 `release-v6-esgz`。
+单机版在发布前由 `release.yml` 完成：`esgz` job 把已构建的镜像转成 eStargz，不重新编译；
+`standalone` job 构建单机版镜像（`RELEASE_STANDALONE=true` 才运行）；`smoke` job 在干净的 amd64 和 arm64
+机器上全新安装，控制台打不开就不会发布。需要单独运行时，手动触发 `release-v6-esgz`、`release-v6-standalone`、`release-v6-smoke`。
 
 只想重新发布 chart / 安装脚本 / upgrade feed（例如回滚），直接运行 `release-publish`，
 `dry_run` 保持勾选可以只看预览。
@@ -125,7 +124,7 @@ release 流程会把 gate 固定的 commit 传过去，tag 精确打在测过的
 | `RELEASE_CHART_REPO` | `goodrain/rainbond-chart` |
 | `RELEASE_DOCS_REPO` | `goodrain/rainbond-docs` |
 | `RELEASE_ROI` | 不设即关闭；roi 仓库的发版工作流配置好后设为 `true` |
-| `RELEASE_STANDALONE` | 不设即关闭；设为 `true` 后每次发版构建单机版镜像 |
+| `RELEASE_STANDALONE` | 不设即关闭；设为 `true` 后每次发版构建并测试单机版镜像 |
 | `RELEASE_ROI_REPO` | `goodrain/roi` |
 | `RELEASE_ROI_PUBLIC_URL` | `https://get.rainbond.com/roi/roi-amd64`（用来判断线上 roi 是否已是本版本） |
 | `RELEASE_CHART_REPO_URL` | `https://chart.rainbond.com` |
