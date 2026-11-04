@@ -7,6 +7,7 @@ name: release
 #   gate    最近一次全量 E2E 是绿的，且测的就是三个仓库当前 main 的 commit
 #   build   按 gate 固定的 commit 调用 release-v6 构建双架构镜像
 #   images  15 个镜像都是 amd64 + arm64
+#   esgz    把镜像转成单机版要用的 eStargz（<版本>-esgz），失败时不会发布
 #   draft   创建草稿 release（自动生成说明，可在发布前编辑）
 #   go      environment: release-go，审批后再次确认 main 未变化，发布 release
 #
@@ -162,9 +163,18 @@ jobs:
       - name: Verify release images are multi-arch
         run: python3 hack/release/release.py verify-images "$TAG"
 
-  draft:
+  esgz:
     needs: [gate, images]
-    if: always() && needs.images.result == 'success'
+    # 复用已发布镜像的 fork 演练不转换，避免推送到生产镜像仓库。
+    if: always() && needs.images.result == 'success' && vars.RELEASE_REUSE_IMAGES != 'true'
+    uses: ./.github/workflows/release-v6-esgz.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  draft:
+    needs: [gate, images, esgz]
+    if: always() && needs.images.result == 'success' && (needs.esgz.result == 'success' || needs.esgz.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -299,7 +309,7 @@ jobs:
             --link "$RELEASE_URL" --link-text "查看 release"
 
   notify-failure:
-    needs: [gate, build, images, draft, go]
+    needs: [gate, build, images, esgz, draft, go]
     if: failure()
     runs-on: ubuntu-latest
     steps:

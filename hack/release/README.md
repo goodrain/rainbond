@@ -26,6 +26,9 @@ rainbond 发布 release 之后，原来要手工做的发布步骤由
      使用 rainbond-console 对应 tag 的代码。回滚旧版本时跳过。
    离线包不在本流程内，由打包机自动处理，见下文。
 
+单机版用的 `<版本>-esgz` 镜像在发布前由 `release.yml` 的 `esgz` job 生成：把已构建的镜像转成
+eStargz，不重新编译，内容和普通镜像一致。需要补某个版本时手动运行 `release-v6-esgz`。
+
 只想重新发布 chart / 安装脚本 / upgrade feed（例如回滚），直接运行 `release-publish`，
 `dry_run` 保持勾选可以只看预览。
 
