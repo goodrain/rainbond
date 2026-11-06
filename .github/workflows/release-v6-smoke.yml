@@ -1,0 +1,71 @@
+name: "release-v6-smoke"
+
+# 全新安装测试：在干净的机器上启动单机版镜像，等控制台能访问。
+# 发版前运行，E2E 用的是已有环境，测不到从零安装的问题。
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'standalone image version, without the -k3s suffix, for example v6.10.3-release'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Start the standalone image
+        run: |
+          docker run --privileged -d \
+            -p 7070:7070 -p 80:80 -p 443:443 \
+            --name=rainbond \
+            -v /opt/rainbond:/opt/rainbond \
+            -e EIP="$(hostname -I | awk '{print $1}')" \
+            -e REGION_WS_PROXY_TARGET=ws://127.0.0.1:6060 \
+            -e UUID="smoke-${GITHUB_RUN_ID}" \
+            "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-k3s"
+
+      - name: Wait for the console
+        run: |
+          start=$(date +%s)
+          until [ "$(curl -s -o /dev/null -m 10 -w '%{http_code}' http://127.0.0.1:7070/)" = "200" ]; do
+            if [ $(( $(date +%s) - start )) -gt 1200 ]; then
+              echo "::error::console not reachable on 7070 after 20 minutes"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "console reachable after $(( $(date +%s) - start ))s" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the running version
+        run: |
+          curl -fsS -m 20 http://127.0.0.1:7070/console/config/info | python3 -c '
+          import json, os, sys
+          running = json.load(sys.stdin)["data"]["bean"]["version"]["value"]
+          expected = os.environ["VERSION"]
+          print("running", running)
+          sys.exit(0 if running.startswith(expected) else "expected " + expected)
+          '
+
+      - name: Show what went wrong
+        if: failure()
+        run: |
+          kc() { docker exec rainbond /bin/k3s kubectl "$@"; }
+          kc get pods -n rbd-system -o wide || true
+          kc get events -n rbd-system --field-selector type=Warning || true
+          kc logs -n rbd-system -l name=rbd-gateway --all-containers --tail=60 || true
+          docker logs rainbond --tail 40 || true

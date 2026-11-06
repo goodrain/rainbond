@@ -7,6 +7,9 @@ name: release
 #   gate    最近一次全量 E2E 是绿的，且测的就是三个仓库当前 main 的 commit
 #   build   按 gate 固定的 commit 调用 release-v6 构建双架构镜像
 #   images  15 个镜像都是 amd64 + arm64
+#   esgz    把镜像转成单机版要用的 eStargz（<版本>-esgz），失败时不会发布
+#   standalone  构建单机版镜像（RELEASE_STANDALONE=true 才运行）
+#   smoke   在干净的机器上全新安装单机版，控制台打不开就不会发布
 #   draft   创建草稿 release（自动生成说明，可在发布前编辑）
 #   go      environment: release-go，审批后再次确认 main 未变化，发布 release
 #
@@ -162,9 +165,38 @@ jobs:
       - name: Verify release images are multi-arch
         run: python3 hack/release/release.py verify-images "$TAG"
 
-  draft:
+  esgz:
     needs: [gate, images]
-    if: always() && needs.images.result == 'success'
+    # 复用已发布镜像的 fork 演练不转换，避免推送到生产镜像仓库。
+    if: always() && needs.images.result == 'success' && vars.RELEASE_REUSE_IMAGES != 'true'
+    uses: ./.github/workflows/release-v6-esgz.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  standalone:
+    needs: [gate, esgz]
+    if: needs.esgz.result == 'success' && vars.RELEASE_STANDALONE == 'true'
+    uses: ./.github/workflows/release-v6-standalone.yml
+    with:
+      branch: ${{ needs.gate.outputs.console_sha }}
+      version: ${{ inputs.version }}
+      platforms: linux/amd64,linux/arm64
+    secrets: inherit
+
+  smoke:
+    needs: standalone
+    uses: ./.github/workflows/release-v6-smoke.yml
+    with:
+      version: ${{ inputs.version }}
+
+  draft:
+    needs: [gate, images, esgz, standalone, smoke]
+    if: >-
+      always() && needs.images.result == 'success'
+      && (needs.esgz.result == 'success' || needs.esgz.result == 'skipped')
+      && (needs.standalone.result == 'success' || needs.standalone.result == 'skipped')
+      && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -299,7 +331,7 @@ jobs:
             --link "$RELEASE_URL" --link-text "查看 release"
 
   notify-failure:
-    needs: [gate, build, images, draft, go]
+    needs: [gate, build, images, esgz, standalone, smoke, draft, go]
     if: failure()
     runs-on: ubuntu-latest
     steps:
