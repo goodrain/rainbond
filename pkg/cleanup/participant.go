@@ -16,6 +16,16 @@ type ParticipantRegistration struct {
 	StorageID, Generation, Owner, Role, PodUID, ContainerID, ImageID, BindingFingerprint string
 }
 
+func participantIdentity(p ParticipantRegistration) (string, string, error) {
+	if !p.valid() {
+		return "", "", ErrCoordinationChanged
+	}
+	raw, _ := json.Marshal(p)
+	digest := sha256.Sum256(raw)
+	key := sha256.Sum256([]byte(p.StorageID + "\x00" + p.Generation + "\x00" + p.Role + "\x00" + p.Owner))
+	return hex.EncodeToString(key[:]), hex.EncodeToString(digest[:]), nil
+}
+
 func (p ParticipantRegistration) valid() bool {
 	if !coordinationIdentity.MatchString(p.StorageID) || !coordinationIdentity.MatchString(p.Generation) || !coordinationIdentity.MatchString(p.PodUID) || (p.Role != "registry-ingress" && p.Role != "cache-builder") {
 		return false
@@ -39,14 +49,10 @@ func (p ParticipantRegistration) valid() bool {
 
 // RegisterParticipant does not grant cleanup readiness or expire old operations.
 func RegisterParticipant(database *gorm.DB, p ParticipantRegistration) error {
-	if !p.valid() {
-		return ErrCoordinationChanged
+	id, fingerprint, err := participantIdentity(p)
+	if err != nil {
+		return err
 	}
-	raw, _ := json.Marshal(p)
-	digest := sha256.Sum256(raw)
-	fingerprint := hex.EncodeToString(digest[:])
-	key := sha256.Sum256([]byte(p.StorageID + "\x00" + p.Generation + "\x00" + p.Role + "\x00" + p.Owner))
-	id := hex.EncodeToString(key[:])
 	tx := database.Begin()
 	if tx.Error != nil {
 		return tx.Error

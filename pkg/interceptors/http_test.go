@@ -62,6 +62,18 @@ func TestRequestTimeout(t *testing.T) {
 			want:   defaultTimeout,
 		},
 		{
+			name:   "cleanup coordination outlives the global timeout",
+			method: http.MethodPost,
+			path:   "/v2/cleanup/stores/store/reference-inventory",
+			want:   30 * time.Second,
+		},
+		{
+			name:   "cleanup lookalike keeps the default timeout",
+			method: http.MethodPost,
+			path:   "/v2/cleanup-other/stores",
+			want:   defaultTimeout,
+		},
+		{
 			name:   "single Kubernetes resource deletion outlives the global timeout",
 			method: http.MethodDelete,
 			path:   "/v2/cluster/k8s-resource",

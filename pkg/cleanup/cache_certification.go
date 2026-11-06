@@ -90,6 +90,11 @@ func CertifyManagedCacheWriters(database *gorm.DB, binding StorageRegistration, 
 		}
 		return observed, false, nil
 	}
+	if reconciled, err := reconcileRetiredCacheProducerEpoch(tx, binding, members, &row); err != nil {
+		return denied, false, err
+	} else if reconciled {
+		observed.Revision = row.Revision
+	}
 	query := tx.Model(&model.CleanupOperation{}).Where("storage_id = ? AND state <> ?", binding.StorageID, "finished")
 	if self != nil {
 		var own model.CleanupOperation

@@ -1,12 +1,36 @@
 package controller
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"time"
 
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
+
+func waitForGCExecutor(ctx context.Context, interval, timeout time.Duration, inspect func() error) error {
+	if inspect == nil || interval <= 0 || timeout <= 0 {
+		return guard.ErrCoordinationChanged
+	}
+	bounded, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	for {
+		err := inspect()
+		if !errors.Is(err, kubeidentity.ErrExecutorStarting) {
+			return err
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-bounded.Done():
+			timer.Stop()
+			return bounded.Err()
+		case <-timer.C:
+		}
+	}
+}
 
 // EnterGCJob is internal authenticated admission for the original executor.
 // All runtime facts are fetched from Kubernetes; the body carries locators only.
@@ -56,7 +80,12 @@ func (h *CleanupCoordinationHandler) EnterGCJob(w http.ResponseWriter, r *http.R
 		coordinationError(w, r, guard.ErrCoordinationChanged)
 		return
 	}
-	observed, err := kubeidentity.InspectGCExecutor(r.Context(), client, service, job, body.Pod, body.PodUID, storage)
+	var observed kubeidentity.RegistryMountObservation
+	err = waitForGCExecutor(r.Context(), 100*time.Millisecond, 5*time.Second, func() error {
+		var inspectErr error
+		observed, inspectErr = kubeidentity.InspectGCExecutor(r.Context(), client, service, job, body.Pod, body.PodUID, storage)
+		return inspectErr
+	})
 	if err != nil {
 		coordinationError(w, r, guard.ErrCoordinationChanged)
 		return

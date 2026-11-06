@@ -8,6 +8,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 // RegionReferenceAudit covers retained Region records. Console templates,
@@ -33,17 +34,27 @@ type RegionReferenceInventory struct {
 
 var referenceAuditTag = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
 
+const kubeBlocksBuildKind = "kubeblocks"
+
 func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error) {
 	denied := RegionReferenceInventory{}
 	result := RegionReferenceInventory{Complete: true, Images: []string{}}
 	images := map[string]bool{}
 	overflow := false
+	stage := "versions"
+	invalidImages := map[string]int{}
+	invalidSamples := map[string][]string{}
+	versionIncomplete, pluginIncomplete, workloadIncomplete := 0, 0, 0
 	inspect := func(image string) {
 		if image == "" {
 			return
 		}
 		if _, err := reference.ParseNormalizedNamed(image); err != nil {
 			result.Complete = false
+			invalidImages[stage]++
+			if len(invalidSamples[stage]) < 20 {
+				invalidSamples[stage] = append(invalidSamples[stage], image)
+			}
 			return
 		}
 		if len(images) >= 20000 && !images[image] {
@@ -53,7 +64,7 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		images[image] = true
 	}
 	var versions []model.VersionInfo
-	if err := tx.Select("image_name, delivered_type, delivered_path, final_status").Limit(20001).Find(&versions).Error; err != nil {
+	if err := tx.Select("image_name, delivered_type, delivered_path, final_status, kind").Limit(20001).Find(&versions).Error; err != nil {
 		return denied, err
 	}
 	if len(versions) > 20000 {
@@ -64,10 +75,15 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		if version.DeliveredType == "image" {
 			inspect(version.DeliveredPath)
 		}
-		if version.FinalStatus == "success" && version.ImageName == "" && version.DeliveredType != "slug" && (version.DeliveredType != "image" || version.DeliveredPath == "") {
+		// KubeBlocks build events only trigger custom-resource deployment and do
+		// not produce a container image. Their empty image fields are complete
+		// evidence, not an unknown Registry reference.
+		if version.FinalStatus == "success" && version.Kind != kubeBlocksBuildKind && version.ImageName == "" && version.DeliveredType != "slug" && (version.DeliveredType != "image" || version.DeliveredPath == "") {
 			result.Complete = false
+			versionIncomplete++
 		}
 	}
+	stage = "plugins"
 	var plugins []model.TenantPluginBuildVersion
 	if err := tx.Select("base_image, build_local_image, status").Limit(20001).Find(&plugins).Error; err != nil {
 		return denied, err
@@ -80,10 +96,12 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		inspect(plugin.BuildLocalImage)
 		if plugin.Status == "complete" && plugin.BuildLocalImage == "" {
 			result.Complete = false
+			pluginIncomplete++
 		}
 	}
+	stage = "workloads"
 	// Stream bounded documents rather than loading every saved manifest at once.
-	rows, err := tx.Model(&model.K8sResource{}).Select("CASE WHEN LENGTH(content) <= 1048576 THEN content ELSE '' END").Limit(20001).Rows()
+	rows, err := tx.Model(&model.K8sResource{}).Select("kind, CASE WHEN LENGTH(content) <= 1048576 THEN content ELSE '' END").Limit(20001).Rows()
 	if err != nil {
 		return denied, err
 	}
@@ -94,12 +112,19 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 		if count > 20000 {
 			return denied, ErrCoordinationUnavailable
 		}
-		var content string
-		if err := rows.Scan(&content); err != nil {
+		var kind, content string
+		if err := rows.Scan(&kind, &content); err != nil {
 			return denied, err
+		}
+		// CRD schemas describe APIs rather than runnable Pod templates. Large
+		// KubeBlocks CRDs are not Registry references and must not turn a
+		// complete workload audit into unknown coverage.
+		if kind == "CustomResourceDefinition" {
+			continue
 		}
 		if !inspectSavedWorkload(content, inspect) {
 			result.Complete = false
+			workloadIncomplete++
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -108,11 +133,20 @@ func collectRegionReferenceImages(tx *gorm.DB) (RegionReferenceInventory, error)
 	if err := rows.Close(); err != nil {
 		return denied, err
 	}
+	stage = "imports"
 	importComplete, err := inspectImportReferences(tx, inspect)
 	if err != nil {
 		return denied, err
 	}
 	result.Complete = result.Complete && importComplete
+	if !result.Complete {
+		logrus.Warnf("cleanup reference inventory incomplete: versions=%d plugins=%d workloads=%d imports=%t invalid_versions=%d invalid_plugins=%d invalid_workloads=%d invalid_imports=%d",
+			versionIncomplete, pluginIncomplete, workloadIncomplete, importComplete,
+			invalidImages["versions"], invalidImages["plugins"], invalidImages["workloads"], invalidImages["imports"])
+		if len(invalidSamples["workloads"]) > 0 {
+			logrus.Warnf("cleanup invalid saved workload images: %q", invalidSamples["workloads"])
+		}
+	}
 	if overflow {
 		return denied, ErrCoordinationUnavailable
 	}

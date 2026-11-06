@@ -21,6 +21,33 @@ type runtimeRoundTrip func(*http.Request) (*http.Response, error)
 
 func (f runtimeRoundTrip) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
 
+func TestRegistryUpstreamReadyRequiresRegistryIdentityOrAuthChallenge(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		status    int
+		version   string
+		challenge string
+		ready     bool
+	}{
+		{name: "version", status: http.StatusOK, version: "registry/2.0", ready: true},
+		{name: "basic challenge", status: http.StatusUnauthorized, challenge: `Basic realm="Registry Realm"`, ready: true},
+		{name: "bearer challenge", status: http.StatusUnauthorized, challenge: `Bearer realm="https://auth.example/token"`, ready: true},
+		{name: "missing identity", status: http.StatusOK},
+		{name: "missing challenge", status: http.StatusUnauthorized},
+		{name: "unsupported challenge", status: http.StatusUnauthorized, challenge: `Digest realm="other"`},
+		{name: "unavailable", status: http.StatusServiceUnavailable, version: "registry/2.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			header := http.Header{}
+			header.Set("Docker-Distribution-API-Version", tc.version)
+			header.Set("WWW-Authenticate", tc.challenge)
+			if ready := registryUpstreamReady(&http.Response{StatusCode: tc.status, Header: header}); ready != tc.ready {
+				t.Fatalf("unexpected readiness %v", ready)
+			}
+		})
+	}
+}
+
 func TestRuntimeStorageObservationRequiresExactShortLivedPermit(t *testing.T) {
 	root := t.TempDir()
 	binding := coordination.StorageRegistration{StorageID: "store", Generation: "one", VolumeUID: "volume", RootPath: "/var/lib/registry"}
@@ -77,7 +104,7 @@ func TestRuntimeChecksBothMarkerAndRegisteredFingerprint(t *testing.T) {
 	fingerprint, _ := binding.Fingerprint()
 	backend := &runtimeBackend{observation: coordination.StorageObservation{StorageID: "store", Generation: "one", Mode: "collecting", RegistrationFingerprint: fingerprint}}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
+		w.Header().Set("WWW-Authenticate", `Basic realm="Registry Realm"`)
 		w.WriteHeader(401)
 	}))
 	defer upstream.Close()

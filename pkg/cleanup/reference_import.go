@@ -72,7 +72,8 @@ func inspectPendingImportReceipt(key, value string, inspect func(string)) bool {
 		case "success":
 			return complete && len(record.Targets) > 0
 		case "failure":
-			return complete && len(record.Images) == 0 && len(record.Targets) == 0
+			return complete && ((len(record.Images) == 0 && len(record.Targets) == 0) ||
+				(len(record.Targets) > 0 && len(record.Targets) == len(record.Images)))
 		default:
 			return false
 		}

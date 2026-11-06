@@ -8,12 +8,55 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db/model"
 	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	"github.com/jinzhu/gorm"
 )
+
+func TestRegistryCoverageSourcesRunConcurrently(t *testing.T) {
+	started := make(chan string, 3)
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	wait := func(name string) {
+		started <- name
+		<-release
+	}
+	go func() {
+		_, _, _, err := collectRegistryCoverageSources(
+			context.Background(),
+			func(context.Context) ([]guard.ParticipantRegistration, error) {
+				wait("ingress")
+				return []guard.ParticipantRegistration{{PodUID: "registry"}}, nil
+			},
+			func(context.Context) ([]guard.ReferenceWriter, error) {
+				wait("writers")
+				return []guard.ReferenceWriter{{PodUID: "writer"}}, nil
+			},
+			func(context.Context) (guard.RegionReferenceInventory, error) {
+				wait("references")
+				return guard.RegionReferenceInventory{Complete: true}, nil
+			},
+		)
+		done <- err
+	}()
+
+	seen := map[string]bool{}
+	for len(seen) < 3 {
+		select {
+		case name := <-started:
+			seen[name] = true
+		case <-time.After(time.Second):
+			t.Fatal("registry coverage sources ran serially", seen)
+		}
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
 
 // The observed fixtures exercise SQL/HTTP contracts, not production deployment proof.
 func installRegistryCoverageFixture(t *testing.T, h *CleanupCoordinationHandler, binding guard.StorageRegistration) *[]guard.ReferenceWriter {
@@ -42,6 +85,36 @@ func installRegistryCoverageFixture(t *testing.T, h *CleanupCoordinationHandler,
 		t.Fatal("fixture not certified", ready, err)
 	}
 	return &writers
+}
+
+func TestRegistryCertificationReturnsCollectedReferences(t *testing.T) {
+	database, err := gorm.Open("sqlite3", filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	database.LogMode(false)
+	if err := database.AutoMigrate(&model.CleanupStorage{}, &model.CleanupOperation{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	binding, err := guard.ProvisionRegistryStorage(database, "owned-volume", "/owned/registry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &CleanupCoordinationHandler{database: func() *gorm.DB { return database }}
+	installRegistryCoverageFixture(t, h, binding)
+	inspect := h.inspectRegistryCoverage
+	calls := 0
+	h.inspectRegistryCoverage = func(ctx context.Context, binding guard.StorageRegistration, records []guard.ParticipantRegistration) (guard.RegistryCoverage, error) {
+		calls++
+		coverage, err := inspect(ctx, binding, records)
+		coverage.References.Images = []string{"goodrain.me/retained:v1"}
+		return coverage, err
+	}
+	_, ready, references, collected, err := h.certifyRegistryInventory(context.Background(), binding, nil)
+	if err != nil || !ready || !collected || calls != 1 || len(references.Images) != 1 || references.Images[0] != "goodrain.me/retained:v1" {
+		t.Fatal("certification did not return its exact reference observation", ready, collected, calls, references, err)
+	}
 }
 
 // capability_id: rainbond.cleanup.registry-permit-fresh-coverage

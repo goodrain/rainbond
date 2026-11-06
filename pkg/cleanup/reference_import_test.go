@@ -68,6 +68,17 @@ func TestRejectedAndNonImageChecksDoNotInventReferences(t *testing.T) {
 	}
 }
 
+func TestFailedImportWithCompleteTargetMappingRemainsProtected(t *testing.T) {
+	images := []string{}
+	value := `{"status":"failure","images":["source/app:v1"],"target_images":{"source/app:v1":"goodrain.me/team/app:v1"}}`
+	if !inspectImportReceipt("/rainbond/tarload/failed", value, func(image string) { images = append(images, image) }) {
+		t.Fatal("complete failed-import target mapping remained unknown")
+	}
+	if len(images) != 1 || images[0] != "goodrain.me/team/app:v1" {
+		t.Fatal("failed import target was not protected", images)
+	}
+}
+
 func TestMalformedServiceCheckCannotProveEmptyReferences(t *testing.T) {
 	for _, value := range []string{`null`, `{}`, `{"check_status":"unknown"}`} {
 		if inspectImportReceipt("/servicecheck/owned", value, func(string) {}) {

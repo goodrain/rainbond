@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,11 +19,14 @@ import (
 	"github.com/goodrain/rainbond/pkg/cleanup/kubeidentity"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/storage"
+	rainbondclient "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 )
 
 // CleanupCoordinationHandler is an internal Region API. Routes must always use
@@ -323,6 +327,7 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 	storage := chi.URLParam(r, "storage_id")
 	result, err := guard.ReadRegionReferenceInventory(h.database(), storage, body.Generation)
 	if err != nil {
+		logrus.Errorf("cleanup registry reference inventory collection failed: source=database error=%v", err)
 		coordinationError(w, r, err)
 		return
 	}
@@ -330,19 +335,26 @@ func (h *CleanupCoordinationHandler) RegistryReferenceInventory(w http.ResponseW
 		coordinationError(w, r, guard.ErrCoordinationUnavailable)
 		return
 	}
-	helm, err := h.clusterReferences(r.Context())
-	if err != nil {
-		coordinationError(w, r, guard.ErrCoordinationUnavailable)
-		return
-	}
-	result = guard.MergeReferenceInventories(result, helm)
 	// Manual inventory collection refreshes readiness from current deployment
 	// evidence. Health/status reads remain side-effect free. Missing evidence
 	// preserves the reference inventory but cannot certify deletion candidates.
-	ready := false
+	ready, referencesCollected := false, false
 	if binding, bindingErr := guard.StorageBinding(h.database(), storage, body.Generation); bindingErr == nil {
-		_, certified, certificationErr := h.certifyRegistry(r.Context(), binding, nil)
+		_, certified, references, collected, certificationErr := h.certifyRegistryInventory(r.Context(), binding, nil)
 		ready = certificationErr == nil && certified
+		if collected {
+			result = guard.MergeReferenceInventories(result, references)
+			referencesCollected = true
+		}
+	}
+	if !referencesCollected {
+		references, referenceErr := h.clusterReferences(r.Context())
+		if referenceErr != nil {
+			logrus.Errorf("cleanup registry reference inventory collection failed: source=kubernetes error=%v", referenceErr)
+			coordinationError(w, r, guard.ErrCoordinationUnavailable)
+			return
+		}
+		result = guard.MergeReferenceInventories(result, references)
 	}
 	httputil.ReturnSuccess(r, w, struct {
 		Protocol      int    `json:"protocol"`
@@ -576,7 +588,7 @@ func (h *CleanupCoordinationHandler) StorageStatus(w http.ResponseWriter, r *htt
 func systemRegistryInspectionTarget() (kubernetes.Interface, string, string, error) {
 	component := k8s.Default()
 	configuration := configs.Default()
-	if component == nil || component.Clientset == nil || configuration.PublicConfig == nil || configuration.ServerConfig == nil {
+	if component == nil || component.RestConfig == nil || configuration.PublicConfig == nil || configuration.ServerConfig == nil {
 		return nil, "", "", kubeidentity.ErrBinding
 	}
 	namespace := configuration.PublicConfig.RbdNamespace
@@ -589,7 +601,11 @@ func systemRegistryInspectionTarget() (kubernetes.Interface, string, string, err
 	if host != service && host != service+"."+namespace && host != service+"."+namespace+".svc" && host != service+"."+namespace+".svc.cluster.local" {
 		return nil, "", "", kubeidentity.ErrBinding
 	}
-	return component.Clientset, namespace, service, nil
+	client, err := kubernetes.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return nil, "", "", kubeidentity.ErrBinding
+	}
+	return client, namespace, service, nil
 }
 func inspectSystemRegistry(ctx context.Context, pod, uid string) (kubeidentity.RegistryPreparation, error) {
 	client, namespace, service, err := systemRegistryInspectionTarget()
@@ -812,30 +828,54 @@ func (h *CleanupCoordinationHandler) PrepareManagedCache(w http.ResponseWriter, 
 	}{1, quiescent, binding, status, observed.NodeUID, observed.Mount.NodeName})
 }
 
+func cleanupReferenceRestConfig(source *rest.Config) *rest.Config {
+	if source == nil {
+		return nil
+	}
+	configured := rest.CopyConfig(source)
+	configured.RateLimiter = nil
+	configured.QPS = 20
+	configured.Burst = 40
+	return configured
+}
+
 func systemClusterReferenceInventory(ctx context.Context) (guard.RegionReferenceInventory, error) {
 	component := k8s.Default()
-	if component == nil || component.RestConfig == nil || component.Clientset == nil {
+	if component == nil || component.RestConfig == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	client, err := metadata.NewForConfig(component.RestConfig)
+	coreClient, err := kubernetes.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
 	if err != nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, component.Clientset, client)
+	dynamicClient, err := dynamic.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	rainbondClient, err := rainbondclient.NewForConfig(cleanupReferenceRestConfig(component.RestConfig))
+	if err != nil {
+		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
+	}
+	helm, err := kubeidentity.ReadHelmReferenceInventory(ctx, coreClient)
+	if err != nil {
+		return guard.RegionReferenceInventory{}, fmt.Errorf("helm releases: %w", err)
 	}
 	configuration := configs.Default()
 	if configuration.PublicConfig == nil {
 		return guard.RegionReferenceInventory{}, guard.ErrCoordinationUnavailable
 	}
-	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, component.Clientset, component.DynamicClient, configuration.PublicConfig.RbdNamespace)
+	helpers, err := kubeidentity.ReadPlatformHelperReferences(ctx, coreClient, dynamicClient, configuration.PublicConfig.RbdNamespace)
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, fmt.Errorf("platform helpers: %w", err)
 	}
-	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, component.RainbondClient, helm.HelmReleases)
+	desired, err := kubeidentity.ReadHelmAppReferenceInventory(ctx, rainbondClient, helm.HelmReleases)
 	if err != nil {
-		return guard.RegionReferenceInventory{}, err
+		return guard.RegionReferenceInventory{}, fmt.Errorf("helm apps: %w", err)
 	}
-	return guard.MergeReferenceInventories(helm, helpers, desired), nil
+	result := guard.MergeReferenceInventories(helm, helpers, desired)
+	if !result.Complete {
+		logrus.Warnf("cleanup Kubernetes reference inventory incomplete: helm=%t helpers=%t helm_apps=%t helm_images=%d helper_images=%d helm_app_images=%d",
+			helm.Complete, helpers.Complete, desired.Complete, len(helm.Images), len(helpers.Images), len(desired.Images))
+	}
+	return result, nil
 }
