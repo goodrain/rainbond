@@ -229,3 +229,13 @@ func TestPrepareVMLocalImageReusesExistingRegistryArtifact(t *testing.T) {
 			client.pullCount, client.tagCount, client.pushCount, client.trustedPushCount)
 	}
 }
+
+func TestRetainedArtifactUsesExplicitSourceRegistryAuthentication(t *testing.T) {
+	item, err := NewImageShareItem([]byte(`{"source_auth":{"user":"test-user","password":"test-placeholder"},"share_info":{"event_id":"test-event"}}`), nil, nil, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.LocalImageUsername != "test-user" || item.LocalImagePassword != "test-placeholder" {
+		t.Fatal("retained artifact source registry authentication was not applied")
+	}
+}

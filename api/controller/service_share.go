@@ -28,7 +28,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//Share 应用分享
+// Share 应用分享
 func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 	//Share ShareService
 	// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/share  v2 shareService
@@ -57,6 +57,8 @@ func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	ccs.TenantName = r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
+	ccs.ServiceAlias = chi.URLParam(r, "service_alias")
 	ccs.Body.EventID = r.Context().Value(ctxutil.ContextKey("event_id")).(string)
 	res, errS := handler.GetShareHandle().Share(serviceID, ccs)
 	if errS != nil {
@@ -66,7 +68,7 @@ func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
-//ShareResult 获取分享结果
+// ShareResult 获取分享结果
 func (t *TenantStruct) ShareResult(w http.ResponseWriter, r *http.Request) {
 	//ShareResult ShareResult
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/share  v2 get_share_result

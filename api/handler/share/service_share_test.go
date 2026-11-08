@@ -240,3 +240,18 @@ func TestServiceShareUsesRequestedDeployVersionForSlugShare(t *testing.T) {
 	}
 	assert.Equal(t, "snapshot-deploy-version", versionDao.requestedVersion)
 }
+
+func TestServiceShareRejectsUnavailableBuild(t *testing.T) {
+	for _, version := range []*dbmodel.VersionInfo{nil, {FinalStatus: "failure", DeliveredType: "image"}} {
+		db.SetTestManager(shareTestManager{
+			tenantServiceDao: &shareTestTenantServiceDao{service: &dbmodel.TenantServices{ServiceID: "component", DeployVersion: "fixed"}},
+			versionInfoDao:   &shareTestVersionInfoDao{versions: map[string]*dbmodel.VersionInfo{"fixed": version}},
+			labelDao:         &shareTestLabelDao{},
+		})
+		mq := &recordingMQClient{}
+		_, apiErr := (&ServiceShareHandle{MQClient: mq}).Share("component", apimodel.ServiceShare{})
+		assert.NotNil(t, apiErr)
+		assert.Empty(t, mq.tasks)
+	}
+	db.SetTestManager(nil)
+}

@@ -58,7 +58,10 @@ func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (
 	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(deployVersion, serviceID)
 	if err != nil {
-		logrus.Error("query service deploy version error", err.Error())
+		return nil, util.CreateAPIHandleErrorFromDBError("查询组件构建产物失败", err)
+	}
+	if version == nil || version.FinalStatus != "success" {
+		return nil, util.CreateAPIHandleError(409, fmt.Errorf("组件没有可交付的成功构建产物"))
 	}
 	shareID := uuid.New().String()
 	var slugPath, shareImageName string
