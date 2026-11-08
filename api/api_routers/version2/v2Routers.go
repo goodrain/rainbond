@@ -834,6 +834,8 @@ func (v2 *V2) prometheusRouter() chi.Router {
 
 func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Post("/delivery-artifacts", controller.GetManager().ShareDeliveryArtifact)
+	r.Get("/delivery-artifacts/{share_id}", controller.GetManager().DeliveryArtifactStatus)
 	r.Post("/export", controller.GetManager().ExportApp)
 	r.Get("/export/{eventID}", controller.GetManager().ExportApp)
 
