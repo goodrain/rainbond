@@ -71,6 +71,8 @@ type vmLoginBootstrap struct {
 }
 
 type vmRuntimeConfig struct {
+	// RootDiskBus stays SATA unless login bootstrap was validated for a Linux disk image.
+	RootDiskBus kubevirtv1.DiskBus
 	Networks    []kubevirtv1.Network
 	Interfaces  []kubevirtv1.Interface
 	Volumes     []kubevirtv1.Volume
@@ -102,6 +104,7 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 	}
 	interfaceModel := resolveVMInterfaceModel()
 	cfg := vmRuntimeConfig{
+		RootDiskBus: kubevirtv1.DiskBusSATA,
 		Networks: []kubevirtv1.Network{
 			{
 				Name: vmPrimaryNetworkName,
@@ -121,6 +124,9 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 		},
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
+	}
+	if login.Mode != vmLoginModeNone {
+		cfg.RootDiskBus = kubevirtv1.DiskBusVirtio
 	}
 	if envConfigMap := buildVMEnvConfigMap(extensionSet, envs, envVarSecrets); envConfigMap != nil {
 		cfg.ConfigMaps = append(cfg.ConfigMaps, envConfigMap)
@@ -148,16 +154,45 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 	}
 	if syncVolume != nil {
 		cfg.Volumes = append(cfg.Volumes, *syncVolume)
-		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
-			Name: vmGuestSyncVolume,
-			DiskDevice: kubevirtv1.DiskDevice{
-				CDRom: &kubevirtv1.CDRomTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
+		syncDiskDevice := kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
 			},
+		}
+		if login.Mode != vmLoginModeNone {
+			syncDiskDevice = kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: cfg.RootDiskBus},
+			}
+		}
+		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
+			Name:       vmGuestSyncVolume,
+			DiskDevice: syncDiskDevice,
 		})
 	}
 	return cfg, nil
+}
+
+func applyVMLoginRootDiskBus(disks []kubevirtv1.Disk, diskMeta map[string]volume.VMDiskMeta,
+	bootPath vmBootPath, rootDiskBus kubevirtv1.DiskBus) []kubevirtv1.Disk {
+	if bootPath != vmBootPathImportedRootDisk || rootDiskBus != kubevirtv1.DiskBusVirtio {
+		return disks
+	}
+	rootMeta, ok := diskMeta[vmDiskRootKey]
+	if !ok || rootMeta.DiskKey != vmDiskRootKey || rootMeta.DeviceType != vmDiskDeviceDisk || rootMeta.DiskName == "" {
+		return disks
+	}
+
+	for index := range disks {
+		if disks[index].Name != rootMeta.DiskName || disks[index].DiskDevice.Disk == nil {
+			continue
+		}
+		updated := append([]kubevirtv1.Disk(nil), disks...)
+		target := *updated[index].DiskDevice.Disk
+		target.Bus = rootDiskBus
+		updated[index].DiskDevice.Disk = &target
+		return updated
+	}
+	return disks
 }
 
 func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret) *corev1.ConfigMap {

@@ -11515,6 +11515,10 @@
         {
           "path": "worker/appm/conversion/vm_runtime_test.go",
           "selector": "TestVMRuntimeAttributeNamesIncludesLoginPasswordHash"
+        },
+        {
+          "path": "worker/appm/conversion/version_vm_test.go",
+          "selector": "TestVMLoginBootstrapUsesVirtioForRootAndBootstrapDisksOnly"
         }
       ],
       "test_type": "regression",

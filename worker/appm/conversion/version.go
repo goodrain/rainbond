@@ -217,6 +217,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = layoutDisks
+		disks = applyVMLoginRootDiskBus(disks, dv.GetVMDiskMeta(), bootPath, vmRuntime.RootDiskBus)
 		layoutVolumes, err := applyVMBootVolumeLayout(as.ExtensionSet, volumes, bootPath)
 		if err != nil {
 			return fmt.Errorf("create vm volume layout failure: %v", err)
