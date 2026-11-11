@@ -562,6 +562,7 @@
 | rainbond.version.commit-message-utf8 | 版本提交信息安全截断并完成构建入库 | active | regression | VersionInfoDaoImpl.AddModel/UpdateModel | db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg<br>db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsgMalformedInputDoesNotPanic<br>db/mysql/dao/version_commit_msg_test.go::TestVersionCommitMsgPersistence<br>db/mysql/dao/version_commit_msg_test.go::FuzzTruncateVersionCommitMsg |
 | rainbond.vm-build.buildkit-startup-retry | 增加虚拟机 BuildKit 启动等待次数 | active | regression | builder/sources.buildctlConnectRetriesMax | builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild<br>builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv |
 | rainbond.vm-build.retain-failed-build-pod | 保留失败的虚拟机构建 Pod 便于诊断 | active | regression | builder/sources.shouldRetainFailedBuildKitJob | builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault<br>builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled |
+| rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
 | rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
@@ -594,6 +595,13 @@
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.vm-runtime-spec-sync-conflict-retry | Retry VM spec sync when KubeVirt update conflicts | active | regression | github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec | api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict |
 | rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
+| rainbond.vm-runtime.password-hash-bootstrap | Bootstrap Ubuntu VM password login from a SHA-512-crypt hash | active | regression | worker/appm/conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_runtime_test.go::TestValidateVMLoginBootstrapModes<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigPasswordLoginCloudInit<br>worker/appm/conversion/vm_runtime_test.go::TestVMRuntimeAttributeNamesIncludesLoginPasswordHash |
+| rainbond.vm-runtime.password-hash-input-boundary | Validate VM password hash attributes before persistence | active | regression | api.handler.ServiceAction.ServiceCreate | api/handler/k8s_attribute_test.go::TestVMLoginPasswordHashAttributeAcceptsConsoleStringEncoding<br>api/handler/k8s_attribute_test.go::TestPlainVMLoginPasswordAttributeRejectedBeforePersistence |
+| rainbond.vm-runtime.password-hash-log-redaction | Redact VM password hashes from worker failure logs | active | regression | worker/appm/controller.startController.logVirtualMachineCreateFailure | worker/appm/controller/start_test.go::TestLogVirtualMachinePasswordHashRedaction |
+| rainbond.vm-runtime.password-hash-read-denial | Deny generic reads of VM login password hashes | active | regression | api.controller.K8sAttributeController.getK8sAttributes | api/controller/k8s_attribute_test.go::TestK8sAttributeControllerDoesNotReturnVMLoginHash |
+| rainbond.vm-runtime.password-hash-request-redaction | Redact VM login credentials from request logs and events | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestDebugRequestBodyRedactsVMLoginSecrets<br>api/middleware/middleware_test.go::TestWrapELRedactsVMLoginSecretsFromLogsAndEvents |
+| rainbond.vm-runtime.ssh-authorized-keys-cloud-init | Inject SSH authorized keys into Linux VM cloud-init | active | regression | worker/appm/conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_runtime_test.go |
+| rainbond.vm-runtime.ssh-authorized-keys-log-redaction | 在虚拟机失败日志中脱敏 cloud-init 输入 | active | regression | worker/appm/controller.startController.logVirtualMachineCreateFailure | worker/appm/controller/start_test.go |
 | rainbond.vm-template-import.registry-restore-progress | 暴露 registry 虚拟机 DataVolume 导入进度 | active | regression | api/handler.vmRestoreDataVolumeNames | api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes |
 | rainbond.vm-template-import.restore-progress | Expose VM template import restore progress | active | unit | api/handler.resolveVMDataVolumeRestoreStatus | api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress<br>api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded<br>api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes |
 | rainbond.vm-template-import.status-restoring | VM restore status is limited to artifact imports | active | unit | api/handler.resolveVMServiceRuntimeStatus | api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError |
@@ -6253,6 +6261,16 @@
 - 代码路径: `builder/sources/image.go`
 - 测试路径: `builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault`, `builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled`
 
+### Gate VM password bootstrap capability by environment
+
+- Capability ID: `rainbond.vm-capabilities.password-bootstrap-env-gate`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.handler.BuildVMCapabilities`
+- 代码路径: `api/handler/vm_capability.go`
+- 测试路径: `api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate`, `api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate`
+
 ### 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘
 
 - Capability ID: `rainbond.vm-config-file-injected-as-configmap-volume`
@@ -6572,6 +6590,76 @@
 - 业务入口: `api/handler.isVMRuntimeSpecAttribute`
 - 代码路径: `api/handler/k8s_attribute.go`
 - 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
+
+### Bootstrap Ubuntu VM password login from a SHA-512-crypt hash
+
+- Capability ID: `rainbond.vm-runtime.password-hash-bootstrap`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.buildVMRuntimeConfig`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`, `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go::TestValidateVMLoginBootstrapModes`, `worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigPasswordLoginCloudInit`, `worker/appm/conversion/vm_runtime_test.go::TestVMRuntimeAttributeNamesIncludesLoginPasswordHash`
+
+### Validate VM password hash attributes before persistence
+
+- Capability ID: `rainbond.vm-runtime.password-hash-input-boundary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api.handler.ServiceAction.ServiceCreate`
+- 代码路径: `api/handler/k8s_attribute.go`, `api/handler/service.go`, `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `api/handler/k8s_attribute_test.go::TestVMLoginPasswordHashAttributeAcceptsConsoleStringEncoding`, `api/handler/k8s_attribute_test.go::TestPlainVMLoginPasswordAttributeRejectedBeforePersistence`
+
+### Redact VM password hashes from worker failure logs
+
+- Capability ID: `rainbond.vm-runtime.password-hash-log-redaction`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.startController.logVirtualMachineCreateFailure`
+- 代码路径: `worker/appm/controller/start.go`
+- 测试路径: `worker/appm/controller/start_test.go::TestLogVirtualMachinePasswordHashRedaction`
+
+### Deny generic reads of VM login password hashes
+
+- Capability ID: `rainbond.vm-runtime.password-hash-read-denial`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `api.controller.K8sAttributeController.getK8sAttributes`
+- 代码路径: `api/controller/k8s_attribute.go`
+- 测试路径: `api/controller/k8s_attribute_test.go::TestK8sAttributeControllerDoesNotReturnVMLoginHash`
+
+### Redact VM login credentials from request logs and events
+
+- Capability ID: `rainbond.vm-runtime.password-hash-request-redaction`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/middleware.WrapEL`
+- 代码路径: `api/middleware/middleware.go`
+- 测试路径: `api/middleware/middleware_test.go::TestDebugRequestBodyRedactsVMLoginSecrets`, `api/middleware/middleware_test.go::TestWrapELRedactsVMLoginSecretsFromLogsAndEvents`
+
+### Inject SSH authorized keys into Linux VM cloud-init
+
+- Capability ID: `rainbond.vm-runtime.ssh-authorized-keys-cloud-init`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `worker/appm/conversion.buildVMRuntimeConfig`
+- 代码路径: `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `worker/appm/conversion/vm_runtime_test.go`
+
+### 在虚拟机失败日志中脱敏 cloud-init 输入
+
+- Capability ID: `rainbond.vm-runtime.ssh-authorized-keys-log-redaction`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.startController.logVirtualMachineCreateFailure`
+- 代码路径: `worker/appm/controller/start.go`
+- 测试路径: `worker/appm/controller/start_test.go`
 
 ### 暴露 registry 虚拟机 DataVolume 导入进度
 

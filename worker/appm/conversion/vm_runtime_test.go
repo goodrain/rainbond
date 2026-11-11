@@ -3,10 +3,17 @@ package conversion
 // capability_id: rainbond.worker.appm.vm-container-disk-cdrom
 
 import (
+	"bytes"
+	"crypto/ed25519"
+	cryptorand "crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
@@ -439,4 +446,287 @@ func TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk(t *testing
 	if disks[0].Name != "driver-media" || disks[0].DiskDevice.CDRom == nil {
 		t.Fatalf("expected driver-media cdrom disk, got %#v", disks[0])
 	}
+}
+
+// capability_id: rainbond.vm-runtime.ssh-authorized-keys-cloud-init
+func TestValidateVMSSHBootstrap(t *testing.T) {
+	signer, err := ssh.NewSignerFromKey(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{7}, ed25519.SeedSize)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizedKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+	tests := []struct {
+		name     string
+		username string
+		key      string
+		wantErr  bool
+	}{
+		{name: "valid public key", username: "ubuntu", key: authorizedKey},
+		{name: "missing pair"},
+		{name: "invalid username", username: "ubuntu;id", key: authorizedKey, wantErr: true},
+		{name: "partial username", username: "ubuntu", wantErr: true},
+		{name: "partial key", key: authorizedKey, wantErr: true},
+		{name: "private key", username: "ubuntu", key: "-----BEGIN OPENSSH PRIVATE KEY-----", wantErr: true},
+		{name: "multiple lines", username: "ubuntu", key: authorizedKey + "\n" + authorizedKey, wantErr: true},
+		{name: "invalid key syntax", username: "ubuntu", key: "ssh-ed25519 not-base64", wantErr: true},
+		{name: "oversized key", username: "ubuntu", key: "ssh-ed25519 " + strings.Repeat("A", vmSSHAuthorizedKeyLimit), wantErr: true},
+		{name: "key options", username: "ubuntu", key: "command=\"id\" " + authorizedKey, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateVMLoginBootstrap(map[string]string{
+				vmSSHUsernameKey: tt.username, vmSSHPublicKeyKey: tt.key,
+			})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && tt.key != "" && strings.Contains(err.Error(), tt.key) {
+				t.Fatal("validation error contains submitted key text")
+			}
+			if !tt.wantErr && tt.username != "" && (got.Username != tt.username || got.AuthorizedKey != authorizedKey || got.Mode != vmLoginModeSSHKey) {
+				t.Fatal("validated SSH login did not match the submitted username and key")
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.vm-runtime.ssh-authorized-keys-cloud-init
+func TestBuildVMRuntimeConfigMergesSSHKeyAndGuestFileSync(t *testing.T) {
+	signer, err := ssh.NewSignerFromKey(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{9}, ed25519.SeedSize)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizedKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2",
+		vmSSHUsernameKey: "ubuntu", vmSSHPublicKeyKey: authorizedKey,
+	}, nil, nil, []volume.VMGuestFile{{VolumeLabel: "RBDTEST", SourceFile: "settings.conf", TargetPath: "/etc/rainbond/settings.conf", Mode: "0644"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Volumes) != 1 || cfg.Volumes[0].CloudInitNoCloud == nil {
+		t.Fatalf("expected one cloud-init volume, got %#v", cfg.Volumes)
+	}
+	userData := cfg.Volumes[0].CloudInitNoCloud.UserData
+	if !strings.HasPrefix(userData, "#cloud-config\n") {
+		t.Fatal("SSH bootstrap must be rendered as cloud-config so password SSH can be explicitly disabled")
+	}
+	var config map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(userData, "#cloud-config\n")), &config); err != nil {
+		t.Fatalf("expected JSON-compatible cloud-config, got %v", err)
+	}
+	if passwordSSH, ok := config["ssh_pwauth"].(bool); !ok || passwordSSH {
+		t.Fatalf("expected cloud-init to disable password SSH, got %#v", config["ssh_pwauth"])
+	}
+	users, ok := config["users"].([]any)
+	if !ok || len(users) != 2 {
+		t.Fatalf("expected default and bootstrap user definitions, got %#v", config["users"])
+	}
+	user, ok := users[1].(map[string]any)
+	if !ok || user["name"] != "ubuntu" {
+		t.Fatalf("expected Ubuntu bootstrap user, got %#v", users[1])
+	}
+	keys, ok := user["ssh_authorized_keys"].([]any)
+	if !ok || len(keys) != 1 || keys[0] != authorizedKey {
+		t.Fatalf("expected exactly one authorized key, got %#v", user["ssh_authorized_keys"])
+	}
+	writeFiles, ok := config["write_files"].([]any)
+	if !ok || len(writeFiles) != 1 {
+		t.Fatalf("expected guest-file sync script to be written, got %#v", config["write_files"])
+	}
+	syncFile, ok := writeFiles[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected guest-file sync file definition, got %#v", writeFiles[0])
+	}
+	content, _ := syncFile["content"].(string)
+	path, _ := syncFile["path"].(string)
+	for _, want := range []string{"settings.conf", "RBDTEST", "/etc/rainbond/settings.conf", "90-rainbond-sync.sh"} {
+		if !strings.Contains(content, want) && !strings.Contains(path, want) {
+			t.Errorf("guest-file sync cloud-init is missing %q", want)
+		}
+	}
+}
+
+// capability_id: rainbond.vm-runtime.ssh-authorized-keys-cloud-init
+func TestBuildVMRuntimeConfigRejectsSSHBootstrapForISOOrNonLinuxGuest(t *testing.T) {
+	signer, err := ssh.NewSignerFromKey(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{11}, ed25519.SeedSize)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizedKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+	for _, tc := range []struct {
+		name string
+		os   string
+		fmt  string
+	}{
+		{name: "ISO", os: "Ubuntu 24.04", fmt: "iso"},
+		{name: "Windows disk", os: "Windows Server 2025", fmt: "qcow2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := buildVMRuntimeConfig(map[string]string{
+				vmOSNameKey: tc.os, vmBootSourceFormatKey: tc.fmt,
+				vmSSHUsernameKey: "ubuntu", vmSSHPublicKeyKey: authorizedKey,
+			}, nil, nil, nil)
+			if err == nil {
+				t.Fatal("expected Linux disk-boot validation error")
+			}
+			if strings.Contains(err.Error(), authorizedKey) {
+				t.Fatal("validation error contains submitted key text")
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.vm-runtime.ssh-authorized-keys-cloud-init
+func TestVMRuntimeAttributeNamesIncludesSSHBootstrap(t *testing.T) {
+	names := vmRuntimeAttributeNames()
+	found := map[string]bool{"vm_ssh_username": false, "vm_ssh_authorized_key": false}
+	for _, name := range names {
+		if _, ok := found[name]; ok {
+			found[name] = true
+		}
+	}
+	for name, ok := range found {
+		if !ok {
+			t.Errorf("worker does not hydrate %s", name)
+		}
+	}
+}
+
+// capability_id: rainbond.vm-runtime.password-hash-bootstrap
+func TestValidateVMLoginBootstrapModes(t *testing.T) {
+	key := generatedVMTestAuthorizedKey(t)
+	hash := generatedVMTestSHA512CryptHash(t)
+	tests := []struct {
+		name    string
+		attrs   map[string]string
+		mode    vmLoginMode
+		wantErr bool
+	}{
+		{name: "no login settings", attrs: nil, mode: vmLoginModeNone},
+		{name: "key login", attrs: map[string]string{vmSSHUsernameKey: "ubuntu", vmSSHPublicKeyKey: key}, mode: vmLoginModeSSHKey},
+		{name: "password hash login", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: hash}, mode: vmLoginModePassword},
+		{name: "key and hash mixed", attrs: map[string]string{vmSSHUsernameKey: "ubuntu", vmSSHPublicKeyKey: key, vmLoginPasswordHashKey: hash}, wantErr: true},
+		{name: "plain password rejected", attrs: map[string]string{vmSSHUsernameKey: "ubuntu", "vm_login_password": "not-a-hash"}, wantErr: true},
+		{name: "password username required", attrs: map[string]string{vmLoginPasswordHashKey: hash}, wantErr: true},
+		{name: "password root rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "root", vmLoginPasswordHashKey: hash}, wantErr: true},
+		{name: "password ISO rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "iso", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: hash}, wantErr: true},
+		{name: "password Windows rejected", attrs: map[string]string{vmOSNameKey: "Windows Server 2025", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: hash}, wantErr: true},
+		{name: "rounds below minimum rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: strings.Replace(hash, "rounds=500000", "rounds=099999", 1)}, wantErr: true},
+		{name: "rounds above maximum rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: strings.Replace(hash, "rounds=500000", "rounds=1000001", 1)}, wantErr: true},
+		{name: "bad salt rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: "$6$rounds=500000$short$" + strings.Repeat("A", 86)}, wantErr: true},
+		{name: "bad digest length rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: "$6$rounds=500000$0123456789abcdef$" + strings.Repeat("A", 85)}, wantErr: true},
+		{name: "wrong crypt algorithm rejected", attrs: map[string]string{vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2", vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: strings.Replace(hash, "$6$", "$5$", 1)}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateVMLoginBootstrap(tt.attrs)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validation error state mismatch: %v", err)
+			}
+			if err == nil && got.Mode != tt.mode {
+				t.Fatalf("login mode mismatch: got %q", got.Mode)
+			}
+			if err != nil && strings.Contains(err.Error(), hash) {
+				t.Fatal("validation error echoed a generated credential")
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.vm-runtime.password-hash-bootstrap
+func TestBuildVMRuntimeConfigPasswordLoginCloudInit(t *testing.T) {
+	hash := generatedVMTestSHA512CryptHash(t)
+	cfg, err := buildVMRuntimeConfig(map[string]string{
+		vmOSNameKey: "Ubuntu 24.04", vmBootSourceFormatKey: "qcow2",
+		vmSSHUsernameKey: "ubuntu", vmLoginPasswordHashKey: hash,
+	}, nil, nil, []volume.VMGuestFile{{
+		VolumeLabel: "RBDTEST", SourceFile: "settings.conf",
+		TargetPath: "/etc/rainbond/settings.conf", Mode: "0644",
+	}})
+	if err != nil {
+		t.Fatal("password cloud-init generation failed")
+	}
+	if len(cfg.Volumes) != 1 || cfg.Volumes[0].CloudInitNoCloud == nil {
+		t.Fatal("password login did not create the cloud-init volume")
+	}
+	userData := cfg.Volumes[0].CloudInitNoCloud.UserData
+	if !strings.HasPrefix(userData, "#cloud-config\n") {
+		t.Fatal("password login did not generate cloud-config")
+	}
+	var config map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(userData, "#cloud-config\n")), &config); err != nil {
+		t.Fatal("cloud-init config was not JSON-compatible")
+	}
+	if config["ssh_pwauth"] != true {
+		t.Fatal("password mode did not enable SSH password authentication")
+	}
+	users, ok := config["users"].([]any)
+	if !ok || len(users) != 2 || users[0] != "default" {
+		t.Fatal("password mode did not preserve the default cloud-image user")
+	}
+	user, ok := users[1].(map[string]any)
+	if !ok || user["name"] != "ubuntu" || user["hashed_passwd"] != hash || user["lock_passwd"] != false {
+		t.Fatal("password mode did not configure an unlocked hash-backed user")
+	}
+	if user["sudo"] != "ALL=(ALL) ALL" || user["shell"] != "/bin/bash" {
+		t.Fatal("password user did not receive the approved Ubuntu admin shell configuration")
+	}
+	if _, ok := user["ssh_authorized_keys"]; ok {
+		t.Fatal("password mode unexpectedly emitted an SSH key")
+	}
+	groups, ok := user["groups"].([]any)
+	if !ok || len(groups) != 1 || groups[0] != "sudo" {
+		t.Fatal("password user was not added to the sudo group")
+	}
+	files, ok := config["write_files"].([]any)
+	if !ok || len(files) != 1 {
+		t.Fatal("password mode did not preserve guest file sync")
+	}
+	file, ok := files[0].(map[string]any)
+	if !ok {
+		t.Fatal("guest file sync definition is invalid")
+	}
+	path, _ := file["path"].(string)
+	content, _ := file["content"].(string)
+	if !strings.Contains(path, "90-rainbond-sync.sh") || !strings.Contains(content, "settings.conf") || !strings.Contains(content, "RBDTEST") {
+		t.Fatal("password mode changed the guest file sync payload")
+	}
+}
+
+// capability_id: rainbond.vm-runtime.password-hash-bootstrap
+func TestVMRuntimeAttributeNamesIncludesLoginPasswordHash(t *testing.T) {
+	for _, name := range vmRuntimeAttributeNames() {
+		if name == vmLoginPasswordHashKey {
+			return
+		}
+	}
+	t.Fatal("worker does not hydrate the VM login hash attribute")
+}
+
+func generatedVMTestSHA512CryptHash(t *testing.T) string {
+	t.Helper()
+	saltBytes := make([]byte, 8)
+	if _, err := cryptorand.Read(saltBytes); err != nil {
+		t.Fatal("could not generate test hash material")
+	}
+	alphabet := "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	digest := make([]byte, 86)
+	for i := range digest {
+		index, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(len(alphabet))))
+		if err != nil {
+			t.Fatal("could not generate test hash material")
+		}
+		digest[i] = alphabet[index.Int64()]
+	}
+	return "$6$rounds=500000$" + hex.EncodeToString(saltBytes) + "$" + string(digest)
+}
+
+func generatedVMTestAuthorizedKey(t *testing.T) string {
+	t.Helper()
+	signer, err := ssh.NewSignerFromKey(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{7}, ed25519.SeedSize)))
+	if err != nil {
+		t.Fatal("could not generate test public key")
+	}
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
 }

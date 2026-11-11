@@ -52,6 +52,10 @@ func (k *K8sAttributeController) getK8sAttributes(w http.ResponseWriter, r *http
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
 	}
+	if k8sAttrGet.Name == "vm_login_password_hash" {
+		httputil.ReturnError(r, w, http.StatusForbidden, "VM login credential is not readable")
+		return
+	}
 	atts, err := handler.GetServiceManager().GetK8sAttribute(componentID, k8sAttrGet.Name)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)

@@ -355,7 +355,8 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 			if err != nil {
 				logrus.Warningf("error reading request body: %v", err)
 			} else {
-				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+				safeBody := redactVMLoginRequestBody(body, isVMLoginSensitiveRoute(r.URL.Path, optType))
+				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(safeBody))
 			}
 			// set a new body, which will simulate the same data we read
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
@@ -421,7 +422,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 					"optType":  optType,
 					"targetID": targetID,
 					"tenantID": tenantID,
-					"body":     string(body),
+					"body":     string(redactVMLoginRequestBody(body, isVMLoginSensitiveRoute(r.URL.Path, optType))),
 					"operator": operator,
 					"synType":  synType,
 				})
@@ -429,7 +430,8 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int, resourceVal
 				f(rw, r.WithContext(ctx))
 			} else {
 				// Normal flow: create event immediately
-				event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, "", "", synType)
+				eventBody := redactVMLoginRequestBody(body, isVMLoginSensitiveRoute(r.URL.Path, optType))
+				event, err := util.CreateEvent(target, optType, targetID, tenantID, string(eventBody), operator, "", "", synType)
 				if err != nil {
 					logrus.Error("create event error : ", err)
 					httputil.ReturnError(r, w, 500, "操作失败")
@@ -473,10 +475,95 @@ func debugRequestBody(r *http.Request) {
 		if err != nil {
 			logrus.Warningf("error reading request body: %v", err)
 		}
-		logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+		safeBody := redactVMLoginRequestBody(body, isVMLoginSensitiveRoute(r.URL.Path, ""))
+		logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(safeBody))
 
 		// set a new body, which will simulate the same data we read
 		r.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
+}
+
+func isVMLoginSensitiveRoute(path, optType string) bool {
+	switch optType {
+	case "create-service", "create-component-k8s-attributes", "update-component-k8s-attributes":
+		return true
+	}
+	path = strings.TrimSuffix(strings.SplitN(path, "?", 2)[0], "/")
+	return strings.HasSuffix(path, "/services") || strings.HasSuffix(path, "/k8s-attributes")
+}
+
+func redactVMLoginRequestBody(body []byte, sensitiveRoute bool) []byte {
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		if sensitiveRoute {
+			return []byte("[REDACTED malformed VM login request]")
+		}
+		return body
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if sensitiveRoute {
+			return []byte("[REDACTED malformed VM login request]")
+		}
+		return body
+	}
+	if !redactVMLoginJSONValue(value) {
+		return body
+	}
+	safeBody, err := json.Marshal(value)
+	if err != nil {
+		return []byte("[REDACTED VM login request]")
+	}
+	return safeBody
+}
+
+func redactVMLoginJSONValue(value any) bool {
+	switch node := value.(type) {
+	case map[string]any:
+		changed := false
+		if name, _ := node["name"].(string); isVMLoginSensitiveAttribute(name) {
+			for _, key := range []string{"attribute_value", "value"} {
+				if _, exists := node[key]; exists {
+					node[key] = "[REDACTED]"
+					changed = true
+				}
+			}
+		}
+		for key, child := range node {
+			switch key {
+			case "login_password", "login_password_hash", "vm_login_password_hash", "ssh_public_key", "vm_ssh_authorized_key":
+				if child != nil {
+					node[key] = "[REDACTED]"
+					changed = true
+				}
+			default:
+				if redactVMLoginJSONValue(child) {
+					changed = true
+				}
+			}
+		}
+		return changed
+	case []any:
+		changed := false
+		for _, child := range node {
+			if redactVMLoginJSONValue(child) {
+				changed = true
+			}
+		}
+		return changed
+	default:
+		return false
+	}
+}
+
+func isVMLoginSensitiveAttribute(name string) bool {
+	switch name {
+	case "login_password", "login_password_hash", "vm_login_password", "vm_login_password_hash", "ssh_public_key", "vm_ssh_authorized_key":
+		return true
+	default:
+		return false
 	}
 }
 

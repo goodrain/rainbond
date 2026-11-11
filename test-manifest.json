@@ -10790,6 +10790,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-capabilities.password-bootstrap-env-gate",
+      "title": "Gate VM password bootstrap capability by environment",
+      "title_zh": "Gate VM password bootstrap capability by environment",
+      "interface_type": "handler_method",
+      "interface": "api.handler.BuildVMCapabilities",
+      "code_paths": [
+        "api/handler/vm_capability.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_capability_test.go",
+          "selector": "TestBuildVMCapabilitiesPasswordBootstrapEnvGate"
+        },
+        {
+          "path": "api/controller/vm_capability_test.go",
+          "selector": "TestVMCapabilityControllerReturnsPasswordBootstrapGate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-config-file-injected-as-configmap-volume",
       "title": "Inject VM config-file volumes as guest-visible ConfigMap disks",
       "title_zh": "\u5c06 VM \u914d\u7f6e\u6587\u4ef6\u5377\u6ce8\u5165\u4e3a guest \u53ef\u89c1\u7684 ConfigMap \u914d\u7f6e\u76d8",
@@ -11466,6 +11488,149 @@
         {
           "path": "api/handler/k8s_attribute_vm_runtime_test.go",
           "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.password-hash-bootstrap",
+      "title": "Bootstrap Ubuntu VM password login from a SHA-512-crypt hash",
+      "title_zh": "Bootstrap Ubuntu VM password login from a SHA-512-crypt hash",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.buildVMRuntimeConfig",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestValidateVMLoginBootstrapModes"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestBuildVMRuntimeConfigPasswordLoginCloudInit"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestVMRuntimeAttributeNamesIncludesLoginPasswordHash"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.password-hash-input-boundary",
+      "title": "Validate VM password hash attributes before persistence",
+      "title_zh": "Validate VM password hash attributes before persistence",
+      "interface_type": "workflow",
+      "interface": "api.handler.ServiceAction.ServiceCreate",
+      "code_paths": [
+        "api/handler/k8s_attribute.go",
+        "api/handler/service.go",
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/k8s_attribute_test.go",
+          "selector": "TestVMLoginPasswordHashAttributeAcceptsConsoleStringEncoding"
+        },
+        {
+          "path": "api/handler/k8s_attribute_test.go",
+          "selector": "TestPlainVMLoginPasswordAttributeRejectedBeforePersistence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.password-hash-log-redaction",
+      "title": "Redact VM password hashes from worker failure logs",
+      "title_zh": "Redact VM password hashes from worker failure logs",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.startController.logVirtualMachineCreateFailure",
+      "code_paths": [
+        "worker/appm/controller/start.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/start_test.go",
+          "selector": "TestLogVirtualMachinePasswordHashRedaction"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.password-hash-read-denial",
+      "title": "Deny generic reads of VM login password hashes",
+      "title_zh": "Deny generic reads of VM login password hashes",
+      "interface_type": "view_endpoint",
+      "interface": "api.controller.K8sAttributeController.getK8sAttributes",
+      "code_paths": [
+        "api/controller/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/k8s_attribute_test.go",
+          "selector": "TestK8sAttributeControllerDoesNotReturnVMLoginHash"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.password-hash-request-redaction",
+      "title": "Redact VM login credentials from request logs and events",
+      "title_zh": "Redact VM login credentials from request logs and events",
+      "interface_type": "workflow",
+      "interface": "api/middleware.WrapEL",
+      "code_paths": [
+        "api/middleware/middleware.go"
+      ],
+      "tests": [
+        {
+          "path": "api/middleware/middleware_test.go",
+          "selector": "TestDebugRequestBodyRedactsVMLoginSecrets"
+        },
+        {
+          "path": "api/middleware/middleware_test.go",
+          "selector": "TestWrapELRedactsVMLoginSecretsFromLogsAndEvents"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.ssh-authorized-keys-cloud-init",
+      "title": "Inject SSH authorized keys into Linux VM cloud-init",
+      "title_zh": "Inject SSH authorized keys into Linux VM cloud-init",
+      "interface_type": "package_function",
+      "interface": "worker/appm/conversion.buildVMRuntimeConfig",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.ssh-authorized-keys-log-redaction",
+      "title": "Redact VM cloud-init input from failure logs",
+      "title_zh": "\u5728\u865a\u62df\u673a\u5931\u8d25\u65e5\u5fd7\u4e2d\u8131\u654f cloud-init \u8f93\u5165",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.startController.logVirtualMachineCreateFailure",
+      "code_paths": [
+        "worker/appm/controller/start.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/start_test.go"
         }
       ],
       "test_type": "regression",

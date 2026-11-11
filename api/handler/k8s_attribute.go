@@ -120,6 +120,9 @@ func (s *ServiceAction) GetK8sAttribute(componentID, name string) (*dbmodel.Comp
 
 // CreateK8sAttribute -
 func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr *apimodel.ComponentK8sAttribute) error {
+	if err := normalizeVMLoginCredentialAttribute(k8sAttr); err != nil {
+		return err
+	}
 	if err := s.getDBManager().ComponentK8sAttributeDao().AddModel(k8sAttr.DbModel(tenantID, componentID)); err != nil {
 		return err
 	}
@@ -128,6 +131,9 @@ func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr
 
 // UpdateK8sAttribute -
 func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *apimodel.ComponentK8sAttribute) error {
+	if err := normalizeVMLoginCredentialAttribute(k8sAttributes); err != nil {
+		return err
+	}
 	attr, err := s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, k8sAttributes.Name)
 	if err != nil {
 		return err
@@ -140,6 +146,33 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 		return err
 	}
 	return s.syncVMRuntimeDevicesForAttribute(componentID, k8sAttributes.Name)
+}
+
+func normalizeVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
+	for i := range attributes {
+		if err := normalizeVMLoginCredentialAttribute(&attributes[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribute) error {
+	if attribute == nil {
+		return nil
+	}
+	switch attribute.Name {
+	case "login_password", "vm_login_password":
+		return fmt.Errorf("plain VM login password attributes are forbidden")
+	case conversion.VMLoginPasswordHashAttribute:
+		hash, err := conversion.NormalizeVMLoginPasswordHash(attribute.AttributeValue)
+		if err != nil {
+			return fmt.Errorf("invalid VM login password hash attribute")
+		}
+		attribute.AttributeValue = hash
+		attribute.SaveType = "string"
+	}
+	return nil
 }
 
 // DeleteK8sAttribute -

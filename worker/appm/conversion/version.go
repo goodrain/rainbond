@@ -1611,6 +1611,9 @@ func vmRuntimeAttributeNames() []string {
 		"vm_usb_resources",
 		"vm_boot_mode",
 		"vm_boot_source_format",
+		vmSSHUsernameKey,
+		vmSSHPublicKeyKey,
+		vmLoginPasswordHashKey,
 		"vm_disk_layout",
 		"vm_fixed_ip_enabled",
 		"vm_fixed_ip",
@@ -1618,7 +1621,7 @@ func vmRuntimeAttributeNames() []string {
 }
 
 func vmBootSourceFormat(extensionSet map[string]string) string {
-	return strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_source_format"]))
+	return strings.ToLower(strings.TrimSpace(extensionSet[vmBootSourceFormatKey]))
 }
 
 func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {
