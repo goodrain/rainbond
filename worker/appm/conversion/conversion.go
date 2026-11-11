@@ -114,6 +114,7 @@ func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs
 			}
 		}
 	}
+	applyDeploymentUpgradeStrategy(appService)
 	return appService, nil
 }
 

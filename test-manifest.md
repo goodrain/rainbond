@@ -648,6 +648,7 @@
 | rainbond.worker.conversion.cmd-args-yaml | Parse component cmd and args attributes as YAML arrays | active | regression | worker/appm/conversion.getMainContainer | api/handler/k8s_attribute_test.go::TestUpdateK8sAttributeUpdatesSaveType<br>worker/appm/conversion/version_cmd_args_test.go::TestParseStringSequenceAttribute |
 | rainbond.worker.conversion.daemonset-workload | 根据组件类型创建 DaemonSet 工作负载 | active | regression | worker.appm.conversion.TenantServiceBase | worker/appm/conversion/service_daemonset_test.go::TestInitBaseDaemonSetCreatesDaemonSetWorkload |
 | rainbond.worker.conversion.pod-security-context | 组件 Pod 安全上下文属性 | active | regression | worker.appm.conversion.createPodSecurityContext | worker/appm/conversion/version_security_context_test.go::TestCreatePodSecurityContextUsesK8sAttribute |
+| rainbond.worker.deployment.single-writer-upgrade | Single-replica exclusive PVC deployments avoid overlapping writers | active | regression | conversion.applyDeploymentUpgradeStrategy | worker/appm/conversion/deployment_strategy_test.go::TestDeploymentUpgradeStrategyProtectsSingleWriterClaims<br>worker/appm/conversion/deployment_strategy_test.go::TestDeploymentUpgradeStrategyKeepsExplicitRecreate |
 | rainbond.worker.helmapp.chart-ref | 根据仓库名与模板名拼装 Helm chart 引用 | active | regression | worker/master/controller/helmapp.App.Chart | worker/master/controller/helmapp/unit_test.go::TestAppChart |
 | rainbond.worker.helmapp.condition-lifecycle | 管理 HelmApp 条件的新增更新与成功态切换 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.UpdateConditionStatus | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionLifecycle |
 | rainbond.worker.helmapp.condition-query | 按类型查询 HelmApp 条件及其真值状态 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppStatus.GetCondition | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppStatusConditionQuery |
@@ -671,6 +672,7 @@
 | rainbond.worker.helmapp.store-full-name | 根据 EID 与商店名构建完整应用商店名称 | active | regression | pkg/apis/rainbond/v1alpha1.HelmAppSpec.FullName | pkg/apis/rainbond/v1alpha1/helmapp_unit_test.go::TestHelmAppSpecFullName |
 | rainbond.worker.helmapp.update-required | 判断已配置 HelmApp 是否需要安装或更新 | active | regression | worker/master/controller/helmapp.App.NeedUpdate | worker/master/controller/helmapp/unit_test.go::TestAppNeedUpdate |
 | rainbond.worker.patch.daemonset-upgrade | DaemonSet 升级补丁生成 | active | regression | worker.appm.types.v1.AppService.SetUpgradePatch | worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch |
+| rainbond.worker.patch.deployment-upgrade-strategy | Deployment upgrade patches apply strategy transitions safely | active | regression | v1.getDeploymentModifiedConfiguration | worker/appm/types/v1/deployment_strategy_patch_test.go::TestDeploymentUpgradePatchAppliesStrategyTransitions<br>worker/appm/types/v1/deployment_strategy_patch_test.go::TestDeploymentUpgradePatchKeepsRollingDefaults |
 | rainbond.worker.pod-status.describe | 根据条件容器状态与事件归类 Pod 状态 | active | regression | worker/util.DescribePodStatus | worker/util/pod_test.go::TestDescribePodStatus |
 | rainbond.worker.status.daemonset | DaemonSet 运行状态计算 | active | regression | worker.appm.types.v1.AppService.GetServiceStatus | worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsRunningForReadyDaemonSet<br>worker/appm/types/v1/status_test.go::TestGetServiceStatusReturnsAbnormalForUnschedulableDaemonSetPod |
 | rainbond.worker.thirdcomponent.prober.execute-endpoint-probe | 执行第三方组件端点探测并映射结果 | active | regression | worker/master/controller/thirdcomponent/prober.prober.probe | worker/master/controller/thirdcomponent/prober/prober_test.go::TestProbe |
@@ -7121,6 +7123,16 @@
 - 代码路径: `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/version_security_context_test.go::TestCreatePodSecurityContextUsesK8sAttribute`
 
+### Single-replica exclusive PVC deployments avoid overlapping writers
+
+- Capability ID: `rainbond.worker.deployment.single-writer-upgrade`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `conversion.applyDeploymentUpgradeStrategy`
+- 代码路径: `worker/appm/conversion/deployment_strategy.go`, `worker/appm/conversion/conversion.go`
+- 测试路径: `worker/appm/conversion/deployment_strategy_test.go::TestDeploymentUpgradeStrategyProtectsSingleWriterClaims`, `worker/appm/conversion/deployment_strategy_test.go::TestDeploymentUpgradeStrategyKeepsExplicitRecreate`
+
 ### 根据仓库名与模板名拼装 Helm chart 引用
 
 - Capability ID: `rainbond.worker.helmapp.chart-ref`
@@ -7350,6 +7362,16 @@
 - 业务入口: `worker.appm.types.v1.AppService.SetUpgradePatch`
 - 代码路径: `worker/appm/types/v1/patch.go`
 - 测试路径: `worker/appm/types/v1/patch_test.go::TestSetUpgradePatchCreatesDaemonSetPatch`
+
+### Deployment upgrade patches apply strategy transitions safely
+
+- Capability ID: `rainbond.worker.patch.deployment-upgrade-strategy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `v1.getDeploymentModifiedConfiguration`
+- 代码路径: `worker/appm/types/v1/patch.go`
+- 测试路径: `worker/appm/types/v1/deployment_strategy_patch_test.go::TestDeploymentUpgradePatchAppliesStrategyTransitions`, `worker/appm/types/v1/deployment_strategy_patch_test.go::TestDeploymentUpgradePatchKeepsRollingDefaults`
 
 ### 根据条件容器状态与事件归类 Pod 状态
 

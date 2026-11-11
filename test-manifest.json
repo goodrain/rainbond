@@ -12591,6 +12591,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.worker.deployment.single-writer-upgrade",
+      "title": "Single-replica exclusive PVC deployments avoid overlapping writers",
+      "title_zh": "Single-replica exclusive PVC deployments avoid overlapping writers",
+      "interface_type": "workflow",
+      "interface": "conversion.applyDeploymentUpgradeStrategy",
+      "code_paths": [
+        "worker/appm/conversion/deployment_strategy.go",
+        "worker/appm/conversion/conversion.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/deployment_strategy_test.go",
+          "selector": "TestDeploymentUpgradeStrategyProtectsSingleWriterClaims"
+        },
+        {
+          "path": "worker/appm/conversion/deployment_strategy_test.go",
+          "selector": "TestDeploymentUpgradeStrategyKeepsExplicitRecreate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.worker.helmapp.chart-ref",
       "title": "Compose Helm chart references from repo and template names",
       "title_zh": "\u6839\u636e\u4ed3\u5e93\u540d\u4e0e\u6a21\u677f\u540d\u62fc\u88c5 Helm chart \u5f15\u7528",
@@ -12994,6 +13017,28 @@
         {
           "path": "worker/appm/types/v1/patch_test.go",
           "selector": "TestSetUpgradePatchCreatesDaemonSetPatch"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.patch.deployment-upgrade-strategy",
+      "title": "Deployment upgrade patches apply strategy transitions safely",
+      "title_zh": "Deployment upgrade patches apply strategy transitions safely",
+      "interface_type": "workflow",
+      "interface": "v1.getDeploymentModifiedConfiguration",
+      "code_paths": [
+        "worker/appm/types/v1/patch.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/types/v1/deployment_strategy_patch_test.go",
+          "selector": "TestDeploymentUpgradePatchAppliesStrategyTransitions"
+        },
+        {
+          "path": "worker/appm/types/v1/deployment_strategy_patch_test.go",
+          "selector": "TestDeploymentUpgradePatchKeepsRollingDefaults"
         }
       ],
       "test_type": "regression",

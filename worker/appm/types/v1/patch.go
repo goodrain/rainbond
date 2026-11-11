@@ -272,16 +272,24 @@ func getDaemonSetAllowFields(d *v1.DaemonSet) *v1.DaemonSet {
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
 	keepSelectorLabels(old.Spec.Selector, &new.Spec.Template)
+	if new.Spec.Strategy.Type == v1.RecreateDeploymentStrategyType {
+		new.Spec.Strategy.RollingUpdate = nil
+	} else if old.Spec.Strategy.Type == v1.RollingUpdateDeploymentStrategyType &&
+		new.Spec.Strategy.Type == v1.RollingUpdateDeploymentStrategyType &&
+		new.Spec.Strategy.RollingUpdate == nil && old.Spec.Strategy.RollingUpdate != nil {
+		new.Spec.Strategy.RollingUpdate = old.Spec.Strategy.RollingUpdate.DeepCopy()
+	}
 	oldNeed := getDeploymentAllowFields(old)
 	newNeed := getDeploymentAllowFields(new)
 	return getchange(oldNeed, newNeed)
 }
 
-// updates to deployment spec for fields other than 'replicas' and 'template' are forbidden.
+// Preserve the selector while allowing updates to replicas, template and strategy.
 func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
 	return &v1.Deployment{
 		Spec: v1.DeploymentSpec{
 			Replicas: d.Spec.Replicas,
+			Strategy: d.Spec.Strategy,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Volumes:          d.Spec.Template.Spec.Volumes,
