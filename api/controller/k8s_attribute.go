@@ -21,6 +21,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/goodrain/rainbond/api/handler"
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -30,7 +31,16 @@ import (
 )
 
 // K8sAttributeController -
-type K8sAttributeController struct{}
+type K8sAttributeController struct {
+	serviceHandler handler.ServiceHandler
+}
+
+func (k *K8sAttributeController) attributeServiceHandler() handler.ServiceHandler {
+	if k.serviceHandler != nil {
+		return k.serviceHandler
+	}
+	return handler.GetServiceManager()
+}
 
 // K8sAttributes -
 func (k *K8sAttributeController) K8sAttributes(w http.ResponseWriter, r *http.Request) {
@@ -57,24 +67,28 @@ func (k *K8sAttributeController) getK8sAttributes(w http.ResponseWriter, r *http
 		httputil.ReturnError(r, w, http.StatusForbidden, "VM login credential is not readable")
 		return
 	}
-	atts, err := handler.GetServiceManager().GetK8sAttribute(componentID, k8sAttrGet.Name)
+	atts, err := k.attributeServiceHandler().GetK8sAttribute(componentID, k8sAttrGet.Name)
 	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+		returnK8sAttributeError(r, w, err)
+		return
+	}
+	if atts != nil && strings.EqualFold(strings.TrimSpace(atts.Name), "vm_login_password_hash") {
+		httputil.ReturnError(r, w, http.StatusForbidden, "VM login credential is not readable")
 		return
 	}
 	if k8sAttrGet.Arch != "" {
 		var attsValue string
 		if atts != nil {
-			attsValue, err = handler.GetServiceManager().ReviseAttributeAffinityByArch(atts.AttributeValue, k8sAttrGet.Arch)
+			attsValue, err = k.attributeServiceHandler().ReviseAttributeAffinityByArch(atts.AttributeValue, k8sAttrGet.Arch)
 			atts.AttributeValue = attsValue
 		} else {
-			attsValue, err = handler.GetServiceManager().ReviseAttributeAffinityByArch("", k8sAttrGet.Arch)
+			attsValue, err = k.attributeServiceHandler().ReviseAttributeAffinityByArch("", k8sAttrGet.Arch)
 			atts = &dbmodel.ComponentK8sAttributes{
 				AttributeValue: attsValue,
 			}
 		}
 		if err != nil {
-			httputil.ReturnBcodeError(r, w, err)
+			returnK8sAttributeError(r, w, err)
 			return
 		}
 	}
@@ -94,8 +108,8 @@ func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *h
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	if err := handler.GetServiceManager().CreateK8sAttribute(tenantID, componentID, &k8sAttr); err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+	if err := k.attributeServiceHandler().CreateK8sAttribute(tenantID, componentID, &k8sAttr); err != nil {
+		returnK8sAttributeError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -112,8 +126,8 @@ func (k *K8sAttributeController) updateK8sAttributes(w http.ResponseWriter, r *h
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	if err := handler.GetServiceManager().UpdateK8sAttribute(componentID, &k8sAttr); err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+	if err := k.attributeServiceHandler().UpdateK8sAttribute(componentID, &k8sAttr); err != nil {
+		returnK8sAttributeError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -126,8 +140,8 @@ func (k *K8sAttributeController) deleteK8sAttributes(w http.ResponseWriter, r *h
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
 	}
-	if err := handler.GetServiceManager().DeleteK8sAttribute(componentID, req.Name); err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+	if err := k.attributeServiceHandler().DeleteK8sAttribute(componentID, req.Name); err != nil {
+		returnK8sAttributeError(r, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
