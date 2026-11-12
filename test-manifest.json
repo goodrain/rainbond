@@ -10768,6 +10768,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.img-content-detection",
+      "title": "IMG conversion detects disk contents and preserves guest sectors",
+      "title_zh": "IMG conversion detects disk contents and preserves guest sectors",
+      "interface_type": "workflow",
+      "interface": "builder/exector.renderVMDockerfile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionPreservesGuestContent"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionRejectsInvalidOrDependentImages"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileRejectsUnsafeFileNames"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileRetainsArchiveAndISOPaths"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.retain-failed-build-pod",
       "title": "Retain failed VM build pods for diagnostics",
       "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
@@ -10784,6 +10814,38 @@
         {
           "path": "builder/sources/image_test.go",
           "selector": "TestShouldRetainFailedBuildKitJobCanBeDisabled"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.safe-url-filename",
+      "title": "Decode VM URL basenames without permitting path or Dockerfile injection",
+      "title_zh": "Decode VM URL basenames without permitting path or Dockerfile injection",
+      "interface_type": "workflow",
+      "interface": "builder/sourceutil.VMImageFileNameFromURL",
+      "code_paths": [
+        "builder/sourceutil/vm_image_name.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vm_image_name_test.go",
+          "selector": "TestVMImageFileNameFromURL"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRejectsUnsafeURLBeforeProbe"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMDownloadUsesDecodedURLPathName"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMDownloadRejectsUnsafeURLNamesBeforeRequest"
         }
       ],
       "test_type": "regression",
@@ -11444,6 +11506,41 @@
         {
           "path": "builder/sourceutil/local_package_test.go",
           "selector": "TestReadLocalPackageDirFallsBackToStorageDownload"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-run.raw-image-format",
+      "title": "Accept native raw upload and URL media with preserved compression strategies",
+      "title_zh": "Accept native raw upload and URL media with preserved compression strategies",
+      "interface_type": "workflow",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRemoteNativeRaw"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseLocalNativeRaw"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMNativeRawBuildStrategies"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionPreservesGuestContent"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMNativeRawConversionRejectsExternalReferences"
         }
       ],
       "test_type": "regression",

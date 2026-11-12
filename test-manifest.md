@@ -561,7 +561,9 @@
 | rainbond.util.zip-structure-detect | 检测 zip 归档是否共享公共根目录 | active | regression | util.detectZipStructure | util/comman_test.go::TestDetectZipStructure |
 | rainbond.version.commit-message-utf8 | 版本提交信息安全截断并完成构建入库 | active | regression | VersionInfoDaoImpl.AddModel/UpdateModel | db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg<br>db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsgMalformedInputDoesNotPanic<br>db/mysql/dao/version_commit_msg_test.go::TestVersionCommitMsgPersistence<br>db/mysql/dao/version_commit_msg_test.go::FuzzTruncateVersionCommitMsg |
 | rainbond.vm-build.buildkit-startup-retry | 增加虚拟机 BuildKit 启动等待次数 | active | regression | builder/sources.buildctlConnectRetriesMax | builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild<br>builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv |
+| rainbond.vm-build.img-content-detection | IMG conversion detects disk contents and preserves guest sectors | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent<br>builder/exector/build_from_vm_content_test.go::TestVMDiskConversionRejectsInvalidOrDependentImages<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRejectsUnsafeFileNames<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRetainsArchiveAndISOPaths |
 | rainbond.vm-build.retain-failed-build-pod | 保留失败的虚拟机构建 Pod 便于诊断 | active | regression | builder/sources.shouldRetainFailedBuildKitJob | builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault<br>builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled |
+| rainbond.vm-build.safe-url-filename | Decode VM URL basenames without permitting path or Dockerfile injection | active | regression | builder/sourceutil.VMImageFileNameFromURL | builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest |
 | rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
 | rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
@@ -592,6 +594,7 @@
 | rainbond.vm-publish.stage-timing-logs | Trace VM publish stage timing logs | active | regression | builder/exector.VMBuildItem.RunVMBuild | builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess<br>builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsFields<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsError |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
+| rainbond.vm-run.raw-image-format | Accept native raw upload and URL media with preserved compression strategies | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_compat_test.go::TestVMServiceParseRemoteNativeRaw<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseLocalNativeRaw<br>builder/exector/build_from_vm_compat_test.go::TestVMNativeRawBuildStrategies<br>builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent<br>builder/exector/build_from_vm_content_test.go::TestVMNativeRawConversionRejectsExternalReferences |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.vm-runtime-spec-sync-conflict-retry | Retry VM spec sync when KubeVirt update conflicts | active | regression | github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec | api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict |
@@ -6254,6 +6257,16 @@
 - 代码路径: `builder/sources/image.go`
 - 测试路径: `builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild`, `builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv`
 
+### IMG conversion detects disk contents and preserves guest sectors
+
+- Capability ID: `rainbond.vm-build.img-content-detection`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.renderVMDockerfile`
+- 代码路径: `builder/exector/build_from_vm.go`
+- 测试路径: `builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent`, `builder/exector/build_from_vm_content_test.go::TestVMDiskConversionRejectsInvalidOrDependentImages`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRejectsUnsafeFileNames`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRetainsArchiveAndISOPaths`
+
 ### 保留失败的虚拟机构建 Pod 便于诊断
 
 - Capability ID: `rainbond.vm-build.retain-failed-build-pod`
@@ -6263,6 +6276,16 @@
 - 业务入口: `builder/sources.shouldRetainFailedBuildKitJob`
 - 代码路径: `builder/sources/image.go`
 - 测试路径: `builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault`, `builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled`
+
+### Decode VM URL basenames without permitting path or Dockerfile injection
+
+- Capability ID: `rainbond.vm-build.safe-url-filename`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/sourceutil.VMImageFileNameFromURL`
+- 代码路径: `builder/sourceutil/vm_image_name.go`, `builder/parser/vm_service.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL`, `builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe`, `builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName`, `builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest`
 
 ### Gate VM password bootstrap capability by environment
 
@@ -6563,6 +6586,16 @@
 - 业务入口: `builder/sourceutil.ReadLocalPackageDir`
 - 代码路径: `builder/sourceutil/local_package.go`
 - 测试路径: `builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload`
+
+### Accept native raw upload and URL media with preserved compression strategies
+
+- Capability ID: `rainbond.vm-run.raw-image-format`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/parser.VMServiceParse.Parse`
+- 代码路径: `builder/parser/vm_service.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `builder/parser/vm_service_compat_test.go::TestVMServiceParseRemoteNativeRaw`, `builder/parser/vm_service_compat_test.go::TestVMServiceParseLocalNativeRaw`, `builder/exector/build_from_vm_compat_test.go::TestVMNativeRawBuildStrategies`, `builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent`, `builder/exector/build_from_vm_content_test.go::TestVMNativeRawConversionRejectsExternalReferences`
 
 ### vm-run 远程包探测优先使用 HEAD
 

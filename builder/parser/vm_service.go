@@ -21,8 +21,8 @@ package parser
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder/parser/discovery"
@@ -37,15 +37,17 @@ type VMServiceParse struct {
 
 	endpoints []*discovery.Endpoint
 
-	errors []ParseError
-	logger event.Logger
+	errors         []ParseError
+	logger         event.Logger
+	readPackageDir func(string) ([]os.FileInfo, error)
 }
 
 // CreateVMServiceParse creates a new CreateVMServiceParse.
 func CreateVMServiceParse(sourceBody string, logger event.Logger) Parser {
 	return &VMServiceParse{
-		sourceBody: sourceBody,
-		logger:     logger,
+		sourceBody:     sourceBody,
+		logger:         logger,
+		readPackageDir: sourceutil.ReadLocalPackageDir,
 	}
 }
 
@@ -56,7 +58,7 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 	}
 	var fileExt string
 	if sourceutil.IsLocalPackageSource(t.sourceBody) {
-		fileInfoList, err := sourceutil.ReadLocalPackageDir(t.sourceBody)
+		fileInfoList, err := t.readPackageDir(t.sourceBody)
 		if err != nil {
 			logrus.Errorf("read package path %v failure: %v", t.sourceBody, err)
 			t.errappend(Errorf(FatalError, "http get failure"))
@@ -68,8 +70,13 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 			t.errappend(Errorf(FatalError, "http get failure"))
 			return t.errors
 		}
-		fileExt = path.Ext(fileInfoList[0].Name())
+		fileExt = strings.ToLower(path.Ext(fileInfoList[0].Name()))
 	} else {
+		fileName, err := sourceutil.VMImageFileNameFromURL(t.sourceBody)
+		if err != nil {
+			t.errappend(Errorf(FatalError, "image package file name verification failed"))
+			return t.errors
+		}
 		rsp, err := t.probeRemotePackage()
 		if err != nil {
 			logrus.Errorf("HTTP 探测请求失败 %v: %v", t.sourceBody, err)
@@ -88,11 +95,9 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 			}
 		}()
 
-		baseURL := filepath.Base(t.sourceBody)
-		fileName := strings.Split(baseURL, "?")[0]
-		fileExt = path.Ext(fileName)
+		fileExt = strings.ToLower(path.Ext(fileName))
 	}
-	if fileExt != ".iso" && fileExt != ".qcow2" && fileExt != ".img" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
+	if fileExt != ".iso" && fileExt != ".qcow2" && fileExt != ".img" && fileExt != ".raw" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
 		t.logger.Error("上传包格式校验失败，不符合包要求", map[string]string{"step": "parse"})
 		t.errappend(Errorf(FatalError, "image package format verification failed"))
 		return t.errors
