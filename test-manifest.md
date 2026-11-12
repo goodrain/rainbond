@@ -590,6 +590,10 @@
 | rainbond.vm-probe-change-syncs-spec | VM probe changes sync VirtualMachine spec | active | regression | api/handler.ServiceAction.ServiceProbe | api/handler/service_vm_resource_sync_test.go::TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges |
 | rainbond.vm-publish.http-artifact-image-build | 将导出的虚拟机磁盘构建为 HTTP 制品镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile<br>builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID<br>builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sources/image_test.go::TestBuildKitImageOutputUsesUncompressedLayersForVMBuild<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
 | rainbond.vm-publish.stage-timing-logs | Trace VM publish stage timing logs | active | regression | builder/exector.VMBuildItem.RunVMBuild | builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess<br>builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsFields<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsError |
+| rainbond.vm-restore.atomic-state-store | VM restore atomic state and idempotent receipts | active | regression | pkg/vmrestore.Store.Mutate | pkg/vmrestore/store_test.go::TestStoreCASReplayAndRequestIdentity<br>pkg/vmrestore/store_test.go::TestStoreRejectsDuplicateAndCrossTenantRows<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnpairedFenceBeforeCommit<br>pkg/vmrestore/store_test.go::TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence<br>pkg/vmrestore/store_test.go::TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation<br>pkg/vmrestore/store_test.go::TestStoreDuplicateRowsWithValidCommittedBaseline<br>pkg/vmrestore/store_test.go::TestMutateTxRollsBackStateAndReceiptTogether<br>pkg/vmrestore/store_test.go::TestMissingServiceNeverRecreatesLedger<br>pkg/vmrestore/store_test.go::TestStoreRejectsManufacturedFutureStep<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnappliedPersistedStepReplay<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedState<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingCurrentWithRemainingReceipt<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingReceiptForActiveFence<br>pkg/vmrestore/store_test.go::TestStorePersistedStateRequiresStructuralFields<br>pkg/vmrestore/store_test.go::TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows<br>pkg/vmrestore/store_test.go::TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads<br>pkg/vmrestore/store_test.go::TestStoreRejectsImpossiblePersistedStepResults<br>pkg/vmrestore/store_test.go::TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedReceipt<br>pkg/vmrestore/store_mysql_test.go::TestMySQLUsesCurrentLockingReadsBeforeMutation |
+| rainbond.vm-restore.durable-admission | VM mutation durable admission ownership | active | regression | pkg/vmrestore.State.AdmitMutation | pkg/vmrestore/state_test.go::TestAdmissionDoesNotExpireOrReleaseOtherOwner |
+| rainbond.vm-restore.private-attributes | VM restore private attribute boundaries | active | regression | pkg/vmrestore.PublicAttributeCopies | pkg/vmrestore/state_test.go::TestPrivateAttributeNames<br>pkg/vmrestore/public_attributes_test.go::TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection<br>pkg/vmrestore/public_attributes_test.go::TestExportAndImportCannotCarryBindingsOrReceipt<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteCannotRemoveInternalRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteRemovesOnlyTheObservedComponentsRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicReplacementParticipatesInTheCallersTransaction |
+| rainbond.vm-restore.state-scope-and-resolver | VM restore scoped state and canonical resolver | active | regression | pkg/vmrestore.State.ResolveClaim | pkg/vmrestore/state_test.go::TestStateScopeAndResolver<br>pkg/vmrestore/state_test.go::TestRecordRejectsUnknownSchemaFieldsAndTrailingJSON<br>pkg/vmrestore/state_test.go::TestDetachedBindingNeverFallsBackAndCrossNamespaceRejected<br>pkg/vmrestore/state_test.go::TestStateRejectsNonCanonicalBindingKeys<br>pkg/vmrestore/state_test.go::TestStateReceiptResourceIdentities<br>pkg/vmrestore/state_test.go::TestStateReceiptRejectsInvalidScope<br>pkg/vmrestore/state_test.go::TestStateReceiptAcceptsKubernetesSubdomainNames<br>pkg/vmrestore/state_test.go::TestStateResolutionDoesNotExposeMutableIdentity |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
 | rainbond.vm-run.remote-package-probe | vm-run 远程包探测优先使用 HEAD | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLPrefersHeadProbe |
@@ -6543,6 +6547,46 @@
 - 业务入口: `builder/exector.VMBuildItem.RunVMBuild`
 - 代码路径: `builder/exector/build_from_vm.go`, `builder/exector/share_image.go`, `builder/sources/image.go`
 - 测试路径: `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess`, `builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsFields`, `builder/sources/image_test.go::TestRecordImageBuildStageLogsError`
+
+### VM restore atomic state and idempotent receipts
+
+- Capability ID: `rainbond.vm-restore.atomic-state-store`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore.Store.Mutate`
+- 代码路径: `pkg/vmrestore/store.go`
+- 测试路径: `pkg/vmrestore/store_test.go::TestStoreCASReplayAndRequestIdentity`, `pkg/vmrestore/store_test.go::TestStoreRejectsDuplicateAndCrossTenantRows`, `pkg/vmrestore/store_test.go::TestStoreRejectsUnpairedFenceBeforeCommit`, `pkg/vmrestore/store_test.go::TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence`, `pkg/vmrestore/store_test.go::TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation`, `pkg/vmrestore/store_test.go::TestStoreDuplicateRowsWithValidCommittedBaseline`, `pkg/vmrestore/store_test.go::TestMutateTxRollsBackStateAndReceiptTogether`, `pkg/vmrestore/store_test.go::TestMissingServiceNeverRecreatesLedger`, `pkg/vmrestore/store_test.go::TestStoreRejectsManufacturedFutureStep`, `pkg/vmrestore/store_test.go::TestStoreRejectsUnappliedPersistedStepReplay`, `pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedState`, `pkg/vmrestore/store_test.go::TestStoreRejectsMissingCurrentWithRemainingReceipt`, `pkg/vmrestore/store_test.go::TestStoreRejectsMissingReceiptForActiveFence`, `pkg/vmrestore/store_test.go::TestStorePersistedStateRequiresStructuralFields`, `pkg/vmrestore/store_test.go::TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows`, `pkg/vmrestore/store_test.go::TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads`, `pkg/vmrestore/store_test.go::TestStoreRejectsImpossiblePersistedStepResults`, `pkg/vmrestore/store_test.go::TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress`, `pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedReceipt`, `pkg/vmrestore/store_mysql_test.go::TestMySQLUsesCurrentLockingReadsBeforeMutation`
+
+### VM mutation durable admission ownership
+
+- Capability ID: `rainbond.vm-restore.durable-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore.State.AdmitMutation`
+- 代码路径: `pkg/vmrestore/state.go`
+- 测试路径: `pkg/vmrestore/state_test.go::TestAdmissionDoesNotExpireOrReleaseOtherOwner`
+
+### VM restore private attribute boundaries
+
+- Capability ID: `rainbond.vm-restore.private-attributes`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore.PublicAttributeCopies`
+- 代码路径: `pkg/vmrestore/state.go`, `pkg/vmrestore/public_attributes.go`
+- 测试路径: `pkg/vmrestore/state_test.go::TestPrivateAttributeNames`, `pkg/vmrestore/public_attributes_test.go::TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection`, `pkg/vmrestore/public_attributes_test.go::TestExportAndImportCannotCarryBindingsOrReceipt`, `pkg/vmrestore/public_attributes_test.go::TestPublicDeleteCannotRemoveInternalRow`, `pkg/vmrestore/public_attributes_test.go::TestPublicDeleteRemovesOnlyTheObservedComponentsRow`, `pkg/vmrestore/public_attributes_test.go::TestPublicReplacementParticipatesInTheCallersTransaction`
+
+### VM restore scoped state and canonical resolver
+
+- Capability ID: `rainbond.vm-restore.state-scope-and-resolver`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore.State.ResolveClaim`
+- 代码路径: `pkg/vmrestore/state.go`
+- 测试路径: `pkg/vmrestore/state_test.go::TestStateScopeAndResolver`, `pkg/vmrestore/state_test.go::TestRecordRejectsUnknownSchemaFieldsAndTrailingJSON`, `pkg/vmrestore/state_test.go::TestDetachedBindingNeverFallsBackAndCrossNamespaceRejected`, `pkg/vmrestore/state_test.go::TestStateRejectsNonCanonicalBindingKeys`, `pkg/vmrestore/state_test.go::TestStateReceiptResourceIdentities`, `pkg/vmrestore/state_test.go::TestStateReceiptRejectsInvalidScope`, `pkg/vmrestore/state_test.go::TestStateReceiptAcceptsKubernetesSubdomainNames`, `pkg/vmrestore/state_test.go::TestStateResolutionDoesNotExposeMutableIdentity`
 
 ### 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径
 
