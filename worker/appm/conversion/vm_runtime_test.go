@@ -449,6 +449,7 @@ func TestAppendVMContainerDiskCDROMsCreatesContainerDiskVolumeAndDisk(t *testing
 }
 
 // capability_id: rainbond.vm-runtime.ssh-authorized-keys-cloud-init
+// capability_id: rainbond.vm-runtime.non-root-login-boundary
 func TestValidateVMSSHBootstrap(t *testing.T) {
 	signer, err := ssh.NewSignerFromKey(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{7}, ed25519.SeedSize)))
 	if err != nil {
@@ -462,6 +463,7 @@ func TestValidateVMSSHBootstrap(t *testing.T) {
 		wantErr  bool
 	}{
 		{name: "valid public key", username: "ubuntu", key: authorizedKey},
+		{name: "root login denied", username: "root", key: authorizedKey, wantErr: true},
 		{name: "missing pair"},
 		{name: "invalid username", username: "ubuntu;id", key: authorizedKey, wantErr: true},
 		{name: "partial username", username: "ubuntu", wantErr: true},

@@ -533,7 +533,7 @@ func redactVMLoginJSONValue(value any) bool {
 		}
 		for key, child := range node {
 			switch key {
-			case "login_password", "login_password_hash", "vm_login_password_hash", "ssh_public_key", "vm_ssh_authorized_key":
+			case "login_password", "login_password_hash", "vm_login_password", "vm_login_password_hash", "ssh_public_key", "vm_ssh_authorized_key":
 				if child != nil {
 					node[key] = "[REDACTED]"
 					changed = true

@@ -115,9 +115,24 @@ func (s *upgradeController) upgradeConfigMap(nowApp *v1.AppService, newapp v1.Ap
 			}
 			continue
 		}
-		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
-			new.UID = nowConfig.UID
-			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
+		if _, ok := nowConfigMapMaps[new.Name]; ok {
+			// A desired ConfigMap must not be removed as stale if updating fails.
+			nowConfigMapMaps[new.Name] = nil
+			var newc *corev1.ConfigMap
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				current, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Get(s.ctx, new.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				if current.Labels["service_id"] != "" && current.Labels["service_id"] != nowApp.ServiceID {
+					return fmt.Errorf("configmap %q belongs to service %q", new.Name, current.Labels["service_id"])
+				}
+				desired := new.DeepCopy()
+				desired.UID = current.UID
+				desired.ResourceVersion = current.ResourceVersion
+				newc, err = s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, desired, metav1.UpdateOptions{})
+				return err
+			})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 				errs = append(errs, fmt.Errorf("update configmap %s failure: %s", new.Name, err.Error()))

@@ -106,7 +106,7 @@ func TestWrapELAllowsRunningVMShrinkToReachHandler(t *testing.T) {
 func TestDebugRequestBodyRedactsVMLoginSecrets(t *testing.T) {
 	hash := generatedVMSHA512CryptTestValue(t)
 	plain := generatedVMLoginPlaintextTestValue(t)
-	body := `{"login_password":"` + plain + `","login_password_hash":"` + hash + `","ssh_public_key":"ssh-ed25519 PUBKEY_SENTINEL","component_k8s_attributes":[{"name":"login_password","attribute_value":"` + plain + `"},{"name":"vm_login_password_hash","attribute_value":"` + hash + `","value":"` + hash + `"},{"name":"vm_ssh_authorized_key","attribute_value":"ssh-ed25519 PUBKEY_SENTINEL"}],"service_id":"service-vm","large_number":9007199254740993123456789}`
+	body := `{"vm_login_password":"` + plain + `","nested":[{"vm_login_password":"` + plain + `"}],"login_password":"` + plain + `","login_password_hash":"` + hash + `","ssh_public_key":"ssh-ed25519 PUBKEY_SENTINEL","component_k8s_attributes":[{"name":"login_password","attribute_value":"` + plain + `"},{"name":"vm_login_password_hash","attribute_value":"` + hash + `","value":"` + hash + `"},{"name":"vm_ssh_authorized_key","attribute_value":"ssh-ed25519 PUBKEY_SENTINEL"}],"service_id":"service-vm","large_number":9007199254740993123456789}`
 	logger := logrus.StandardLogger()
 	var logs bytes.Buffer
 	oldOutput, oldLevel := logger.Out, logger.Level
@@ -141,7 +141,7 @@ func TestDebugRequestBodyRedactsVMLoginSecrets(t *testing.T) {
 func TestWrapELRedactsVMLoginSecretsFromLogsAndEvents(t *testing.T) {
 	hash := generatedVMSHA512CryptTestValue(t)
 	plain := generatedVMLoginPlaintextTestValue(t)
-	body := `{"login_password":"` + plain + `","login_password_hash":"` + hash + `","ssh_public_key":"ssh-ed25519 PUBKEY_SENTINEL","component_k8s_attributes":[{"name":"login_password","attribute_value":"` + plain + `"},{"name":"vm_login_password_hash","attribute_value":"` + hash + `"},{"name":"vm_ssh_authorized_key","value":"ssh-ed25519 PUBKEY_SENTINEL"}],"service_id":"service-vm","large_number":9007199254740993123456789}`
+	body := `{"vm_login_password":"` + plain + `","nested":[{"vm_login_password":"` + plain + `"}],"login_password":"` + plain + `","login_password_hash":"` + hash + `","ssh_public_key":"ssh-ed25519 PUBKEY_SENTINEL","component_k8s_attributes":[{"name":"login_password","attribute_value":"` + plain + `"},{"name":"vm_login_password_hash","attribute_value":"` + hash + `"},{"name":"vm_ssh_authorized_key","value":"ssh-ed25519 PUBKEY_SENTINEL"}],"service_id":"service-vm","large_number":9007199254740993123456789}`
 	eventDAO := &wrapELTestEventDao{}
 	db.SetTestManager(wrapELTestManager{eventDao: eventDAO})
 	t.Cleanup(func() { db.SetTestManager(nil) })

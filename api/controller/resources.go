@@ -631,6 +631,10 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss, nil) {
 		return
 	}
+	if err := handler.ValidateVMLoginCredentialAttributes(ss.ComponentK8sAttributes); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
 
 	// Check if the application ID exists
 	if ss.AppID == "" {
@@ -2041,6 +2045,7 @@ func (t *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// TenantStartService starts services selected for the current tenant.
 func (t *TenantStruct) TenantStartService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	services, err := db.GetManager().TenantServiceDao().GetStartServicesAllInfoByTenantID(tenantID)

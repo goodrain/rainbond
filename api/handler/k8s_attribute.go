@@ -23,8 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -148,6 +150,11 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 	return s.syncVMRuntimeDevicesForAttribute(componentID, k8sAttributes.Name)
 }
 
+// ValidateVMLoginCredentialAttributes validates managed login inputs before request side effects.
+func ValidateVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
+	return normalizeVMLoginCredentialAttributes(attributes)
+}
+
 func normalizeVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
 	for i := range attributes {
 		if err := normalizeVMLoginCredentialAttribute(&attributes[i]); err != nil {
@@ -162,12 +169,23 @@ func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribu
 		return nil
 	}
 	switch attribute.Name {
+	case "vm_ssh_username":
+		username := strings.TrimSpace(attribute.AttributeValue)
+		if strings.HasPrefix(username, `"`) {
+			var decoded string
+			if json.Unmarshal([]byte(username), &decoded) == nil {
+				username = strings.TrimSpace(decoded)
+			}
+		}
+		if username == "root" {
+			return bcode.NewBadRequest(conversion.VMLoginNonRootMessage)
+		}
 	case "login_password", "vm_login_password":
-		return fmt.Errorf("plain VM login password attributes are forbidden")
+		return bcode.NewBadRequest("plain VM login password attributes are forbidden")
 	case conversion.VMLoginPasswordHashAttribute:
 		hash, err := conversion.NormalizeVMLoginPasswordHash(attribute.AttributeValue)
 		if err != nil {
-			return fmt.Errorf("invalid VM login password hash attribute")
+			return bcode.NewBadRequest("invalid VM login password hash attribute")
 		}
 		attribute.AttributeValue = hash
 		attribute.SaveType = "string"
@@ -415,12 +433,24 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	if existingVM == nil || desiredVM == nil {
 		return existingVM, false
 	}
-	if reflect.DeepEqual(existingVM.Spec, desiredVM.Spec) {
+	updatedVM := existingVM.DeepCopy()
+	desiredSpec := desiredVM.Spec.DeepCopy()
+	desiredSpec.RunStrategy = updatedVM.Spec.RunStrategy
+	desiredSpec.Running = updatedVM.Spec.Running
+	if existingVM.Spec.Template != nil && desiredSpec.Template != nil {
+		currentFirmware := existingVM.Spec.Template.Spec.Domain.Firmware
+		newFirmware := desiredSpec.Template.Spec.Domain.Firmware
+		if currentFirmware != nil && currentFirmware.UUID != "" && (newFirmware == nil || newFirmware.UUID == "") {
+			if newFirmware == nil {
+				newFirmware = &kubevirtv1.Firmware{}
+				desiredSpec.Template.Spec.Domain.Firmware = newFirmware
+			}
+			newFirmware.UUID = currentFirmware.UUID
+		}
+	}
+	if reflect.DeepEqual(existingVM.Spec, *desiredSpec) {
 		return existingVM, false
 	}
-	updatedVM := existingVM.DeepCopy()
-	updatedVM.Spec = desiredVM.Spec
-	updatedVM.Spec.RunStrategy = existingVM.Spec.RunStrategy
-	updatedVM.Spec.Running = existingVM.Spec.Running
+	updatedVM.Spec = *desiredSpec
 	return updatedVM, true
 }

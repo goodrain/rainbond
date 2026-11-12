@@ -425,6 +425,7 @@
 | rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
+| rainbond.service.new-port-reconciles-access | Reconcile enabled access on first port creation and retry dispatch | active | regression | api/handler.ServiceAction.CreatePorts | api/handler/service_port_create_test.go::TestCreatePortsReconcilesEnabledAccessAndRetriesDispatch |
 | rainbond.service.port-outer-idempotent-close | Keep repeated external port closes idempotent | active | regression | api/handler.(*ServiceAction).PortOuter | api/handler/service_port_outer_test.go::TestServiceActionPortOuterAlreadyClosedReturnsPort |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
 | rainbond.share.slug-from-snapshot-deploy-version | Slug 分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForSlugShare |
@@ -484,6 +485,7 @@
 | rainbond.third-component.probe-required | 判断第三方组件是否需要主动探测 | active | regression | pkg/apis/rainbond/v1alpha1.ThirdComponentSpec.NeedProbe | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestThirdComponentSpecNeedProbe |
 | rainbond.third-component.static-endpoints-detect | 检测第三方组件是否使用静态端点 | active | regression | pkg/apis/rainbond/v1alpha1.ThirdComponentSpec.IsStaticEndpoints | pkg/apis/rainbond/v1alpha1/third_component_unit_test.go::TestThirdComponentSpecIsStaticEndpoints |
 | rainbond.upgrade-configmap-aggregates-create-update-errors | Aggregate ConfigMap create/update errors during upgrade | active | regression | worker/appm/controller.upgradeController.upgradeConfigMap | worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapErrorAggregation |
+| rainbond.upgrade-configmap-preserves-resource-version | Use observed ConfigMap versions and retain data on failed updates | active | regression | worker/appm/controller.upgradeController.upgradeConfigMap | worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapUsesCurrentVersionAndRetriesConflicts<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapUpdateFailurePreservesExistingData |
 | rainbond.upgrade-service-aggregates-create-update-errors | Aggregate Service create/update errors during upgrade | active | regression | worker/appm/controller.upgradeController.upgradeService | worker/appm/controller/upgrade_test.go::TestUpgradeServiceErrorAggregation |
 | rainbond.util.array-deduplicate | 对字符串切片去重并保留非空元素 | active | regression | util.Deweight | util/comman_test.go::TestDeweight |
 | rainbond.util.bytes-equality | 比较字节切片是否完全相等并区分 nil 情况 | active | regression | util.BytesSliceEqual | util/bytes_test.go::TestBytesSliceEqual |
@@ -566,6 +568,8 @@
 | rainbond.vm-build.safe-url-filename | Decode VM URL basenames without permitting path or Dockerfile injection | active | regression | builder/sourceutil.VMImageFileNameFromURL | builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest |
 | rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
+| rainbond.vm-disk.conditional-expansion | Expand current owned VM data disks when KubeVirt and storage support it | active | regression | api/handler.ServiceAction.UpdVolume | api/handler/service_vm_disk_expansion_test.go |
+| rainbond.vm-disk.retry-safe-delete | Reclaim only detached owned VM data disks and retain retry records | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_disk_delete_test.go |
 | rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
 | rainbond.vm-guest.status-observation | Observe VM guest agent state without inferring OS readiness | active | regression | ServiceAction.resolveVMServiceRuntimeStatusWithGuest | api/handler/service_vm_guest_test.go::TestResolveVMGuestStatus<br>api/handler/service_vm_guest_test.go::TestVMRuntimeGuestReadFailureDoesNotBecomeDisconnected<br>api/handler/service_vm_guest_test.go::TestVMRuntimeIncludesObservedGuest |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
@@ -599,6 +603,8 @@
 | rainbond.vm-run.remote-package-probe-range-fallback | vm-run 远程包探测在 HEAD 失败时回退 Range GET | active | regression | builder/parser.VMServiceParse.Parse | builder/parser/vm_service_test.go::TestVMServiceParseRemoteURLFallsBackToRangeGet |
 | rainbond.vm-runtime-spec-sync-conflict-retry | Retry VM spec sync when KubeVirt update conflicts | active | regression | github.com/goodrain/rainbond/api/handler.(*ServiceAction).syncVirtualMachineSpec | api/handler/k8s_attribute_vm_runtime_test.go::TestSyncVirtualMachineSpecRetriesOnConflict |
 | rainbond.vm-runtime.disk-layout-attr-triggers-spec-sync | 将 vm_disk_layout 视为触发 VM 规格同步的属性 | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout |
+| rainbond.vm-runtime.firmware-identity-preservation | 虚拟机规格同步保留既有固件身份且尊重明确新配置 | active | regression | handler.applyVirtualMachineSpec | api/handler/vm_firmware_identity_test.go |
+| rainbond.vm-runtime.non-root-login-boundary | 虚拟机首次登录拒绝 root 并在持久化前返回400 | active | regression | VM first-login username validation | api/controller/vm_login_username_test.go::TestVMRootSSHUsernameReturns400BeforeDatabaseAccess<br>worker/appm/conversion/vm_runtime_test.go::TestValidateVMSSHBootstrap |
 | rainbond.vm-runtime.password-hash-bootstrap | Bootstrap Ubuntu VM password login from a SHA-512-crypt hash | active | regression | worker/appm/conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_runtime_test.go::TestValidateVMLoginBootstrapModes<br>worker/appm/conversion/vm_runtime_test.go::TestBuildVMRuntimeConfigPasswordLoginCloudInit<br>worker/appm/conversion/vm_runtime_test.go::TestVMRuntimeAttributeNamesIncludesLoginPasswordHash<br>worker/appm/conversion/version_vm_test.go::TestVMLoginBootstrapUsesVirtioForRootAndBootstrapDisksOnly |
 | rainbond.vm-runtime.password-hash-input-boundary | Validate VM password hash attributes before persistence | active | regression | api.handler.ServiceAction.ServiceCreate | api/handler/k8s_attribute_test.go::TestVMLoginPasswordHashAttributeAcceptsConsoleStringEncoding<br>api/handler/k8s_attribute_test.go::TestPlainVMLoginPasswordAttributeRejectedBeforePersistence |
 | rainbond.vm-runtime.password-hash-log-redaction | Redact VM password hashes from worker failure logs | active | regression | worker/appm/controller.startController.logVirtualMachineCreateFailure | worker/appm/controller/start_test.go::TestLogVirtualMachinePasswordHashRedaction |
@@ -4897,6 +4903,16 @@
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr`
 
+### Reconcile enabled access on first port creation and retry dispatch
+
+- Capability ID: `rainbond.service.new-port-reconciles-access`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.CreatePorts`
+- 代码路径: `api/handler/service.go`
+- 测试路径: `api/handler/service_port_create_test.go::TestCreatePortsReconcilesEnabledAccessAndRetriesDispatch`
+
 ### Keep repeated external port closes idempotent
 
 - Capability ID: `rainbond.service.port-outer-idempotent-close`
@@ -5486,6 +5502,16 @@
 - 业务入口: `worker/appm/controller.upgradeController.upgradeConfigMap`
 - 代码路径: `worker/appm/controller/upgrade.go`
 - 测试路径: `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapErrorAggregation`
+
+### Use observed ConfigMap versions and retain data on failed updates
+
+- Capability ID: `rainbond.upgrade-configmap-preserves-resource-version`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.upgradeController.upgradeConfigMap`
+- 代码路径: `worker/appm/controller/upgrade.go`
+- 测试路径: `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapUsesCurrentVersionAndRetriesConflicts`, `worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapUpdateFailurePreservesExistingData`
 
 ### Aggregate Service create/update errors during upgrade
 
@@ -6307,6 +6333,26 @@
 - 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/volume/volume.go`
 - 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk`
 
+### Expand current owned VM data disks when KubeVirt and storage support it
+
+- Capability ID: `rainbond.vm-disk.conditional-expansion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.UpdVolume`
+- 代码路径: `api/handler/service.go`, `api/handler/service_volume_expansion.go`, `api/handler/service_vm_disk_expansion.go`
+- 测试路径: `api/handler/service_vm_disk_expansion_test.go`
+
+### Reclaim only detached owned VM data disks and retain retry records
+
+- Capability ID: `rainbond.vm-disk.retry-safe-delete`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api/handler.ServiceAction.VolumnVar`
+- 代码路径: `api/handler/service.go`, `api/handler/service_vm_hotplug.go`, `api/handler/service_vm_disk_delete.go`
+- 测试路径: `api/handler/service_vm_disk_delete_test.go`
+
 ### 创建 VMExport 并返回系统盘下载地址
 
 - Capability ID: `rainbond.vm-export.root-disk-url`
@@ -6636,6 +6682,26 @@
 - 业务入口: `api/handler.isVMRuntimeSpecAttribute`
 - 代码路径: `api/handler/k8s_attribute.go`
 - 测试路径: `api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesDiskLayout`
+
+### 虚拟机规格同步保留既有固件身份且尊重明确新配置
+
+- Capability ID: `rainbond.vm-runtime.firmware-identity-preservation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `handler.applyVirtualMachineSpec`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/vm_firmware_identity_test.go`
+
+### 虚拟机首次登录拒绝 root 并在持久化前返回400
+
+- Capability ID: `rainbond.vm-runtime.non-root-login-boundary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `VM first-login username validation`
+- 代码路径: `api/controller/resources.go`, `api/controller/k8s_attribute.go`, `api/handler/k8s_attribute.go`, `worker/appm/conversion/vm_runtime.go`
+- 测试路径: `api/controller/vm_login_username_test.go::TestVMRootSSHUsernameReturns400BeforeDatabaseAccess`, `worker/appm/conversion/vm_runtime_test.go::TestValidateVMSSHBootstrap`
 
 ### Bootstrap Ubuntu VM password login from a SHA-512-crypt hash
 

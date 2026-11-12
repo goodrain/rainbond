@@ -39,12 +39,18 @@ type volumeExpansionRuntime struct {
 }
 
 func unsupportedVolumeExpansionReason(service *dbmodel.TenantServices, volume *dbmodel.TenantServiceVolume) string {
-	if service != nil && service.ExtendMethod == "vm" {
-		return "virtual machine guest disk expansion is not supported"
-	}
 	if volume == nil {
 		return "volume does not exist"
 	}
+	if service != nil && service.IsVM() {
+		if volume.VolumeName == "disk" {
+			return "系统根盘扩容尚未验证；此操作仅支持虚拟机数据盘"
+		}
+		if resolveVMHotplugDeviceType(volume.VolumePath) != "disk" {
+			return "只支持虚拟机数据磁盘扩容，CDROM和其他设备不可扩容"
+		}
+	}
+
 	switch volume.VolumeType {
 	case dbmodel.ConfigFileVolumeType.String():
 		return "configuration file volumes do not use PersistentVolumeClaims"
@@ -127,19 +133,34 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 		return runtimeStatus, nil, nil
 	}
 
-	selector := labels.Set{"service_id": service.ServiceID}.AsSelector().String()
-	list, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: selector,
-	})
-	if err != nil {
-		return runtimeStatus, nil, fmt.Errorf("list component PersistentVolumeClaims: %w", err)
-	}
-	claims := make([]*corev1.PersistentVolumeClaim, 0)
-	for i := range list.Items {
-		if matchesServiceVolumeClaim(&list.Items[i], volume) {
-			claims = append(claims, &list.Items[i])
+	var claims []*corev1.PersistentVolumeClaim
+	if service != nil && service.IsVM() {
+		var reason string
+		claims, reason, err = s.inspectVMExpansionClaims(ctx, service, volume, namespace)
+		if err != nil {
+			return runtimeStatus, nil, err
+		}
+		if reason != "" {
+			runtimeStatus.Message = reason
+			return runtimeStatus, nil, nil
+		}
+	} else {
+
+		selector := labels.Set{"service_id": service.ServiceID}.AsSelector().String()
+		list, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err != nil {
+			return runtimeStatus, nil, fmt.Errorf("list component PersistentVolumeClaims: %w", err)
+		}
+		claims = make([]*corev1.PersistentVolumeClaim, 0)
+		for i := range list.Items {
+			if matchesServiceVolumeClaim(&list.Items[i], volume) {
+				claims = append(claims, &list.Items[i])
+			}
 		}
 	}
+
 	if len(claims) == 0 {
 		runtimeStatus.AllowExpansion = true
 		runtimeStatus.Status = volumeExpansionUnbound
@@ -151,7 +172,19 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 	classCache := make(map[string]bool)
 	conditionStatus := ""
 	conditionMessage := ""
+	anyClaimResizing := false
+	desiredPending := false
+	desired := resource.MustParse(fmt.Sprintf("%dGi", volume.VolumeCapacity))
 	for _, pvc := range claims {
+		requestedQuantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+		actualQuantity := pvc.Status.Capacity[corev1.ResourceStorage]
+		// Compare exact quantities; Gi display rounding must never mark partial capacity ready.
+		if actualQuantity.Cmp(requestedQuantity) < 0 {
+			anyClaimResizing = true
+		}
+		if desired.Cmp(requestedQuantity) > 0 {
+			desiredPending = true
+		}
 		requested := capacityInGi(pvc.Spec.Resources.Requests[corev1.ResourceStorage])
 		actual := capacityInGi(pvc.Status.Capacity[corev1.ResourceStorage])
 		if requested > runtimeStatus.RequestedCapacity {
@@ -208,12 +241,19 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 	if conditionStatus != "" {
 		runtimeStatus.Status = conditionStatus
 		runtimeStatus.Message = conditionMessage
-	} else if runtimeStatus.ActualCapacity < runtimeStatus.RequestedCapacity {
+	} else if anyClaimResizing {
 		runtimeStatus.Status = volumeExpansionResizing
-	} else if volume.VolumeCapacity > runtimeStatus.RequestedCapacity {
+	} else if desiredPending {
 		runtimeStatus.Status = volumeExpansionPending
 		runtimeStatus.Message = "desired capacity has not been applied to the PersistentVolumeClaim"
 	}
+	if service != nil && service.IsVM() {
+		if runtimeStatus.Message != "" {
+			runtimeStatus.Message += "；"
+		}
+		runtimeStatus.Message += vmExpansionGuestMessage
+	}
+
 	return runtimeStatus, claims, nil
 }
 
@@ -292,6 +332,13 @@ func (s *ServiceAction) expandVolumeClaims(ctx context.Context, service *dbmodel
 			if getErr != nil {
 				return getErr
 			}
+			if pvc.UID != "" && current.UID != pvc.UID {
+				return bcode.NewBadRequest("PersistentVolumeClaim identity changed; refresh before retrying expansion")
+			}
+			if current.DeletionTimestamp != nil {
+				return bcode.NewBadRequest("PersistentVolumeClaim is being deleted")
+			}
+
 			currentRequested := current.Spec.Resources.Requests[corev1.ResourceStorage]
 			if currentRequested.Cmp(target) > 0 {
 				return bcode.NewBadRequest(fmt.Sprintf(

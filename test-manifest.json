@@ -8249,6 +8249,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service.new-port-reconciles-access",
+      "title": "Reconcile enabled access on first port creation and retry dispatch",
+      "title_zh": "Reconcile enabled access on first port creation and retry dispatch",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.CreatePorts",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_port_create_test.go",
+          "selector": "TestCreatePortsReconcilesEnabledAccessAndRetriesDispatch"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.service.port-outer-idempotent-close",
       "title": "Keep repeated external port closes idempotent",
       "title_zh": "Keep repeated external port closes idempotent",
@@ -9335,6 +9353,28 @@
         {
           "path": "worker/appm/controller/upgrade_test.go",
           "selector": "TestUpgradeConfigMapErrorAggregation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.upgrade-configmap-preserves-resource-version",
+      "title": "Use observed ConfigMap versions and retain data on failed updates",
+      "title_zh": "Use observed ConfigMap versions and retain data on failed updates",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeConfigMap",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapUsesCurrentVersionAndRetriesConflicts"
+        },
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapUpdateFailurePreservesExistingData"
         }
       ],
       "test_type": "regression",
@@ -10893,6 +10933,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-disk.conditional-expansion",
+      "title": "Expand current owned VM data disks when KubeVirt and storage support it",
+      "title_zh": "Expand current owned VM data disks when KubeVirt and storage support it",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service_vm_disk_expansion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_disk_expansion_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.retry-safe-delete",
+      "title": "Reclaim only detached owned VM data disks and retain retry records",
+      "title_zh": "Reclaim only detached owned VM data disks and retain retry records",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.VolumnVar",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_hotplug.go",
+        "api/handler/service_vm_disk_delete.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_disk_delete_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-export.root-disk-url",
       "title": "Create VMExport and expose root disk download URL",
       "title_zh": "\u521b\u5efa VMExport \u5e76\u8fd4\u56de\u7cfb\u7edf\u76d8\u4e0b\u8f7d\u5730\u5740",
@@ -11613,6 +11691,48 @@
         {
           "path": "api/handler/k8s_attribute_vm_runtime_test.go",
           "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.firmware-identity-preservation",
+      "title": "Preserve existing VM firmware identity during spec synchronization",
+      "title_zh": "\u865a\u62df\u673a\u89c4\u683c\u540c\u6b65\u4fdd\u7559\u65e2\u6709\u56fa\u4ef6\u8eab\u4efd\u4e14\u5c0a\u91cd\u660e\u786e\u65b0\u914d\u7f6e",
+      "interface_type": "workflow",
+      "interface": "handler.applyVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_firmware_identity_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.non-root-login-boundary",
+      "title": "Reject root VM login before persistence",
+      "title_zh": "\u865a\u62df\u673a\u9996\u6b21\u767b\u5f55\u62d2\u7edd root \u5e76\u5728\u6301\u4e45\u5316\u524d\u8fd4\u56de400",
+      "interface_type": "workflow",
+      "interface": "VM first-login username validation",
+      "code_paths": [
+        "api/controller/resources.go",
+        "api/controller/k8s_attribute.go",
+        "api/handler/k8s_attribute.go",
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_login_username_test.go",
+          "selector": "TestVMRootSSHUsernameReturns400BeforeDatabaseAccess"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestValidateVMSSHBootstrap"
         }
       ],
       "test_type": "regression",

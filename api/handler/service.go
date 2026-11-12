@@ -1966,8 +1966,17 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *apimodel.Se
 		vpD.PortAlias = vp.PortAlias
 		vpD.K8sServiceName = vp.K8sServiceName
 		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&vpD); err != nil {
-			tx.Rollback()
-			return err
+			// A previous request may have saved the port but failed to enqueue
+			// its access rules. Only an identical request can resume that work.
+			if !errors.Is(err, dberr.ErrRecordAlreadyExist) {
+				tx.Rollback()
+				return err
+			}
+			existing, lookupErr := db.GetManager().TenantServicesPortDaoTransactions(tx).GetPort(serviceID, vp.ContainerPort)
+			if lookupErr != nil || !sameServicePort(existing, &vpD) {
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
@@ -1976,7 +1985,33 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *apimodel.Se
 		return err
 	}
 
+	// Creation must apply enabled access just like the existing open action.
+	// Persist first so the worker observes the complete port configuration.
+	for _, port := range vps.Port {
+		for _, inner := range []bool{true, false} {
+			if (inner && !port.IsInnerService) || (!inner && !port.IsOuterService) {
+				continue
+			}
+			if err := GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
+				"service_id": serviceID,
+				"action":     "port-open",
+				"port":       port.ContainerPort,
+				"is_inner":   inner,
+			}); err != nil {
+				return fmt.Errorf("port %d saved but access synchronization could not be queued; retry the request: %w", port.ContainerPort, err)
+			}
+		}
+	}
 	return nil
+}
+
+func sameServicePort(existing, requested *dbmodel.TenantServicesPort) bool {
+	return existing != nil && existing.TenantID == requested.TenantID &&
+		existing.ServiceID == requested.ServiceID && existing.ContainerPort == requested.ContainerPort &&
+		existing.MappingPort == requested.MappingPort && existing.Protocol == requested.Protocol &&
+		existing.PortAlias == requested.PortAlias && existing.K8sServiceName == requested.K8sServiceName &&
+		existing.IsInnerService != nil && existing.IsOuterService != nil &&
+		*existing.IsInnerService == *requested.IsInnerService && *existing.IsOuterService == *requested.IsOuterService
 }
 
 func (s *ServiceAction) deletePorts(componentID string, tenantID string, ports *apimodel.ServicePorts) error {
@@ -2497,6 +2532,16 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleError(400, fmt.Errorf("组件存储已被共享挂载，不允许删除"))
 			}
 
+			// Keep the durable retry record until detach and storage reclamation succeed.
+			if err := s.hotunplugVMDataDisk(volume); err != nil {
+				tx.Rollback()
+				code := 500
+				if k8sErrors.IsConflict(err) {
+					code = 409
+				}
+				return util.CreateAPIHandleError(code, err)
+			}
+
 			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
@@ -2518,6 +2563,15 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
 			}
 		} else {
+			service, err := dbm.TenantServiceDao().GetServiceByID(tsv.ServiceID)
+			if err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("get service", err)
+			}
+			if service != nil && service.IsVM() {
+				tx.Rollback()
+				return util.CreateAPIHandleError(400, fmt.Errorf("虚拟机删除磁盘必须指定 volume_name，以便校验根盘与资源归属"))
+			}
 			if err := dbm.TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
@@ -2532,12 +2586,10 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("error ending transaction", err)
 		}
-		if deletedVolume != nil {
-			if err := s.hotunplugVMDataDisk(deletedVolume); err != nil {
-				return util.CreateAPIHandleError(500, fmt.Errorf("hotunplug vm data disk: %w", err))
-			}
+		if deletedVolume != nil && deletedVolume.VolumeType != dbmodel.ConfigFileVolumeType.String() {
 			return nil
 		}
+
 		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
 		}

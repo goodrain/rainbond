@@ -20,12 +20,13 @@ package controller
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/goodrain/rainbond/api/handler"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"net/http"
 )
 
 // K8sAttributeController -
@@ -89,6 +90,10 @@ func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *h
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
 	}
+	if err := handler.ValidateVMLoginCredentialAttributes([]apimodel.ComponentK8sAttribute{k8sAttr}); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
 	if err := handler.GetServiceManager().CreateK8sAttribute(tenantID, componentID, &k8sAttr); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -101,6 +106,10 @@ func (k *K8sAttributeController) updateK8sAttributes(w http.ResponseWriter, r *h
 	var k8sAttr apimodel.ComponentK8sAttribute
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &k8sAttr, nil); !ok {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
+		return
+	}
+	if err := handler.ValidateVMLoginCredentialAttributes([]apimodel.ComponentK8sAttribute{k8sAttr}); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 	if err := handler.GetServiceManager().UpdateK8sAttribute(componentID, &k8sAttr); err != nil {
