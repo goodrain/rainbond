@@ -11565,6 +11565,175 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.public-attribute-delete-retry",
+      "title": "VM attribute deletion retries runtime synchronization after committed removal",
+      "title_zh": "VM attribute deletion retries runtime synchronization after committed removal",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.DeleteK8sAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go",
+        "api/controller/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restore_attribute_retry_test.go",
+          "selector": "TestDeleteK8sAttributeRetriesRuntimeSyncAfterCommittedDelete"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_retry_test.go",
+          "selector": "TestDeleteMissingK8sAttributeRetriesSpecSync"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_retry_test.go",
+          "selector": "TestDeleteMissingPrivateOrOrdinaryK8sAttributeDoesNotRunRuntimeSync"
+        },
+        {
+          "path": "api/controller/vm_restore_attribute_missing_delete_test.go",
+          "selector": "TestDeleteMissingPrivateAttributesReturnsForbiddenWithoutRuntimeSync"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.public-attribute-http",
+      "title": "VM restore private attribute HTTP denial",
+      "title_zh": "VM restore private attribute HTTP denial",
+      "interface_type": "workflow",
+      "interface": "api/controller.returnK8sAttributeError",
+      "code_paths": [
+        "api/controller/vm_restore_attribute_error.go",
+        "api/controller/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_restore_attribute_error_test.go",
+          "selector": "TestPrivateAttributeUsesForbiddenResponse"
+        },
+        {
+          "path": "api/controller/vm_restore_attribute_error_test.go",
+          "selector": "TestPublicAttributeErrorPreservesExistingBadRequestResponse"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.public-attribute-http-methods",
+      "title": "VM restore private attributes blocked by actual HTTP methods",
+      "title_zh": "VM restore private attributes blocked by actual HTTP methods",
+      "interface_type": "workflow",
+      "interface": "api/controller.K8sAttributeController.K8sAttributes",
+      "code_paths": [
+        "api/controller/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_restore_attribute_http_test.go",
+          "selector": "TestPrivateAttributeHTTPMethodsUseForbiddenResponse"
+        },
+        {
+          "path": "api/controller/vm_restore_attribute_http_test.go",
+          "selector": "TestPublicAttributeHTTPMethodsPreserveOrdinaryResponse"
+        },
+        {
+          "path": "api/controller/vm_restore_attribute_http_test.go",
+          "selector": "TestAttributeHTTPRejectsPersistedCredentialAlias"
+        },
+        {
+          "path": "api/controller/vm_restore_attribute_http_test.go",
+          "selector": "TestAttributeHTTPDefaultsToExistingServiceHandler"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.public-attribute-paths",
+      "title": "VM restore public overwrite import and ordinary CRUD boundaries",
+      "title_zh": "VM restore public overwrite import and ordinary CRUD boundaries",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.SyncComponentK8sAttributes",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/resource_import.go",
+        "api/handler/yaml_resource.go",
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestSyncComponentK8sAttributesPreservesPrivateRows"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestSyncComponentK8sAttributesRejectsPrivateInput"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestResourceImportK8sAttributesRejectsSourceIdentity"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestPublicK8sAttributeCRUDPreservesOrdinaryComponentBehavior"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestSyncComponentK8sAttributesKeepsEmptySetSemantics"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestSyncComponentK8sAttributesRejectsInvalidTarget"
+        },
+        {
+          "path": "api/handler/vm_restore_attribute_paths_test.go",
+          "selector": "TestResourceImportK8sAttributesHandlesEmptyAndFailedPersistence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.public-attribute-service",
+      "title": "VM restore private attribute service boundary",
+      "title_zh": "VM restore private attribute service boundary",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.GetK8sAttribute",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restore_public_attributes_test.go",
+          "selector": "TestPublicAttributeCallsRejectPrivateNamesAndPersistedAlias"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.public-export-boundary",
+      "title": "VM restore state excluded from public exports",
+      "title_zh": "VM restore state excluded from public exports",
+      "interface_type": "workflow",
+      "interface": "api/model.Component.MarshalJSON",
+      "code_paths": [
+        "api/model/vm_restore_public_json.go"
+      ],
+      "tests": [
+        {
+          "path": "api/model/vm_restore_public_json_test.go",
+          "selector": "TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity"
+        },
+        {
+          "path": "api/model/vm_restore_public_json_test.go",
+          "selector": "TestPublicComponentExportsExcludeAllPrivateAttributeAliases"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.state-scope-and-resolver",
       "title": "VM restore scoped state and canonical resolver",
       "title_zh": "VM restore scoped state and canonical resolver",

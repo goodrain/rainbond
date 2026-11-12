@@ -32,6 +32,8 @@ import (
 	"strings"
 	"time"
 
+	vmrestore "github.com/goodrain/rainbond/pkg/vmrestore"
+
 	"github.com/goodrain/rainbond/util/portprotocol"
 
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
@@ -4135,24 +4137,30 @@ func (s *ServiceAction) SyncComponentEndpoints(tx *gorm.DB, components []*apimod
 
 // SyncComponentK8sAttributes -
 func (s *ServiceAction) SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error {
-	var (
-		componentIDs  []string
-		k8sAttributes []*dbmodel.ComponentK8sAttributes
-	)
+	if app == nil {
+		return vmrestore.ErrCorrupt
+	}
 	for _, component := range components {
-		if component.ComponentK8sAttributes == nil || len(component.ComponentK8sAttributes) == 0 {
+		if component == nil {
+			return vmrestore.ErrCorrupt
+		}
+		// Preserve the existing nil/empty semantics; only nonempty public sets replace.
+		if len(component.ComponentK8sAttributes) == 0 {
 			continue
 		}
-		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-		for _, k8sAttribute := range component.ComponentK8sAttributes {
-			k8sAttributes = append(k8sAttributes, k8sAttribute.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+		scope := vmrestore.Scope{TenantID: app.TenantID, ServiceID: component.ComponentBase.ComponentID}
+		attrs := make([]*dbmodel.ComponentK8sAttributes, 0, len(component.ComponentK8sAttributes))
+		for _, attribute := range component.ComponentK8sAttributes {
+			if err := vmrestore.CheckPublicAttribute(attribute.Name); err != nil {
+				return err
+			}
+			attrs = append(attrs, attribute.DbModel(scope.TenantID, scope.ServiceID))
+		}
+		if err := vmrestore.ReplacePublicAttributesTx(tx, scope, attrs); err != nil {
+			return err
 		}
 	}
-
-	if err := db.GetManager().ComponentK8sAttributeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
-		return err
-	}
-	return db.GetManager().ComponentK8sAttributeDaoTransactions(tx).CreateOrUpdateAttributesInBatch(k8sAttributes)
+	return nil
 }
 
 // Log returns the logs reader for a container in a pod, a pod or a component.

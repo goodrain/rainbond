@@ -4,17 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	vmrestore "github.com/goodrain/rainbond/pkg/vmrestore"
 	rainbondutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
 
 // ResourceImport Import the converted k8s resources into recognition
@@ -54,7 +56,7 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 			c.createPort(componentResource.PortManagement, component)
 			componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
 			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
-			c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
+			componentResource.ComponentK8sAttributesManagement = c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
 			componentAttributes = append(componentAttributes, model.ComponentAttributes{
 				TS:                     component,
 				Image:                  componentResource.BasicManagement.Image,
@@ -465,13 +467,18 @@ func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManageme
 	return tspD.ProbeID
 }
 
-func (c *clusterAction) createK8sAttributes(specials []*dbmodel.ComponentK8sAttributes, tenantID string, component *dbmodel.TenantServices) {
-	for _, specials := range specials {
-		specials.TenantID = tenantID
-		specials.ComponentID = component.ServiceID
+func (c *clusterAction) createK8sAttributes(specials []*dbmodel.ComponentK8sAttributes, tenantID string, component *dbmodel.TenantServices) []*dbmodel.ComponentK8sAttributes {
+	if component == nil {
+		return nil
 	}
-	err := db.GetManager().ComponentK8sAttributeDao().CreateOrUpdateAttributesInBatch(specials)
-	if err != nil {
-		logrus.Errorf("%v createSpecial creation failed:%v", component.ServiceAlias, err)
+	scope := vmrestore.Scope{TenantID: tenantID, ServiceID: component.ServiceID}
+	filtered := vmrestore.PublicAttributeCopies(specials, &scope)
+	if len(filtered) == 0 {
+		return filtered
 	}
+	if err := db.GetManager().ComponentK8sAttributeDao().CreateOrUpdateAttributesInBatch(filtered); err != nil {
+		logrus.Error("component public attributes could not be persisted")
+		return nil
+	}
+	return filtered
 }

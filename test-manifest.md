@@ -593,6 +593,12 @@
 | rainbond.vm-restore.atomic-state-store | VM restore atomic state and idempotent receipts | active | regression | pkg/vmrestore.Store.Mutate | pkg/vmrestore/store_test.go::TestStoreCASReplayAndRequestIdentity<br>pkg/vmrestore/store_test.go::TestStoreRejectsDuplicateAndCrossTenantRows<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnpairedFenceBeforeCommit<br>pkg/vmrestore/store_test.go::TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence<br>pkg/vmrestore/store_test.go::TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation<br>pkg/vmrestore/store_test.go::TestStoreDuplicateRowsWithValidCommittedBaseline<br>pkg/vmrestore/store_test.go::TestMutateTxRollsBackStateAndReceiptTogether<br>pkg/vmrestore/store_test.go::TestMissingServiceNeverRecreatesLedger<br>pkg/vmrestore/store_test.go::TestStoreRejectsManufacturedFutureStep<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnappliedPersistedStepReplay<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedState<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingCurrentWithRemainingReceipt<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingReceiptForActiveFence<br>pkg/vmrestore/store_test.go::TestStorePersistedStateRequiresStructuralFields<br>pkg/vmrestore/store_test.go::TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows<br>pkg/vmrestore/store_test.go::TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads<br>pkg/vmrestore/store_test.go::TestStoreRejectsImpossiblePersistedStepResults<br>pkg/vmrestore/store_test.go::TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedReceipt<br>pkg/vmrestore/store_mysql_test.go::TestMySQLUsesCurrentLockingReadsBeforeMutation |
 | rainbond.vm-restore.durable-admission | VM mutation durable admission ownership | active | regression | pkg/vmrestore.State.AdmitMutation | pkg/vmrestore/state_test.go::TestAdmissionDoesNotExpireOrReleaseOtherOwner |
 | rainbond.vm-restore.private-attributes | VM restore private attribute boundaries | active | regression | pkg/vmrestore.PublicAttributeCopies | pkg/vmrestore/state_test.go::TestPrivateAttributeNames<br>pkg/vmrestore/public_attributes_test.go::TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection<br>pkg/vmrestore/public_attributes_test.go::TestExportAndImportCannotCarryBindingsOrReceipt<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteCannotRemoveInternalRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteRemovesOnlyTheObservedComponentsRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicReplacementParticipatesInTheCallersTransaction |
+| rainbond.vm-restore.public-attribute-delete-retry | VM attribute deletion retries runtime synchronization after committed removal | active | regression | api/handler.ServiceAction.DeleteK8sAttribute | api/handler/vm_restore_attribute_retry_test.go::TestDeleteK8sAttributeRetriesRuntimeSyncAfterCommittedDelete<br>api/handler/vm_restore_attribute_retry_test.go::TestDeleteMissingK8sAttributeRetriesSpecSync<br>api/handler/vm_restore_attribute_retry_test.go::TestDeleteMissingPrivateOrOrdinaryK8sAttributeDoesNotRunRuntimeSync<br>api/controller/vm_restore_attribute_missing_delete_test.go::TestDeleteMissingPrivateAttributesReturnsForbiddenWithoutRuntimeSync |
+| rainbond.vm-restore.public-attribute-http | VM restore private attribute HTTP denial | active | regression | api/controller.returnK8sAttributeError | api/controller/vm_restore_attribute_error_test.go::TestPrivateAttributeUsesForbiddenResponse<br>api/controller/vm_restore_attribute_error_test.go::TestPublicAttributeErrorPreservesExistingBadRequestResponse |
+| rainbond.vm-restore.public-attribute-http-methods | VM restore private attributes blocked by actual HTTP methods | active | regression | api/controller.K8sAttributeController.K8sAttributes | api/controller/vm_restore_attribute_http_test.go::TestPrivateAttributeHTTPMethodsUseForbiddenResponse<br>api/controller/vm_restore_attribute_http_test.go::TestPublicAttributeHTTPMethodsPreserveOrdinaryResponse<br>api/controller/vm_restore_attribute_http_test.go::TestAttributeHTTPRejectsPersistedCredentialAlias<br>api/controller/vm_restore_attribute_http_test.go::TestAttributeHTTPDefaultsToExistingServiceHandler |
+| rainbond.vm-restore.public-attribute-paths | VM restore public overwrite import and ordinary CRUD boundaries | active | regression | api/handler.ServiceAction.SyncComponentK8sAttributes | api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesPreservesPrivateRows<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsPrivateInput<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesRejectsSourceIdentity<br>api/handler/vm_restore_attribute_paths_test.go::TestPublicK8sAttributeCRUDPreservesOrdinaryComponentBehavior<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesKeepsEmptySetSemantics<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsInvalidTarget<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesHandlesEmptyAndFailedPersistence |
+| rainbond.vm-restore.public-attribute-service | VM restore private attribute service boundary | active | regression | api/handler.ServiceAction.GetK8sAttribute | api/handler/vm_restore_public_attributes_test.go::TestPublicAttributeCallsRejectPrivateNamesAndPersistedAlias |
+| rainbond.vm-restore.public-export-boundary | VM restore state excluded from public exports | active | regression | api/model.Component.MarshalJSON | api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity<br>api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases |
 | rainbond.vm-restore.state-scope-and-resolver | VM restore scoped state and canonical resolver | active | regression | pkg/vmrestore.State.ResolveClaim | pkg/vmrestore/state_test.go::TestStateScopeAndResolver<br>pkg/vmrestore/state_test.go::TestRecordRejectsUnknownSchemaFieldsAndTrailingJSON<br>pkg/vmrestore/state_test.go::TestDetachedBindingNeverFallsBackAndCrossNamespaceRejected<br>pkg/vmrestore/state_test.go::TestStateRejectsNonCanonicalBindingKeys<br>pkg/vmrestore/state_test.go::TestStateReceiptResourceIdentities<br>pkg/vmrestore/state_test.go::TestStateReceiptRejectsInvalidScope<br>pkg/vmrestore/state_test.go::TestStateReceiptAcceptsKubernetesSubdomainNames<br>pkg/vmrestore/state_test.go::TestStateResolutionDoesNotExposeMutableIdentity |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
@@ -6577,6 +6583,66 @@
 - 业务入口: `pkg/vmrestore.PublicAttributeCopies`
 - 代码路径: `pkg/vmrestore/state.go`, `pkg/vmrestore/public_attributes.go`
 - 测试路径: `pkg/vmrestore/state_test.go::TestPrivateAttributeNames`, `pkg/vmrestore/public_attributes_test.go::TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection`, `pkg/vmrestore/public_attributes_test.go::TestExportAndImportCannotCarryBindingsOrReceipt`, `pkg/vmrestore/public_attributes_test.go::TestPublicDeleteCannotRemoveInternalRow`, `pkg/vmrestore/public_attributes_test.go::TestPublicDeleteRemovesOnlyTheObservedComponentsRow`, `pkg/vmrestore/public_attributes_test.go::TestPublicReplacementParticipatesInTheCallersTransaction`
+
+### VM attribute deletion retries runtime synchronization after committed removal
+
+- Capability ID: `rainbond.vm-restore.public-attribute-delete-retry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.ServiceAction.DeleteK8sAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`, `api/controller/k8s_attribute.go`
+- 测试路径: `api/handler/vm_restore_attribute_retry_test.go::TestDeleteK8sAttributeRetriesRuntimeSyncAfterCommittedDelete`, `api/handler/vm_restore_attribute_retry_test.go::TestDeleteMissingK8sAttributeRetriesSpecSync`, `api/handler/vm_restore_attribute_retry_test.go::TestDeleteMissingPrivateOrOrdinaryK8sAttributeDoesNotRunRuntimeSync`, `api/controller/vm_restore_attribute_missing_delete_test.go::TestDeleteMissingPrivateAttributesReturnsForbiddenWithoutRuntimeSync`
+
+### VM restore private attribute HTTP denial
+
+- Capability ID: `rainbond.vm-restore.public-attribute-http`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller.returnK8sAttributeError`
+- 代码路径: `api/controller/vm_restore_attribute_error.go`, `api/controller/k8s_attribute.go`
+- 测试路径: `api/controller/vm_restore_attribute_error_test.go::TestPrivateAttributeUsesForbiddenResponse`, `api/controller/vm_restore_attribute_error_test.go::TestPublicAttributeErrorPreservesExistingBadRequestResponse`
+
+### VM restore private attributes blocked by actual HTTP methods
+
+- Capability ID: `rainbond.vm-restore.public-attribute-http-methods`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller.K8sAttributeController.K8sAttributes`
+- 代码路径: `api/controller/k8s_attribute.go`
+- 测试路径: `api/controller/vm_restore_attribute_http_test.go::TestPrivateAttributeHTTPMethodsUseForbiddenResponse`, `api/controller/vm_restore_attribute_http_test.go::TestPublicAttributeHTTPMethodsPreserveOrdinaryResponse`, `api/controller/vm_restore_attribute_http_test.go::TestAttributeHTTPRejectsPersistedCredentialAlias`, `api/controller/vm_restore_attribute_http_test.go::TestAttributeHTTPDefaultsToExistingServiceHandler`
+
+### VM restore public overwrite import and ordinary CRUD boundaries
+
+- Capability ID: `rainbond.vm-restore.public-attribute-paths`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.ServiceAction.SyncComponentK8sAttributes`
+- 代码路径: `api/handler/service.go`, `api/handler/resource_import.go`, `api/handler/yaml_resource.go`, `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesPreservesPrivateRows`, `api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsPrivateInput`, `api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesRejectsSourceIdentity`, `api/handler/vm_restore_attribute_paths_test.go::TestPublicK8sAttributeCRUDPreservesOrdinaryComponentBehavior`, `api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesKeepsEmptySetSemantics`, `api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsInvalidTarget`, `api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesHandlesEmptyAndFailedPersistence`
+
+### VM restore private attribute service boundary
+
+- Capability ID: `rainbond.vm-restore.public-attribute-service`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.ServiceAction.GetK8sAttribute`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/vm_restore_public_attributes_test.go::TestPublicAttributeCallsRejectPrivateNamesAndPersistedAlias`
+
+### VM restore state excluded from public exports
+
+- Capability ID: `rainbond.vm-restore.public-export-boundary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/model.Component.MarshalJSON`
+- 代码路径: `api/model/vm_restore_public_json.go`
+- 测试路径: `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity`, `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases`
 
 ### VM restore scoped state and canonical resolver
 

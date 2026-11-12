@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"reflect"
 
+	vmrestore "github.com/goodrain/rainbond/pkg/vmrestore"
+
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -115,7 +117,17 @@ func (s *ServiceAction) ReviseAttributeAffinityByArch(attributeValue string, arc
 
 // GetK8sAttribute -
 func (s *ServiceAction) GetK8sAttribute(componentID, name string) (*dbmodel.ComponentK8sAttributes, error) {
-	return s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, name)
+	if err := vmrestore.CheckPublicAttribute(name); err != nil {
+		return nil, err
+	}
+	attr, err := s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, name)
+	if err != nil || attr == nil {
+		return attr, err
+	}
+	if err := vmrestore.CheckPublicAttribute(attr.Name); err != nil {
+		return nil, err
+	}
+	return attr, nil
 }
 
 // CreateK8sAttribute -
@@ -136,6 +148,12 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 	}
 	attr, err := s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, k8sAttributes.Name)
 	if err != nil {
+		return err
+	}
+	if attr == nil {
+		return gorm.ErrRecordNotFound
+	}
+	if err := vmrestore.CheckPublicAttribute(attr.Name); err != nil {
 		return err
 	}
 	if k8sAttributes.SaveType != "" {
@@ -161,6 +179,9 @@ func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribu
 	if attribute == nil {
 		return nil
 	}
+	if err := vmrestore.CheckPublicAttribute(attribute.Name); err != nil {
+		return err
+	}
 	switch attribute.Name {
 	case "login_password", "vm_login_password":
 		return fmt.Errorf("plain VM login password attributes are forbidden")
@@ -177,10 +198,18 @@ func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribu
 
 // DeleteK8sAttribute -
 func (s *ServiceAction) DeleteK8sAttribute(componentID, name string) error {
-	if err := s.getDBManager().ComponentK8sAttributeDao().DeleteByComponentIDAndName(componentID, name); err != nil {
+	attr, err := s.GetK8sAttribute(componentID, name)
+	if err != nil {
 		return err
 	}
-	return s.syncVMRuntimeDevicesForAttribute(componentID, name)
+	if attr == nil {
+		// An earlier deletion may have committed before runtime synchronization failed.
+		return s.syncVMRuntimeDevicesForAttribute(componentID, name)
+	}
+	if err := vmrestore.DeletePublicAttribute(s.getDBManager().DB(), componentID, attr.ID); err != nil {
+		return err
+	}
+	return s.syncVMRuntimeDevicesForAttribute(componentID, attr.Name)
 }
 
 var vmRuntimeDeviceAttributeNames = []string{

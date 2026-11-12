@@ -5,13 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/component/storage"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	appv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,10 +30,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 )
 
 // HandleK8SResourceObjectsName -
@@ -158,7 +159,7 @@ func (c *clusterAction) AppYamlResourceImport(namespace, tenantID, appID string,
 		c.createPort(componentResource.PortManagement, component)
 		componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
 		componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
-		c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenantID, component)
+		componentResource.ComponentK8sAttributesManagement = c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenantID, component)
 		componentAttributes = append(componentAttributes, apimodel.ComponentAttributes{
 			TS:                     component,
 			Image:                  componentResource.BasicManagement.Image,
