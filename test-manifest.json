@@ -11526,6 +11526,141 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.live-volume-resolver",
+      "title": "VM disk authoritative live resolver",
+      "title_zh": "VM disk authoritative live resolver",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Resolver.ResolveVolume",
+      "code_paths": [
+        "pkg/vmrestore/resolver.go",
+        "pkg/vmrestore/admission_context.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverCanonicalMaterializationAndPlainPVC"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverUsesDVActualClaimAndRejectsLaterRemap"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverMissingAndReplacedMappedPVCNeverFallback"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverRejectsForeignLogicalVolumeAndDoesNotInventUID"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestBindingViewDoesNotExposeAdmissionOrBackendHandle"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestCanonicalMaterializedIdentitySurvivesRollbackAndRejectsNewUID"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestResolverRejectsMixedGenerationDuringKubernetesReads"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverRejectsCorruptHistoricalReceipts"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestLiveResolverRejectsConflictingPVCOwnership"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestPartialMappingLossWithReceiptCannotSelectB"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.lost-ledger-footprint",
+      "title": "VM restored-resource footprint loss guard",
+      "title_zh": "VM restored-resource footprint loss guard",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Resolver.fallbackFootprints",
+      "code_paths": [
+        "pkg/vmrestore/footprints.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestLostWholeLedgerCannotFallbackToOriginalB"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestLegitimateInFlightTargetDoesNotBecomeASecondMapping"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestHealthyGenerationAllowsNewUnmappedDiskWithoutItsOwnRestoreFootprint"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestMarkersDoNotAdoptExistingResourceOrUseTestLabelsAsAuthority"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestOrphanBindingWithoutOwnedLogicalRecordIsRejected"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestCommittedBindingFootprintSurvivesMissingResources"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestPreparedCanonicalBindingsDoNotImplyCommittedMapping"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestNewDiskAbsentFromCommittedReceiptCanResolveCanonically"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestCommitFootprintRequiresMatchingSealedSuccess"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestVMGenerationMarkerPreservesMetadataAndRejectsWrongScope"
+        },
+        {
+          "path": "pkg/vmrestore/footprints_test.go",
+          "selector": "TestUnmappedNewDiskChecksKnownAndMalformedFootprints"
+        },
+        {
+          "path": "pkg/vmrestore/resolver_test.go",
+          "selector": "TestPartialMappingLossWithReceiptCannotSelectB"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.materialized-canonical-identity",
+      "title": "Materialized canonical VM disk UID identity",
+      "title_zh": "Materialized canonical VM disk UID identity",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Binding",
+      "code_paths": [
+        "pkg/vmrestore/state.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/materialized_binding_test.go",
+          "selector": "TestMaterializedCanonicalProvenanceUsesAnEmptyPair"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.private-attributes",
       "title": "VM restore private attribute boundaries",
       "title_zh": "VM restore private attribute boundaries",
@@ -11774,6 +11909,77 @@
         {
           "path": "pkg/vmrestore/state_test.go",
           "selector": "TestStateResolutionDoesNotExposeMutableIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.volume-reference-matrix",
+      "title": "VM disk logical and physical reference matrix",
+      "title_zh": "VM disk logical and physical reference matrix",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Resolver.VolumeReferences",
+      "code_paths": [
+        "pkg/vmrestore/references.go",
+        "pkg/vmrestore/reference_scans.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOldBLogicalReferencesDoNotBlockIndependentAExpansion"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestCurrentPhysicalSnapshotBlocksExpansion"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestActorAdmissionContextOnlyIgnoresItsOwnBusyFlag"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOwnContextCannotBypassRestoreFence"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestIndirectDataSourceAndPendingVolumeRequestAreProtected"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestUnreadableReferencesFailClosed"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestRestoredAliasWithNoRealReferencesCanBeDeletedAndExpanded"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestCSIVolumeSnapshotContentUsesBackendIdentityWithoutExposingHandle"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOwnVMLauncherDoesNotBlockExpansionButForeignPodDoes"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOptionalReferenceAPINotFoundDoesNotMeanEmptyWhenDiscovered"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOlderReceiptKeepsExactBIdentityWithoutBlockingAExpansion"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestOptionalSnapshotAPIAbsenceAndVersionMismatch"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestSnapshotLayoutAndPendingRequestsProtectDifferentResources"
+        },
+        {
+          "path": "pkg/vmrestore/references_test.go",
+          "selector": "TestPVCCloneReferencesIncludeCrossNamespaceDataSources"
         }
       ],
       "test_type": "regression",

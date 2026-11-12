@@ -232,7 +232,7 @@ func validateBindings(bindings map[string]Binding) error {
 		if b.PreviousPVC != nil && (!validRef(*b.PreviousPVC) || b.PreviousPVC.Namespace != b.ActivePVC.Namespace || b.PreviousPVC.UID == b.ActivePVC.UID) {
 			return ErrCorrupt
 		}
-		if !idPattern.MatchString(b.RestoreID) || !validUID(b.SnapshotUID) {
+		if (b.RestoreID == "") != (b.SnapshotUID == "") || (b.RestoreID != "" && (!idPattern.MatchString(b.RestoreID) || !validUID(b.SnapshotUID))) {
 			return ErrCorrupt
 		}
 	}
