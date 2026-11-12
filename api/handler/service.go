@@ -656,25 +656,31 @@ func (s *ServiceAction) getVirtualMachineByServiceID(serviceID string) (*v1.Virt
 }
 
 func (s *ServiceAction) resolveVMServiceRuntimeStatus(serviceID string) (string, bool) {
-	if s == nil || (s.kubevirtClient == nil && s.getVirtualMachineByServiceIDHook == nil && s.getVirtualMachineInstanceByServiceIDHook == nil) {
-		return "", false
+	status, ok, _ := s.resolveVMServiceRuntimeStatusWithGuest(serviceID)
+	return status, ok
+}
+
+func (s *ServiceAction) resolveVMServiceRuntimeStatusWithGuest(serviceID string) (string, bool, *apimodel.VMGuestStatus) {
+	if s == nil || (s.kubevirtClient == nil && (s.getVirtualMachineByServiceIDHook == nil || s.getVirtualMachineInstanceByServiceIDHook == nil)) {
+		return "", false, resolveVMGuestStatus(nil, nil, true)
 	}
-	vm, err := s.getVirtualMachineByServiceID(serviceID)
-	if err != nil {
-		logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, err)
+	vm, vmErr := s.getVirtualMachineByServiceID(serviceID)
+	if vmErr != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine: %v", serviceID, vmErr)
 	}
-	vmi, err := s.getVirtualMachineInstanceByServiceID(serviceID)
-	if err != nil {
-		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, err)
+	vmi, vmiErr := s.getVirtualMachineInstanceByServiceID(serviceID)
+	if vmiErr != nil {
+		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, vmiErr)
 	}
+	guest := resolveVMGuestStatus(vm, vmi, vmErr != nil || vmiErr != nil)
 	transitionStatus, hasTransitionStatus := resolveVMTransitionStatus(vm, vmi)
 	if transitionStatus == "abnormal" {
-		return transitionStatus, true
+		return transitionStatus, true, guest
 	}
 	if restoreStatus, ok := s.resolveVMDataVolumeRuntimeStatus(vm, vmi, transitionStatus); ok {
-		return restoreStatus, true
+		return restoreStatus, true, guest
 	}
-	return transitionStatus, hasTransitionStatus
+	return transitionStatus, hasTransitionStatus, guest
 }
 
 func resolveVMTransitionStatus(vm *v1.VirtualMachine, vmi *v1.VirtualMachineInstance) (string, bool) {
@@ -2806,7 +2812,9 @@ func (s *ServiceAction) GetStatus(serviceID string) (*apimodel.StatusList, error
 		sl.StatusCN = TransStatus(status)
 	}
 	if services.IsVM() {
-		if vmStatus, ok := s.resolveVMServiceRuntimeStatus(serviceID); ok {
+		vmStatus, ok, guest := s.resolveVMServiceRuntimeStatusWithGuest(serviceID)
+		sl.VMGuest = guest
+		if ok {
 			sl.CurStatus = vmStatus
 			sl.StatusCN = TransStatus(vmStatus)
 		}

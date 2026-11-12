@@ -10853,6 +10853,34 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-guest.status-observation",
+      "title": "Observe VM guest agent state without inferring OS readiness",
+      "title_zh": "Observe VM guest agent state without inferring OS readiness",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_guest.go",
+        "api/model/model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_guest_test.go",
+          "selector": "TestResolveVMGuestStatus"
+        },
+        {
+          "path": "api/handler/service_vm_guest_test.go",
+          "selector": "TestVMRuntimeGuestReadFailureDoesNotBecomeDisconnected"
+        },
+        {
+          "path": "api/handler/service_vm_guest_test.go",
+          "selector": "TestVMRuntimeIncludesObservedGuest"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-hotplug.add-volume-conflict-retry",
       "title": "Retry VM hotplug add volume on conflict",
       "title_zh": "\u70ed\u6dfb\u52a0\u865a\u62df\u673a\u78c1\u76d8\u65f6\u5728\u51b2\u7a81\u540e\u91cd\u8bd5",

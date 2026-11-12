@@ -565,6 +565,7 @@
 | rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
 | rainbond.vm-export.root-disk-url | 创建 VMExport 并返回系统盘下载地址 | active | regression | api/handler.VMExportHandler | api/handler/vm_export_test.go::TestCreateVMExport<br>api/handler/vm_export_test.go::TestGetVMExport |
+| rainbond.vm-guest.status-observation | Observe VM guest agent state without inferring OS readiness | active | regression | ServiceAction.resolveVMServiceRuntimeStatusWithGuest | api/handler/service_vm_guest_test.go::TestResolveVMGuestStatus<br>api/handler/service_vm_guest_test.go::TestVMRuntimeGuestReadFailureDoesNotBecomeDisconnected<br>api/handler/service_vm_guest_test.go::TestVMRuntimeIncludesObservedGuest |
 | rainbond.vm-hotplug.add-volume-conflict-retry | 热添加虚拟机磁盘时在冲突后重试 | active | regression | api/handler.ServiceAction.hotplugVMDataDisk | api/handler/service_vm_hotplug_test.go::TestPerformVMHotplugAddVolumeRetriesConflicts |
 | rainbond.vm-hotplug.data-volume-capacity-gi | 使用 Gi 容量创建虚拟机热插数据卷 | active | regression | api/handler.buildVMHotplugDataVolumeObject | api/handler/service_vm_hotplug_test.go::TestBuildVMHotplugDataVolumeObjectUsesGiCapacity |
 | rainbond.vm-hotplug.remove-volume-running-vm | 删除存储时热移除运行中虚拟机的数据磁盘 | active | regression | api/handler.ServiceAction.VolumnVar | api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskRemovesVolumeFromRunningVM<br>api/handler/service_vm_hotplug_test.go::TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC<br>api/handler/service_vm_hotplug_test.go::TestVolumnVarDeleteHotunplugsRunningVMDataDisk |
@@ -6292,6 +6293,16 @@
 - 业务入口: `api/handler.VMExportHandler`
 - 代码路径: `api/handler/vm_export.go`
 - 测试路径: `api/handler/vm_export_test.go::TestCreateVMExport`, `api/handler/vm_export_test.go::TestGetVMExport`
+
+### Observe VM guest agent state without inferring OS readiness
+
+- Capability ID: `rainbond.vm-guest.status-observation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ServiceAction.resolveVMServiceRuntimeStatusWithGuest`
+- 代码路径: `api/handler/service.go`, `api/handler/service_vm_guest.go`, `api/model/model.go`
+- 测试路径: `api/handler/service_vm_guest_test.go::TestResolveVMGuestStatus`, `api/handler/service_vm_guest_test.go::TestVMRuntimeGuestReadFailureDoesNotBecomeDisconnected`, `api/handler/service_vm_guest_test.go::TestVMRuntimeIncludesObservedGuest`
 
 ### 热添加虚拟机磁盘时在冲突后重试
 

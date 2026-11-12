@@ -684,18 +684,34 @@ type RollbackStruct struct {
 
 // StatusList status list
 type StatusList struct {
-	TenantID      string     `json:"tenant_id"`
-	ServiceID     string     `json:"service_id"`
-	ServiceAlias  string     `json:"service_alias"`
-	DeployVersion string     `json:"deploy_version"`
-	Replicas      int        `json:"replicas"`
-	ContainerMem  int        `json:"container_memory"`
-	CurStatus     string     `json:"cur_status"`
-	ContainerCPU  int        `json:"container_cpu"`
-	StatusCN      string     `json:"status_cn"`
-	StartTime     string     `json:"start_time"`
-	PodList       []PodsList `json:"pod_list"`
-	VMRestore     *VMRestore `json:"vm_restore,omitempty"`
+	TenantID      string         `json:"tenant_id"`
+	ServiceID     string         `json:"service_id"`
+	ServiceAlias  string         `json:"service_alias"`
+	DeployVersion string         `json:"deploy_version"`
+	Replicas      int            `json:"replicas"`
+	ContainerMem  int            `json:"container_memory"`
+	CurStatus     string         `json:"cur_status"`
+	ContainerCPU  int            `json:"container_cpu"`
+	StatusCN      string         `json:"status_cn"`
+	StartTime     string         `json:"start_time"`
+	PodList       []PodsList     `json:"pod_list"`
+	VMRestore     *VMRestore     `json:"vm_restore,omitempty"`
+	VMGuest       *VMGuestStatus `json:"vm_guest,omitempty"`
+}
+
+// VMGuestStatus is a current observation of the guest agent channel.
+type VMGuestStatus struct {
+	Status         string         `json:"status"`
+	AgentConnected *bool          `json:"agent_connected"`
+	Reason         string         `json:"reason"`
+	OS             *VMGuestOSInfo `json:"os,omitempty"`
+}
+
+// VMGuestOSInfo contains only guest OS metadata reported by a connected agent.
+type VMGuestOSInfo struct {
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	KernelRelease string `json:"kernel_release"`
 }
 
 // VMRestore virtual machine data volume restore status.
