@@ -11600,6 +11600,203 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.atomic-state-store",
+      "title": "VM restore atomic state and idempotent receipts",
+      "title_zh": "VM restore atomic state and idempotent receipts",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Store.Mutate",
+      "code_paths": [
+        "pkg/vmrestore/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreCASReplayAndRequestIdentity"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsDuplicateAndCrossTenantRows"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsUnpairedFenceBeforeCommit"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreDuplicateRowsWithValidCommittedBaseline"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestMutateTxRollsBackStateAndReceiptTogether"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestMissingServiceNeverRecreatesLedger"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsManufacturedFutureStep"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsUnappliedPersistedStepReplay"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsIncompletePersistedState"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsMissingCurrentWithRemainingReceipt"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsMissingReceiptForActiveFence"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStorePersistedStateRequiresStructuralFields"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsImpossiblePersistedStepResults"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress"
+        },
+        {
+          "path": "pkg/vmrestore/store_test.go",
+          "selector": "TestStoreRejectsIncompletePersistedReceipt"
+        },
+        {
+          "path": "pkg/vmrestore/store_mysql_test.go",
+          "selector": "TestMySQLUsesCurrentLockingReadsBeforeMutation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.durable-admission",
+      "title": "VM mutation durable admission ownership",
+      "title_zh": "VM mutation durable admission ownership",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.State.AdmitMutation",
+      "code_paths": [
+        "pkg/vmrestore/state.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestAdmissionDoesNotExpireOrReleaseOtherOwner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.private-attributes",
+      "title": "VM restore private attribute boundaries",
+      "title_zh": "VM restore private attribute boundaries",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.PublicAttributeCopies",
+      "code_paths": [
+        "pkg/vmrestore/state.go",
+        "pkg/vmrestore/public_attributes.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestPrivateAttributeNames"
+        },
+        {
+          "path": "pkg/vmrestore/public_attributes_test.go",
+          "selector": "TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection"
+        },
+        {
+          "path": "pkg/vmrestore/public_attributes_test.go",
+          "selector": "TestExportAndImportCannotCarryBindingsOrReceipt"
+        },
+        {
+          "path": "pkg/vmrestore/public_attributes_test.go",
+          "selector": "TestPublicDeleteCannotRemoveInternalRow"
+        },
+        {
+          "path": "pkg/vmrestore/public_attributes_test.go",
+          "selector": "TestPublicDeleteRemovesOnlyTheObservedComponentsRow"
+        },
+        {
+          "path": "pkg/vmrestore/public_attributes_test.go",
+          "selector": "TestPublicReplacementParticipatesInTheCallersTransaction"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.state-scope-and-resolver",
+      "title": "VM restore scoped state and canonical resolver",
+      "title_zh": "VM restore scoped state and canonical resolver",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.State.ResolveClaim",
+      "code_paths": [
+        "pkg/vmrestore/state.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateScopeAndResolver"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestRecordRejectsUnknownSchemaFieldsAndTrailingJSON"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestDetachedBindingNeverFallsBackAndCrossNamespaceRejected"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateRejectsNonCanonicalBindingKeys"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateReceiptResourceIdentities"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateReceiptRejectsInvalidScope"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateReceiptAcceptsKubernetesSubdomainNames"
+        },
+        {
+          "path": "pkg/vmrestore/state_test.go",
+          "selector": "TestStateResolutionDoesNotExposeMutableIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.build-media-paths",
       "title": "Split VM runtime image build templates for ISO and disk sources",
       "title_zh": "\u62c6\u5206 ISO \u4e0e\u78c1\u76d8\u955c\u50cf\u7684 VM \u8fd0\u884c\u65f6\u6784\u5efa\u6a21\u677f\u8def\u5f84",
