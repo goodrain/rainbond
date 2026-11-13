@@ -1,5 +1,7 @@
 package controller
 
+// capability_id: rainbond.vm-snapshot.http-bounded-contract
+
 import (
 	"bytes"
 	"context"
@@ -26,12 +28,13 @@ func TestVMSnapshotControllerCreateVMSnapshot(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/v2/tenants/demo/services/demo/vm-snapshots", bytes.NewBufferString(`{"name":"snap-1","description":"demo"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("tenant_id"), "tenant"))
 	recorder := httptest.NewRecorder()
 
 	controller.CreateVMSnapshot(recorder, req)
 
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", recorder.Code)
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", recorder.Code)
 	}
 }
 
@@ -40,6 +43,7 @@ func TestVMSnapshotControllerCreateVMSnapshotRequiresName(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/v2/tenants/demo/services/demo/vm-snapshots", bytes.NewBufferString(`{"description":"demo"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("service_id"), "service-1"))
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("tenant_id"), "tenant"))
 	recorder := httptest.NewRecorder()
 
 	controller.CreateVMSnapshot(recorder, req)
