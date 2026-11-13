@@ -374,6 +374,21 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 		if before.Receipt != nil && !reflect.DeepEqual(update.Receipt.OldBindings, before.Receipt.OldBindings) {
 			return Current{}, ErrConflict
 		}
+		if before.Receipt != nil && !sameRestoreIntent(before.Receipt.Restore, update.Receipt.Restore) {
+			return Current{}, ErrConflict
+		}
+		if before.Receipt != nil {
+			old := before.Receipt
+			next := update.Receipt
+			if old.ConfigCommitHash != "" && (old.ConfigCommitHash != next.ConfigCommitHash || !reflect.DeepEqual(old.NewBindings, next.NewBindings)) {
+				return Current{}, ErrConflict
+			}
+			for _, pair := range [][2]string{{old.ConsoleAckHash, next.ConsoleAckHash}, {old.RollbackConfigHash, next.RollbackConfigHash}, {old.RollbackAckHash, next.RollbackAckHash}} {
+				if pair[0] != "" && pair[0] != pair[1] {
+					return Current{}, ErrConflict
+				}
+			}
+		}
 		// The callback may neither rewrite existing history nor pre-seal any other
 		// step. Store alone appends the successful step for this transaction.
 		if before.Receipt == nil {
