@@ -11414,6 +11414,26 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.atomic-config-bindings",
+      "title": "Atomically commit all disks and selected Region configuration",
+      "title_zh": "Atomically commit all disks and selected Region configuration",
+      "interface_type": "package_function",
+      "interface": "Store.CommitRestoreDB",
+      "code_paths": [
+        "pkg/vmrestore/restore_commit_types.go",
+        "pkg/vmrestore/restore_commit.go",
+        "pkg/vmrestore/state.go",
+        "pkg/vmrestore/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_commit_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.atomic-state-store",
       "title": "VM restore atomic state and idempotent receipts",
       "title_zh": "VM restore atomic state and idempotent receipts",
@@ -11701,6 +11721,41 @@
         {
           "path": "pkg/vmrestore/materialized_binding_test.go",
           "selector": "TestMaterializedCanonicalProvenanceUsesAnEmptyPair"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.pinned-before-boot-layout",
+      "title": "Validate effective original boot and disk layout under the restore transaction lock",
+      "title_zh": "Validate effective original boot and disk layout under the restore transaction lock",
+      "interface_type": "workflow",
+      "interface": "Store.PrepareRestoreDB",
+      "code_paths": [
+        "pkg/vmrestore/restore_before_config.go",
+        "pkg/vmrestore/restore_commit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_before_config_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.pinned-rollback",
+      "title": "Rollback selected config to materialized retained identities",
+      "title_zh": "Rollback selected config to materialized retained identities",
+      "interface_type": "package_function",
+      "interface": "Store.RollbackRestoreDB",
+      "code_paths": [
+        "pkg/vmrestore/restore_commit.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_commit_test.go"
         }
       ],
       "test_type": "regression",

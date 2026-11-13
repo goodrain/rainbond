@@ -112,6 +112,9 @@ type StepResult struct {
 
 // Receipt is Region resource ownership and step idempotency, not the total workflow.
 type Receipt struct {
+	Restore                   *RestoreIntent        `json:"restore,omitempty"`
+	RollbackConfigHash        string                `json:"rollback_config_hash,omitempty"`
+	RollbackAckHash           string                `json:"rollback_ack_hash,omitempty"`
 	Snapshot                  *SnapshotIntent       `json:"snapshot,omitempty"`
 	ManifestID                string                `json:"manifest_id,omitempty"`
 	ConfigCommitHash          string                `json:"config_commit_hash,omitempty"`
@@ -293,6 +296,16 @@ func (r Receipt) Validate(scope Scope, operationID string) error {
 			if binding.ActivePVC.Namespace != scope.Namespace {
 				return ErrCorrupt
 			}
+		}
+	}
+	for _, hash := range []string{r.ConfigCommitHash, r.ConsoleAckHash, r.RollbackConfigHash, r.RollbackAckHash} {
+		if hash != "" && !hashPattern.MatchString(hash) {
+			return ErrCorrupt
+		}
+	}
+	if r.Restore != nil {
+		if err := r.Restore.validate(scope); err != nil {
+			return err
 		}
 	}
 	for _, resource := range r.Resources {
