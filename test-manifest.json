@@ -11528,6 +11528,135 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.capacity-capability-gate",
+      "title": "Require qualified storage and real reserved capacity",
+      "title_zh": "Require qualified storage and real reserved capacity",
+      "interface_type": "package_function",
+      "interface": "restoreplan.Assess",
+      "code_paths": [
+        "pkg/vmrestore/restoreplan/budget.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restoreplan/budget_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-result-canonical-fields",
+      "title": "Require canonical typed JSON fields before projecting copy evidence",
+      "title_zh": "Require canonical typed JSON fields before projecting copy evidence",
+      "interface_type": "workflow",
+      "interface": "restoreplan.CaptureAndValidate",
+      "code_paths": [
+        "pkg/vmrestore/restoreplan/capture.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restoreplan/capture_test.go",
+          "selector": "TestCaptureRejectsNoncanonicalTypedFieldAliases"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-result-capture",
+      "title": "Bind complete persisted report to exact Job and Pod identity",
+      "title_zh": "Bind complete persisted report to exact Job and Pod identity",
+      "interface_type": "package_function",
+      "interface": "restoreplan.CaptureAndValidate",
+      "code_paths": [
+        "pkg/vmrestore/restoreplan/capture.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restoreplan/capture_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-result-unique-members",
+      "title": "Reject ambiguous duplicate JSON in restore copy evidence",
+      "title_zh": "Reject ambiguous duplicate JSON in restore copy evidence",
+      "interface_type": "workflow",
+      "interface": "restoreplan.CaptureAndValidate",
+      "code_paths": [
+        "pkg/vmrestore/restoreplan/capture.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restoreplan/capture_test.go",
+          "selector": "TestCaptureRejectsDuplicateJSONMembers"
+        },
+        {
+          "path": "pkg/vmrestore/restoreplan/capture_test.go",
+          "selector": "TestCaptureAllowsDistinctObjectsAndEscapedUniqueMembers"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-results-before-assert",
+      "title": "Persist typed complete evidence before assertions",
+      "title_zh": "Persist typed complete evidence before assertions",
+      "interface_type": "package_function",
+      "interface": "copyio.Run",
+      "code_paths": [
+        "pkg/vmrestore/copyio/run.go",
+        "cmd/vm-restore-copy/main.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/copyio/run_test.go"
+        },
+        {
+          "path": "cmd/vm-restore-copy/main_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-retry-verification",
+      "title": "Read-only verification of already published targets",
+      "title_zh": "Read-only verification of already published targets",
+      "interface_type": "package_function",
+      "interface": "copyio.Run",
+      "code_paths": [
+        "pkg/vmrestore/copyio/run.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/copyio/run_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.copy-write-budget",
+      "title": "Stop before any write exceeds hard byte budget",
+      "title_zh": "Stop before any write exceeds hard byte budget",
+      "interface_type": "package_function",
+      "interface": "copyio.ZeroScanCopy",
+      "code_paths": [
+        "pkg/vmrestore/copyio/copy.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/copyio/copy_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.durable-admission",
       "title": "VM mutation durable admission ownership",
       "title_zh": "VM mutation durable admission ownership",
@@ -12081,6 +12210,24 @@
         {
           "path": "pkg/vmrestore/references_test.go",
           "selector": "TestPVCCloneReferencesIncludeCrossNamespaceDataSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.zero-scan-copy",
+      "title": "Preserve full disk content and sparse zero chunks",
+      "title_zh": "Preserve full disk content and sparse zero chunks",
+      "interface_type": "package_function",
+      "interface": "copyio.Scan",
+      "code_paths": [
+        "pkg/vmrestore/copyio/scan.go",
+        "pkg/vmrestore/copyio/protocol.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/copyio/copy_test.go"
         }
       ],
       "test_type": "regression",
