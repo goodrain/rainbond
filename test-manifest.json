@@ -11643,6 +11643,52 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.materialized-binding-plan",
+      "title": "Restore binding identity set and retained original disks",
+      "title_zh": "\u6062\u590d\u7ed1\u5b9a\u8eab\u4efd\u96c6\u5408\u4e0e\u539f\u76d8\u4fdd\u7559",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.BuildRestoreBindings",
+      "code_paths": [
+        "pkg/vmrestore/restore_commit_types.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreBindingPlanPreservesLaterBDisksWithoutReattaching"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreBindingPlanRejectsMissingForeignAndReusedTargets"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreConfigHashIsOrderStableWithoutMutatingCallers"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreBindingPlanDoesNotAliasOriginalDiskReferences"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreConfigRejectsUnrepresentableHardwareAndDiskSets"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreIntentPinsSourceScopeAndHashes"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreBindingPlanRejectsContradictoryObjectSlots"
+        },
+        {
+          "path": "pkg/vmrestore/restore_binding_plan_test.go",
+          "selector": "TestRestoreBindingPlanAllowsDistinctResourceKindsAndSharedHistory"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.materialized-canonical-identity",
       "title": "Materialized canonical VM disk UID identity",
       "title_zh": "Materialized canonical VM disk UID identity",
