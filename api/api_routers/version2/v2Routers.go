@@ -641,7 +641,11 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Post("/vm-exports", middleware.WrapEL(controller.GetManager().CreateVMExport, dbmodel.TargetTypeService, "export-vm", dbmodel.SYNEVENTTYPE, true))
 	r.Get("/vm-exports/{name}", controller.GetManager().GetVMExport)
-	r.Post("/vm-snapshots", middleware.WrapEL(controller.GetManager().CreateVMSnapshot, dbmodel.TargetTypeService, "snapshot-vm", dbmodel.SYNEVENTTYPE, true))
+	r.Post("/vm-snapshots", middleware.SnapshotCommand(controller.GetVMSnapshotController().CreateVMSnapshot))
+	r.Get("/vm-snapshots", controller.GetVMSnapshotController().ListVMSnapshots)
+	r.Get("/vm-snapshots/{name}", controller.GetVMSnapshotController().GetVMSnapshot)
+	r.Post("/vm-snapshots/{name}/{snapshot_action}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
+	r.Delete("/vm-snapshots/{name}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE, true))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE, true))

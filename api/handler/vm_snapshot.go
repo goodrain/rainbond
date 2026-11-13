@@ -2,45 +2,28 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/vmrestore"
+
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	snapshotv1 "kubevirt.io/api/snapshot/v1beta1"
 )
 
-type VMSnapshotRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
+// VMSnapshotRequest preserves legacy fields while accepting bounded operation options.
+type VMSnapshotRequest = vmrestore.SnapshotCreateRequest
 
+// VMSnapshotStatus preserves the original snapshot_name composite field.
 type VMSnapshotStatus struct {
 	SnapshotName string `json:"snapshot_name"`
+	*vmrestore.SnapshotOperationDTO
 }
 
-func (s *ServiceAction) CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error) {
-	if req == nil || strings.TrimSpace(req.Name) == "" {
-		return nil, fmt.Errorf("snapshot name is required")
-	}
-	vms, err := s.kubevirtClient.VirtualMachine("").List(context.Background(), metav1.ListOptions{
-		LabelSelector: "service_id=" + serviceID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(vms.Items) == 0 {
-		return nil, fmt.Errorf("service id is %v vm is not exist", serviceID)
-	}
-	vm := &vms.Items[0]
-	snapshot := buildVMSnapshot(vm, req.Name, req.Description, serviceID)
-	_, err = s.kubevirtClient.VirtualMachineSnapshot(vm.Namespace).Create(context.Background(), snapshot, metav1.CreateOptions{})
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return nil, err
-	}
-	return &VMSnapshotStatus{SnapshotName: snapshot.Name}, nil
+// CreateVMSnapshot preserves the internal legacy entrypoint and prepares a scoped operation.
+func (s *ServiceAction) CreateVMSnapshot(serviceID string, request *VMSnapshotRequest) (*VMSnapshotStatus, error) {
+	return s.PrepareVMSnapshot(context.Background(), serviceID, request)
 }
 
 func buildVMSnapshot(vm *kubevirtv1.VirtualMachine, snapshotName, description, serviceID string) *snapshotv1.VirtualMachineSnapshot {

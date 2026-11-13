@@ -95,6 +95,7 @@ var vmStartRetryDelay = 200 * time.Millisecond
 
 // ServiceAction service act
 type ServiceAction struct {
+	snapshotEngineFactory                    func(string) (*vmrestore.SnapshotEngine, vmrestore.Scope, error)
 	MQClient                                 gclient.MQClient
 	statusCli                                *client.AppRuntimeSyncClient
 	prometheusCli                            prometheus.Interface

@@ -12504,6 +12504,392 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-snapshot.bounded-lifecycle",
+      "title": "VM snapshot bounded lifecycle and durable ACK",
+      "title_zh": "\u865a\u62df\u673a\u5feb\u7167\u6709\u754c\u6d41\u7a0b\u4e0e\u6301\u4e45\u786e\u8ba4",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.SnapshotEngine",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_engine.go",
+        "pkg/vmrestore/snapshot_catalog.go",
+        "pkg/vmrestore/snapshot_audit.go",
+        "pkg/vmrestore/state.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestRunningSnapshotWorkflowKeepsFenceUntilACKAndObservedPower"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestWrongUIDOrIncompleteManifestCannotResume"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestNativeCreateRequiresStoppedAndRetriesDoNotRepeatCreate"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestCancelWaitsForResidualCleanupAndSourceUnlock"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestUnknownNativeCreateCannotBeCancelledAsIfNothingHappened"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestManagedSnapshotDeleteWaitsForAllChildrenAndPreservesSource"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestCancelAfterManifestACKKeepsValidSnapshotAndStopsResume"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotAuditDoesNotMarkNativeReadyOrHTTPAcceptanceAsSuccess"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotCatalogNameReuseUsesCreationOrder"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotCatalogRejectsMalformedDuplicateAndFutureReceipts"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotACKRejectsReplacedCSIIdentityBeforeFirstACK"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotKeepStoppedPreventsLaterResume"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotACKPinsExactCSIContentAndLogicalPairing"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotNativeProofReadsAreStableAndReadOnly"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotKeepStoppedWaitsForInflightResumeThenObservedHalt"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotConcurrentResumeClaimsOnlyOneStart"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotUnknownResumeKeepsFenceAndCancellationIntent"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotFailedCommandsKeepFenceAndUnconfirmedSteps"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotAuditRejectsDuplicateOrForeignOperationEvent"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotDeleteStillBlocksUnreleasedReceiptReference"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotFinalizeRechecksInflightResumeAtRelease"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotFinalizeRechecksLaterKeepStoppedDecision"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotFinalizeWithUnchangedControlRevisionCompletes"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotFinalizeRechecksFinalObservationNativeProof"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotCancelCannotReleaseFenceDuringLateNativeCreate"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotStaleCancelCannotDeleteDurablyACKedSnapshot"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotManagedDeleteCannotCompleteWhileRPCUnsettled"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotConcurrentCreateClaimsOnlyOneRPC"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotLateCreateSettlesBeforeCleanupAndCancelledACK"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotCleanupChoiceRejectsLaterReadyACKAndCreate"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotUnknownHaltAndDeleteNeverRetryOrCompleteOnAbsence"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotAcceptedHaltMustBeObservedBeforeCancellationResume"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotStaleReadyACKCannotCrossCleanupSelection"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotIdempotencyAndPendingHaltProtectSideEffects"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_engine_test.go",
+          "selector": "TestSnapshotDeleteAndListRejectInvalidTerminalRequests"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.http-bounded-contract",
+      "title": "VM snapshot HTTP async contract and scope denial",
+      "title_zh": "\u865a\u62df\u673a\u5feb\u7167\u63a5\u53e3\u53d7\u7406\u72b6\u6001\u4e0e\u4f5c\u7528\u57df\u9694\u79bb",
+      "interface_type": "workflow",
+      "interface": "api/controller.VMSnapshotController",
+      "code_paths": [
+        "api/controller/vm_snapshot.go",
+        "api/handler/vm_snapshot_lifecycle.go",
+        "api/handler/vm_snapshot.go",
+        "api/middleware/vm_snapshot.go",
+        "api/handler/service.go",
+        "api/handler/service_handler.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPRejectsInjectedScopeAndKeepsAcceptanceSeparate"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPMapsDomainErrorsWithoutNativeText"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPRequiresTrustedScopeForEveryRoute"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPStrictBodyAndQuery"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPActionPendingRetainsSafeDTO"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPReadAndActionContracts"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPFixedDomainErrorCodes"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPRealFacadeEnforcesDBScopeBeforeNativeDependency"
+        },
+        {
+          "path": "api/controller/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotControllerCreateVMSnapshot"
+        },
+        {
+          "path": "api/controller/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotControllerCreateVMSnapshotRequiresName"
+        },
+        {
+          "path": "api/handler/vm_snapshot_test.go",
+          "selector": "TestBuildVMSnapshot"
+        },
+        {
+          "path": "api/handler/vm_snapshot_test.go",
+          "selector": "TestCreateVMSnapshot"
+        },
+        {
+          "path": "api/handler/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotFacadeDispatchAndIdentity"
+        },
+        {
+          "path": "api/handler/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotFacadeDerivesScopeAndRejectsForeignTenant"
+        },
+        {
+          "path": "api/middleware/vm_snapshot_test.go",
+          "selector": "TestSnapshotCommandPreservesLicenseBoundaryWithoutEarlyEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.native-ownership",
+      "title": "VM snapshot native ownership and UID cleanup",
+      "title_zh": "\u865a\u62df\u673a\u5feb\u7167\u539f\u751f\u8d44\u6e90\u8eab\u4efd\u4e0e\u7cbe\u786e\u56de\u6536",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.KubeSnapshotBackend",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_kube.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeSnapshotCreateReconcilesOnlyExactOperationAndCore"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeMetadataKeepsHashOutOfLabels"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeDeleteUsesUIDAndNeverDeletesSourceObjects"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativePreflightAndPowerRequireObservedShutdownAndUnlock"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeObserveWaitsForCSIResidualAfterParentDisappearance"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeObserveRejectsMismatchedAPISourceAndOwner"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeObserveRejectsCSIContentBoundToAnotherVolumeUID"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeIndependentWritableCloneDoesNotKeepSnapshotReference"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeCloneReferenceGateRequiresIndependentWritableBinding"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeCloneDataSourceRefAndUnavailableProof"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeReadAndPowerFailuresRemainUnavailable"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeOccupancyAndMissingSourceRemainDistinct"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeSourceUIDWriterAndRuntimeGuards"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeStorageIdentityCannotBeReplacedOrBacked"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.safe-metadata-projection",
+      "title": "VM snapshot safe metadata and complete disk coverage",
+      "title_zh": "\u865a\u62df\u673a\u5feb\u7167\u5b89\u5168\u5143\u6570\u636e\u4e0e\u5b8c\u6574\u76d8\u8986\u76d6",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.ProjectSnapshot",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_types.go",
+        "pkg/vmrestore/snapshot_projection.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionUsesApprovedFieldsAndCompleteCoverage"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestNativeReadyCannotHideMissingWritableDisk"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionRejectsReplacedResourcesAndUnsealedSource"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSealedHistoricalSnapshotDoesNotUseCurrentVMUIDAsOrigin"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestUnknownWritableVolumeIsNotSilentlyExcluded"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionBlocksEveryUnmanagedStorageSource"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotSafeConfigRequiresExactManagedVolumeSource"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSealedHistoricalSnapshotSurvivesMissingMutableSourceStatus"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionRejectsWrongNativeSourceAndCSIBinding"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionNeverMarksTerminatingChildrenReady"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotSafeConfigExcludesGeneratedInitializationMedia"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotSafeConfigRejectsUnsupportedConfiguration"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotSafeConfigKeepsApprovedUnitsBootAndDeviceLayout"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotSafeConfigRequiresRepresentableFirmwareState"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionRejectsUnrepresentedHistoricalFirmwareState"
+        },
+        {
+          "path": "pkg/vmrestore/snapshot_projection_test.go",
+          "selector": "TestSnapshotProjectionKeepsPendingAndFailureSafe"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-template-import.registry-restore-progress",
       "title": "Expose registry VM DataVolume import progress",
       "title_zh": "\u66b4\u9732 registry \u865a\u62df\u673a DataVolume \u5bfc\u5165\u8fdb\u5ea6",

@@ -112,6 +112,7 @@ type StepResult struct {
 
 // Receipt is Region resource ownership and step idempotency, not the total workflow.
 type Receipt struct {
+	Snapshot                  *SnapshotIntent       `json:"snapshot,omitempty"`
 	ManifestID                string                `json:"manifest_id,omitempty"`
 	ConfigCommitHash          string                `json:"config_commit_hash,omitempty"`
 	ConsoleAckHash            string                `json:"console_ack_hash,omitempty"`
@@ -268,6 +269,18 @@ func (s State) Validate(scope Scope) error {
 func (r Receipt) Validate(scope Scope, operationID string) error {
 	if r.SchemaVersion != SchemaVersion || r.Scope != scope || !validScope(scope) || r.OperationID != operationID || !idPattern.MatchString(operationID) || !hashPattern.MatchString(r.ManifestHash) || r.Steps == nil {
 		return ErrCorrupt
+	}
+	if r.Snapshot != nil {
+		if r.Snapshot.OperationID != operationID {
+			return ErrCorrupt
+		}
+		if err := validateSnapshotIntent(scope, *r.Snapshot); err != nil {
+			return ErrCorrupt
+		}
+		core, err := SnapshotCoreHash(scope, *r.Snapshot)
+		if err != nil || core != r.ManifestHash {
+			return ErrCorrupt
+		}
 	}
 	if err := validateBindings(r.OldBindings); err != nil {
 		return err
