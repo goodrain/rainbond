@@ -588,6 +588,7 @@
 | rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
 | rainbond.vm-live-update.running-shrink-restart-allowed-before-event | 运行中虚拟机缩容允许进入垂直伸缩流程 | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler |
 | rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
+| rainbond.vm-network.stable-interface-identity | 虚拟机网卡标识在创建、更新和重启中保持稳定 | active | regression | conversion.convPodTemplate; ServiceAction.StopVM; ServiceAction.RestartVM; ServiceAction.syncVirtualMachineSpec | worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACIsStableAndScopedToService<br>worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecPreservesInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestObservedVMInterfaceMACCompatibility<br>api/handler/vm_network_identity_test.go::TestVMNetworkIdentityPinnedBeforePowerOperation<br>api/handler/vm_network_identity_test.go::TestPinVMNetworkIdentityFailureAndRetry |
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
@@ -6532,6 +6533,16 @@
 - 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart`, `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart`
+
+### 虚拟机网卡标识在创建、更新和重启中保持稳定
+
+- Capability ID: `rainbond.vm-network.stable-interface-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `conversion.convPodTemplate; ServiceAction.StopVM; ServiceAction.RestartVM; ServiceAction.syncVirtualMachineSpec`
+- 代码路径: `worker/appm/conversion/vm_network_identity.go`, `worker/appm/conversion/version.go`, `api/handler/vm_network_identity.go`, `api/handler/k8s_attribute.go`, `api/handler/service.go`
+- 测试路径: `worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACIsStableAndScopedToService`, `worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces`, `api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecPreservesInterfaceMAC`, `api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC`, `api/handler/vm_network_identity_test.go::TestObservedVMInterfaceMACCompatibility`, `api/handler/vm_network_identity_test.go::TestVMNetworkIdentityPinnedBeforePowerOperation`, `api/handler/vm_network_identity_test.go::TestPinVMNetworkIdentityFailureAndRetry`
 
 ### 虚拟机热更新后清理已完成的 virt-launcher Pod
 

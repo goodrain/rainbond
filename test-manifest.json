@@ -11333,6 +11333,52 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.stable-interface-identity",
+      "title": "Preserve VM network identity across creation, updates and restarts",
+      "title_zh": "\u865a\u62df\u673a\u7f51\u5361\u6807\u8bc6\u5728\u521b\u5efa\u3001\u66f4\u65b0\u548c\u91cd\u542f\u4e2d\u4fdd\u6301\u7a33\u5b9a",
+      "interface_type": "workflow",
+      "interface": "conversion.convPodTemplate; ServiceAction.StopVM; ServiceAction.RestartVM; ServiceAction.syncVirtualMachineSpec",
+      "code_paths": [
+        "worker/appm/conversion/vm_network_identity.go",
+        "worker/appm/conversion/version.go",
+        "api/handler/vm_network_identity.go",
+        "api/handler/k8s_attribute.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_network_identity_test.go",
+          "selector": "TestVMInterfaceMACIsStableAndScopedToService"
+        },
+        {
+          "path": "worker/appm/conversion/vm_network_identity_test.go",
+          "selector": "TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestApplyVirtualMachineSpecPreservesInterfaceMAC"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestObservedVMInterfaceMACCompatibility"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestVMNetworkIdentityPinnedBeforePowerOperation"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestPinVMNetworkIdentityFailureAndRetry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
       "title": "Cleanup completed virt-launcher pods after VM hot update",
       "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",

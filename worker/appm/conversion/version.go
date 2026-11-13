@@ -246,7 +246,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Machine:   &kubevirtv1.Machine{Type: "q35"},
 			Devices: kubevirtv1.Devices{
 				Disks:       disks,
-				Interfaces:  vmRuntime.Interfaces,
+				Interfaces:  withStableVMInterfaceMACs(vmRuntime.Interfaces, as.ServiceID),
 				GPUs:        vmRuntime.GPUs,
 				HostDevices: vmRuntime.HostDevices,
 			},

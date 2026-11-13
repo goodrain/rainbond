@@ -415,10 +415,18 @@ func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1
 	if existingVM == nil || desiredVM == nil {
 		return nil
 	}
+	preservedVM, err := s.pinRunningVMNetworkIdentity(existingVM)
+	if err != nil {
+		return err
+	}
+	existingVM = preservedVM
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentVM, err := s.kubevirtClient.VirtualMachine(existingVM.Namespace).Get(context.Background(), existingVM.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
+		}
+		if currentVM.UID != existingVM.UID {
+			return fmt.Errorf("VM identity changed before synchronizing its specification")
 		}
 		updatedVM, changed := applyVirtualMachineSpec(currentVM, desiredVM)
 		if !changed {
@@ -438,6 +446,17 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	desiredSpec.RunStrategy = updatedVM.Spec.RunStrategy
 	desiredSpec.Running = updatedVM.Spec.Running
 	if existingVM.Spec.Template != nil && desiredSpec.Template != nil {
+		// A rebuilt resource specification must keep the NIC already known to
+		// the guest, including MACs pinned before upgrading older VMs.
+		for i := range desiredSpec.Template.Spec.Domain.Devices.Interfaces {
+			next := &desiredSpec.Template.Spec.Domain.Devices.Interfaces[i]
+			for _, current := range existingVM.Spec.Template.Spec.Domain.Devices.Interfaces {
+				if current.Name == next.Name && current.MacAddress != "" {
+					next.MacAddress = current.MacAddress
+					break
+				}
+			}
+		}
 		currentFirmware := existingVM.Spec.Template.Spec.Domain.Firmware
 		newFirmware := desiredSpec.Template.Spec.Domain.Firmware
 		if currentFirmware != nil && currentFirmware.UUID != "" && (newFirmware == nil || newFirmware.UUID == "") {

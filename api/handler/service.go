@@ -589,6 +589,11 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 		}
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
 	}
+	vm, err = s.pinRunningVMNetworkIdentity(vm)
+	if err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
+	}
 	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Restart(context.Background(), vm.Name, &v1.RestartOptions{}); err != nil {
 		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
 		return err
@@ -607,6 +612,11 @@ func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
 	}
 	if vm.Status.PrintableStatus == v1.VirtualMachineStatusStopped {
 		return markDirectVMOperationEvent(ctx, dbmodel.EventStatusSuccess)
+	}
+	vm, err = s.pinRunningVMNetworkIdentity(vm)
+	if err != nil {
+		_ = markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure)
+		return err
 	}
 	if err := s.kubevirtClient.VirtualMachine(vm.Namespace).Stop(context.Background(), vm.Name, &v1.StopOptions{}); err != nil {
 		if fallbackErr := s.haltTransientVM(vm, err); fallbackErr == nil {
