@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func (r *Resolver) snapshotReferences(ctx context.Context, scope Scope, resolved ResolvedVolume, ownNames map[string]bool, summary *ReferenceSummary) error {
+func (r *Resolver) snapshotReferences(ctx context.Context, scope Scope, resolved ResolvedVolume, ownNames map[string]bool, activeHandle string, summary *ReferenceSummary) error {
 	contents, err := r.objects(ctx, vmSnapshotContentResource, scope.Namespace, true)
 	if err != nil {
 		return err
@@ -63,10 +63,6 @@ func (r *Resolver) snapshotReferences(ctx context.Context, scope Scope, resolved
 		if ownNames[source] && (phase != "Succeeded" && phase != "Failed") {
 			summary.InflightRefs = pushReference(summary.InflightRefs, VolumeReference{Object: refOf("VirtualMachineSnapshot", &snapshot), Reason: "vm_snapshot_pending", Logical: true, Physical: true, PVC: resolved.ActivePVC})
 		}
-	}
-	activeHandle, err := r.activeHandle(ctx, resolved)
-	if err != nil {
-		return err
 	}
 	csiContents, err := r.objects(ctx, csiSnapshotContentResource, "", true)
 	if err != nil {

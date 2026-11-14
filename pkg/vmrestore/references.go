@@ -190,11 +190,18 @@ func (r *Resolver) VolumeReferences(ctx context.Context, scope Scope, volumeID u
 	if current.State.ControlRevision != resolved.ControlRevision || current.State.BindingGeneration != resolved.BindingGeneration {
 		return summary, ErrConflict
 	}
+	return r.volumeReferences(ctx, scope, resolved, current, false, resolved.ActivePVC != nil)
+}
+
+// volumeReferences is the single reference matrix for ordinary and admitted
+// reclaim reads. Expected identities are not claims that deleted objects exist.
+func (r *Resolver) volumeReferences(ctx context.Context, scope Scope, resolved ResolvedVolume, current Current, reclaiming, pvcPresent bool) (ReferenceSummary, error) {
+	summary := ReferenceSummary{VolumeID: resolved.VolumeID, BindingGeneration: resolved.BindingGeneration, SnapshotRefs: []VolumeReference{}, RollbackRefs: []VolumeReference{}, InflightRefs: []VolumeReference{}, ExternalRefs: []VolumeReference{}, OwnAttachments: []VolumeReference{}, BlockingReasons: []string{}}
 	receipts, err := r.receipts(scope, current.State)
 	if err != nil {
 		return summary, err
 	}
-	key := strconv.FormatUint(uint64(volumeID), 10)
+	key := strconv.FormatUint(uint64(resolved.VolumeID), 10)
 	for _, receipt := range receipts {
 		old, hasOld := receipt.OldBindings[key]
 		next, hasNext := receipt.NewBindings[key]
@@ -320,7 +327,14 @@ func (r *Resolver) VolumeReferences(ctx context.Context, scope Scope, volumeID u
 			}
 		}
 	}
-	if err := r.snapshotReferences(ctx, scope, resolved, ownNames, &summary); err != nil {
+	activeHandle := ""
+	if pvcPresent {
+		activeHandle, err = r.activeHandle(ctx, resolved)
+		if err != nil {
+			return summary, err
+		}
+	}
+	if err := r.snapshotReferences(ctx, scope, resolved, ownNames, activeHandle, &summary); err != nil {
 		return summary, err
 	}
 	if err := r.cloneReferences(ctx, scope, resolved, &summary); err != nil {
@@ -345,7 +359,7 @@ func (r *Resolver) VolumeReferences(ctx context.Context, scope Scope, volumeID u
 	if busy {
 		summary.BlockingReasons = reasonOnce(summary.BlockingReasons, "component_operation_in_progress")
 	}
-	if resolved.Provisioning != "bound" {
+	if !reclaiming && resolved.Provisioning != "bound" {
 		summary.BlockingReasons = reasonOnce(summary.BlockingReasons, "volume_not_bound")
 	}
 	runtimeConflict := false
@@ -354,11 +368,11 @@ func (r *Resolver) VolumeReferences(ctx context.Context, scope Scope, volumeID u
 			runtimeConflict = true
 		}
 	}
-	eligible := !busy && !runtimeConflict && resolved.Provisioning == "bound"
-	summary.CanDetach = eligible && resolved.Role == "data" && !logicalBlock
+	eligible := !busy && !runtimeConflict && (resolved.Provisioning == "bound" || reclaiming)
+	summary.CanDetach = eligible && !reclaiming && resolved.Role == "data" && !logicalBlock
 	summary.CanDelete = eligible && resolved.Role == "data" && !logicalBlock && len(summary.OwnAttachments) == 0
 	// Historical B rollback/snapshot references must not block expansion of independent A.
-	summary.CanExpand = eligible && !physicalBlock && !resolved.ReadOnly
+	summary.CanExpand = eligible && !reclaiming && !physicalBlock && !resolved.ReadOnly
 	if err := r.stable(scope, current.State); err != nil {
 		return summary, err
 	}

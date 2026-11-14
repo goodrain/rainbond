@@ -23,10 +23,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
-	vmrestore "github.com/goodrain/rainbond/pkg/vmrestore"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -166,6 +168,11 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 	return s.syncVMRuntimeDevicesForAttribute(componentID, k8sAttributes.Name)
 }
 
+// ValidateVMLoginCredentialAttributes validates managed login inputs before request side effects.
+func ValidateVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
+	return normalizeVMLoginCredentialAttributes(attributes)
+}
+
 func normalizeVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
 	for i := range attributes {
 		if err := normalizeVMLoginCredentialAttribute(&attributes[i]); err != nil {
@@ -183,12 +190,23 @@ func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribu
 		return err
 	}
 	switch attribute.Name {
+	case "vm_ssh_username":
+		username := strings.TrimSpace(attribute.AttributeValue)
+		if strings.HasPrefix(username, `"`) {
+			var decoded string
+			if json.Unmarshal([]byte(username), &decoded) == nil {
+				username = strings.TrimSpace(decoded)
+			}
+		}
+		if username == "root" {
+			return bcode.NewBadRequest(conversion.VMLoginNonRootMessage)
+		}
 	case "login_password", "vm_login_password":
-		return fmt.Errorf("plain VM login password attributes are forbidden")
+		return bcode.NewBadRequest("plain VM login password attributes are forbidden")
 	case conversion.VMLoginPasswordHashAttribute:
 		hash, err := conversion.NormalizeVMLoginPasswordHash(attribute.AttributeValue)
 		if err != nil {
-			return fmt.Errorf("invalid VM login password hash attribute")
+			return bcode.NewBadRequest("invalid VM login password hash attribute")
 		}
 		attribute.AttributeValue = hash
 		attribute.SaveType = "string"
@@ -427,10 +445,18 @@ func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1
 	if existingVM == nil || desiredVM == nil {
 		return nil
 	}
+	preservedVM, err := s.pinRunningVMNetworkIdentity(existingVM)
+	if err != nil {
+		return err
+	}
+	existingVM = preservedVM
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentVM, err := s.kubevirtClient.VirtualMachine(existingVM.Namespace).Get(context.Background(), existingVM.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
+		}
+		if currentVM.UID != existingVM.UID {
+			return fmt.Errorf("VM identity changed before synchronizing its specification")
 		}
 		updatedVM, changed := applyVirtualMachineSpec(currentVM, desiredVM)
 		if !changed {
@@ -445,23 +471,35 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	if existingVM == nil || desiredVM == nil {
 		return existingVM, false
 	}
-	if reflect.DeepEqual(existingVM.Spec, desiredVM.Spec) {
-		return existingVM, false
-	}
 	updatedVM := existingVM.DeepCopy()
-	updatedVM.Spec = desiredVM.DeepCopy().Spec
-	if existingVM.Spec.Template != nil && existingVM.Spec.Template.Spec.Domain.Firmware != nil && existingVM.Spec.Template.Spec.Domain.Firmware.UUID != "" && updatedVM.Spec.Template != nil {
-		if updatedVM.Spec.Template.Spec.Domain.Firmware == nil {
-			updatedVM.Spec.Template.Spec.Domain.Firmware = &kubevirtv1.Firmware{}
+	desiredSpec := desiredVM.Spec.DeepCopy()
+	desiredSpec.RunStrategy = updatedVM.Spec.RunStrategy
+	desiredSpec.Running = updatedVM.Spec.Running
+	if existingVM.Spec.Template != nil && desiredSpec.Template != nil {
+		// A rebuilt resource specification must keep the NIC already known to
+		// the guest, including MACs pinned before upgrading older VMs.
+		for i := range desiredSpec.Template.Spec.Domain.Devices.Interfaces {
+			next := &desiredSpec.Template.Spec.Domain.Devices.Interfaces[i]
+			for _, current := range existingVM.Spec.Template.Spec.Domain.Devices.Interfaces {
+				if current.Name == next.Name && current.MacAddress != "" {
+					next.MacAddress = current.MacAddress
+					break
+				}
+			}
 		}
-		if updatedVM.Spec.Template.Spec.Domain.Firmware.UUID == "" {
-			updatedVM.Spec.Template.Spec.Domain.Firmware.UUID = existingVM.Spec.Template.Spec.Domain.Firmware.UUID
+		currentFirmware := existingVM.Spec.Template.Spec.Domain.Firmware
+		newFirmware := desiredSpec.Template.Spec.Domain.Firmware
+		if currentFirmware != nil && currentFirmware.UUID != "" && (newFirmware == nil || newFirmware.UUID == "") {
+			if newFirmware == nil {
+				newFirmware = &kubevirtv1.Firmware{}
+				desiredSpec.Template.Spec.Domain.Firmware = newFirmware
+			}
+			newFirmware.UUID = currentFirmware.UUID
 		}
 	}
-	updatedVM.Spec.RunStrategy = existingVM.Spec.RunStrategy
-	updatedVM.Spec.Running = existingVM.Spec.Running
-	if reflect.DeepEqual(existingVM.Spec, updatedVM.Spec) {
+	if reflect.DeepEqual(existingVM.Spec, *desiredSpec) {
 		return existingVM, false
 	}
+	updatedVM.Spec = *desiredSpec
 	return updatedVM, true
 }

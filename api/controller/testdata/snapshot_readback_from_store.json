@@ -1,0 +1,105 @@
+{
+  "manifest_id": "manifest-a",
+  "manifest_document_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "finalized_control_revision": 9,
+  "fence_owned": false,
+  "fence_cleared": true,
+  "native_proof_hash": "76370c7346d450a4c1801b3c34226e678178fc65c61f2f29b5d8b7ff917a9bbb",
+  "snapshot_resources": [
+    {
+      "kind": "VirtualMachineSnapshot",
+      "namespace": "team",
+      "name": "snapshot-a",
+      "uid": "snapshot-uid"
+    },
+    {
+      "kind": "VirtualMachineSnapshotContent",
+      "namespace": "team",
+      "name": "vmsnapshot-content-snapshot-uid",
+      "uid": "content-uid"
+    },
+    {
+      "kind": "VolumeSnapshot",
+      "namespace": "team",
+      "name": "volume-snapshot-a",
+      "uid": "volume-snapshot-uid"
+    },
+    {
+      "kind": "VolumeSnapshotContent",
+      "namespace": "",
+      "name": "csi-content-volume-snapshot-a",
+      "uid": "csi-content-volume-snapshot-a-uid"
+    }
+  ],
+  "event_id": "8f90721c889ad7797499c4d2cf4aa1ff",
+  "deleted": false,
+  "namespace": "team",
+  "source_vm_name": "vm-a",
+  "snapshot_name": "snapshot-a",
+  "snapshot_uid": "snapshot-uid",
+  "source_vm_uid": "source-vm-uid",
+  "content_name": "vmsnapshot-content-snapshot-uid",
+  "content_uid": "content-uid",
+  "operation_id": "operation-a",
+  "core_hash": "a9a0b497b8179c05d597416807989797c103ad507a90f208d7257bb25afd3224",
+  "description": "before update",
+  "phase": "ready",
+  "ready_to_use": true,
+  "source_lock_clear": true,
+  "consistency": "offline",
+  "coverage": {
+    "complete": true,
+    "expected_writable_disks": 1,
+    "included_disks": 1,
+    "missing_disk_keys": [],
+    "excluded_read_only": []
+  },
+  "config": {
+    "cpu_milli": 2000,
+    "memory_mib": 2048,
+    "boot_mode": "bios",
+    "disk_layout": [
+      {
+        "volume_id": 7,
+        "disk_key": "disk",
+        "canonical_name": "manual7",
+        "role": "root",
+        "device": "disk",
+        "bus": "virtio",
+        "boot_order": 1,
+        "read_only": false
+      }
+    ]
+  },
+  "disks": [
+    {
+      "volume_id": 7,
+      "disk_key": "disk",
+      "canonical_name": "manual7",
+      "role": "root",
+      "source_pvc": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "team",
+        "name": "active-pvc",
+        "uid": "pvc-uid"
+      },
+      "read_only": false,
+      "storage_class": "cephfs-vm-snapshot",
+      "requested_bytes": 21474836480,
+      "volume_snapshot": {
+        "kind": "VolumeSnapshot",
+        "namespace": "team",
+        "name": "volume-snapshot-a",
+        "uid": "volume-snapshot-uid"
+      }
+    }
+  ],
+  "was_running": true,
+  "power_after": "previous",
+  "source_stopped": false,
+  "source_running": true,
+  "cleanup_complete": false,
+  "manifest_acked": true,
+  "finalized": true,
+  "cancelled": false
+}

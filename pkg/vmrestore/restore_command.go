@@ -48,7 +48,7 @@ func (e *RestoreEngine) Control(scope Scope) (RestoreControlDTO, error) {
 	if e == nil || e.Store == nil {
 		return RestoreControlDTO{}, ErrReferenceUnavailable
 	}
-	c, err := e.Store.Read(scope, "")
+	c, err := e.Store.ReadOnly(scope, "")
 	if err != nil {
 		return RestoreControlDTO{}, err
 	}
@@ -99,6 +99,8 @@ type RestoreOperationDTO struct {
 	Complete                   bool                  `json:"complete"`
 	ConfigCommitted            bool                  `json:"config_committed"`
 	ConsoleAcked               bool                  `json:"console_acked"`
+	ConsoleAckHash             string                `json:"console_ack_hash,omitempty"`
+	RollbackAckHash            string                `json:"rollback_ack_hash,omitempty"`
 	ConfigCommitHash           string                `json:"config_commit_hash,omitempty"`
 	RollbackConfigHash         string                `json:"rollback_config_hash,omitempty"`
 	SnapshotUID                string                `json:"snapshot_uid"`
@@ -111,7 +113,7 @@ func (e *RestoreEngine) Status(scope Scope, op string) (RestoreOperationDTO, err
 	if e == nil || e.Store == nil || !idPattern.MatchString(op) {
 		return RestoreOperationDTO{}, ErrCorrupt
 	}
-	c, err := e.Store.Read(scope, op)
+	c, err := e.Store.ReadOnly(scope, op)
 	if err != nil {
 		return RestoreOperationDTO{}, err
 	}
@@ -119,6 +121,8 @@ func (e *RestoreEngine) Status(scope Scope, op string) (RestoreOperationDTO, err
 		return RestoreOperationDTO{}, ErrNotFound
 	}
 	d := RestoreOperationDTO{OperationID: op, ControlRevision: c.State.ControlRevision, BindingGeneration: c.State.BindingGeneration, Phase: "pending", Complete: c.Receipt.Steps["restore-finalize"].Applied, ConfigCommitted: c.Receipt.Steps[RestoreCommitStep].Applied, ConsoleAcked: c.Receipt.ConsoleAckHash != "", ConfigCommitHash: c.Receipt.ConfigCommitHash, RollbackConfigHash: c.Receipt.RollbackConfigHash, SnapshotUID: c.Receipt.Restore.SourceSnapshot.UID}
+	d.ConsoleAckHash = c.Receipt.ConsoleAckHash
+	d.RollbackAckHash = c.Receipt.RollbackAckHash
 	d.OperationEpoch, err = restoreOperationEpoch(c.Receipt)
 	if err != nil {
 		return d, err

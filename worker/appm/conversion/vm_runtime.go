@@ -52,6 +52,9 @@ const (
 // VMLoginPasswordHashAttribute is the managed VM login verifier attribute.
 const VMLoginPasswordHashAttribute = "vm_login_password_hash"
 
+// VMLoginNonRootMessage explains the first-login account policy without echoing input.
+const VMLoginNonRootMessage = "Use a non-root Linux username for VM login (for example ubuntu)"
+
 var vmLinuxUsernamePattern = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 var vmSHA512CryptPattern = regexp.MustCompile(`^\$6\$rounds=(\d{6,7})\$([./0-9A-Za-z]{16})\$([./0-9A-Za-z]{86})$`)
 
@@ -265,6 +268,9 @@ func validateVMLoginBootstrap(extensionSet map[string]string) (vmLoginBootstrap,
 	}
 	if username == "" && publicKey == "" && passwordHash == "" {
 		return vmLoginBootstrap{Mode: vmLoginModeNone}, nil
+	}
+	if username == "root" {
+		return vmLoginBootstrap{}, errors.New(VMLoginNonRootMessage)
 	}
 	if username == "" || !vmLinuxUsernamePattern.MatchString(username) || publicKey != "" && passwordHash != "" {
 		return vmLoginBootstrap{}, errors.New("invalid VM login configuration")

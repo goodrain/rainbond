@@ -158,6 +158,7 @@ type ServiceInterface interface {
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
 	SetVMFixedPodIP(w http.ResponseWriter, r *http.Request)
 	VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request)
+	ExistingVMSnapshotCapability(w http.ResponseWriter, r *http.Request)
 }
 
 // TenantInterfaceWithV1 funcs for both v2 and v1

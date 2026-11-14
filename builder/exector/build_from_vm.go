@@ -38,7 +38,7 @@ type vmDiskBuildStrategy string
 
 const (
 	vmDiskBuildStrategyDirect       vmDiskBuildStrategy = "direct"
-	vmDiskBuildStrategyConvertRaw   vmDiskBuildStrategy = "convert-raw"
+	vmDiskBuildStrategyConvertDisk  vmDiskBuildStrategy = "convert-disk"
 	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
 )
 
@@ -63,11 +63,14 @@ COPY ${VM_PATH} /disk/disk.img.gz
 RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
 `
 
-var vmRawToQCOW2DockerfileTmpl = `
+// IMG is a filename convention, not a disk format. Probe inside the converter
+// image, which provides qemu-img, and accept only self-contained raw/QCOW2 disks.
+// Parse its JSON with shell builtins to avoid adding converter dependencies.
+var vmDiskToQCOW2DockerfileTmpl = `
 FROM ${CONVERTER_IMAGE} AS convert
 WORKDIR /work
 COPY ${VM_PATH} /work/source.img
-RUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img
+RUN /usr/bin/qemu-img info --output=json /work/source.img > /work/source-info.json && format= && while IFS= read -r line; do case "$line" in '    "format": "raw"'*) format=raw ;; '    "format": "qcow2"'*) format=qcow2 ;; *'"backing-filename":'*|*'"data-file":'*) echo 'VM disk must not reference external files' >&2; exit 1 ;; esac; done < /work/source-info.json && case "$format" in raw|qcow2) ;; *) echo 'unsupported VM disk content format' >&2; exit 1 ;; esac && /usr/bin/qemu-img convert -p -f "$format" -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source-info.json
 FROM scratch
 COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 `
@@ -222,6 +225,7 @@ func (v *VMBuildItem) storeVersionInfo(imageName string) error {
 	return v.cleanupAdmission.saveVersion(version)
 }
 
+// UpdateVersionInfo stores the final status of the VM build event.
 func (v *VMBuildItem) UpdateVersionInfo(status string) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(v.EventID)
 	if err != nil {
@@ -234,6 +238,11 @@ func (v *VMBuildItem) UpdateVersionInfo(status string) error {
 }
 
 func renderVMDockerfile(fileName string) (string, error) {
+	// Filenames are interpolated into Dockerfile COPY/ADD instructions. Keep
+	// paths, options, variable expansion, and additional instructions out.
+	if !sourceutil.IsSafeVMImageFileName(fileName) {
+		return "", fmt.Errorf("unsafe vm image file name %q", fileName)
+	}
 	media, err := resolveVMBuildMedia(fileName)
 	if err != nil {
 		return "", err
@@ -250,8 +259,8 @@ func renderVMDockerfile(fileName string) (string, error) {
 		switch resolveVMDiskBuildStrategy(fileName) {
 		case vmDiskBuildStrategyHTTPArtifact:
 			return strings.TrimPrefix(util.ParseVariable(vmHTTPArtifactDockerfileTmpl, envs), "\n"), nil
-		case vmDiskBuildStrategyConvertRaw:
-			return strings.TrimPrefix(util.ParseVariable(vmRawToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyConvertDisk:
+			return strings.TrimPrefix(util.ParseVariable(vmDiskToQCOW2DockerfileTmpl, envs), "\n"), nil
 		default:
 			return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
 		}
@@ -263,10 +272,10 @@ func renderVMDockerfile(fileName string) (string, error) {
 func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
 	name := strings.ToLower(strings.TrimSpace(fileName))
 	switch {
-	case strings.HasSuffix(name, ".img.gz"):
+	case strings.HasSuffix(name, ".img.gz"), strings.HasSuffix(name, ".raw.gz"):
 		return vmDiskBuildStrategyHTTPArtifact
-	case strings.HasSuffix(name, ".img"):
-		return vmDiskBuildStrategyConvertRaw
+	case strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"):
+		return vmDiskBuildStrategyConvertDisk
 	default:
 		return vmDiskBuildStrategyDirect
 	}
@@ -283,7 +292,7 @@ func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
 	switch {
 	case strings.HasSuffix(name, ".iso"):
 		return vmBuildMediaISO, nil
-	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".tar"):
+	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"), strings.HasSuffix(name, ".tar"):
 		return vmBuildMediaDisk, nil
 	default:
 		return "", fmt.Errorf("unsupported vm image format for %q", fileName)
@@ -336,6 +345,10 @@ func vmRemoteImageSourceDir(serviceID, eventID string) string {
 
 func downloadFile(downPath, url, token string, Logger event.Logger, metadata map[string]interface{}) error {
 	downloadStarted := time.Now()
+	fileName, err := sourceutil.VMImageFileNameFromURL(url)
+	if err != nil {
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, metadata)
+	}
 	// 创建一个 HTTP client 和 request
 	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
@@ -372,8 +385,6 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 			"content_length": rsp.ContentLength,
 		}))
 	}
-	baseURL := filepath.Base(url)
-	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)
 	dir := filepath.Dir(downPath)
 	// 递归创建目录
@@ -475,6 +486,7 @@ func formatVMBuildStageLog(fields map[string]interface{}) string {
 	return strings.Join(parts, " ")
 }
 
+// MyDownloader reports progress while reading a VM image download.
 type MyDownloader struct {
 	io.Reader       // 读取器
 	Total     int64 // 总大小

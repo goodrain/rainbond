@@ -48,6 +48,8 @@ func ProjectSnapshot(scope Scope, intent SnapshotIntent, operationID, coreHash s
 	if operationID != intent.OperationID {
 		return dto, ErrConflict
 	}
+	dto.Namespace = intent.SourceVM.Namespace
+	dto.SourceVMName = intent.SourceVM.Name
 	if snapshot == nil {
 		return dto, nil
 	}

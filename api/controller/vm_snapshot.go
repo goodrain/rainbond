@@ -13,6 +13,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/pkg/vmrestore"
+	"github.com/goodrain/rainbond/pkg/vmstorage"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -63,6 +64,15 @@ func snapshotServiceID(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return serviceID, true
 }
 func snapshotHTTPError(w http.ResponseWriter, r *http.Request, err error) {
+	var capabilityError *vmstorage.UnavailableError
+	if errors.As(err, &capabilityError) {
+		status := http.StatusConflict
+		if capabilityError.Capability.Status == "unknown" {
+			status = http.StatusServiceUnavailable
+		}
+		httputil.Return(r, w, status, httputil.ResponseBody{Msg: capabilityError.Capability.Message, Bean: map[string]interface{}{"snapshot_capability": capabilityError.Capability}})
+		return
+	}
 	status, code, retry := http.StatusInternalServerError, "vm_snapshot_internal_error", false
 	switch {
 	case errors.Is(err, vmrestore.ErrSnapshotInvalid):

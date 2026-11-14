@@ -8249,6 +8249,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service.new-port-reconciles-access",
+      "title": "Reconcile enabled access on first port creation and retry dispatch",
+      "title_zh": "Reconcile enabled access on first port creation and retry dispatch",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.CreatePorts",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_port_create_test.go",
+          "selector": "TestCreatePortsReconcilesEnabledAccessAndRetriesDispatch"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.service.port-outer-idempotent-close",
       "title": "Keep repeated external port closes idempotent",
       "title_zh": "Keep repeated external port closes idempotent",
@@ -9371,6 +9389,28 @@
         {
           "path": "worker/appm/controller/upgrade_test.go",
           "selector": "TestUpgradeConfigMapErrorAggregation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.upgrade-configmap-preserves-resource-version",
+      "title": "Use observed ConfigMap versions and retain data on failed updates",
+      "title_zh": "Use observed ConfigMap versions and retain data on failed updates",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.upgradeController.upgradeConfigMap",
+      "code_paths": [
+        "worker/appm/controller/upgrade.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapUsesCurrentVersionAndRetriesConflicts"
+        },
+        {
+          "path": "worker/appm/controller/upgrade_test.go",
+          "selector": "TestUpgradeConfigMapUpdateFailurePreservesExistingData"
         }
       ],
       "test_type": "regression",
@@ -10804,6 +10844,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.img-content-detection",
+      "title": "IMG conversion detects disk contents and preserves guest sectors",
+      "title_zh": "IMG conversion detects disk contents and preserves guest sectors",
+      "interface_type": "workflow",
+      "interface": "builder/exector.renderVMDockerfile",
+      "code_paths": [
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionPreservesGuestContent"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionRejectsInvalidOrDependentImages"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileRejectsUnsafeFileNames"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDockerfileRetainsArchiveAndISOPaths"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.retain-failed-build-pod",
       "title": "Retain failed VM build pods for diagnostics",
       "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
@@ -10820,6 +10890,38 @@
         {
           "path": "builder/sources/image_test.go",
           "selector": "TestShouldRetainFailedBuildKitJobCanBeDisabled"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.safe-url-filename",
+      "title": "Decode VM URL basenames without permitting path or Dockerfile injection",
+      "title_zh": "Decode VM URL basenames without permitting path or Dockerfile injection",
+      "interface_type": "workflow",
+      "interface": "builder/sourceutil.VMImageFileNameFromURL",
+      "code_paths": [
+        "builder/sourceutil/vm_image_name.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vm_image_name_test.go",
+          "selector": "TestVMImageFileNameFromURL"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRejectsUnsafeURLBeforeProbe"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMDownloadUsesDecodedURLPathName"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMDownloadRejectsUnsafeURLNamesBeforeRequest"
         }
       ],
       "test_type": "regression",
@@ -10861,6 +10963,107 @@
         {
           "path": "worker/appm/volume/share_file_vm_test.go",
           "selector": "TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.active-binding-consumers",
+      "title": "Use authoritative active VM disk identities for mutation and retry",
+      "title_zh": "Use authoritative active VM disk identities for mutation and retry",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.VolumnVar and UpdVolume",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_volume_consumer.go",
+        "api/handler/service_vm_disk_delete.go",
+        "api/handler/service_vm_disk_expansion.go",
+        "api/handler/service_volume_expansion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_bindings_consumer_test.go"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.active-binding-repair",
+      "title": "Protect partial reclamation, concurrent disk retries and VM config creation",
+      "title_zh": "Protect partial reclamation, concurrent disk retries and VM config creation",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.VolumnVar and UpdVolume",
+      "code_paths": [
+        "api/handler/service_vm_volume_consumer.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_bindings_repair_test.go"
+        },
+        {
+          "path": "api/handler/service_vm_bindings_repair_behavior_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.active-binding-retry-repair",
+      "title": "Retry preflight refusals and committed VM config synchronization",
+      "title_zh": "Retry preflight refusals and committed VM config synchronization",
+      "interface_type": "workflow",
+      "interface": "api/handler.ServiceAction.VolumnVar and UpdVolume retry ownership",
+      "code_paths": [
+        "api/handler/service_vm_volume_consumer.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_bindings_repair_review_test.go"
+        },
+        {
+          "path": "api/handler/service_vm_bindings_retry_behavior_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.conditional-expansion",
+      "title": "Expand current owned VM data disks when KubeVirt and storage support it",
+      "title_zh": "Expand current owned VM data disks when KubeVirt and storage support it",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.UpdVolume",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_volume_expansion.go",
+        "api/handler/service_vm_disk_expansion.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_disk_expansion_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-disk.retry-safe-delete",
+      "title": "Reclaim only detached owned VM data disks and retain retry records",
+      "title_zh": "Reclaim only detached owned VM data disks and retain retry records",
+      "interface_type": "handler_method",
+      "interface": "api/handler.ServiceAction.VolumnVar",
+      "code_paths": [
+        "api/handler/service.go",
+        "api/handler/service_vm_hotplug.go",
+        "api/handler/service_vm_disk_delete.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_disk_delete_test.go"
         }
       ],
       "test_type": "regression",
@@ -11229,6 +11432,52 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.stable-interface-identity",
+      "title": "Preserve VM network identity across creation, updates and restarts",
+      "title_zh": "\u865a\u62df\u673a\u7f51\u5361\u6807\u8bc6\u5728\u521b\u5efa\u3001\u66f4\u65b0\u548c\u91cd\u542f\u4e2d\u4fdd\u6301\u7a33\u5b9a",
+      "interface_type": "workflow",
+      "interface": "VM default NIC identity and normal power operations",
+      "code_paths": [
+        "api/handler/k8s_attribute.go",
+        "api/handler/service.go",
+        "api/handler/vm_network_identity.go",
+        "worker/appm/conversion/version.go",
+        "worker/appm/conversion/vm_network_identity.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestApplyVirtualMachineSpecPreservesInterfaceMAC"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestObservedVMInterfaceMACCompatibility"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestVMNetworkIdentityPinnedBeforePowerOperation"
+        },
+        {
+          "path": "api/handler/vm_network_identity_test.go",
+          "selector": "TestPinVMNetworkIdentityFailureAndRetry"
+        },
+        {
+          "path": "worker/appm/conversion/vm_network_identity_test.go",
+          "selector": "TestVMInterfaceMACIsStableAndScopedToService"
+        },
+        {
+          "path": "worker/appm/conversion/vm_network_identity_test.go",
+          "selector": "TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
       "title": "Cleanup completed virt-launcher pods after VM hot update",
       "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",
@@ -11444,6 +11693,25 @@
         {
           "path": "builder/sources/image_test.go",
           "selector": "TestRecordImageBuildStageLogsError"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.accepted-ack-readback",
+      "title": "Read back server-accepted restore and rollback ACK documents after uncertain responses",
+      "title_zh": "Read back server-accepted restore and rollback ACK documents after uncertain responses",
+      "interface_type": "workflow",
+      "interface": "RestoreEngine.Status and VMRestoreController GET/POST",
+      "code_paths": [
+        "pkg/vmrestore/restore_command.go",
+        "pkg/vmrestore/restore_commit.go",
+        "api/controller/vm_restore.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_restore_ack_readback_test.go"
         }
       ],
       "test_type": "regression",
@@ -11933,6 +12201,50 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.mutation-volume-references",
+      "title": "Scoped reference checks during partial disk reclamation",
+      "title_zh": "\u90e8\u5206\u78c1\u76d8\u56de\u6536\u4e2d\u7684\u6388\u6743\u5f15\u7528\u91cd\u67e5",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Resolver.VolumeReferencesForMutation",
+      "code_paths": [
+        "pkg/vmrestore/mutation_references.go",
+        "pkg/vmrestore/references.go",
+        "pkg/vmrestore/reference_scans.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesRecheckSurvivingPVCWithoutRestoringDeletedDV"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesRejectReplacementUIDAndWrongActor"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesKeepSharedSnapshotAndCloneProtection"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesAllowRecordedOwnerOnDeletingSurvivor"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesRejectStateOrUIDChangesDuringScan"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesRequireExactIssuedReceipt"
+        },
+        {
+          "path": "pkg/vmrestore/mutation_references_test.go",
+          "selector": "TestMutationReferencesAllowMissingPVCButRejectForeignSurvivors"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-source-config",
       "title": "Derive A access mode and quota from exact native backup metadata",
       "title_zh": "Derive A access mode and quota from exact native backup metadata",
@@ -11982,6 +12294,25 @@
         }
       ],
       "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.owned-state-mutation",
+      "title": "Carry existing scoped admission ownership through internal state-only updates",
+      "title_zh": "Carry existing scoped admission ownership through internal state-only updates",
+      "interface_type": "workflow",
+      "interface": "Store.MutateTx and active VM volume/config consumers",
+      "code_paths": [
+        "pkg/vmrestore/state.go",
+        "pkg/vmrestore/store.go",
+        "api/handler/service_vm_volume_consumer.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/owned_state_mutation_test.go"
+        }
+      ],
+      "test_type": "regression",
       "status": "active"
     },
     {
@@ -12259,6 +12590,45 @@
         {
           "path": "api/model/vm_restore_public_json_test.go",
           "selector": "TestPublicComponentExportsExcludeAllPrivateAttributeAliases"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.read-only-ledger-view",
+      "title": "Validate ledger views without writer locks while preserving mutation admission",
+      "title_zh": "Validate ledger views without writer locks while preserving mutation admission",
+      "interface_type": "workflow",
+      "interface": "vmrestore.Store.ReadOnly and Resolver.ReadBindingView",
+      "code_paths": [
+        "pkg/vmrestore/store.go",
+        "pkg/vmrestore/resolver.go",
+        "api/handler/service_vm_snapshot_capability.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/store_readonly_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.read-only-production-metadata",
+      "title": "Read production restore and snapshot metadata without SQL writes while validating startup proof",
+      "title_zh": "Read production restore and snapshot metadata without SQL writes while validating startup proof",
+      "interface_type": "workflow",
+      "interface": "RestoreEngine.Control/Status and SnapshotEngine.Get",
+      "code_paths": [
+        "pkg/vmrestore/store.go",
+        "pkg/vmrestore/startup_provenance.go",
+        "pkg/vmrestore/restore_command.go",
+        "pkg/vmrestore/snapshot_engine.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/production_metadata_readonly_test.go"
         }
       ],
       "test_type": "regression",
@@ -12693,6 +13063,41 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-run.raw-image-format",
+      "title": "Accept native raw upload and URL media with preserved compression strategies",
+      "title_zh": "Accept native raw upload and URL media with preserved compression strategies",
+      "interface_type": "workflow",
+      "interface": "builder/parser.VMServiceParse.Parse",
+      "code_paths": [
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRemoteNativeRaw"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseLocalNativeRaw"
+        },
+        {
+          "path": "builder/exector/build_from_vm_compat_test.go",
+          "selector": "TestVMNativeRawBuildStrategies"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskConversionPreservesGuestContent"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMNativeRawConversionRejectsExternalReferences"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-run.remote-package-probe",
       "title": "VM remote package probe prefers HEAD",
       "title_zh": "vm-run \u8fdc\u7a0b\u5305\u63a2\u6d4b\u4f18\u5148\u4f7f\u7528 HEAD",
@@ -12759,6 +13164,48 @@
         {
           "path": "api/handler/k8s_attribute_vm_runtime_test.go",
           "selector": "TestIsVMRuntimeSpecAttributeIncludesDiskLayout"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.firmware-identity-preservation",
+      "title": "Preserve existing VM firmware identity during spec synchronization",
+      "title_zh": "\u865a\u62df\u673a\u89c4\u683c\u540c\u6b65\u4fdd\u7559\u65e2\u6709\u56fa\u4ef6\u8eab\u4efd\u4e14\u5c0a\u91cd\u660e\u786e\u65b0\u914d\u7f6e",
+      "interface_type": "workflow",
+      "interface": "handler.applyVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_firmware_identity_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.non-root-login-boundary",
+      "title": "Reject root VM login before persistence",
+      "title_zh": "\u865a\u62df\u673a\u9996\u6b21\u767b\u5f55\u62d2\u7edd root \u5e76\u5728\u6301\u4e45\u5316\u524d\u8fd4\u56de400",
+      "interface_type": "workflow",
+      "interface": "VM first-login username validation",
+      "code_paths": [
+        "api/controller/resources.go",
+        "api/controller/k8s_attribute.go",
+        "api/handler/k8s_attribute.go",
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_login_username_test.go",
+          "selector": "TestVMRootSSHUsernameReturns400BeforeDatabaseAccess"
+        },
+        {
+          "path": "worker/appm/conversion/vm_runtime_test.go",
+          "selector": "TestValidateVMSSHBootstrap"
         }
       ],
       "test_type": "regression",
@@ -12906,6 +13353,28 @@
       "tests": [
         {
           "path": "worker/appm/controller/start_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.authoritative-readback",
+      "title": "Read persisted snapshot source, accepted manifest and separate historical/current release facts",
+      "title_zh": "Read persisted snapshot source, accepted manifest and separate historical/current release facts",
+      "interface_type": "workflow",
+      "interface": "SnapshotEngine.Get/project and VMSnapshotController.GetVMSnapshot",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_types.go",
+        "pkg/vmrestore/snapshot_projection.go",
+        "pkg/vmrestore/snapshot_engine.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_readback_test.go"
+        },
+        {
+          "path": "api/controller/vm_snapshot_readback_test.go"
         }
       ],
       "test_type": "regression",
@@ -13311,6 +13780,226 @@
         {
           "path": "pkg/vmrestore/snapshot_projection_test.go",
           "selector": "TestSnapshotProjectionKeepsPendingAndFailureSafe"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.existing-snapshot-capability",
+      "title": "Existing VM complete snapshot participants capability",
+      "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5b8c\u6574\u53c2\u4e0e\u76d8\u5feb\u7167\u80fd\u529b\u53ea\u8bfb\u67e5\u8be2",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.GetExistingVMSnapshotCapability",
+      "code_paths": [
+        "api/handler/service_vm_snapshot_capability.go",
+        "pkg/vmstorage/vm.go",
+        "pkg/vmstorage/snapshot.go",
+        "pkg/vmrestore/snapshot_kube.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityUsesCurrentAAndReadOnlyData"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityMixedAndInstaller"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityUnknownAndScopeBoundaries"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityRetainedDetachedDiskNotCurrent"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityInstallationMediaRequiresCurrentIdentity"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityPreconditions"
+        },
+        {
+          "path": "api/handler/vm_snapshot_capability_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.existing-snapshot-capability-http",
+      "title": "Authenticated existing VM snapshot capability GET",
+      "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5feb\u7167\u80fd\u529bGET\u9274\u6743\u8303\u56f4\u4e0e\u54cd\u5e94",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/tenants/{tenant_name}/services/{service_alias}/vm-snapshot-capability",
+      "code_paths": [
+        "api/controller/vm_snapshot_capability.go",
+        "api/api/api_interface.go",
+        "api/handler/service_handler.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityHTTPUsesOnlyAuthenticatedScope"
+        },
+        {
+          "path": "api/controller/vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.managed-snapshot-policy",
+      "title": "Project managed snapshot driver eligibility separately from generic CSI capability",
+      "title_zh": "Project managed snapshot driver eligibility separately from generic CSI capability",
+      "interface_type": "workflow",
+      "interface": "ManagedSnapshotCapability, VM snapshot capability and volume options",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go",
+        "pkg/vmrestore/snapshot_kube.go",
+        "api/model/volume_type.go",
+        "api/handler/volume_type_handler.go",
+        "api/handler/service_vm_snapshot_capability.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/managed_snapshot_test.go"
+        },
+        {
+          "path": "api/handler/vm_snapshot_capability_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-all-disks",
+      "title": "Require every participating VM disk to support snapshots",
+      "title_zh": "Require every participating VM disk to support snapshots",
+      "interface_type": "package_function",
+      "interface": "vmstorage.Inspector.VirtualMachine",
+      "code_paths": [
+        "pkg/vmstorage/vm.go",
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityRequiresEveryParticipatingDisk"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestVirtualMachineSnapshotInspectsRealPVAndEveryDisk"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestVirtualMachineSnapshotFailsClosedForUnreadyDisks"
+        },
+        {
+          "path": "pkg/vmstorage/vm_media_test.go",
+          "selector": "TestVirtualMachineSnapshotExcludesOnlyReadOnlyInstaller"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-capability",
+      "title": "Inspect CSI snapshot configuration and service readiness",
+      "title_zh": "Inspect CSI snapshot configuration and service readiness",
+      "interface_type": "package_function",
+      "interface": "vmstorage.Inspector.StorageClass",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityUsesDriverClassAndReadiness"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilitySelectionAndFailedEvidence"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityTypedNilClientsStayUnknown"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestStorageProfileSnapshotClassTakesPrecedence"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_default_selection_test.go",
+          "selector": "TestSnapshotDefaultTruthMatrix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-create-preflight",
+      "title": "Reject partial or unreadable VM snapshots before creation",
+      "title_zh": "Reject partial or unreadable VM snapshots before creation",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.CreateVMSnapshot",
+      "code_paths": [
+        "api/handler/vm_snapshot.go",
+        "api/handler/service.go",
+        "api/handler/vm_snapshot_lifecycle.go",
+        "pkg/vmrestore/snapshot_kube.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_snapshot_capability_test.go",
+          "selector": "TestCreateVMSnapshotRejectsPartialAndUnreadableStorage"
+        },
+        {
+          "path": "api/handler/vm_snapshot_capability_test.go",
+          "selector": "TestCreateVMSnapshotUnknownVMIdentityRejectsWithoutCreate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-http-rejection",
+      "title": "Preserve machine-readable snapshot rejection reasons",
+      "title_zh": "Preserve machine-readable snapshot rejection reasons",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/tenants/{tenant}/services/{service}/vm-snapshots",
+      "code_paths": [
+        "api/controller/vm_snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotControllerPreservesStorageRejection"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-options",
+      "title": "Expose snapshot capability on existing storage option responses",
+      "title_zh": "Expose snapshot capability on existing storage option responses",
+      "interface_type": "handler_method",
+      "interface": "VolumeTypeAction.GetAllVolumeTypes",
+      "code_paths": [
+        "api/handler/volume_type_handler.go",
+        "api/model/volume_type.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_snapshot_capability_test.go",
+          "selector": "TestVolumeOptionsSnapshotCapabilityPreservesUnknown"
         }
       ],
       "test_type": "regression",

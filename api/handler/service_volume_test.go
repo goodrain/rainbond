@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -76,10 +77,14 @@ type volumeDeleteSharedMountTestManager struct {
 	volumeDao        dbdao.TenantServiceVolumeDao
 	mountRelationDao dbdao.TenantServiceMountRelationDao
 	configFileDao    dbdao.TenantServiceConfigFileDao
+	serviceDao       dbdao.TenantServiceDao
 }
 
 func (m volumeDeleteSharedMountTestManager) Begin() *gorm.DB {
 	return m.tx
+}
+func (m volumeDeleteSharedMountTestManager) TenantServiceDao() dbdao.TenantServiceDao {
+	return m.serviceDao
 }
 
 func (m volumeDeleteSharedMountTestManager) TenantServiceVolumeDaoTransactions(*gorm.DB) dbdao.TenantServiceVolumeDao {
@@ -211,6 +216,42 @@ func TestServiceActionUpdVolumePathDoesNotRequireExpansion(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ENABLE_SUBPATH", test.enableSubpath)
+			if test.extendMethod == "vm" {
+				for _, modeEdit := range []bool{false, true} {
+					t.Run(fmt.Sprintf("mode=%t", modeEdit), func(t *testing.T) {
+						fixture := newBindingConsumerFixture(t)
+						queriedSync := false
+						fixture.action.syncVirtualMachineSpecHook = func(string) error { queriedSync = true; return nil }
+						volumeUpdates := 0
+						fixture.database.Callback().Update().Before("gorm:update").Register("fixture-track-vm-config-update", func(scope *gorm.Scope) {
+							if scope.TableName() == "tenant_services_volume" {
+								volumeUpdates++
+							}
+						})
+						request := &apimodel.UpdVolumeReq{VolumeName: fixture.volume.VolumeName, VolumeType: fixture.volume.VolumeType, VolumePath: "/new-data", VolumeCapacity: &fixture.volume.VolumeCapacity}
+						if modeEdit {
+							request.VolumePath = fixture.volume.VolumePath
+							mode := int32(600)
+							request.Mode = &mode
+						}
+						err := fixture.action.UpdVolume(fixture.scope.ServiceID, request)
+						if err == nil || bcode.Err2Coder(err).GetStatus() != 409 {
+							t.Fatalf("unsafe generic VM path/mode edit must remain409, got %v", err)
+						}
+						var current dbmodel.TenantServiceVolume
+						if err = fixture.database.Where("ID = ?", 42).First(&current).Error; err != nil {
+							t.Fatal(err)
+						}
+						if current.VolumePath != fixture.volume.VolumePath || current.VolumeCapacity != fixture.volume.VolumeCapacity || current.Mode != nil || volumeUpdates != 0 || queriedSync {
+							t.Fatal("rejected VM path/mode edit changed its row or invoked generic sync")
+						}
+						if len(fixture.core.Actions()) != 0 {
+							t.Fatal("rejected VM path/mode edit touched storage")
+						}
+					})
+				}
+				return
+			}
 			sqlDB, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatalf("create sqlmock: %v", err)
@@ -387,7 +428,7 @@ func TestServiceActionUpdVolumeRejectsShrink(t *testing.T) {
 			VolumeCapacity: 20,
 		},
 	}
-	db.SetTestManager(volumeUpdateTestManager{tx: tx, volumeDao: volumeDao})
+	db.SetTestManager(volumeUpdateTestManager{tx: tx, volumeDao: volumeDao, serviceDao: &volumeUpdateTenantServiceDao{service: &dbmodel.TenantServices{ServiceID: "service-1", ExtendMethod: "stateless"}}})
 	defer db.SetTestManager(nil)
 
 	volumeCapacity := int64(10)
@@ -456,6 +497,7 @@ func TestServiceActionVolumnVarDeleteRejectsSharedMountedVolume(t *testing.T) {
 		volumeDao:        volumeDao,
 		mountRelationDao: mountRelationDao,
 		configFileDao:    configFileDao,
+		serviceDao:       &volumeUpdateTenantServiceDao{service: &dbmodel.TenantServices{ServiceID: "component-a", ExtendMethod: "stateless"}},
 	})
 	defer db.SetTestManager(nil)
 

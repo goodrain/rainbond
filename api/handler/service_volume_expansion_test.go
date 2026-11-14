@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -33,10 +34,12 @@ func expansionPVC(namespace, name, serviceID, volumeName, storageClass, requeste
 ) *corev1.PersistentVolumeClaim {
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   namespace,
-			Name:        name,
-			Labels:      map[string]string{"service_id": serviceID},
-			Annotations: map[string]string{"volume_name": volumeName},
+			Namespace:       namespace,
+			Name:            name,
+			UID:             types.UID(name + "-uid"),
+			ResourceVersion: "1",
+			Labels:          map[string]string{"service_id": serviceID},
+			Annotations:     map[string]string{"volume_name": volumeName},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			StorageClassName: &storageClass,
@@ -44,7 +47,7 @@ func expansionPVC(namespace, name, serviceID, volumeName, storageClass, requeste
 				corev1.ResourceStorage: resource.MustParse(requested),
 			}},
 		},
-		Status: corev1.PersistentVolumeClaimStatus{Capacity: corev1.ResourceList{
+		Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound, Capacity: corev1.ResourceList{
 			corev1.ResourceStorage: resource.MustParse(actual),
 		}},
 	}
@@ -209,7 +212,7 @@ func TestInspectVolumeExpansion(t *testing.T) {
 			},
 		},
 		{
-			name: "virtual machine guest disks are not supported",
+			name: "VM without observed KubeVirt capability remains unsupported",
 			service: &dbmodel.TenantServices{
 				ServiceID:    "service-1",
 				Namespace:    "tenant-ns",
@@ -227,6 +230,13 @@ func TestInspectVolumeExpansion(t *testing.T) {
 			action := &ServiceAction{
 				kubeClient:                 fake.NewSimpleClientset(tt.objects...),
 				resolveTenantNamespaceHook: tt.resolveTenantNamespaceHook,
+			}
+			if tt.service.IsVM() {
+				fixture := newBindingConsumerFixture(t)
+				action = fixture.action
+				action.kubevirtClient = nil // Unknown capability, not blanket rejection of all VM disks.
+				tt.service = fixture.service
+				tt.volume = fixture.volume
 			}
 			got, _, err := action.inspectVolumeExpansion(context.Background(), tt.service, tt.volume)
 			if err != nil {

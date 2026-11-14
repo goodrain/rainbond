@@ -61,8 +61,17 @@ func TestPrivateAttributeHTTPMethodsUseForbiddenResponse(t *testing.T) {
 			controller := &K8sAttributeController{serviceHandler: h}
 			w := httptest.NewRecorder()
 			controller.K8sAttributes(w, restoreAttributeHTTPRequest(method, vmrestore.StateKey))
-			if w.Code != http.StatusForbidden || h.calls != 1 || h.componentID != "server-component" {
+			expectedCalls := 1
+			if method == http.MethodPost || method == http.MethodPut {
+				// The deployed API validates login attributes before calling the
+				// service; the shared private-name check must keep that early gate.
+				expectedCalls = 0
+			}
+			if w.Code != http.StatusForbidden || h.calls != expectedCalls {
 				t.Fatal("actual private attribute HTTP method did not return scoped forbidden")
+			}
+			if expectedCalls == 1 && h.componentID != "server-component" || expectedCalls == 0 && (h.componentID != "" || h.name != "") {
+				t.Fatal("private HTTP denial used an unexpected service scope or performed an early service call")
 			}
 			if strings.Contains(w.Body.String(), "private_attribute_code") || strings.Contains(w.Body.String(), vmrestore.StateKey) {
 				t.Fatal("private denial exposed internal details")

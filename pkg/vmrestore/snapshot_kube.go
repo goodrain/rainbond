@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/vmstorage"
+
 	csi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -117,7 +119,7 @@ func (b *KubeSnapshotBackend) checkStorage(ctx context.Context, scope Scope, dis
 	if err != nil {
 		return ErrReferenceUnavailable
 	}
-	if storage.Provisioner != "cephfs.csi.ceph.com" || strings.EqualFold(storage.Parameters["backingSnapshot"], "true") {
+	if storage.Provisioner != vmstorage.ManagedSnapshotDriver || strings.EqualFold(storage.Parameters["backingSnapshot"], "true") {
 		return ErrSnapshotStorage
 	}
 	pv, err := b.client.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})

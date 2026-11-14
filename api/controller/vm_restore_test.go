@@ -45,7 +45,7 @@ func restoreHTTPRouter(c *VMRestoreController) http.Handler {
 func TestRestoreHTTPRejectsScopeAndCallerProofInjection(t *testing.T) {
 	s := &restoreHTTPService{}
 	router := restoreHTTPRouter(&VMRestoreController{service: s})
-	for _, body := range []string{`{"namespace":"foreign"}`, `{"complete":true}`, `{"config_committed":true}`, `{"pvc_name":"foreign"}`, `{} {}`, `[]`, `{"mode":"` + strings.Repeat("x", 17000) + `"}`} {
+	for _, body := range []string{`{"admission_owner":"held-owner"}`, `{"namespace":"foreign"}`, `{"complete":true}`, `{"config_committed":true}`, `{"pvc_name":"foreign"}`, `{} {}`, `[]`, `{"mode":"` + strings.Repeat("x", 17000) + `"}`} {
 		w := snapshotHTTPRequest(router, "POST", "/vm-restores/op/steps/halt", body, true)
 		if w.Code != 400 {
 			t.Fatal("unsafe body accepted", w.Code)
