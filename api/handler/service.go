@@ -95,6 +95,7 @@ var vmStartRetryDelay = 200 * time.Millisecond
 
 // ServiceAction service act
 type ServiceAction struct {
+	restoreEngineFactory                     func(context.Context, string) (*vmrestore.RestoreEngine, vmrestore.Scope, error)
 	snapshotEngineFactory                    func(string) (*vmrestore.SnapshotEngine, vmrestore.Scope, error)
 	MQClient                                 gclient.MQClient
 	statusCli                                *client.AppRuntimeSyncClient
@@ -525,6 +526,9 @@ func (s *ServiceAction) ensureVMStarted(sss *apimodel.StartStopStruct, deployVer
 
 // StartOrCreateVM starts an existing virtual machine or queues its creation.
 func (s *ServiceAction) StartOrCreateVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
+	if handled, err := s.restoredPower(ctx, sss.ServiceID, "start"); handled {
+		return err
+	}
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
 		return err
@@ -567,6 +571,9 @@ func isVMStartRequestedOrRunning(status v1.VirtualMachinePrintableStatus) bool {
 
 // RestartVM restarts the component virtual machine, creating it when absent.
 func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopStruct, deployVersion string) error {
+	if handled, err := s.restoredPower(ctx, sss.ServiceID, "restart"); handled {
+		return err
+	}
 	vm, err := s.getVirtualMachineByServiceID(sss.ServiceID)
 	if err != nil {
 		return err
@@ -606,6 +613,9 @@ func (s *ServiceAction) RestartVM(ctx context.Context, sss *apimodel.StartStopSt
 
 // StopVM stops the component virtual machine and records the operation result.
 func (s *ServiceAction) StopVM(ctx context.Context, serviceID string) error {
+	if handled, err := s.restoredPower(ctx, serviceID, "stop"); handled {
+		return err
+	}
 	vm, err := s.getVirtualMachineByServiceID(serviceID)
 	if err != nil {
 		return err

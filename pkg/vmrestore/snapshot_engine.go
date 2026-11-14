@@ -49,8 +49,9 @@ type SnapshotBackend interface {
 
 // SnapshotEngine applies bounded Region commands; Console owns the total workflow.
 type SnapshotEngine struct {
-	store   *Store
-	backend SnapshotBackend
+	store    *Store
+	backend  SnapshotBackend
+	Identity *SnapshotFirmwareMaterializer
 }
 
 // NewSnapshotEngine uses the same Region store as the shared volume resolver.
@@ -303,6 +304,15 @@ func (e *SnapshotEngine) project(current Current, observed SnapshotObservation) 
 	dto.SourceLockClear = observed.SourceLockClear
 	result := SnapshotOperationDTO{EventID: snapshotEventID(receipt.Scope, receipt.OperationID), SnapshotDTO: dto, WasRunning: intent.WasRunning, PowerAfter: intent.PowerAfter, SourceStopped: observed.SourceStopped, SourceRunning: observed.SourceRunning, CleanupComplete: observed.CleanupComplete, ManifestACKed: receipt.ConsoleAckHash != ""}
 	if dto.ReadyToUse {
+		if err := checkSnapshotFirmware(receipt.SnapshotIdentity, observed.Content); err != nil {
+			if errors.Is(err, ErrSnapshotPending) {
+				result.ReadyToUse = false
+				result.Coverage.Complete = false
+				result.ErrorCode = "vm_snapshot_identity_unverified"
+				return result, nil
+			}
+			return SnapshotOperationDTO{}, err
+		}
 		result.NativeProofHash, err = nativeSnapshotProof(dto, observed)
 		if errors.Is(err, ErrSnapshotPending) {
 			result.ReadyToUse, result.Coverage.Complete, result.Phase = false, false, "creating"
@@ -365,6 +375,27 @@ func (e *SnapshotEngine) Halt(ctx context.Context, scope Scope, request Snapshot
 	}
 	if snapshotCleanupSelected(current.Receipt) || snapshotKeepStopped(current.Receipt) {
 		return SnapshotOperationDTO{}, ErrConflict
+	}
+	if e.Identity != nil {
+		if err := e.Identity.Pin(ctx, scope, request.OperationID); err != nil {
+			if errors.Is(err, ErrRestorePending) || errors.Is(err, ErrRestoreUnknown) {
+				dto, readErr := e.Get(ctx, scope, request.OperationID)
+				if readErr != nil {
+					return dto, readErr
+				}
+				dto.ErrorCode = "vm_snapshot_identity_pending"
+				if errors.Is(err, ErrRestoreUnknown) {
+					dto.ErrorCode = "vm_snapshot_identity_outcome_unknown"
+				}
+				dto.ReadyToUse = false
+				dto.Coverage.Complete = false
+				return dto, nil
+			}
+			if errors.Is(err, ErrRestoreCapability) {
+				return SnapshotOperationDTO{}, ErrSnapshotConfig
+			}
+			return SnapshotOperationDTO{}, err
+		}
 	}
 	metadata, err := e.backend.Context(ctx, scope)
 	if err != nil {

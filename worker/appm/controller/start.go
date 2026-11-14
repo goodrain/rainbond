@@ -97,6 +97,9 @@ func (s *startController) errorCallback(app v1.AppService) error {
 }
 
 func (s *startController) startOne(app v1.AppService) error {
+	if err := guardLegacyVMLifecycle(app); err != nil {
+		return err
+	}
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
 	if err != nil {

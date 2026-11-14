@@ -11714,6 +11714,30 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.bounded-execution",
+      "title": "Execute bounded restore phases with persisted outcomes",
+      "title_zh": "Execute bounded restore phases with persisted outcomes",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore/restore_engine.go",
+      "code_paths": [
+        "pkg/vmrestore/restore_engine.go",
+        "pkg/vmrestore/restore_engine_resources.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_engine_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_engine_integration_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_prepare_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.capacity-capability-gate",
       "title": "Require qualified storage and real reserved capacity",
       "title_zh": "Require qualified storage and real reserved capacity",
@@ -11855,6 +11879,23 @@
         {
           "path": "pkg/vmrestore/state_test.go",
           "selector": "TestAdmissionDoesNotExpireOrReleaseOtherOwner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.kubernetes-runtime",
+      "title": "Observe exact VM identities and apply bounded runtime changes",
+      "title_zh": "Observe exact VM identities and apply bounded runtime changes",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore/restore_kube_runtime.go",
+      "code_paths": [
+        "pkg/vmrestore/restore_kube_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_kube_runtime_test.go"
         }
       ],
       "test_type": "regression",
@@ -12036,6 +12077,23 @@
         {
           "path": "pkg/vmrestore/materialized_binding_test.go",
           "selector": "TestMaterializedCanonicalProvenanceUsesAnEmptyPair"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.ordinary-power-admission",
+      "title": "Hold VM power admission through exact runtime completion",
+      "title_zh": "Hold VM power admission through exact runtime completion",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore/ordinary_vm_admission.go",
+      "code_paths": [
+        "pkg/vmrestore/ordinary_vm_admission.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/ordinary_vm_admission_test.go"
         }
       ],
       "test_type": "regression",
@@ -12285,6 +12343,192 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.resource-execution",
+      "title": "Fence sparse restore resources and retain exact UID cleanup evidence",
+      "title_zh": "Fence sparse restore resources and retain exact UID cleanup evidence",
+      "interface_type": "package_function",
+      "interface": "RestoreResourceExecutor.Ensure",
+      "code_paths": [
+        "pkg/vmrestore/restore_execution_types.go",
+        "pkg/vmrestore/restore_resources.go",
+        "pkg/vmrestore/restore_execution_store.go",
+        "pkg/vmrestore/restore_resource_executor.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_resources_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_resource_safety_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.resource-repair-safety",
+      "title": "Serialize exact create ownership and restore authoritative evidence on retry",
+      "title_zh": "Serialize exact create ownership and restore authoritative evidence on retry",
+      "interface_type": "workflow",
+      "interface": "RestoreResourceExecutor.Ensure",
+      "code_paths": [
+        "pkg/vmrestore/restore_resource_executor.go",
+        "pkg/vmrestore/restore_execution_store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_resource_repair_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_resource_independent_regression_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.result-capture",
+      "title": "Persist bounded exact Job Pod image and full disk result evidence",
+      "title_zh": "Persist bounded exact Job Pod image and full disk result evidence",
+      "interface_type": "package_function",
+      "interface": "RestoreCapture.Capture",
+      "code_paths": [
+        "pkg/vmrestore/restore_job_capture.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_job_capture_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_job_capture_boundaries_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/restore_job_capture_transport_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.rpc-command-cas",
+      "title": "Atomically claim restore commands against the original caller CAS",
+      "title_zh": "Atomically claim restore commands against the original caller CAS",
+      "interface_type": "workflow",
+      "interface": "RestoreEngine.Command",
+      "code_paths": [
+        "pkg/vmrestore/restore_command.go",
+        "pkg/vmrestore/restore_engine.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_command_cas_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/rpc_v11_independent_review_test.go"
+        },
+        {
+          "path": "pkg/vmrestore/rpc_v11_two_commands_cas_review_test.go"
+        },
+        {
+          "path": "api/handler/rpc_v11_independent_review_test.go"
+        },
+        {
+          "path": "api/controller/rpc_v11_independent_review_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.rpc-command-contract",
+      "title": "Require operation epoch and CAS on bounded restore RPC",
+      "title_zh": "Require operation epoch and CAS on bounded restore RPC",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore/restore_command.go",
+      "code_paths": [
+        "pkg/vmrestore/restore_command.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_command_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.rpc-handler",
+      "title": "Resolve scoped restore RPC against the persistent Region store",
+      "title_zh": "Resolve scoped restore RPC against the persistent Region store",
+      "interface_type": "workflow",
+      "interface": "api/handler/vm_restore.go",
+      "code_paths": [
+        "api/handler/vm_restore.go",
+        "api/handler/vm_snapshot_lifecycle.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restore_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.rpc-http",
+      "title": "Preserve strict scoped restore HTTP and asynchronous power status",
+      "title_zh": "Preserve strict scoped restore HTTP and asynchronous power status",
+      "interface_type": "workflow",
+      "interface": "api/controller/vm_restore.go",
+      "code_paths": [
+        "api/controller/vm_restore.go",
+        "api/controller/service_action.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_restore_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.runtime-projection",
+      "title": "Project restored disks and preserve guest bootstrap identity",
+      "title_zh": "Project restored disks and preserve guest bootstrap identity",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore/restore_runtime_projection.go",
+      "code_paths": [
+        "pkg/vmrestore/restore_runtime_projection.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_runtime_projection_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.stale-worker-lifecycle",
+      "title": "Reject obsolete worker lifecycle over restore-owned disks",
+      "title_zh": "Reject obsolete worker lifecycle over restore-owned disks",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller/vm_restore_guard.go",
+      "code_paths": [
+        "worker/appm/controller/vm_restore_guard.go",
+        "worker/appm/controller/start.go",
+        "worker/appm/controller/stop.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/vm_restore_guard_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.state-scope-and-resolver",
       "title": "VM restore scoped state and canonical resolver",
       "title_zh": "VM restore scoped state and canonical resolver",
@@ -12396,6 +12640,41 @@
         {
           "path": "pkg/vmrestore/references_test.go",
           "selector": "TestPVCCloneReferencesIncludeCrossNamespaceDataSources"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.worker-bound-disk-rendering",
+      "title": "Render mapped restored disks without reimport or reattachment",
+      "title_zh": "Render mapped restored disks without reimport or reattachment",
+      "interface_type": "workflow",
+      "interface": "worker/appm/volume/share-file.go",
+      "code_paths": [
+        "worker/appm/volume/share-file.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vm_restore_binding_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.worker-startup-filter",
+      "title": "Suppress saved B login input while rendering restored A",
+      "title_zh": "Suppress saved B login input while rendering restored A",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion/vm_restore_binding.go",
+      "code_paths": [
+        "worker/appm/conversion/vm_restore_binding.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_restore_binding_test.go"
         }
       ],
       "test_type": "regression",
@@ -12903,6 +13182,25 @@
         {
           "path": "pkg/vmrestore/snapshot_engine_test.go",
           "selector": "TestSnapshotDeleteAndListRejectInvalidTerminalRequests"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.fenced-firmware-identity",
+      "title": "Pin actual source firmware identity under the native snapshot fence",
+      "title_zh": "Pin actual source firmware identity under the native snapshot fence",
+      "interface_type": "workflow",
+      "interface": "SnapshotFirmwareMaterializer.Pin",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_firmware.go",
+        "pkg/vmrestore/snapshot_engine.go",
+        "api/handler/vm_snapshot_lifecycle.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_firmware_test.go"
         }
       ],
       "test_type": "regression",

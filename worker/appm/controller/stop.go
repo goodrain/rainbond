@@ -21,10 +21,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/db"
-	"github.com/jinzhu/gorm"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/db"
+	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -94,6 +95,9 @@ func (s *stopController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 func (s *stopController) stopOne(app v1.AppService) error {
+	if err := guardLegacyVMLifecycle(app); err != nil {
+		return err
+	}
 
 	var zero int64
 	// Keep generated Services so their cluster IPs and DNS identities survive stop and restart.
