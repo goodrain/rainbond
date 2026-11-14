@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-	"k8s.io/apimachinery/pkg/api/resource"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -124,6 +124,7 @@ func TestSyncVMRuntimeDeviceConfigUpdatesVirtualMachineWhenDevicesChange(t *test
 		"vm_usb_resources": "[\"kubevirt.io/usb-a\"]",
 	})
 
+	attachRawRuntimeObservation(t, mockClient, vm)
 	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface)
 	mockVMInterface.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&kubevirtv1.VirtualMachine{}), gomock.Any()).DoAndReturn(
 		func(_ context.Context, updated *kubevirtv1.VirtualMachine, _ metav1.UpdateOptions) (*kubevirtv1.VirtualMachine, error) {
@@ -339,6 +340,7 @@ func TestSyncVirtualMachineSpecUpdatesWhenSpecChanges(t *testing.T) {
 		},
 	}
 
+	attachRawRuntimeObservation(t, mockClient, existing)
 	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface).Times(2)
 	mockVMInterface.EXPECT().Get(gomock.Any(), "demo-vm", gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ string, _ metav1.GetOptions) (*kubevirtv1.VirtualMachine, error) {
@@ -410,6 +412,7 @@ func TestSyncVirtualMachineSpecRetriesOnConflict(t *testing.T) {
 		},
 	}
 
+	attachRawRuntimeObservation(t, mockClient, existing)
 	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMInterface).Times(4)
 	mockVMInterface.EXPECT().Get(gomock.Any(), "demo-vm", gomock.Any()).Times(2).DoAndReturn(
 		func(_ context.Context, _ string, _ metav1.GetOptions) (*kubevirtv1.VirtualMachine, error) {

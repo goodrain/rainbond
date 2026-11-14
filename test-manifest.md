@@ -635,6 +635,7 @@
 | rainbond.vm-restore.public-attribute-paths | VM restore public overwrite import and ordinary CRUD boundaries | active | regression | api/handler.ServiceAction.SyncComponentK8sAttributes | api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesPreservesPrivateRows<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsPrivateInput<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesRejectsSourceIdentity<br>api/handler/vm_restore_attribute_paths_test.go::TestPublicK8sAttributeCRUDPreservesOrdinaryComponentBehavior<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesKeepsEmptySetSemantics<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsInvalidTarget<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesHandlesEmptyAndFailedPersistence |
 | rainbond.vm-restore.public-attribute-service | VM restore private attribute service boundary | active | regression | api/handler.ServiceAction.GetK8sAttribute | api/handler/vm_restore_public_attributes_test.go::TestPublicAttributeCallsRejectPrivateNamesAndPersistedAlias |
 | rainbond.vm-restore.public-export-boundary | VM restore state excluded from public exports | active | regression | api/model.Component.MarshalJSON | api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity<br>api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases |
+| rainbond.vm-restore.raw-runtime-preservation | Preserve target VM fields through controlled writes or reject unsupported replacement before mutation | active | regression | PreserveRuntimeVM and owned runtime/snapshot/ordinary VM writes | pkg/vmrestore/runtime_vm_preservation_test.go |
 | rainbond.vm-restore.read-only-ledger-view | Validate ledger views without writer locks while preserving mutation admission | active | regression | vmrestore.Store.ReadOnly and Resolver.ReadBindingView | pkg/vmrestore/store_readonly_test.go |
 | rainbond.vm-restore.read-only-production-metadata | Read production restore and snapshot metadata without SQL writes while validating startup proof | active | regression | RestoreEngine.Control/Status and SnapshotEngine.Get | pkg/vmrestore/production_metadata_readonly_test.go |
 | rainbond.vm-restore.readonly-rollback-render | Reject missing rollback dependencies without mutating metadata or gateways | active | regression | RenderVMForRestore | worker/appm/conversion/vm_restore_render_test.go |
@@ -7073,6 +7074,16 @@
 - 业务入口: `api/model.Component.MarshalJSON`
 - 代码路径: `api/model/vm_restore_public_json.go`
 - 测试路径: `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity`, `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases`
+
+### Preserve target VM fields through controlled writes or reject unsupported replacement before mutation
+
+- Capability ID: `rainbond.vm-restore.raw-runtime-preservation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `PreserveRuntimeVM and owned runtime/snapshot/ordinary VM writes`
+- 代码路径: `pkg/vmrestore/runtime_vm_preservation.go`, `pkg/vmrestore/restore_kube_runtime.go`, `pkg/vmrestore/snapshot_firmware.go`, `api/handler/vm_restored_power.go`, `api/handler/vm_network_identity.go`, `api/handler/k8s_attribute.go`, `api/handler/service.go`
+- 测试路径: `pkg/vmrestore/runtime_vm_preservation_test.go`
 
 ### Validate ledger views without writer locks while preserving mutation admission
 

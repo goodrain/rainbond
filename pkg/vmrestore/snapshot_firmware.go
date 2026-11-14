@@ -2,6 +2,7 @@ package vmrestore
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"time"
 
@@ -238,11 +239,19 @@ func (m *SnapshotFirmwareMaterializer) Pin(ctx context.Context, scope Scope, op 
 		wanted.Spec.Template.Spec.Domain.Firmware = &kv.Firmware{}
 	}
 	wanted.Spec.Template.Spec.Domain.Firmware.UUID = types.UID(proof.FirmwareUUID)
-	body, err := EncodeRuntimeVM(wanted)
-	if err != nil {
-		return err
-	}
-	if _, err := m.Dynamic.Resource(restoreVMGVR).Namespace(scope.Namespace).Update(ctx, body, metav1.UpdateOptions{}); err != nil {
+	if _, err := UpdateObservedRuntimeVM(ctx, m.Dynamic, latest, wanted, func() error {
+		current, err := m.current(scope, op)
+		if err != nil {
+			return err
+		}
+		if current.State.ControlRevision != issued.State.ControlRevision || current.State.BindingGeneration != issued.State.BindingGeneration {
+			return ErrConflict
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, ErrConflict) || errors.Is(err, ErrCorrupt) || errors.Is(err, ErrRestoreCapability) || errors.Is(err, ErrReferenceUnavailable) {
+			return err
+		}
 		return ErrRestoreUnknown
 	}
 	return ErrRestorePending

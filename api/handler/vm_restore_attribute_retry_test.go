@@ -55,6 +55,7 @@ func TestDeleteK8sAttributeRetriesRuntimeSyncAfterCommittedDelete(t *testing.T) 
 			ctrl := gomock.NewController(t)
 			client := kubecli.NewMockKubevirtClient(ctrl)
 			vms := kubecli.NewMockVirtualMachineInterface(ctrl)
+			attachRawRuntimeObservation(t, client, vm)
 			client.EXPECT().VirtualMachine("team").Return(vms).AnyTimes()
 			updateCalls := 0
 			syncErr := errors.New("attribute_runtime_sync_fixed_code")

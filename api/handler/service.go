@@ -658,7 +658,7 @@ func (s *ServiceAction) haltTransientVM(vm *v1.VirtualMachine, stopErr error) er
 	halted := v1.RunStrategyHalted
 	updatedVM.Spec.RunStrategy = &halted
 	updatedVM.Spec.Running = nil
-	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+	_, err := vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), vm, updatedVM)
 	if err != nil {
 		return stopErr
 	}

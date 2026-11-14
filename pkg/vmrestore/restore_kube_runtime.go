@@ -71,32 +71,37 @@ func (s *Store) NetworkIdentityHash(scope Scope) (string, error) {
 	}{scope, values, metadata})
 }
 
-func (r *KubeRestoreRuntime) load(ctx context.Context, request RestoreRuntimeRequest) (Current, *kv.VirtualMachine, error) {
+func (r *KubeRestoreRuntime) loadRaw(ctx context.Context, request RestoreRuntimeRequest) (Current, *kv.VirtualMachine, *unstructured.Unstructured, error) {
 	if r == nil || r.Store == nil || r.Core == nil || r.Dynamic == nil || ctx.Err() != nil {
-		return Current{}, nil, ErrReferenceUnavailable
+		return Current{}, nil, nil, ErrReferenceUnavailable
 	}
 	c, err := r.Store.Read(request.Scope, request.OperationID)
 	if err != nil {
-		return c, nil, err
+		return c, nil, nil, err
 	}
 	if restoreOwner(c, request.Scope, Expectation{OperationID: request.OperationID, ManifestHash: request.CoreHash}) != nil || c.Receipt.Execution == nil || c.State.BindingGeneration != request.BindingGeneration {
-		return c, nil, ErrConflict
+		return c, nil, nil, ErrConflict
 	}
 	object, err := r.Dynamic.Resource(restoreVMGVR).Namespace(request.Scope.Namespace).Get(ctx, request.VM.Name, metav1.GetOptions{})
 	if err != nil {
-		return c, nil, ErrReferenceUnavailable
+		return c, nil, nil, ErrReferenceUnavailable
 	}
 	if !sameObject(request.VM, refOf("VirtualMachine", object)) || object.GetDeletionTimestamp() != nil || object.GetLabels()["service_id"] != request.Scope.ServiceID {
-		return c, nil, ErrConflict
+		return c, nil, nil, ErrConflict
 	}
 	if tenant := object.GetLabels()["tenant_id"]; tenant != "" && tenant != request.Scope.TenantID {
-		return c, nil, ErrConflict
+		return c, nil, nil, ErrConflict
 	}
 	var vm kv.VirtualMachine
 	if runtime.DefaultUnstructuredConverter.FromUnstructured(object.Object, &vm) != nil || vm.Spec.Template == nil {
-		return c, nil, ErrCorrupt
+		return c, nil, nil, ErrCorrupt
 	}
-	return c, &vm, nil
+	return c, &vm, object, nil
+}
+
+func (r *KubeRestoreRuntime) load(ctx context.Context, request RestoreRuntimeRequest) (Current, *kv.VirtualMachine, error) {
+	current, vm, _, err := r.loadRaw(ctx, request)
+	return current, vm, err
 }
 
 func (r *KubeRestoreRuntime) writers(ctx context.Context, c Current) (bool, bool, error) {
@@ -372,7 +377,7 @@ func (r *KubeRestoreRuntime) Apply(ctx context.Context, request RestoreRuntimeRe
 	if updated.ResourceVersion == "" {
 		return RestoreRuntimeObservation{}, ErrConflict
 	}
-	latest, observed, err := r.load(ctx, request)
+	latest, observed, raw, err := r.loadRaw(ctx, request)
 	if err != nil {
 		return RestoreRuntimeObservation{}, err
 	}
@@ -386,9 +391,16 @@ func (r *KubeRestoreRuntime) Apply(ctx context.Context, request RestoreRuntimeRe
 	if network != latest.Receipt.Execution.NetworkHash {
 		return RestoreRuntimeObservation{}, ErrConflict
 	}
-	body, err := EncodeRuntimeVM(updated)
+	body, err := PreserveRuntimeVM(raw, vm, updated)
 	if err != nil {
-		return RestoreRuntimeObservation{}, ErrCorrupt
+		return RestoreRuntimeObservation{}, err
+	}
+	guard, err := r.Store.Read(request.Scope, request.OperationID)
+	if err != nil {
+		return RestoreRuntimeObservation{}, err
+	}
+	if restoreOwner(guard, request.Scope, Expectation{OperationID: request.OperationID, ManifestHash: request.CoreHash}) != nil || guard.State.ControlRevision != latest.State.ControlRevision || guard.State.BindingGeneration != request.BindingGeneration {
+		return RestoreRuntimeObservation{}, ErrConflict
 	}
 	if _, err = r.Dynamic.Resource(restoreVMGVR).Namespace(request.Scope.Namespace).Update(ctx, body, metav1.UpdateOptions{}); err != nil {
 		return RestoreRuntimeObservation{}, ErrRestoreUnknown

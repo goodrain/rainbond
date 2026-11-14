@@ -12596,6 +12596,29 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.raw-runtime-preservation",
+      "title": "Preserve target VM fields through controlled writes or reject unsupported replacement before mutation",
+      "title_zh": "Preserve target VM fields through controlled writes or reject unsupported replacement before mutation",
+      "interface_type": "workflow",
+      "interface": "PreserveRuntimeVM and owned runtime/snapshot/ordinary VM writes",
+      "code_paths": [
+        "pkg/vmrestore/runtime_vm_preservation.go",
+        "pkg/vmrestore/restore_kube_runtime.go",
+        "pkg/vmrestore/snapshot_firmware.go",
+        "api/handler/vm_restored_power.go",
+        "api/handler/vm_network_identity.go",
+        "api/handler/k8s_attribute.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/runtime_vm_preservation_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.read-only-ledger-view",
       "title": "Validate ledger views without writer locks while preserving mutation admission",
       "title_zh": "Validate ledger views without writer locks while preserving mutation admission",

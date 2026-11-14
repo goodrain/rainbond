@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -93,7 +94,7 @@ func (s *ServiceAction) pinRunningVMNetworkIdentity(vm *v1.VirtualMachine) (*v1.
 		if err != nil || !changed {
 			return err
 		}
-		result, err = s.kubevirtClient.VirtualMachine(vm.Namespace).Update(context.Background(), updated, metav1.UpdateOptions{})
+		result, err = vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), current, updated)
 		return err
 	})
 	if err != nil {

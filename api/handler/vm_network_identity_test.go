@@ -142,6 +142,7 @@ func TestVMNetworkIdentityPinnedBeforePowerOperation(t *testing.T) {
 			instances := kubecli.NewMockVirtualMachineInstanceInterface(ctrl)
 			vm := networkIdentityVM("", 1)
 			vm.Status.PrintableStatus = v1.VirtualMachineStatusRunning
+			attachRawRuntimeObservation(t, client, vm)
 			client.EXPECT().VirtualMachine(vm.Namespace).Return(machines).AnyTimes()
 			client.EXPECT().VirtualMachineInstance(vm.Namespace).Return(instances)
 			machines.EXPECT().Get(gomock.Any(), vm.Name, gomock.Any()).Return(vm.DeepCopy(), nil)
@@ -191,6 +192,7 @@ func TestPinVMNetworkIdentityFailureAndRetry(t *testing.T) {
 			machines := kubecli.NewMockVirtualMachineInterface(ctrl)
 			instances := kubecli.NewMockVirtualMachineInstanceInterface(ctrl)
 			vm := networkIdentityVM("", 1)
+			attachRawRuntimeObservation(t, client, vm)
 			client.EXPECT().VirtualMachine(vm.Namespace).Return(machines).AnyTimes()
 			wantError := false
 			switch scenario {
