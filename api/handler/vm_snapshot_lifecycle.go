@@ -7,6 +7,7 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/jinzhu/gorm"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 func (s *ServiceAction) snapshotService(ctx context.Context, serviceID string) (*vmrestore.SnapshotEngine, vmrestore.Scope, error) {
@@ -36,7 +37,26 @@ func (s *ServiceAction) snapshotService(ctx context.Context, serviceID string) (
 	resolver := vmrestore.NewResolver(store, s.kubeClient, dynamicClient)
 	backend := vmrestore.NewKubeSnapshotBackend(resolver, s.kubevirtClient)
 	engine := vmrestore.NewSnapshotEngine(store, backend)
-	engine.Identity = &vmrestore.SnapshotFirmwareMaterializer{Store: store, Dynamic: dynamicClient}
+	engine.Identity = &vmrestore.SnapshotFirmwareMaterializer{Store: store, Dynamic: dynamicClient, ProveStartup: func(ctx context.Context, scope vmrestore.Scope, vm *kubevirtv1.VirtualMachine, firmware string) (vmrestore.RestoreStartupPolicy, error) {
+		selection, err := store.ReadRestoredRuntimeSelection(ctx, resolver, scope)
+		if err != nil {
+			return vmrestore.RestoreStartupPolicy{}, err
+		}
+		if selection != nil {
+			if selection.Startup.FirmwareUUID != firmware {
+				return vmrestore.RestoreStartupPolicy{}, vmrestore.ErrConflict
+			}
+			wanted, err := vmrestore.ProjectRestoredRuntime(ctx, s.kubeClient, vm, *selection)
+			if err != nil {
+				return vmrestore.RestoreStartupPolicy{}, err
+			}
+			if !vmrestore.RuntimeVMMatches(vm, wanted) {
+				return vmrestore.RestoreStartupPolicy{}, vmrestore.ErrConflict
+			}
+			return selection.Startup, nil
+		}
+		return store.ReadVMStartup(ctx, s.kubeClient, scope, vm)
+	}}
 	return engine, scope, nil
 }
 

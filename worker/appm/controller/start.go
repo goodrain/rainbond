@@ -29,7 +29,9 @@ import (
 
 	"github.com/goodrain/rainbond/worker/appm/store"
 
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
@@ -83,6 +85,9 @@ func (s *startController) Begin() {
 }
 
 func (s *startController) errorCallback(app v1.AppService) error {
+	if app.VMStartupHints != nil {
+		return vmrestore.ErrRestoreUnknown
+	}
 	app.Logger.Info("Begin clean resources that have been created", event.GetLoggerOption("starting"))
 	stopController := stopController{
 		manager: s.manager,
@@ -99,6 +104,14 @@ func (s *startController) errorCallback(app v1.AppService) error {
 func (s *startController) startOne(app v1.AppService) error {
 	if err := guardLegacyVMLifecycle(app); err != nil {
 		return err
+	}
+	var publication *vmrestore.VMStartupPublication
+	if app.VMStartupHints != nil && app.GetVirtualMachine() != nil {
+		var err error
+		publication, err = vmrestore.PrepareNewVMStartup(vmrestore.Scope{TenantID: app.TenantID, ServiceID: app.ServiceID, Namespace: app.GetNamespace()}, app.GetVirtualMachine(), *app.VMStartupHints)
+		if err != nil {
+			return err
+		}
 	}
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
@@ -122,7 +135,11 @@ func (s *startController) startOne(app v1.AppService) error {
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
+			generated := publication != nil && publication.MarkConfigMap(config)
 			_, err := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace()).Create(s.ctx, config, metav1.CreateOptions{})
+			if generated && errors.IsAlreadyExists(err) {
+				return vmrestore.ErrConflict
+			}
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())
 			}
@@ -159,11 +176,21 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
+		created, createErr := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
+		err = createErr
 		if err != nil {
 			err = redactVMCloudInitError(err, vm)
 			s.logVirtualMachineCreateFailure(app, err)
 			return fmt.Errorf("create vm failure:%w;", err)
+		}
+		if publication != nil {
+			manager := db.GetManager()
+			if manager == nil || manager.DB() == nil {
+				return vmrestore.ErrReferenceUnavailable
+			}
+			if err := vmrestore.NewStore(manager.DB()).SealNewVMStartup(s.ctx, s.manager.client, created, *publication); err != nil {
+				return err
+			}
 		}
 	}
 	if job := app.GetJob(); job != nil {

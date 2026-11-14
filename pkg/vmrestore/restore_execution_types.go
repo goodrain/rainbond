@@ -56,7 +56,8 @@ func (p RestoreStartupPolicy) validate(scope Scope) error {
 	if _, err := uuid.Parse(p.FirmwareUUID); err != nil {
 		return ErrRestoreCapability
 	}
-	if (p.BootstrapMode != "platform" && p.BootstrapMode != "restored") || !validName(p.NoCloudVolumeName) || !validName(p.NoCloudDiskName) || p.DataSourceKind != "CloudInitNoCloud" || !validUID(p.ProducerUID) || (p.RestoreID == "") != (p.SnapshotUID == "") || (p.RestoreID != "" && (!idPattern.MatchString(p.RestoreID) || !validUID(p.SnapshotUID))) || len(p.GeneratedMedia) > 128 {
+	knownSource := (p.DataSourceKind == "CloudInitNoCloud" && validName(p.NoCloudVolumeName) && validName(p.NoCloudDiskName)) || (p.DataSourceKind == "None" && p.NoCloudVolumeName == "" && p.NoCloudDiskName == "")
+	if (p.BootstrapMode != "platform" && p.BootstrapMode != "restored") || !knownSource || !validUID(p.ProducerUID) || (p.RestoreID == "") != (p.SnapshotUID == "") || (p.RestoreID != "" && (!idPattern.MatchString(p.RestoreID) || !validUID(p.SnapshotUID))) || len(p.GeneratedMedia) > 128 {
 		return ErrRestoreCapability
 	}
 	seen := map[string]bool{}

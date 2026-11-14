@@ -185,7 +185,7 @@ func ProjectRestoredRuntime(ctx context.Context, core kubernetes.Interface, vm *
 			remove[media.DiskName] = true
 		}
 	}
-	if selection.Startup.BootstrapMode == "restored" {
+	if selection.Startup.BootstrapMode == "restored" && selection.BeforeStartup.DataSourceKind == "CloudInitNoCloud" {
 		for _, v := range vm.Spec.Template.Spec.Volumes {
 			if v.Name == selection.BeforeStartup.NoCloudVolumeName && v.CloudInitNoCloud == nil {
 				return nil, ErrConflict
@@ -250,7 +250,7 @@ func ProjectRestoredRuntime(ctx context.Context, core kubernetes.Interface, vm *
 		}
 		disks = append(disks, disk)
 	}
-	if selection.Startup.BootstrapMode == "restored" {
+	if selection.Startup.BootstrapMode == "restored" && selection.Startup.DataSourceKind == "CloudInitNoCloud" {
 		for _, v := range volumes {
 			if v.Name == selection.Startup.NoCloudVolumeName {
 				return nil, ErrConflict

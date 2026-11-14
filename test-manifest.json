@@ -9143,6 +9143,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.test-manifest.nonempty-marker-control",
+      "title": "Unexpected empty marker scans fail closed",
+      "title_zh": "Unexpected empty marker scans fail closed",
+      "interface_type": "package_function",
+      "interface": "scripts.validate_test_manifest.validate_manifest",
+      "code_paths": [
+        "scripts/validate_test_manifest.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/validate_test_manifest_test.py",
+          "selector": "ManifestScanCompletenessTests"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.test-manifest.repo-relative-scan",
+      "title": "Manifest scan excludes only repository internal directories",
+      "title_zh": "Manifest scan excludes only repository internal directories",
+      "interface_type": "package_function",
+      "interface": "scripts.validate_test_manifest.collect_marked_tests",
+      "code_paths": [
+        "scripts/validate_test_manifest.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/validate_test_manifest_test.py",
+          "selector": "ManifestRootBoundaryTests"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.third-component.endpoint-address-construct",
       "title": "Construct validated third-component endpoint addresses",
       "title_zh": "\u6784\u9020\u5e76\u6821\u9a8c\u7b2c\u4e09\u65b9\u7ec4\u4ef6\u7aef\u70b9\u5730\u5740",
@@ -12083,6 +12119,23 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-source-config",
+      "title": "Derive A access mode and quota from exact native backup metadata",
+      "title_zh": "Derive A access mode and quota from exact native backup metadata",
+      "interface_type": "workflow",
+      "interface": "NativeRestoreConfig",
+      "code_paths": [
+        "pkg/vmrestore/restore_native_source.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/restore_native_source_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.ordinary-power-admission",
       "title": "Hold VM power admission through exact runtime completion",
       "title_zh": "Hold VM power admission through exact runtime completion",
@@ -12097,6 +12150,24 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.ordinary-power-handler",
+      "title": "Use restored A disks and complete actual power events through the admitted handler",
+      "title_zh": "Use restored A disks and complete actual power events through the admitted handler",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.restoredPower",
+      "code_paths": [
+        "api/handler/vm_restored_power.go",
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restored_power_test.go"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {
@@ -12171,6 +12242,43 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.private-startup-provenance",
+      "title": "Require private exact-UID startup publication without persisting guest data",
+      "title_zh": "Require private exact-UID startup publication without persisting guest data",
+      "interface_type": "workflow",
+      "interface": "Store.ReadVMStartup",
+      "code_paths": [
+        "pkg/vmrestore/startup_provenance.go",
+        "worker/appm/controller/start.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/startup_provenance_test.go"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.provider-entrypoint",
+      "title": "Connect verified storage dependencies to native restore source without changing read semantics",
+      "title_zh": "Connect verified storage dependencies to native restore source without changing read semantics",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.RestoreService",
+      "code_paths": [
+        "api/handler/vm_restore.go",
+        "pkg/vmrestore/restore_providers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restore_provider_test.go"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {
@@ -12337,6 +12445,24 @@
         {
           "path": "api/model/vm_restore_public_json_test.go",
           "selector": "TestPublicComponentExportsExcludeAllPrivateAttributeAliases"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.readonly-rollback-render",
+      "title": "Reject missing rollback dependencies without mutating metadata or gateways",
+      "title_zh": "Reject missing rollback dependencies without mutating metadata or gateways",
+      "interface_type": "workflow",
+      "interface": "RenderVMForRestore",
+      "code_paths": [
+        "worker/appm/conversion/vm_restore_render.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_restore_render_test.go"
         }
       ],
       "test_type": "regression",
@@ -12526,6 +12652,24 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.startup-publication-worker",
+      "title": "Publish exact new VM and generated media identities in the private startup record",
+      "title_zh": "Publish exact new VM and generated media identities in the private startup record",
+      "interface_type": "workflow",
+      "interface": "startController.startOne",
+      "code_paths": [
+        "worker/appm/controller/start.go",
+        "pkg/vmrestore/startup_provenance.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/vm_startup_publication_test.go"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {

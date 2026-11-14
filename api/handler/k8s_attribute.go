@@ -426,6 +426,7 @@ func (s *ServiceAction) syncVirtualMachineConfigMaps(serviceID string) error {
 		}
 		existing, err := s.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), cm.Name, metav1.GetOptions{})
 		if err == nil && existing != nil {
+			vmrestore.PreserveStartupMediaMetadata(existing, cm)
 			cm.ResourceVersion = existing.ResourceVersion
 			cm.UID = existing.UID
 			if _, err = s.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{}); err != nil {
