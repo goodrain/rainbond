@@ -17,15 +17,19 @@ import (
 
 // SnapshotFirmwareIdentity records actual source identity, never a guessed UUID.
 type SnapshotFirmwareIdentity struct {
-	VM                 ObjectRef  `json:"vm"`
-	VMI                *ObjectRef `json:"vmi,omitempty"`
-	VMIResourceVersion string     `json:"vmi_resource_version,omitempty"`
-	VMResourceVersion  string     `json:"vm_resource_version"`
-	FirmwareUUID       string     `json:"firmware_uuid"`
-	Pinned             bool       `json:"pinned"`
+	Startup            *RestoreStartupPolicy `json:"startup,omitempty"`
+	VM                 ObjectRef             `json:"vm"`
+	VMI                *ObjectRef            `json:"vmi,omitempty"`
+	VMIResourceVersion string                `json:"vmi_resource_version,omitempty"`
+	VMResourceVersion  string                `json:"vm_resource_version"`
+	FirmwareUUID       string                `json:"firmware_uuid"`
+	Pinned             bool                  `json:"pinned"`
 }
 
 func (p SnapshotFirmwareIdentity) validate(scope Scope, source ObjectRef) error {
+	if p.Startup != nil && (p.Startup.validate(scope) != nil || p.Startup.FirmwareUUID != p.FirmwareUUID) {
+		return ErrCorrupt
+	}
 	if !sameObject(p.VM, source) || p.VM.Namespace != scope.Namespace || p.VMResourceVersion == "" {
 		return ErrCorrupt
 	}
@@ -54,8 +58,9 @@ func validSnapshotIdentityTransition(old, next *SnapshotFirmwareIdentity) bool {
 // SnapshotFirmwareMaterializer pins source VMI firmware under the snapshot fence.
 // It issues at most one exact-resourceVersion update; uncertainty is observed.
 type SnapshotFirmwareMaterializer struct {
-	Store   *Store
-	Dynamic dynamic.Interface
+	Store        *Store
+	Dynamic      dynamic.Interface
+	ProveStartup func(context.Context, Scope, *kv.VirtualMachine, string) (RestoreStartupPolicy, error)
 }
 
 func (m *SnapshotFirmwareMaterializer) current(scope Scope, op string) (Current, error) {
@@ -136,6 +141,13 @@ func (m *SnapshotFirmwareMaterializer) Pin(ctx context.Context, scope Scope, op 
 			return ErrReferenceUnavailable
 		}
 		proof = &SnapshotFirmwareIdentity{VM: c.Receipt.Snapshot.SourceVM, VMI: instanceRef, VMIResourceVersion: instanceVersion, VMResourceVersion: vm.ResourceVersion, FirmwareUUID: identity}
+		if m.ProveStartup != nil {
+			policy, err := m.ProveStartup(ctx, scope, vm, identity)
+			if err != nil {
+				return err
+			}
+			proof.Startup = &policy
+		}
 		if proof.validate(scope, c.Receipt.Snapshot.SourceVM) != nil {
 			return ErrRestoreCapability
 		}
@@ -246,6 +258,9 @@ func checkSnapshotFirmware(identity *SnapshotFirmwareIdentity, content *native.V
 	vm := content.Spec.Source.VirtualMachine
 	if string(vm.UID) != identity.VM.UID || vm.Spec.Template == nil || vm.Spec.Template.Spec.Domain.Firmware == nil || string(vm.Spec.Template.Spec.Domain.Firmware.UUID) != identity.FirmwareUUID {
 		return ErrConflict
+	}
+	if identity.Startup != nil {
+		return checkStartupDevices(*identity.Startup, vm.Spec.Template.Spec)
 	}
 	return nil
 }

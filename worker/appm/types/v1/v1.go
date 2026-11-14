@@ -109,6 +109,8 @@ var OnDelete TypeUpgradeMethod = "OnDelete"
 
 // AppServiceBase app service base info
 type AppServiceBase struct {
+	RestoreRender     bool                      `json:"-"`
+	VMStartupHints    *vmrestore.VMStartupHints `json:"-"`
 	VMStorageView     *vmrestore.BindingView
 	VMRestoredRuntime *vmrestore.RuntimeSelection
 	TenantID          string
@@ -165,6 +167,7 @@ func (a AppServiceBase) IsThirdComponent() bool {
 	return a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String()
 }
 
+// ISVM reports whether the component is a virtual machine.
 func (a AppServiceBase) ISVM() bool {
 	return string(a.ServiceType) == dbmodel.ServiceKindVirtualMachine.String()
 }
@@ -250,6 +253,7 @@ func GetCacheKeyOnlyAppID(appID string) CacheKey {
 	return CacheKey(appID)
 }
 
+// GetVirtualMachine returns the component's rendered virtual machine.
 func (a AppService) GetVirtualMachine() *kubevirtv1.VirtualMachine {
 	return a.virtualmachine
 }
@@ -1367,7 +1371,7 @@ type K8sResources struct {
 	Services    []*corev1.Service
 	Secrets     []*corev1.Secret
 	Ingresses   []interface{}
-	ApiSixRoute []*v2.ApisixRoute
+	APISixRoute []*v2.ApisixRoute `json:"ApiSixRoute"`
 }
 
 // GetTCPMeshImageName get tcp mesh image name

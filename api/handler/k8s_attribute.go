@@ -408,6 +408,7 @@ func (s *ServiceAction) syncVirtualMachineConfigMaps(serviceID string) error {
 		}
 		existing, err := s.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), cm.Name, metav1.GetOptions{})
 		if err == nil && existing != nil {
+			vmrestore.PreserveStartupMediaMetadata(existing, cm)
 			cm.ResourceVersion = existing.ResourceVersion
 			cm.UID = existing.UID
 			if _, err = s.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{}); err != nil {
@@ -448,8 +449,19 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 		return existingVM, false
 	}
 	updatedVM := existingVM.DeepCopy()
-	updatedVM.Spec = desiredVM.Spec
+	updatedVM.Spec = desiredVM.DeepCopy().Spec
+	if existingVM.Spec.Template != nil && existingVM.Spec.Template.Spec.Domain.Firmware != nil && existingVM.Spec.Template.Spec.Domain.Firmware.UUID != "" && updatedVM.Spec.Template != nil {
+		if updatedVM.Spec.Template.Spec.Domain.Firmware == nil {
+			updatedVM.Spec.Template.Spec.Domain.Firmware = &kubevirtv1.Firmware{}
+		}
+		if updatedVM.Spec.Template.Spec.Domain.Firmware.UUID == "" {
+			updatedVM.Spec.Template.Spec.Domain.Firmware.UUID = existingVM.Spec.Template.Spec.Domain.Firmware.UUID
+		}
+	}
 	updatedVM.Spec.RunStrategy = existingVM.Spec.RunStrategy
 	updatedVM.Spec.Running = existingVM.Spec.Running
+	if reflect.DeepEqual(existingVM.Spec, updatedVM.Spec) {
+		return existingVM, false
+	}
 	return updatedVM, true
 }

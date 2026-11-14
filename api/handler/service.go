@@ -95,6 +95,7 @@ var vmStartRetryDelay = 200 * time.Millisecond
 
 // ServiceAction service act
 type ServiceAction struct {
+	restoreStorageProvider                   vmrestore.RestoreStorageProvider
 	restoreEngineFactory                     func(context.Context, string) (*vmrestore.RestoreEngine, vmrestore.Scope, error)
 	snapshotEngineFactory                    func(string) (*vmrestore.SnapshotEngine, vmrestore.Scope, error)
 	MQClient                                 gclient.MQClient

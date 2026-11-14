@@ -241,6 +241,9 @@ func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (locked
 	if err := s.validateFenceReceipt(tx, result, scope); err != nil {
 		return result, err
 	}
+	if err := s.validateStartupReceipt(tx, result.current.State, scope); err != nil {
+		return result, err
+	}
 	return result, nil
 }
 
@@ -359,6 +362,9 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 	if !reflect.DeepEqual(update.State.Bindings, before.State.Bindings) && update.State.BindingGeneration != before.State.BindingGeneration+1 {
 		return Current{}, ErrConflict
 	}
+	if before.State.StartupOperationID != "" && update.State.StartupOperationID != before.State.StartupOperationID {
+		return Current{}, ErrConflict
+	}
 	update.State.ControlRevision++
 	if err := update.State.Validate(scope); err != nil {
 		return Current{}, err
@@ -396,6 +402,9 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 			return Current{}, ErrConflict
 		}
 		if before.Receipt != nil && before.Receipt.PowerEventID != update.Receipt.PowerEventID {
+			return Current{}, ErrConflict
+		}
+		if before.Receipt != nil && !reflect.DeepEqual(before.Receipt.Startup, update.Receipt.Startup) {
 			return Current{}, ErrConflict
 		}
 		if before.Receipt != nil && !validSnapshotIdentityTransition(before.Receipt.SnapshotIdentity, update.Receipt.SnapshotIdentity) {

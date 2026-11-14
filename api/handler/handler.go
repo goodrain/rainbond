@@ -24,12 +24,24 @@ import (
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/sirupsen/logrus"
 )
 
 // InitAPIHandle 初始化handle
 func InitAPIHandle() error {
+	return initAPIHandle(nil)
+}
+
+// InitAPIHandleWithRestoreStorage installs the storage owner's verified
+// execution adapter into the same production service handler used by routes.
+func InitAPIHandleWithRestoreStorage(provider vmrestore.RestoreStorageProvider) error {
+	return initAPIHandle(provider)
+}
+
+func initAPIHandle(provider vmrestore.RestoreStorageProvider) error {
 	serviceManager := CreateManager()
+	serviceManager.restoreStorageProvider = provider
 	if err := serviceManager.syncManagedTenantNamespaceLabels(context.Background()); err != nil {
 		logrus.Errorf("sync managed tenant namespace labels: %v", err)
 	}

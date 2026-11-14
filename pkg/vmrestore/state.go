@@ -85,13 +85,14 @@ type Admission struct {
 
 // State is one durable row; idle rows retain their revision to avoid ABA.
 type State struct {
-	SchemaVersion     int                `json:"schema_version"`
-	Scope             Scope              `json:"scope"`
-	ControlRevision   uint64             `json:"control_revision"`
-	BindingGeneration uint64             `json:"binding_generation"`
-	Bindings          map[string]Binding `json:"bindings"`
-	Fence             *Fence             `json:"fence,omitempty"`
-	Admission         *Admission         `json:"admission,omitempty"`
+	StartupOperationID string             `json:"startup_operation_id,omitempty"`
+	SchemaVersion      int                `json:"schema_version"`
+	Scope              Scope              `json:"scope"`
+	ControlRevision    uint64             `json:"control_revision"`
+	BindingGeneration  uint64             `json:"binding_generation"`
+	Bindings           map[string]Binding `json:"bindings"`
+	Fence              *Fence             `json:"fence,omitempty"`
+	Admission          *Admission         `json:"admission,omitempty"`
 }
 
 // ResourceRef records an observed identity and its Region-owned purpose.
@@ -112,6 +113,7 @@ type StepResult struct {
 
 // Receipt is Region resource ownership and step idempotency, not the total workflow.
 type Receipt struct {
+	Startup                   *VMStartupProof           `json:"startup,omitempty"`
 	SnapshotIdentity          *SnapshotFirmwareIdentity `json:"snapshot_identity,omitempty"`
 	PowerEventID              string                    `json:"power_event_id,omitempty"`
 	Execution                 *RestoreExecution         `json:"execution,omitempty"`
@@ -248,6 +250,9 @@ func validateBindings(bindings map[string]Binding) error {
 
 // Validate rejects damaged or cross-component state rather than selecting B.
 func (s State) Validate(scope Scope) error {
+	if s.StartupOperationID != "" && !idPattern.MatchString(s.StartupOperationID) {
+		return ErrCorrupt
+	}
 	if s.SchemaVersion != SchemaVersion || s.Scope != scope || !validScope(scope) {
 		return ErrCorrupt
 	}
@@ -273,6 +278,9 @@ func (s State) Validate(scope Scope) error {
 
 // Validate verifies a receipt belongs to the requested component and operation.
 func (r Receipt) Validate(scope Scope, operationID string) error {
+	if r.Startup != nil && r.Startup.validate(scope) != nil {
+		return ErrCorrupt
+	}
 	if r.SnapshotIdentity != nil && (r.Snapshot == nil || r.SnapshotIdentity.validate(scope, r.Snapshot.SourceVM) != nil) {
 		return ErrCorrupt
 	}

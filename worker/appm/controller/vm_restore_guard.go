@@ -24,7 +24,7 @@ func guardLegacyVMLifecycle(app v1.AppService) error {
 	if c.State.Fence != nil || c.State.Admission != nil {
 		return vmrestore.ErrBusy
 	}
-	if len(c.State.Bindings) != 0 {
+	if len(c.State.Bindings) != 0 || c.State.StartupOperationID != "" {
 		return vmrestore.ErrConflict
 	}
 	return nil

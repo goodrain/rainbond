@@ -111,7 +111,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
 
-	go updateAPISixRoute(as)
+	if !as.RestoreRender {
+		go updateAPISixRoute(as)
+	}
 
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
@@ -184,6 +186,16 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		vmRuntime, err := buildVMRuntimeConfig(runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
+		}
+		as.VMStartupHints = &vmrestore.VMStartupHints{ConfigMaps: []vmrestore.VMStartupConfigMap{}}
+		for _, v := range vmRuntime.Volumes {
+			if v.CloudInitNoCloud != nil {
+				as.VMStartupHints.NoCloudVolumeName = v.Name
+				as.VMStartupHints.NoCloudDiskName = v.Name
+			}
+			if v.ConfigMap != nil {
+				as.VMStartupHints.ConfigMaps = append(as.VMStartupHints.ConfigMaps, vmrestore.VMStartupConfigMap{VolumeName: v.Name, DiskName: v.Name, Name: v.ConfigMap.Name})
+			}
 		}
 		for _, configMap := range vmRuntime.ConfigMaps {
 			as.SetConfigMap(configMap)
@@ -897,6 +909,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		for _, t := range tsmr {
 			sv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
 			if err != nil {
+				if as.RestoreRender {
+					return nil, vmrestore.ErrReferenceUnavailable
+				}
 				if strings.Contains(err.Error(), "record not found") {
 					err := dbmanager.TenantServiceMountRelationDao().DElTenantServiceMountRelationByDepService(t.ServiceID, t.DependServiceID)
 					if err != nil {
