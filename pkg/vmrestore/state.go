@@ -112,23 +112,26 @@ type StepResult struct {
 
 // Receipt is Region resource ownership and step idempotency, not the total workflow.
 type Receipt struct {
-	Restore                   *RestoreIntent        `json:"restore,omitempty"`
-	RollbackConfigHash        string                `json:"rollback_config_hash,omitempty"`
-	RollbackAckHash           string                `json:"rollback_ack_hash,omitempty"`
-	Snapshot                  *SnapshotIntent       `json:"snapshot,omitempty"`
-	ManifestID                string                `json:"manifest_id,omitempty"`
-	ConfigCommitHash          string                `json:"config_commit_hash,omitempty"`
-	ConsoleAckHash            string                `json:"console_ack_hash,omitempty"`
-	SchemaVersion             int                   `json:"schema_version"`
-	Scope                     Scope                 `json:"scope"`
-	OperationID               string                `json:"operation_id"`
-	ManifestHash              string                `json:"manifest_hash"`
-	OldBindings               map[string]Binding    `json:"old_bindings"`
-	NewBindings               map[string]Binding    `json:"new_bindings"`
-	Resources                 []ResourceRef         `json:"resources,omitempty"`
-	Steps                     map[string]StepResult `json:"steps"`
-	RetainOldPVCs             bool                  `json:"retain_old_pvcs"`
-	SnapshotReferenceReleased bool                  `json:"snapshot_reference_released"`
+	SnapshotIdentity          *SnapshotFirmwareIdentity `json:"snapshot_identity,omitempty"`
+	PowerEventID              string                    `json:"power_event_id,omitempty"`
+	Execution                 *RestoreExecution         `json:"execution,omitempty"`
+	Restore                   *RestoreIntent            `json:"restore,omitempty"`
+	RollbackConfigHash        string                    `json:"rollback_config_hash,omitempty"`
+	RollbackAckHash           string                    `json:"rollback_ack_hash,omitempty"`
+	Snapshot                  *SnapshotIntent           `json:"snapshot,omitempty"`
+	ManifestID                string                    `json:"manifest_id,omitempty"`
+	ConfigCommitHash          string                    `json:"config_commit_hash,omitempty"`
+	ConsoleAckHash            string                    `json:"console_ack_hash,omitempty"`
+	SchemaVersion             int                       `json:"schema_version"`
+	Scope                     Scope                     `json:"scope"`
+	OperationID               string                    `json:"operation_id"`
+	ManifestHash              string                    `json:"manifest_hash"`
+	OldBindings               map[string]Binding        `json:"old_bindings"`
+	NewBindings               map[string]Binding        `json:"new_bindings"`
+	Resources                 []ResourceRef             `json:"resources,omitempty"`
+	Steps                     map[string]StepResult     `json:"steps"`
+	RetainOldPVCs             bool                      `json:"retain_old_pvcs"`
+	SnapshotReferenceReleased bool                      `json:"snapshot_reference_released"`
 }
 
 // Expectation protects an entire short Region step.
@@ -270,6 +273,12 @@ func (s State) Validate(scope Scope) error {
 
 // Validate verifies a receipt belongs to the requested component and operation.
 func (r Receipt) Validate(scope Scope, operationID string) error {
+	if r.SnapshotIdentity != nil && (r.Snapshot == nil || r.SnapshotIdentity.validate(scope, r.Snapshot.SourceVM) != nil) {
+		return ErrCorrupt
+	}
+	if r.PowerEventID != "" && (!idPattern.MatchString(r.PowerEventID) || len(r.PowerEventID) > 40) {
+		return ErrCorrupt
+	}
 	if r.SchemaVersion != SchemaVersion || r.Scope != scope || !validScope(scope) || r.OperationID != operationID || !idPattern.MatchString(operationID) || !hashPattern.MatchString(r.ManifestHash) || r.Steps == nil {
 		return ErrCorrupt
 	}
@@ -305,6 +314,11 @@ func (r Receipt) Validate(scope Scope, operationID string) error {
 	}
 	if r.Restore != nil {
 		if err := r.Restore.validate(scope); err != nil {
+			return err
+		}
+	}
+	if r.Execution != nil {
+		if err := r.Execution.validate(scope, operationID, r.ManifestHash); err != nil {
 			return err
 		}
 	}

@@ -592,6 +592,7 @@
 | rainbond.vm-publish.stage-timing-logs | Trace VM publish stage timing logs | active | regression | builder/exector.VMBuildItem.RunVMBuild | builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsSuccess<br>builder/exector/build_from_vm_test.go::TestRecordVMBuildStageLogsError<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsFields<br>builder/sources/image_test.go::TestRecordImageBuildStageLogsError |
 | rainbond.vm-restore.atomic-config-bindings | Atomically commit all disks and selected Region configuration | active | regression | Store.CommitRestoreDB | pkg/vmrestore/restore_commit_test.go |
 | rainbond.vm-restore.atomic-state-store | VM restore atomic state and idempotent receipts | active | regression | pkg/vmrestore.Store.Mutate | pkg/vmrestore/store_test.go::TestStoreCASReplayAndRequestIdentity<br>pkg/vmrestore/store_test.go::TestStoreRejectsDuplicateAndCrossTenantRows<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnpairedFenceBeforeCommit<br>pkg/vmrestore/store_test.go::TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence<br>pkg/vmrestore/store_test.go::TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation<br>pkg/vmrestore/store_test.go::TestStoreDuplicateRowsWithValidCommittedBaseline<br>pkg/vmrestore/store_test.go::TestMutateTxRollsBackStateAndReceiptTogether<br>pkg/vmrestore/store_test.go::TestMissingServiceNeverRecreatesLedger<br>pkg/vmrestore/store_test.go::TestStoreRejectsManufacturedFutureStep<br>pkg/vmrestore/store_test.go::TestStoreRejectsUnappliedPersistedStepReplay<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedState<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingCurrentWithRemainingReceipt<br>pkg/vmrestore/store_test.go::TestStoreRejectsMissingReceiptForActiveFence<br>pkg/vmrestore/store_test.go::TestStorePersistedStateRequiresStructuralFields<br>pkg/vmrestore/store_test.go::TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows<br>pkg/vmrestore/store_test.go::TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads<br>pkg/vmrestore/store_test.go::TestStoreRejectsImpossiblePersistedStepResults<br>pkg/vmrestore/store_test.go::TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress<br>pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedReceipt<br>pkg/vmrestore/store_mysql_test.go::TestMySQLUsesCurrentLockingReadsBeforeMutation |
+| rainbond.vm-restore.bounded-execution | Execute bounded restore phases with persisted outcomes | active | regression | pkg/vmrestore/restore_engine.go | pkg/vmrestore/restore_engine_test.go<br>pkg/vmrestore/restore_engine_integration_test.go<br>pkg/vmrestore/restore_prepare_test.go |
 | rainbond.vm-restore.capacity-capability-gate | Require qualified storage and real reserved capacity | active | regression | restoreplan.Assess | pkg/vmrestore/restoreplan/budget_test.go |
 | rainbond.vm-restore.copy-result-canonical-fields | Require canonical typed JSON fields before projecting copy evidence | active | regression | restoreplan.CaptureAndValidate | pkg/vmrestore/restoreplan/capture_test.go::TestCaptureRejectsNoncanonicalTypedFieldAliases |
 | rainbond.vm-restore.copy-result-capture | Bind complete persisted report to exact Job and Pod identity | active | regression | restoreplan.CaptureAndValidate | pkg/vmrestore/restoreplan/capture_test.go |
@@ -600,10 +601,12 @@
 | rainbond.vm-restore.copy-retry-verification | Read-only verification of already published targets | active | regression | copyio.Run | pkg/vmrestore/copyio/run_test.go |
 | rainbond.vm-restore.copy-write-budget | Stop before any write exceeds hard byte budget | active | regression | copyio.ZeroScanCopy | pkg/vmrestore/copyio/copy_test.go |
 | rainbond.vm-restore.durable-admission | VM mutation durable admission ownership | active | regression | pkg/vmrestore.State.AdmitMutation | pkg/vmrestore/state_test.go::TestAdmissionDoesNotExpireOrReleaseOtherOwner |
+| rainbond.vm-restore.kubernetes-runtime | Observe exact VM identities and apply bounded runtime changes | active | regression | pkg/vmrestore/restore_kube_runtime.go | pkg/vmrestore/restore_kube_runtime_test.go |
 | rainbond.vm-restore.live-volume-resolver | VM disk authoritative live resolver | active | regression | pkg/vmrestore.Resolver.ResolveVolume | pkg/vmrestore/resolver_test.go::TestLiveResolverCanonicalMaterializationAndPlainPVC<br>pkg/vmrestore/resolver_test.go::TestLiveResolverUsesDVActualClaimAndRejectsLaterRemap<br>pkg/vmrestore/resolver_test.go::TestLiveResolverMissingAndReplacedMappedPVCNeverFallback<br>pkg/vmrestore/resolver_test.go::TestLiveResolverRejectsForeignLogicalVolumeAndDoesNotInventUID<br>pkg/vmrestore/resolver_test.go::TestBindingViewDoesNotExposeAdmissionOrBackendHandle<br>pkg/vmrestore/resolver_test.go::TestCanonicalMaterializedIdentitySurvivesRollbackAndRejectsNewUID<br>pkg/vmrestore/resolver_test.go::TestResolverRejectsMixedGenerationDuringKubernetesReads<br>pkg/vmrestore/resolver_test.go::TestLiveResolverRejectsCorruptHistoricalReceipts<br>pkg/vmrestore/resolver_test.go::TestLiveResolverRejectsConflictingPVCOwnership<br>pkg/vmrestore/resolver_test.go::TestPartialMappingLossWithReceiptCannotSelectB |
 | rainbond.vm-restore.lost-ledger-footprint | VM restored-resource footprint loss guard | active | regression | pkg/vmrestore.Resolver.fallbackFootprints | pkg/vmrestore/footprints_test.go::TestLostWholeLedgerCannotFallbackToOriginalB<br>pkg/vmrestore/footprints_test.go::TestLegitimateInFlightTargetDoesNotBecomeASecondMapping<br>pkg/vmrestore/footprints_test.go::TestHealthyGenerationAllowsNewUnmappedDiskWithoutItsOwnRestoreFootprint<br>pkg/vmrestore/footprints_test.go::TestMarkersDoNotAdoptExistingResourceOrUseTestLabelsAsAuthority<br>pkg/vmrestore/footprints_test.go::TestOrphanBindingWithoutOwnedLogicalRecordIsRejected<br>pkg/vmrestore/footprints_test.go::TestCommittedBindingFootprintSurvivesMissingResources<br>pkg/vmrestore/footprints_test.go::TestPreparedCanonicalBindingsDoNotImplyCommittedMapping<br>pkg/vmrestore/footprints_test.go::TestNewDiskAbsentFromCommittedReceiptCanResolveCanonically<br>pkg/vmrestore/footprints_test.go::TestCommitFootprintRequiresMatchingSealedSuccess<br>pkg/vmrestore/footprints_test.go::TestVMGenerationMarkerPreservesMetadataAndRejectsWrongScope<br>pkg/vmrestore/footprints_test.go::TestUnmappedNewDiskChecksKnownAndMalformedFootprints<br>pkg/vmrestore/resolver_test.go::TestPartialMappingLossWithReceiptCannotSelectB |
 | rainbond.vm-restore.materialized-binding-plan | 恢复绑定身份集合与原盘保留 | active | regression | pkg/vmrestore.BuildRestoreBindings | pkg/vmrestore/restore_binding_plan_test.go::TestRestoreBindingPlanPreservesLaterBDisksWithoutReattaching<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreBindingPlanRejectsMissingForeignAndReusedTargets<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreConfigHashIsOrderStableWithoutMutatingCallers<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreBindingPlanDoesNotAliasOriginalDiskReferences<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreConfigRejectsUnrepresentableHardwareAndDiskSets<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreIntentPinsSourceScopeAndHashes<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreBindingPlanRejectsContradictoryObjectSlots<br>pkg/vmrestore/restore_binding_plan_test.go::TestRestoreBindingPlanAllowsDistinctResourceKindsAndSharedHistory |
 | rainbond.vm-restore.materialized-canonical-identity | Materialized canonical VM disk UID identity | active | regression | pkg/vmrestore.Binding | pkg/vmrestore/materialized_binding_test.go::TestMaterializedCanonicalProvenanceUsesAnEmptyPair |
+| rainbond.vm-restore.ordinary-power-admission | Hold VM power admission through exact runtime completion | active | regression | pkg/vmrestore/ordinary_vm_admission.go | pkg/vmrestore/ordinary_vm_admission_test.go |
 | rainbond.vm-restore.pinned-before-boot-layout | Validate effective original boot and disk layout under the restore transaction lock | active | regression | Store.PrepareRestoreDB | pkg/vmrestore/restore_before_config_test.go |
 | rainbond.vm-restore.pinned-rollback | Rollback selected config to materialized retained identities | active | regression | Store.RollbackRestoreDB | pkg/vmrestore/restore_commit_test.go |
 | rainbond.vm-restore.private-attributes | VM restore private attribute boundaries | active | regression | pkg/vmrestore.PublicAttributeCopies | pkg/vmrestore/state_test.go::TestPrivateAttributeNames<br>pkg/vmrestore/public_attributes_test.go::TestPublicOverwritePreservesInternalRowsAndRejectsIDInjection<br>pkg/vmrestore/public_attributes_test.go::TestExportAndImportCannotCarryBindingsOrReceipt<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteCannotRemoveInternalRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicDeleteRemovesOnlyTheObservedComponentsRow<br>pkg/vmrestore/public_attributes_test.go::TestPublicReplacementParticipatesInTheCallersTransaction |
@@ -613,8 +616,19 @@
 | rainbond.vm-restore.public-attribute-paths | VM restore public overwrite import and ordinary CRUD boundaries | active | regression | api/handler.ServiceAction.SyncComponentK8sAttributes | api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesPreservesPrivateRows<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsPrivateInput<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesRejectsSourceIdentity<br>api/handler/vm_restore_attribute_paths_test.go::TestPublicK8sAttributeCRUDPreservesOrdinaryComponentBehavior<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesKeepsEmptySetSemantics<br>api/handler/vm_restore_attribute_paths_test.go::TestSyncComponentK8sAttributesRejectsInvalidTarget<br>api/handler/vm_restore_attribute_paths_test.go::TestResourceImportK8sAttributesHandlesEmptyAndFailedPersistence |
 | rainbond.vm-restore.public-attribute-service | VM restore private attribute service boundary | active | regression | api/handler.ServiceAction.GetK8sAttribute | api/handler/vm_restore_public_attributes_test.go::TestPublicAttributeCallsRejectPrivateNamesAndPersistedAlias |
 | rainbond.vm-restore.public-export-boundary | VM restore state excluded from public exports | active | regression | api/model.Component.MarshalJSON | api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity<br>api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases |
+| rainbond.vm-restore.resource-execution | Fence sparse restore resources and retain exact UID cleanup evidence | active | regression | RestoreResourceExecutor.Ensure | pkg/vmrestore/restore_resources_test.go<br>pkg/vmrestore/restore_resource_safety_test.go |
+| rainbond.vm-restore.resource-repair-safety | Serialize exact create ownership and restore authoritative evidence on retry | active | regression | RestoreResourceExecutor.Ensure | pkg/vmrestore/restore_resource_repair_test.go<br>pkg/vmrestore/restore_resource_independent_regression_test.go |
+| rainbond.vm-restore.result-capture | Persist bounded exact Job Pod image and full disk result evidence | active | regression | RestoreCapture.Capture | pkg/vmrestore/restore_job_capture_test.go<br>pkg/vmrestore/restore_job_capture_boundaries_test.go<br>pkg/vmrestore/restore_job_capture_transport_test.go |
+| rainbond.vm-restore.rpc-command-cas | Atomically claim restore commands against the original caller CAS | active | regression | RestoreEngine.Command | pkg/vmrestore/restore_command_cas_test.go<br>pkg/vmrestore/rpc_v11_independent_review_test.go<br>pkg/vmrestore/rpc_v11_two_commands_cas_review_test.go<br>api/handler/rpc_v11_independent_review_test.go<br>api/controller/rpc_v11_independent_review_test.go |
+| rainbond.vm-restore.rpc-command-contract | Require operation epoch and CAS on bounded restore RPC | active | regression | pkg/vmrestore/restore_command.go | pkg/vmrestore/restore_command_test.go |
+| rainbond.vm-restore.rpc-handler | Resolve scoped restore RPC against the persistent Region store | active | regression | api/handler/vm_restore.go | api/handler/vm_restore_test.go |
+| rainbond.vm-restore.rpc-http | Preserve strict scoped restore HTTP and asynchronous power status | active | regression | api/controller/vm_restore.go | api/controller/vm_restore_test.go |
+| rainbond.vm-restore.runtime-projection | Project restored disks and preserve guest bootstrap identity | active | regression | pkg/vmrestore/restore_runtime_projection.go | pkg/vmrestore/restore_runtime_projection_test.go |
+| rainbond.vm-restore.stale-worker-lifecycle | Reject obsolete worker lifecycle over restore-owned disks | active | regression | worker/appm/controller/vm_restore_guard.go | worker/appm/controller/vm_restore_guard_test.go |
 | rainbond.vm-restore.state-scope-and-resolver | VM restore scoped state and canonical resolver | active | regression | pkg/vmrestore.State.ResolveClaim | pkg/vmrestore/state_test.go::TestStateScopeAndResolver<br>pkg/vmrestore/state_test.go::TestRecordRejectsUnknownSchemaFieldsAndTrailingJSON<br>pkg/vmrestore/state_test.go::TestDetachedBindingNeverFallsBackAndCrossNamespaceRejected<br>pkg/vmrestore/state_test.go::TestStateRejectsNonCanonicalBindingKeys<br>pkg/vmrestore/state_test.go::TestStateReceiptResourceIdentities<br>pkg/vmrestore/state_test.go::TestStateReceiptRejectsInvalidScope<br>pkg/vmrestore/state_test.go::TestStateReceiptAcceptsKubernetesSubdomainNames<br>pkg/vmrestore/state_test.go::TestStateResolutionDoesNotExposeMutableIdentity |
 | rainbond.vm-restore.volume-reference-matrix | VM disk logical and physical reference matrix | active | regression | pkg/vmrestore.Resolver.VolumeReferences | pkg/vmrestore/references_test.go::TestOldBLogicalReferencesDoNotBlockIndependentAExpansion<br>pkg/vmrestore/references_test.go::TestCurrentPhysicalSnapshotBlocksExpansion<br>pkg/vmrestore/references_test.go::TestActorAdmissionContextOnlyIgnoresItsOwnBusyFlag<br>pkg/vmrestore/references_test.go::TestOwnContextCannotBypassRestoreFence<br>pkg/vmrestore/references_test.go::TestIndirectDataSourceAndPendingVolumeRequestAreProtected<br>pkg/vmrestore/references_test.go::TestUnreadableReferencesFailClosed<br>pkg/vmrestore/references_test.go::TestRestoredAliasWithNoRealReferencesCanBeDeletedAndExpanded<br>pkg/vmrestore/references_test.go::TestCSIVolumeSnapshotContentUsesBackendIdentityWithoutExposingHandle<br>pkg/vmrestore/references_test.go::TestOwnVMLauncherDoesNotBlockExpansionButForeignPodDoes<br>pkg/vmrestore/references_test.go::TestOptionalReferenceAPINotFoundDoesNotMeanEmptyWhenDiscovered<br>pkg/vmrestore/references_test.go::TestOlderReceiptKeepsExactBIdentityWithoutBlockingAExpansion<br>pkg/vmrestore/references_test.go::TestOptionalSnapshotAPIAbsenceAndVersionMismatch<br>pkg/vmrestore/references_test.go::TestSnapshotLayoutAndPendingRequestsProtectDifferentResources<br>pkg/vmrestore/references_test.go::TestPVCCloneReferencesIncludeCrossNamespaceDataSources |
+| rainbond.vm-restore.worker-bound-disk-rendering | Render mapped restored disks without reimport or reattachment | active | regression | worker/appm/volume/share-file.go | worker/appm/volume/vm_restore_binding_test.go |
+| rainbond.vm-restore.worker-startup-filter | Suppress saved B login input while rendering restored A | active | regression | worker/appm/conversion/vm_restore_binding.go | worker/appm/conversion/vm_restore_binding_test.go |
 | rainbond.vm-restore.zero-scan-copy | Preserve full disk content and sparse zero chunks | active | regression | copyio.Scan | pkg/vmrestore/copyio/copy_test.go |
 | rainbond.vm-run.build-media-paths | 拆分 ISO 与磁盘镜像的 VM 运行时构建模板路径 | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_test.go::TestResolveVMBuildMediaDistinguishesISOAndDiskImages |
 | rainbond.vm-run.local-package-storage-download | vm-run 本地包源在目录缺失时回退 storage 下载 | active | regression | builder/sourceutil.ReadLocalPackageDir | builder/sourceutil/local_package_test.go::TestReadLocalPackageDirFallsBackToStorageDownload |
@@ -630,6 +644,7 @@
 | rainbond.vm-runtime.ssh-authorized-keys-cloud-init | Inject SSH authorized keys into Linux VM cloud-init | active | regression | worker/appm/conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_runtime_test.go |
 | rainbond.vm-runtime.ssh-authorized-keys-log-redaction | 在虚拟机失败日志中脱敏 cloud-init 输入 | active | regression | worker/appm/controller.startController.logVirtualMachineCreateFailure | worker/appm/controller/start_test.go |
 | rainbond.vm-snapshot.bounded-lifecycle | 虚拟机快照有界流程与持久确认 | active | regression | pkg/vmrestore.SnapshotEngine | pkg/vmrestore/snapshot_engine_test.go::TestRunningSnapshotWorkflowKeepsFenceUntilACKAndObservedPower<br>pkg/vmrestore/snapshot_engine_test.go::TestWrongUIDOrIncompleteManifestCannotResume<br>pkg/vmrestore/snapshot_engine_test.go::TestNativeCreateRequiresStoppedAndRetriesDoNotRepeatCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestCancelWaitsForResidualCleanupAndSourceUnlock<br>pkg/vmrestore/snapshot_engine_test.go::TestUnknownNativeCreateCannotBeCancelledAsIfNothingHappened<br>pkg/vmrestore/snapshot_engine_test.go::TestManagedSnapshotDeleteWaitsForAllChildrenAndPreservesSource<br>pkg/vmrestore/snapshot_engine_test.go::TestCancelAfterManifestACKKeepsValidSnapshotAndStopsResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditDoesNotMarkNativeReadyOrHTTPAcceptanceAsSuccess<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogNameReuseUsesCreationOrder<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogRejectsMalformedDuplicateAndFutureReceipts<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKRejectsReplacedCSIIdentityBeforeFirstACK<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedPreventsLaterResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKPinsExactCSIContentAndLogicalPairing<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotNativeProofReadsAreStableAndReadOnly<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedWaitsForInflightResumeThenObservedHalt<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentResumeClaimsOnlyOneStart<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownResumeKeepsFenceAndCancellationIntent<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFailedCommandsKeepFenceAndUnconfirmedSteps<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditRejectsDuplicateOrForeignOperationEvent<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteStillBlocksUnreleasedReceiptReference<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksInflightResumeAtRelease<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksLaterKeepStoppedDecision<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeWithUnchangedControlRevisionCompletes<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksFinalObservationNativeProof<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCancelCannotReleaseFenceDuringLateNativeCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleCancelCannotDeleteDurablyACKedSnapshot<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotManagedDeleteCannotCompleteWhileRPCUnsettled<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentCreateClaimsOnlyOneRPC<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotLateCreateSettlesBeforeCleanupAndCancelledACK<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCleanupChoiceRejectsLaterReadyACKAndCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownHaltAndDeleteNeverRetryOrCompleteOnAbsence<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAcceptedHaltMustBeObservedBeforeCancellationResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleReadyACKCannotCrossCleanupSelection<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotIdempotencyAndPendingHaltProtectSideEffects<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteAndListRejectInvalidTerminalRequests |
+| rainbond.vm-snapshot.fenced-firmware-identity | Pin actual source firmware identity under the native snapshot fence | active | regression | SnapshotFirmwareMaterializer.Pin | pkg/vmrestore/snapshot_firmware_test.go |
 | rainbond.vm-snapshot.http-bounded-contract | 虚拟机快照接口受理状态与作用域隔离 | active | regression | api/controller.VMSnapshotController | api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPRejectsInjectedScopeAndKeepsAcceptanceSeparate<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPMapsDomainErrorsWithoutNativeText<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPRequiresTrustedScopeForEveryRoute<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPStrictBodyAndQuery<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPActionPendingRetainsSafeDTO<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPReadAndActionContracts<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPFixedDomainErrorCodes<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPRealFacadeEnforcesDBScopeBeforeNativeDependency<br>api/controller/vm_snapshot_test.go::TestVMSnapshotControllerCreateVMSnapshot<br>api/controller/vm_snapshot_test.go::TestVMSnapshotControllerCreateVMSnapshotRequiresName<br>api/handler/vm_snapshot_test.go::TestBuildVMSnapshot<br>api/handler/vm_snapshot_test.go::TestCreateVMSnapshot<br>api/handler/vm_snapshot_test.go::TestVMSnapshotFacadeDispatchAndIdentity<br>api/handler/vm_snapshot_test.go::TestVMSnapshotFacadeDerivesScopeAndRejectsForeignTenant<br>api/middleware/vm_snapshot_test.go::TestSnapshotCommandPreservesLicenseBoundaryWithoutEarlyEventSuccess |
 | rainbond.vm-snapshot.native-ownership | 虚拟机快照原生资源身份与精确回收 | active | regression | pkg/vmrestore.KubeSnapshotBackend | pkg/vmrestore/snapshot_kube_test.go::TestNativeSnapshotCreateReconcilesOnlyExactOperationAndCore<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeMetadataKeepsHashOutOfLabels<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeDeleteUsesUIDAndNeverDeletesSourceObjects<br>pkg/vmrestore/snapshot_kube_test.go::TestNativePreflightAndPowerRequireObservedShutdownAndUnlock<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveWaitsForCSIResidualAfterParentDisappearance<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveRejectsMismatchedAPISourceAndOwner<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveRejectsCSIContentBoundToAnotherVolumeUID<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeIndependentWritableCloneDoesNotKeepSnapshotReference<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeCloneReferenceGateRequiresIndependentWritableBinding<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeCloneDataSourceRefAndUnavailableProof<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeReadAndPowerFailuresRemainUnavailable<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeOccupancyAndMissingSourceRemainDistinct<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeSourceUIDWriterAndRuntimeGuards<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeStorageIdentityCannotBeReplacedOrBacked |
 | rainbond.vm-snapshot.safe-metadata-projection | 虚拟机快照安全元数据与完整盘覆盖 | active | regression | pkg/vmrestore.ProjectSnapshot | pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionUsesApprovedFieldsAndCompleteCoverage<br>pkg/vmrestore/snapshot_projection_test.go::TestNativeReadyCannotHideMissingWritableDisk<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsReplacedResourcesAndUnsealedSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotDoesNotUseCurrentVMUIDAsOrigin<br>pkg/vmrestore/snapshot_projection_test.go::TestUnknownWritableVolumeIsNotSilentlyExcluded<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionBlocksEveryUnmanagedStorageSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresExactManagedVolumeSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotSurvivesMissingMutableSourceStatus<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsWrongNativeSourceAndCSIBinding<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionNeverMarksTerminatingChildrenReady<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigExcludesGeneratedInitializationMedia<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRejectsUnsupportedConfiguration<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigKeepsApprovedUnitsBootAndDeviceLayout<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresRepresentableFirmwareState<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsUnrepresentedHistoricalFirmwareState<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionKeepsPendingAndFailureSafe |
@@ -6594,6 +6609,16 @@
 - 代码路径: `pkg/vmrestore/store.go`
 - 测试路径: `pkg/vmrestore/store_test.go::TestStoreCASReplayAndRequestIdentity`, `pkg/vmrestore/store_test.go::TestStoreRejectsDuplicateAndCrossTenantRows`, `pkg/vmrestore/store_test.go::TestStoreRejectsUnpairedFenceBeforeCommit`, `pkg/vmrestore/store_test.go::TestStoreRejectsOrdinaryMutationOfAnotherOperationsFence`, `pkg/vmrestore/store_test.go::TestStoreFenceOwnerCanFinishAndOldStepsReplayDuringNextOperation`, `pkg/vmrestore/store_test.go::TestStoreDuplicateRowsWithValidCommittedBaseline`, `pkg/vmrestore/store_test.go::TestMutateTxRollsBackStateAndReceiptTogether`, `pkg/vmrestore/store_test.go::TestMissingServiceNeverRecreatesLedger`, `pkg/vmrestore/store_test.go::TestStoreRejectsManufacturedFutureStep`, `pkg/vmrestore/store_test.go::TestStoreRejectsUnappliedPersistedStepReplay`, `pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedState`, `pkg/vmrestore/store_test.go::TestStoreRejectsMissingCurrentWithRemainingReceipt`, `pkg/vmrestore/store_test.go::TestStoreRejectsMissingReceiptForActiveFence`, `pkg/vmrestore/store_test.go::TestStorePersistedStateRequiresStructuralFields`, `pkg/vmrestore/store_test.go::TestStoreNeverRestoredIgnoresUnrelatedAndLiteralLookalikeRows`, `pkg/vmrestore/store_test.go::TestStoreValidatesActiveFenceReceiptOnUnqualifiedReads`, `pkg/vmrestore/store_test.go::TestStoreRejectsImpossiblePersistedStepResults`, `pkg/vmrestore/store_test.go::TestStoreReplaysSuccessfulEarlierStepAfterLaterProgress`, `pkg/vmrestore/store_test.go::TestStoreRejectsIncompletePersistedReceipt`, `pkg/vmrestore/store_mysql_test.go::TestMySQLUsesCurrentLockingReadsBeforeMutation`
 
+### Execute bounded restore phases with persisted outcomes
+
+- Capability ID: `rainbond.vm-restore.bounded-execution`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore/restore_engine.go`
+- 代码路径: `pkg/vmrestore/restore_engine.go`, `pkg/vmrestore/restore_engine_resources.go`
+- 测试路径: `pkg/vmrestore/restore_engine_test.go`, `pkg/vmrestore/restore_engine_integration_test.go`, `pkg/vmrestore/restore_prepare_test.go`
+
 ### Require qualified storage and real reserved capacity
 
 - Capability ID: `rainbond.vm-restore.capacity-capability-gate`
@@ -6674,6 +6699,16 @@
 - 代码路径: `pkg/vmrestore/state.go`
 - 测试路径: `pkg/vmrestore/state_test.go::TestAdmissionDoesNotExpireOrReleaseOtherOwner`
 
+### Observe exact VM identities and apply bounded runtime changes
+
+- Capability ID: `rainbond.vm-restore.kubernetes-runtime`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore/restore_kube_runtime.go`
+- 代码路径: `pkg/vmrestore/restore_kube_runtime.go`
+- 测试路径: `pkg/vmrestore/restore_kube_runtime_test.go`
+
 ### VM disk authoritative live resolver
 
 - Capability ID: `rainbond.vm-restore.live-volume-resolver`
@@ -6713,6 +6748,16 @@
 - 业务入口: `pkg/vmrestore.Binding`
 - 代码路径: `pkg/vmrestore/state.go`
 - 测试路径: `pkg/vmrestore/materialized_binding_test.go::TestMaterializedCanonicalProvenanceUsesAnEmptyPair`
+
+### Hold VM power admission through exact runtime completion
+
+- Capability ID: `rainbond.vm-restore.ordinary-power-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore/ordinary_vm_admission.go`
+- 代码路径: `pkg/vmrestore/ordinary_vm_admission.go`
+- 测试路径: `pkg/vmrestore/ordinary_vm_admission_test.go`
 
 ### Validate effective original boot and disk layout under the restore transaction lock
 
@@ -6804,6 +6849,96 @@
 - 代码路径: `api/model/vm_restore_public_json.go`
 - 测试路径: `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeRestoreStateAndSourceIdentity`, `api/model/vm_restore_public_json_test.go::TestPublicComponentExportsExcludeAllPrivateAttributeAliases`
 
+### Fence sparse restore resources and retain exact UID cleanup evidence
+
+- Capability ID: `rainbond.vm-restore.resource-execution`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `RestoreResourceExecutor.Ensure`
+- 代码路径: `pkg/vmrestore/restore_execution_types.go`, `pkg/vmrestore/restore_resources.go`, `pkg/vmrestore/restore_execution_store.go`, `pkg/vmrestore/restore_resource_executor.go`
+- 测试路径: `pkg/vmrestore/restore_resources_test.go`, `pkg/vmrestore/restore_resource_safety_test.go`
+
+### Serialize exact create ownership and restore authoritative evidence on retry
+
+- Capability ID: `rainbond.vm-restore.resource-repair-safety`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `RestoreResourceExecutor.Ensure`
+- 代码路径: `pkg/vmrestore/restore_resource_executor.go`, `pkg/vmrestore/restore_execution_store.go`
+- 测试路径: `pkg/vmrestore/restore_resource_repair_test.go`, `pkg/vmrestore/restore_resource_independent_regression_test.go`
+
+### Persist bounded exact Job Pod image and full disk result evidence
+
+- Capability ID: `rainbond.vm-restore.result-capture`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `RestoreCapture.Capture`
+- 代码路径: `pkg/vmrestore/restore_job_capture.go`
+- 测试路径: `pkg/vmrestore/restore_job_capture_test.go`, `pkg/vmrestore/restore_job_capture_boundaries_test.go`, `pkg/vmrestore/restore_job_capture_transport_test.go`
+
+### Atomically claim restore commands against the original caller CAS
+
+- Capability ID: `rainbond.vm-restore.rpc-command-cas`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `RestoreEngine.Command`
+- 代码路径: `pkg/vmrestore/restore_command.go`, `pkg/vmrestore/restore_engine.go`
+- 测试路径: `pkg/vmrestore/restore_command_cas_test.go`, `pkg/vmrestore/rpc_v11_independent_review_test.go`, `pkg/vmrestore/rpc_v11_two_commands_cas_review_test.go`, `api/handler/rpc_v11_independent_review_test.go`, `api/controller/rpc_v11_independent_review_test.go`
+
+### Require operation epoch and CAS on bounded restore RPC
+
+- Capability ID: `rainbond.vm-restore.rpc-command-contract`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore/restore_command.go`
+- 代码路径: `pkg/vmrestore/restore_command.go`
+- 测试路径: `pkg/vmrestore/restore_command_test.go`
+
+### Resolve scoped restore RPC against the persistent Region store
+
+- Capability ID: `rainbond.vm-restore.rpc-handler`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/handler/vm_restore.go`
+- 代码路径: `api/handler/vm_restore.go`, `api/handler/vm_snapshot_lifecycle.go`
+- 测试路径: `api/handler/vm_restore_test.go`
+
+### Preserve strict scoped restore HTTP and asynchronous power status
+
+- Capability ID: `rainbond.vm-restore.rpc-http`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller/vm_restore.go`
+- 代码路径: `api/controller/vm_restore.go`, `api/controller/service_action.go`
+- 测试路径: `api/controller/vm_restore_test.go`
+
+### Project restored disks and preserve guest bootstrap identity
+
+- Capability ID: `rainbond.vm-restore.runtime-projection`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore/restore_runtime_projection.go`
+- 代码路径: `pkg/vmrestore/restore_runtime_projection.go`
+- 测试路径: `pkg/vmrestore/restore_runtime_projection_test.go`
+
+### Reject obsolete worker lifecycle over restore-owned disks
+
+- Capability ID: `rainbond.vm-restore.stale-worker-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller/vm_restore_guard.go`
+- 代码路径: `worker/appm/controller/vm_restore_guard.go`, `worker/appm/controller/start.go`, `worker/appm/controller/stop.go`
+- 测试路径: `worker/appm/controller/vm_restore_guard_test.go`
+
 ### VM restore scoped state and canonical resolver
 
 - Capability ID: `rainbond.vm-restore.state-scope-and-resolver`
@@ -6823,6 +6958,26 @@
 - 业务入口: `pkg/vmrestore.Resolver.VolumeReferences`
 - 代码路径: `pkg/vmrestore/references.go`, `pkg/vmrestore/reference_scans.go`
 - 测试路径: `pkg/vmrestore/references_test.go::TestOldBLogicalReferencesDoNotBlockIndependentAExpansion`, `pkg/vmrestore/references_test.go::TestCurrentPhysicalSnapshotBlocksExpansion`, `pkg/vmrestore/references_test.go::TestActorAdmissionContextOnlyIgnoresItsOwnBusyFlag`, `pkg/vmrestore/references_test.go::TestOwnContextCannotBypassRestoreFence`, `pkg/vmrestore/references_test.go::TestIndirectDataSourceAndPendingVolumeRequestAreProtected`, `pkg/vmrestore/references_test.go::TestUnreadableReferencesFailClosed`, `pkg/vmrestore/references_test.go::TestRestoredAliasWithNoRealReferencesCanBeDeletedAndExpanded`, `pkg/vmrestore/references_test.go::TestCSIVolumeSnapshotContentUsesBackendIdentityWithoutExposingHandle`, `pkg/vmrestore/references_test.go::TestOwnVMLauncherDoesNotBlockExpansionButForeignPodDoes`, `pkg/vmrestore/references_test.go::TestOptionalReferenceAPINotFoundDoesNotMeanEmptyWhenDiscovered`, `pkg/vmrestore/references_test.go::TestOlderReceiptKeepsExactBIdentityWithoutBlockingAExpansion`, `pkg/vmrestore/references_test.go::TestOptionalSnapshotAPIAbsenceAndVersionMismatch`, `pkg/vmrestore/references_test.go::TestSnapshotLayoutAndPendingRequestsProtectDifferentResources`, `pkg/vmrestore/references_test.go::TestPVCCloneReferencesIncludeCrossNamespaceDataSources`
+
+### Render mapped restored disks without reimport or reattachment
+
+- Capability ID: `rainbond.vm-restore.worker-bound-disk-rendering`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/volume/share-file.go`
+- 代码路径: `worker/appm/volume/share-file.go`
+- 测试路径: `worker/appm/volume/vm_restore_binding_test.go`
+
+### Suppress saved B login input while rendering restored A
+
+- Capability ID: `rainbond.vm-restore.worker-startup-filter`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion/vm_restore_binding.go`
+- 代码路径: `worker/appm/conversion/vm_restore_binding.go`, `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/vm_restore_binding_test.go`
 
 ### Preserve full disk content and sparse zero chunks
 
@@ -6973,6 +7128,16 @@
 - 业务入口: `pkg/vmrestore.SnapshotEngine`
 - 代码路径: `pkg/vmrestore/snapshot_engine.go`, `pkg/vmrestore/snapshot_catalog.go`, `pkg/vmrestore/snapshot_audit.go`, `pkg/vmrestore/state.go`
 - 测试路径: `pkg/vmrestore/snapshot_engine_test.go::TestRunningSnapshotWorkflowKeepsFenceUntilACKAndObservedPower`, `pkg/vmrestore/snapshot_engine_test.go::TestWrongUIDOrIncompleteManifestCannotResume`, `pkg/vmrestore/snapshot_engine_test.go::TestNativeCreateRequiresStoppedAndRetriesDoNotRepeatCreate`, `pkg/vmrestore/snapshot_engine_test.go::TestCancelWaitsForResidualCleanupAndSourceUnlock`, `pkg/vmrestore/snapshot_engine_test.go::TestUnknownNativeCreateCannotBeCancelledAsIfNothingHappened`, `pkg/vmrestore/snapshot_engine_test.go::TestManagedSnapshotDeleteWaitsForAllChildrenAndPreservesSource`, `pkg/vmrestore/snapshot_engine_test.go::TestCancelAfterManifestACKKeepsValidSnapshotAndStopsResume`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditDoesNotMarkNativeReadyOrHTTPAcceptanceAsSuccess`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogNameReuseUsesCreationOrder`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogRejectsMalformedDuplicateAndFutureReceipts`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKRejectsReplacedCSIIdentityBeforeFirstACK`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedPreventsLaterResume`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKPinsExactCSIContentAndLogicalPairing`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotNativeProofReadsAreStableAndReadOnly`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedWaitsForInflightResumeThenObservedHalt`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentResumeClaimsOnlyOneStart`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownResumeKeepsFenceAndCancellationIntent`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFailedCommandsKeepFenceAndUnconfirmedSteps`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditRejectsDuplicateOrForeignOperationEvent`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteStillBlocksUnreleasedReceiptReference`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksInflightResumeAtRelease`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksLaterKeepStoppedDecision`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeWithUnchangedControlRevisionCompletes`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksFinalObservationNativeProof`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCancelCannotReleaseFenceDuringLateNativeCreate`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleCancelCannotDeleteDurablyACKedSnapshot`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotManagedDeleteCannotCompleteWhileRPCUnsettled`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentCreateClaimsOnlyOneRPC`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotLateCreateSettlesBeforeCleanupAndCancelledACK`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCleanupChoiceRejectsLaterReadyACKAndCreate`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownHaltAndDeleteNeverRetryOrCompleteOnAbsence`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAcceptedHaltMustBeObservedBeforeCancellationResume`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleReadyACKCannotCrossCleanupSelection`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotIdempotencyAndPendingHaltProtectSideEffects`, `pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteAndListRejectInvalidTerminalRequests`
+
+### Pin actual source firmware identity under the native snapshot fence
+
+- Capability ID: `rainbond.vm-snapshot.fenced-firmware-identity`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `SnapshotFirmwareMaterializer.Pin`
+- 代码路径: `pkg/vmrestore/snapshot_firmware.go`, `pkg/vmrestore/snapshot_engine.go`, `api/handler/vm_snapshot_lifecycle.go`
+- 测试路径: `pkg/vmrestore/snapshot_firmware_test.go`
 
 ### 虚拟机快照接口受理状态与作用域隔离
 

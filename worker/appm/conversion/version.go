@@ -30,6 +30,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/vmrestore"
+
 	"github.com/goodrain/rainbond/util/portprotocol"
 
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
@@ -101,6 +103,9 @@ func updateAPISixRoute(as *v1.AppService) error {
 
 // TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
+	if err := loadVMRestoreBindingView(as, dbmanager); err != nil {
+		return err
+	}
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
@@ -169,7 +174,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	podtmpSpec := corev1.PodTemplateSpec{}
 	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
-		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles())
+		runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles := as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles()
+		if as.VMRestoredRuntime != nil {
+			runtimeExtensions = vmRuntimeExtensionsForRestoredDisk(as.ExtensionSet)
+			runtimeEnvs = nil
+			runtimeSecrets = nil
+			runtimeFiles = nil
+		}
+		vmRuntime, err := buildVMRuntimeConfig(runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
 		}
@@ -388,6 +400,18 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
 	if vm := as.GetVirtualMachine(); vm != nil {
 		vm.Spec.DataVolumeTemplates = vmDataVolumeTemplates
+		if as.VMRestoredRuntime != nil {
+			clients := k8s.Default()
+			if clients == nil || clients.Clientset == nil {
+				return vmrestore.ErrReferenceUnavailable
+			}
+			projected, err := vmrestore.ProjectRestoredRuntime(context.Background(), clients.Clientset, vm, *as.VMRestoredRuntime)
+			if err != nil {
+				return err
+			}
+			*vm = *projected
+			vmDataVolumeTemplates = vm.Spec.DataVolumeTemplates
+		}
 		if manifests := buildVMArtifactImportManifests(as.GetNamespace(), vmDataVolumeTemplates); len(manifests) > 0 {
 			as.SetManifests(append(as.GetManifests(), manifests...))
 		}

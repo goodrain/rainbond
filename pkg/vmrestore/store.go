@@ -332,6 +332,9 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 	if before.State.Fence != nil && before.State.Fence.OperationID != expected.OperationID {
 		return Current{}, ErrBusy
 	}
+	if before.State.Admission != nil && before.State.Admission.Token != expected.OperationID {
+		return Current{}, ErrBusy
+	}
 	if before.State.ControlRevision != expected.ControlRevision || before.State.BindingGeneration != expected.BindingGeneration {
 		return Current{}, ErrConflict
 	}
@@ -389,6 +392,15 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 				}
 			}
 		}
+		if before.Receipt != nil && !validExecutionTransition(before.Receipt.Execution, update.Receipt.Execution) {
+			return Current{}, ErrConflict
+		}
+		if before.Receipt != nil && before.Receipt.PowerEventID != update.Receipt.PowerEventID {
+			return Current{}, ErrConflict
+		}
+		if before.Receipt != nil && !validSnapshotIdentityTransition(before.Receipt.SnapshotIdentity, update.Receipt.SnapshotIdentity) {
+			return Current{}, ErrConflict
+		}
 		// The callback may neither rewrite existing history nor pre-seal any other
 		// step. Store alone appends the successful step for this transaction.
 		if before.Receipt == nil {
@@ -398,7 +410,7 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 		} else if !reflect.DeepEqual(update.Receipt.Steps, before.Receipt.Steps) {
 			return Current{}, ErrConflict
 		}
-		update.Receipt.Steps[expected.Step] = StepResult{RequestHash: expected.RequestHash, ControlRevision: update.State.ControlRevision, BindingGeneration: update.State.BindingGeneration, Resources: append([]ResourceRef(nil), update.Receipt.Resources...), Applied: true}
+		update.Receipt.Steps[expected.Step] = StepResult{RequestHash: expected.RequestHash, ControlRevision: update.State.ControlRevision, BindingGeneration: update.State.BindingGeneration, Resources: executionStepResources(update.Receipt, expected.Step), Applied: true}
 		if err := update.Receipt.Validate(scope, expected.OperationID); err != nil {
 			return Current{}, err
 		}

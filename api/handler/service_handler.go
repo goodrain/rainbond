@@ -50,6 +50,9 @@ type ServiceHandler interface {
 	ListVMSnapshots(context.Context, string, int, int) (vmrestore.SnapshotListDTO, error)
 	GetVMSnapshot(context.Context, string, string) (vmrestore.SnapshotOperationDTO, error)
 	VMSnapshotAction(context.Context, string, string, string, vmrestore.SnapshotActionRequest) (vmrestore.SnapshotOperationDTO, error)
+	GetVMRestore(context.Context, string, string) (vmrestore.RestoreOperationDTO, error)
+	GetVMRestoreControl(context.Context, string) (vmrestore.RestoreControlDTO, error)
+	VMRestoreCommand(context.Context, string, string, string, vmrestore.RestoreCommand) (vmrestore.RestoreOperationDTO, error)
 	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
 	SetVMFixedPodIP(ctx context.Context, serviceID string, enabled bool) (*VMFixedPodIPResult, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error

@@ -23,42 +23,55 @@ func (s *ServiceAction) snapshotService(ctx context.Context, serviceID string) (
 		}
 		return engine, scope, err
 	}
+	scope, err := s.snapshotScope(ctx, serviceID)
+	if err != nil {
+		return nil, scope, err
+	}
+	manager := s.getDBManager()
+	if s.kubevirtClient == nil || s.kubeClient == nil || manager.DB() == nil {
+		return nil, scope, vmrestore.ErrReferenceUnavailable
+	}
+	store := vmrestore.NewStore(manager.DB())
+	dynamicClient := s.kubevirtClient.DynamicClient()
+	resolver := vmrestore.NewResolver(store, s.kubeClient, dynamicClient)
+	backend := vmrestore.NewKubeSnapshotBackend(resolver, s.kubevirtClient)
+	engine := vmrestore.NewSnapshotEngine(store, backend)
+	engine.Identity = &vmrestore.SnapshotFirmwareMaterializer{Store: store, Dynamic: dynamicClient}
+	return engine, scope, nil
+}
+
+// snapshotScope resolves ownership without depending on the Kubernetes runtime.
+func (s *ServiceAction) snapshotScope(ctx context.Context, serviceID string) (vmrestore.Scope, error) {
 	scope := vmrestore.Scope{}
 	manager := s.getDBManager()
 	if manager == nil {
-		return nil, scope, vmrestore.ErrReferenceUnavailable
+		return scope, vmrestore.ErrReferenceUnavailable
 	}
 	service, err := manager.TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = vmrestore.ErrNotFound
 		}
-		return nil, scope, err
+		return scope, err
 	}
 	if service == nil || service.ServiceID != serviceID || !service.IsVM() {
-		return nil, scope, vmrestore.ErrNotFound
+		return scope, vmrestore.ErrNotFound
 	}
 	if err := snapshotContextScope(ctx, serviceID, vmrestore.Scope{TenantID: service.TenantID, ServiceID: service.ServiceID}); err != nil {
-		return nil, scope, err
+		return scope, err
 	}
 	tenant, err := manager.TenantDao().GetTenantByUUID(service.TenantID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = vmrestore.ErrNotFound
 		}
-		return nil, scope, err
+		return scope, err
 	}
 	if tenant == nil || tenant.UUID != service.TenantID || tenant.Namespace == "" {
-		return nil, scope, vmrestore.ErrCorrupt
+		return scope, vmrestore.ErrCorrupt
 	}
 	scope = vmrestore.Scope{TenantID: service.TenantID, ServiceID: service.ServiceID, Namespace: tenant.Namespace}
-	if s.kubevirtClient == nil || s.kubeClient == nil || manager.DB() == nil {
-		return nil, scope, vmrestore.ErrReferenceUnavailable
-	}
-	store := vmrestore.NewStore(manager.DB())
-	resolver := vmrestore.NewResolver(store, s.kubeClient, s.kubevirtClient.DynamicClient())
-	backend := vmrestore.NewKubeSnapshotBackend(resolver, s.kubevirtClient)
-	return vmrestore.NewSnapshotEngine(store, backend), scope, nil
+	return scope, nil
 }
 
 // PrepareVMSnapshot reserves a bounded operation even when the VM is Running.

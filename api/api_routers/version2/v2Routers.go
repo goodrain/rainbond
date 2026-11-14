@@ -646,6 +646,9 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/vm-snapshots/{name}", controller.GetVMSnapshotController().GetVMSnapshot)
 	r.Post("/vm-snapshots/{name}/{snapshot_action}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
 	r.Delete("/vm-snapshots/{name}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
+	r.Get("/vm-restores/{operation_id}", controller.GetVMRestoreController().GetVMRestore)
+	r.Get("/vm-restore-control", controller.GetVMRestoreController().GetVMRestoreControl)
+	r.Post("/vm-restores/{operation_id}/steps/{restore_action}", middleware.SnapshotCommand(controller.GetVMRestoreController().VMRestoreCommand))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE, true))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE, true))
