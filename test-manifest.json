@@ -12119,6 +12119,47 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-http",
+      "title": "Expose scoped native VM restore HTTP operations",
+      "title_zh": "Expose scoped native VM restore HTTP operations",
+      "interface_type": "view_endpoint",
+      "interface": "POST/GET /v2/tenants/{tenant}/services/{service}/vm-snapshots/{snapshot}/restore",
+      "code_paths": [
+        "api/controller/vm_snapshot.go",
+        "api/handler/vm_native_restore.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotControllerStartsAndReadsNativeRestore"
+        },
+        {
+          "path": "api/controller/vm_snapshot_test.go",
+          "selector": "TestVMSnapshotControllerRejectsInvalidNativeRestoreRequest"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-longhorn",
+      "title": "Start and observe owned offline KubeVirt restores",
+      "title_zh": "Start and observe owned offline KubeVirt restores",
+      "interface_type": "service_method",
+      "interface": "pkg/vmrestore.NativeRestoreEngine.Start",
+      "code_paths": [
+        "pkg/vmrestore/native_restore.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_test.go"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-source-config",
       "title": "Derive A access mode and quota from exact native backup metadata",
       "title_zh": "Derive A access mode and quota from exact native backup metadata",
@@ -13425,6 +13466,24 @@
         {
           "path": "api/middleware/vm_snapshot_test.go",
           "selector": "TestSnapshotCommandPreservesLicenseBoundaryWithoutEarlyEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-snapshot.longhorn-storage",
+      "title": "Allow qualified Longhorn CSI VM snapshots",
+      "title_zh": "Allow qualified Longhorn CSI VM snapshots",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.KubeSnapshotBackend.checkStorage",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_kube.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeSnapshotAcceptsQualifiedLonghornStorage"
         }
       ],
       "test_type": "regression",

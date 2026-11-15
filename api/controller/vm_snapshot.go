@@ -25,8 +25,10 @@ type snapshotHTTPFacade interface {
 
 // VMSnapshotController retains the existing callback seam and response field.
 type VMSnapshotController struct {
-	service        snapshotHTTPFacade
-	createSnapshot func(string, *handler.VMSnapshotRequest) (*handler.VMSnapshotStatus, error)
+	service            snapshotHTTPFacade
+	createSnapshot     func(string, *handler.VMSnapshotRequest) (*handler.VMSnapshotStatus, error)
+	startNativeRestore func(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
+	getNativeRestore   func(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
 }
 
 var defaultVMSnapshotController = &VMSnapshotController{}
@@ -97,8 +99,72 @@ func snapshotHTTPError(w http.ResponseWriter, r *http.Request, err error) {
 		status = http.StatusServiceUnavailable
 		code = "vm_snapshot_dependency_unavailable"
 		retry = true
+	case errors.Is(err, vmrestore.ErrRestoreUnknown):
+		status = http.StatusServiceUnavailable
+		code = "vm_restore_outcome_unknown"
+		retry = true
+	case errors.Is(err, vmrestore.ErrRestoreCapability):
+		status = http.StatusUnprocessableEntity
+		code = "vm_restore_provider_not_qualified"
 	}
 	httputil.Return(r, w, status, httputil.ResponseBody{Msg: code, Bean: map[string]interface{}{"error": map[string]interface{}{"code": code, "retryable": retry}}})
+}
+
+type nativeRestoreRequest struct {
+	RequestID string `json:"request_id"`
+}
+
+// RestoreVMSnapshot starts one idempotent offline native restore. The target VM
+// must already be stopped and remains stopped after completion.
+func (c *VMSnapshotController) RestoreVMSnapshot(w http.ResponseWriter, r *http.Request) {
+	serviceID, ok := snapshotServiceID(w, r)
+	if !ok {
+		return
+	}
+	var request nativeRestoreRequest
+	if err := snapshotBody(w, r, &request); err != nil || !vmrestore.ValidNativeRestoreRequestID(request.RequestID) {
+		snapshotHTTPError(w, r, vmrestore.ErrSnapshotInvalid)
+		return
+	}
+	snapshotName := chi.URLParam(r, "name")
+	var result vmrestore.NativeRestoreDTO
+	var err error
+	if c.startNativeRestore != nil {
+		result, err = c.startNativeRestore(r.Context(), serviceID, snapshotName, request.RequestID)
+	} else {
+		result, err = handler.GetServiceManager().StartNativeVMRestore(r.Context(), serviceID, snapshotName, request.RequestID)
+	}
+	if err != nil {
+		snapshotHTTPError(w, r, err)
+		return
+	}
+	httputil.Return(r, w, http.StatusAccepted, httputil.ResponseBody{Bean: result})
+}
+
+// GetVMSnapshotRestore observes the deterministic native restore without
+// progressing or starting the VM.
+func (c *VMSnapshotController) GetVMSnapshotRestore(w http.ResponseWriter, r *http.Request) {
+	serviceID, ok := snapshotServiceID(w, r)
+	if !ok {
+		return
+	}
+	snapshotName, requestID := chi.URLParam(r, "name"), chi.URLParam(r, "request_id")
+	if !vmrestore.ValidNativeRestoreRequestID(requestID) {
+		snapshotHTTPError(w, r, vmrestore.ErrSnapshotInvalid)
+		return
+	}
+	var result vmrestore.NativeRestoreDTO
+	var err error
+	if c.getNativeRestore != nil {
+		result, err = c.getNativeRestore(r.Context(), serviceID, snapshotName, requestID)
+	} else {
+		result, err = handler.GetServiceManager().GetNativeVMRestore(r.Context(), serviceID, snapshotName, requestID)
+	}
+	if err != nil {
+		snapshotHTTPError(w, r, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, result)
 }
 
 // CreateVMSnapshot accepts an asynchronous operation; it does not wait for shutdown.

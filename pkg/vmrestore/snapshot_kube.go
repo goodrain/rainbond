@@ -6,6 +6,7 @@ import (
 
 	csi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -117,7 +118,7 @@ func (b *KubeSnapshotBackend) checkStorage(ctx context.Context, scope Scope, dis
 	if err != nil {
 		return ErrReferenceUnavailable
 	}
-	if storage.Provisioner != "cephfs.csi.ceph.com" || strings.EqualFold(storage.Parameters["backingSnapshot"], "true") {
+	if !snapshotStorageSupported(storage) {
 		return ErrSnapshotStorage
 	}
 	pv, err := b.client.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
@@ -144,6 +145,18 @@ func (b *KubeSnapshotBackend) checkStorage(ctx context.Context, scope Scope, dis
 		return ErrSnapshotStorage
 	}
 	return nil
+}
+
+func snapshotStorageSupported(storage *storagev1.StorageClass) bool {
+	if storage == nil || storage.DeletionTimestamp != nil || strings.EqualFold(storage.Parameters["backingSnapshot"], "true") {
+		return false
+	}
+	switch storage.Provisioner {
+	case "cephfs.csi.ceph.com", "driver.longhorn.io":
+		return true
+	default:
+		return false
+	}
 }
 
 // Context performs preflight while the VM may still be Running.

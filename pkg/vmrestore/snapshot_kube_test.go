@@ -123,6 +123,44 @@ func newKubeSnapshotFixture(t *testing.T) kubeSnapshotFixture {
 	return kubeSnapshotFixture{f, r, NewKubeSnapshotBackend(r.resolver, client), nativeClient, csiClient}
 }
 
+// capability_id: rainbond.vm-snapshot.longhorn-storage
+func TestNativeSnapshotAcceptsQualifiedLonghornStorage(t *testing.T) {
+	f := newKubeSnapshotFixture(t)
+	ctx := context.Background()
+	binding := f.resolver.currentBinding()
+	pvc, err := f.resolver.core.CoreV1().PersistentVolumeClaims(f.scope.Namespace).Get(ctx, binding.ActivePVC.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	class, err := f.resolver.core.StorageV1().StorageClasses().Get(ctx, *pvc.Spec.StorageClassName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	class.Provisioner = "driver.longhorn.io"
+	class.Parameters = map[string]string{"numberOfReplicas": "1", "dataEngine": "v1"}
+	if _, err = f.resolver.core.StorageV1().StorageClasses().Update(ctx, class, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	pv, err := f.resolver.core.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pv.Spec.CSI.Driver = "driver.longhorn.io"
+	if _, err = f.resolver.core.CoreV1().PersistentVolumes().Update(ctx, pv, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.csi.SnapshotV1().VolumeSnapshotClasses().Delete(ctx, "cephfs-snapshot", metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.csi.SnapshotV1().VolumeSnapshotClasses().Create(ctx, &csi.VolumeSnapshotClass{ObjectMeta: metav1.ObjectMeta{Name: "longhorn-vm-snapshot"}, Driver: "driver.longhorn.io", DeletionPolicy: csi.VolumeSnapshotContentDelete}, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	disk := SnapshotDisk{SourcePVC: binding.ActivePVC}
+	if err := f.backend.checkStorage(ctx, f.scope, disk); err != nil {
+		t.Fatalf("qualified Longhorn storage was rejected: %v", err)
+	}
+}
+
 func TestNativePreflightAndPowerRequireObservedShutdownAndUnlock(t *testing.T) {
 	f := newKubeSnapshotFixture(t)
 	ctx := context.Background()

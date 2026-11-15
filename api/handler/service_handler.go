@@ -50,6 +50,8 @@ type ServiceHandler interface {
 	ListVMSnapshots(context.Context, string, int, int) (vmrestore.SnapshotListDTO, error)
 	GetVMSnapshot(context.Context, string, string) (vmrestore.SnapshotOperationDTO, error)
 	VMSnapshotAction(context.Context, string, string, string, vmrestore.SnapshotActionRequest) (vmrestore.SnapshotOperationDTO, error)
+	StartNativeVMRestore(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
+	GetNativeVMRestore(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
 	GetVMRestore(context.Context, string, string) (vmrestore.RestoreOperationDTO, error)
 	GetVMRestoreControl(context.Context, string) (vmrestore.RestoreControlDTO, error)
 	VMRestoreCommand(context.Context, string, string, string, vmrestore.RestoreCommand) (vmrestore.RestoreOperationDTO, error)

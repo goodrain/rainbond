@@ -105,7 +105,7 @@ func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *h
 		return
 	}
 	if err := handler.ValidateVMLoginCredentialAttributes([]apimodel.ComponentK8sAttribute{k8sAttr}); err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+		returnK8sAttributeError(r, w, err)
 		return
 	}
 	if err := k.attributeServiceHandler().CreateK8sAttribute(tenantID, componentID, &k8sAttr); err != nil {
@@ -123,7 +123,7 @@ func (k *K8sAttributeController) updateK8sAttributes(w http.ResponseWriter, r *h
 		return
 	}
 	if err := handler.ValidateVMLoginCredentialAttributes([]apimodel.ComponentK8sAttribute{k8sAttr}); err != nil {
-		httputil.ReturnBcodeError(r, w, err)
+		returnK8sAttributeError(r, w, err)
 		return
 	}
 	if err := k.attributeServiceHandler().UpdateK8sAttribute(componentID, &k8sAttr); err != nil {

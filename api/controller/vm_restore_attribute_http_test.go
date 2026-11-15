@@ -61,7 +61,11 @@ func TestPrivateAttributeHTTPMethodsUseForbiddenResponse(t *testing.T) {
 			controller := &K8sAttributeController{serviceHandler: h}
 			w := httptest.NewRecorder()
 			controller.K8sAttributes(w, restoreAttributeHTTPRequest(method, vmrestore.StateKey))
-			if w.Code != http.StatusForbidden || h.calls != 1 || h.componentID != "server-component" {
+			expectedCalls := 1
+			if method == http.MethodPost || method == http.MethodPut {
+				expectedCalls = 0
+			}
+			if w.Code != http.StatusForbidden || h.calls != expectedCalls || expectedCalls == 1 && h.componentID != "server-component" {
 				t.Fatal("actual private attribute HTTP method did not return scoped forbidden")
 			}
 			if strings.Contains(w.Body.String(), "private_attribute_code") || strings.Contains(w.Body.String(), vmrestore.StateKey) {

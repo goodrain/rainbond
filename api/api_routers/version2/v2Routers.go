@@ -644,6 +644,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/vm-snapshots", middleware.SnapshotCommand(controller.GetVMSnapshotController().CreateVMSnapshot))
 	r.Get("/vm-snapshots", controller.GetVMSnapshotController().ListVMSnapshots)
 	r.Get("/vm-snapshots/{name}", controller.GetVMSnapshotController().GetVMSnapshot)
+	r.Post("/vm-snapshots/{name}/restore", middleware.SnapshotCommand(controller.GetVMSnapshotController().RestoreVMSnapshot))
+	r.Get("/vm-snapshots/{name}/restore/{request_id}", controller.GetVMSnapshotController().GetVMSnapshotRestore)
 	r.Post("/vm-snapshots/{name}/{snapshot_action}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
 	r.Delete("/vm-snapshots/{name}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
 	r.Get("/vm-restores/{operation_id}", controller.GetVMRestoreController().GetVMRestore)
