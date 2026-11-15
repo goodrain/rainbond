@@ -255,6 +255,14 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 	default:
 		return finish(unknown("snapshot_class_ambiguous", "存在多个匹配快照类且无法唯一确定默认类"))
 	}
+	driverSockets, snapshotterSockets := map[string]bool{}, map[string]bool{}
+	ready := func() Capability {
+		base.Supported = true
+		base.Status = "supported"
+		base.ReasonCode = "ready"
+		base.Message = "驱动、快照类与服务已就绪；实际快照结果以任务终态为准"
+		return base
+	}
 	for n := range i.pods {
 		p := &i.pods[n]
 		if !podReady(p) {
@@ -264,17 +272,24 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 		for _, c := range p.Spec.Containers {
 			if driverName(c) == sc.Provisioner && containerReady(p, c.Name) {
 				driverReady = true
+				for _, socket := range csiSocketHostPaths(p, c) {
+					driverSockets[socket] = true
+				}
 			}
 			if component(c, "csi-snapshotter") && containerReady(p, c.Name) {
 				snapshotterReady = true
+				for _, socket := range csiSocketHostPaths(p, c) {
+					snapshotterSockets[socket] = true
+				}
 			}
 		}
 		if driverReady && snapshotterReady {
-			base.Supported = true
-			base.Status = "supported"
-			base.ReasonCode = "ready"
-			base.Message = "驱动、快照类与服务已就绪；实际快照结果以任务终态为准"
-			return base
+			return ready()
+		}
+	}
+	for socket := range driverSockets {
+		if snapshotterSockets[socket] {
+			return ready()
 		}
 	}
 	c := finish(unknown("driver_snapshotter_not_ready", "该CSI驱动的快照sidecar未就绪或缺少可核验的驱动关联证据"))
@@ -353,6 +368,63 @@ func driverName(c corev1.Container) string {
 			for _, e := range c.Env {
 				if e.Name == name && e.ValueFrom == nil {
 					return e.Value
+				}
+			}
+			return ""
+		}
+		return value
+	}
+	return ""
+}
+
+func csiSocketHostPaths(p *corev1.Pod, c corev1.Container) []string {
+	socket := containerFlagValue(c, "--csi-address", "--endpoint")
+	socket = strings.TrimPrefix(socket, "unix://")
+	if !strings.HasPrefix(socket, "/") {
+		return nil
+	}
+	volumes := map[string]*corev1.HostPathVolumeSource{}
+	for n := range p.Spec.Volumes {
+		volume := &p.Spec.Volumes[n]
+		if volume.HostPath != nil {
+			volumes[volume.Name] = volume.HostPath
+		}
+	}
+	result := []string{}
+	for _, mount := range c.VolumeMounts {
+		root := strings.TrimSuffix(path.Clean(mount.MountPath), "/")
+		if root == "." || socket != root && !strings.HasPrefix(socket, root+"/") {
+			continue
+		}
+		host := volumes[mount.Name]
+		if host == nil || !strings.HasPrefix(host.Path, "/") {
+			continue
+		}
+		relative := strings.TrimPrefix(strings.TrimPrefix(socket, root), "/")
+		result = append(result, path.Join(host.Path, relative))
+	}
+	return result
+}
+
+func containerFlagValue(c corev1.Container, flags ...string) string {
+	args := append(append([]string{}, c.Command...), c.Args...)
+	for n, argument := range args {
+		value := ""
+		for _, flag := range flags {
+			if strings.HasPrefix(argument, flag+"=") {
+				value = strings.TrimPrefix(argument, flag+"=")
+			} else if argument == flag && n+1 < len(args) {
+				value = args[n+1]
+			}
+		}
+		if value == "" {
+			continue
+		}
+		if strings.HasPrefix(value, "$(") && strings.HasSuffix(value, ")") {
+			name := strings.TrimSuffix(strings.TrimPrefix(value, "$("), ")")
+			for _, env := range c.Env {
+				if env.Name == name && env.ValueFrom == nil {
+					return env.Value
 				}
 			}
 			return ""

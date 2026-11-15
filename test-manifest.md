@@ -684,7 +684,7 @@
 | rainbond.vm-storage.existing-snapshot-capability-http | 已有虚拟机快照能力 GET 鉴权范围与响应 | active | regression | GET /v2/tenants/{tenant_name}/services/{service_alias}/vm-snapshot-capability | api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPUsesOnlyAuthenticatedScope<br>api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext |
 | rainbond.vm-storage.managed-snapshot-policy | 校验受管虚拟机快照驱动 | active | regression | ManagedSnapshotCapability, VM snapshot capability and volume options | pkg/vmstorage/managed_snapshot_test.go<br>api/handler/vm_snapshot_capability_test.go |
 | rainbond.vm-storage.snapshot-all-disks | 要求每块参与磁盘都支持快照 | active | regression | vmstorage.Inspector.VirtualMachine | pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityRequiresEveryParticipatingDisk<br>pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotInspectsRealPVAndEveryDisk<br>pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotFailsClosedForUnreadyDisks<br>pkg/vmstorage/vm_media_test.go::TestVirtualMachineSnapshotExcludesOnlyReadOnlyInstaller |
-| rainbond.vm-storage.snapshot-capability | 检查 CSI 快照配置与服务就绪状态 | active | regression | vmstorage.Inspector.StorageClass | pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityUsesDriverClassAndReadiness<br>pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilitySelectionAndFailedEvidence<br>pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityTypedNilClientsStayUnknown<br>pkg/vmstorage/snapshot_test.go::TestStorageProfileSnapshotClassTakesPrecedence<br>pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix |
+| rainbond.vm-storage.snapshot-capability | 检查 CSI 快照配置与服务就绪状态 | active | regression | vmstorage.Inspector.StorageClass | pkg/vmstorage/snapshot_test.go<br>pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix |
 | rainbond.vm-storage.snapshot-create-preflight | 创建前拒绝不完整或不可读的虚拟机快照 | active | regression | ServiceAction.CreateVMSnapshot | api/handler/vm_snapshot_capability_test.go::TestCreateVMSnapshotRejectsPartialAndUnreadableStorage<br>api/handler/vm_snapshot_capability_test.go::TestCreateVMSnapshotUnknownVMIdentityRejectsWithoutCreate |
 | rainbond.vm-storage.snapshot-options | 在现有存储选项响应中暴露快照能力 | active | regression | VolumeTypeAction.GetAllVolumeTypes | api/handler/vm_snapshot_capability_test.go::TestVolumeOptionsSnapshotCapabilityPreservesUnknown |
 | rainbond.vm-template-import.registry-restore-progress | 暴露 registry 虚拟机 DataVolume 导入进度 | active | regression | api/handler.vmRestoreDataVolumeNames | api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes |
@@ -7576,7 +7576,7 @@
 - 接口类型: `package_function`
 - 业务入口: `vmstorage.Inspector.StorageClass`
 - 代码路径: `pkg/vmstorage/snapshot.go`
-- 测试路径: `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityUsesDriverClassAndReadiness`, `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilitySelectionAndFailedEvidence`, `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityTypedNilClientsStayUnknown`, `pkg/vmstorage/snapshot_test.go::TestStorageProfileSnapshotClassTakesPrecedence`, `pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix`
+- 测试路径: `pkg/vmstorage/snapshot_test.go`, `pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix`
 
 ### 创建前拒绝不完整或不可读的虚拟机快照
 

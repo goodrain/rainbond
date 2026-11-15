@@ -97,6 +97,40 @@ func TestSnapshotCapabilityUsesDriverClassAndReadiness(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-storage.snapshot-capability
+func TestSnapshotCapabilityAssociatesSeparateSidecarsBySharedSocket(t *testing.T) {
+	c, d := fixture()
+	if err := c.CoreV1().Pods("infra").Delete(context.Background(), "provider", metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	socket := func(name, path string, container corev1.Container) *corev1.Pod {
+		container.VolumeMounts = []corev1.VolumeMount{{Name: "socket-dir", MountPath: "/csi/"}}
+		pod := readyPod(name, container)
+		pod.Spec.Volumes = []corev1.Volume{{Name: "socket-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: path}}}}
+		return pod
+	}
+	driver := socket("driver", "/var/lib/kubelet/plugins/example.csi.io", corev1.Container{Name: "plugin", Args: []string{"--drivername=example.csi.io", "--endpoint=unix:///csi/csi.sock"}})
+	snapshotter := socket("snapshotter", "/var/lib/kubelet/plugins/example.csi.io", corev1.Container{Name: "snapshotter", Image: "registry/csi-snapshotter:v1", Args: []string{"--csi-address=/csi/csi.sock"}})
+	for _, pod := range []*corev1.Pod{driver, snapshotter} {
+		if _, err := c.CoreV1().Pods("infra").Create(context.Background(), pod, metav1.CreateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := NewInspector(c, d).StorageClass(context.Background(), "fast")
+	if !got.Supported || got.ReasonCode != "ready" {
+		t.Fatalf("shared CSI socket was not accepted: %+v", got)
+	}
+
+	snapshotter.Spec.Volumes[0].HostPath.Path = "/var/lib/kubelet/plugins/other.csi.io"
+	if _, err := c.CoreV1().Pods("infra").Update(context.Background(), snapshotter, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	got = NewInspector(c, d).StorageClass(context.Background(), "fast")
+	if got.Supported || got.ReasonCode != "driver_snapshotter_not_ready" {
+		t.Fatalf("unrelated CSI sockets were associated: %+v", got)
+	}
+}
+
 // capability_id: rainbond.vm-storage.snapshot-all-disks
 func TestSnapshotCapabilityRequiresEveryParticipatingDisk(t *testing.T) {
 	c, d := fixture()

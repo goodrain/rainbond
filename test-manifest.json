@@ -14019,20 +14019,7 @@
       ],
       "tests": [
         {
-          "path": "pkg/vmstorage/snapshot_test.go",
-          "selector": "TestSnapshotCapabilityUsesDriverClassAndReadiness"
-        },
-        {
-          "path": "pkg/vmstorage/snapshot_test.go",
-          "selector": "TestSnapshotCapabilitySelectionAndFailedEvidence"
-        },
-        {
-          "path": "pkg/vmstorage/snapshot_test.go",
-          "selector": "TestSnapshotCapabilityTypedNilClientsStayUnknown"
-        },
-        {
-          "path": "pkg/vmstorage/snapshot_test.go",
-          "selector": "TestStorageProfileSnapshotClassTakesPrecedence"
+          "path": "pkg/vmstorage/snapshot_test.go"
         },
         {
           "path": "pkg/vmstorage/snapshot_default_selection_test.go",
