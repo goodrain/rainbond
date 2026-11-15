@@ -669,6 +669,12 @@
 | rainbond.vm-snapshot.longhorn-storage | Allow qualified Longhorn CSI VM snapshots | active | regression | pkg/vmrestore.KubeSnapshotBackend.checkStorage | pkg/vmrestore/snapshot_kube_test.go::TestNativeSnapshotAcceptsQualifiedLonghornStorage |
 | rainbond.vm-snapshot.native-ownership | 虚拟机快照原生资源身份与精确回收 | active | regression | pkg/vmrestore.KubeSnapshotBackend | pkg/vmrestore/snapshot_kube_test.go::TestNativeSnapshotCreateReconcilesOnlyExactOperationAndCore<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeMetadataKeepsHashOutOfLabels<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeDeleteUsesUIDAndNeverDeletesSourceObjects<br>pkg/vmrestore/snapshot_kube_test.go::TestNativePreflightAndPowerRequireObservedShutdownAndUnlock<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveWaitsForCSIResidualAfterParentDisappearance<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveRejectsMismatchedAPISourceAndOwner<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeObserveRejectsCSIContentBoundToAnotherVolumeUID<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeIndependentWritableCloneDoesNotKeepSnapshotReference<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeCloneReferenceGateRequiresIndependentWritableBinding<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeCloneDataSourceRefAndUnavailableProof<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeReadAndPowerFailuresRemainUnavailable<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeOccupancyAndMissingSourceRemainDistinct<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeSourceUIDWriterAndRuntimeGuards<br>pkg/vmrestore/snapshot_kube_test.go::TestNativeStorageIdentityCannotBeReplacedOrBacked |
 | rainbond.vm-snapshot.safe-metadata-projection | 虚拟机快照安全元数据与完整盘覆盖 | active | regression | pkg/vmrestore.ProjectSnapshot | pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionUsesApprovedFieldsAndCompleteCoverage<br>pkg/vmrestore/snapshot_projection_test.go::TestNativeReadyCannotHideMissingWritableDisk<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsReplacedResourcesAndUnsealedSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotDoesNotUseCurrentVMUIDAsOrigin<br>pkg/vmrestore/snapshot_projection_test.go::TestUnknownWritableVolumeIsNotSilentlyExcluded<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionBlocksEveryUnmanagedStorageSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresExactManagedVolumeSource<br>pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotSurvivesMissingMutableSourceStatus<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsWrongNativeSourceAndCSIBinding<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionNeverMarksTerminatingChildrenReady<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigExcludesGeneratedInitializationMedia<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRejectsUnsupportedConfiguration<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigKeepsApprovedUnitsBootAndDeviceLayout<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresRepresentableFirmwareState<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsUnrepresentedHistoricalFirmwareState<br>pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionKeepsPendingAndFailureSafe |
+| rainbond.vm-storage.existing-snapshot-capability | 已有虚拟机完整参与盘快照能力只读查询 | active | regression | ServiceAction.GetExistingVMSnapshotCapability | api/handler/service_vm_snapshot_capability_test.go::TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia |
+| rainbond.vm-storage.existing-snapshot-capability-http | 已有虚拟机快照能力 GET 鉴权范围与响应 | active | regression | GET /v2/tenants/{tenant_name}/services/{service_alias}/vm-snapshot-capability | api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPUsesOnlyAuthenticatedScope<br>api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext |
+| rainbond.vm-storage.managed-snapshot-policy | 校验受管虚拟机快照驱动 | active | regression | vmstorage.ManagedSnapshotCapability | pkg/vmstorage/managed_snapshot_test.go<br>api/handler/service_vm_snapshot_capability_test.go::TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia |
+| rainbond.vm-storage.snapshot-all-disks | 要求每块参与磁盘都支持快照 | active | regression | vmstorage.Inspector.VirtualMachine | pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityRequiresEveryParticipatingDisk<br>pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotInspectsRealPVAndEveryDisk<br>pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotFailsClosedForUnreadyDisks<br>pkg/vmstorage/vm_media_test.go::TestVirtualMachineSnapshotExcludesOnlyReadOnlyInstaller |
+| rainbond.vm-storage.snapshot-capability | 检查 CSI 快照配置与服务就绪状态 | active | regression | vmstorage.Inspector.StorageClass | pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityUsesDriverClassAndReadiness<br>pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilitySelectionAndFailedEvidence<br>pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityTypedNilClientsStayUnknown<br>pkg/vmstorage/snapshot_test.go::TestStorageProfileSnapshotClassTakesPrecedence<br>pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix |
+| rainbond.vm-storage.snapshot-options | 在存储选项响应中暴露快照能力 | active | regression | VolumeTypeAction.GetAllVolumeTypes | api/handler/service_vm_snapshot_capability_test.go::TestVolumeOptionsExposeManagedLonghornCapability |
 | rainbond.vm-template-import.registry-restore-progress | 暴露 registry 虚拟机 DataVolume 导入进度 | active | regression | api/handler.vmRestoreDataVolumeNames | api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIncludesRegistryImportDataVolumes |
 | rainbond.vm-template-import.restore-progress | Expose VM template import restore progress | active | unit | api/handler.resolveVMDataVolumeRestoreStatus | api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusIncludesDataVolumeProgress<br>api/handler/service_vm_status_test.go::TestResolveVMRestoreStatusMarksAllDataVolumesSucceeded<br>api/handler/service_vm_status_test.go::TestResolveVMDataVolumeRestoreIgnoresInitialBlankDataVolumes |
 | rainbond.vm-template-import.status-restoring | VM restore status is limited to artifact imports | active | unit | api/handler.resolveVMServiceRuntimeStatus | api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsStartingForDataVolumeImportWithoutRestoreContext<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsRestoringWhenArtifactDataVolumeImportsBeforeVMIExists<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialBlankDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMServiceRuntimeStatusReturnsStartingForInitialHTTPDataVolume<br>api/handler/service_vm_status_test.go::TestResolveVMTransitionStatusReturnsAbnormalForDataVolumeError |
@@ -7399,6 +7405,66 @@
 - 业务入口: `pkg/vmrestore.ProjectSnapshot`
 - 代码路径: `pkg/vmrestore/snapshot_types.go`, `pkg/vmrestore/snapshot_projection.go`
 - 测试路径: `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionUsesApprovedFieldsAndCompleteCoverage`, `pkg/vmrestore/snapshot_projection_test.go::TestNativeReadyCannotHideMissingWritableDisk`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsReplacedResourcesAndUnsealedSource`, `pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotDoesNotUseCurrentVMUIDAsOrigin`, `pkg/vmrestore/snapshot_projection_test.go::TestUnknownWritableVolumeIsNotSilentlyExcluded`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionBlocksEveryUnmanagedStorageSource`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresExactManagedVolumeSource`, `pkg/vmrestore/snapshot_projection_test.go::TestSealedHistoricalSnapshotSurvivesMissingMutableSourceStatus`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsWrongNativeSourceAndCSIBinding`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionNeverMarksTerminatingChildrenReady`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigExcludesGeneratedInitializationMedia`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRejectsUnsupportedConfiguration`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigKeepsApprovedUnitsBootAndDeviceLayout`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotSafeConfigRequiresRepresentableFirmwareState`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionRejectsUnrepresentedHistoricalFirmwareState`, `pkg/vmrestore/snapshot_projection_test.go::TestSnapshotProjectionKeepsPendingAndFailureSafe`
+
+### 已有虚拟机完整参与盘快照能力只读查询
+
+- Capability ID: `rainbond.vm-storage.existing-snapshot-capability`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `ServiceAction.GetExistingVMSnapshotCapability`
+- 代码路径: `api/handler/service_vm_snapshot_capability.go`, `pkg/vmstorage/vm.go`, `pkg/vmstorage/snapshot.go`
+- 测试路径: `api/handler/service_vm_snapshot_capability_test.go::TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia`
+
+### 已有虚拟机快照能力 GET 鉴权范围与响应
+
+- Capability ID: `rainbond.vm-storage.existing-snapshot-capability-http`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `GET /v2/tenants/{tenant_name}/services/{service_alias}/vm-snapshot-capability`
+- 代码路径: `api/controller/vm_snapshot_capability.go`, `api/handler/service_handler.go`, `api/api_routers/version2/v2Routers.go`
+- 测试路径: `api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPUsesOnlyAuthenticatedScope`, `api/controller/vm_snapshot_capability_test.go::TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext`
+
+### 校验受管虚拟机快照驱动
+
+- Capability ID: `rainbond.vm-storage.managed-snapshot-policy`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmstorage.ManagedSnapshotCapability`
+- 代码路径: `pkg/vmstorage/snapshot.go`, `pkg/vmrestore/snapshot_kube.go`, `api/handler/service_vm_snapshot_capability.go`
+- 测试路径: `pkg/vmstorage/managed_snapshot_test.go`, `api/handler/service_vm_snapshot_capability_test.go::TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia`
+
+### 要求每块参与磁盘都支持快照
+
+- Capability ID: `rainbond.vm-storage.snapshot-all-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `vmstorage.Inspector.VirtualMachine`
+- 代码路径: `pkg/vmstorage/vm.go`, `pkg/vmstorage/snapshot.go`
+- 测试路径: `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityRequiresEveryParticipatingDisk`, `pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotInspectsRealPVAndEveryDisk`, `pkg/vmstorage/snapshot_test.go::TestVirtualMachineSnapshotFailsClosedForUnreadyDisks`, `pkg/vmstorage/vm_media_test.go::TestVirtualMachineSnapshotExcludesOnlyReadOnlyInstaller`
+
+### 检查 CSI 快照配置与服务就绪状态
+
+- Capability ID: `rainbond.vm-storage.snapshot-capability`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `vmstorage.Inspector.StorageClass`
+- 代码路径: `pkg/vmstorage/snapshot.go`
+- 测试路径: `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityUsesDriverClassAndReadiness`, `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilitySelectionAndFailedEvidence`, `pkg/vmstorage/snapshot_test.go::TestSnapshotCapabilityTypedNilClientsStayUnknown`, `pkg/vmstorage/snapshot_test.go::TestStorageProfileSnapshotClassTakesPrecedence`, `pkg/vmstorage/snapshot_default_selection_test.go::TestSnapshotDefaultTruthMatrix`
+
+### 在存储选项响应中暴露快照能力
+
+- Capability ID: `rainbond.vm-storage.snapshot-options`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `VolumeTypeAction.GetAllVolumeTypes`
+- 代码路径: `api/handler/volume_type_handler.go`, `api/model/volume_type.go`
+- 测试路径: `api/handler/service_vm_snapshot_capability_test.go::TestVolumeOptionsExposeManagedLonghornCapability`
 
 ### 暴露 registry 虚拟机 DataVolume 导入进度
 

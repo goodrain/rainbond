@@ -18,20 +18,24 @@
 
 package model
 
+import "github.com/goodrain/rainbond/pkg/vmstorage"
+
 // VolumeTypeStruct volume option struct
 type VolumeTypeStruct struct {
-	VolumeType         string                 `json:"volume_type" validate:"volume_type|required"`
-	NameShow           string                 `json:"name_show"`
-	CapacityValidation map[string]interface{} `json:"capacity_validation"`
-	Description        string                 `json:"description"`
-	AccessMode         []string               `json:"access_mode"`    // 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
-	SharePolicy        []string               `json:"share_policy"`   //共享模式
-	BackupPolicy       []string               `json:"backup_policy"`  // 备份策略
-	ReclaimPolicy      string                 `json:"reclaim_policy"` // 回收策略,delete, retain, recyle
-	Provisioner        string                 `json:"provisioner"`    //存储提供方
-	StorageClassDetail map[string]interface{} `json:"storage_class_detail" validate:"storage_class_detail|required"`
-	Sort               int                    `json:"sort"`   // 排序
-	Enable             bool                   `json:"enable"` // 是否生效
+	ManagedSnapshotCapability *vmstorage.Capability  `json:"managed_snapshot_capability,omitempty"`
+	SnapshotCapability        *vmstorage.Capability  `json:"snapshot_capability,omitempty"`
+	VolumeType                string                 `json:"volume_type" validate:"volume_type|required"`
+	NameShow                  string                 `json:"name_show"`
+	CapacityValidation        map[string]interface{} `json:"capacity_validation"`
+	Description               string                 `json:"description"`
+	AccessMode                []string               `json:"access_mode"`    // 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
+	SharePolicy               []string               `json:"share_policy"`   //共享模式
+	BackupPolicy              []string               `json:"backup_policy"`  // 备份策略
+	ReclaimPolicy             string                 `json:"reclaim_policy"` // 回收策略,delete, retain, recyle
+	Provisioner               string                 `json:"provisioner"`    //存储提供方
+	StorageClassDetail        map[string]interface{} `json:"storage_class_detail" validate:"storage_class_detail|required"`
+	Sort                      int                    `json:"sort"`   // 排序
+	Enable                    bool                   `json:"enable"` // 是否生效
 }
 
 // VolumeTypePageStruct volume option struct with page

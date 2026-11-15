@@ -13639,6 +13639,157 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-storage.existing-snapshot-capability",
+      "title": "Existing VM complete snapshot participants capability",
+      "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5b8c\u6574\u53c2\u4e0e\u76d8\u5feb\u7167\u80fd\u529b\u53ea\u8bfb\u67e5\u8be2",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.GetExistingVMSnapshotCapability",
+      "code_paths": [
+        "api/handler/service_vm_snapshot_capability.go",
+        "pkg/vmstorage/vm.go",
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.existing-snapshot-capability-http",
+      "title": "Authenticated existing VM snapshot capability GET",
+      "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5feb\u7167\u80fd\u529b GET \u9274\u6743\u8303\u56f4\u4e0e\u54cd\u5e94",
+      "interface_type": "view_endpoint",
+      "interface": "GET /v2/tenants/{tenant_name}/services/{service_alias}/vm-snapshot-capability",
+      "code_paths": [
+        "api/controller/vm_snapshot_capability.go",
+        "api/handler/service_handler.go",
+        "api/api_routers/version2/v2Routers.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityHTTPUsesOnlyAuthenticatedScope"
+        },
+        {
+          "path": "api/controller/vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.managed-snapshot-policy",
+      "title": "Qualify managed VM snapshot drivers",
+      "title_zh": "\u6821\u9a8c\u53d7\u7ba1\u865a\u62df\u673a\u5feb\u7167\u9a71\u52a8",
+      "interface_type": "workflow",
+      "interface": "vmstorage.ManagedSnapshotCapability",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go",
+        "pkg/vmrestore/snapshot_kube.go",
+        "api/handler/service_vm_snapshot_capability.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/managed_snapshot_test.go"
+        },
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestExistingSnapshotCapabilitySupportsLonghornAndExcludesInstallMedia"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-all-disks",
+      "title": "Require every participating VM disk to support snapshots",
+      "title_zh": "\u8981\u6c42\u6bcf\u5757\u53c2\u4e0e\u78c1\u76d8\u90fd\u652f\u6301\u5feb\u7167",
+      "interface_type": "package_function",
+      "interface": "vmstorage.Inspector.VirtualMachine",
+      "code_paths": [
+        "pkg/vmstorage/vm.go",
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityRequiresEveryParticipatingDisk"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestVirtualMachineSnapshotInspectsRealPVAndEveryDisk"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestVirtualMachineSnapshotFailsClosedForUnreadyDisks"
+        },
+        {
+          "path": "pkg/vmstorage/vm_media_test.go",
+          "selector": "TestVirtualMachineSnapshotExcludesOnlyReadOnlyInstaller"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-capability",
+      "title": "Inspect CSI snapshot configuration and service readiness",
+      "title_zh": "\u68c0\u67e5 CSI \u5feb\u7167\u914d\u7f6e\u4e0e\u670d\u52a1\u5c31\u7eea\u72b6\u6001",
+      "interface_type": "package_function",
+      "interface": "vmstorage.Inspector.StorageClass",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityUsesDriverClassAndReadiness"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilitySelectionAndFailedEvidence"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityTypedNilClientsStayUnknown"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestStorageProfileSnapshotClassTakesPrecedence"
+        },
+        {
+          "path": "pkg/vmstorage/snapshot_default_selection_test.go",
+          "selector": "TestSnapshotDefaultTruthMatrix"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-options",
+      "title": "Expose snapshot capability on storage option responses",
+      "title_zh": "\u5728\u5b58\u50a8\u9009\u9879\u54cd\u5e94\u4e2d\u66b4\u9732\u5feb\u7167\u80fd\u529b",
+      "interface_type": "handler_method",
+      "interface": "VolumeTypeAction.GetAllVolumeTypes",
+      "code_paths": [
+        "api/handler/volume_type_handler.go",
+        "api/model/volume_type.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_snapshot_capability_test.go",
+          "selector": "TestVolumeOptionsExposeManagedLonghornCapability"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-template-import.registry-restore-progress",
       "title": "Expose registry VM DataVolume import progress",
       "title_zh": "\u66b4\u9732 registry \u865a\u62df\u673a DataVolume \u5bfc\u5165\u8fdb\u5ea6",

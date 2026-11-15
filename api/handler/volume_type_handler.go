@@ -19,10 +19,15 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
-	"strings"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/vmstorage"
 
 	"fmt"
 
@@ -141,6 +146,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*apimodel.VolumeTypeStruct, 
 			},
 		}
 	}
+	vta.appendSnapshotCapabilities(optionList)
 	return optionList, nil
 }
 
@@ -192,6 +198,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypesByPage(page int, pageSize int) ([]
 		})
 	}
 
+	vta.appendSnapshotCapabilities(optionList)
 	return optionList, nil
 }
 
@@ -300,4 +307,27 @@ func (vta *VolumeTypeAction) UpdateVolumeType(dbVolume *dbmodel.TenantServiceVol
 
 	err := db.GetManager().VolumeTypeDao().UpdateModel(dbVolume)
 	return err
+}
+
+// appendSnapshotCapabilities shares one live capability query across this option list.
+func (vta *VolumeTypeAction) appendSnapshotCapabilities(options []*apimodel.VolumeTypeStruct) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var inspector *vmstorage.Inspector
+	if cluster := k8s.Default(); cluster != nil {
+		inspector = vmstorage.NewInspector(cluster.Clientset, cluster.DynamicClient)
+	}
+	annotateSnapshotCapabilities(ctx, options, inspector)
+}
+
+func annotateSnapshotCapabilities(ctx context.Context, options []*apimodel.VolumeTypeStruct, inspector *vmstorage.Inspector) {
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		capability := inspector.StorageClass(ctx, option.VolumeType)
+		option.SnapshotCapability = &capability
+		managed := vmstorage.ManagedSnapshotCapability(capability)
+		option.ManagedSnapshotCapability = &managed
+	}
 }

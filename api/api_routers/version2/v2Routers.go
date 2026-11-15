@@ -660,6 +660,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, dbmodel.TargetTypeService, "horizontal-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Put("/vm-network/fixed-ip", middleware.WrapEL(controller.GetManager().SetVMFixedPodIP, dbmodel.TargetTypeService, "vm-fixed-ip", dbmodel.SYNEVENTTYPE, true))
 	r.Get("/vm-live-update-capability", controller.GetManager().VMLiveUpdateCapability)
+	r.Get("/vm-snapshot-capability", controller.GetManager().ExistingVMSnapshotCapability)
 
 	//设置应用语言(act)
 	r.Post("/language", middleware.WrapEL(controller.GetManager().SetLanguage, dbmodel.TargetTypeService, "set-language", dbmodel.SYNEVENTTYPE, false))
