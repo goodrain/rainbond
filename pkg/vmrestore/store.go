@@ -113,11 +113,11 @@ func validateSuccessfulSteps(receipt *Receipt, state State) error {
 	return nil
 }
 
-func (s *Store) requirePristineLedger(tx *gorm.DB, scope Scope) error {
+func (s *Store) requirePristineLedger(query *gorm.DB, scope Scope) error {
 	// Read this component's metadata only and classify actual names in Go. SQL
 	// collation and LIKE wildcards must not turn ordinary lookalikes into a ledger.
 	var history []dbmodel.ComponentK8sAttributes
-	if err := lockedQuery(tx).Select("ID, tenant_id, component_id, name").Where("component_id = ?", scope.ServiceID).Order("ID").Find(&history).Error; err != nil {
+	if err := query.Select("ID, tenant_id, component_id, name").Where("component_id = ?", scope.ServiceID).Order("ID").Find(&history).Error; err != nil {
 		return err
 	}
 	for _, row := range history {
@@ -128,7 +128,7 @@ func (s *Store) requirePristineLedger(tx *gorm.DB, scope Scope) error {
 	return nil
 }
 
-func (s *Store) validateFenceReceipt(tx *gorm.DB, result lockedState, scope Scope) error {
+func (s *Store) validateFenceReceipt(query *gorm.DB, result lockedState, scope Scope) error {
 	fence := result.current.State.Fence
 	if fence == nil {
 		return nil
@@ -140,7 +140,7 @@ func (s *Store) validateFenceReceipt(tx *gorm.DB, result lockedState, scope Scop
 	row, exists := result.rows[key]
 	if !exists {
 		var rows []dbmodel.ComponentK8sAttributes
-		if err := lockedQuery(tx).Where("component_id = ? AND name = ?", scope.ServiceID, key).Order("ID").Find(&rows).Error; err != nil {
+		if err := query.Where("component_id = ? AND name = ?", scope.ServiceID, key).Order("ID").Find(&rows).Error; err != nil {
 			return err
 		}
 		if len(rows) != 1 {
@@ -159,16 +159,24 @@ func (s *Store) validateFenceReceipt(tx *gorm.DB, result lockedState, scope Scop
 }
 
 func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (lockedState, error) {
+	return s.loadState(tx, scope, operationID, true)
+}
+
+func (s *Store) loadState(tx *gorm.DB, scope Scope, operationID string, lockRows bool) (lockedState, error) {
 	result := lockedState{rows: map[string]dbmodel.ComponentK8sAttributes{}}
 	if !validScope(scope) {
 		return result, ErrCorrupt
 	}
-	if err := beginSQLiteWrite(tx); err != nil {
-		return result, err
+	query := tx
+	if lockRows {
+		if err := beginSQLiteWrite(tx); err != nil {
+			return result, err
+		}
+		query = lockedQuery(tx)
 	}
 	// Read all matching service rows. There is no declared unique service UUID index.
 	var services []dbmodel.TenantServices
-	if err := lockedQuery(tx).Where("service_id = ?", scope.ServiceID).Order("ID").Find(&services).Error; err != nil {
+	if err := query.Where("service_id = ?", scope.ServiceID).Order("ID").Find(&services).Error; err != nil {
 		return result, err
 	}
 	if len(services) == 0 {
@@ -193,7 +201,7 @@ func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (locked
 		names = append(names, key)
 	}
 	var rows []dbmodel.ComponentK8sAttributes
-	if err := lockedQuery(tx).Where("component_id = ? AND name IN (?)", scope.ServiceID, names).Order("name, ID").Find(&rows).Error; err != nil {
+	if err := query.Where("component_id = ? AND name IN (?)", scope.ServiceID, names).Order("name, ID").Find(&rows).Error; err != nil {
 		return result, err
 	}
 	for _, row := range rows {
@@ -228,7 +236,7 @@ func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (locked
 		if result.current.Receipt != nil {
 			return result, ErrCorrupt
 		}
-		if err := s.requirePristineLedger(tx, scope); err != nil {
+		if err := s.requirePristineLedger(query, scope); err != nil {
 			return result, err
 		}
 		result.current.State = NewState(scope)
@@ -238,10 +246,10 @@ func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (locked
 			return result, err
 		}
 	}
-	if err := s.validateFenceReceipt(tx, result, scope); err != nil {
+	if err := s.validateFenceReceipt(query, result, scope); err != nil {
 		return result, err
 	}
-	if err := s.validateStartupReceipt(tx, result.current.State, scope); err != nil {
+	if err := s.validateStartupReceipt(query, result.current.State, scope); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -249,12 +257,22 @@ func (s *Store) loadLocked(tx *gorm.DB, scope Scope, operationID string) (locked
 
 // Read obtains a consistent short transaction; no Kubernetes operation runs here.
 func (s *Store) Read(scope Scope, operationID string) (Current, error) {
+	return s.read(scope, operationID, true)
+}
+
+// ReadOnly validates the same ledger in a short transaction using only SELECTs.
+// It neither acquires writer locks nor reserves authority for a later mutation.
+func (s *Store) ReadOnly(scope Scope, operationID string) (Current, error) {
+	return s.read(scope, operationID, false)
+}
+
+func (s *Store) read(scope Scope, operationID string, lockRows bool) (Current, error) {
 	tx := s.db.Begin()
 	if tx.Error != nil {
 		return Current{}, tx.Error
 	}
 	defer tx.Rollback()
-	locked, err := s.loadLocked(tx, scope, operationID)
+	locked, err := s.loadState(tx, scope, operationID, lockRows)
 	if err != nil {
 		return Current{}, err
 	}
@@ -308,6 +326,9 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 	if tx == nil || change == nil {
 		return Current{}, ErrCorrupt
 	}
+	if expected.AdmissionOwner != "" && (expected.OperationID != "" || !idPattern.MatchString(expected.AdmissionOwner)) {
+		return Current{}, ErrCorrupt
+	}
 	locked, err := s.loadLocked(tx, scope, expected.OperationID)
 	if err != nil {
 		return Current{}, err
@@ -335,7 +356,11 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 	if before.State.Fence != nil && before.State.Fence.OperationID != expected.OperationID {
 		return Current{}, ErrBusy
 	}
-	if before.State.Admission != nil && before.State.Admission.Token != expected.OperationID {
+	owner := expected.OperationID
+	if owner == "" {
+		owner = expected.AdmissionOwner
+	}
+	if before.State.Admission != nil && before.State.Admission.Token != owner {
 		return Current{}, ErrBusy
 	}
 	if before.State.ControlRevision != expected.ControlRevision || before.State.BindingGeneration != expected.BindingGeneration {

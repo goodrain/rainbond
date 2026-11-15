@@ -140,9 +140,22 @@ func (s *ServiceAction) inspectVolumeExpansion(ctx context.Context, service *dbm
 		if err != nil {
 			return runtimeStatus, nil, err
 		}
+		if reason == vmVolumeObservationBusy && len(claims) == 1 {
+			runtimeStatus.Status = volumeExpansionResizing
+			runtimeStatus.Message = "磁盘操作尚未完成，请稍后重试；" + vmExpansionGuestMessage
+			runtimeStatus.PVCCount = 1
+			runtimeStatus.ActualCapacity = capacityInGi(claims[0].Status.Capacity[corev1.ResourceStorage])
+			runtimeStatus.RequestedCapacity = capacityInGi(claims[0].Spec.Resources.Requests[corev1.ResourceStorage])
+			return runtimeStatus, claims, nil
+		}
 		if reason != "" {
 			runtimeStatus.Message = reason
-			return runtimeStatus, nil, nil
+			if len(claims) == 1 {
+				runtimeStatus.PVCCount = 1
+				runtimeStatus.ActualCapacity = capacityInGi(claims[0].Status.Capacity[corev1.ResourceStorage])
+				runtimeStatus.RequestedCapacity = capacityInGi(claims[0].Spec.Resources.Requests[corev1.ResourceStorage])
+			}
+			return runtimeStatus, claims, nil
 		}
 	} else {
 
@@ -284,6 +297,10 @@ func (s *ServiceAction) resolveVolumeExpansionNamespace(service *dbmodel.TenantS
 func (s *ServiceAction) expandVolumeClaims(ctx context.Context, service *dbmodel.TenantServices,
 	volume *dbmodel.TenantServiceVolume, targetGi int64,
 ) error {
+	if service != nil && service.IsVM() {
+		return vmVolumeError(s.resizeVMVolume(ctx, service, volume, targetGi))
+	}
+
 	if targetGi <= 0 {
 		return bcode.NewBadRequest("volume capacity must be a positive integer")
 	}

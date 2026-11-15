@@ -100,7 +100,7 @@ func checkStartupDevices(policy RestoreStartupPolicy, spec kv.VirtualMachineInst
 	return nil
 }
 
-func (s *Store) validateStartupReceipt(tx *gorm.DB, state State, scope Scope) error {
+func (s *Store) validateStartupReceipt(query *gorm.DB, state State, scope Scope) error {
 	if state.StartupOperationID == "" {
 		return nil
 	}
@@ -109,7 +109,7 @@ func (s *Store) validateStartupReceipt(tx *gorm.DB, state State, scope Scope) er
 		return err
 	}
 	var rows []dbmodel.ComponentK8sAttributes
-	if err := lockedQuery(tx).Where("component_id = ? AND name = ?", scope.ServiceID, key).Find(&rows).Error; err != nil {
+	if err := query.Where("component_id = ? AND name = ?", scope.ServiceID, key).Find(&rows).Error; err != nil {
 		return err
 	}
 	if len(rows) != 1 {

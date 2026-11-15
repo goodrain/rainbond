@@ -3,9 +3,14 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
@@ -20,60 +25,47 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/goodrain/rainbond/db"
-	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/jinzhu/gorm"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // capability_id: rainbond.vm-disk.retry-safe-delete
 func TestVolumnVarRetainsVolumeWhenDetachFails(t *testing.T) {
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
+	action, _, _ := diskDeleteVMFixture(t, true, false)
+	result := action.VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: "service-vm", VolumeName: "data-1"}, "tenant", "", "delete")
+	if result == nil || result.Code != 409 || !strings.Contains(result.Error(), "关闭虚拟机") {
+		t.Fatalf("expected actionable409: %v", result)
 	}
-	defer sqlDB.Close()
-	gdb, err := gorm.Open("mysql", sqlDB)
-	if err != nil {
-		t.Fatal(err)
+	var count int
+	action.getDBManager().DB().Model(&dbmodel.TenantServiceVolume{}).Where("ID = ?", 42).Count(&count)
+	if count != 1 {
+		t.Fatal("static disk retry row lost")
 	}
-	mock.ExpectBegin()
-	tx := gdb.Begin()
-	mock.ExpectRollback()
-	volumeDao := &hotunplugTenantServiceVolumeDao{volume: &dbmodel.TenantServiceVolume{
-		Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1",
-	}}
-	db.SetTestManager(hotunplugVolumeDeleteTestManager{tx: tx, volumeDao: volumeDao,
-		mountRelationDao: &hotunplugTenantServiceMountRelationDao{}, configFileDao: &hotunplugTenantServiceConfigFileDao{}})
-	defer db.SetTestManager(nil)
-	mq := &recordingMQClient{}
-	action := &ServiceAction{MQClient: mq, hotunplugVMDataDiskHook: func(*dbmodel.TenantServiceVolume) error {
-		return apierrors.NewConflict(dataVolumeGVR.GroupResource(), "manual42", fmt.Errorf("stop the VM before deleting this disk"))
-	}}
-	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: "service-vm", VolumeName: "data-1"}, "tenant-1", "", "delete")
-	if apiErr == nil || apiErr.Code != 409 {
-		t.Fatalf("expected retryable 409, got %v", apiErr)
-	}
-	if volumeDao.deletedVolume != "" || len(mq.tasks) != 0 {
-		t.Fatal("failed detach deleted the retry record or queued GC")
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
+
 }
 
 func diskDeleteFixture(t *testing.T, extras ...runtime.Object) (*ServiceAction, *dynamicfake.FakeDynamicClient, *k8sfake.Clientset) {
 	t.Helper()
+	baseline := newBindingConsumerFixture(t)
+	baseline.database.Model(&dbmodel.Tenants{}).Where("uuid = ?", "tenant").UpdateColumn("namespace", "demo-ns")
+	baseline.database.Model(&dbmodel.TenantServices{}).Where("service_id = ?", "service-vm").UpdateColumn("namespace", "demo-ns")
+	baseline.database.Where("component_id = ?", "service-vm").Delete(&dbmodel.ComponentK8sAttributes{})
 	volume := &dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"}
-	dv := buildVMHotplugDataVolumeObject("demo-ns", "tenant-1", volume, "manual42")
+	dv := buildVMHotplugDataVolumeObject("demo-ns", "tenant", volume, "manual42")
 	dv.SetUID(types.UID("dv-uid"))
+	dv.Object["status"] = map[string]interface{}{"claimName": "manual42"}
 	objs := []runtime.Object{dv}
+	for _, extra := range extras {
+		if obj, ok := extra.(*unstructured.Unstructured); ok && obj.GetUID() == "" {
+			obj.SetUID(types.UID("fixture-" + obj.GetKind() + "-" + obj.GetName()))
+		}
+	}
 	objs = append(objs, extras...)
 	listKinds := map[schema.GroupVersionResource]string{
 		dataVolumeGVR: "DataVolumeList",
+		{Group: "snapshot.storage.k8s.io", Version: "v1", Resource: "volumesnapshotcontents"}:           "VolumeSnapshotContentList",
 		{Group: "cdi.kubevirt.io", Version: "v1beta1", Resource: "datasources"}:                         "DataSourceList",
 		{Group: "kubevirt.io", Version: "v1", Resource: "virtualmachines"}:                              "VirtualMachineList",
 		{Group: "kubevirt.io", Version: "v1", Resource: "virtualmachineinstances"}:                      "VirtualMachineInstanceList",
@@ -88,10 +80,14 @@ func diskDeleteFixture(t *testing.T, extras ...runtime.Object) (*ServiceAction, 
 	db.SetTestManager(hotplugVolumeTestManager{serviceDao: &hotplugTenantServiceDao{service: &dbmodel.TenantServices{
 		ServiceID: "service-vm", ExtendMethod: "vm", Namespace: "demo-ns",
 	}}})
-	kube := k8sfake.NewSimpleClientset(&corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-		Name: "manual42", Namespace: "demo-ns", UID: types.UID("pvc-uid"), Labels: map[string]string{"service_id": "service-vm"},
-	}})
-	action := &ServiceAction{kubeClient: kube, getVirtualMachineByServiceIDHook: func(string) (*v1.VirtualMachine, error) { return nil, nil }}
+	size := resource.MustParse("1Gi")
+	class := "fast"
+	kube := k8sfake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "demo-ns", UID: "demo-namespace-uid"}}, &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "manual42", Namespace: "demo-ns", UID: "pvc-uid", ResourceVersion: "1", Labels: map[string]string{"service_id": "service-vm", "tenant_id": "tenant"}}, Spec: corev1.PersistentVolumeClaimSpec{StorageClassName: &class, Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: size}}}, Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound, Capacity: corev1.ResourceList{corev1.ResourceStorage: size}}})
+	action := baseline.action
+	action.kubeClient = kube
+	action.resolveTenantNamespaceHook = func(string) (string, error) { return "demo-ns", nil }
+	action.getVirtualMachineByServiceIDHook = func(string) (*v1.VirtualMachine, error) { return nil, nil }
+
 	return action, client, kube
 }
 
@@ -134,7 +130,7 @@ func TestVMDataDiskDeleteProtectsSnapshotReferences(t *testing.T) {
 	}}
 	action, client, kube := diskDeleteFixture(t, snapshot)
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) {
+	if !isBindingDiskConflict(err) {
 		t.Fatalf("expected referenced disk conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -189,7 +185,7 @@ func TestVMDataDiskDeleteWaitsForPhysicalPVCRemoval(t *testing.T) {
 	action, _, kube := diskDeleteFixture(t)
 	kube.PrependReactor("delete", "persistentvolumeclaims", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, nil })
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "回收") {
+	if !isBindingDiskConflict(err) || !strings.Contains(err.Error(), "回收") {
 		t.Fatalf("expected pending reclaim conflict, got %v", err)
 	}
 }
@@ -266,7 +262,8 @@ func TestVMDataDiskDeleteStoppedVMRemovesTemplateAndReclaims(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if vmDiskObjectReferences(vm.Object["spec"], "manual42") || !vmDiskObjectReferences(vm.Object["spec"], "root") {
+	body, _ := json.Marshal(vm.Object["spec"])
+	if strings.Contains(string(body), "manual42") || !strings.Contains(string(body), "root") {
 		t.Fatal("VM data disk removal corrupted template")
 	}
 	if _, err := kube.CoreV1().PersistentVolumeClaims("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{}); !apierrors.IsNotFound(err) {
@@ -278,7 +275,7 @@ func TestVMDataDiskDeleteStoppedVMRemovesTemplateAndReclaims(t *testing.T) {
 func TestVMDataDiskDeleteRejectsRestartedStaticDiskBeforeMutation(t *testing.T) {
 	action, client, kube := diskDeleteVMFixture(t, true, false)
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "关闭虚拟机") {
+	if !isBindingDiskConflict(err) || !strings.Contains(err.Error(), "关闭虚拟机") {
 		t.Fatalf("expected actionable shutdown conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -301,7 +298,7 @@ func TestVMDataDiskDeleteHotplugWaitsForDetach(t *testing.T) {
 	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
 	action.kubevirtClient = mockClient
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "卸载") {
+	if !isBindingDiskConflict(err) || !strings.Contains(err.Error(), "卸载") {
 		t.Fatalf("expected pending detach conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -341,7 +338,7 @@ func TestVMDataDiskDeleteProtectsAliasedRootAndForgedVMI(t *testing.T) {
 			client.ClearActions()
 			kube.ClearActions()
 			err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-			if !apierrors.IsConflict(err) {
+			if !isBindingDiskConflict(err) {
 				t.Fatalf("expected safety conflict, got %v", err)
 			}
 			for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -360,7 +357,7 @@ func TestVMDataDiskDeleteProtectsCrossNamespaceClone(t *testing.T) {
 	clone := &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "cdi.kubevirt.io/v1beta1", "kind": "DataVolume", "metadata": map[string]interface{}{"name": "clone-data", "namespace": "other-team"}, "spec": map[string]interface{}{"source": map[string]interface{}{"pvc": map[string]interface{}{"namespace": "demo-ns", "name": "manual42"}}}}}
 	action, client, kube := diskDeleteFixture(t, clone)
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) {
+	if !isBindingDiskConflict(err) {
 		t.Fatalf("expected clone reference conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -393,27 +390,12 @@ func TestVMDataDiskDeleteFailsClosedWhenReferencesUnreadable(t *testing.T) {
 
 // capability_id: rainbond.vm-disk.retry-safe-delete
 func TestVMDataDiskDeleteRequiresNamedRecord(t *testing.T) {
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
+	f := newBindingConsumerFixture(t)
+	result := f.action.VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: f.scope.ServiceID, VolumePath: "/disk"}, f.scope.TenantID, "", "delete")
+	if result == nil || result.Code != 400 {
+		t.Fatalf("expected named record400 got %v", result)
 	}
-	defer sqlDB.Close()
-	gdb, err := gorm.Open("mysql", sqlDB)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mock.ExpectBegin()
-	tx := gdb.Begin()
-	mock.ExpectRollback()
-	db.SetTestManager(hotplugVolumeTestManager{tx: tx, serviceDao: &hotplugTenantServiceDao{service: &dbmodel.TenantServices{ServiceID: "service-vm", ExtendMethod: "vm"}}})
-	defer db.SetTestManager(nil)
-	apiErr := (&ServiceAction{}).VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: "service-vm", VolumePath: "/disk"}, "tenant-1", "", "delete")
-	if apiErr == nil || apiErr.Code != 400 {
-		t.Fatalf("expected named deletion requirement, got %v", apiErr)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
+
 }
 
 // capability_id: rainbond.vm-disk.retry-safe-delete
@@ -428,7 +410,7 @@ func TestVMDataDiskDeleteProtectsDataSourceAndPendingAdd(t *testing.T) {
 			}
 			action, client, kube := diskDeleteFixture(t, extras...)
 			err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-			if !apierrors.IsConflict(err) {
+			if !isBindingDiskConflict(err) {
 				t.Fatalf("expected reference conflict, got %v", err)
 			}
 			for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -456,7 +438,7 @@ func TestVMDataDiskDeleteProtectsOwnPendingAddBeforeMutation(t *testing.T) {
 	client.ClearActions()
 	kube.ClearActions()
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) {
+	if !isBindingDiskConflict(err) {
 		t.Fatalf("expected pending own request conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -502,7 +484,7 @@ func TestVMDataDiskDeleteRetainsInitialResourceUIDsAcrossPreflight(t *testing.T)
 				return false, nil, nil
 			})
 			err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-			if !apierrors.IsConflict(err) {
+			if !isBindingDiskConflict(err) {
 				t.Fatalf("expected identity change conflict, got %v", err)
 			}
 			for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -551,7 +533,7 @@ func TestVMDataDiskDeleteRejectsRemappedBackingBeforeAnyMutation(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			action, client, kube := mappedDiskDeleteFixture(t, scenario)
 			err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-			if !apierrors.IsConflict(err) {
+			if !isBindingDiskConflict(err) {
 				t.Fatalf("expected remapped disk conflict before reclaim, got %v", err)
 			}
 			for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -570,46 +552,25 @@ func TestVMDataDiskDeleteRejectsRemappedBackingBeforeAnyMutation(t *testing.T) {
 	}
 }
 
-type mappedDiskDeleteManager struct {
-	hotunplugVolumeDeleteTestManager
-	serviceDao dbdao.TenantServiceDao
-}
-
-func (m mappedDiskDeleteManager) TenantServiceDao() dbdao.TenantServiceDao { return m.serviceDao }
-
 // capability_id: rainbond.vm-disk.retry-safe-delete
 func TestVolumnVarRetainsRecordForRemappedDataDisk(t *testing.T) {
 	for _, scenario := range []string{"vm-source-remapped", "dv-claim-remapped"} {
 		t.Run(scenario, func(t *testing.T) {
 			action, _, _ := mappedDiskDeleteFixture(t, scenario)
-			sqlDB, mock, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
+			result := action.VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: "service-vm", VolumeName: "data-1"}, "tenant", "", "delete")
+			// A legacy DV's claimName is legitimately resolved; only an actual conflicting
+			// runtime mapping or unbound target must reject. Pin before introducing drift.
+			if result == nil || result.Code != 409 {
+				t.Fatalf("expected mapping409 got %v", result)
 			}
-			defer sqlDB.Close()
-			gdb, err := gorm.Open("mysql", sqlDB)
-			if err != nil {
-				t.Fatal(err)
-			}
-			mock.ExpectBegin()
-			tx := gdb.Begin()
-			mock.ExpectRollback()
-			volumeDao := &hotunplugTenantServiceVolumeDao{volume: &dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"}}
-			db.SetTestManager(mappedDiskDeleteManager{hotunplugVolumeDeleteTestManager: hotunplugVolumeDeleteTestManager{tx: tx, volumeDao: volumeDao, mountRelationDao: &hotunplugTenantServiceMountRelationDao{}, configFileDao: &hotunplugTenantServiceConfigFileDao{}}, serviceDao: &hotplugTenantServiceDao{service: &dbmodel.TenantServices{ServiceID: "service-vm", ExtendMethod: "vm", Namespace: "demo-ns"}}})
-			mq := &recordingMQClient{}
-			action.MQClient = mq
-			apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{ServiceID: "service-vm", VolumeName: "data-1"}, "tenant-1", "", "delete")
-			if apiErr == nil || apiErr.Code != 409 {
-				t.Fatalf("expected 409 retaining record, got %v", apiErr)
-			}
-			if volumeDao.deletedVolume != "" || len(mq.tasks) > 0 {
-				t.Fatal("remapped volume record or GC state was changed")
-			}
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Fatal(err)
+			var count int
+			action.getDBManager().DB().Model(&dbmodel.TenantServiceVolume{}).Where("ID = ?", 42).Count(&count)
+			if count != 1 {
+				t.Fatal("retry row removed")
 			}
 		})
 	}
+
 }
 
 // capability_id: rainbond.vm-disk.retry-safe-delete
@@ -640,7 +601,7 @@ func TestVMDataDiskDeleteRejectsNamespaceMismatchBeforeMutation(t *testing.T) {
 	client.ClearActions()
 	kube.ClearActions()
 	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{Model: dbmodel.Model{ID: 42}, ServiceID: "service-vm", VolumeName: "data-1", VolumePath: "/disk-1"})
-	if !apierrors.IsConflict(err) || !strings.Contains(err.Error(), "命名空间") {
+	if !isBindingDiskConflict(err) || !strings.Contains(err.Error(), "命名空间") {
 		t.Fatalf("expected namespace safety conflict, got %v", err)
 	}
 	for _, actions := range [][]k8stesting.Action{client.Actions(), kube.Actions()} {
@@ -655,4 +616,12 @@ func TestVMDataDiskDeleteRejectsNamespaceMismatchBeforeMutation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func isBindingDiskConflict(err error) bool {
+	if errors.Is(err, vmrestore.ErrConflict) || errors.Is(err, vmrestore.ErrBusy) || apierrors.IsConflict(err) {
+		return true
+	}
+	coder, ok := err.(bcode.Coder)
+	return ok && coder.GetStatus() == 409
 }

@@ -177,7 +177,7 @@ func (r *Resolver) volume(scope Scope, id uint) (dbmodel.TenantServiceVolume, er
 	return rows[0], nil
 }
 func (r *Resolver) stable(scope Scope, state State) error {
-	current, err := r.store.Read(scope, "")
+	current, err := r.store.ReadOnly(scope, "")
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (r *Resolver) ReadBindingView(ctx context.Context, scope Scope) (BindingVie
 	if r == nil || r.store == nil || r.store.db == nil || r.core == nil || r.dynamic == nil {
 		return view, ErrReferenceUnavailable
 	}
-	current, err := r.store.Read(scope, "")
+	current, err := r.store.ReadOnly(scope, "")
 	if err != nil {
 		return view, err
 	}

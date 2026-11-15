@@ -61,10 +61,15 @@ func NewSnapshotEngine(store *Store, backend SnapshotBackend) *SnapshotEngine {
 
 // SnapshotOperationDTO adds observed power flags without exposing admission tokens.
 type SnapshotOperationDTO struct {
-	NativeProofHash   string      `json:"native_proof_hash,omitempty"`
-	SnapshotResources []ObjectRef `json:"snapshot_resources"`
-	EventID           string      `json:"event_id"`
-	Deleted           bool        `json:"deleted"`
+	ManifestID               string      `json:"manifest_id,omitempty"`
+	ManifestDocumentHash     string      `json:"manifest_document_hash,omitempty"`
+	FinalizedControlRevision uint64      `json:"finalized_control_revision,omitempty"`
+	FenceOwned               *bool       `json:"fence_owned,omitempty"`
+	FenceCleared             *bool       `json:"fence_cleared,omitempty"`
+	NativeProofHash          string      `json:"native_proof_hash,omitempty"`
+	SnapshotResources        []ObjectRef `json:"snapshot_resources"`
+	EventID                  string      `json:"event_id"`
+	Deleted                  bool        `json:"deleted"`
 	SnapshotDTO
 	WasRunning      bool   `json:"was_running"`
 	PowerAfter      string `json:"power_after"`
@@ -117,7 +122,7 @@ func (e *SnapshotEngine) mutate(scope Scope, operationID, step, hash string, cha
 	return Current{}, ErrConflict
 }
 func (e *SnapshotEngine) receipt(scope Scope, operationID string) (Current, error) {
-	current, err := e.store.Read(scope, operationID)
+	current, err := e.store.ReadOnly(scope, operationID)
 	if err != nil {
 		return current, err
 	}
@@ -291,6 +296,12 @@ func (e *SnapshotEngine) Get(ctx context.Context, scope Scope, operationID strin
 	if err != nil {
 		return SnapshotOperationDTO{}, err
 	}
+	// Native observation may outlive a ledger transition. Project fence and ACK
+	// facts from a fresh validated read, never the earlier pre-observation view.
+	current, err = e.receipt(scope, operationID)
+	if err != nil {
+		return SnapshotOperationDTO{}, err
+	}
 	return e.project(current, observed)
 }
 
@@ -303,6 +314,16 @@ func (e *SnapshotEngine) project(current Current, observed SnapshotObservation) 
 	}
 	dto.SourceLockClear = observed.SourceLockClear
 	result := SnapshotOperationDTO{EventID: snapshotEventID(receipt.Scope, receipt.OperationID), SnapshotDTO: dto, WasRunning: intent.WasRunning, PowerAfter: intent.PowerAfter, SourceStopped: observed.SourceStopped, SourceRunning: observed.SourceRunning, CleanupComplete: observed.CleanupComplete, ManifestACKed: receipt.ConsoleAckHash != ""}
+	result.ManifestID, result.ManifestDocumentHash = receipt.ManifestID, receipt.ConsoleAckHash
+	owned := current.State.Fence != nil && current.State.Fence.OperationID == receipt.OperationID && current.State.Fence.ManifestHash == receipt.ManifestHash
+	finalized := receipt.Steps["snapshot-finalize"]
+	if finalized.Applied {
+		result.FinalizedControlRevision = finalized.ControlRevision
+	}
+	// A successful finalize step proves historical release. Current release
+	// additionally requires no fence (including another operation's) or effect.
+	cleared := finalized.Applied && current.State.Fence == nil && snapshotPendingEffect(receipt) == ""
+	result.FenceOwned, result.FenceCleared = &owned, &cleared
 	if dto.ReadyToUse {
 		if err := checkSnapshotFirmware(receipt.SnapshotIdentity, observed.Content); err != nil {
 			if errors.Is(err, ErrSnapshotPending) {

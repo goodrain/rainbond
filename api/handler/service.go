@@ -46,6 +46,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/util/constants"
 	appmvolume "github.com/goodrain/rainbond/worker/appm/volume"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
@@ -104,6 +105,7 @@ type ServiceAction struct {
 	rainbondClient                           versioned.Interface
 	kubeClient                               kubernetes.Interface
 	kubevirtClient                           kubecli.KubevirtClient
+	vmSnapshotDynamicClient                  dynamic.Interface
 	dbmanager                                db.Manager
 	registryCli                              *registry.Registry
 	config                                   *rest.Config
@@ -140,16 +142,17 @@ type vmDataVolumeDetail struct {
 // CreateManager create Manger
 func CreateManager() *ServiceAction {
 	return &ServiceAction{
-		MQClient:       mq.Default().MqClient,
-		statusCli:      grpc.Default().StatusClient,
-		prometheusCli:  prom.Default().PrometheusCli,
-		rainbondClient: k8s.Default().RainbondClient,
-		apisixClient:   k8s.Default().ApiSixClient,
-		kubeClient:     k8s.Default().Clientset,
-		kubevirtClient: k8s.Default().KubevirtCli,
-		dbmanager:      db.GetManager(),
-		registryCli:    hubregistry.Default().RegistryCli,
-		config:         k8s.Default().RestConfig,
+		MQClient:                mq.Default().MqClient,
+		statusCli:               grpc.Default().StatusClient,
+		prometheusCli:           prom.Default().PrometheusCli,
+		rainbondClient:          k8s.Default().RainbondClient,
+		apisixClient:            k8s.Default().ApiSixClient,
+		kubeClient:              k8s.Default().Clientset,
+		kubevirtClient:          k8s.Default().KubevirtCli,
+		vmSnapshotDynamicClient: k8s.Default().DynamicClient,
+		dbmanager:               db.GetManager(),
+		registryCli:             hubregistry.Default().RegistryCli,
+		config:                  k8s.Default().RestConfig,
 		resolveTenantNamespaceHook: func(tenantID string) (string, error) {
 			tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
 			if err != nil {
@@ -2448,7 +2451,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 }
 
 // VolumnVar var volumn
-func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError {
+func (s *ServiceAction) volumnVarLegacy(tsv *dbmodel.TenantServiceVolume, tenantID, fileContent, action string, skipGC bool, beforeCommit ...func(*gorm.DB) error) *util.APIHandleError {
 	dbm := s.getDBManager()
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
@@ -2506,6 +2509,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("error creating config file", err)
 			}
 		}
+		for _, checkpoint := range beforeCommit {
+			if err := checkpoint(tx); err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("record config transaction", err)
+			}
+		}
 		// end transaction
 		if err := tx.Commit().Error; err != nil {
 			tx.Rollback()
@@ -2525,7 +2534,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			if err := s.hotplugVMDataDisk(tenantID, tsv); err != nil {
 				return util.CreateAPIHandleError(500, fmt.Errorf("hotplug vm data disk: %w", err))
 			}
-		} else if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+		} else if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsv.ServiceID); err != nil {
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
 		}
 	case "delete":
@@ -2571,20 +2580,22 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
 			}
 
-			err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-				Topic:    gclient.WorkerTopic,
-				TaskType: "volume_gc",
-				TaskBody: map[string]interface{}{
-					"tenant_id":   tenantID,
-					"service_id":  volume.ServiceID,
-					"volume_id":   volume.ID,
-					"volume_path": volume.VolumePath,
-				},
-			})
-			if err != nil {
-				logrus.Errorf("send 'volume_gc' task: %v", err)
-				tx.Rollback()
-				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
+			if !skipGC {
+				err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+					Topic:    gclient.WorkerTopic,
+					TaskType: "volume_gc",
+					TaskBody: map[string]interface{}{
+						"tenant_id":   tenantID,
+						"service_id":  volume.ServiceID,
+						"volume_id":   volume.ID,
+						"volume_path": volume.VolumePath,
+					},
+				})
+				if err != nil {
+					logrus.Errorf("send 'volume_gc' task: %v", err)
+					tx.Rollback()
+					return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
+				}
 			}
 		} else {
 			service, err := dbm.TenantServiceDao().GetServiceByID(tsv.ServiceID)
@@ -2614,7 +2625,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			return nil
 		}
 
-		if err := s.syncVirtualMachineSpecForService(tsv.ServiceID); err != nil {
+		if err := s.syncVirtualMachineSpecAfterResourceUpdate(tsv.ServiceID); err != nil {
 			return util.CreateAPIHandleError(500, fmt.Errorf("sync vm storage to virtualmachine: %w", err))
 		}
 	}
@@ -2622,7 +2633,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 }
 
 // UpdVolume updates service volume.
-func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error {
+func (s *ServiceAction) updVolumeLegacy(sid string, req *apimodel.UpdVolumeReq) error {
 	dbm := s.getDBManager()
 	tx := dbm.Begin()
 	defer func() {
@@ -2680,34 +2691,53 @@ func (s *ServiceAction) UpdVolume(sid string, req *apimodel.UpdVolumeReq) error 
 		tx.Rollback()
 		return err
 	}
-	return s.syncVirtualMachineSpecForService(sid)
+	return s.syncVirtualMachineSpecAfterResourceUpdate(sid)
 }
 
 // GetVolumes 获取应用全部存储
 func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStatusStruct, *util.APIHandleError) {
 	volumeWithStatusList := make([]*apimodel.VolumeWithStatusStruct, 0)
-	vs, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+	vs, err := s.getDBManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, util.CreateAPIHandleErrorFromDBError("get volumes", err)
 	}
 
-	volumeStatusList, err := s.statusCli.GetAppVolumeStatus(serviceID)
-	if err != nil {
-		logrus.Warnf("get volume status error: %s", err.Error())
-	}
-	volumeStatus := make(map[string]pb.ServiceVolumeStatus)
-	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
-		volumeStatus = volumeStatusList.GetStatus()
-	}
-	isMountedShareVolume := false
-	mountStatus := pb.ServiceVolumeStatus_NOT_READY.String()
 	var service *dbmodel.TenantServices
 	if s.kubeClient != nil {
 		service, err = s.getDBManager().TenantServiceDao().GetServiceByID(serviceID)
 		if err != nil {
-			logrus.Warnf("get service for volume expansion status error: %s", err.Error())
+			return nil, util.CreateAPIHandleErrorFromDBError("get service", err)
 		}
 	}
+	var consumer *vmVolumeConsumer
+	var view vmrestore.BindingView
+	observations := map[uint]vmrestore.ResolvedVolume{}
+	if service != nil && service.IsVM() {
+		consumer, err = s.vmVolumes(service)
+		if err != nil {
+			return nil, vmDiskAPIError(err)
+		}
+		view, err = consumer.resolver.ReadBindingView(context.Background(), consumer.scope)
+		if err != nil {
+			return nil, vmDiskAPIError(err)
+		}
+		for _, resolved := range view.Volumes {
+			observations[resolved.VolumeID] = resolved
+		}
+	}
+	volumeStatus := make(map[string]pb.ServiceVolumeStatus)
+	if s.statusCli != nil {
+		volumeStatusList, statusErr := s.statusCli.GetAppVolumeStatus(serviceID)
+		if statusErr != nil {
+			logrus.Warnf("get volume status error: %s", statusErr.Error())
+		}
+		if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
+			volumeStatus = volumeStatusList.GetStatus()
+		}
+	}
+	isMountedShareVolume := false
+	mountStatus := pb.ServiceVolumeStatus_NOT_READY.String()
+
 	for _, volume := range vs {
 		vws := &apimodel.VolumeWithStatusStruct{
 			ServiceID:          volume.ServiceID,
@@ -2755,7 +2785,31 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*apimodel.VolumeWithStat
 				vws.Status = mountStatus
 			}
 		}
+		if observed, ok := observations[volume.ID]; ok {
+			vws.ActualCapacity = vmObservedGi(observed.CapacityBytes)
+			vws.RequestedCapacity = vmObservedGi(observed.RequestedBytes)
+			if observed.ActivePVC != nil {
+				vws.PVCCount = 1
+			} else {
+				vws.PVCCount = 0
+			}
+			vws.Status = pb.ServiceVolumeStatus_NOT_READY.String()
+			if observed.Provisioning == "bound" {
+				vws.Status = pb.ServiceVolumeStatus_READY.String()
+			}
+		}
+
 		volumeWithStatusList = append(volumeWithStatusList, vws)
+	}
+
+	if consumer != nil {
+		latest, err := consumer.store.Read(consumer.scope, "")
+		if err != nil {
+			return nil, vmDiskAPIError(err)
+		}
+		if latest.State.ControlRevision != view.ControlRevision || latest.State.BindingGeneration != view.BindingGeneration {
+			return nil, vmDiskAPIError(vmrestore.ErrConflict)
+		}
 	}
 
 	return volumeWithStatusList, nil
@@ -2766,29 +2820,35 @@ func (s *ServiceAction) VolumeDependency(tsr *dbmodel.TenantServiceMountRelation
 	switch action {
 	case "add":
 		if tsr.VolumeName != "" {
-			vm, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByServiceIDAndName(tsr.DependServiceID, tsr.VolumeName)
+			handled, failure := s.addVMSourceRelation(tsr)
+			if handled || failure != nil {
+				return failure
+			}
+		}
+		if tsr.VolumeName != "" {
+			vm, err := s.getDBManager().TenantServiceVolumeDao().GetVolumeByServiceIDAndName(tsr.DependServiceID, tsr.VolumeName)
 			if err != nil {
 				return util.CreateAPIHandleErrorFromDBError("get volume", err)
 			}
 			tsr.HostPath = vm.HostPath
-			if err := db.GetManager().TenantServiceMountRelationDao().AddModel(tsr); err != nil {
+			if err := s.getDBManager().TenantServiceMountRelationDao().AddModel(tsr); err != nil {
 				return util.CreateAPIHandleErrorFromDBError("add volume mount relation", err)
 			}
 		} else {
 			if tsr.HostPath == "" {
 				return util.CreateAPIHandleError(400, fmt.Errorf("host path can not be empty when create volume dependency in api v2"))
 			}
-			if err := db.GetManager().TenantServiceMountRelationDao().AddModel(tsr); err != nil {
+			if err := s.getDBManager().TenantServiceMountRelationDao().AddModel(tsr); err != nil {
 				return util.CreateAPIHandleErrorFromDBError("add volume mount relation", err)
 			}
 		}
 	case "delete":
 		if tsr.VolumeName != "" {
-			if err := db.GetManager().TenantServiceMountRelationDao().DeleteTenantServiceMountRelation(tsr.ServiceID, tsr.DependServiceID, tsr.VolumeName); err != nil {
+			if err := s.getDBManager().TenantServiceMountRelationDao().DeleteTenantServiceMountRelation(tsr.ServiceID, tsr.DependServiceID, tsr.VolumeName); err != nil {
 				return util.CreateAPIHandleErrorFromDBError("delete mount relation", err)
 			}
 		} else {
-			if err := db.GetManager().TenantServiceMountRelationDao().DElTenantServiceMountRelationByDepService(tsr.ServiceID, tsr.DependServiceID); err != nil {
+			if err := s.getDBManager().TenantServiceMountRelationDao().DElTenantServiceMountRelationByDepService(tsr.ServiceID, tsr.DependServiceID); err != nil {
 				return util.CreateAPIHandleErrorFromDBError("delete mount relation", err)
 			}
 		}

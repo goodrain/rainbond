@@ -93,6 +93,8 @@ type SnapshotBackup struct {
 
 // SnapshotDTO is the safe Region projection; Console additionally requires its durable manifest.
 type SnapshotDTO struct {
+	Namespace       string           `json:"namespace,omitempty"`
+	SourceVMName    string           `json:"source_vm_name,omitempty"`
 	SnapshotName    string           `json:"snapshot_name"`
 	SnapshotUID     string           `json:"snapshot_uid,omitempty"`
 	SourceVMUID     string           `json:"source_vm_uid"`

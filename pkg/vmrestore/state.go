@@ -138,6 +138,9 @@ type Receipt struct {
 
 // Expectation protects an entire short Region step.
 type Expectation struct {
+	// AdmissionOwner carries an already-held server-side owner for state-only
+	// updates. It is never persisted or accepted from a public request DTO.
+	AdmissionOwner    string
 	ControlRevision   uint64
 	BindingGeneration uint64
 	OperationID       string
