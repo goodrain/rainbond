@@ -90,7 +90,29 @@ env:
 jobs:
   rainbond-unit-test:
     runs-on: ubuntu-latest
+    outputs:
+      sync-matrix: ${{ steps.sync-matrix.outputs.matrix }}
     steps:
+      - name: Prepare Aliyun sync matrix
+        id: sync-matrix
+        env:
+          BUILD_WHO: ${{ inputs.build-who }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          python3 - <<'PYTHON' >> "$GITHUB_OUTPUT"
+          import json, os
+          groups = {
+              "region": ["rbd-api", "rbd-chaos", "rbd-worker", "rbd-init-probe", "rbd-mq"],
+              "operator": ["rainbond-operator"],
+              "console": ["rainbond"],
+          }
+          selected = os.environ["BUILD_WHO"]
+          images = sum(groups.values(), []) if selected == "all" else groups[selected]
+          arches = [platform.removeprefix("linux/") for platform in os.environ["PLATFORMS"].split(",")]
+          matrix = {"include": [{"image": image, "arch": arch} for image in images for arch in arches]}
+          print("matrix=" + json.dumps(matrix, separators=(",", ":")))
+          PYTHON
+
       # An amd64-only build pushes the plain <version> tag, which would replace
       # the published amd64+arm64 manifest and break arm64 installs.
       # Forks may hold real registry credentials; a fork must never push a
@@ -168,13 +190,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-
       - name: Set release description
         run: |
           buildTime=$(date +%F-%H)
@@ -182,7 +197,8 @@ jobs:
           release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
           echo "release_desc=${release_desc}" >> "${GITHUB_ENV}"
 
-      - name: Build and push
+      - name: Build and push to Docker Hub
+        id: build
         uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.arch }}
@@ -199,7 +215,19 @@ jobs:
           provenance: false
           tags: |
             rainbond/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${{ matrix.component }}:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+
+      - name: Save image digest for Aliyun sync
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s\n' "$IMAGE_DIGEST" > "$RUNNER_TEMP/image-digest"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-digest-rbd-${{ matrix.component }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-digest
+          if-no-files-found: error
+          overwrite: true
 
   rainbond-operator:
     needs: rainbond-unit-test
@@ -227,14 +255,8 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-
-      - name: Build and push
+      - name: Build and push to Docker Hub
+        id: build
         uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.arch }}
@@ -245,7 +267,20 @@ jobs:
           provenance: false
           tags: |
             rainbond/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+
+      - name: Save image digest for Aliyun sync
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s\n' "$IMAGE_DIGEST" > "$RUNNER_TEMP/image-digest"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-digest-rainbond-operator-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-digest
+          if-no-files-found: error
+          overwrite: true
+
   rainbond-ui:
     needs: rainbond-unit-test
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
@@ -309,13 +344,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-
       - name: Set release description
         run: |
           buildTime=$(date +%F-%H)
@@ -323,7 +351,8 @@ jobs:
           release_desc="${{ env.VERSION }}-${git_commit}-${buildTime}"
           echo "release_desc=${release_desc}" >> "${GITHUB_ENV}"
 
-      - name: Build and push
+      - name: Build and push to Docker Hub
+        id: build
         uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.arch }}
@@ -342,14 +371,98 @@ jobs:
           provenance: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
+
+      - name: Save image digest for Aliyun sync
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s\n' "$IMAGE_DIGEST" > "$RUNNER_TEMP/image-digest"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-digest-rainbond-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-digest
+          if-no-files-found: error
+          overwrite: true
+
+  # Registry failures can now be rerun without recompiling any images.
+  sync-aliyun:
+    needs: [rainbond-unit-test, rainbond-region, rainbond-operator, rainbond-allinone]
+    if: >-
+      ${{ !cancelled() && needs.rainbond-unit-test.result == 'success' &&
+          (needs.rainbond-region.result == 'success' || needs.rainbond-region.result == 'skipped') &&
+          (needs.rainbond-operator.result == 'success' || needs.rainbond-operator.result == 'skipped') &&
+          (needs.rainbond-allinone.result == 'success' || needs.rainbond-allinone.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: release-v6
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.rainbond-unit-test.outputs.sync-matrix) }}
+    steps:
+      - name: Checkout workflow tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download image digest
+        uses: actions/download-artifact@v4
+        with:
+          name: release-digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/registry-sync
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        timeout-minutes: 3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Sync image to Aliyun by digest
+        timeout-minutes: 17
+        env:
+          IMAGE: ${{ matrix.image }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          digest=$(cat "$RUNNER_TEMP/registry-sync/image-digest")
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::Invalid image digest"; exit 1; }
+          tag="$VERSION"
+          if [[ "$IS_MULTI_ARCH" == "true" ]]; then
+            tag="${tag}-${ARCH}"
+          fi
+          source="docker.io/rainbond/${IMAGE}@${digest}"
+          target="registry.cn-hangzhou.aliyuncs.com/goodrain/${IMAGE}:${tag}"
+          echo "Syncing ${source} -> ${target}"
+          bash hack/release/retry.sh docker buildx imagetools create --prefer-index=false --tag "$target" "$source"
 
   multi-arch-manifest:
     runs-on: ubuntu-latest
-    needs: [rainbond-region, rainbond-operator, rainbond-ui, rainbond-allinone]
-    if: inputs.platforms == 'linux/amd64,linux/arm64'
+    needs: [rainbond-region, rainbond-operator, rainbond-ui, rainbond-allinone, sync-aliyun]
+    if: >-
+      ${{ !cancelled() && inputs.platforms == 'linux/amd64,linux/arm64' &&
+          needs.sync-aliyun.result == 'success' &&
+          (needs.rainbond-ui.result == 'success' || needs.rainbond-ui.result == 'skipped') }}
     environment: release-v6
     steps:
+      - name: Checkout workflow tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -367,6 +480,7 @@ jobs:
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
 
       - name: Create manifests
+        timeout-minutes: 20
         run: |
           VERSION="${{ env.VERSION }}"
           BUILD_WHO="${{ inputs.build-who }}"
@@ -375,11 +489,11 @@ jobs:
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "region" ]]; then
             for component in api chaos worker init-probe mq; do
               echo "Creating manifest for rbd-${component}..."
-              docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
+              bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
                 rainbond/rbd-${component}:${VERSION}-amd64 \
                 rainbond/rbd-${component}:${VERSION}-arm64
 
-              docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
+              bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
                 registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-amd64 \
                 registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-arm64
             done
@@ -388,11 +502,11 @@ jobs:
           # Operator
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "operator" ]]; then
             echo "Creating manifest for rainbond-operator..."
-            docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
+            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
               rainbond/rainbond-operator:${VERSION}-amd64 \
               rainbond/rainbond-operator:${VERSION}-arm64
 
-            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
+            bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-amd64 \
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-arm64
           fi
@@ -400,11 +514,11 @@ jobs:
           # Allinone (Console)
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
             echo "Creating manifest for rainbond..."
-            docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
+            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
               rainbond/rainbond:${VERSION}-amd64 \
               rainbond/rainbond:${VERSION}-arm64
 
-            docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
+            bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
               registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
           fi
@@ -412,7 +526,7 @@ jobs:
           # Rainbond UI（仅推 Docker Hub，故只合并该处的多架构 manifest）
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
             echo "Creating manifest for rainbond-ui..."
-            docker buildx imagetools create -t rainbond/rainbond-ui:${VERSION} \
+            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond-ui:${VERSION} \
               rainbond/rainbond-ui:${VERSION}-amd64 \
               rainbond/rainbond-ui:${VERSION}-arm64
           fi
