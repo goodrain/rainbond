@@ -177,6 +177,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
 		runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles := as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles()
+		runtimeExtensions = make(map[string]string, len(as.ExtensionSet)+1)
+		for key, value := range as.ExtensionSet {
+			runtimeExtensions[key] = value
+		}
+		runtimeExtensions["service_id"] = as.ServiceID
 		if as.VMRestoredRuntime != nil {
 			runtimeExtensions = vmRuntimeExtensionsForRestoredDisk(as.ExtensionSet)
 			runtimeEnvs = nil

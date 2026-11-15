@@ -107,18 +107,44 @@ func TestRestoreRendererCompleteSuccessPath(t *testing.T) {
 	if err := database.Create(&dbmodel.Tenants{UUID: "tenant", Name: "team", Namespace: "team"}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := database.Create(&dbmodel.TenantServices{TenantID: "tenant", ServiceID: "service", ServiceAlias: "vm", K8sComponentName: "vm", DeployVersion: "render-version", ExtendMethod: string(dbmodel.ServiceTypeVM), ContainerCPU: 2000, ContainerMemory: 2048}).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := database.Create(&dbmodel.VersionInfo{ServiceID: "service", BuildVersion: "render-version", ImageName: "example.invalid/base", DeliveredType: "image"}).Error; err != nil {
-		t.Fatal(err)
-	}
-	app, err := RenderVMForRestore(restoreRenderSQL{database: database}, "service")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if app.GetVirtualMachine() == nil {
-		t.Fatal("VM not rendered")
+	core := kubefake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rainbond-env", Namespace: "team", UID: "legacy-env"}})
+	for _, serviceID := range []string{"service", "another-service"} {
+		for _, row := range []interface{}{
+			&dbmodel.TenantServices{TenantID: "tenant", ServiceID: serviceID, ServiceAlias: serviceID, K8sComponentName: serviceID, DeployVersion: "render-version", ExtendMethod: string(dbmodel.ServiceTypeVM), ContainerCPU: 2000, ContainerMemory: 2048},
+			&dbmodel.VersionInfo{ServiceID: serviceID, BuildVersion: "render-version", ImageName: "example.invalid/base", DeliveredType: "image"},
+			&dbmodel.TenantServiceEnvVar{TenantID: "tenant", ServiceID: serviceID, AttrName: "EXAMPLE_SETTING", AttrValue: "same-value", Scope: "inner"},
+		} {
+			if err := database.Create(row).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+		app, err := RenderVMForRestore(restoreRenderSQL{database: database}, serviceID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if app.GetVirtualMachine() == nil {
+			t.Fatal("VM not rendered")
+		}
+		if len(app.VMStartupHints.ConfigMaps) != 1 {
+			t.Fatal("renderer did not identify the generated initialization disk")
+		}
+		published := 0
+		for _, cm := range app.GetConfigMaps() {
+			if cm.Name != app.VMStartupHints.ConfigMaps[0].Name {
+				continue
+			}
+			if cm.Name == "rainbond-env" {
+				t.Fatal("new VM reuses a shared initialization disk and conflicts with existing VMs")
+			}
+			cm.Namespace = "team"
+			if _, err := core.CoreV1().ConfigMaps("team").Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
+				t.Fatalf("VM %s cannot publish its own initialization disk: %v", serviceID, err)
+			}
+			published++
+		}
+		if published != 1 {
+			t.Fatalf("expected one independently owned initialization disk, got %d", published)
+		}
 	}
 }
 
