@@ -465,24 +465,11 @@ func TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails(t *testing.T)
 	mockVMList := kubecli.NewMockVirtualMachineInterface(ctrl)
 	mockVMUpdate := kubecli.NewMockVirtualMachineInterface(ctrl)
 
+	observed := &kubevirtv1.VirtualMachine{ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"}, Spec: kubevirtv1.VirtualMachineSpec{RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways), Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{}}, Status: kubevirtv1.VirtualMachineStatus{PrintableStatus: kubevirtv1.VirtualMachineStatusProvisioning}}
+	attachRawRuntimeObservation(t, mockClient, observed)
 	gomock.InOrder(
 		mockClient.EXPECT().VirtualMachine("").Return(mockVMList),
-		mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
-			Items: []kubevirtv1.VirtualMachine{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "demo-vm",
-						Namespace: "demo-ns",
-					},
-					Spec: kubevirtv1.VirtualMachineSpec{
-						RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
-					},
-					Status: kubevirtv1.VirtualMachineStatus{
-						PrintableStatus: kubevirtv1.VirtualMachineStatusProvisioning,
-					},
-				},
-			},
-		}, nil),
+		mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{Items: []kubevirtv1.VirtualMachine{*observed}}, nil),
 		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),
 		mockVMUpdate.EXPECT().Stop(gomock.Any(), "demo-vm", gomock.Any()).Return(errors.New("stop not allowed while provisioning")),
 		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),
@@ -514,24 +501,11 @@ func TestStopVMFallsBackToHaltingDataVolumeErrorVMWhenDirectStopFails(t *testing
 	mockVMList := kubecli.NewMockVirtualMachineInterface(ctrl)
 	mockVMUpdate := kubecli.NewMockVirtualMachineInterface(ctrl)
 
+	observed := &kubevirtv1.VirtualMachine{ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: "demo-ns"}, Spec: kubevirtv1.VirtualMachineSpec{RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways), Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{}}, Status: kubevirtv1.VirtualMachineStatus{PrintableStatus: kubevirtv1.VirtualMachineStatusDataVolumeError}}
+	attachRawRuntimeObservation(t, mockClient, observed)
 	gomock.InOrder(
 		mockClient.EXPECT().VirtualMachine("").Return(mockVMList),
-		mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{
-			Items: []kubevirtv1.VirtualMachine{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "demo-vm",
-						Namespace: "demo-ns",
-					},
-					Spec: kubevirtv1.VirtualMachineSpec{
-						RunStrategy: pointerToRunStrategy(kubevirtv1.RunStrategyAlways),
-					},
-					Status: kubevirtv1.VirtualMachineStatus{
-						PrintableStatus: kubevirtv1.VirtualMachineStatusDataVolumeError,
-					},
-				},
-			},
-		}, nil),
+		mockVMList.EXPECT().List(gomock.Any(), metav1.ListOptions{LabelSelector: "service_id=service-1"}).Return(&kubevirtv1.VirtualMachineList{Items: []kubevirtv1.VirtualMachine{*observed}}, nil),
 		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),
 		mockVMUpdate.EXPECT().Stop(gomock.Any(), "demo-vm", gomock.Any()).Return(errors.New("stop not allowed while datavolume error")),
 		mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVMUpdate),

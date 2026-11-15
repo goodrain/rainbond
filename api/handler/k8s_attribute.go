@@ -326,7 +326,7 @@ func (s *ServiceAction) syncVMRuntimeDeviceConfig(vm *kubevirtv1.VirtualMachine,
 	if !changed {
 		return nil
 	}
-	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+	_, err := vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), vm, updatedVM)
 	return err
 }
 
@@ -462,7 +462,7 @@ func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1
 		if !changed {
 			return nil
 		}
-		_, err = s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+		_, err = vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), currentVM, updatedVM)
 		return err
 	})
 }

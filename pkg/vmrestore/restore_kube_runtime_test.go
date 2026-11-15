@@ -198,12 +198,17 @@ func TestCommittedRuntimeSyncAndOrdinaryStopStartKeepSelectedA(t *testing.T) {
 	}
 	u, _ := r.Dynamic.Resource(restoreVMGVR).Namespace(f.scope.Namespace).Get(context.Background(), f.intent.CurrentVM.Name, metav1.GetOptions{})
 	_ = unstructured.SetNestedField(u.Object, "Halted", "spec", "runStrategy")
+	_ = unstructured.SetNestedField(u.Object, "Terminate", "spec", "template", "spec", "domain", "rebootPolicy")
 	_ = unstructured.SetNestedSlice(u.Object, []interface{}{map[string]interface{}{"name": "platform-cloudinit", "cloudInitNoCloud": map[string]interface{}{"userData": "B_INIT_SENTINEL"}}, map[string]interface{}{"name": "user-advanced", "secret": map[string]interface{}{"secretName": "advanced-secret"}}}, "spec", "template", "spec", "volumes")
 	_, _ = r.Dynamic.Resource(restoreVMGVR).Namespace(f.scope.Namespace).Update(context.Background(), u, metav1.UpdateOptions{})
 	if _, err := e.RuntimeStep(context.Background(), f.scope, f.expect.OperationID, "sync-halted"); !errors.Is(err, ErrRestorePending) {
 		t.Fatal("first selected sync", err)
 	}
 	u, _ = r.Dynamic.Resource(restoreVMGVR).Namespace(f.scope.Namespace).Get(context.Background(), f.intent.CurrentVM.Name, metav1.GetOptions{})
+	if reboot, _, _ := unstructured.NestedString(u.Object, "spec", "template", "spec", "domain", "rebootPolicy"); reboot != "Terminate" {
+		t.Fatal("sync-halted discarded the target-only domain policy")
+	}
+
 	_ = unstructured.SetNestedField(u.Object, int64(3), "status", "observedGeneration")
 	_, _ = r.Dynamic.Resource(restoreVMGVR).Namespace(f.scope.Namespace).Update(context.Background(), u, metav1.UpdateOptions{})
 	if _, err := e.RuntimeStep(context.Background(), f.scope, f.expect.OperationID, "sync-halted"); err != nil {

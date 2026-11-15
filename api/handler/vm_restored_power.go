@@ -127,9 +127,9 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	if err != nil || current.State.Fence != nil || current.State.Admission == nil || current.State.Admission.Token != op || current.State.BindingGeneration != selection.BindingGeneration {
 		return abort(vmrestore.ErrConflict)
 	}
-	object, err := vmrestore.EncodeRuntimeVM(projected)
+	object, err := vmrestore.PreserveRuntimeVM(&objects.Items[0], &vm, projected)
 	if err != nil {
-		return abort(vmrestore.ErrCorrupt)
+		return abort(err)
 	}
 	if action == "restart" {
 		err = s.kubevirtClient.VirtualMachine(scope.Namespace).Restart(ctx, vm.Name, &kv.RestartOptions{})

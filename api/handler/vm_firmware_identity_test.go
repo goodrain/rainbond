@@ -34,6 +34,7 @@ func TestSyncVirtualMachineSpecPreservesExistingFirmwareIdentity(t *testing.T) {
 	virtualMachines := kubecli.NewMockVirtualMachineInterface(ctrl)
 	existing := stockReviewVM("99999999-9999-4999-8999-999999999999", "bios", true, 1)
 	desired := stockReviewVM("", "efi", true, 2)
+	attachRawRuntimeObservation(t, client, existing)
 	client.EXPECT().VirtualMachine(existing.Namespace).Return(virtualMachines).Times(2)
 	virtualMachines.EXPECT().Get(gomock.Any(), existing.Name, gomock.Any()).Return(existing, nil)
 	virtualMachines.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
