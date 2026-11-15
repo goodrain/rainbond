@@ -28,6 +28,9 @@ jobs:
       - name: Check test manifest
         run: make test-manifest-check
 
+      - name: Test release automation
+        run: python3 -m unittest discover -s hack/release -p '*_test.py'
+
   rainbond:
     needs: unit-test
     runs-on: ubuntu-latest
