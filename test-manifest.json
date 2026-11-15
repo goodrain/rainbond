@@ -12717,6 +12717,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.render-success-integration",
+      "title": "Render sealed source and restored target through real conversion",
+      "title_zh": "\u901a\u8fc7\u771f\u5b9e\u8f6c\u6362\u6e32\u67d3\u5c01\u5b58\u6765\u6e90\u4e0e\u6062\u590d\u76ee\u6807",
+      "interface_type": "workflow",
+      "interface": "RenderVMForRestore",
+      "code_paths": [
+        "worker/appm/conversion/vm_restore_render.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_restore_render_success_test.go"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.resource-execution",
       "title": "Fence sparse restore resources and retain exact UID cleanup evidence",
       "title_zh": "Fence sparse restore resources and retain exact UID cleanup evidence",

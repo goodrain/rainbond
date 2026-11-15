@@ -641,6 +641,7 @@
 | rainbond.vm-restore.read-only-ledger-view | 不加写锁地验证账本视图 | active | regression | vmrestore.Store.ReadOnly and Resolver.ReadBindingView | pkg/vmrestore/store_readonly_test.go |
 | rainbond.vm-restore.read-only-production-metadata | 不写 SQL 地读取生产恢复与快照元数据 | active | regression | RestoreEngine.Control/Status and SnapshotEngine.Get | pkg/vmrestore/production_metadata_readonly_test.go |
 | rainbond.vm-restore.readonly-rollback-render | Reject missing rollback dependencies without mutating metadata or gateways | active | regression | RenderVMForRestore | worker/appm/conversion/vm_restore_render_test.go |
+| rainbond.vm-restore.render-success-integration | 通过真实转换渲染封存来源与恢复目标 | active | integration | RenderVMForRestore | worker/appm/conversion/vm_restore_render_success_test.go |
 | rainbond.vm-restore.resource-execution | Fence sparse restore resources and retain exact UID cleanup evidence | active | regression | RestoreResourceExecutor.Ensure | pkg/vmrestore/restore_resources_test.go<br>pkg/vmrestore/restore_resource_safety_test.go |
 | rainbond.vm-restore.resource-repair-safety | Serialize exact create ownership and restore authoritative evidence on retry | active | regression | RestoreResourceExecutor.Ensure | pkg/vmrestore/restore_resource_repair_test.go<br>pkg/vmrestore/restore_resource_independent_regression_test.go |
 | rainbond.vm-restore.result-capture | Persist bounded exact Job Pod image and full disk result evidence | active | regression | RestoreCapture.Capture | pkg/vmrestore/restore_job_capture_test.go<br>pkg/vmrestore/restore_job_capture_boundaries_test.go<br>pkg/vmrestore/restore_job_capture_transport_test.go |
@@ -7136,6 +7137,16 @@
 - 业务入口: `RenderVMForRestore`
 - 代码路径: `worker/appm/conversion/vm_restore_render.go`, `worker/appm/conversion/version.go`
 - 测试路径: `worker/appm/conversion/vm_restore_render_test.go`
+
+### 通过真实转换渲染封存来源与恢复目标
+
+- Capability ID: `rainbond.vm-restore.render-success-integration`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `RenderVMForRestore`
+- 代码路径: `worker/appm/conversion/vm_restore_render.go`, `worker/appm/conversion/version.go`
+- 测试路径: `worker/appm/conversion/vm_restore_render_success_test.go`
 
 ### Fence sparse restore resources and retain exact UID cleanup evidence
 
