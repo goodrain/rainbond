@@ -570,6 +570,9 @@
 | rainbond.vm-build.safe-url-filename | Decode VM URL basenames without permitting path or Dockerfile injection | active | regression | builder/sourceutil.VMImageFileNameFromURL | builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest |
 | rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
+| rainbond.vm-delivery.capture-admission | VM delivery capture serializes power and storage mutations | active | regression | pkg/vmrestore.Store.ClaimDeliveryCapture | pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureOwnsMutationUntilReleased<br>pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureRejectsInvalidIdentityAndUnavailableStore |
+| rainbond.vm-delivery.current-system-disk | VM delivery captures the installed system disk and cleans readers before release | active | integration | api/handler.VMDeliveryCaptureCommand | api/handler/vm_delivery_test.go::TestVMDeliverySelectsInstalledDiskAndRejectsAdditionalDisks<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryCaptureIsIdempotentAndReleasesOnlyAfterReadersGone<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsReplacedPVCAndCanCleanRejectedAdmission<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryFacadeRejectsForeignTenantAndReturnsOnlyOwnedProgress<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsExternalDiskReaders<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryInvalidSourcesNeverPublish<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryBuildRequiresReadyCompressedExport<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsAlteredExportOwnership<br>api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryWaitsForExportDeletionBeforeReleasingAdmission |
+| rainbond.vm-delivery.isolated-image | VM delivery artifacts preserve compressed disks and never mutate source builds | active | regression | builder/exector.ImageShareItem.vmDeliveryBuild | builder/exector/vm_delivery_test.go::TestVMDeliveryBuildNeverReusesSourceVersionOrWritesIt<br>builder/exector/vm_delivery_test.go::TestVMDeliveryDownloadPreservesCompressedHTTPBytes<br>builder/exector/vm_delivery_test.go::TestVMDeliveryCopyChecksGzipIntegrityAndFreeSpace |
 | rainbond.vm-disk.active-binding-consumers | 使用权威活动虚拟机磁盘身份执行变更与重试 | active | integration | ServiceAction.VolumnVar and UpdVolume | api/handler/service_vm_bindings_consumer_test.go |
 | rainbond.vm-disk.active-binding-repair | 保护部分回收、并发磁盘重试与虚拟机配置创建 | active | regression | ServiceAction.VolumnVar and UpdVolume | api/handler/service_vm_bindings_repair_test.go<br>api/handler/service_vm_bindings_repair_behavior_test.go |
 | rainbond.vm-disk.active-binding-retry-repair | 重试预检拒绝与已提交虚拟机配置同步 | active | regression | ServiceAction.VolumnVar and UpdVolume retry ownership | api/handler/service_vm_bindings_repair_review_test.go<br>api/handler/service_vm_bindings_retry_behavior_test.go |
@@ -6430,6 +6433,36 @@
 - 业务入口: `worker/appm/volume.ConfigFileVolume.CreateVolume`
 - 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/volume/volume.go`
 - 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk`
+
+### VM delivery capture serializes power and storage mutations
+
+- Capability ID: `rainbond.vm-delivery.capture-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `pkg/vmrestore.Store.ClaimDeliveryCapture`
+- 代码路径: `pkg/vmrestore/delivery_admission.go`
+- 测试路径: `pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureOwnsMutationUntilReleased`, `pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureRejectsInvalidIdentityAndUnavailableStore`
+
+### VM delivery captures the installed system disk and cleans readers before release
+
+- Capability ID: `rainbond.vm-delivery.current-system-disk`
+- 状态: `active`
+- 测试类型: `integration`
+- 接口类型: `workflow`
+- 业务入口: `api/handler.VMDeliveryCaptureCommand`
+- 代码路径: `api/handler/vm_delivery.go`, `api/controller/vm_delivery.go`
+- 测试路径: `api/handler/vm_delivery_test.go::TestVMDeliverySelectsInstalledDiskAndRejectsAdditionalDisks`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryCaptureIsIdempotentAndReleasesOnlyAfterReadersGone`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsReplacedPVCAndCanCleanRejectedAdmission`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryFacadeRejectsForeignTenantAndReturnsOnlyOwnedProgress`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsExternalDiskReaders`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryInvalidSourcesNeverPublish`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryBuildRequiresReadyCompressedExport`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryRejectsAlteredExportOwnership`, `api/handler/vm_delivery_lifecycle_test.go::TestVMDeliveryWaitsForExportDeletionBeforeReleasingAdmission`
+
+### VM delivery artifacts preserve compressed disks and never mutate source builds
+
+- Capability ID: `rainbond.vm-delivery.isolated-image`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `builder/exector.ImageShareItem.vmDeliveryBuild`
+- 代码路径: `builder/exector/share_image.go`, `builder/exector/build_from_vm.go`, `builder/exector/vm_delivery_copy.go`
+- 测试路径: `builder/exector/vm_delivery_test.go::TestVMDeliveryBuildNeverReusesSourceVersionOrWritesIt`, `builder/exector/vm_delivery_test.go::TestVMDeliveryDownloadPreservesCompressedHTTPBytes`, `builder/exector/vm_delivery_test.go::TestVMDeliveryCopyChecksGzipIntegrityAndFreeSpace`
 
 ### 使用权威活动虚拟机磁盘身份执行变更与重试
 

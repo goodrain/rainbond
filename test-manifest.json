@@ -10969,6 +10969,107 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-delivery.capture-admission",
+      "title": "VM delivery capture serializes power and storage mutations",
+      "title_zh": "VM delivery capture serializes power and storage mutations",
+      "interface_type": "workflow",
+      "interface": "pkg/vmrestore.Store.ClaimDeliveryCapture",
+      "code_paths": [
+        "pkg/vmrestore/delivery_admission.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/delivery_admission_test.go",
+          "selector": "TestDeliveryCaptureOwnsMutationUntilReleased"
+        },
+        {
+          "path": "pkg/vmrestore/delivery_admission_test.go",
+          "selector": "TestDeliveryCaptureRejectsInvalidIdentityAndUnavailableStore"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-delivery.current-system-disk",
+      "title": "VM delivery captures the installed system disk and cleans readers before release",
+      "title_zh": "VM delivery captures the installed system disk and cleans readers before release",
+      "interface_type": "workflow",
+      "interface": "api/handler.VMDeliveryCaptureCommand",
+      "code_paths": [
+        "api/handler/vm_delivery.go",
+        "api/controller/vm_delivery.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_delivery_test.go",
+          "selector": "TestVMDeliverySelectsInstalledDiskAndRejectsAdditionalDisks"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryCaptureIsIdempotentAndReleasesOnlyAfterReadersGone"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryRejectsReplacedPVCAndCanCleanRejectedAdmission"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryFacadeRejectsForeignTenantAndReturnsOnlyOwnedProgress"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryRejectsExternalDiskReaders"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryInvalidSourcesNeverPublish"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryBuildRequiresReadyCompressedExport"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryRejectsAlteredExportOwnership"
+        },
+        {
+          "path": "api/handler/vm_delivery_lifecycle_test.go",
+          "selector": "TestVMDeliveryWaitsForExportDeletionBeforeReleasingAdmission"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-delivery.isolated-image",
+      "title": "VM delivery artifacts preserve compressed disks and never mutate source builds",
+      "title_zh": "VM delivery artifacts preserve compressed disks and never mutate source builds",
+      "interface_type": "workflow",
+      "interface": "builder/exector.ImageShareItem.vmDeliveryBuild",
+      "code_paths": [
+        "builder/exector/share_image.go",
+        "builder/exector/build_from_vm.go",
+        "builder/exector/vm_delivery_copy.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/vm_delivery_test.go",
+          "selector": "TestVMDeliveryBuildNeverReusesSourceVersionOrWritesIt"
+        },
+        {
+          "path": "builder/exector/vm_delivery_test.go",
+          "selector": "TestVMDeliveryDownloadPreservesCompressedHTTPBytes"
+        },
+        {
+          "path": "builder/exector/vm_delivery_test.go",
+          "selector": "TestVMDeliveryCopyChecksGzipIntegrityAndFreeSpace"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-disk.active-binding-consumers",
       "title": "Use authoritative active VM disk identities for mutation and retry",
       "title_zh": "\u4f7f\u7528\u6743\u5a01\u6d3b\u52a8\u865a\u62df\u673a\u78c1\u76d8\u8eab\u4efd\u6267\u884c\u53d8\u66f4\u4e0e\u91cd\u8bd5",

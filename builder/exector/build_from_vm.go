@@ -1,6 +1,7 @@
 package exector
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -77,6 +78,8 @@ COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 
 // VMBuildItem -
 type VMBuildItem struct {
+	// Delivery artifacts have their own identity and never modify runtime builds.
+	SkipVersionStore bool `json:"-"`
 	cleanupAdmission *nativeBuildAdmission
 	Logger           event.Logger `json:"logger"`
 	Arch             string       `json:"arch"`
@@ -210,6 +213,9 @@ func (v *VMBuildItem) localImageName() string {
 }
 
 func (v *VMBuildItem) storeVersionInfo(imageName string) error {
+	if v.SkipVersionStore {
+		return nil
+	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(v.DeployVersion, v.ServiceID)
 	if err != nil {
 		return err
@@ -322,12 +328,16 @@ func (v *VMBuildItem) RunVMBuild() error {
 		return v.vmBuild(v.VMImageSource)
 	}
 	vmImageSource := vmRemoteImageSourceDir(v.ServiceID, v.EventID)
+	if v.SkipVersionStore {
+		defer os.RemoveAll(vmImageSource)
+	}
 	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
 	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger, map[string]interface{}{
-		"service_id":      v.ServiceID,
-		"event_id":        v.EventID,
-		"vm_image_source": v.VMImageSource,
-		"target_dir":      vmImageSource,
+		"delivery_capture": v.SkipVersionStore,
+		"service_id":       v.ServiceID,
+		"event_id":         v.EventID,
+		"vm_image_source":  v.VMImageSource,
+		"target_dir":       vmImageSource,
 	})
 	if err != nil {
 		return err
@@ -357,6 +367,14 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 			"url":        url,
 			"target_dir": downPath,
 		}))
+	}
+	if metadata["delivery_capture"] == true {
+		ctx, cancel := context.WithTimeout(req.Context(), 90*time.Minute)
+		defer cancel()
+		req = req.WithContext(ctx)
+		// The URL names a gzip artifact. Preserve those bytes even if the export
+		// server also advertises HTTP Content-Encoding: gzip.
+		req.Header.Set("Accept-Encoding", "identity")
 	}
 
 	// 添加请求头，例如设置 User-Agent
@@ -421,7 +439,12 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 		Logger.Info("image size is unknown, downloading will take some time, please be patient.", map[string]string{"step": "builder-exector"})
 	}
 
-	written, err := io.Copy(f, myDownloader)
+	var written int64
+	if metadata["delivery_capture"] == true {
+		written, err = copyVMDeliveryDisk(f, myDownloader, func() (uint64, error) { return vmDeliveryAvailableSpace(dir) })
+	} else {
+		written, err = io.Copy(f, myDownloader)
+	}
 	if err != nil {
 		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})

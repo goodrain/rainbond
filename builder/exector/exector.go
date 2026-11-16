@@ -848,6 +848,17 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 			logrus.Error("Image publication coordination outcome was not persisted")
 		}
 	}()
+	if i.ShareInfo.ImageInfo.VMCaptureID != "" {
+		select {
+		case vmDeliveryBuildSlots <- struct{}{}:
+			defer func() { <-vmDeliveryBuildSlots }()
+		case <-time.After(10 * time.Minute):
+			i.Logger.Error("VM delivery image preparation is busy; retry this task", map[string]string{"step": "callback", "status": "failure"})
+			_ = i.UpdateShareStatus("failure")
+			confirmed = true // No image I/O was started; release the queued producer.
+			return
+		}
+	}
 	status, err = executeImageShareOnce(i.ShareService)
 	if err != nil {
 		logrus.Errorf("image share error: %s", err.Error())
