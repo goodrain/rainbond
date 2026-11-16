@@ -395,7 +395,7 @@ jobs:
           (needs.rainbond-allinone.result == 'success' || needs.rainbond-allinone.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: release-v6
-    timeout-minutes: 25
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -412,9 +412,11 @@ jobs:
           name: release-digest-${{ matrix.image }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/registry-sync
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        timeout-minutes: 3
+      - name: Install Skopeo
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -432,7 +434,7 @@ jobs:
           password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
 
       - name: Sync image to Aliyun by digest
-        timeout-minutes: 17
+        timeout-minutes: 33
         env:
           IMAGE: ${{ matrix.image }}
           ARCH: ${{ matrix.arch }}
@@ -447,7 +449,7 @@ jobs:
           source="docker.io/rainbond/${IMAGE}@${digest}"
           target="registry.cn-hangzhou.aliyuncs.com/goodrain/${IMAGE}:${tag}"
           echo "Syncing ${source} -> ${target}"
-          bash hack/release/retry.sh docker buildx imagetools create --prefer-index=false --tag "$target" "$source"
+          bash hack/release/sync-image.sh "$source" "$target"
 
   multi-arch-manifest:
     runs-on: ubuntu-latest
@@ -466,6 +468,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Install Skopeo
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -481,52 +489,38 @@ jobs:
 
       - name: Create manifests
         timeout-minutes: 20
+        env:
+          BUILD_WHO: ${{ inputs.build-who }}
         run: |
-          VERSION="${{ env.VERSION }}"
-          BUILD_WHO="${{ inputs.build-who }}"
+          set -euo pipefail
+          publish_manifest() {
+            local image="$1"
+            local source="docker.io/rainbond/${image}:${VERSION}"
+            echo "Creating manifest for ${image}..."
+            bash hack/release/retry.sh docker buildx imagetools create -t "$source" \
+              "${source}-amd64" "${source}-arm64"
+            if [[ "$image" != "rainbond-ui" ]]; then
+              # Each child digest was already copied by sync-aliyun. Transfer only
+              # the index, using the same GET authentication path as layer sync.
+              bash hack/release/retry.sh skopeo inspect --raw \
+                --authfile "${DOCKER_CONFIG:-$HOME/.docker}/config.json" \
+                "docker://${source}" > "$RUNNER_TEMP/manifest.json"
+              local digest
+              digest="sha256:$(sha256sum "$RUNNER_TEMP/manifest.json" | cut -d ' ' -f 1)"
+              bash hack/release/sync-image.sh --index-only "docker.io/rainbond/${image}@${digest}" \
+                "registry.cn-hangzhou.aliyuncs.com/goodrain/${image}:${VERSION}"
+            fi
+          }
 
-          # Region components
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "region" ]]; then
             for component in api chaos worker init-probe mq; do
-              echo "Creating manifest for rbd-${component}..."
-              bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rbd-${component}:${VERSION} \
-                rainbond/rbd-${component}:${VERSION}-amd64 \
-                rainbond/rbd-${component}:${VERSION}-arm64
-
-              bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION} \
-                registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-amd64 \
-                registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-${component}:${VERSION}-arm64
+              publish_manifest "rbd-${component}"
             done
           fi
-
-          # Operator
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "operator" ]]; then
-            echo "Creating manifest for rainbond-operator..."
-            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond-operator:${VERSION} \
-              rainbond/rainbond-operator:${VERSION}-amd64 \
-              rainbond/rainbond-operator:${VERSION}-arm64
-
-            bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION} \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-amd64 \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator:${VERSION}-arm64
+            publish_manifest rainbond-operator
           fi
-
-          # Allinone (Console)
           if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
-            echo "Creating manifest for rainbond..."
-            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond:${VERSION} \
-              rainbond/rainbond:${VERSION}-amd64 \
-              rainbond/rainbond:${VERSION}-arm64
-
-            bash hack/release/retry.sh docker buildx imagetools create -t registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION} \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-amd64 \
-              registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-arm64
-          fi
-
-          # Rainbond UI（仅推 Docker Hub，故只合并该处的多架构 manifest）
-          if [[ "$BUILD_WHO" == "all" || "$BUILD_WHO" == "console" ]]; then
-            echo "Creating manifest for rainbond-ui..."
-            bash hack/release/retry.sh docker buildx imagetools create -t rainbond/rainbond-ui:${VERSION} \
-              rainbond/rainbond-ui:${VERSION}-amd64 \
-              rainbond/rainbond-ui:${VERSION}-arm64
+            publish_manifest rainbond
+            publish_manifest rainbond-ui
           fi

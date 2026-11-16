@@ -8,7 +8,7 @@ for attempt in 1 2 3; do
   if (( status == 0 )); then
     exit 0
   fi
-  echo "::warning::Registry command failed (exit ${status}, attempt ${attempt}/3)"
+  echo "::warning::Registry command failed (exit ${status}, attempt ${attempt}/3)" >&2
   if (( attempt == 3 )); then
     exit "$status"
   fi

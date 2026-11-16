@@ -54,6 +54,7 @@ class RetryTest(unittest.TestCase):
         result, attempts, _, _ = self.run_command(failures=2)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(attempts, 3)
+        self.assertEqual(result.stdout, "")
 
     def test_exhausted_retries_fail_the_job(self):
         result, attempts, _, _ = self.run_command(failures=5)
