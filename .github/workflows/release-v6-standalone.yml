@@ -18,9 +18,21 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
-      
+  # release-publish calls this after every release, so the standalone image ships with it.
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      platforms:
+        required: true
+        type: string
+
 env:
-  VERSION: ${{ github.event.inputs.version }}
+  VERSION: ${{ inputs.version }}
   
 jobs:
   standalone:
@@ -31,7 +43,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: goodrain/rainbond-console
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ inputs.branch }}
       
       # - name: Free Disk Space (Ubuntu)
       #   uses: jlumbroso/free-disk-space@main
@@ -56,7 +68,7 @@ jobs:
 
       - name: Pull Arm64 Docker image
         run: |
-          if [[ "${{ github.event.inputs.platforms }}" == "linux/amd64,linux/arm64" ]]; then
+          if [[ "${{ inputs.platforms }}" == "linux/amd64,linux/arm64" ]]; then
             ARCH=arm64 VERSION=${{ env.VERSION }} sh standalone/images-package.sh
           fi
       
@@ -76,7 +88,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: ${{ inputs.platforms }}
           build-args: |
             VERSION=${{ env.VERSION }}
           context: .

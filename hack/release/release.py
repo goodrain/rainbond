@@ -57,6 +57,8 @@ RELEASE_IMAGES = [
     "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond-operator",
     "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond",
 ]
+# rainbond-ui only exists to build the console image; nothing installs it.
+ESGZ_IMAGES = [image for image in RELEASE_IMAGES if not image.endswith("/rainbond-ui")]
 REQUIRED_ARCHES = {"amd64", "arm64"}
 
 # Components the console upgrades in place, and the repository each one is
@@ -357,12 +359,13 @@ def cmd_check_tag(args):
 
 
 def cmd_verify_images(args):
-    problems = verify_images(args.tag)
+    images = ESGZ_IMAGES if args.esgz else RELEASE_IMAGES
+    problems = verify_images(args.tag, images=images)
     for p in problems:
         print(f"::error::{p}")
     if problems:
         raise ReleaseError(f"{len(problems)} release image(s) are not multi-arch")
-    print(f"all {len(RELEASE_IMAGES)} images for {args.tag} have {', '.join(sorted(REQUIRED_ARCHES))}")
+    print(f"all {len(images)} images for {args.tag} have {', '.join(sorted(REQUIRED_ARCHES))}")
 
 
 def cmd_upgrade_versions(args):
@@ -457,6 +460,7 @@ def main(argv=None):
 
     s = sub.add_parser("verify-images")
     s.add_argument("tag")
+    s.add_argument("--esgz", action="store_true", help="check the eStargz images used by the standalone chart")
     s.set_defaults(func=cmd_verify_images)
 
     s = sub.add_parser("upgrade-versions")

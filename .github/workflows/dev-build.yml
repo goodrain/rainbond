@@ -273,8 +273,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha,scope=ui
-          cache-to: type=gha,mode=max,scope=ui
+          cache-from: type=gha,version=2,scope=rainbond-ui-amd64
+          cache-to: type=gha,version=2,mode=max,scope=rainbond-ui-amd64,ignore-error=true,timeout=5m
           provenance: false
           tags: |
             rainbond/rainbond-ui:${{ env.VERSION }}
@@ -346,8 +346,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha,scope=console
-          cache-to: type=gha,mode=max,scope=console
+          cache-from: type=gha,version=2,scope=rainbond-console-amd64
+          cache-to: type=gha,version=2,mode=max,scope=rainbond-console-amd64,ignore-error=true,timeout=5m
           provenance: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}
