@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/vmstorage"
+
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -290,7 +292,7 @@ func SnapshotSafeConfig(vm *kubevirtv1.VirtualMachine, disks []SnapshotDisk) (Sn
 		volumes[volume.Name] = volume
 		identity, ok := logical[volume.Name]
 		if !ok {
-			if !snapshotInitializationVolume(volume.VolumeSource) {
+			if !snapshotInitializationVolume(volume.VolumeSource) && !snapshotReadOnlyInstallationMedia(vm, volume) {
 				return config, ErrSnapshotIncomplete
 			}
 			continue
@@ -316,7 +318,7 @@ func SnapshotSafeConfig(vm *kubevirtv1.VirtualMachine, disks []SnapshotDisk) (Sn
 	for _, disk := range domain.Devices.Disks {
 		identity, ok := logical[disk.Name]
 		if !ok {
-			if !snapshotInitializationVolume(volumes[disk.Name].VolumeSource) {
+			if !snapshotInitializationVolume(volumes[disk.Name].VolumeSource) && !snapshotReadOnlyInstallationMedia(vm, volumes[disk.Name]) {
 				return config, ErrSnapshotIncomplete
 			}
 			continue
@@ -372,4 +374,23 @@ func SnapshotSafeConfig(vm *kubevirtv1.VirtualMachine, disks []SnapshotDisk) (Sn
 	}
 	sort.Slice(config.DiskLayout, func(i, j int) bool { return config.DiskLayout[i].VolumeID < config.DiskLayout[j].VolumeID })
 	return config, nil
+}
+
+// Only an immutable container-backed CD-ROM may be excluded with installation media.
+// Keep this aligned with the current-VM capability inspection; mixed sources and
+// unmanaged writable container disks still require snapshot coverage.
+func snapshotReadOnlyInstallationMedia(vm *kubevirtv1.VirtualMachine, volume kubevirtv1.Volume) bool {
+	if volume.ContainerDisk == nil || volume.ContainerDisk.Image == "" || volume.VolumeSource != (kubevirtv1.VolumeSource{ContainerDisk: volume.ContainerDisk}) || !vmstorage.ReadOnlyInstallationMedia(vm, volume) {
+		return false
+	}
+	count := 0
+	for _, device := range vm.Spec.Template.Spec.Domain.Devices.Disks {
+		if device.Name == volume.Name {
+			count++
+			if device.CDRom == nil || device.Disk != nil || device.LUN != nil || device.CDRom.ReadOnly != nil && !*device.CDRom.ReadOnly {
+				return false
+			}
+		}
+	}
+	return count == 1
 }

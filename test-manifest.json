@@ -13807,6 +13807,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-snapshot.readonly-installation-media",
+      "title": "Snapshot read-only installation media without omitting writable disks",
+      "title_zh": "Snapshot read-only installation media without omitting writable disks",
+      "interface_type": "package_function",
+      "interface": "pkg/vmrestore.SnapshotSafeConfig",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_types.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_installation_media_test.go",
+          "selector": "TestSnapshotWithReadOnlyInstallationMediaKeepsWritableCoverage"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-snapshot.safe-metadata-projection",
       "title": "VM snapshot safe metadata and complete disk coverage",
       "title_zh": "\u865a\u62df\u673a\u5feb\u7167\u5b89\u5168\u5143\u6570\u636e\u4e0e\u5b8c\u6574\u76d8\u8986\u76d6",
