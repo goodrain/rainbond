@@ -283,6 +283,7 @@ func (r *Resolver) volumeReferences(ctx context.Context, scope Scope, resolved R
 		return summary, err
 	}
 	ownInstances := map[string]bool{}
+	ownHotplugPods := map[string]string{}
 	for _, instance := range instances {
 		own := false
 		for _, owner := range instance.GetOwnerReferences() {
@@ -301,10 +302,31 @@ func (r *Resolver) volumeReferences(ctx context.Context, scope Scope, resolved R
 				}
 			}
 		}
+		if own && resolved.ActivePVC != nil {
+			for _, value := range sliceAt(instance.Object, "status", "volumeStatus") {
+				status := asMap(value)
+				name := textAt(status, "hotplugVolume", "attachPodName")
+				uid := textAt(status, "hotplugVolume", "attachPodUID")
+				if textAt(status, "name") == resolved.CanonicalName && textAt(status, "persistentVolumeClaimInfo", "claimName") == resolved.ActivePVC.Name && validName(name) && validUID(uid) {
+					ownHotplugPods[uid] = name
+				}
+			}
+		}
 	}
 	pods, err := r.core.CoreV1().Pods(scope.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return summary, ErrReferenceUnavailable
+	}
+	ownLaunchers := map[string]string{}
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
+		for _, owner := range pod.OwnerReferences {
+			if owner.Kind == "VirtualMachineInstance" && ownInstances[string(owner.UID)] {
+				ownLaunchers[string(pod.UID)] = pod.Name
+			}
+		}
 	}
 	for _, pod := range pods.Items {
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
@@ -313,6 +335,12 @@ func (r *Resolver) volumeReferences(ctx context.Context, scope Scope, resolved R
 		own := false
 		for _, owner := range pod.OwnerReferences {
 			if owner.Kind == "VirtualMachineInstance" && ownInstances[string(owner.UID)] {
+				own = true
+			}
+			// Hotplug disk Pods are owned by virt-launcher, not directly by
+			// the VMI. Require both the exact live owner and VMI observation.
+			if owner.Kind == "Pod" && owner.APIVersion == "v1" && ownLaunchers[string(owner.UID)] == owner.Name &&
+				pod.Labels["kubevirt.io"] == "hotplug-disk" && ownHotplugPods[string(pod.UID)] == pod.Name {
 				own = true
 			}
 		}

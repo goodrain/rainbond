@@ -211,6 +211,52 @@ func TestOwnVMLauncherDoesNotBlockExpansionButForeignPodDoes(t *testing.T) {
 	if err != nil || !refs.CanExpand || len(refs.OwnAttachments) != 3 || refs.CanDelete {
 		t.Fatal("own runtime references were confused with external consumers")
 	}
+	// KubeVirt owns a hotplug attachment Pod through virt-launcher rather than
+	// directly through the VMI. Its observed UID still belongs to this VM.
+	if err := unstructured.SetNestedSlice(vmi.Object, []interface{}{map[string]interface{}{
+		"name": "manual7", "persistentVolumeClaimInfo": map[string]interface{}{"claimName": "manual7"},
+		"hotplugVolume": map[string]interface{}{"attachPodName": "hp-volume-own", "attachPodUID": "hotplug-own"},
+	}}, "status", "volumeStatus"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.dynamic.Resource(virtualMachineInstanceResource).Namespace(f.scope.Namespace).Update(context.Background(), vmi, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	hotplug := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "hp-volume-own", Namespace: f.scope.Namespace, UID: "hotplug-own", Labels: map[string]string{"kubevirt.io": "hotplug-disk"}, OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "Pod", Name: pod.Name, UID: pod.UID}}}, Spec: pod.Spec, Status: pod.Status}
+	if _, err := f.core.CoreV1().Pods(f.scope.Namespace).Create(context.Background(), hotplug, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	refs, err = f.resolver.VolumeReferences(context.Background(), f.scope, 7)
+	if err != nil || !refs.CanExpand || len(refs.OwnAttachments) != 4 || len(refs.ExternalRefs) != 0 || refs.CanDelete {
+		t.Fatal("own observed hotplug attachment was mistaken for an external disk consumer", refs, err)
+	}
+	for _, mode := range []string{"replacement-uid", "unobserved-name", "wrong-launcher"} {
+		foreign := hotplug.DeepCopy()
+		switch mode {
+		case "replacement-uid":
+			foreign.UID = "replacement-hotplug"
+		case "unobserved-name":
+			foreign.Name = "hp-volume-other"
+		case "wrong-launcher":
+			foreign.OwnerReferences[0].UID = "unrelated-launcher"
+		}
+		if err := f.core.CoreV1().Pods(f.scope.Namespace).Delete(context.Background(), hotplug.Name, metav1.DeleteOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.core.CoreV1().Pods(f.scope.Namespace).Create(context.Background(), foreign, metav1.CreateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		refs, err = f.resolver.VolumeReferences(context.Background(), f.scope, 7)
+		if err != nil || refs.CanExpand || len(refs.ExternalRefs) == 0 {
+			t.Fatal("unverified hotplug attachment was accepted", mode, refs, err)
+		}
+		if err := f.core.CoreV1().Pods(f.scope.Namespace).Delete(context.Background(), foreign.Name, metav1.DeleteOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.core.CoreV1().Pods(f.scope.Namespace).Create(context.Background(), hotplug, metav1.CreateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	external := pod.DeepCopy()
 	external.Name = "foreign-consumer"
 	external.UID = "external-pod"
