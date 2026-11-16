@@ -156,7 +156,7 @@ func newBindingConsumerFixture(t *testing.T) bindingConsumerFixture {
 	client := kubecli.NewMockKubevirtClient(ctrl)
 	config := kubecli.NewMockKubeVirtInterface(ctrl)
 	client.EXPECT().KubeVirt("").Return(config).AnyTimes()
-	config.EXPECT().List(gomock.Any(), gomock.Any()).Return(&kv.KubeVirtList{Items: []kv.KubeVirt{{Status: kv.KubeVirtStatus{Phase: kv.KubeVirtPhaseDeployed, ObservedKubeVirtVersion: "v1.8.1"}}}}, nil).AnyTimes()
+	config.EXPECT().List(gomock.Any(), gomock.Any()).Return(&kv.KubeVirtList{Items: []kv.KubeVirt{{Spec: kv.KubeVirtSpec{Configuration: kv.KubeVirtConfiguration{DeveloperConfiguration: &kv.DeveloperConfiguration{FeatureGates: []string{"ExpandDisks"}}}}, Status: kv.KubeVirtStatus{Phase: kv.KubeVirtPhaseDeployed, ObservedKubeVirtVersion: "v1.8.1"}}}}, nil).AnyTimes()
 	mq := &recordingMQClient{}
 	action := &ServiceAction{dbmanager: bindingConsumerDB{database: database}, kubeClient: core, kubevirtClient: client, MQClient: mq, resolveTenantNamespaceHook: func(string) (string, error) { return scope.Namespace, nil }, getVirtualMachineByServiceIDHook: func(string) (*kv.VirtualMachine, error) { return nil, nil }}
 	store := vmrestore.NewStore(database)

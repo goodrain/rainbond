@@ -100,7 +100,8 @@ func TestVMDataDiskExpansionRequiresActualKubeVirtCapability(t *testing.T) {
 		err                  error
 		wantAllowed, wantErr bool
 	}{
-		{name: "deployed 1.8.1 GA without explicit gate", version: "v1.8.1", wantAllowed: true},
+		{name: "deployed 1.8.1 still needs explicit expansion gate", version: "v1.8.1"},
+		{name: "deployed 1.8.1 with expansion gate", version: "v1.8.1", gates: []string{"ExpandDisks"}, wantAllowed: true},
 		{name: "old version with explicit gate", version: "v1.5.0", gates: []string{"ExpandDisks"}, wantAllowed: true},
 		{name: "old version gate absent", version: "v1.5.0"},
 		{name: "unknown version gate absent", version: "unknown"},
@@ -125,7 +126,7 @@ func TestVMDataDiskExpansionRequiresActualKubeVirtCapability(t *testing.T) {
 
 // capability_id: rainbond.vm-disk.conditional-expansion
 func TestVMDataDiskExpansionFollowsCurrentDataVolumeClaim(t *testing.T) {
-	action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+	action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 	vm, err := action.getVirtualMachineByServiceIDHook(service.ServiceID)
 	if err != nil {
 		t.Fatal(err)
@@ -179,7 +180,7 @@ func TestVMDataDiskExpansionFollowsCurrentDataVolumeClaim(t *testing.T) {
 func TestVMDataDiskExpansionRejectsUnsafeOrUnsupportedWithoutMutation(t *testing.T) {
 	for _, scenario := range []string{"cdrom", "root", "shared", "foreign-owner", "missing-uid", "nfs-subdir", "expansion-disabled", "other-pod"} {
 		t.Run(scenario, func(t *testing.T) {
-			action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+			action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 			switch scenario {
 			case "cdrom":
 				volume.VolumePath = "/cdrom"
@@ -224,7 +225,7 @@ func TestVMDataDiskExpansionRejectsUnsafeOrUnsupportedWithoutMutation(t *testing
 
 // capability_id: rainbond.vm-disk.conditional-expansion
 func TestVMDataDiskExpansionReportsPVCProgressWithoutClaimingGuestCompletion(t *testing.T) {
-	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 	if err := action.expandVolumeClaims(context.Background(), service, volume, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +248,7 @@ func TestVMDataDiskExpansionReportsPVCProgressWithoutClaimingGuestCompletion(t *
 
 // capability_id: rainbond.vm-disk.conditional-expansion
 func TestVMDataDiskExpansionDoesNotResizeReplacedPVC(t *testing.T) {
-	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 	gets := 0
 	kube.PrependReactor("get", "persistentvolumeclaims", func(a k8stesting.Action) (bool, runtime.Object, error) {
 		gets++
@@ -273,7 +274,7 @@ func TestVMDataDiskExpansionDoesNotResizeReplacedPVC(t *testing.T) {
 func TestVMDataDiskExpansionAllowsOwnedLauncherAndRejectsOtherVM(t *testing.T) {
 	for _, foreign := range []bool{false, true} {
 		t.Run(fmt.Sprintf("foreign=%t", foreign), func(t *testing.T) {
-			action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+			action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 			vm, _ := action.getVirtualMachineByServiceIDHook(service.ServiceID)
 			instance := &v1.VirtualMachineInstance{TypeMeta: metav1.TypeMeta{APIVersion: "kubevirt.io/v1", Kind: "VirtualMachineInstance"}, ObjectMeta: metav1.ObjectMeta{Name: vm.Name, Namespace: vm.Namespace, UID: "own-vmi-uid", Labels: map[string]string{"service_id": service.ServiceID}, OwnerReferences: []metav1.OwnerReference{{Kind: "VirtualMachine", Name: vm.Name, UID: vm.UID}}}, Spec: vm.Spec.Template.Spec}
 			if foreign {
@@ -299,7 +300,7 @@ func TestVMDataDiskExpansionAllowsOwnedLauncherAndRejectsOtherVM(t *testing.T) {
 func TestVMDataDiskExpansionProtectsActualBootDeviceAndNamespace(t *testing.T) {
 	for _, scenario := range []string{"root-alias", "cdrom", "namespace"} {
 		t.Run(scenario, func(t *testing.T) {
-			action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+			action, service, volume, client, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 			vm, err := action.getVirtualMachineByServiceIDHook(service.ServiceID)
 			if err != nil {
 				t.Fatal(err)
@@ -343,7 +344,7 @@ func TestVMDataDiskExpansionProtectsActualBootDeviceAndNamespace(t *testing.T) {
 
 // capability_id: rainbond.vm-disk.conditional-expansion
 func TestVMDataDiskExpansionDoesNotRoundPartialPVCToReady(t *testing.T) {
-	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", nil, nil)
+	action, service, volume, _, kube := vmExpansionFixture(t, "v1.8.1", []string{"ExpandDisks"}, nil)
 	pvc, _ := kube.CoreV1().PersistentVolumeClaims("team").Get(context.Background(), "manual42", metav1.GetOptions{})
 	pvc.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("2Gi")
 	pvc.Status.Capacity[corev1.ResourceStorage] = resource.MustParse("1536Mi")

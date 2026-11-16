@@ -159,6 +159,7 @@ type ServiceInterface interface {
 	SetVMFixedPodIP(w http.ResponseWriter, r *http.Request)
 	VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request)
 	ExistingVMSnapshotCapability(w http.ResponseWriter, r *http.Request)
+	VMRecycleRecovery(w http.ResponseWriter, r *http.Request)
 }
 
 // TenantInterfaceWithV1 funcs for both v2 and v1

@@ -8,7 +8,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/vmrestore"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/version"
 	v1 "kubevirt.io/api/core/v1"
 )
 
@@ -29,11 +28,8 @@ func (s *ServiceAction) vmDiskExpansionCapability(ctx context.Context) (string, 
 	if kv.Status.Phase != v1.KubeVirtPhaseDeployed {
 		return "KubeVirt is not fully deployed", nil
 	}
-	// Observed version is the running capability; target version may still be rolling out.
-	observed, parseErr := version.ParseSemantic(kv.Status.ObservedKubeVirtVersion)
-	if parseErr == nil && observed.AtLeast(version.MustParseSemantic("v1.8.0")) {
-		return "", nil
-	}
+	// v1.8.1 still registers ExpandDisks as opt-in. A version string cannot
+	// establish that virt-launcher will resize the image and notify the guest.
 	if config := kv.Spec.Configuration.DeveloperConfiguration; config != nil {
 		for _, gate := range config.FeatureGates {
 			if gate == "ExpandDisks" {
@@ -41,7 +37,7 @@ func (s *ServiceAction) vmDiskExpansionCapability(ctx context.Context) (string, 
 			}
 		}
 	}
-	return "KubeVirt requires observed version 1.8 or newer, or the ExpandDisks feature gate", nil
+	return "KubeVirt ExpandDisks feature gate is not enabled", nil
 }
 
 const vmVolumeObservationBusy = "vm-disk-operation-in-progress"

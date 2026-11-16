@@ -15615,6 +15615,25 @@
       ],
       "test_type": "regression",
       "status": "active"
+    },
+    {
+      "id": "rainbond.vm-recycle.original-disk-preflight",
+      "title": "Original VM recycle recovery preflight",
+      "title_zh": "回收恢复核验原虚拟机与磁盘",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.GetVMRecycleRecovery",
+      "code_paths": [
+        "api/handler/service_vm_recycle.go",
+        "api/controller/vm_recycle.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_recycle_test.go",
+          "selector": "TestVMRecycleRecoveryRequiresStoppedOriginalVMAndLiveDisks"
+        }
+      ],
+      "test_type": "integration",
+      "status": "active"
     }
   ]
 }
