@@ -15634,6 +15634,28 @@
       ],
       "test_type": "integration",
       "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.stopped-import-status",
+      "title": "Report stopped VM power separately from pending disk imports",
+      "title_zh": "\u78c1\u76d8\u5bfc\u5165\u4e2d\u5df2\u5173\u95ed\u865a\u62df\u673a\u7684\u72b6\u6001\u5224\u5b9a",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportDoesNotRemainStartingWithoutVMI"
+        },
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
     }
   ]
 }

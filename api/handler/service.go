@@ -700,6 +700,14 @@ func (s *ServiceAction) resolveVMServiceRuntimeStatusWithGuest(serviceID string)
 		logrus.Warningf("service id: %s; failed to get virtual machine instance: %v", serviceID, vmiErr)
 	}
 	guest := resolveVMGuestStatus(vm, vmi, vmErr != nil || vmiErr != nil)
+	// Importing disks can keep printableStatus at Provisioning after Stop.
+	// Report the observed power state only when both reads succeeded and no
+	// instance remains; a failed VMI lookup must not enable deletion.
+	if vmErr == nil && vmiErr == nil && vm != nil && vmi == nil &&
+		(vm.Spec.RunStrategy != nil && *vm.Spec.RunStrategy == v1.RunStrategyHalted ||
+			vm.Spec.Running != nil && !*vm.Spec.Running) {
+		return "closed", true, guest
+	}
 	transitionStatus, hasTransitionStatus := resolveVMTransitionStatus(vm, vmi)
 	if transitionStatus == "abnormal" {
 		return transitionStatus, true, guest
