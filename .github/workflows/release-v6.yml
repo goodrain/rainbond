@@ -314,8 +314,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha,version=2,scope=rainbond-ui-${{ matrix.arch }}
-          cache-to: type=gha,version=2,mode=max,scope=rainbond-ui-${{ matrix.arch }},ignore-error=true,timeout=5m
+          cache-from: type=registry,ref=rainbond/rainbond-ui:buildcache-${{ matrix.arch }}-${{ hashFiles('Dockerfile', 'package.json', 'yarn.lock', '.npmrc') }}
+          cache-to: type=registry,ref=rainbond/rainbond-ui:buildcache-${{ matrix.arch }}-${{ hashFiles('Dockerfile', 'package.json', 'yarn.lock', '.npmrc') }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
           provenance: false
           tags: |
             rainbond/rainbond-ui:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
@@ -370,8 +370,8 @@ jobs:
           file: ./Dockerfile
           outputs: ${{ inputs.outputs }}
           push: true
-          cache-from: type=gha,version=2,scope=rainbond-console-${{ matrix.arch }}
-          cache-to: type=gha,version=2,mode=max,scope=rainbond-console-${{ matrix.arch }},ignore-error=true,timeout=5m
+          cache-from: type=registry,ref=rainbond/rainbond:buildcache-${{ matrix.arch }}-${{ hashFiles('Dockerfile', 'requirements.txt', 'scripts/install_openapi_client.sh') }}
+          cache-to: type=registry,ref=rainbond/rainbond:buildcache-${{ matrix.arch }}-${{ hashFiles('Dockerfile', 'requirements.txt', 'scripts/install_openapi_client.sh') }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
           provenance: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}${{ env.IS_MULTI_ARCH == 'true' && format('-{0}', matrix.arch) || '' }}
