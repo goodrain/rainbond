@@ -626,6 +626,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.builder.dockerfile-job-name",
+      "title": "Bound build container names while retaining full source and capture identity",
+      "title_zh": "Bound build container names while retaining full source and capture identity",
+      "interface_type": "workflow",
+      "interface": "builder/sources.dockerfileBuildJobName",
+      "code_paths": [
+        "builder/sources/image.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/image_job_name_test.go",
+          "selector": "TestDockerfileBuildJobNameFitsKubernetesContainerName"
+        },
+        {
+          "path": "builder/sources/image_job_name_test.go",
+          "selector": "TestDockerfileBuildJobNameRetainsFullCaptureIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.builder.dynamic-mirror-config",
       "title": "Dynamic mirror config defaults and env overrides",
       "title_zh": "Dynamic mirror config defaults and env overrides",
