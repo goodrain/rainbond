@@ -1,0 +1,138 @@
+name: "release-v6-gateway-controller"
+
+# 构建 rbd-gateway 使用的 apisix-ingress-controller 镜像（goodrain/apisix-ingress-controller 的发布分支），
+# 推到阿里云 goodrain/apisix-ingress-controller:<tag> 和 <tag>-esgz。rainbond-chart 按 tag 引用它。
+# 覆盖已有 tag 前，先把旧镜像复制到 <tag>-<backup_suffix> 和 <tag>-esgz-<backup_suffix>，备份失败就不构建。
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'goodrain/apisix-ingress-controller 的分支或 commit'
+        required: true
+        default: 'release/v1.8.4'
+      tag:
+        description: '要推送的镜像 tag（不带 -esgz）'
+        required: true
+        default: 'v1.8.4-upsert-e26e824'
+      backup_suffix:
+        description: '覆盖前旧镜像的备份后缀，例如 bak-20261117'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    timeout-minutes: 60
+    env:
+      REPO: registry.cn-hangzhou.aliyuncs.com/goodrain/apisix-ingress-controller
+      TAG: ${{ inputs.tag }}
+      BACKUP_SUFFIX: ${{ inputs.backup_suffix }}
+    steps:
+      - name: Validate inputs
+        run: |
+          [[ "$TAG" =~ ^v[0-9A-Za-z._-]+$ && "$TAG" != *-esgz ]] || { echo "::error::invalid tag $TAG"; exit 1; }
+          [[ "$BACKUP_SUFFIX" =~ ^[0-9A-Za-z._-]+$ ]] || { echo "::error::invalid backup suffix"; exit 1; }
+
+      - name: Checkout controller source
+        uses: actions/checkout@v4
+        with:
+          repository: goodrain/apisix-ingress-controller
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Read source revision
+        id: source
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}-${sha:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Back up the current images
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["digest"])'; }
+          for t in "$TAG" "$TAG-esgz"; do
+            if ! docker buildx imagetools inspect "$REPO:$t" >/dev/null 2>&1; then
+              echo "$REPO:$t does not exist, nothing to back up"
+              continue
+            fi
+            backup="$t-$BACKUP_SUFFIX"
+            if docker buildx imagetools inspect "$REPO:$backup" >/dev/null 2>&1; then
+              echo "::error::$REPO:$backup already exists; pick another backup_suffix"
+              exit 1
+            fi
+            src=$(digest "$REPO:$t")
+            docker buildx imagetools create -t "$REPO:$backup" "$REPO@$src"
+            [[ "$(digest "$REPO:$backup")" == "$src" ]] || { echo "::error::backup digest mismatch for $t"; exit 1; }
+            echo "backed up $REPO:$t ($src) -> $REPO:$backup" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ env.REPO }}:${{ inputs.tag }}
+          build-args: |
+            VERSION=${{ steps.source.outputs.version }}
+            GIT_SHA=${{ steps.source.outputs.sha }}
+
+      - name: Convert to eStargz and push
+        run: |
+          echo "FROM $REPO:$TAG" > "$RUNNER_TEMP/Dockerfile.esgz"
+          docker buildx build -f "$RUNNER_TEMP/Dockerfile.esgz" \
+            --platform linux/amd64,linux/arm64 \
+            --provenance=false \
+            --output type=image,push=true,oci-mediatypes=true,compression=estargz,force-compression=true \
+            -t "$REPO:$TAG-esgz" \
+            "$RUNNER_TEMP"
+
+      - name: Verify revision and eStargz layers
+        env:
+          SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          for t in "$TAG" "$TAG-esgz"; do
+            docker buildx imagetools inspect "$REPO:$t" --format '{{json .Image}}' | python3 -c '
+          import sys, json
+          sha = sys.argv[1]
+          images = json.load(sys.stdin)
+          assert set(images) == {"linux/amd64", "linux/arm64"}, images.keys()
+          for platform, image in images.items():
+              rev = image["config"]["Labels"]["org.opencontainers.image.revision"]
+              assert rev == sha, (platform, rev)
+          print("revision ok", sorted(images))' "$SHA"
+          done
+          docker buildx imagetools inspect --raw "$REPO:$TAG-esgz" | python3 -c '
+          import json, subprocess, sys
+          repo = sys.argv[1]
+          for m in json.load(sys.stdin)["manifests"]:
+              raw = subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", repo + "@" + m["digest"]])
+              layers = json.loads(raw)["layers"]
+              missing = [l["digest"] for l in layers if "containerd.io/snapshot/stargz/toc.digest" not in (l.get("annotations") or {})]
+              assert not missing, (m["platform"], missing)
+              print(m["platform"]["architecture"], len(layers), "eStargz layers")' "$REPO"
+          {
+            echo "## $REPO:$TAG"
+            echo "- source: goodrain/apisix-ingress-controller@$SHA"
+            echo "- pushed $TAG and $TAG-esgz (amd64, arm64)"
+          } >> "$GITHUB_STEP_SUMMARY"
