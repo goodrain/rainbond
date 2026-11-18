@@ -426,6 +426,8 @@
 | rainbond.service-type.daemonset | DaemonSet 组件类型分类 | active | regression | db.model.ServiceType | db/model/tenant_daemonset_test.go::TestServiceTypeDaemonSetClassification |
 | rainbond.service.file-manage-command-safety | 构建带路径分隔符的安全文件管理列表命令 | active | regression | api/handler.buildFileManageListCommand | api/handler/service_file_manage_test.go::TestBuildFileManageListCommand |
 | rainbond.service.file-manage-exec-error-detail | 文件管理列表失败时保留 exec 的 stderr 细节 | active | regression | api/handler.wrapFileManageExecError | api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr |
+| rainbond.service.inner-port-reconciles-idempotent-access | Reconcile internal port access on idempotent retries | active | regression | PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner | api/controller/service_port_inner_test.go::TestPortInnerControllerReconcilesAccessOnRetry |
+| rainbond.service.inner-port-surfaces-dispatch-errors | Report internal port synchronization dispatch failures | active | regression | PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner | api/controller/service_port_inner_test.go::TestPortInnerControllerReturnsDispatchFailure |
 | rainbond.service.new-port-reconciles-access | Reconcile enabled access on first port creation and retry dispatch | active | regression | api/handler.ServiceAction.CreatePorts | api/handler/service_port_create_test.go::TestCreatePortsReconcilesEnabledAccessAndRetriesDispatch |
 | rainbond.service.port-outer-idempotent-close | Keep repeated external port closes idempotent | active | regression | api/handler.(*ServiceAction).PortOuter | api/handler/service_port_outer_test.go::TestServiceActionPortOuterAlreadyClosedReturnsPort |
 | rainbond.share.image-from-snapshot-deploy-version | 镜像分享使用请求中的快照部署版本 | active | regression | api/handler/share.ServiceShareHandle.Share | api/handler/share/service_share_test.go::TestServiceShareUsesRequestedDeployVersionForImageShare |
@@ -727,6 +729,7 @@
 | rainbond.worker.appm.gateway.reassign-conflicting-nodeport | Reassign worker TCP NodePorts already allocated in Kubernetes | active | regression | worker/appm/conversion.reassignAllocatedNodePort | worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePort<br>worker/appm/conversion/gateway_test.go::TestReassignAllocatedNodePortKeepsCurrentServicePort |
 | rainbond.worker.appm.gateway.vm-nodeport-service-uses-local-external-traffic-policy | Use Local externalTrafficPolicy for VM worker NodePort services | active | regression | worker/appm/conversion.outerServiceExternalTrafficPolicy | worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForVM<br>worker/appm/conversion/gateway_test.go::TestOuterServiceExternalTrafficPolicyForNonVM |
 | rainbond.worker.appm.patch.statefulset-modified-configuration | 根据新旧工作负载规格计算允许的 StatefulSet Patch 内容 | active | regression | worker/appm/types/v1.getStatefulsetModifiedConfiguration | worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration |
+| rainbond.worker.appm.service-sync-errors | Propagate Kubernetes Service reconciliation failures | active | regression | worker/appm/f.ApplyOne | worker/appm/f/function_service_test.go::TestApplyOneReturnsServiceSyncError<br>worker/appm/f/function_service_test.go::TestApplyOneReconcilesInternalService |
 | rainbond.worker.appm.store.aggregate-app-status | 将组件运行状态汇总为应用状态 | active | regression | worker/appm/store.getAppStatus | worker/appm/store/store_test.go::TestGetAppStatus |
 | rainbond.worker.appm.store.skip-managed-tcp-nodeport-reservation | 跳过 Rainbond 管理的 TCP 路由匿名端口预留 | active | regression | worker/appm/store.shouldTrackNodePortService | worker/appm/store/store_test.go::TestShouldTrackNodePortService |
 | rainbond.worker.appm.store.stateful-volume-capacity-reconciliation | New StatefulSet claims converge to stored capacity without recreating workloads | active | regression | appRuntimeStore.OnAdd | worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionOnClaimEvents<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesAfterDatabaseCommit<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionRetriesFailuresAndConflicts<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionSkipsUnsupportedOrForeignClaims<br>worker/appm/store/volume_expansion_test.go::TestStatefulVolumeExpansionAcceptsManualVolumeLabel |
@@ -4995,6 +4998,26 @@
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_file_manage_test.go::TestWrapFileManageExecErrorIncludesStderr`
 
+### Reconcile internal port access on idempotent retries
+
+- Capability ID: `rainbond.service.inner-port-reconciles-idempotent-access`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner`
+- 代码路径: `api/controller/resources.go`
+- 测试路径: `api/controller/service_port_inner_test.go::TestPortInnerControllerReconcilesAccessOnRetry`
+
+### Report internal port synchronization dispatch failures
+
+- Capability ID: `rainbond.service.inner-port-surfaces-dispatch-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner`
+- 代码路径: `api/controller/resources.go`
+- 测试路径: `api/controller/service_port_inner_test.go::TestPortInnerControllerReturnsDispatchFailure`
+
 ### Reconcile enabled access on first port creation and retry dispatch
 
 - Capability ID: `rainbond.service.new-port-reconciles-access`
@@ -8004,6 +8027,16 @@
 - 业务入口: `worker/appm/types/v1.getStatefulsetModifiedConfiguration`
 - 代码路径: `worker/appm/types/v1/patch.go`
 - 测试路径: `worker/appm/types/v1/patch_test.go::TestGetStatefulsetModifiedConfiguration`
+
+### Propagate Kubernetes Service reconciliation failures
+
+- Capability ID: `rainbond.worker.appm.service-sync-errors`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/f.ApplyOne`
+- 代码路径: `worker/appm/f/function.go`
+- 测试路径: `worker/appm/f/function_service_test.go::TestApplyOneReturnsServiceSyncError`, `worker/appm/f/function_service_test.go::TestApplyOneReconcilesInternalService`
 
 ### 将组件运行状态汇总为应用状态
 

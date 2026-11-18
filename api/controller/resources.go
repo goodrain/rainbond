@@ -1648,6 +1648,10 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Request) {
+	portInnerControllerWithHandlers(w, r, handler.GetServiceManager(), handler.GetGatewayHandler())
+}
+
+func portInnerControllerWithHandlers(w http.ResponseWriter, r *http.Request, serviceHandler handler.ServiceHandler, gatewayHandler handler.GatewayHandler) {
 	var data apimodel.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
@@ -1660,28 +1664,35 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, "port must be a number")
 		return
 	}
-	if err := handler.GetServiceManager().PortInner(tenantName, serviceID, data.Body.Operation, containerPort); err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "service port "+err.Error())
+	portErr := serviceHandler.PortInner(tenantName, serviceID, data.Body.Operation, containerPort)
+	if portErr != nil {
+		if portErr.Error() == gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, 404, "service port "+portErr.Error())
 			return
-		} else if err.Error() == "already open" || err.Error() == "already close" {
-			httputil.Return(r, w, 200, httputil.ResponseBody{Msg: err.Error()})
-			return
-		} else {
-			httputil.ReturnError(r, w, 500, err.Error())
+		} else if portErr.Error() != "already open" && portErr.Error() != "already close" {
+			httputil.ReturnError(r, w, 500, portErr.Error())
 			return
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
+	// The saved flag does not prove the runtime resources were applied.
+	// Reconcile idempotent requests too, including retries after queue failures.
+
+	if err := gatewayHandler.SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,
 		"port":       containerPort,
 		"is_inner":   true,
 	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+		httputil.ReturnError(r, w, 500, "synchronize service port access: "+err.Error())
+		return
 	}
 
+	if portErr != nil {
+		httputil.Return(r, w, 200, httputil.ResponseBody{Msg: portErr.Error()})
+		return
+	}
 	httputil.ReturnSuccess(r, w, nil)
 }
 

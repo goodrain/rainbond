@@ -8271,6 +8271,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.service.inner-port-reconciles-idempotent-access",
+      "title": "Reconcile internal port access on idempotent retries",
+      "title_zh": "Reconcile internal port access on idempotent retries",
+      "interface_type": "view_endpoint",
+      "interface": "PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner",
+      "code_paths": [
+        "api/controller/resources.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/service_port_inner_test.go",
+          "selector": "TestPortInnerControllerReconcilesAccessOnRetry"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.service.inner-port-surfaces-dispatch-errors",
+      "title": "Report internal port synchronization dispatch failures",
+      "title_zh": "Report internal port synchronization dispatch failures",
+      "interface_type": "view_endpoint",
+      "interface": "PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner",
+      "code_paths": [
+        "api/controller/resources.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/service_port_inner_test.go",
+          "selector": "TestPortInnerControllerReturnsDispatchFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.service.new-port-reconciles-access",
       "title": "Reconcile enabled access on first port creation and retry dispatch",
       "title_zh": "Reconcile enabled access on first port creation and retry dispatch",
@@ -14847,6 +14883,28 @@
         {
           "path": "worker/appm/types/v1/patch_test.go",
           "selector": "TestGetStatefulsetModifiedConfiguration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.worker.appm.service-sync-errors",
+      "title": "Propagate Kubernetes Service reconciliation failures",
+      "title_zh": "Propagate Kubernetes Service reconciliation failures",
+      "interface_type": "workflow",
+      "interface": "worker/appm/f.ApplyOne",
+      "code_paths": [
+        "worker/appm/f/function.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/f/function_service_test.go",
+          "selector": "TestApplyOneReturnsServiceSyncError"
+        },
+        {
+          "path": "worker/appm/f/function_service_test.go",
+          "selector": "TestApplyOneReconcilesInternalService"
         }
       ],
       "test_type": "regression",
