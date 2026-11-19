@@ -356,6 +356,9 @@ func getchange(old, new interface{}) ([]byte, error) {
 		return nil, err
 	}
 	change := en.GetChange(&ennew)
+	if change == nil {
+		return []byte("{}"), nil
+	}
 	changebody, err := json.Marshal(change)
 	if err != nil {
 		return nil, err
@@ -380,7 +383,9 @@ func K8sResourceFormat(b []byte) ([]byte, error) {
 		return nil, err
 	}
 	// if annotations is an empty string, it will be converted to an empty map
-	metadata, ok := data["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})
+	spec, _ := data["spec"].(map[string]interface{})
+	template, _ := spec["template"].(map[string]interface{})
+	metadata, ok := template["metadata"].(map[string]interface{})
 	if ok {
 		annotations, ok := metadata["annotations"].(string)
 		if ok && annotations == "" {

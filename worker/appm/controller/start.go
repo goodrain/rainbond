@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -136,9 +138,30 @@ func (s *startController) startOne(app v1.AppService) error {
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
 			generated := publication != nil && publication.MarkConfigMap(config)
-			_, err := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace()).Create(s.ctx, config, metav1.CreateOptions{})
+			configMaps := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace())
+			_, err := configMaps.Create(s.ctx, config, metav1.CreateOptions{})
 			if generated && errors.IsAlreadyExists(err) {
 				return vmrestore.ErrConflict
+			}
+			if errors.IsAlreadyExists(err) && config.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeOwned {
+				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					current, err := configMaps.Get(s.ctx, config.Name, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					owner := current.Labels["service_id"]
+					if (owner != "" && owner != app.ServiceID) || !canAdoptConfigMap(current, config) {
+						return fmt.Errorf("config map %q does not belong to component %q", config.Name, app.ServiceID)
+					}
+					if maps.Equal(current.Data, config.Data) {
+						return nil
+					}
+					current.Data = config.Data
+					_, err = configMaps.Update(s.ctx, current, metav1.UpdateOptions{})
+					return err
+				}); err != nil {
+					return fmt.Errorf("refresh config file %q: %w", config.Name, err)
+				}
 			}
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())

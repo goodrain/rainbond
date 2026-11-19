@@ -226,6 +226,53 @@ func generatedVMPasswordHashForLogTest(t *testing.T) string {
 }
 
 // capability_id: rainbond.vm-runtime.ssh-authorized-keys-log-redaction
+// capability_id: rainbond.config-file.refresh-on-start
+func TestStartOneRefreshesOwnedConfigFile(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		desiredScope  string
+		existingOwner string
+		want          string
+		wantError     bool
+	}{
+		{name: "owned", desiredScope: v1.ConfigFileScopeOwned, existingOwner: "component", want: "new"},
+		{name: "dependent", desiredScope: v1.ConfigFileScopeDependent, existingOwner: "component", want: "old"},
+		{name: "foreign", desiredScope: v1.ConfigFileScopeOwned, existingOwner: "other", want: "old", wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "rbd-test"}}
+			existing := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "component-config", Namespace: namespace.Name, ResourceVersion: "7",
+					Labels: map[string]string{"service_id": test.existingOwner, "creator": "Rainbond"},
+				},
+				Data: map[string]string{"app.conf": "old"},
+			}
+			desired := existing.DeepCopy()
+			desired.ResourceVersion = ""
+			desired.Labels["service_id"] = "component"
+			desired.Annotations = map[string]string{v1.ConfigFileScopeAnnotation: test.desiredScope}
+			desired.Data["app.conf"] = "new"
+			client := kubefake.NewSimpleClientset(namespace, existing)
+			controller := startController{manager: &Manager{client: client, store: &vmFailureTestStore{}}, ctx: ctx}
+			app := v1.AppService{AppServiceBase: v1.AppServiceBase{ServiceID: "component"}}
+			app.SetTenant(namespace)
+			app.SetConfigMap(desired)
+			if err := controller.startOne(app); (err != nil) != test.wantError {
+				t.Fatalf("start error = %v, want error: %t", err, test.wantError)
+			}
+			actual, err := client.CoreV1().ConfigMaps(namespace.Name).Get(ctx, existing.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if actual.Data["app.conf"] != test.want {
+				t.Fatalf("expected config file content %q, got %q", test.want, actual.Data["app.conf"])
+			}
+		})
+	}
+}
+
 func TestStartOneReturnsRedactedVMCreateError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	const sentinelKey = "ssh-ed25519 AAAA_SENTINEL_PUBLIC_KEY user@host"

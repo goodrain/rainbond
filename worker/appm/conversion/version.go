@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -353,7 +354,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		podtmpSpec = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      labels,
-				Annotations: annotations,
+				Annotations: configFilePodAnnotations(annotations, as.GetConfigMaps()),
 				Name:        as.GetK8sWorkloadName() + "-pod-spec",
 			},
 			Spec: corev1.PodSpec{
@@ -1450,6 +1451,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) (*corev1.Affinity, 
 		}
 	}
 	return &affinity, nil
+}
+
+func configFilePodAnnotations(annotations map[string]string, configMaps []*corev1.ConfigMap) map[string]string {
+	files := make(map[string]map[string]string)
+	for _, config := range configMaps {
+		if config.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeOwned {
+			files[config.Name] = config.Data
+		}
+	}
+	if len(files) == 0 {
+		return annotations
+	}
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	content, _ := json.Marshal(files)
+	annotations["rainbond.io/config-file-checksum"] = fmt.Sprintf("%x", sha256.Sum256(content))
+	return annotations
 }
 
 func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]string, error) {

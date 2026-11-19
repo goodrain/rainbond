@@ -4854,6 +4854,43 @@
       "status": "active"
     },
     {
+      "id": "rainbond.config-file.refresh-on-start",
+      "title": "Refresh owned configuration files before component startup",
+      "title_zh": "Refresh owned configuration files before component startup",
+      "interface_type": "workflow",
+      "interface": "worker/appm/controller.startOne",
+      "code_paths": [
+        "worker/appm/controller/start.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/start_test.go",
+          "selector": "TestStartOneRefreshesOwnedConfigFile"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.config-file.rollout-on-content-change",
+      "title": "Roll out container workloads when an owned configuration file changes",
+      "title_zh": "Roll out container workloads when an owned configuration file changes",
+      "interface_type": "workflow",
+      "interface": "worker/appm/conversion.configFilePodAnnotations",
+      "code_paths": [
+        "worker/appm/conversion/version.go",
+        "worker/appm/types/v1/patch.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/config_file_rollout_test.go",
+          "selector": "TestOwnedConfigFileContentChangesDeploymentTemplate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.config-files.detect",
       "title": "Detect npm and yarn config files in source tree",
       "title_zh": "\u8bc6\u522b\u6e90\u7801\u76ee\u5f55\u4e2d\u7684 npm \u548c yarn \u914d\u7f6e\u6587\u4ef6",

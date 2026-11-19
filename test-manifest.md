@@ -248,6 +248,8 @@
 | rainbond.config-file.dependent-configmap-ownership | 依赖配置文件保持提供方所有权 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderConfigMap<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderIdentity<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapLeavesExistingDependencyConfigMapToProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapCreatesMissingDependencyConfigMapForProvider<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotDeleteProviderDependency<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapReclaimsLegacyProviderConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapDoesNotAdoptForeignCollision |
 | rainbond.config-file.dependent-source-key | 依赖配置文件使用提供方源文件键 | active | regression | worker/appm/volume.ConfigFileVolume.CreateDependVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeUsesProviderFileKey<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForVMUsesProviderFileKey<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyLegacyDependentSourceKey<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapMigratesOnlyKnownLegacyConsumerConfigMap<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapRetriesDependentMigrationConflict<br>worker/appm/controller/upgrade_test.go::TestUpgradeConfigMapHandlesDependentCreateRace |
 | rainbond.config-file.k8s-volume-name-safe | Keep config-file Kubernetes volume names DNS-safe | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName<br>worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName |
+| rainbond.config-file.refresh-on-start | Refresh owned configuration files before component startup | active | regression | worker/appm/controller.startOne | worker/appm/controller/start_test.go::TestStartOneRefreshesOwnedConfigFile |
+| rainbond.config-file.rollout-on-content-change | Roll out container workloads when an owned configuration file changes | active | regression | worker/appm/conversion.configFilePodAnnotations | worker/appm/conversion/config_file_rollout_test.go::TestOwnedConfigFileContentChangesDeploymentTemplate |
 | rainbond.config-files.detect | 识别源码目录中的 npm 和 yarn 配置文件 | active | regression | builder/parser/code.DetectConfigFiles | builder/parser/code/config_files_test.go::TestDetectConfigFiles_Npmrc<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcClassic<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_YarnrcYml<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_Multiple<br>builder/parser/code/config_files_test.go::TestDetectConfigFiles_None |
 | rainbond.config-files.has-any | 检测源码中是否存在包管理器配置文件 | active | regression | builder/parser/code.ConfigFiles.HasAnyConfigFile | builder/parser/code/config_files_test.go::TestConfigFiles_HasAnyConfigFile |
 | rainbond.config-files.read-npmrc | 读取源码中的 npmrc 内容 | active | regression | builder/parser/code.ConfigFiles.GetNpmrcContent | builder/parser/code/config_files_test.go::TestConfigFiles_GetNpmrcContent |
@@ -3217,6 +3219,26 @@
 - 业务入口: `worker/appm/volume.ConfigFileVolume.CreateVolume`
 - 代码路径: `worker/appm/volume/config-file.go`, `worker/appm/volume/volume.go`
 - 测试路径: `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForDeploymentUsesK8sSafeVolumeName`, `worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateDependVolumeForDeploymentUsesK8sSafeVolumeName`
+
+### Refresh owned configuration files before component startup
+
+- Capability ID: `rainbond.config-file.refresh-on-start`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/controller.startOne`
+- 代码路径: `worker/appm/controller/start.go`
+- 测试路径: `worker/appm/controller/start_test.go::TestStartOneRefreshesOwnedConfigFile`
+
+### Roll out container workloads when an owned configuration file changes
+
+- Capability ID: `rainbond.config-file.rollout-on-content-change`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `worker/appm/conversion.configFilePodAnnotations`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/types/v1/patch.go`
+- 测试路径: `worker/appm/conversion/config_file_rollout_test.go::TestOwnedConfigFileContentChangesDeploymentTemplate`
 
 ### 识别源码目录中的 npm 和 yarn 配置文件
 
