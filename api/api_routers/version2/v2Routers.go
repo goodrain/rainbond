@@ -185,7 +185,11 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 
 // PluginBackendProxy forwards requests to the named plugin's backend service.
 func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
-	plugin, err := getRBDPlugin(chi.URLParam(r, "plugin_name"))
+	servePluginBackend(w, r, getRBDPlugin)
+}
+
+func servePluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter) {
+	plugin, err := getPlugin(chi.URLParam(r, "plugin_name"))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get backend_path: %v", err), http.StatusInternalServerError)
 		return

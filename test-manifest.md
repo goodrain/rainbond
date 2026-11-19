@@ -404,6 +404,7 @@
 | rainbond.plugin-build.image-input-validate | 在插件镜像构建前拒绝空值或非法镜像引用 | active | regression | builder/exector.exectorManager.run | builder/exector/plugin_image_test.go::TestPluginImageRunRejectsEmptyImageURL |
 | rainbond.plugin-build.image-tag | 根据源镜像名和版本生成插件镜像标签 | active | regression | builder/exector.createPluginImageTag | builder/exector/plugin_image_test.go::TestCreatePluginImageTag |
 | rainbond.plugin-dockerfile-build.default-arch-affinity | Default plugin Dockerfile build arch affinity | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime |
+| rainbond.plugin.backend-proxy-contract | Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics | active | regression | /v2/platform/backend/plugins/{plugin_name}/* | api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyContract<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyStreamsPastShortTimeoutAndCancels<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyDoesNotReplayPOST<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyPreservesTruncatedStream |
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
@@ -4672,6 +4673,16 @@
 - 业务入口: `builder/sources.newBuildKitPodSpec`
 - 代码路径: `builder/sources/image.go`, `builder/exector/plugin_dockerfile.go`, `api/handler/plugin.go`, `api/model/pluginModel.go`
 - 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime`
+
+### Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics
+
+- Capability ID: `rainbond.plugin.backend-proxy-contract`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `/v2/platform/backend/plugins/{plugin_name}/*`
+- 代码路径: `api/api_routers/version2/v2Routers.go`, `pkg/interceptors/http.go`
+- 测试路径: `api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyContract`, `api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyStreamsPastShortTimeoutAndCancels`, `api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyDoesNotReplayPOST`, `api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyPreservesTruncatedStream`
 
 ### 缺少 rainbondfile 时返回未找到
 

@@ -7859,6 +7859,37 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugin.backend-proxy-contract",
+      "title": "Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics",
+      "title_zh": "Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics",
+      "interface_type": "view_endpoint",
+      "interface": "/v2/platform/backend/plugins/{plugin_name}/*",
+      "code_paths": [
+        "api/api_routers/version2/v2Routers.go",
+        "pkg/interceptors/http.go"
+      ],
+      "tests": [
+        {
+          "path": "api/api_routers/version2/plugin_backend_proxy_test.go",
+          "selector": "TestPluginBackendProxyContract"
+        },
+        {
+          "path": "api/api_routers/version2/plugin_backend_proxy_test.go",
+          "selector": "TestPluginBackendProxyStreamsPastShortTimeoutAndCancels"
+        },
+        {
+          "path": "api/api_routers/version2/plugin_backend_proxy_test.go",
+          "selector": "TestPluginBackendProxyDoesNotReplayPOST"
+        },
+        {
+          "path": "api/api_routers/version2/plugin_backend_proxy_test.go",
+          "selector": "TestPluginBackendProxyPreservesTruncatedStream"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",

@@ -42,7 +42,12 @@ const k8sResourceDeletionRequestTimeout = 75 * time.Second
 func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
+			rvr := recover()
+			// Let net/http abort truncated AI streams instead of returning a clean EOF.
+			if rvr == http.ErrAbortHandler && strings.HasPrefix(r.URL.Path, "/v2/platform/backend/plugins/rainbond-ai-engine/") {
+				panic(rvr)
+			}
+			if rvr != nil && rvr != http.ErrAbortHandler {
 				stack := debug.Stack()
 				debug.PrintStack()
 				sentryobs.CaptureHTTPPanic(rvr, r, stack, map[string]string{
