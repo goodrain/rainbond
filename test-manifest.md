@@ -461,6 +461,7 @@
 | rainbond.source-repo.https-proxy | 通过标准代理拉取 HTTPS Git 仓库 | active | regression | builder/sources.newGitCloneHTTPClient | builder/sources/git_test.go::TestNewGitCloneHTTPClientProxy |
 | rainbond.source-repo.pull | 拉取 Git 源码仓库 | active | integration | builder/sources.GitPull | builder/sources/git_test.go::TestGitPull |
 | rainbond.source-repo.pull-or-clone | 拉取或克隆 Git 源码仓库 | active | integration | builder/sources.GitCloneOrPull | builder/sources/git_test.go::TestGitPullOrClone |
+| rainbond.source-repo.shallow-submodules | Source builds shallow-clone submodules and fall back for missing pinned commits | active | regression | builder/sources.GitCloneOrPull | builder/sources/git_submodule_test.go::TestGitCloneOrPullSubmoduleDepth |
 | rainbond.source-repo.show-url | 从仓库展示地址中去除凭据 | active | regression | builder/sources.getShowURL | builder/sources/git_test.go::TestGetShowURL |
 | rainbond.source-repo.temp-build-info | 为源码任务创建独立的临时仓库工作目录 | active | regression | builder/sources.CreateTempRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfo |
 | rainbond.source-repo.temp-build-info-pkg | 为 pkg 构建创建临时工作目录信息时保持原始路径 | active | regression | builder/sources.CreateTempRepostoryBuildInfo | builder/sources/repo_test.go::TestCreateTempRepostoryBuildInfoForPkg |
@@ -5349,6 +5350,16 @@
 - 业务入口: `builder/sources.GitCloneOrPull`
 - 代码路径: `builder/sources/git.go`
 - 测试路径: `builder/sources/git_test.go::TestGitPullOrClone`
+
+### Source builds shallow-clone submodules and fall back for missing pinned commits
+
+- Capability ID: `rainbond.source-repo.shallow-submodules`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `builder/sources.GitCloneOrPull`
+- 代码路径: `builder/sources/git.go`
+- 测试路径: `builder/sources/git_submodule_test.go::TestGitCloneOrPullSubmoduleDepth`
 
 ### 从仓库展示地址中去除凭据
 

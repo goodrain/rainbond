@@ -8978,6 +8978,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.shallow-submodules",
+      "title": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "title_zh": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "interface_type": "package_function",
+      "interface": "builder/sources.GitCloneOrPull",
+      "code_paths": [
+        "builder/sources/git.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/git_submodule_test.go",
+          "selector": "TestGitCloneOrPullSubmoduleDepth"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-sftp.port-parse",
       "title": "Parse SFTP ports with sane defaults",
       "title_zh": "\u89e3\u6790 SFTP \u7aef\u53e3\u5e76\u63d0\u4f9b\u5408\u7406\u9ed8\u8ba4\u503c",

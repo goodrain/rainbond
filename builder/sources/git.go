@@ -21,6 +21,7 @@ package sources
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"net/http"
@@ -176,7 +177,7 @@ func newGitCloneHTTPClient(repositoryURL string, timeout int) *http.Client {
 }
 
 // gitCloneInternal git clone code 内部实现（不加锁）
-func gitCloneInternal(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
+func gitCloneInternal(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int, shallowSubmodules bool) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	if !strings.HasSuffix(csi.RepositoryURL, ".git") {
 		csi.RepositoryURL = csi.RepositoryURL + ".git"
@@ -209,7 +210,6 @@ Loop:
 	if csi.Branch != "" {
 		opts.ReferenceName = getBranch(csi.Branch)
 	}
-	var rs *git.Repository
 	if ep.Protocol == "ssh" {
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
@@ -222,7 +222,6 @@ Loop:
 		}
 		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
-		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	} else {
 		customClient := newGitCloneHTTPClient(csi.RepositoryURL, timeout)
 		if csi.User != "" && csi.Password != "" {
@@ -236,8 +235,8 @@ Loop:
 		defer func() {
 			client.InstallProtocol("https", githttp.DefaultClient)
 		}()
-		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	}
+	rs, err := cloneSourceRepository(ctx, sourceDir, opts, shallowSubmodules, logger)
 	if err != nil {
 		// Get error string for pattern matching first
 		errLower := strings.ToLower(err.Error())
@@ -256,7 +255,7 @@ Loop:
 				return rs, errMsg, fmt.Errorf("failed to remove existing repository: %v", reerr)
 			}
 			// Retry clone after removal
-			rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
+			rs, err = cloneSourceRepository(ctx, sourceDir, opts, shallowSubmodules, logger)
 			if err == nil {
 				logrus.Infof("Successfully cloned repository after removing existing directory")
 				return rs, "", nil
@@ -444,13 +443,49 @@ Loop:
 	return rs, "", err
 }
 
+func cloneSourceRepository(ctx context.Context, sourceDir string, opts *git.CloneOptions, shallowSubmodules bool, logger event.Logger) (*git.Repository, error) {
+	if !shallowSubmodules {
+		return git.PlainCloneContext(ctx, sourceDir, false, opts)
+	}
+
+	mainOptions := *opts
+	mainOptions.RecurseSubmodules = git.NoRecurseSubmodules
+	repo, err := git.PlainCloneContext(ctx, sourceDir, false, &mainOptions)
+	if err != nil {
+		return repo, err
+	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return repo, err
+	}
+	submodules, err := worktree.Submodules()
+	if err != nil {
+		return repo, err
+	}
+	err = submodules.UpdateContext(ctx, &git.SubmoduleUpdateOptions{
+		Init:              true,
+		Depth:             1,
+		RecurseSubmodules: opts.RecurseSubmodules,
+		Auth:              opts.Auth,
+	})
+	if !errors.Is(err, plumbing.ErrObjectNotFound) || ctx.Err() != nil {
+		return repo, err
+	}
+
+	logger.Info("Shallow submodule checkout could not find a required Git object; retrying with full submodule history", map[string]string{"step": "clone_code"})
+	if err := os.RemoveAll(sourceDir); err != nil {
+		return repo, fmt.Errorf("clear shallow checkout before retrying submodules: %w", err)
+	}
+	return git.PlainCloneContext(ctx, sourceDir, false, opts)
+}
+
 // GitClone git clone code（带锁的外部接口）
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	// 对目录加锁，防止并发 Git 操作冲突
 	globalDirLockManager.lock(sourceDir)
 	defer globalDirLockManager.unlock(sourceDir)
 
-	return gitCloneInternal(csi, sourceDir, logger, timeout)
+	return gitCloneInternal(csi, sourceDir, logger, timeout, false)
 }
 
 func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod, error) {
@@ -628,7 +663,7 @@ func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, t
 			logger.Error(util.Translation("Clear code directory failed"), map[string]string{"step": "clone-code", "status": "failure"})
 		}
 	}
-	return gitCloneInternal(csi, sourceDir, logger, timeout)
+	return gitCloneInternal(csi, sourceDir, logger, timeout, true)
 }
 
 // GitCheckout checkout the specified branch
