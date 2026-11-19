@@ -197,7 +197,7 @@ func servePluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPlu
 
 func servePluginBackendWithToken(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter, readToken func(context.Context) (string, error)) {
 	proxyPath := "/" + strings.TrimLeft(chi.URLParam(r, "*"), "/")
-	if chi.URLParam(r, "plugin_name") == "rainbond-ai-engine" && aiEngineManagementPath(r.Method, proxyPath) {
+	if chi.URLParam(r, "plugin_name") == "rainbond-ai-engine" && aiEngineManagementPath(r, proxyPath) {
 		middleware.CleanupIdentity(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := readToken(r.Context())
 			if err != nil {

@@ -2,19 +2,31 @@ package version2
 
 import (
 	"net/http"
+	"path"
 	"strings"
 )
 
-func aiEngineManagementPath(method, path string) bool {
+func aiEngineManagementPath(r *http.Request, target string) bool {
 	const prefix = "/api/v1/ai-engine"
-	if path != prefix && !strings.HasPrefix(path, prefix+"/") {
+	if target != prefix && !strings.HasPrefix(target, prefix+"/") {
 		return false
 	}
-	if method == http.MethodGet && strings.HasPrefix(path, prefix+"/media/") {
-		id := strings.TrimPrefix(path, prefix+"/media/")
-		// Only the existing single-object GET route is authenticated by its
-		// media signature; uploads, deletes and other paths remain protected.
-		if id != "" && id != "." && id != ".." && !strings.ContainsAny(id, "/\\") {
+	// Match Engine's existing capability routes exactly. Its handlers still
+	// validate the signed media URL or opaque upload ID themselves.
+	if r.Method != http.MethodGet || r.URL.Path != path.Clean(r.URL.Path) ||
+		r.URL.EscapedPath() != r.URL.Path || strings.Contains(target, "\\") {
+		return true
+	}
+	for _, assetPrefix := range []string{prefix + "/media/media-", prefix + "/uploads/"} {
+		if id := strings.TrimPrefix(target, assetPrefix); id != target {
+			if len(id) != 32 {
+				return true
+			}
+			for _, c := range id {
+				if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+					return true
+				}
+			}
 			return false
 		}
 	}

@@ -94,7 +94,8 @@ func TestAIPlatformCredentialDoesNotReachUnprotectedRoutes(t *testing.T) {
 		{http.MethodGet, "v1/models"},
 		{http.MethodGet, "healthz"},
 		{http.MethodGet, "static/main.js"},
-		{http.MethodGet, "api/v1/ai-engine/media/signed-asset?signature=fixture&expires=123"},
+		{http.MethodGet, "api/v1/ai-engine/media/media-0123456789abcdef0123456789abcdef?signature=fixture&expires=123"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/0123456789abcdef0123456789abcdef"},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +130,19 @@ func TestAIPlatformTrustDoesNotExemptOtherMediaOperations(t *testing.T) {
 		{http.MethodGet, "api/v1/ai-engine/media/"},
 		{http.MethodGet, "api/v1/ai-engine/media/."},
 		{http.MethodGet, "api/v1/ai-engine/media/.."},
+		{http.MethodGet, "api/v1/ai-engine/media/signed-asset"},
+		{http.MethodGet, "api/v1/ai-engine/media/media-0123456789abcdef0123456789abcde"},
+		{http.MethodGet, "api/v1/ai-engine/media/media-0123456789ABCDEF0123456789ABCDEF"},
+		{http.MethodGet, "api/v1/ai-engine/media/media-0123456789abcdef0123456789abcdef/other"},
+		{http.MethodGet, "api/v1/ai-engine/media/media-%30123456789abcdef0123456789abcdef"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/0123456789abcdef0123456789abcde"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/0123456789ABCDEF0123456789ABCDEF"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/0123456789abcdef0123456789abcdef/other"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/%30123456789abcdef0123456789abcdef"},
+		{http.MethodGet, "api/v1/ai-engine/uploads/./0123456789abcdef0123456789abcdef"},
+		{http.MethodGet, "api/v1/ai-engine//uploads/0123456789abcdef0123456789abcdef"},
+		{http.MethodPost, "api/v1/ai-engine/uploads/0123456789abcdef0123456789abcdef"},
+		{http.MethodPost, "api/v1/ai-engine/media/media-0123456789abcdef0123456789abcdef"},
 		{http.MethodGet, "api/v1/ai-engine"},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
