@@ -9,9 +9,8 @@ import (
 	"testing"
 )
 
-// This synthetic vector is shared with Console's HMAC implementation. It is
-// never a runtime cluster credential.
-const aiPlatformFixtureToken = "04d2bf8e9084ae34a9e41113bc003fea0bb0f5df6d983ac66b3ff66d5d7e86df"
+// A synthetic opaque Secret value, never a runtime cluster credential.
+const aiPlatformFixtureToken = "a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1"
 
 // capability_id: rainbond.plugin.ai-management-platform-trust
 func TestAIManagementProxyRequiresVerifiedRegionIdentity(t *testing.T) {
@@ -32,7 +31,7 @@ func TestAIManagementProxyRequiresVerifiedRegionIdentity(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				attempts.Add(1)
 				if r.Header.Get("X-AI-Platform-Token") != aiPlatformFixtureToken {
-					t.Error("management request did not receive the derived platform credential")
+					t.Error("management request did not receive the stored platform credential")
 				}
 				if r.Header.Get("Authorization") != "" {
 					t.Error("region master credential reached the plugin")

@@ -404,7 +404,8 @@
 | rainbond.plugin-build.image-input-validate | 在插件镜像构建前拒绝空值或非法镜像引用 | active | regression | builder/exector.exectorManager.run | builder/exector/plugin_image_test.go::TestPluginImageRunRejectsEmptyImageURL |
 | rainbond.plugin-build.image-tag | 根据源镜像名和版本生成插件镜像标签 | active | regression | builder/exector.createPluginImageTag | builder/exector/plugin_image_test.go::TestCreatePluginImageTag |
 | rainbond.plugin-dockerfile-build.default-arch-affinity | Default plugin Dockerfile build arch affinity | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime |
-| rainbond.plugin.ai-management-platform-trust | AI management derives backend credentials only after Region authentication | active | regression | PluginBackendProxy -> AIEnginePlatformToken | api/api_routers/version2/ai_plugin_trust_test.go::TestAIManagementProxyRequiresVerifiedRegionIdentity<br>api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformCredentialDoesNotReachUnprotectedRoutes<br>api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformTrustDoesNotExemptOtherMediaOperations<br>api/api_routers/version2/ai_plugin_trust_test.go::TestOtherPluginCredentialForwardingIsUnchanged |
+| rainbond.plugin.ai-management-platform-trust | AI management reads an isolated shared credential after platform identity validation | active | regression | PluginBackendProxy -> CleanupIdentity -> Secret read | api/api_routers/version2/ai_plugin_trust_test.go::TestAIManagementProxyRequiresVerifiedRegionIdentity<br>api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformCredentialDoesNotReachUnprotectedRoutes<br>api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformTrustDoesNotExemptOtherMediaOperations<br>api/api_routers/version2/ai_plugin_trust_test.go::TestOtherPluginCredentialForwardingIsUnchanged |
+| rainbond.plugin.ai-platform-secret-bootstrap | Trusted platform installation bootstraps one random AI Secret for token or verified mTLS identity | active | regression | POST /v2/platform/plugins/rainbond-ai-engine/platform-token | api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformSecretBootstrapIsFixedIdempotentAndConcurrent<br>api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformSecretFailuresDoNotCreateOrExposeCredentials<br>api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformBootstrapAndProxyRequireRealPlatformTLSOrToken<br>api/api_routers/version2/ai_plugin_secret_test.go::TestAIManagementProxyNeverBootstrapsMissingSecret |
 | rainbond.plugin.backend-proxy-contract | Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics | active | regression | /v2/platform/backend/plugins/{plugin_name}/* | api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyContract<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyStreamsPastShortTimeoutAndCancels<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyDoesNotReplayPOST<br>api/api_routers/version2/plugin_backend_proxy_test.go::TestPluginBackendProxyPreservesTruncatedStream |
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
@@ -4675,15 +4676,25 @@
 - 代码路径: `builder/sources/image.go`, `builder/exector/plugin_dockerfile.go`, `api/handler/plugin.go`, `api/model/pluginModel.go`
 - 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime`
 
-### AI management derives backend credentials only after Region authentication
+### AI management reads an isolated shared credential after platform identity validation
 
 - Capability ID: `rainbond.plugin.ai-management-platform-trust`
 - 状态: `active`
 - 测试类型: `regression`
 - 接口类型: `workflow`
-- 业务入口: `PluginBackendProxy -> AIEnginePlatformToken`
-- 代码路径: `api/api_routers/version2/v2Routers.go`, `api/api_routers/version2/ai_plugin_trust.go`, `api/middleware/token.go`
+- 业务入口: `PluginBackendProxy -> CleanupIdentity -> Secret read`
+- 代码路径: `api/api_routers/version2/v2Routers.go`, `api/api_routers/version2/ai_plugin_trust.go`, `api/api_routers/version2/ai_plugin_secret.go`
 - 测试路径: `api/api_routers/version2/ai_plugin_trust_test.go::TestAIManagementProxyRequiresVerifiedRegionIdentity`, `api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformCredentialDoesNotReachUnprotectedRoutes`, `api/api_routers/version2/ai_plugin_trust_test.go::TestAIPlatformTrustDoesNotExemptOtherMediaOperations`, `api/api_routers/version2/ai_plugin_trust_test.go::TestOtherPluginCredentialForwardingIsUnchanged`
+
+### Trusted platform installation bootstraps one random AI Secret for token or verified mTLS identity
+
+- Capability ID: `rainbond.plugin.ai-platform-secret-bootstrap`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `POST /v2/platform/plugins/rainbond-ai-engine/platform-token`
+- 代码路径: `api/api_routers/version2/v2Routers.go`, `api/api_routers/version2/ai_plugin_secret.go`, `api/middleware/cleanup_identity.go`
+- 测试路径: `api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformSecretBootstrapIsFixedIdempotentAndConcurrent`, `api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformSecretFailuresDoNotCreateOrExposeCredentials`, `api/api_routers/version2/ai_plugin_secret_test.go::TestAIPlatformBootstrapAndProxyRequireRealPlatformTLSOrToken`, `api/api_routers/version2/ai_plugin_secret_test.go::TestAIManagementProxyNeverBootstrapsMissingSecret`
 
 ### Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics
 

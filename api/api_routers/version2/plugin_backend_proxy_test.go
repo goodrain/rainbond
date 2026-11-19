@@ -227,12 +227,12 @@ func pluginBackendTestRouter(t *testing.T, backend string) http.Handler {
 	router.Use(interceptors.Timeout(5 * time.Second))
 	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
 		router.MethodFunc(method, "/v2/platform/backend/plugins/{plugin_name}/*", func(w http.ResponseWriter, r *http.Request) {
-			servePluginBackend(w, r, func(name string) (*v1alpha1.RBDPlugin, error) {
+			servePluginBackendWithToken(w, r, func(name string) (*v1alpha1.RBDPlugin, error) {
 				plugin := testRBDPlugin("")
 				plugin.Name = name
 				plugin.Spec.BackendService = backend
 				return plugin, nil
-			})
+			}, func(context.Context) (string, error) { return aiPlatformFixtureToken, nil })
 		})
 	}
 	return router

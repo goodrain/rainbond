@@ -180,6 +180,7 @@ func (v2 *V2) platformPluginsRouter() chi.Router {
 	r.Put("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
 	r.Delete("/backend/plugins/{plugin_name}/*", PluginBackendProxy)
 	r.Post("/plugins/{plugin_name}/status", ChangePluginStatus)
+	r.Method(http.MethodPost, "/plugins/rainbond-ai-engine/platform-token", aiPlatformTokenBootstrap(systemAIPlatformSecrets))
 	return r
 }
 
@@ -189,17 +190,30 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func servePluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter) {
+	servePluginBackendWithToken(w, r, getPlugin, func(ctx context.Context) (string, error) {
+		return readAIPlatformToken(ctx, systemAIPlatformSecrets())
+	})
+}
+
+func servePluginBackendWithToken(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter, readToken func(context.Context) (string, error)) {
+	proxyPath := "/" + strings.TrimLeft(chi.URLParam(r, "*"), "/")
+	if chi.URLParam(r, "plugin_name") == "rainbond-ai-engine" && aiEngineManagementPath(r.Method, proxyPath) {
+		middleware.CleanupIdentity(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, err := readToken(r.Context())
+			if err != nil {
+				http2.ReturnError(r, w, http.StatusServiceUnavailable, "AI_PLATFORM_CREDENTIAL_UNAVAILABLE")
+				return
+			}
+			proxyPluginBackend(w, r, getPlugin, token)
+		})).ServeHTTP(w, r)
+		return
+	}
+	proxyPluginBackend(w, r, getPlugin, "")
+}
+
+func proxyPluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter, platformToken string) {
 	aiPlugin := chi.URLParam(r, "plugin_name") == "rainbond-ai-engine"
 	proxyPath := "/" + strings.TrimLeft(chi.URLParam(r, "*"), "/")
-	platformToken := ""
-	if aiPlugin && aiEngineManagementPath(r.Method, proxyPath) {
-		var authenticated bool
-		platformToken, authenticated = middleware.AIEnginePlatformToken(r.Header.Get("Authorization"))
-		if !authenticated {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-	}
 	plugin, err := getPlugin(chi.URLParam(r, "plugin_name"))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get backend_path: %v", err), http.StatusInternalServerError)

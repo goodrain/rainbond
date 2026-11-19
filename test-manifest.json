@@ -7860,14 +7860,14 @@
     },
     {
       "id": "rainbond.plugin.ai-management-platform-trust",
-      "title": "AI management derives backend credentials only after Region authentication",
-      "title_zh": "AI management derives backend credentials only after Region authentication",
+      "title": "AI management reads an isolated shared credential after platform identity validation",
+      "title_zh": "AI management reads an isolated shared credential after platform identity validation",
       "interface_type": "workflow",
-      "interface": "PluginBackendProxy -> AIEnginePlatformToken",
+      "interface": "PluginBackendProxy -> CleanupIdentity -> Secret read",
       "code_paths": [
         "api/api_routers/version2/v2Routers.go",
         "api/api_routers/version2/ai_plugin_trust.go",
-        "api/middleware/token.go"
+        "api/api_routers/version2/ai_plugin_secret.go"
       ],
       "tests": [
         {
@@ -7885,6 +7885,38 @@
         {
           "path": "api/api_routers/version2/ai_plugin_trust_test.go",
           "selector": "TestOtherPluginCredentialForwardingIsUnchanged"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.plugin.ai-platform-secret-bootstrap",
+      "title": "Trusted platform installation bootstraps one random AI Secret for token or verified mTLS identity",
+      "title_zh": "Trusted platform installation bootstraps one random AI Secret for token or verified mTLS identity",
+      "interface_type": "view_endpoint",
+      "interface": "POST /v2/platform/plugins/rainbond-ai-engine/platform-token",
+      "code_paths": [
+        "api/api_routers/version2/v2Routers.go",
+        "api/api_routers/version2/ai_plugin_secret.go",
+        "api/middleware/cleanup_identity.go"
+      ],
+      "tests": [
+        {
+          "path": "api/api_routers/version2/ai_plugin_secret_test.go",
+          "selector": "TestAIPlatformSecretBootstrapIsFixedIdempotentAndConcurrent"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_secret_test.go",
+          "selector": "TestAIPlatformSecretFailuresDoNotCreateOrExposeCredentials"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_secret_test.go",
+          "selector": "TestAIPlatformBootstrapAndProxyRequireRealPlatformTLSOrToken"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_secret_test.go",
+          "selector": "TestAIManagementProxyNeverBootstrapsMissingSecret"
         }
       ],
       "test_type": "regression",
