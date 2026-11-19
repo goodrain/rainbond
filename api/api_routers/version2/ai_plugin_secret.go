@@ -41,7 +41,7 @@ func aiPlatformSecretToken(secret *corev1.Secret) (string, error) {
 	}
 	token := string(secret.Data["token"])
 	decoded, err := hex.DecodeString(token)
-	if err != nil || len(token) != 64 || len(decoded) != 32 {
+	if err != nil || len(token) != 64 || len(decoded) != 32 || hex.EncodeToString(decoded) != token {
 		return "", errors.New("invalid AI platform credential")
 	}
 	return token, nil

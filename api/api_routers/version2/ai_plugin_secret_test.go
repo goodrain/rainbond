@@ -87,6 +87,7 @@ func TestAIPlatformSecretFailuresDoNotCreateOrExposeCredentials(t *testing.T) {
 	}{
 		{name: "missing secret"},
 		{name: "malformed token", secret: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "rainbond-ai-engine-platform", Namespace: "fixture-platform"}, Type: corev1.SecretTypeOpaque, Data: map[string][]byte{"token": []byte("bad\nfixture")}}},
+		{name: "uppercase token", secret: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "rainbond-ai-engine-platform", Namespace: "fixture-platform"}, Type: corev1.SecretTypeOpaque, Data: map[string][]byte{"token": []byte(strings.ToUpper(aiPlatformFixtureToken))}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := fake.NewSimpleClientset()
