@@ -17,6 +17,7 @@ import (
 
 // capability_id: rainbond.plugin.backend-proxy-contract
 func TestPluginBackendProxyContract(t *testing.T) {
+	t.Setenv("TOKEN", "region-token")
 	tests := []struct {
 		method string
 		path   string
@@ -33,7 +34,7 @@ func TestPluginBackendProxyContract(t *testing.T) {
 			const query = "api_id=first&api_id=second&trace=a%2Fb&name=hello+world"
 			const requestBody = `{"model":"team/model","stream":true}`
 			headers := map[string]string{
-				"Authorization":            "region-token",
+				"Authorization":            "Token region-token",
 				"X-Original-Authorization": "Bearer client-key",
 				"X-AI-Team-Name":           "team-a",
 				"X-AI-Region-Name":         "region-b",
@@ -47,6 +48,9 @@ func TestPluginBackendProxyContract(t *testing.T) {
 					t.Errorf("upstream target = %s %s, want %s /%s?%s", r.Method, r.URL, tt.method, tt.path, query)
 				}
 				for name, want := range headers {
+					if name == "Authorization" {
+						want = "" // The Region credential must not reach the AI plugin.
+					}
 					if got := r.Header.Get(name); got != want {
 						t.Errorf("upstream %s = %q, want %q", name, got, want)
 					}

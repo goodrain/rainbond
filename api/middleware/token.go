@@ -19,8 +19,11 @@
 package middleware
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"os"
@@ -87,4 +90,15 @@ func matchesConfiguredToken(authorization string) bool {
 	auth := strings.Split(authorization, " ")
 	return configuredToken != "" && len(auth) == 2 &&
 		subtle.ConstantTimeCompare([]byte(auth[1]), []byte(configuredToken)) == 1
+}
+
+// AIEnginePlatformToken returns an AI management credential only for an
+// authenticated Region caller. The plugin never receives the Region master key.
+func AIEnginePlatformToken(authorization string) (string, bool) {
+	if !matchesConfiguredToken(authorization) {
+		return "", false
+	}
+	mac := hmac.New(sha256.New, []byte(os.Getenv("TOKEN")))
+	_, _ = mac.Write([]byte("rainbond-ai-engine/platform-proxy/v1"))
+	return hex.EncodeToString(mac.Sum(nil)), true
 }

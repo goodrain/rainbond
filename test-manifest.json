@@ -7859,6 +7859,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugin.ai-management-platform-trust",
+      "title": "AI management derives backend credentials only after Region authentication",
+      "title_zh": "AI management derives backend credentials only after Region authentication",
+      "interface_type": "workflow",
+      "interface": "PluginBackendProxy -> AIEnginePlatformToken",
+      "code_paths": [
+        "api/api_routers/version2/v2Routers.go",
+        "api/api_routers/version2/ai_plugin_trust.go",
+        "api/middleware/token.go"
+      ],
+      "tests": [
+        {
+          "path": "api/api_routers/version2/ai_plugin_trust_test.go",
+          "selector": "TestAIManagementProxyRequiresVerifiedRegionIdentity"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_trust_test.go",
+          "selector": "TestAIPlatformCredentialDoesNotReachUnprotectedRoutes"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_trust_test.go",
+          "selector": "TestAIPlatformTrustDoesNotExemptOtherMediaOperations"
+        },
+        {
+          "path": "api/api_routers/version2/ai_plugin_trust_test.go",
+          "selector": "TestOtherPluginCredentialForwardingIsUnchanged"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.plugin.backend-proxy-contract",
       "title": "Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics",
       "title_zh": "Plugin backend proxy preserves protocol, stream lifecycle and non-replay semantics",

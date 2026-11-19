@@ -189,6 +189,17 @@ func PluginBackendProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func servePluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPluginGetter) {
+	aiPlugin := chi.URLParam(r, "plugin_name") == "rainbond-ai-engine"
+	proxyPath := "/" + strings.TrimLeft(chi.URLParam(r, "*"), "/")
+	platformToken := ""
+	if aiPlugin && aiEngineManagementPath(r.Method, proxyPath) {
+		var authenticated bool
+		platformToken, authenticated = middleware.AIEnginePlatformToken(r.Header.Get("Authorization"))
+		if !authenticated {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
 	plugin, err := getPlugin(chi.URLParam(r, "plugin_name"))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get backend_path: %v", err), http.StatusInternalServerError)
@@ -205,9 +216,15 @@ func servePluginBackend(w http.ResponseWriter, r *http.Request, getPlugin rbdPlu
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
-		proxyPath := chi.URLParam(r, "*")
-		req.URL.Path = "/" + strings.TrimLeft(proxyPath, "/")
+		req.URL.Path = proxyPath
 		req.Host = backend.Host
+		if aiPlugin {
+			req.Header.Del("Authorization")
+			req.Header.Del("X-AI-Platform-Token")
+			if platformToken != "" {
+				req.Header.Set("X-AI-Platform-Token", platformToken)
+			}
+		}
 	}
 	// Serialize transport errors as JSON instead of leaking raw exception objects
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
