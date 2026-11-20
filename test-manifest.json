@@ -11692,6 +11692,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.windows-private-dhcp",
+      "title": "Windows VM pod networking uses private DHCP without changing unrelated guests",
+      "title_zh": "Windows \u865a\u62df\u673a\u4f7f\u7528\u79c1\u6709 DHCP \u4e14\u4fdd\u6301\u5176\u4ed6\u6765\u5bbe\u7f51\u7edc\u4e0d\u53d8",
+      "interface_type": "workflow",
+      "interface": "conversion.buildVMRuntimeConfig",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_windows_network_test.go",
+          "selector": "TestWindowsPodNetworkDoesNotDelegateLauncherAddressToGuest"
+        },
+        {
+          "path": "worker/appm/conversion/vm_windows_network_test.go",
+          "selector": "TestLinuxAndUnidentifiedGuestsKeepTheirNetworkBinding"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
       "title": "Cleanup completed virt-launcher pods after VM hot update",
       "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",

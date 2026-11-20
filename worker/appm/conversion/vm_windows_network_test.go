@@ -2,6 +2,7 @@ package conversion
 
 import "testing"
 
+// capability_id: rainbond.vm-network.windows-private-dhcp
 func TestWindowsPodNetworkDoesNotDelegateLauncherAddressToGuest(t *testing.T) {
 	for _, system := range []string{"Windows 10 Education 22H2", "windows11", "Windows Server 2022"} {
 		t.Run(system, func(t *testing.T) {
@@ -25,6 +26,7 @@ func TestWindowsPodNetworkDoesNotDelegateLauncherAddressToGuest(t *testing.T) {
 	}
 }
 
+// capability_id: rainbond.vm-network.windows-private-dhcp
 func TestLinuxAndUnidentifiedGuestsKeepTheirNetworkBinding(t *testing.T) {
 	for _, system := range []string{"", "Ubuntu 24.04", "Debian 12"} {
 		cfg, err := buildVMRuntimeConfig(map[string]string{vmOSNameKey: system}, nil, nil, nil)
