@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +10,44 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 )
+
+// capability_id: rainbond.vm-capabilities.password-bootstrap-env-gate
+func TestBuildVMCapabilitiesPasswordBootstrapEnvGate(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		unset bool
+		want  bool
+	}{
+		{name: "unset", unset: true, want: false},
+		{name: "empty", value: "", want: false},
+		{name: "false", value: "false", want: false},
+		{name: "numeric one", value: "1", want: false},
+		{name: "uppercase", value: "TRUE", want: false},
+		{name: "exact true", value: "true", want: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.unset {
+				t.Setenv("VM_PASSWORD_BOOTSTRAP_ENABLED", "true")
+				if err := os.Unsetenv("VM_PASSWORD_BOOTSTRAP_ENABLED"); err != nil {
+					t.Fatal("unset capability environment: ", err)
+				}
+			} else {
+				t.Setenv("VM_PASSWORD_BOOTSTRAP_ENABLED", test.value)
+			}
+
+			got, err := BuildVMCapabilities(nil)
+			if err != nil {
+				t.Fatal("build capabilities failed")
+			}
+			if got.PasswordBootstrapSupported != test.want {
+				t.Fatalf("password capability gate mismatch: got %t, want %t", got.PasswordBootstrapSupported, test.want)
+			}
+		})
+	}
+}
 
 func TestBuildVMCapabilities(t *testing.T) {
 	scheme := runtime.NewScheme()

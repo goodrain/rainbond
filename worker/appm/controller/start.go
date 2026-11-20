@@ -20,19 +20,26 @@ package controller
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/worker/appm/store"
 
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -80,6 +87,9 @@ func (s *startController) Begin() {
 }
 
 func (s *startController) errorCallback(app v1.AppService) error {
+	if app.VMStartupHints != nil {
+		return vmrestore.ErrRestoreUnknown
+	}
 	app.Logger.Info("Begin clean resources that have been created", event.GetLoggerOption("starting"))
 	stopController := stopController{
 		manager: s.manager,
@@ -94,6 +104,17 @@ func (s *startController) errorCallback(app v1.AppService) error {
 }
 
 func (s *startController) startOne(app v1.AppService) error {
+	if err := guardLegacyVMLifecycle(app); err != nil {
+		return err
+	}
+	var publication *vmrestore.VMStartupPublication
+	if app.VMStartupHints != nil && app.GetVirtualMachine() != nil {
+		var err error
+		publication, err = vmrestore.PrepareNewVMStartup(vmrestore.Scope{TenantID: app.TenantID, ServiceID: app.ServiceID, Namespace: app.GetNamespace()}, app.GetVirtualMachine(), *app.VMStartupHints)
+		if err != nil {
+			return err
+		}
+	}
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
 	if err != nil {
@@ -116,7 +137,32 @@ func (s *startController) startOne(app v1.AppService) error {
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
-			_, err := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace()).Create(s.ctx, config, metav1.CreateOptions{})
+			generated := publication != nil && publication.MarkConfigMap(config)
+			configMaps := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace())
+			_, err := configMaps.Create(s.ctx, config, metav1.CreateOptions{})
+			if generated && errors.IsAlreadyExists(err) {
+				return vmrestore.ErrConflict
+			}
+			if errors.IsAlreadyExists(err) && config.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeOwned {
+				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					current, err := configMaps.Get(s.ctx, config.Name, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					owner := current.Labels["service_id"]
+					if (owner != "" && owner != app.ServiceID) || !canAdoptConfigMap(current, config) {
+						return fmt.Errorf("config map %q does not belong to component %q", config.Name, app.ServiceID)
+					}
+					if maps.Equal(current.Data, config.Data) {
+						return nil
+					}
+					current.Data = config.Data
+					_, err = configMaps.Update(s.ctx, current, metav1.UpdateOptions{})
+					return err
+				}); err != nil {
+					return fmt.Errorf("refresh config file %q: %w", config.Name, err)
+				}
+			}
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())
 			}
@@ -153,10 +199,21 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	if vm := app.GetVirtualMachine(); vm != nil {
-		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
+		created, createErr := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm, metav1.CreateOptions{})
+		err = createErr
 		if err != nil {
+			err = redactVMCloudInitError(err, vm)
 			s.logVirtualMachineCreateFailure(app, err)
-			return fmt.Errorf("create vm failure:%s;", err.Error())
+			return fmt.Errorf("create vm failure:%w;", err)
+		}
+		if publication != nil {
+			manager := db.GetManager()
+			if manager == nil || manager.DB() == nil {
+				return vmrestore.ErrReferenceUnavailable
+			}
+			if err := vmrestore.NewStore(manager.DB()).SealNewVMStartup(s.ctx, s.manager.client, created, *publication); err != nil {
+				return err
+			}
 		}
 	}
 	if job := app.GetJob(); job != nil {
@@ -333,6 +390,7 @@ func (s *startController) logWorkloadCreateError(app v1.AppService, workloadType
 }
 
 func (s *startController) logVirtualMachineCreateFailure(app v1.AppService, err error) {
+	err = redactVMCloudInitError(err, app.GetVirtualMachine())
 	s.logWorkloadCreateError(app, "VirtualMachine", err)
 	s.logWorkloadCreateManifest(app.ServiceAlias, "VirtualMachine", app.GetVirtualMachine())
 }
@@ -350,11 +408,119 @@ func (s *startController) logWorkloadCreateManifest(serviceAlias, workloadType s
 }
 
 func marshalWorkloadManifestYAML(workload interface{}) (string, error) {
+	workload = redactVMCloudInitUserData(workload)
 	manifestBytes, err := yaml.Marshal(workload)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(string(manifestBytes)), nil
+}
+
+func redactVMCloudInitUserData(workload interface{}) interface{} {
+	vm, ok := workload.(*kubevirtv1.VirtualMachine)
+	if !ok || vm == nil || vm.Spec.Template == nil {
+		return workload
+	}
+
+	redactedVM := vm.DeepCopy()
+	for i := range redactedVM.Spec.Template.Spec.Volumes {
+		cloudInit := redactedVM.Spec.Template.Spec.Volumes[i].CloudInitNoCloud
+		if cloudInit == nil {
+			continue
+		}
+		if cloudInit.UserData != "" {
+			cloudInit.UserData = "[REDACTED]"
+		}
+		if cloudInit.UserDataBase64 != "" {
+			cloudInit.UserDataBase64 = "[REDACTED]"
+		}
+	}
+	return redactedVM
+}
+
+type redactedVMCreateError struct {
+	message  string
+	original error
+}
+
+func (e redactedVMCreateError) Error() string { return e.message }
+
+func (e redactedVMCreateError) Unwrap() error { return e.original }
+
+func redactVMCloudInitError(err error, vm *kubevirtv1.VirtualMachine) error {
+	if err == nil || vm == nil || vm.Spec.Template == nil {
+		return err
+	}
+
+	message := err.Error()
+	for i := range vm.Spec.Template.Spec.Volumes {
+		cloudInit := vm.Spec.Template.Spec.Volumes[i].CloudInitNoCloud
+		if cloudInit == nil {
+			continue
+		}
+		if cloudInit.UserData != "" {
+			message = redactVMCloudInitContent(message, cloudInit.UserData)
+			for _, credential := range vmCloudInitSensitiveValues(cloudInit.UserData) {
+				message = redactVMCloudInitContent(message, credential)
+			}
+		}
+		if cloudInit.UserDataBase64 != "" {
+			message = redactVMCloudInitContent(message, cloudInit.UserDataBase64)
+			if decoded, decodeErr := base64.StdEncoding.DecodeString(cloudInit.UserDataBase64); decodeErr == nil {
+				userData := string(decoded)
+				message = redactVMCloudInitContent(message, userData)
+				for _, credential := range vmCloudInitSensitiveValues(userData) {
+					message = redactVMCloudInitContent(message, credential)
+				}
+			}
+		}
+	}
+	if message == err.Error() {
+		return err
+	}
+	return redactedVMCreateError{message: message, original: err}
+}
+
+func redactVMCloudInitContent(message, content string) string {
+	if content == "" {
+		return message
+	}
+	return strings.ReplaceAll(message, content, "[REDACTED]")
+}
+
+func vmCloudInitSensitiveValues(userData string) []string {
+	userData = strings.TrimSpace(userData)
+	userData = strings.TrimSpace(strings.TrimPrefix(userData, "#cloud-config"))
+	var config struct {
+		Users    []json.RawMessage `json:"users"`
+		Password string            `json:"password"`
+		Chpasswd struct {
+			Users []struct {
+				Password string `json:"password"`
+			} `json:"users"`
+		} `json:"chpasswd"`
+	}
+	if err := json.Unmarshal([]byte(userData), &config); err != nil {
+		return nil
+	}
+	credentials := []string{config.Password}
+	for _, item := range config.Users {
+		var user struct {
+			AuthorizedKeys  []string `json:"ssh_authorized_keys"`
+			HashedPassword  string   `json:"hashed_passwd"`
+			PasswordHash    string   `json:"passwd"`
+			PlainTextPasswd string   `json:"plain_text_passwd"`
+		}
+		if err := json.Unmarshal(item, &user); err != nil {
+			continue
+		}
+		credentials = append(credentials, user.AuthorizedKeys...)
+		credentials = append(credentials, user.HashedPassword, user.PasswordHash, user.PlainTextPasswd)
+	}
+	for _, user := range config.Chpasswd.Users {
+		credentials = append(credentials, user.Password)
+	}
+	return credentials
 }
 
 // containsIgnoreCase checks if s contains substr (case insensitive)

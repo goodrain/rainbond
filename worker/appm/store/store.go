@@ -367,6 +367,7 @@ func (a *appRuntimeStore) Lister() *Lister {
 func (a *appRuntimeStore) Start() error {
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
+	a.startVMAdmissionObserver(stopch)
 	a.stopch = stopch
 	go a.clean()
 	for !a.Ready() {

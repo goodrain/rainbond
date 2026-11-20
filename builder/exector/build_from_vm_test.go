@@ -83,6 +83,13 @@ func TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport(t *testing.T) {
 	if strings.Contains(dockerfile, "qemu-img") || strings.Contains(dockerfile, "gzip -dc") {
 		t.Fatalf("gzip export artifact dockerfile must not convert disk data: %q", dockerfile)
 	}
+	unicodeDockerfile, err := renderVMDockerfile("磁盘.img.gz")
+	if err != nil {
+		t.Fatalf("render Chinese gzip raw dockerfile: %v", err)
+	}
+	if want := strings.ReplaceAll(expected, "COPY disk.img.gz ", "COPY 磁盘.img.gz "); unicodeDockerfile != want {
+		t.Fatalf("Chinese gzip export must retain the HTTP artifact path: %q", unicodeDockerfile)
+	}
 }
 
 func TestRenderVMDockerfileUsesQCOW2ConversionForRawDisk(t *testing.T) {
@@ -90,9 +97,61 @@ func TestRenderVMDockerfileUsesQCOW2ConversionForRawDisk(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render raw disk dockerfile: %v", err)
 	}
-	expected := "FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\nWORKDIR /work\nCOPY rootdisk.img /work/source.img\nRUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img\nFROM scratch\nCOPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n"
-	if dockerfile != expected {
-		t.Fatalf("unexpected raw disk dockerfile: %q", dockerfile)
+	for _, instruction := range []string{
+		"FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\n",
+		"COPY rootdisk.img /work/source.img\n",
+		"/usr/bin/qemu-img info --output=json /work/source.img",
+		`/usr/bin/qemu-img convert -p -f "$format" -O qcow2`,
+		"COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n",
+	} {
+		if !strings.Contains(dockerfile, instruction) {
+			t.Fatalf("missing disk conversion instruction %q in %q", instruction, dockerfile)
+		}
+	}
+}
+
+// capability_id: rainbond.vm-build.img-content-detection
+func TestRenderVMDockerfileRejectsUnsafeFileNames(t *testing.T) {
+	for _, name := range []string{
+		"../disk.img", "/disk.img", "disk\nRUN echo injected.img", "disk\r.img",
+		"--from=other.img", "disk name.img", "disk$HOME.img", "disk*.img",
+		"disk;echo.img", "disk`echo`.img", "disk\\name.img",
+		"乌班图 磁盘.img", "乌班图\t.img", "乌班图\u200b.img", "\u202e乌班图.img",
+		"乌班图$HOME.img", "乌班图`echo`.img", "../乌班图.img", "--from=乌班图.img",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := renderVMDockerfile(name); err == nil {
+				t.Fatal("expected unsafe Dockerfile source name to fail")
+			}
+		})
+	}
+}
+
+func TestRenderVMDockerfileRetainsArchiveAndISOPaths(t *testing.T) {
+	for _, name := range []string{
+		"disk.tar", "disk.tar.gz", "disk.tar.xz", "disk.qcow2.gz", "disk.qcow2.xz", "disk.img.xz",
+		"乌班图.qcow2", "磁盘１.qcow2", "磁盘.tar", "磁盘.tar.gz", "磁盘.tar.xz", "磁盘.qcow2.gz", "磁盘.qcow2.xz", "磁盘.img.xz",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := renderVMDockerfile(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "FROM scratch\nADD --chown=107:107 " + name + " /disk/\n"; got != want {
+				t.Fatalf("archive build changed: %q", got)
+			}
+		})
+	}
+	for _, name := range []string{"installer.iso", "installer.iso.gz", "installer.iso.xz", "乌班图.iso", "乌班图.iso.gz", "乌班图.iso.xz"} {
+		t.Run(name, func(t *testing.T) {
+			got, err := renderVMDockerfile(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "FROM scratch\nCOPY --chown=107:107 " + name + " /disk/\n"; got != want {
+				t.Fatalf("ISO build changed: %q", got)
+			}
+		})
 	}
 }
 

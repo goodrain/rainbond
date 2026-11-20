@@ -20,6 +20,7 @@ package sources
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -571,6 +572,17 @@ func getHostAlias(kubeClient kubernetes.Interface) []corev1.HostAlias {
 	return hostAliases
 }
 
+// The Pod and its build container share this name. Containers require a DNS
+// label (63 bytes), even though Kubernetes allows longer Pod object names.
+func dockerfileBuildJobName(serviceID, deployVersion string) string {
+	name := fmt.Sprintf("%s-%s-dockerfile", serviceID, deployVersion)
+	if len(name) <= 63 {
+		return name
+	}
+	identity := sha256.Sum256([]byte(name))
+	return fmt.Sprintf("build-%x-dockerfile", identity[:20])
+}
+
 // ImageBuild use buildkit build image
 func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
 	buildStarted := time.Now()
@@ -586,7 +598,7 @@ func ImageBuild(arch, contextDir, RbdNamespace, ServiceID, DeployVersion string,
 	if err != nil {
 		logrus.Errorf("get pre build job for service %s failure ,%s", ServiceID, err.Error())
 	}
-	name := fmt.Sprintf("%s-%s-dockerfile", ServiceID, DeployVersion)
+	name := dockerfileBuildJobName(ServiceID, DeployVersion)
 	for _, job := range jobList {
 		if job.Name == name {
 			jobc.GetJobController().DeleteJob(job.Name)

@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+
 	"github.com/goodrain/rainbond/api/util/bcode"
 	configs2 "github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/db"
@@ -114,6 +115,7 @@ func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs
 			}
 		}
 	}
+	applyDeploymentUpgradeStrategy(appService)
 	return appService, nil
 }
 

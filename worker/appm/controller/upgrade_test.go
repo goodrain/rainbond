@@ -617,3 +617,63 @@ func TestTruncateErr(t *testing.T) {
 		t.Fatalf("expected valid UTF-8 within 10 bytes, got %q (len=%d, valid=%v)", got, len(got), utf8.ValidString(got))
 	}
 }
+
+// capability_id: rainbond.upgrade-configmap-preserves-resource-version
+func TestUpgradeConfigMapUsesCurrentVersionAndRetriesConflicts(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existing := configMapForTest("vm-env")
+	existing.ResourceVersion = "2"
+	existing.UID = "owned-configmap"
+	existing.Labels = map[string]string{"service_id": "service-1"}
+	desired := existing.DeepCopy()
+	desired.ResourceVersion = ""
+	desired.UID = ""
+	desired.Data = map[string]string{"k": "new"}
+	stale := existing.DeepCopy()
+	stale.ResourceVersion = "1"
+	client := k8sfake.NewSimpleClientset(existing)
+	attempts := 0
+	client.PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		attempts++
+		cm := action.(k8stesting.UpdateAction).GetObject().(*corev1.ConfigMap)
+		if cm.ResourceVersion != "2" || cm.UID != existing.UID {
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Resource: "configmaps"}, cm.Name, errors.New("resource version required"))
+		}
+		if attempts == 1 {
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Resource: "configmaps"}, cm.Name, errors.New("concurrent update"))
+		}
+		return false, nil, nil
+	})
+	controller := &upgradeController{ctx: context.Background(), manager: &Manager{client: client}}
+	now := newAppWithConfigMaps(namespace, stale)
+	err := controller.upgradeConfigMap(now, *newAppWithConfigMaps(namespace, desired))
+	if err != nil {
+		t.Fatalf("upgrade VM configmap: %v", err)
+	}
+	updated, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), "vm-env", metav1.GetOptions{})
+	if err != nil || updated.Data["k"] != "new" {
+		t.Fatalf("configmap not updated: %#v %v", updated, err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected conflict retry, got %d", attempts)
+	}
+}
+
+// capability_id: rainbond.upgrade-configmap-preserves-resource-version
+func TestUpgradeConfigMapUpdateFailurePreservesExistingData(t *testing.T) {
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}}
+	existing := configMapForTest("vm-env")
+	desired := existing.DeepCopy()
+	desired.Data = map[string]string{"k": "new"}
+	client := k8sfake.NewSimpleClientset(existing)
+	client.PrependReactor("update", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, errors.New("update denied") })
+	controller := &upgradeController{ctx: context.Background(), manager: &Manager{client: client}}
+	err := controller.upgradeConfigMap(newAppWithConfigMaps(namespace, existing), *newAppWithConfigMaps(namespace, desired))
+	if err == nil || !strings.Contains(err.Error(), "update denied") {
+		t.Fatalf("expected concrete failure, got %v", err)
+	}
+	current, err := client.CoreV1().ConfigMaps("default").Get(context.Background(), existing.Name, metav1.GetOptions{})
+	if err != nil || current.Data["k"] != "v" {
+		t.Fatalf("failed update removed original ConfigMap: %#v %v", current, err)
+	}
+}

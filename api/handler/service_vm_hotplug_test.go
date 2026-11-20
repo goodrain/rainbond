@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -11,6 +13,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbdao "github.com/goodrain/rainbond/db/dao"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/jinzhu/gorm"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,9 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 	v1 "kubevirt.io/api/core/v1"
 	kubecli "kubevirt.io/client-go/kubecli"
 )
@@ -326,63 +326,36 @@ func TestVolumnVarHotplugsRunningVMDataDisk(t *testing.T) {
 }
 
 func TestVolumnVarAddSyncsVMConfigFileImmediately(t *testing.T) {
-	sqlDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("create sqlmock: %v", err)
-	}
-	defer sqlDB.Close()
-
-	gdb, err := gorm.Open("mysql", sqlDB)
-	if err != nil {
-		t.Fatalf("open gorm db: %v", err)
-	}
-	defer gdb.Close()
-
-	mock.ExpectBegin()
-	tx := gdb.Begin()
-	if err := tx.Error; err != nil {
-		t.Fatalf("begin tx: %v", err)
-	}
-	mock.ExpectCommit()
-
-	volumeDao := &hotplugTenantServiceVolumeDao{}
-	configFileDao := &hotunplugTenantServiceConfigFileDao{}
-	serviceDao := &hotplugTenantServiceDao{
-		service: &dbmodel.TenantServices{
-			ServiceID:    "service-vm",
-			ExtendMethod: "vm",
-		},
-	}
-	db.SetTestManager(hotplugConfigFileTestManager{
-		tx:            tx,
-		volumeDao:     volumeDao,
-		configFileDao: configFileDao,
-		serviceDao:    serviceDao,
+	fixture := newBindingConsumerFixture(t)
+	current, _ := fixture.store.Read(fixture.scope, "")
+	_, err := fixture.store.Mutate(fixture.scope, vmrestore.Expectation{ControlRevision: current.State.ControlRevision, BindingGeneration: current.State.BindingGeneration}, func(c vmrestore.Current) (vmrestore.Mutation, error) {
+		c.State.Bindings = map[string]vmrestore.Binding{}
+		c.State.BindingGeneration++
+		return vmrestore.Mutation{State: c.State}, nil
 	})
-	defer db.SetTestManager(nil)
-
-	hotplugCalled := false
-	syncCalled := false
-	action := &ServiceAction{
-		hotplugVMDataDiskHook: func(tenantID string, volume *dbmodel.TenantServiceVolume) error {
-			hotplugCalled = true
-			return nil
-		},
-		syncVirtualMachineSpecHook: func(serviceID string) error {
-			syncCalled = true
-			if serviceID != "service-vm" {
-				t.Fatalf("expected vm spec sync for service-vm, got %s", serviceID)
-			}
-			return nil
-		},
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
-		ServiceID:  "service-vm",
-		VolumeName: "test",
-		VolumePath: "test.txt",
-		VolumeType: dbmodel.ConfigFileVolumeType.String(),
-	}, "tenant-1", "demo=1", "add")
+	fixture.action.dbmanager = independentAddManager{bindingConsumerDB{database: fixture.database}}
+	hotplugCalled, syncCalled := false, false
+	fixture.action.hotplugVMDataDiskHook = func(string, *dbmodel.TenantServiceVolume) error {
+		hotplugCalled = true
+		return nil
+	}
+	fixture.action.syncVirtualMachineSpecHook = func(serviceID string) error {
+		syncCalled = true
+		if serviceID != fixture.scope.ServiceID {
+			t.Fatalf("expected vm spec sync for service-vm, got %s", serviceID)
+		}
+		state, err := fixture.store.Read(fixture.scope, "")
+		if err != nil || state.State.Admission == nil {
+			t.Fatal("config creation synchronized without its admission")
+		}
+		return nil
+	}
+	apiErr := fixture.action.VolumnVar(&dbmodel.TenantServiceVolume{
+		ServiceID: fixture.scope.ServiceID, VolumeName: "test", VolumePath: "test.txt", VolumeType: dbmodel.ConfigFileVolumeType.String(),
+	}, fixture.scope.TenantID, "demo=1", "add")
 	if apiErr != nil {
 		t.Fatalf("expected no error, got %v", apiErr)
 	}
@@ -392,14 +365,13 @@ func TestVolumnVarAddSyncsVMConfigFileImmediately(t *testing.T) {
 	if !syncCalled {
 		t.Fatal("expected config-file add to sync vm spec immediately")
 	}
-	if volumeDao.added == nil || volumeDao.added.VolumeType != dbmodel.ConfigFileVolumeType.String() {
-		t.Fatalf("expected config-file volume to be persisted, got %#v", volumeDao.added)
+	var volume dbmodel.TenantServiceVolume
+	if err := fixture.database.Where("service_id = ? AND volume_name = ?", fixture.scope.ServiceID, "test").First(&volume).Error; err != nil || volume.VolumeType != dbmodel.ConfigFileVolumeType.String() {
+		t.Fatalf("expected config-file volume to be persisted: %v", err)
 	}
-	if configFileDao.created == nil || configFileDao.created.VolumeName != "test" {
-		t.Fatalf("expected config-file content to be persisted, got %#v", configFileDao.created)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet sql expectations: %v", err)
+	var config dbmodel.TenantServiceConfigFile
+	if err := fixture.database.Where("service_id = ? AND volume_name = ?", fixture.scope.ServiceID, "test").First(&config).Error; err != nil || config.VolumeName != "test" || config.FileContent != "demo=1" {
+		t.Fatalf("expected config-file content to be persisted: %v", err)
 	}
 }
 
@@ -535,218 +507,115 @@ func TestPerformVMHotplugAddVolumeRetriesConflicts(t *testing.T) {
 
 // capability_id: rainbond.vm-hotplug.remove-volume-running-vm
 func TestHotunplugVMDataDiskRemovesVolumeFromRunningVM(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	serviceDao := &hotplugTenantServiceDao{
-		service: &dbmodel.TenantServices{
-			ServiceID:    "service-vm",
-			ExtendMethod: "vm",
-		},
-	}
-	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
-	defer db.SetTestManager(nil)
-
-	mockClient := kubecli.NewMockKubevirtClient(ctrl)
-	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
-	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM)
-	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).DoAndReturn(
-		func(_ context.Context, _ string, opts *v1.RemoveVolumeOptions) error {
-			if opts == nil || opts.Name != "manual42" {
-				t.Fatalf("expected remove volume options for manual42, got %#v", opts)
-			}
-			return nil
-		},
-	)
-
-	action := &ServiceAction{
-		kubevirtClient: mockClient,
-	}
-	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
-		return &v1.VirtualMachine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "demo-vm",
-				Namespace: "demo-ns",
-			},
-			Status: v1.VirtualMachineStatus{
-				PrintableStatus: v1.VirtualMachineStatusRunning,
-			},
-		}, nil
-	}
-
-	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{
-		Model:          dbmodel.Model{ID: 42},
-		ServiceID:      "service-vm",
-		VolumeName:     "data-1",
-		VolumePath:     "/disk-1",
-		VolumeType:     "nfs-storage",
-		VolumeCapacity: 20,
-	})
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	TestVolumnVarDeleteHotunplugsRunningVMDataDisk(t)
 }
 
 // capability_id: rainbond.vm-hotplug.remove-volume-running-vm
 func TestHotunplugVMDataDiskDeletesBackingDataVolumeAndPVC(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	serviceDao := &hotplugTenantServiceDao{
-		service: &dbmodel.TenantServices{
-			ServiceID:    "service-vm",
-			ExtendMethod: "vm",
-		},
+	f := newBindingConsumerFixture(t)
+	dv := buildVMHotplugDataVolumeObject(f.scope.Namespace, f.scope.TenantID, f.volume, "active-a-dv")
+	dv.SetUID("active-a-dv-uid")
+	dv.Object["status"] = map[string]interface{}{"claimName": "active-a"}
+	if _, err := f.dynamic.Resource(dataVolumeGVR).Namespace(f.scope.Namespace).Create(context.Background(), dv, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
 	}
-	db.SetTestManager(hotplugVolumeTestManager{serviceDao: serviceDao})
-	defer db.SetTestManager(nil)
-
-	mockClient := kubecli.NewMockKubevirtClient(ctrl)
-	mockVM := kubecli.NewMockVirtualMachineInterface(ctrl)
-	mockClient.EXPECT().VirtualMachine("demo-ns").Return(mockVM)
-	mockVM.EXPECT().RemoveVolume(gomock.Any(), "demo-vm", gomock.Any()).Return(nil)
-
-	dv := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "cdi.kubevirt.io/v1beta1",
-			"kind":       "DataVolume",
-			"metadata": map[string]interface{}{
-				"name":      "manual42",
-				"namespace": "demo-ns",
-			},
-		},
+	state, err := f.store.Read(f.scope, "")
+	if err != nil {
+		t.Fatal(err)
 	}
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), dv)
-	originalDynamicClient := vmHotplugDynamicClient
-	vmHotplugDynamicClient = func() dynamic.Interface {
-		return dynamicClient
-	}
-	defer func() {
-		vmHotplugDynamicClient = originalDynamicClient
-	}()
-
-	kubeClient := k8sfake.NewSimpleClientset(&corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "manual42",
-			Namespace: "demo-ns",
-		},
-	})
-
-	action := &ServiceAction{
-		kubevirtClient: mockClient,
-		kubeClient:     kubeClient,
-	}
-	action.getVirtualMachineByServiceIDHook = func(serviceID string) (*v1.VirtualMachine, error) {
-		return &v1.VirtualMachine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "demo-vm",
-				Namespace: "demo-ns",
-			},
-			Status: v1.VirtualMachineStatus{
-				PrintableStatus: v1.VirtualMachineStatusRunning,
-			},
-		}, nil
-	}
-
-	err := action.hotunplugVMDataDisk(&dbmodel.TenantServiceVolume{
-		Model:          dbmodel.Model{ID: 42},
-		ServiceID:      "service-vm",
-		VolumeName:     "data-1",
-		VolumePath:     "/disk-1",
-		VolumeType:     "nfs-storage",
-		VolumeCapacity: 20,
+	_, err = f.store.Mutate(f.scope, vmrestore.Expectation{ControlRevision: state.State.ControlRevision, BindingGeneration: state.State.BindingGeneration}, func(c vmrestore.Current) (vmrestore.Mutation, error) {
+		binding := c.State.Bindings["42"]
+		binding.ActiveDV = &vmrestore.ObjectRef{Kind: "DataVolume", Namespace: f.scope.Namespace, Name: dv.GetName(), UID: string(dv.GetUID())}
+		c.State.Bindings["42"] = binding
+		c.State.BindingGeneration++
+		return vmrestore.Mutation{State: c.State}, nil
 	})
 	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+		t.Fatal(err)
 	}
-
-	_, err = dynamicClient.Resource(dataVolumeGVR).Namespace("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
-	if !k8serrors.IsNotFound(err) {
-		t.Fatalf("expected backing DataVolume to be deleted, got err=%v", err)
+	if err = f.action.hotunplugVMDataDisk(f.volume); err != nil {
+		t.Fatal(err)
 	}
-
-	_, err = kubeClient.CoreV1().PersistentVolumeClaims("demo-ns").Get(context.Background(), "manual42", metav1.GetOptions{})
-	if !k8serrors.IsNotFound(err) {
-		t.Fatalf("expected backing PVC to be deleted, got err=%v", err)
+	if _, err = f.dynamic.Resource(dataVolumeGVR).Namespace(f.scope.Namespace).Get(context.Background(), dv.GetName(), metav1.GetOptions{}); !k8serrors.IsNotFound(err) {
+		t.Fatal("active DV remains")
+	}
+	if _, err = f.core.CoreV1().PersistentVolumeClaims(f.scope.Namespace).Get(context.Background(), "active-a", metav1.GetOptions{}); !k8serrors.IsNotFound(err) {
+		t.Fatal("active PVC remains")
+	}
+	if _, err = f.core.CoreV1().PersistentVolumeClaims(f.scope.Namespace).Get(context.Background(), "manual42", metav1.GetOptions{}); err != nil {
+		t.Fatal("backing cleanup reclaimed B")
 	}
 }
 
 // capability_id: rainbond.vm-hotplug.remove-volume-running-vm
 func TestVolumnVarDeleteHotunplugsRunningVMDataDisk(t *testing.T) {
-	sqlDB, mock, err := sqlmock.New()
+	f := newBindingConsumerFixture(t)
+	first, second := uint(1), uint(2)
+	vm := &v1.VirtualMachine{TypeMeta: metav1.TypeMeta{APIVersion: "kubevirt.io/v1", Kind: "VirtualMachine"}, ObjectMeta: metav1.ObjectMeta{Name: "demo-vm", Namespace: f.scope.Namespace, UID: "running-vm-uid", ResourceVersion: "1", Labels: map[string]string{"service_id": f.scope.ServiceID}}, Spec: v1.VirtualMachineSpec{Template: &v1.VirtualMachineInstanceTemplateSpec{Spec: v1.VirtualMachineInstanceSpec{Volumes: []v1.Volume{{Name: "root", VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{ClaimName: "root"}}}}, {Name: "manual42", VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{ClaimName: "active-a"}, Hotpluggable: true}}}}, Domain: v1.DomainSpec{Devices: v1.Devices{Disks: []v1.Disk{{Name: "root", BootOrder: &first}, {Name: "manual42", BootOrder: &second}}}}}}}}
+	persistExpansionTestVM(t, f.dynamic, vm)
+	f.action.getVirtualMachineByServiceIDHook = func(string) (*v1.VirtualMachine, error) {
+		object, e := f.dynamic.Resource(vmDiskVMGVR).Namespace(f.scope.Namespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
+		if e != nil {
+			return nil, e
+		}
+		actual := &v1.VirtualMachine{}
+		e = runtime.DefaultUnstructuredConverter.FromUnstructured(object.Object, actual)
+		return actual, e
+	}
+	instance := &v1.VirtualMachineInstance{TypeMeta: metav1.TypeMeta{APIVersion: "kubevirt.io/v1", Kind: "VirtualMachineInstance"}, ObjectMeta: metav1.ObjectMeta{Name: vm.Name, Namespace: vm.Namespace, UID: "running-vmi-uid", Labels: map[string]string{"service_id": f.scope.ServiceID}, OwnerReferences: []metav1.OwnerReference{{Kind: "VirtualMachine", Name: vm.Name, UID: vm.UID}}}, Spec: vm.Spec.Template.Spec}
+	raw, err := json.Marshal(instance)
 	if err != nil {
-		t.Fatalf("create sqlmock: %v", err)
+		t.Fatal(err)
 	}
-	defer sqlDB.Close()
-
-	gdb, err := gorm.Open("mysql", sqlDB)
-	if err != nil {
-		t.Fatalf("open gorm db: %v", err)
+	object := &unstructured.Unstructured{}
+	if err = object.UnmarshalJSON(raw); err != nil {
+		t.Fatal(err)
 	}
-	defer gdb.Close()
-
-	mock.ExpectBegin()
-	tx := gdb.Begin()
-	if err := tx.Error; err != nil {
-		t.Fatalf("begin tx: %v", err)
+	if _, err = f.dynamic.Resource(vmDiskVMIGVR).Namespace(f.scope.Namespace).Create(context.Background(), object, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
 	}
-	mock.ExpectCommit()
-
-	volumeDao := &hotunplugTenantServiceVolumeDao{
-		volume: &dbmodel.TenantServiceVolume{
-			Model:      dbmodel.Model{ID: 42},
-			ServiceID:  "service-vm",
-			VolumeName: "data-1",
-			VolumePath: "/disk-1",
-			VolumeType: "nfs-storage",
-		},
+	if err = f.database.Create(&dbmodel.TenantServiceConfigFile{ServiceID: f.scope.ServiceID, VolumeName: f.volume.VolumeName, FileContent: "fixture"}).Error; err != nil {
+		t.Fatal(err)
 	}
-	configFileDao := &hotunplugTenantServiceConfigFileDao{}
-	db.SetTestManager(hotunplugVolumeDeleteTestManager{
-		tx:               tx,
-		volumeDao:        volumeDao,
-		mountRelationDao: &hotunplugTenantServiceMountRelationDao{},
-		configFileDao:    configFileDao,
-	})
-	defer db.SetTestManager(nil)
-
-	hotunplugCalled := false
+	ctrl := gomock.NewController(t)
+	client := kubecli.NewMockKubevirtClient(ctrl)
+	virtualMachine := kubecli.NewMockVirtualMachineInterface(ctrl)
+	client.EXPECT().VirtualMachine(f.scope.Namespace).Return(virtualMachine).Times(1)
+	virtualMachine.EXPECT().RemoveVolume(gomock.Any(), vm.Name, gomock.Any()).DoAndReturn(func(_ context.Context, _ string, options *v1.RemoveVolumeOptions) error {
+		if options.Name != "manual42" {
+			t.Fatal("hot-unplug did not use canonical device name")
+		}
+		return nil
+	}).Times(1)
+	f.action.kubevirtClient = client
 	syncCalled := false
-	action := &ServiceAction{
-		MQClient: &noopMQClient{},
-		hotunplugVMDataDiskHook: func(volume *dbmodel.TenantServiceVolume) error {
-			hotunplugCalled = true
-			if volume == nil || volume.ID != 42 {
-				t.Fatalf("expected deleted vm volume with id 42, got %#v", volume)
-			}
-			return nil
-		},
-		syncVirtualMachineSpecHook: func(serviceID string) error {
-			syncCalled = true
-			return nil
-		},
+	f.action.syncVirtualMachineSpecHook = func(string) error { syncCalled = true; return nil }
+	request := &dbmodel.TenantServiceVolume{ServiceID: f.scope.ServiceID, VolumeName: f.volume.VolumeName}
+	pending := f.action.VolumnVar(request, f.scope.TenantID, "", "delete")
+	if pending == nil || pending.Code != 409 || !strings.Contains(pending.Error(), "卸载") {
+		t.Fatalf("expected pending hot-unplug with durable record, got %v", pending)
 	}
-
-	apiErr := action.VolumnVar(&dbmodel.TenantServiceVolume{
-		ServiceID:  "service-vm",
-		VolumeName: "data-1",
-	}, "tenant-1", "", "delete")
-	if apiErr != nil {
-		t.Fatalf("expected no error, got %v", apiErr)
+	var volumes, configs int
+	f.database.Model(&dbmodel.TenantServiceVolume{}).Where("ID = ?", 42).Count(&volumes)
+	f.database.Model(&dbmodel.TenantServiceConfigFile{}).Where("service_id = ? AND volume_name = ?", f.scope.ServiceID, f.volume.VolumeName).Count(&configs)
+	if volumes != 1 || configs != 1 {
+		t.Fatal("pending detach removed logical volume or config")
 	}
-	if !hotunplugCalled {
-		t.Fatal("expected delete to hotunplug running vm data disk")
+	if err = f.dynamic.Resource(vmDiskVMIGVR).Namespace(f.scope.Namespace).Delete(context.Background(), instance.Name, metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
 	}
-	if syncCalled {
-		t.Fatal("did not expect delete to fall back to vm spec sync when hotunplug hook handled it")
+	if err := f.action.VolumnVar(request, f.scope.TenantID, "", "delete"); err != nil {
+		t.Fatal(err)
 	}
-	if volumeDao.deletedVolume != "data-1" {
-		t.Fatalf("expected volume data-1 to be deleted, got %q", volumeDao.deletedVolume)
+	f.database.Model(&dbmodel.TenantServiceVolume{}).Where("ID = ?", 42).Count(&volumes)
+	f.database.Model(&dbmodel.TenantServiceConfigFile{}).Where("service_id = ? AND volume_name = ?", f.scope.ServiceID, f.volume.VolumeName).Count(&configs)
+	if volumes != 0 || configs != 0 {
+		t.Fatal("confirmed detach did not remove only its records")
 	}
-	if configFileDao.serviceID != "service-vm" || configFileDao.volumeName != "data-1" {
-		t.Fatalf("expected config file cleanup for deleted volume, got service=%q volume=%q", configFileDao.serviceID, configFileDao.volumeName)
+	if syncCalled || len(f.mq.tasks) != 0 {
+		t.Fatal("mapped disk deletion fell back to generic sync or broad GC")
 	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet sql expectations: %v", err)
+	if _, err = f.core.CoreV1().PersistentVolumeClaims(f.scope.Namespace).Get(context.Background(), "manual42", metav1.GetOptions{}); err != nil {
+		t.Fatal("mapped deletion reclaimed B")
 	}
 }

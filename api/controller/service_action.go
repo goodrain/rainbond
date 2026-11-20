@@ -110,6 +110,9 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	}
 	if service.IsVM() {
 		if err := handler.GetServiceManager().StartOrCreateVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
+			if writeRestorePowerError(w, r, err) {
+				return
+			}
 			logrus.Errorf("start vm service %s failure: %v", serviceID, err)
 			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("start", err))
 			return
@@ -155,6 +158,9 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	defer event.CloseManager()
 	if service.IsVM() {
 		if err := handler.GetServiceManager().StopVM(r.Context(), serviceID); err != nil {
+			if writeRestorePowerError(w, r, err) {
+				return
+			}
 			logrus.Errorf("stop vm service %s failure: %v", serviceID, err)
 			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("stop", err))
 			return
@@ -240,6 +246,9 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 
 	if service.IsVM() {
 		if err := handler.GetServiceManager().RestartVM(r.Context(), startStopStruct, service.DeployVersion); err != nil {
+			if writeRestorePowerError(w, r, err) {
+				return
+			}
 			logrus.Errorf("restart vm service %s failure: %v", serviceID, err)
 			httputil.ReturnError(r, w, 500, vmOperationFailureMessage("restart", err))
 			return

@@ -158,6 +158,8 @@ type ServiceInterface interface {
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
 	SetVMFixedPodIP(w http.ResponseWriter, r *http.Request)
 	VMLiveUpdateCapability(w http.ResponseWriter, r *http.Request)
+	ExistingVMSnapshotCapability(w http.ResponseWriter, r *http.Request)
+	VMRecycleRecovery(w http.ResponseWriter, r *http.Request)
 }
 
 // TenantInterfaceWithV1 funcs for both v2 and v1
@@ -219,6 +221,8 @@ type RulesInterface interface {
 
 // AppInterface app handle interface
 type AppInterface interface {
+	ShareDeliveryArtifact(w http.ResponseWriter, r *http.Request)
+	DeliveryArtifactStatus(w http.ResponseWriter, r *http.Request)
 	ExportApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
 	Upload(w http.ResponseWriter, r *http.Request)

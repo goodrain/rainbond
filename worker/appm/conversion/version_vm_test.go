@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goodrain/rainbond/worker/appm/volume"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -161,6 +163,147 @@ func TestVMImageDiskDeviceUsesDiskForQCOW2(t *testing.T) {
 	}
 	if device.CDRom != nil {
 		t.Fatalf("did not expect cdrom target for qcow2 boot media, got %#v", device)
+	}
+}
+
+// capability_id: rainbond.vm-runtime.password-hash-bootstrap
+func TestVMLoginBootstrapUsesVirtioForRootAndBootstrapDisksOnly(t *testing.T) {
+	key := generatedVMTestAuthorizedKey(t)
+	hash := generatedVMTestSHA512CryptHash(t)
+	tests := []struct {
+		name              string
+		attrs             map[string]string
+		bootPath          vmBootPath
+		rootBus           kubevirtv1.DiskBus
+		guestSyncDiskType string
+		guestSyncDiskBus  kubevirtv1.DiskBus
+	}{
+		{
+			name: "no bootstrap keeps sata disks",
+			attrs: map[string]string{
+				vmOSNameKey:           "Ubuntu 24.04",
+				vmBootSourceFormatKey: "qcow2",
+			},
+			bootPath:          vmBootPathImportedRootDisk,
+			rootBus:           kubevirtv1.DiskBusSATA,
+			guestSyncDiskType: vmDiskDeviceCDRom,
+			guestSyncDiskBus:  kubevirtv1.DiskBusSATA,
+		},
+		{
+			name: "validated ssh key uses virtio for root and cloud-init only",
+			attrs: map[string]string{
+				vmOSNameKey:           "Ubuntu 24.04",
+				vmBootSourceFormatKey: "qcow2",
+				vmSSHUsernameKey:      "ubuntu",
+				vmSSHPublicKeyKey:     key,
+			},
+			bootPath:          vmBootPathImportedRootDisk,
+			rootBus:           kubevirtv1.DiskBusVirtio,
+			guestSyncDiskType: vmDiskDeviceDisk,
+			guestSyncDiskBus:  kubevirtv1.DiskBusVirtio,
+		},
+		{
+			name: "validated password uses virtio for root and cloud-init only",
+			attrs: map[string]string{
+				vmOSNameKey:            "Ubuntu 24.04",
+				vmBootSourceFormatKey:  "qcow2",
+				vmSSHUsernameKey:       "ubuntu",
+				vmLoginPasswordHashKey: hash,
+			},
+			bootPath:          vmBootPathImportedRootDisk,
+			rootBus:           kubevirtv1.DiskBusVirtio,
+			guestSyncDiskType: vmDiskDeviceDisk,
+			guestSyncDiskBus:  kubevirtv1.DiskBusVirtio,
+		},
+		{
+			name: "windows without bootstrap keeps sata",
+			attrs: map[string]string{
+				vmOSNameKey:           "Windows Server 2025",
+				vmBootSourceFormatKey: "qcow2",
+			},
+			bootPath: vmBootPathImportedRootDisk,
+			rootBus:  kubevirtv1.DiskBusSATA,
+		},
+		{
+			name: "iso installer leaves root and media sata",
+			attrs: map[string]string{
+				vmOSNameKey:           "Ubuntu 24.04",
+				vmBootSourceFormatKey: "iso",
+			},
+			bootPath:          vmBootPathISOInstaller,
+			rootBus:           kubevirtv1.DiskBusSATA,
+			guestSyncDiskType: vmDiskDeviceCDRom,
+			guestSyncDiskBus:  kubevirtv1.DiskBusSATA,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := buildVMRuntimeConfig(tt.attrs, []corev1.EnvVar{{Name: "DEMO_HOST", Value: "demo-service"}}, nil,
+				[]volume.VMGuestFile{{VolumeLabel: "RBDTEST", SourceFile: "settings.conf", TargetPath: "/etc/demo/settings.conf"}})
+			if err != nil {
+				t.Fatal("VM runtime config validation failed")
+			}
+
+			disks := []kubevirtv1.Disk{
+				{
+					Name: "manual247",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+					},
+				},
+				{
+					Name: "manual248",
+					DiskDevice: kubevirtv1.DiskDevice{
+						Disk: &kubevirtv1.DiskTarget{Bus: kubevirtv1.DiskBusSATA},
+					},
+				},
+				{
+					Name: "unrelated-cdrom",
+					DiskDevice: kubevirtv1.DiskDevice{
+						CDRom: &kubevirtv1.CDRomTarget{Bus: kubevirtv1.DiskBusSATA},
+					},
+				},
+			}
+			diskMeta := map[string]volume.VMDiskMeta{
+				"disk":   {DiskName: "manual247", DiskKey: "disk", DeviceType: "disk", VolumePath: "/disk"},
+				"disk-1": {DiskName: "manual248", DiskKey: "disk-1", DeviceType: "disk", VolumePath: "/disk-1"},
+			}
+
+			got := applyVMLoginRootDiskBus(disks, diskMeta, tt.bootPath, cfg.RootDiskBus)
+			if got[0].DiskDevice.Disk.Bus != tt.rootBus {
+				t.Fatalf("root disk bus = %q, want %q", got[0].DiskDevice.Disk.Bus, tt.rootBus)
+			}
+			if got[1].DiskDevice.Disk.Bus != kubevirtv1.DiskBusSATA {
+				t.Fatalf("data disk bus = %q, want SATA", got[1].DiskDevice.Disk.Bus)
+			}
+			if got[2].DiskDevice.CDRom.Bus != kubevirtv1.DiskBusSATA {
+				t.Fatalf("unrelated CD-ROM bus = %q, want SATA", got[2].DiskDevice.CDRom.Bus)
+			}
+			var envDisk, guestSyncDisk *kubevirtv1.Disk
+			for index := range cfg.Disks {
+				switch cfg.Disks[index].Name {
+				case "rainbond-env":
+					envDisk = &cfg.Disks[index]
+				case vmGuestSyncVolume:
+					guestSyncDisk = &cfg.Disks[index]
+				}
+			}
+			if envDisk == nil || envDisk.DiskDevice.CDRom == nil || envDisk.DiskDevice.CDRom.Bus != kubevirtv1.DiskBusSATA {
+				t.Fatalf("expected rainbond-env to remain SATA CD-ROM, got %#v", envDisk)
+			}
+			if tt.guestSyncDiskType == "" {
+				if guestSyncDisk != nil {
+					t.Fatalf("did not expect guest-sync disk for this case, got %#v", guestSyncDisk)
+				}
+			} else if tt.guestSyncDiskType == vmDiskDeviceDisk {
+				if guestSyncDisk == nil || guestSyncDisk.DiskDevice.Disk == nil || guestSyncDisk.DiskDevice.Disk.Bus != tt.guestSyncDiskBus {
+					t.Fatalf("expected guest-sync disk bus %q, got %#v", tt.guestSyncDiskBus, guestSyncDisk)
+				}
+			} else if guestSyncDisk == nil || guestSyncDisk.DiskDevice.CDRom == nil || guestSyncDisk.DiskDevice.CDRom.Bus != tt.guestSyncDiskBus {
+				t.Fatalf("expected guest-sync CD-ROM bus %q, got %#v", tt.guestSyncDiskBus, guestSyncDisk)
+			}
+		})
 	}
 }
 
