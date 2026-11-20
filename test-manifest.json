@@ -8906,6 +8906,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.shallow-submodules",
+      "title": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "title_zh": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "interface_type": "package_function",
+      "interface": "builder/sources.GitCloneOrPull",
+      "code_paths": [
+        "builder/sources/git.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/git_submodule_test.go",
+          "selector": "TestGitCloneOrPullSubmoduleDepth"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-repo.show-url",
       "title": "Strip credentials from repository display URLs",
       "title_zh": "\u4ece\u4ed3\u5e93\u5c55\u793a\u5730\u5740\u4e2d\u53bb\u9664\u51ed\u636e",
@@ -8972,24 +8990,6 @@
         {
           "path": "builder/sources/sftp_test.go",
           "selector": "TestSFTPClientCloseZeroValue"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.source-repo.shallow-submodules",
-      "title": "Source builds shallow-clone submodules and fall back for missing pinned commits",
-      "title_zh": "Source builds shallow-clone submodules and fall back for missing pinned commits",
-      "interface_type": "package_function",
-      "interface": "builder/sources.GitCloneOrPull",
-      "code_paths": [
-        "builder/sources/git.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/git_submodule_test.go",
-          "selector": "TestGitCloneOrPullSubmoduleDepth"
         }
       ],
       "test_type": "regression",
@@ -11710,6 +11710,86 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.batch-post-submit-observation",
+      "title": "Batch VM power keeps accepted writes pending when runtime observation fails",
+      "title_zh": "Batch VM power keeps accepted writes pending when runtime observation fails",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.restoredPower; vmBatchOperationResult",
+      "code_paths": [
+        "api/handler/vm_restored_power.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerKeepsSubmittedObservationFailurePending"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-restored-event-lifecycle",
+      "title": "Restored VM batch power preserves scoped events and observes asynchronous completion",
+      "title_zh": "Restored VM batch power preserves scoped events and observes asynchronous completion",
+      "interface_type": "workflow",
+      "interface": "OperationHandler.Start; OperationHandler.Stop; BatchOperationHandler.createEvents",
+      "code_paths": [
+        "api/handler/service_operation.go",
+        "api/handler/service_batch_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerRetainsPendingAndUnknownUntilObserved"
+        },
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerClosesRejectedEventWithoutMutatingFence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-start-preserves-disks",
+      "title": "Batch VM start reuses the preserved VM power API and retains the container worker path",
+      "title_zh": "Batch VM start reuses the preserved VM power API and retains the container worker path",
+      "interface_type": "workflow",
+      "interface": "handler.BatchOperationHandler.Start",
+      "code_paths": [
+        "api/handler/service_batch_operation.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_stop_test.go",
+          "selector": "TestBatchStartUsesVMPowerAndKeepsContainerWorkerPath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-stop-preserves-disks",
+      "title": "Batch VM stop uses the power API without destructive worker tasks",
+      "title_zh": "Batch VM stop uses the power API without destructive worker tasks",
+      "interface_type": "workflow",
+      "interface": "handler.BatchOperationHandler.Stop",
+      "code_paths": [
+        "api/handler/service_batch_operation.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_stop_test.go",
+          "selector": "TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.direct-ops-event-close",
       "title": "Close direct VM power operation events after synchronous KubeVirt actions",
       "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
@@ -11734,6 +11814,24 @@
         {
           "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStopVMMarksDirectStopEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.legacy-stop-preserves-disks",
+      "title": "Legacy queued VM stop fails closed before deleting runtime or persistent disks",
+      "title_zh": "Legacy queued VM stop fails closed before deleting runtime or persistent disks",
+      "interface_type": "workflow",
+      "interface": "controller.stopController.stopOne",
+      "code_paths": [
+        "worker/appm/controller/stop.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/stop_vm_preservation_test.go",
+          "selector": "TestLegacyWorkerStopCannotDeleteUnmappedVM"
         }
       ],
       "test_type": "regression",
@@ -11910,6 +12008,25 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-recycle.original-disk-preflight",
+      "title": "Original VM recycle recovery preflight",
+      "title_zh": "\u56de\u6536\u6062\u590d\u6838\u9a8c\u539f\u865a\u62df\u673a\u4e0e\u78c1\u76d8",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.GetVMRecycleRecovery",
+      "code_paths": [
+        "api/handler/service_vm_recycle.go",
+        "api/controller/vm_recycle.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_recycle_test.go",
+          "selector": "TestVMRecycleRecoveryRequiresStoppedOriginalVMAndLiveDisks"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {
@@ -13649,6 +13766,28 @@
       "tests": [
         {
           "path": "worker/appm/controller/start_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.stopped-import-status",
+      "title": "Report stopped VM power separately from pending disk imports",
+      "title_zh": "\u78c1\u76d8\u5bfc\u5165\u4e2d\u5df2\u5173\u95ed\u865a\u62df\u673a\u7684\u72b6\u6001\u5224\u5b9a",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportDoesNotRemainStartingWithoutVMI"
+        },
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
         }
       ],
       "test_type": "regression",
@@ -15865,47 +16004,6 @@
         {
           "path": "db/mysql/dao/volume_type_test.go",
           "selector": "TestShouldBackfillStorageClassAccessMode"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-recycle.original-disk-preflight",
-      "title": "Original VM recycle recovery preflight",
-      "title_zh": "回收恢复核验原虚拟机与磁盘",
-      "interface_type": "handler_method",
-      "interface": "ServiceAction.GetVMRecycleRecovery",
-      "code_paths": [
-        "api/handler/service_vm_recycle.go",
-        "api/controller/vm_recycle.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_vm_recycle_test.go",
-          "selector": "TestVMRecycleRecoveryRequiresStoppedOriginalVMAndLiveDisks"
-        }
-      ],
-      "test_type": "integration",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-runtime.stopped-import-status",
-      "title": "Report stopped VM power separately from pending disk imports",
-      "title_zh": "\u78c1\u76d8\u5bfc\u5165\u4e2d\u5df2\u5173\u95ed\u865a\u62df\u673a\u7684\u72b6\u6001\u5224\u5b9a",
-      "interface_type": "handler_method",
-      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
-      "code_paths": [
-        "api/handler/service.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_vm_power_status_test.go",
-          "selector": "TestStoppedImportDoesNotRemainStartingWithoutVMI"
-        },
-        {
-          "path": "api/handler/service_vm_power_status_test.go",
-          "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
         }
       ],
       "test_type": "regression",

@@ -604,7 +604,12 @@
 | rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
 | rainbond.vm-network.stable-interface-identity | 虚拟机网卡标识在创建、更新和重启中保持稳定 | active | regression | conversion.convPodTemplate; ServiceAction.StopVM; ServiceAction.RestartVM; ServiceAction.syncVirtualMachineSpec | worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACIsStableAndScopedToService<br>worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecPreservesInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestObservedVMInterfaceMACCompatibility<br>api/handler/vm_network_identity_test.go::TestVMNetworkIdentityPinnedBeforePowerOperation<br>api/handler/vm_network_identity_test.go::TestPinVMNetworkIdentityFailureAndRetry |
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
+| rainbond.vm-power.batch-post-submit-observation | Batch VM power keeps accepted writes pending when runtime observation fails | active | regression | ServiceAction.restoredPower; vmBatchOperationResult | api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerKeepsSubmittedObservationFailurePending |
+| rainbond.vm-power.batch-restored-event-lifecycle | Restored VM batch power preserves scoped events and observes asynchronous completion | active | regression | OperationHandler.Start; OperationHandler.Stop; BatchOperationHandler.createEvents | api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerRetainsPendingAndUnknownUntilObserved<br>api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerClosesRejectedEventWithoutMutatingFence |
+| rainbond.vm-power.batch-start-preserves-disks | Batch VM start reuses the preserved VM power API and retains the container worker path | active | regression | handler.BatchOperationHandler.Start | api/handler/service_batch_vm_stop_test.go::TestBatchStartUsesVMPowerAndKeepsContainerWorkerPath |
+| rainbond.vm-power.batch-stop-preserves-disks | Batch VM stop uses the power API without destructive worker tasks | active | regression | handler.BatchOperationHandler.Stop | api/handler/service_batch_vm_stop_test.go::TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
+| rainbond.vm-power.legacy-stop-preserves-disks | Legacy queued VM stop fails closed before deleting runtime or persistent disks | active | regression | controller.stopController.stopOne | worker/appm/controller/stop_vm_preservation_test.go::TestLegacyWorkerStopCannotDeleteUnmappedVM |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-power.stop-restoring-fallback | Fallback to halt transient VM when direct stop fails | active | regression | api/handler.ServiceAction.StopVM | api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails |
 | rainbond.vm-probe-attribute-syncs-spec | VM probe attributes trigger VirtualMachine spec sync | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes |
@@ -6781,6 +6786,46 @@
 - 代码路径: `api/handler/service_vm_pod_cleanup.go`
 - 测试路径: `api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate`
 
+### Batch VM power keeps accepted writes pending when runtime observation fails
+
+- Capability ID: `rainbond.vm-power.batch-post-submit-observation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ServiceAction.restoredPower; vmBatchOperationResult`
+- 代码路径: `api/handler/vm_restored_power.go`, `api/handler/service_operation.go`
+- 测试路径: `api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerKeepsSubmittedObservationFailurePending`
+
+### Restored VM batch power preserves scoped events and observes asynchronous completion
+
+- Capability ID: `rainbond.vm-power.batch-restored-event-lifecycle`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `OperationHandler.Start; OperationHandler.Stop; BatchOperationHandler.createEvents`
+- 代码路径: `api/handler/service_operation.go`, `api/handler/service_batch_operation.go`
+- 测试路径: `api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerRetainsPendingAndUnknownUntilObserved`, `api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerClosesRejectedEventWithoutMutatingFence`
+
+### Batch VM start reuses the preserved VM power API and retains the container worker path
+
+- Capability ID: `rainbond.vm-power.batch-start-preserves-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `handler.BatchOperationHandler.Start`
+- 代码路径: `api/handler/service_batch_operation.go`, `api/handler/service_operation.go`
+- 测试路径: `api/handler/service_batch_vm_stop_test.go::TestBatchStartUsesVMPowerAndKeepsContainerWorkerPath`
+
+### Batch VM stop uses the power API without destructive worker tasks
+
+- Capability ID: `rainbond.vm-power.batch-stop-preserves-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `handler.BatchOperationHandler.Stop`
+- 代码路径: `api/handler/service_batch_operation.go`, `api/handler/service_operation.go`
+- 测试路径: `api/handler/service_batch_vm_stop_test.go::TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath`
+
 ### 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态
 
 - Capability ID: `rainbond.vm-power.direct-ops-event-close`
@@ -6790,6 +6835,16 @@
 - 业务入口: `api/handler direct VM power operations`
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess`, `api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure`, `api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess`, `api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess`
+
+### Legacy queued VM stop fails closed before deleting runtime or persistent disks
+
+- Capability ID: `rainbond.vm-power.legacy-stop-preserves-disks`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.stopController.stopOne`
+- 代码路径: `worker/appm/controller/stop.go`
+- 测试路径: `worker/appm/controller/stop_vm_preservation_test.go::TestLegacyWorkerStopCannotDeleteUnmappedVM`
 
 ### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
 

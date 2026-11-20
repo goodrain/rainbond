@@ -14,6 +14,13 @@ import (
 	kv "kubevirt.io/api/core/v1"
 )
 
+// vmPowerSubmittedError distinguishes failed observation after an accepted
+// runtime write from a failure before this request was submitted.
+type vmPowerSubmittedError struct{ cause error }
+
+func (e *vmPowerSubmittedError) Error() string { return e.cause.Error() }
+func (e *vmPowerSubmittedError) Unwrap() error { return e.cause }
+
 func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action string) (bool, error) {
 	manager := s.getDBManager()
 	if manager == nil || manager.DB() == nil {
@@ -138,7 +145,7 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	}
 	if err != nil {
 		if err := store.FinishOrdinaryVMAttempt(scope, op, false); err != nil {
-			return true, err
+			return true, &vmPowerSubmittedError{cause: err}
 		}
 		return true, vmrestore.ErrRestoreUnknown
 	}
@@ -146,5 +153,8 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	if errors.Is(err, vmrestore.ErrRestorePending) {
 		return true, &bcode.Code{Status: 202, Code: 202, Message: "vm_power_pending"}
 	}
-	return true, err
+	if err != nil {
+		return true, &vmPowerSubmittedError{cause: err}
+	}
+	return true, nil
 }

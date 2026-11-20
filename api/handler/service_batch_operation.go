@@ -22,10 +22,11 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/grpc"
-	"github.com/goodrain/rainbond/pkg/component/mq"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/mq"
 
 	"github.com/goodrain/rainbond/api/model"
 	apiutil "github.com/goodrain/rainbond/api/util"
@@ -150,7 +151,7 @@ func (b *BatchOperationHandler) Start(ctx context.Context, tenant *dbmodel.Tenan
 		// startup sequence
 		req.UpdateConfig("boot_seq_dep_service_ids", strings.Join(startupSeqConfigs[req.GetComponentID()], ","))
 		err := retryutil.Retry(1*time.Microsecond, 1, func() (bool, error) {
-			if err := b.operationHandler.Start(req); err != nil {
+			if err := b.operationHandler.Start(ctx, req); err != nil {
 				return false, err
 			}
 			return true, nil
@@ -182,7 +183,7 @@ func (b *BatchOperationHandler) Stop(ctx context.Context, tenant *dbmodel.Tenant
 
 	for _, req := range batchOpReqs {
 		err := retryutil.Retry(1*time.Microsecond, 1, func() (bool, error) {
-			if err := b.operationHandler.Stop(req); err != nil {
+			if err := b.operationHandler.Stop(ctx, req); err != nil {
 				return false, err
 			}
 			return true, nil
@@ -279,6 +280,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 		event := &dbmodel.ServiceEvent{
 			EventID:    req.GetEventID(),
 			TenantID:   tenantID,
+			ServiceID:  req.GetComponentID(),
 			Target:     dbmodel.TargetTypeService,
 			TargetID:   req.GetComponentID(),
 			UserName:   operator,
@@ -286,6 +288,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 			CreateTime: time.Now().Format(time.RFC3339),
 			SynType:    dbmodel.ASYNEVENTTYPE,
 			OptType:    req.OpType(),
+			Status:     dbmodel.EventStatusChecking.String(),
 		}
 		_, ok := bads[req.GetEventID()]
 		if ok {

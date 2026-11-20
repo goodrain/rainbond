@@ -28,6 +28,7 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -95,6 +96,12 @@ func (s *stopController) Begin() {
 	s.manager.callback(s.controllerID, nil)
 }
 func (s *stopController) stopOne(app v1.AppService) error {
+	// A queued stop must never delete a VM: its DataVolumeTemplate disks are
+	// owned by it and would be garbage-collected, including persistent data.
+	// Reject stale callers before touching any VM configuration or workload.
+	if app.ServiceType == v1.TypeVirtualMachine || app.GetVirtualMachine() != nil {
+		return fmt.Errorf("%w: legacy queued VM stop is disabled; use the VM power API", vmrestore.ErrConflict)
+	}
 	if err := guardLegacyVMLifecycle(app); err != nil {
 		return err
 	}
@@ -170,13 +177,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			kind, _ := ma.Kind(workload)
 			logrus.Errorf("delete custom component manifest %s/%s failure %s", kind, name, err.Error())
 		}
-	}
-	if vm := app.GetVirtualMachine(); vm != nil {
-		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("delete vm failure:%s", err.Error())
-		}
-		s.manager.store.OnDeletes(vm)
 	}
 	// step 4: delete statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
