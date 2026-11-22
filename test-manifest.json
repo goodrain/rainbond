@@ -11646,6 +11646,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.preserve-binding-on-edit",
+      "title": "Preserve stored VM network bindings and omitted firmware during resource edits",
+      "title_zh": "Preserve stored VM network bindings and omitted firmware during resource edits",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.syncVirtualMachineSpec; applyVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestHardwareSaveUpdatesResourcesWithoutReplacingStoredNetwork"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeRetainsExplicitDiskAndDeviceChanges"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeKeepsCompleteNetworkBinding"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeFirmwareDefaultsAndExplicitUUID"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-network.stable-interface-identity",
       "title": "Preserve VM network identity across creation, updates and restarts",
       "title_zh": "\u865a\u62df\u673a\u7f51\u5361\u6807\u8bc6\u5728\u521b\u5efa\u3001\u66f4\u65b0\u548c\u91cd\u542f\u4e2d\u4fdd\u6301\u7a33\u5b9a",

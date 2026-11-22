@@ -602,6 +602,7 @@
 | rainbond.vm-live-update.running-memory-shrink-rejected | 拒绝运行中虚拟机的内存热缩容 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsRunningVMMemoryShrink |
 | rainbond.vm-live-update.running-shrink-restart-allowed-before-event | 运行中虚拟机缩容允许进入垂直伸缩流程 | active | regression | api/middleware.WrapEL | api/middleware/middleware_test.go::TestWrapELAllowsRunningVMShrinkToReachHandler |
 | rainbond.vm-live-update.unsupported-auto-restart | 不满足热更新条件时自动调整规格并重启虚拟机 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart<br>api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart |
+| rainbond.vm-network.preserve-binding-on-edit | Preserve stored VM network bindings and omitted firmware during resource edits | active | regression | ServiceAction.syncVirtualMachineSpec; applyVirtualMachineSpec | api/handler/vm_network_binding_preservation_test.go::TestHardwareSaveUpdatesResourcesWithoutReplacingStoredNetwork<br>api/handler/vm_network_binding_preservation_test.go::TestSpecMergeRetainsExplicitDiskAndDeviceChanges<br>api/handler/vm_network_binding_preservation_test.go::TestSpecMergeKeepsCompleteNetworkBinding<br>api/handler/vm_network_binding_preservation_test.go::TestSpecMergeFirmwareDefaultsAndExplicitUUID |
 | rainbond.vm-network.stable-interface-identity | 虚拟机网卡标识在创建、更新和重启中保持稳定 | active | regression | conversion.convPodTemplate; ServiceAction.StopVM; ServiceAction.RestartVM; ServiceAction.syncVirtualMachineSpec | worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACIsStableAndScopedToService<br>worker/appm/conversion/vm_network_identity_test.go::TestVMInterfaceMACKeepsExplicitAddressesAndSeparatesInterfaces<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecPreservesInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC<br>api/handler/vm_network_identity_test.go::TestObservedVMInterfaceMACCompatibility<br>api/handler/vm_network_identity_test.go::TestVMNetworkIdentityPinnedBeforePowerOperation<br>api/handler/vm_network_identity_test.go::TestPinVMNetworkIdentityFailureAndRetry |
 | rainbond.vm-network.windows-private-dhcp | Windows 虚拟机使用私有 DHCP 且保持其他来宾网络不变 | active | regression | conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_windows_network_test.go::TestWindowsPodNetworkDoesNotDelegateLauncherAddressToGuest<br>worker/appm/conversion/vm_windows_network_test.go::TestLinuxAndUnidentifiedGuestsKeepTheirNetworkBinding |
 | rainbond.vm-pods.cleanup-completed-virt-launcher | 虚拟机热更新后清理已完成的 virt-launcher Pod | active | regression | api/handler.ServiceAction.GetPods | api/handler/service_vm_pod_cleanup_test.go::TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate |
@@ -6766,6 +6767,16 @@
 - 业务入口: `api/handler.ServiceAction.applyVMLiveUpdateIfPossible`
 - 代码路径: `api/handler/service_vm_live_update.go`
 - 测试路径: `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMNonMigratableFallsBackToSpecSyncAndRestart`, `api/handler/service_vm_live_update_test.go::TestServiceVerticalVMPatchMigrationErrorFallsBackToSpecSyncAndRestart`
+
+### Preserve stored VM network bindings and omitted firmware during resource edits
+
+- Capability ID: `rainbond.vm-network.preserve-binding-on-edit`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `ServiceAction.syncVirtualMachineSpec; applyVirtualMachineSpec`
+- 代码路径: `api/handler/k8s_attribute.go`
+- 测试路径: `api/handler/vm_network_binding_preservation_test.go::TestHardwareSaveUpdatesResourcesWithoutReplacingStoredNetwork`, `api/handler/vm_network_binding_preservation_test.go::TestSpecMergeRetainsExplicitDiskAndDeviceChanges`, `api/handler/vm_network_binding_preservation_test.go::TestSpecMergeKeepsCompleteNetworkBinding`, `api/handler/vm_network_binding_preservation_test.go::TestSpecMergeFirmwareDefaultsAndExplicitUUID`
 
 ### 虚拟机网卡标识在创建、更新和重启中保持稳定
 

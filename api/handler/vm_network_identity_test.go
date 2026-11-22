@@ -64,12 +64,18 @@ func TestApplyVirtualMachineSpecPreservesInterfaceMAC(t *testing.T) {
 
 // capability_id: rainbond.vm-network.stable-interface-identity
 func TestApplyVirtualMachineSpecDoesNotBorrowAnotherInterfaceMAC(t *testing.T) {
-	before := networkIdentityVM("02:11:22:33:44:55", 1)
-	desired := networkIdentityVM("02:aa:bb:cc:dd:ee", 1)
-	desired.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name = "other-network"
-	got, changed := applyVirtualMachineSpec(before, desired)
-	if !changed || got.Spec.Template.Spec.Domain.Devices.Interfaces[0].MacAddress != "02:aa:bb:cc:dd:ee" {
-		t.Fatal("an unrelated interface inherited the old NIC identity")
+	for _, storedMAC := range []string{"02:11:22:33:44:55", ""} {
+		before := networkIdentityVM(storedMAC, 1)
+		desired := networkIdentityVM("02:aa:bb:cc:dd:ee", 1)
+		desired.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name = "other-network"
+		got, changed := applyVirtualMachineSpec(before, desired)
+		interfaces := got.Spec.Template.Spec.Domain.Devices.Interfaces
+		if changed || len(interfaces) != 1 || interfaces[0].Name != "default" || interfaces[0].MacAddress != storedMAC {
+			t.Fatal("resource rendering replaced the stored network or borrowed an unrelated interface MAC")
+		}
+		if desired.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name != "other-network" || desired.Spec.Template.Spec.Domain.Devices.Interfaces[0].MacAddress != "02:aa:bb:cc:dd:ee" {
+			t.Fatal("preserving the stored network rewrote the rendered interface")
+		}
 	}
 }
 
