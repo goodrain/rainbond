@@ -7918,6 +7918,46 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugins.scoped-context-reads",
+      "title": "Plugin reads preserve request budget and scope tenant enrichment",
+      "title_zh": "Plugin reads preserve request budget and scope tenant enrichment",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListPlugins",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/controller/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/plugin_reads_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.pod-logs.tenant-context-guard",
+      "title": "Reject pod logs without tenant context",
+      "title_zh": "Reject pod logs without tenant context",
+      "interface_type": "view_endpoint",
+      "interface": "api/controller.PodController.PodLogs",
+      "code_paths": [
+        "api/controller/pods.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/pods_test.go",
+          "selector": "TestPodLogsRejectsInvalidTenantContext"
+        },
+        {
+          "path": "api/controller/pods_test.go",
+          "selector": "TestPodLogsWithTenantPreservesLogValidation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",

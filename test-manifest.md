@@ -407,6 +407,8 @@
 | rainbond.plugin-build.image-input-validate | 在插件镜像构建前拒绝空值或非法镜像引用 | active | regression | builder/exector.exectorManager.run | builder/exector/plugin_image_test.go::TestPluginImageRunRejectsEmptyImageURL |
 | rainbond.plugin-build.image-tag | 根据源镜像名和版本生成插件镜像标签 | active | regression | builder/exector.createPluginImageTag | builder/exector/plugin_image_test.go::TestCreatePluginImageTag |
 | rainbond.plugin-dockerfile-build.default-arch-affinity | Default plugin Dockerfile build arch affinity | active | regression | builder/sources.newBuildKitPodSpec | builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime |
+| rainbond.plugins.scoped-context-reads | Plugin reads preserve request budget and scope tenant enrichment | active | regression | clusterAction.ListPlugins | api/handler/plugin_reads_test.go |
+| rainbond.pod-logs.tenant-context-guard | Reject pod logs without tenant context | active | regression | api/controller.PodController.PodLogs | api/controller/pods_test.go::TestPodLogsRejectsInvalidTenantContext<br>api/controller/pods_test.go::TestPodLogsWithTenantPreservesLogValidation |
 | rainbond.rainbondfile.missing | 缺少 rainbondfile 时返回未找到 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ReturnsNotFoundWhenMissing |
 | rainbond.rainbondfile.parse | 解析 rainbondfile YAML 配置 | active | regression | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile_ParsesYamlConfig |
 | rainbond.rainbondfile.read-project-root | 从项目根目录读取 rainbondfile | active | unit | builder/parser/code.ReadRainbondFile | builder/parser/code/rainbondfile_test.go::TestReadRainbondFile |
@@ -4825,6 +4827,26 @@
 - 业务入口: `builder/sources.newBuildKitPodSpec`
 - 代码路径: `builder/sources/image.go`, `builder/exector/plugin_dockerfile.go`, `api/handler/plugin.go`, `api/model/pluginModel.go`
 - 测试路径: `builder/sources/image_test.go::TestNewBuildKitPodSpecDefaultsMissingArchToRuntime`
+
+### Plugin reads preserve request budget and scope tenant enrichment
+
+- Capability ID: `rainbond.plugins.scoped-context-reads`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.ListPlugins`
+- 代码路径: `api/handler/cluster.go`, `api/controller/cluster.go`
+- 测试路径: `api/handler/plugin_reads_test.go`
+
+### Reject pod logs without tenant context
+
+- Capability ID: `rainbond.pod-logs.tenant-context-guard`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `api/controller.PodController.PodLogs`
+- 代码路径: `api/controller/pods.go`
+- 测试路径: `api/controller/pods_test.go::TestPodLogsRejectsInvalidTenantContext`, `api/controller/pods_test.go::TestPodLogsWithTenantPreservesLogValidation`
 
 ### 缺少 rainbondfile 时返回未找到
 

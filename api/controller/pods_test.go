@@ -2,13 +2,70 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"unicode/utf8"
+
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	httputil "github.com/goodrain/rainbond/util/http"
 )
+
+// capability_id: rainbond.pod-logs.tenant-context-guard
+func TestPodLogsRejectsInvalidTenantContext(t *testing.T) {
+	var typedNil *dbmodel.Tenants
+	cases := []struct {
+		name  string
+		value interface{}
+		set   bool
+	}{
+		{name: "missing"},
+		{name: "wrong type", value: "not-a-tenant", set: true},
+		{name: "typed nil", value: typedNil, set: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v2/pods/logs", nil)
+			if tc.set {
+				req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), tc.value))
+			}
+			recorder := httptest.NewRecorder()
+			(&PodController{}).PodLogs(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", recorder.Code)
+			}
+			var body httputil.ResponseBody
+			if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode error envelope: %v", err)
+			}
+			if body.Msg != "tenant context is required" {
+				t.Fatalf("message = %q", body.Msg)
+			}
+		})
+	}
+}
+
+// capability_id: rainbond.pod-logs.tenant-context-guard
+func TestPodLogsWithTenantPreservesLogValidation(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/v2/tenants/fixture/pods/fixture-pod/logs?follow=invalid", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxutil.ContextKey("tenant"), &dbmodel.Tenants{
+		Namespace: "fixture-namespace",
+	}))
+	recorder := httptest.NewRecorder()
+	(&PodController{}).PodLogs(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", recorder.Code)
+	}
+	if got := strings.TrimSpace(recorder.Body.String()); got != "invalid follow value: invalid" {
+		t.Fatalf("original validation not reached: %q", got)
+	}
+}
 
 func TestParseFollowDefaultsToTrue(t *testing.T) {
 	req := httptest.NewRequest("GET", "/v2/tenants/demo/services/svc/pods/pod-1/logs?lines=50", nil)

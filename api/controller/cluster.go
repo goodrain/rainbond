@@ -474,7 +474,7 @@ func (c *ClusterController) ListUpgradeStatus(w http.ResponseWriter, r *http.Req
 // ListPlugins -
 func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) {
 	official, _ := strconv.ParseBool(r.URL.Query().Get("official"))
-	res, err := handler.GetClusterHandler().ListPlugins(official)
+	res, err := handler.GetClusterHandler().ListPlugins(r.Context(), official)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
