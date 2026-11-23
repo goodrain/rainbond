@@ -193,6 +193,7 @@
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cluster.rbd-component-readiness | Rainbond component readiness overview | active | regression | api/handler.clusterAction.ListRainbondComponents | api/handler/cluster_overview_test.go::TestPodReadyForOverview<br>api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName<br>api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted<br>api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts |
 | rainbond.cluster.upgrade-preserves-component-config | Preserve custom component configuration during image upgrades | active | regression | POST /v2/cluster/rbd-upgrade | api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig |
+| rainbond.cluster.upgrade-source-mount-preflight | 升级前识别控制台核心源码覆盖 | active | regression | api/controller.upgradeComponentImages | api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsBlockWholeRequest<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountPaths<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsAllowStandardAndOtherComponents<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsRequestCancellation<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsConcurrentChange |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
 | rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
 | rainbond.cnb-version.match-golang | 归一化并匹配 Go CNB 版本表达式 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang |
@@ -387,6 +388,7 @@
 | rainbond.ns-resource.ingress-summary | 汇总 Ingress 资源路由元数据 | active | regression | api/handler.toNsResourceInfo | api/handler/ns_resource_test.go::TestToNsResourceInfoIncludesIngressSummary |
 | rainbond.ns-resource.mark-source | 标记命名空间资源来源 | active | regression | api/handler.injectSourceLabel | api/handler/ns_resource_test.go::TestInjectSourceLabelYaml<br>api/handler/ns_resource_test.go::TestInjectSourceLabelManual |
 | rainbond.ns-resource.resolve-tenant-namespace | 解析团队命名空间 | active | regression | api/handler.(*NsResourceHandler).getTenantNamespace | api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField<br>api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty |
+| rainbond.overview.deployment-replica-status | Verify Deployment replica health without counting rollout history | active | regression | clusterAction.ListRainbondComponents | api/handler/component_replica_status_test.go::TestRainbondComponentDeploymentReplicaStatus<br>api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusQueriesAreDemandDriven<br>api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusRequestCacheAndLegacyOrdering<br>api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusRespectsRequestDeadline<br>api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusCachesFailedLookups |
 | rainbond.overview.disk-availability | Distinguish missing node filesystem measurements | active | regression | nodesHandle.ListNodes | api/handler/overview_truthful_data_test.go::TestOverviewDiskStatsAvailability |
 | rainbond.overview.empty-installed-plugins | Empty installed plugin results encode as an array | active | regression | clusterAction.ListPlugins | api/handler/overview_truthful_data_test.go::TestOverviewEmptyInstalledPluginsAreAnArray |
 | rainbond.overview.kubernetes-cluster-resources | Read truthful bounded Kubernetes workload resource snapshots | active | regression | clusterAction.GetClusterInfo | api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesUseKubernetesNotPrometheus<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesReportZeroOnlyAfterSuccessfulReads<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesCoalesceConcurrentRefresh<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRequestsIncludeInitSidecarsAndOverhead<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesPreserveFractionalCapacityAndScheduledScope<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourcesIncludeEmptySchedulableNodes<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceRefreshWaitRespectsCancellation<br>api/handler/overview_truthful_data_test.go::TestOverviewClusterResourceOptionalVersionCannotBlockResources |
@@ -2693,6 +2695,16 @@
 - 代码路径: `api/controller/cluster.go`
 - 测试路径: `api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig`
 
+### 升级前识别控制台核心源码覆盖
+
+- Capability ID: `rainbond.cluster.upgrade-source-mount-preflight`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/controller.upgradeComponentImages`
+- 代码路径: `api/controller/cluster.go`, `api/controller/upgrade_source_mounts.go`
+- 测试路径: `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsBlockWholeRequest`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountPaths`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsAllowStandardAndOtherComponents`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsRequestCancellation`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsConcurrentChange`
+
 ### 从 CNB 版本表达式提取主版本
 
 - Capability ID: `rainbond.cnb-version.extract-major`
@@ -4632,6 +4644,16 @@
 - 业务入口: `api/handler.(*NsResourceHandler).getTenantNamespace`
 - 代码路径: `api/handler/ns_resource.go`
 - 测试路径: `api/handler/ns_resource_test.go::TestGetTenantNamespaceUsesNamespaceField`, `api/handler/ns_resource_test.go::TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty`
+
+### Verify Deployment replica health without counting rollout history
+
+- Capability ID: `rainbond.overview.deployment-replica-status`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `clusterAction.ListRainbondComponents`
+- 代码路径: `api/handler/cluster.go`, `api/handler/component_replica_status.go`, `api/model/model.go`
+- 测试路径: `api/handler/component_replica_status_test.go::TestRainbondComponentDeploymentReplicaStatus`, `api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusQueriesAreDemandDriven`, `api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusRequestCacheAndLegacyOrdering`, `api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusRespectsRequestDeadline`, `api/handler/component_replica_status_test.go::TestRainbondComponentReplicaStatusCachesFailedLookups`
 
 ### Distinguish missing node filesystem measurements
 

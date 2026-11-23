@@ -701,6 +701,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	allPods = append(allPods, roPods.Items...)
 	allPods = deduplicateRainbondComponentPods(allPods)
 	res = finalizeRainbondComponentOverview(buildRainbondComponentOverview(allPods))
+	c.addRainbondComponentReplicaStatus(ctx, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), res)
 	return res, nil
 }
 

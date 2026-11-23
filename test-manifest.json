@@ -3732,6 +3732,41 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cluster.upgrade-source-mount-preflight",
+      "title": "Check Console source overlays before changing upgrade images",
+      "title_zh": "\u5347\u7ea7\u524d\u8bc6\u522b\u63a7\u5236\u53f0\u6838\u5fc3\u6e90\u7801\u8986\u76d6",
+      "interface_type": "workflow",
+      "interface": "api/controller.upgradeComponentImages",
+      "code_paths": [
+        "api/controller/cluster.go",
+        "api/controller/upgrade_source_mounts.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/upgrade_source_mounts_test.go",
+          "selector": "TestUpgradeSourceMountsBlockWholeRequest"
+        },
+        {
+          "path": "api/controller/upgrade_source_mounts_test.go",
+          "selector": "TestUpgradeSourceMountPaths"
+        },
+        {
+          "path": "api/controller/upgrade_source_mounts_test.go",
+          "selector": "TestUpgradeSourceMountsAllowStandardAndOtherComponents"
+        },
+        {
+          "path": "api/controller/upgrade_source_mounts_test.go",
+          "selector": "TestUpgradeSourceMountsRequestCancellation"
+        },
+        {
+          "path": "api/controller/upgrade_source_mounts_test.go",
+          "selector": "TestUpgradeSourceMountsConcurrentChange"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cnb-version.extract-major",
       "title": "Extract major version from CNB spec",
       "title_zh": "\u4ece CNB \u7248\u672c\u8868\u8fbe\u5f0f\u63d0\u53d6\u4e3b\u7248\u672c",
@@ -7493,6 +7528,42 @@
         {
           "path": "api/handler/ns_resource_test.go",
           "selector": "TestGetTenantNamespaceFallsBackToUUIDWhenNamespaceEmpty"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.overview.deployment-replica-status",
+      "title": "Verify Deployment replica health without counting rollout history",
+      "title_zh": "Verify Deployment replica health without counting rollout history",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListRainbondComponents",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/component_replica_status.go",
+        "api/model/model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentDeploymentReplicaStatus"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusQueriesAreDemandDriven"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusRequestCacheAndLegacyOrdering"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusRespectsRequestDeadline"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusCachesFailedLookups"
         }
       ],
       "test_type": "regression",

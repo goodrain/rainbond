@@ -2313,10 +2313,17 @@ type ShellPod struct {
 
 // RainbondComponent rainbond components
 type RainbondComponent struct {
-	Name    string       `json:"name"`
-	Pods    []corev1.Pod `json:"pods"`
-	RunPods int          `json:"run_pods"`
-	AllPods int          `json:"all_pods"`
+	Name          string                     `json:"name"`
+	Pods          []corev1.Pod               `json:"pods"`
+	RunPods       int                        `json:"run_pods"`
+	AllPods       int                        `json:"all_pods"`
+	ReplicaStatus *RainbondComponentReplicas `json:"replica_status,omitempty"`
+}
+
+// RainbondComponentReplicas describes verified Deployment replicas separately from historical Pods.
+type RainbondComponentReplicas struct {
+	Ready int `json:"ready"`
+	Total int `json:"total"`
 }
 
 // RainbondPlugins -
