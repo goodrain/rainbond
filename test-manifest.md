@@ -418,6 +418,8 @@
 | rainbond.resource-center.match-selector | 按选择器匹配资源标签 | active | regression | api/handler.labelsMatchSelector | api/handler/resource_center_test.go::TestLabelsMatchSelector |
 | rainbond.resource-center.rfc3339-timestamps | Serialize resource center timestamps as RFC3339 | active | regression | api/handler.formatResourceTimestamp | api/handler/resource_center_test.go::TestFormatResourceTimestamp |
 | rainbond.resource-import.daemonset-component | 将 DaemonSet 导入为组件 | active | regression | api.handler.ComponentController.CreateComponent | api/handler/resource_import_daemonset_test.go::TestExtendMethodForResourceTypeSupportsDaemonSet |
+| rainbond.rollback.failed-http-status | Return failure HTTP status for failed async rollbacks | active | regression | PUT component rollback | api/controller/rollback_result_test.go::TestRollbackResponseEndsFailedAsyncOperation<br>api/controller/rollback_result_test.go::TestRollbackResponseKeepsSuccessfulAsyncSubmission |
+| rainbond.rollback.selection-failure-diagnostics | Classify rollback selection failures and preserve queue compensation | active | regression | api.handler.OperationHandler.RollBack | api/handler/rollback_selection_failure_test.go::TestRollbackDatabaseFailureIsNotReportedAsMissingVersion<br>api/handler/rollback_selection_failure_test.go::TestRollbackQueuesOnceAndCompensatesOnlyAfterQueueFailure |
 | rainbond.runtime.composite-nodejs | 复合语言场景使用 Node 运行时解析 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_CompositeNodejsLanguageUsesNodeRuntime |
 | rainbond.runtime.node-cnb-framework-detection | CNB 构建检测 Node.js 框架信息 | active | regression | builder/parser/code.CheckRuntimeByStrategy | builder/parser/code/runtime_test.go::TestCheckRuntimeByStrategy_NodejsCNBDetectsFrameworkWithoutEngines |
 | rainbond.runtime.node-defaults | 从 package.json 返回默认 Node 运行时信息 | active | regression | builder/parser/code.CheckRuntime | builder/parser/code/runtime_test.go::TestCheckRuntime_NodejsReturnsDefaultRuntimeInfoFromPackageJson |
@@ -735,6 +737,7 @@
 | rainbond.webcli.container-args | 为 WebCLI 会话解析执行容器Pod IP与命令参数 | active | regression | api/webcli/app.App.GetContainerArgs | api/webcli/app/app_test.go::TestGetContainerArgsSelectsContainerAndExecArgs |
 | rainbond.webcli.max-width | 限制 WebCLI 终端输出最大宽度 | active | regression | api/webcli/term.NewMaxWidthWriter | api/webcli/term/term_writer_test.go::TestMaxWidthWriter |
 | rainbond.webcli.missing-container-guard | 请求的容器不存在时拒绝建立 exec 会话 | active | regression | api/webcli/app.App.GetContainerArgs | api/webcli/app/app_test.go::TestGetContainerArgsRejectsMissingContainer |
+| rainbond.webcli.output-flow-control | 终端输出协商流控及消费确认 | active | regression | api/webcli/app.configureTerminalFlowControl | api/webcli/app/flow_control_test.go::TestTerminalFlowControlBoundsOutputAndKeepsInputAlive<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlLegacyClientDoesNotWaitForAcknowledgements<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlPartialAcknowledgementOnlyReleasesConsumedBytes<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlCancellationWhileWindowFull<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlDisconnectWhileWindowFull<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlRejectsInvalidAcknowledgements<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlRejectsAcknowledgementWithoutOutstandingOutput<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlCloseUnblocksWaitingSlaveRead<br>api/webcli/app/flow_control_test.go::TestTerminalFlowControlInitFlagIsOptIn |
 | rainbond.webcli.terminal-resize | 为 WebCLI 执行会话排队并应用终端尺寸变更 | active | regression | api/webcli/app.execContext.ResizeTerminal | api/webcli/app/tty_test.go::TestResizeTerminalQueuesWindowSize |
 | rainbond.webcli.word-wrap | 按单词折行 WebCLI 终端输出 | active | regression | api/webcli/term.NewWordWrapWriter | api/webcli/term/term_writer_test.go::TestWordWrapWriter |
 | rainbond.worker.app-status-no-unused-component-query | 单应用状态避免无用组件查询且保留资源及Helm行为 | active | regression | worker/server.RuntimeServer.GetAppStatus | worker/server/app_status_query_test.go::TestGetAppStatusSkipsUnusedComponentRead<br>worker/server/app_status_query_test.go::TestGetAppStatusPreservesHelmStatusAndErrors |
@@ -4933,6 +4936,26 @@
 - 代码路径: `api/handler/resource_import.go`, `api/model/namespace_resource.go`
 - 测试路径: `api/handler/resource_import_daemonset_test.go::TestExtendMethodForResourceTypeSupportsDaemonSet`
 
+### Return failure HTTP status for failed async rollbacks
+
+- Capability ID: `rainbond.rollback.failed-http-status`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `view_endpoint`
+- 业务入口: `PUT component rollback`
+- 代码路径: `api/controller/service_action.go`, `api/middleware/middleware.go`
+- 测试路径: `api/controller/rollback_result_test.go::TestRollbackResponseEndsFailedAsyncOperation`, `api/controller/rollback_result_test.go::TestRollbackResponseKeepsSuccessfulAsyncSubmission`
+
+### Classify rollback selection failures and preserve queue compensation
+
+- Capability ID: `rainbond.rollback.selection-failure-diagnostics`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `api.handler.OperationHandler.RollBack`
+- 代码路径: `api/handler/service_operation.go`
+- 测试路径: `api/handler/rollback_selection_failure_test.go::TestRollbackDatabaseFailureIsNotReportedAsMissingVersion`, `api/handler/rollback_selection_failure_test.go::TestRollbackQueuesOnceAndCompensatesOnlyAfterQueueFailure`
+
 ### 复合语言场景使用 Node 运行时解析
 
 - Capability ID: `rainbond.runtime.composite-nodejs`
@@ -8102,6 +8125,16 @@
 - 业务入口: `api/webcli/app.App.GetContainerArgs`
 - 代码路径: `api/webcli/app/app.go`
 - 测试路径: `api/webcli/app/app_test.go::TestGetContainerArgsRejectsMissingContainer`
+
+### 终端输出协商流控及消费确认
+
+- Capability ID: `rainbond.webcli.output-flow-control`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `api/webcli/app.configureTerminalFlowControl`
+- 代码路径: `api/webcli/app/app.go`, `api/webcli/app/flow_control.go`
+- 测试路径: `api/webcli/app/flow_control_test.go::TestTerminalFlowControlBoundsOutputAndKeepsInputAlive`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlLegacyClientDoesNotWaitForAcknowledgements`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlPartialAcknowledgementOnlyReleasesConsumedBytes`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlCancellationWhileWindowFull`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlDisconnectWhileWindowFull`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlRejectsInvalidAcknowledgements`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlRejectsAcknowledgementWithoutOutstandingOutput`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlCloseUnblocksWaitingSlaveRead`, `api/webcli/app/flow_control_test.go::TestTerminalFlowControlInitFlagIsOptIn`
 
 ### 为 WebCLI 执行会话排队并应用终端尺寸变更
 

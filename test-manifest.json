@@ -8128,6 +8128,51 @@
       "status": "active"
     },
     {
+      "id": "rainbond.rollback.failed-http-status",
+      "title": "Return failure HTTP status for failed async rollbacks",
+      "title_zh": "Return failure HTTP status for failed async rollbacks",
+      "interface_type": "view_endpoint",
+      "interface": "PUT component rollback",
+      "code_paths": [
+        "api/controller/service_action.go",
+        "api/middleware/middleware.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/rollback_result_test.go",
+          "selector": "TestRollbackResponseEndsFailedAsyncOperation"
+        },
+        {
+          "path": "api/controller/rollback_result_test.go",
+          "selector": "TestRollbackResponseKeepsSuccessfulAsyncSubmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.rollback.selection-failure-diagnostics",
+      "title": "Classify rollback selection failures and preserve queue compensation",
+      "title_zh": "Classify rollback selection failures and preserve queue compensation",
+      "interface_type": "handler_method",
+      "interface": "api.handler.OperationHandler.RollBack",
+      "code_paths": [
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/rollback_selection_failure_test.go",
+          "selector": "TestRollbackDatabaseFailureIsNotReportedAsMissingVersion"
+        },
+        {
+          "path": "api/handler/rollback_selection_failure_test.go",
+          "selector": "TestRollbackQueuesOnceAndCompensatesOnlyAfterQueueFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.runtime.composite-nodejs",
       "title": "Use node runtime parser for composite dockerfile and node language",
       "title_zh": "\u590d\u5408\u8bed\u8a00\u573a\u666f\u4f7f\u7528 Node \u8fd0\u884c\u65f6\u89e3\u6790",
@@ -15096,6 +15141,57 @@
         {
           "path": "api/webcli/app/app_test.go",
           "selector": "TestGetContainerArgsRejectsMissingContainer"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.webcli.output-flow-control",
+      "title": "Negotiate bounded terminal output with consumer acknowledgements",
+      "title_zh": "\u7ec8\u7aef\u8f93\u51fa\u534f\u5546\u6d41\u63a7\u53ca\u6d88\u8d39\u786e\u8ba4",
+      "interface_type": "workflow",
+      "interface": "api/webcli/app.configureTerminalFlowControl",
+      "code_paths": [
+        "api/webcli/app/app.go",
+        "api/webcli/app/flow_control.go"
+      ],
+      "tests": [
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlBoundsOutputAndKeepsInputAlive"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlLegacyClientDoesNotWaitForAcknowledgements"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlPartialAcknowledgementOnlyReleasesConsumedBytes"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlCancellationWhileWindowFull"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlDisconnectWhileWindowFull"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlRejectsInvalidAcknowledgements"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlRejectsAcknowledgementWithoutOutstandingOutput"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlCloseUnblocksWaitingSlaveRead"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlInitFlagIsOptIn"
         }
       ],
       "test_type": "regression",

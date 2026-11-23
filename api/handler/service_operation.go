@@ -368,7 +368,12 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	}
 	previousVersion, err := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID, service.ServiceID, rollback.RollBackVersion, rollback.EventID, oldDeployVersion)
 	if err != nil {
-		re.ErrMsg = "rollback version is no longer available"
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, cleanupguard.ErrVersionProtected) || errors.Is(err, cleanupguard.ErrStateChanged) {
+			re.ErrMsg = "rollback version is no longer available"
+		} else {
+			logrus.WithError(err).Errorf("select rollback version failed for component %s", service.ServiceID)
+			re.ErrMsg = "failed to select rollback version"
+		}
 		return
 	}
 	oldDeployVersion = previousVersion

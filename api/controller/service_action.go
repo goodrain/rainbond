@@ -889,6 +889,14 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	re := handler.GetOperationHandler().RollBack(rollbackRequest)
+	writeRollbackResult(w, r, re)
+}
+
+func writeRollbackResult(w http.ResponseWriter, r *http.Request, re handler.OperationResult) {
+	if re.Status != "success" {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, re.ErrMsg)
+		return
+	}
 	httputil.ReturnSuccess(r, w, re)
 }
 
