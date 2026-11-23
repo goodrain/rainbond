@@ -106,6 +106,9 @@ func snapshotHTTPError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, vmrestore.ErrRestoreCapability):
 		status = http.StatusUnprocessableEntity
 		code = "vm_restore_provider_not_qualified"
+	case errors.Is(err, vmrestore.ErrNativeRestoreConfigurationChanged):
+		status = http.StatusUnprocessableEntity
+		code = "vm_restore_native_configuration_changed"
 	}
 	httputil.Return(r, w, status, httputil.ResponseBody{Msg: code, Bean: map[string]interface{}{"error": map[string]interface{}{"code": code, "retryable": retry}}})
 }

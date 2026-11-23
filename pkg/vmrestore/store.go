@@ -411,6 +411,9 @@ func (s *Store) MutateTx(tx *gorm.DB, scope Scope, expected Expectation, change 
 		if before.Receipt != nil && !sameRestoreIntent(before.Receipt.Restore, update.Receipt.Restore) {
 			return Current{}, ErrConflict
 		}
+		if before.Receipt != nil && !reflect.DeepEqual(before.Receipt.NativeRestore, update.Receipt.NativeRestore) {
+			return Current{}, ErrConflict
+		}
 		if before.Receipt != nil {
 			old := before.Receipt
 			next := update.Receipt

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/goodrain/rainbond/pkg/vmrestore"
+	"github.com/goodrain/rainbond/worker/appm/conversion"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kv "kubevirt.io/api/core/v1"
@@ -61,7 +62,29 @@ func (s *ServiceAction) nativeRestoreEngine(ctx context.Context, serviceID strin
 	if s.kubevirtClient == nil {
 		return nil, scope, vmrestore.ErrReferenceUnavailable
 	}
-	return vmrestore.NewNativeRestoreEngine(&kubeNativeRestoreBackend{client: s.kubevirtClient}), scope, nil
+	snapshots, snapshotScope, err := s.snapshotService(ctx, serviceID)
+	if err != nil {
+		return nil, scope, err
+	}
+	if snapshotScope != scope || snapshots.Identity == nil || snapshots.Identity.ProveStartup == nil || s.kubeClient == nil {
+		return nil, scope, vmrestore.ErrRestoreCapability
+	}
+	manager := s.getDBManager()
+	if manager == nil || manager.DB() == nil {
+		return nil, scope, vmrestore.ErrReferenceUnavailable
+	}
+	store := vmrestore.NewStore(manager.DB())
+	backend := &kubeNativeRestoreBackend{client: s.kubevirtClient}
+	engine := vmrestore.NewNativeRestoreEngine(backend)
+	engine.Managed = &vmrestore.ManagedNativeRestore{Store: store, Resolver: vmrestore.NewResolver(store, s.kubeClient, s.kubevirtClient.DynamicClient()), Snapshots: snapshots, Backend: backend, Core: s.kubeClient, Dynamic: s.kubevirtClient.DynamicClient(), CurrentStartup: snapshots.Identity.ProveStartup}
+	engine.Managed.BuildPlatform = func(ctx context.Context, scope vmrestore.Scope) (*kv.VirtualMachine, error) {
+		app, err := conversion.RenderVMForRestore(manager, scope.ServiceID)
+		if err != nil {
+			return nil, err
+		}
+		return app.GetVirtualMachine(), nil
+	}
+	return engine, scope, nil
 }
 
 func (s *ServiceAction) StartNativeVMRestore(ctx context.Context, serviceID, snapshotName, requestID string) (vmrestore.NativeRestoreDTO, error) {

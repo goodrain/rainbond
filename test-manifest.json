@@ -12669,6 +12669,73 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-platform-convergence",
+      "title": "Converge native VM restore with platform bindings and durable ownership",
+      "title_zh": "Converge native VM restore with platform bindings and durable ownership",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_managed.go",
+        "pkg/vmrestore/native_restore_control.go",
+        "pkg/vmrestore/native_restore.go",
+        "pkg/vmrestore/restore_runtime_projection.go",
+        "pkg/vmrestore/footprints.go",
+        "pkg/vmrestore/state.go",
+        "pkg/vmrestore/store.go",
+        "api/handler/vm_native_restore.go",
+        "api/controller/vm_snapshot.go",
+        "pkg/vmrestore/native_restore_advanced.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_control_test.go",
+          "selector": "TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_control_test.go",
+          "selector": "TestNativeRestoreControlRejectsChangedIntentAndConfiguration"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRequiresPlatformCommitBeforeSuccess"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRejectsUnprovenNativeAndDiskResults"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePreflightAndCapacityAreFailClosed"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePinsNativeUIDAndUnknownOutcomes"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePreservesUnknownFieldsAndRejectsUnknownDiskReplacement"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreKeepsReadonlyIdentityAndRefusesExtraDisks"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPFixedDomainErrorCodes"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRejectsDesiredAndLiveAdvancedDrift"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeAdvancedDefaultsDoNotHideRealEdits"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-source-config",
       "title": "Derive A access mode and quota from exact native backup metadata",
       "title_zh": "Derive A access mode and quota from exact native backup metadata",
@@ -12680,6 +12747,24 @@
       "tests": [
         {
           "path": "pkg/vmrestore/restore_native_source_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-status-read",
+      "title": "Native restore status remains readable after power changes",
+      "title_zh": "Native restore status remains readable after power changes",
+      "interface_type": "workflow",
+      "interface": "vmrestore.NativeRestoreEngine.Status",
+      "code_paths": [
+        "pkg/vmrestore/native_restore.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_test.go",
+          "selector": "TestNativeRestoreStatusSurvivesPowerAndReadinessChanges"
         }
       ],
       "test_type": "regression",
@@ -14309,6 +14394,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-snapshot.selected-class-admission",
+      "title": "Snapshot creation honors the selected storage profile class",
+      "title_zh": "Snapshot creation honors the selected storage profile class",
+      "interface_type": "workflow",
+      "interface": "vmrestore.KubeSnapshotBackend.checkStorage",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_kube.go",
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeSnapshotAdmissionUsesActualProfileSelection"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-storage.existing-snapshot-capability",
       "title": "Existing VM complete snapshot participants capability",
       "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5b8c\u6574\u53c2\u4e0e\u76d8\u5feb\u7167\u80fd\u529b\u53ea\u8bfb\u67e5\u8be2",
@@ -14371,6 +14475,24 @@
         {
           "path": "api/controller/vm_snapshot_capability_test.go",
           "selector": "TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.managed-snapshot-admission",
+      "title": "Managed snapshot admission uses the selected class policy",
+      "title_zh": "Managed snapshot admission uses the selected class policy",
+      "interface_type": "workflow",
+      "interface": "vmstorage.ManagedSnapshotCapability",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/managed_snapshot_test.go",
+          "selector": "TestManagedSnapshotAdmissionUsesSelectedClassPolicy"
         }
       ],
       "test_type": "regression",
@@ -14491,6 +14613,24 @@
         {
           "path": "api/handler/vm_snapshot_capability_test.go",
           "selector": "TestVolumeOptionsSnapshotCapabilityPreservesUnknown"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-socket-node",
+      "title": "CSI host socket evidence requires the same node",
+      "title_zh": "CSI host socket evidence requires the same node",
+      "interface_type": "workflow",
+      "interface": "vmstorage.Inspector.StorageClass",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityNeverJoinsHostSocketsAcrossNodes"
         }
       ],
       "test_type": "regression",

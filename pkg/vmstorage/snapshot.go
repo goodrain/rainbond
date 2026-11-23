@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -49,7 +50,19 @@ func ManagedSnapshotCapability(native Capability) Capability {
 		managed.ReasonCode = "managed_snapshot_driver_unsupported"
 		managed.Message = "该存储的 CSI 驱动不在受管虚拟机快照支持范围"
 	} else if managed.Supported {
-		managed.Message = "该存储驱动适用于受管快照，实际虚拟机和任务条件仍需核验"
+		switch {
+		case managed.backingSnapshot:
+			managed.Supported, managed.Status = false, "unsupported"
+			managed.ReasonCode, managed.Message = "managed_snapshot_backing_unsupported", "受管快照不支持backingSnapshot存储模式"
+		case managed.deletionPolicy == "":
+			managed.Supported, managed.Status = false, "unknown"
+			managed.ReasonCode, managed.Message = "managed_snapshot_class_policy_unverified", "无法核验所选快照类的删除策略"
+		case managed.deletionPolicy != "Delete":
+			managed.Supported, managed.Status = false, "unsupported"
+			managed.ReasonCode, managed.Message = "managed_snapshot_class_policy_unsupported", "受管快照要求所选快照类使用Delete策略"
+		default:
+			managed.Message = "该存储驱动适用于受管快照，实际虚拟机和任务条件仍需核验"
+		}
 	}
 	return managed
 }
@@ -71,6 +84,9 @@ type Capability struct {
 	StorageClass        string `json:"storage_class,omitempty"`
 	Driver              string `json:"driver,omitempty"`
 	VolumeSnapshotClass string `json:"volume_snapshot_class,omitempty"`
+	// Private live selection evidence is never accepted from an API caller.
+	deletionPolicy  string
+	backingSnapshot bool
 }
 
 // Volume identifies one participating disk. It does not assign a backing PVC.
@@ -192,7 +208,6 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 	if err != nil {
 		return unknown("storage_class_read_failed", "无法读取当前存储类配置")
 	}
-	base := Capability{StorageClass: name, Driver: sc.Provisioner}
 	finish := func(c Capability) Capability { c.StorageClass = name; c.Driver = sc.Provisioner; return c }
 	if sc.DeletionTimestamp != nil {
 		return finish(unknown("storage_class_not_ready", "存储类正在删除"))
@@ -206,8 +221,69 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 	if i.global != nil {
 		return finish(*i.global)
 	}
+	base := SelectSnapshotClass(ctx, i.dynamic, sc, i.classes)
+	if !base.Supported {
+		return base
+	}
+	driverSockets, snapshotterSockets := map[string]bool{}, map[string]bool{}
+	ready := func() Capability {
+		base.Message = "驱动、快照类与服务已就绪；实际快照结果以任务终态为准"
+		return base
+	}
+	for n := range i.pods {
+		p := &i.pods[n]
+		if !podReady(p) {
+			continue
+		}
+		driverReady, snapshotterReady := false, false
+		for _, c := range p.Spec.Containers {
+			if driverName(c) == sc.Provisioner && containerReady(p, c.Name) {
+				driverReady = true
+				if p.Spec.NodeName != "" {
+					for _, socket := range csiSocketHostPaths(p, c) {
+						driverSockets[p.Spec.NodeName+"\x00"+socket] = true
+					}
+				}
+			}
+			if component(c, "csi-snapshotter") && containerReady(p, c.Name) {
+				snapshotterReady = true
+				if p.Spec.NodeName != "" {
+					for _, socket := range csiSocketHostPaths(p, c) {
+						snapshotterSockets[p.Spec.NodeName+"\x00"+socket] = true
+					}
+				}
+			}
+		}
+		if driverReady && snapshotterReady {
+			return ready()
+		}
+	}
+	for socket := range driverSockets {
+		if snapshotterSockets[socket] {
+			return ready()
+		}
+	}
+	c := finish(unknown("driver_snapshotter_not_ready", "该CSI驱动的快照sidecar未就绪或缺少可核验的驱动关联证据"))
+	c.VolumeSnapshotClass = base.VolumeSnapshotClass
+	return c
+}
+
+// SelectSnapshotClass shares the exact StorageProfile/default selection and
+// managed policy evidence with creation. A supported result only proves class
+// selection; Inspector must additionally verify CSI and controller readiness.
+func SelectSnapshotClass(ctx context.Context, dyn dynamic.Interface, sc *storagev1.StorageClass, classes []unstructured.Unstructured) Capability {
+	if sc == nil || nilClient(dyn) {
+		return unknown("capability_client_unavailable", "快照类选择客户端不可用")
+	}
+	base := decision("supported", "ready", "快照类选择已核验")
+	base.StorageClass, base.Driver = sc.Name, sc.Provisioner
+	base.backingSnapshot = strings.EqualFold(sc.Parameters["backingSnapshot"], "true")
+	finish := func(c Capability) Capability { c.StorageClass = sc.Name; c.Driver = sc.Provisioner; return c }
+	if sc.DeletionTimestamp != nil {
+		return finish(unknown("storage_class_not_ready", "存储类正在删除"))
+	}
 	preferred := ""
-	profile, profileErr := i.dynamic.Resource(schema.GroupVersionResource{Group: "cdi.kubevirt.io", Version: "v1beta1", Resource: "storageprofiles"}).Get(ctx, name, metav1.GetOptions{})
+	profile, profileErr := dyn.Resource(schema.GroupVersionResource{Group: "cdi.kubevirt.io", Version: "v1beta1", Resource: "storageprofiles"}).Get(ctx, sc.Name, metav1.GetOptions{})
 	if profileErr != nil && !apierrors.IsNotFound(profileErr) {
 		return finish(unknown("storage_profile_read_failed", "无法核验StorageProfile的快照类选择"))
 	}
@@ -219,7 +295,8 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 		}
 	}
 	var matches, defaults []string
-	for _, c := range i.classes {
+	policies := map[string]string{}
+	for _, c := range classes {
 		driver, found, e := unstructured.NestedString(c.Object, "driver")
 		if e != nil {
 			return finish(unknown("snapshot_class_invalid", "快照类配置无法解析"))
@@ -228,6 +305,11 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 			continue
 		}
 		matches = append(matches, c.GetName())
+		policy, _, policyErr := unstructured.NestedString(c.Object, "deletionPolicy")
+		if policyErr != nil {
+			return finish(unknown("snapshot_class_invalid", "快照类删除策略无法解析"))
+		}
+		policies[c.GetName()] = policy
 		if c.GetAnnotations()["snapshot.storage.kubernetes.io/is-default-class"] == "true" {
 			defaults = append(defaults, c.GetName())
 		}
@@ -255,46 +337,8 @@ func (i *Inspector) StorageClass(ctx context.Context, name string) Capability {
 	default:
 		return finish(unknown("snapshot_class_ambiguous", "存在多个匹配快照类且无法唯一确定默认类"))
 	}
-	driverSockets, snapshotterSockets := map[string]bool{}, map[string]bool{}
-	ready := func() Capability {
-		base.Supported = true
-		base.Status = "supported"
-		base.ReasonCode = "ready"
-		base.Message = "驱动、快照类与服务已就绪；实际快照结果以任务终态为准"
-		return base
-	}
-	for n := range i.pods {
-		p := &i.pods[n]
-		if !podReady(p) {
-			continue
-		}
-		driverReady, snapshotterReady := false, false
-		for _, c := range p.Spec.Containers {
-			if driverName(c) == sc.Provisioner && containerReady(p, c.Name) {
-				driverReady = true
-				for _, socket := range csiSocketHostPaths(p, c) {
-					driverSockets[socket] = true
-				}
-			}
-			if component(c, "csi-snapshotter") && containerReady(p, c.Name) {
-				snapshotterReady = true
-				for _, socket := range csiSocketHostPaths(p, c) {
-					snapshotterSockets[socket] = true
-				}
-			}
-		}
-		if driverReady && snapshotterReady {
-			return ready()
-		}
-	}
-	for socket := range driverSockets {
-		if snapshotterSockets[socket] {
-			return ready()
-		}
-	}
-	c := finish(unknown("driver_snapshotter_not_ready", "该CSI驱动的快照sidecar未就绪或缺少可核验的驱动关联证据"))
-	c.VolumeSnapshotClass = base.VolumeSnapshotClass
-	return c
+	base.deletionPolicy = policies[base.VolumeSnapshotClass]
+	return base
 }
 
 // Volumes aggregates all participants. Callers must not pass only the root disk.

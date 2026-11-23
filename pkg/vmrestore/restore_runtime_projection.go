@@ -80,8 +80,20 @@ func (s *Store) ReadRestoredRuntimeSelection(ctx context.Context, resolver *Reso
 	if err != nil {
 		return nil, err
 	}
-	if c.State.BindingGeneration != view.BindingGeneration || c.Receipt == nil || c.Receipt.Execution == nil || c.Receipt.Restore == nil || c.Receipt.ConfigCommitHash == "" || !c.Receipt.Steps[RestoreCommitStep].Applied {
+	if c.State.BindingGeneration != view.BindingGeneration || c.Receipt == nil || c.Receipt.Restore == nil || c.Receipt.ConfigCommitHash == "" {
 		return nil, ErrCorrupt
+	}
+	var startup, beforeStartup RestoreStartupPolicy
+	if c.Receipt.NativeRestore != nil {
+		if !c.Receipt.Steps[NativeRestoreCommitStep].Applied {
+			return nil, ErrCorrupt
+		}
+		startup, beforeStartup = c.Receipt.NativeRestore.SourceStartup, c.Receipt.NativeRestore.BeforeStartup
+	} else {
+		if c.Receipt.Execution == nil || !c.Receipt.Steps[RestoreCommitStep].Applied {
+			return nil, ErrCorrupt
+		}
+		startup, beforeStartup = c.Receipt.Execution.SourceStartup, c.Receipt.Execution.BeforeStartup
 	}
 	config, err := s.selectedRuntimeConfig(scope)
 	if err != nil {
@@ -90,7 +102,7 @@ func (s *Store) ReadRestoredRuntimeSelection(ctx context.Context, resolver *Reso
 	if err := resolver.stable(scope, current.State); err != nil {
 		return nil, err
 	}
-	return &RuntimeSelection{Scope: scope, BindingGeneration: view.BindingGeneration, Bindings: cloneBindings(c.State.Bindings), Config: config, Startup: c.Receipt.Execution.SourceStartup, BeforeStartup: c.Receipt.Execution.BeforeStartup}, nil
+	return &RuntimeSelection{Scope: scope, BindingGeneration: view.BindingGeneration, Bindings: cloneBindings(c.State.Bindings), Config: config, Startup: startup, BeforeStartup: beforeStartup}, nil
 }
 
 func (s *Store) selectedRuntimeConfig(scope Scope) (RestoreConfig, error) {
