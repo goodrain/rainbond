@@ -9,10 +9,28 @@ import (
 )
 
 var vmImageFileNamePattern = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N}._-]*$`)
+var vmVMDKInputNamePattern = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{M}\p{N} ._-]*$`)
 
 // IsSafeVMImageFileName excludes paths and Dockerfile instruction syntax.
 func IsSafeVMImageFileName(name string) bool {
 	return vmImageFileNamePattern.MatchString(name)
+}
+
+// VMDK is staged under a fixed safe name before Dockerfile rendering. This
+// input-only policy accommodates VMware's default basename without admitting
+// paths, shell syntax, control/bidi characters or option-looking names.
+func IsSafeVMVMDKInputFileName(name string) bool {
+	return strings.HasSuffix(strings.ToLower(name), ".vmdk") && vmVMDKInputNamePattern.MatchString(name)
+}
+
+func IsWrappedVMVMDKFileName(name string) bool {
+	name = strings.ToLower(name)
+	for _, suffix := range []string{".vmdk.gz", ".vmdk.xz", ".vmdk.tar", ".vmdk.tar.gz", ".vmdk.tar.xz"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // VMImageFileNameFromURL decodes only the final escaped path segment once.
@@ -27,7 +45,7 @@ func VMImageFileNameFromURL(source string) (string, error) {
 		return "", fmt.Errorf("VM image URL requires a file name")
 	}
 	name, err := url.PathUnescape(path.Base(escapedPath))
-	if err != nil || !IsSafeVMImageFileName(name) {
+	if err != nil || !IsSafeVMImageFileName(name) && !IsSafeVMVMDKInputFileName(name) {
 		return "", fmt.Errorf("unsafe VM image URL file name")
 	}
 	return name, nil

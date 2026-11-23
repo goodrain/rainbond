@@ -576,8 +576,11 @@
 | rainbond.version.commit-message-utf8 | 版本提交信息安全截断并完成构建入库 | active | regression | VersionInfoDaoImpl.AddModel/UpdateModel | db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsg<br>db/mysql/dao/version_commit_msg_test.go::TestTruncateVersionCommitMsgMalformedInputDoesNotPanic<br>db/mysql/dao/version_commit_msg_test.go::TestVersionCommitMsgPersistence<br>db/mysql/dao/version_commit_msg_test.go::FuzzTruncateVersionCommitMsg |
 | rainbond.vm-build.buildkit-startup-retry | 增加虚拟机 BuildKit 启动等待次数 | active | regression | builder/sources.buildctlConnectRetriesMax | builder/sources/image_test.go::TestBuildctlConnectRetriesMaxUsesLongerDefaultForVMBuild<br>builder/sources/image_test.go::TestBuildctlConnectRetriesMaxPreservesExplicitEnv |
 | rainbond.vm-build.img-content-detection | IMG conversion detects disk contents and preserves guest sectors | active | regression | builder/exector.renderVMDockerfile | builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent<br>builder/exector/build_from_vm_content_test.go::TestVMDiskConversionRejectsInvalidOrDependentImages<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRejectsUnsafeFileNames<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRetainsArchiveAndISOPaths |
+| rainbond.vm-build.local-source-boundary | 限制虚拟机本地上传目录的读取和清理范围 | active | regression | sourceutil.ValidateVMLocalPackageSource | builder/sourceutil/vm_local_source_test.go::TestVMLocalSourceOnlyAllowsManagedSingleEventDirectory<br>builder/sourceutil/vm_local_source_test.go::TestVMLocalSourceRejectsAnyDirectorySymlinkOrNonDirectory<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnmanagedLocalPathBeforeReading<br>builder/exector/build_from_vm_test.go::TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup |
 | rainbond.vm-build.retain-failed-build-pod | 保留失败的虚拟机构建 Pod 便于诊断 | active | regression | builder/sources.shouldRetainFailedBuildKitJob | builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobByDefault<br>builder/sources/image_test.go::TestShouldRetainFailedBuildKitJobCanBeDisabled |
 | rainbond.vm-build.safe-url-filename | Decode VM URL basenames without permitting path or Dockerfile injection | active | regression | builder/sourceutil.VMImageFileNameFromURL | builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName<br>builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest |
+| rainbond.vm-build.vmdk-runtime-binding | 确保真实VMDK构建由本任务QCOW2运行产物消费 | active | regression | VMBuildItem.validateVMDKRuntimeBinding | builder/exector/vmdk_binding_test.go::TestVMDKRuntimeConsumerMustUseThisConvertedRegistryImage<br>builder/exector/vmdk_binding_test.go::TestVMDKBareInternalImageNeverMatchesExternalDockerHub |
+| rainbond.vm-build.vmdk-self-contained | 校验自包含VMDK并安全转换为QCOW2 | active | regression | VMBuildItem.vmBuild | builder/sourceutil/vmdk_test.go::TestInspectVMDKAcceptsOnlyBoundedSelfContainedSparseImages<br>builder/sourceutil/vmdk_test.go::TestInspectVMDKRejectsDescriptorLegacyAndWrongExtensionPayload<br>builder/sourceutil/vmdk_name_test.go::TestVMDKInputNamesAllowDefaultVMwareNamesWithoutRelaxingDockerNames<br>builder/sourceutil/vm_wrapper_test.go::TestVMWrapperCannotHideVMDKFromPreflight<br>builder/sourceutil/vm_wrapper_test.go::TestVMWrapperRetainsExistingRawAndQCOWArchives<br>builder/sourceutil/vm_wrapper_test.go::TestVMWrapperBoundsNamesTypesAndXZDictionary<br>builder/sourceutil/vm_wrapper_test.go::TestVMWrapperRejectsBzipAndZstdIncludingSkippableFrames<br>builder/parser/vm_service_compat_test.go::TestVMServiceParseAcceptsSingleVMDKURLAndLocalUpload<br>builder/exector/build_from_vm_test.go::TestRenderVMDKRequiresConversionAndDisablesNetwork<br>builder/exector/build_from_vm_content_test.go::TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename<br>builder/exector/build_from_vm_content_test.go::TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU |
 | rainbond.vm-capabilities.password-bootstrap-env-gate | Gate VM password bootstrap capability by environment | active | regression | api.handler.BuildVMCapabilities | api/handler/vm_capability_test.go::TestBuildVMCapabilitiesPasswordBootstrapEnvGate<br>api/controller/vm_capability_test.go::TestVMCapabilityControllerReturnsPasswordBootstrapGate |
 | rainbond.vm-config-file-injected-as-configmap-volume | 将 VM 配置文件卷注入为 guest 可见的 ConfigMap 配置盘 | active | regression | worker/appm/volume.ConfigFileVolume.CreateVolume | worker/appm/volume/share_file_vm_test.go::TestConfigFileVolumeCreateVolumeForVMBuildsGuestVisibleConfigDisk |
 | rainbond.vm-delivery.capture-admission | VM delivery capture serializes power and storage mutations | active | regression | pkg/vmrestore.Store.ClaimDeliveryCapture | pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureOwnsMutationUntilReleased<br>pkg/vmrestore/delivery_admission_test.go::TestDeliveryCaptureRejectsInvalidIdentityAndUnavailableStore |
@@ -596,6 +599,7 @@
 | rainbond.vm-import.registry-datavolume | 通过 registry DataVolume 导入虚拟机系统盘 | active | regression | worker/appm/volume.BuildVMDataVolumeTemplate | worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplate<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplateAddsDockerSchemeWhenMissing<br>worker/appm/volume/vm_import_test.go::TestBuildVMRegistryImportDataVolumeTemplatePrefixesInternalRegistryForShortImage |
 | rainbond.vm-import.registry-reference-validation | Reject malformed VM registry image references | active | regression | worker/appm/volume.normalizeVMRegistryImportURL | worker/appm/volume/vm_import_test.go::TestNormalizeVMRegistryImportURLRejectsInvalidReference |
 | rainbond.vm-import.validation-aborts-vm-definition | Abort VM definition for invalid registry imports | active | regression | worker/appm/conversion.createVolumes | worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport |
+| rainbond.vm-import.vmdk-converted-runtime | Require Builder-converted runtime disks for VMDK imports | active | regression | volume.buildVMDiskImportDataVolumeTemplate | worker/appm/volume/vmdk_import_test.go::TestVMDKDiskImportRequiresConvertedRuntime<br>worker/appm/volume/vmdk_import_test.go::TestVMDKHTTPImportCannotUseAnotherFormatToBypassConversion<br>worker/appm/volume/vmdk_import_test.go::TestConvertedVMDKRegistryImportPreservesSourceProvenance |
 | rainbond.vm-live-update.capability-requires-installer-media-removal | 初始化安装光盘未删除时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenInstallerMediaStillAttached |
 | rainbond.vm-live-update.capability-requires-migration-target | 无可用迁移目标节点时屏蔽热更新能力 | active | regression | api/handler.ServiceAction.GetVMLiveUpdateCapability | api/handler/service_vm_live_update_test.go::TestGetVMLiveUpdateCapabilityRejectsWhenNoMigrationTargetNode |
 | rainbond.vm-live-update.cpu-memory-combined-rejected | 拒绝运行中虚拟机同时热更新 CPU 和内存 | active | regression | api/handler.ServiceAction.applyVMLiveUpdateIfPossible | api/handler/service_vm_live_update_test.go::TestServiceVerticalVMLiveUpdateRejectsCombinedCPUAndMemoryChange |
@@ -697,6 +701,7 @@
 | rainbond.vm-runtime.ssh-authorized-keys-cloud-init | Inject SSH authorized keys into Linux VM cloud-init | active | regression | worker/appm/conversion.buildVMRuntimeConfig | worker/appm/conversion/vm_runtime_test.go |
 | rainbond.vm-runtime.ssh-authorized-keys-log-redaction | 在虚拟机失败日志中脱敏 cloud-init 输入 | active | regression | worker/appm/controller.startController.logVirtualMachineCreateFailure | worker/appm/controller/start_test.go |
 | rainbond.vm-runtime.stopped-import-status | 磁盘导入中已关闭虚拟机的状态判定 | active | regression | ServiceAction.resolveVMServiceRuntimeStatusWithGuest | api/handler/service_vm_power_status_test.go::TestStoppedImportDoesNotRemainStartingWithoutVMI<br>api/handler/service_vm_power_status_test.go::TestStoppedImportRequiresConfirmedPowerAndAbsentVMI |
+| rainbond.vm-runtime.vmdk-persistent-root | Boot VMDK sources from converted persistent root disks | active | regression | conversion.resolveVMBootPath | worker/appm/conversion/vmdk_runtime_test.go::TestVMDKSourceUsesConvertedPersistentRoot<br>worker/appm/conversion/vmdk_runtime_test.go::TestCreateVolumesRejectsUnconvertedVMDKWithoutBlankFallback |
 | rainbond.vm-snapshot.authoritative-readback | 读取持久化快照来源与已接受清单事实 | active | regression | SnapshotEngine.Get/project and VMSnapshotController.GetVMSnapshot | pkg/vmrestore/snapshot_readback_test.go<br>api/controller/vm_snapshot_readback_test.go |
 | rainbond.vm-snapshot.bounded-lifecycle | 虚拟机快照有界流程与持久确认 | active | regression | pkg/vmrestore.SnapshotEngine | pkg/vmrestore/snapshot_engine_test.go::TestRunningSnapshotWorkflowKeepsFenceUntilACKAndObservedPower<br>pkg/vmrestore/snapshot_engine_test.go::TestWrongUIDOrIncompleteManifestCannotResume<br>pkg/vmrestore/snapshot_engine_test.go::TestNativeCreateRequiresStoppedAndRetriesDoNotRepeatCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestCancelWaitsForResidualCleanupAndSourceUnlock<br>pkg/vmrestore/snapshot_engine_test.go::TestUnknownNativeCreateCannotBeCancelledAsIfNothingHappened<br>pkg/vmrestore/snapshot_engine_test.go::TestManagedSnapshotDeleteWaitsForAllChildrenAndPreservesSource<br>pkg/vmrestore/snapshot_engine_test.go::TestCancelAfterManifestACKKeepsValidSnapshotAndStopsResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditDoesNotMarkNativeReadyOrHTTPAcceptanceAsSuccess<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogNameReuseUsesCreationOrder<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCatalogRejectsMalformedDuplicateAndFutureReceipts<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKRejectsReplacedCSIIdentityBeforeFirstACK<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedPreventsLaterResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotACKPinsExactCSIContentAndLogicalPairing<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotNativeProofReadsAreStableAndReadOnly<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotKeepStoppedWaitsForInflightResumeThenObservedHalt<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentResumeClaimsOnlyOneStart<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownResumeKeepsFenceAndCancellationIntent<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFailedCommandsKeepFenceAndUnconfirmedSteps<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAuditRejectsDuplicateOrForeignOperationEvent<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteStillBlocksUnreleasedReceiptReference<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksInflightResumeAtRelease<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksLaterKeepStoppedDecision<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeWithUnchangedControlRevisionCompletes<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotFinalizeRechecksFinalObservationNativeProof<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCancelCannotReleaseFenceDuringLateNativeCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleCancelCannotDeleteDurablyACKedSnapshot<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotManagedDeleteCannotCompleteWhileRPCUnsettled<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotConcurrentCreateClaimsOnlyOneRPC<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotLateCreateSettlesBeforeCleanupAndCancelledACK<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotCleanupChoiceRejectsLaterReadyACKAndCreate<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotUnknownHaltAndDeleteNeverRetryOrCompleteOnAbsence<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotAcceptedHaltMustBeObservedBeforeCancellationResume<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotStaleReadyACKCannotCrossCleanupSelection<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotIdempotencyAndPendingHaltProtectSideEffects<br>pkg/vmrestore/snapshot_engine_test.go::TestSnapshotDeleteAndListRejectInvalidTerminalRequests |
 | rainbond.vm-snapshot.fenced-firmware-identity | Pin actual source firmware identity under the native snapshot fence | active | regression | SnapshotFirmwareMaterializer.Pin | pkg/vmrestore/snapshot_firmware_test.go |
@@ -6518,6 +6523,16 @@
 - 代码路径: `builder/exector/build_from_vm.go`
 - 测试路径: `builder/exector/build_from_vm_content_test.go::TestVMDiskConversionPreservesGuestContent`, `builder/exector/build_from_vm_content_test.go::TestVMDiskConversionRejectsInvalidOrDependentImages`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRejectsUnsafeFileNames`, `builder/exector/build_from_vm_test.go::TestRenderVMDockerfileRetainsArchiveAndISOPaths`
 
+### 限制虚拟机本地上传目录的读取和清理范围
+
+- Capability ID: `rainbond.vm-build.local-source-boundary`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `sourceutil.ValidateVMLocalPackageSource`
+- 代码路径: `builder/sourceutil/vm_local_source.go`, `builder/parser/vm_service.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `builder/sourceutil/vm_local_source_test.go::TestVMLocalSourceOnlyAllowsManagedSingleEventDirectory`, `builder/sourceutil/vm_local_source_test.go::TestVMLocalSourceRejectsAnyDirectorySymlinkOrNonDirectory`, `builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnmanagedLocalPathBeforeReading`, `builder/exector/build_from_vm_test.go::TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup`
+
 ### 保留失败的虚拟机构建 Pod 便于诊断
 
 - Capability ID: `rainbond.vm-build.retain-failed-build-pod`
@@ -6537,6 +6552,26 @@
 - 业务入口: `builder/sourceutil.VMImageFileNameFromURL`
 - 代码路径: `builder/sourceutil/vm_image_name.go`, `builder/parser/vm_service.go`, `builder/exector/build_from_vm.go`
 - 测试路径: `builder/sourceutil/vm_image_name_test.go::TestVMImageFileNameFromURL`, `builder/parser/vm_service_compat_test.go::TestVMServiceParseRejectsUnsafeURLBeforeProbe`, `builder/exector/build_from_vm_compat_test.go::TestVMDownloadUsesDecodedURLPathName`, `builder/exector/build_from_vm_compat_test.go::TestVMDownloadRejectsUnsafeURLNamesBeforeRequest`
+
+### 确保真实VMDK构建由本任务QCOW2运行产物消费
+
+- Capability ID: `rainbond.vm-build.vmdk-runtime-binding`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `VMBuildItem.validateVMDKRuntimeBinding`
+- 代码路径: `builder/exector/vmdk_binding.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `builder/exector/vmdk_binding_test.go::TestVMDKRuntimeConsumerMustUseThisConvertedRegistryImage`, `builder/exector/vmdk_binding_test.go::TestVMDKBareInternalImageNeverMatchesExternalDockerHub`
+
+### 校验自包含VMDK并安全转换为QCOW2
+
+- Capability ID: `rainbond.vm-build.vmdk-self-contained`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `VMBuildItem.vmBuild`
+- 代码路径: `builder/sourceutil/vmdk.go`, `builder/sourceutil/vm_wrapper.go`, `builder/sourceutil/vm_image_name.go`, `builder/parser/vm_service.go`, `builder/exector/build_from_vm.go`
+- 测试路径: `builder/sourceutil/vmdk_test.go::TestInspectVMDKAcceptsOnlyBoundedSelfContainedSparseImages`, `builder/sourceutil/vmdk_test.go::TestInspectVMDKRejectsDescriptorLegacyAndWrongExtensionPayload`, `builder/sourceutil/vmdk_name_test.go::TestVMDKInputNamesAllowDefaultVMwareNamesWithoutRelaxingDockerNames`, `builder/sourceutil/vm_wrapper_test.go::TestVMWrapperCannotHideVMDKFromPreflight`, `builder/sourceutil/vm_wrapper_test.go::TestVMWrapperRetainsExistingRawAndQCOWArchives`, `builder/sourceutil/vm_wrapper_test.go::TestVMWrapperBoundsNamesTypesAndXZDictionary`, `builder/sourceutil/vm_wrapper_test.go::TestVMWrapperRejectsBzipAndZstdIncludingSkippableFrames`, `builder/parser/vm_service_compat_test.go::TestVMServiceParseAcceptsSingleVMDKURLAndLocalUpload`, `builder/exector/build_from_vm_test.go::TestRenderVMDKRequiresConversionAndDisablesNetwork`, `builder/exector/build_from_vm_content_test.go::TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename`, `builder/exector/build_from_vm_content_test.go::TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU`
 
 ### Gate VM password bootstrap capability by environment
 
@@ -6717,6 +6752,16 @@
 - 业务入口: `worker/appm/conversion.createVolumes`
 - 代码路径: `worker/appm/conversion/version.go`, `worker/appm/volume/share-file.go`, `worker/appm/volume/vm_import.go`
 - 测试路径: `worker/appm/conversion/version_vm_import_test.go::TestCreateVolumesRejectsInvalidVMRegistryImport`
+
+### Require Builder-converted runtime disks for VMDK imports
+
+- Capability ID: `rainbond.vm-import.vmdk-converted-runtime`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `volume.buildVMDiskImportDataVolumeTemplate`
+- 代码路径: `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/volume/vmdk_import_test.go::TestVMDKDiskImportRequiresConvertedRuntime`, `worker/appm/volume/vmdk_import_test.go::TestVMDKHTTPImportCannotUseAnotherFormatToBypassConversion`, `worker/appm/volume/vmdk_import_test.go::TestConvertedVMDKRegistryImportPreservesSourceProvenance`
 
 ### 初始化安装光盘未删除时屏蔽热更新能力
 
@@ -7727,6 +7772,16 @@
 - 业务入口: `ServiceAction.resolveVMServiceRuntimeStatusWithGuest`
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_vm_power_status_test.go::TestStoppedImportDoesNotRemainStartingWithoutVMI`, `api/handler/service_vm_power_status_test.go::TestStoppedImportRequiresConfirmedPowerAndAbsentVMI`
+
+### Boot VMDK sources from converted persistent root disks
+
+- Capability ID: `rainbond.vm-runtime.vmdk-persistent-root`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `conversion.resolveVMBootPath`
+- 代码路径: `worker/appm/conversion/version.go`, `worker/appm/volume/vm_import.go`
+- 测试路径: `worker/appm/conversion/vmdk_runtime_test.go::TestVMDKSourceUsesConvertedPersistentRoot`, `worker/appm/conversion/vmdk_runtime_test.go::TestCreateVolumesRejectsUnconvertedVMDKWithoutBlankFallback`
 
 ### 读取持久化快照来源与已接受清单事实
 

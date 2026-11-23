@@ -26,6 +26,7 @@ func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 		{name: "plain iso", fileName: "ubuntu.iso", want: vmBuildMediaISO},
 		{name: "plain qcow2", fileName: "ubuntu.qcow2", want: vmBuildMediaDisk},
 		{name: "plain img", fileName: "ubuntu.img", want: vmBuildMediaDisk},
+		{name: "plain VMDK", fileName: "Windows10.VMDK", want: vmBuildMediaDisk},
 		{name: "gzip disk export", fileName: "disk.img.gz", want: vmBuildMediaDisk},
 		{name: "xz disk export", fileName: "disk.qcow2.xz", want: vmBuildMediaDisk},
 		{name: "tar disk export", fileName: "disk.tar", want: vmBuildMediaDisk},
@@ -45,8 +46,39 @@ func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 }
 
 func TestResolveVMBuildMediaRejectsUnknownFormats(t *testing.T) {
-	if _, err := resolveVMBuildMedia("ubuntu.vmdk"); err == nil {
+	if _, err := resolveVMBuildMedia("ubuntu.vdi"); err == nil {
 		t.Fatal("expected unknown vm media format to fail")
+	}
+}
+
+// capability_id: rainbond.vm-build.local-source-boundary
+func TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup(t *testing.T) {
+	for _, source := range []string{"/grdata/other", "/grdata/package_build/temp/events/../victim", "/grdata/package_build/temp/events/id/child"} {
+		item := &VMBuildItem{VMImageSource: source}
+		if err := item.RunVMBuild(); err == nil {
+			t.Fatal("unsafe VM local path accepted", source)
+		}
+	}
+}
+
+// capability_id: rainbond.vm-build.vmdk-self-contained
+func TestRenderVMDKRequiresConversionAndDisablesNetwork(t *testing.T) {
+	dockerfile, err := renderVMDockerfile("windows.vmdk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"RUN --network=none ", `"driver":"vmdk"`, `"driver":"file"`, `"backing":null`, "qemu-img convert -p -O qcow2", "qemu-img check -f qcow2", "rootdisk.tmp.qcow2", "COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/"} {
+		if !strings.Contains(dockerfile, fragment) {
+			t.Fatal("missing converter safety contract", fragment)
+		}
+	}
+	if strings.Contains(dockerfile, "ADD --chown=107:107 windows.vmdk /disk/") {
+		t.Fatal("VMDK cannot be published directly as a runtime disk")
+	}
+	for _, name := range []string{"windows.vmdk.gz", "windows.vmdk.xz"} {
+		if _, err := renderVMDockerfile(name); err == nil {
+			t.Fatal("wrapped VMDK bypassed converter preflight")
+		}
 	}
 }
 

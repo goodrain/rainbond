@@ -11072,6 +11072,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.local-source-boundary",
+      "title": "Restrict VM local upload reads and cleanup to managed event directories",
+      "title_zh": "\u9650\u5236\u865a\u62df\u673a\u672c\u5730\u4e0a\u4f20\u76ee\u5f55\u7684\u8bfb\u53d6\u548c\u6e05\u7406\u8303\u56f4",
+      "interface_type": "workflow",
+      "interface": "sourceutil.ValidateVMLocalPackageSource",
+      "code_paths": [
+        "builder/sourceutil/vm_local_source.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vm_local_source_test.go",
+          "selector": "TestVMLocalSourceOnlyAllowsManagedSingleEventDirectory"
+        },
+        {
+          "path": "builder/sourceutil/vm_local_source_test.go",
+          "selector": "TestVMLocalSourceRejectsAnyDirectorySymlinkOrNonDirectory"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRejectsUnmanagedLocalPathBeforeReading"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.retain-failed-build-pod",
       "title": "Retain failed VM build pods for diagnostics",
       "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
@@ -11120,6 +11152,91 @@
         {
           "path": "builder/exector/build_from_vm_compat_test.go",
           "selector": "TestVMDownloadRejectsUnsafeURLNamesBeforeRequest"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.vmdk-runtime-binding",
+      "title": "Bind detected VMDK builds to this task converted QCOW2 registry root",
+      "title_zh": "\u786e\u4fdd\u771f\u5b9eVMDK\u6784\u5efa\u7531\u672c\u4efb\u52a1QCOW2\u8fd0\u884c\u4ea7\u7269\u6d88\u8d39",
+      "interface_type": "workflow",
+      "interface": "VMBuildItem.validateVMDKRuntimeBinding",
+      "code_paths": [
+        "builder/exector/vmdk_binding.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/vmdk_binding_test.go",
+          "selector": "TestVMDKRuntimeConsumerMustUseThisConvertedRegistryImage"
+        },
+        {
+          "path": "builder/exector/vmdk_binding_test.go",
+          "selector": "TestVMDKBareInternalImageNeverMatchesExternalDockerHub"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.vmdk-self-contained",
+      "title": "Validate standalone VMDK and convert to QCOW2 without external dependencies",
+      "title_zh": "\u6821\u9a8c\u81ea\u5305\u542bVMDK\u5e76\u5b89\u5168\u8f6c\u6362\u4e3aQCOW2",
+      "interface_type": "workflow",
+      "interface": "VMBuildItem.vmBuild",
+      "code_paths": [
+        "builder/sourceutil/vmdk.go",
+        "builder/sourceutil/vm_wrapper.go",
+        "builder/sourceutil/vm_image_name.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vmdk_test.go",
+          "selector": "TestInspectVMDKAcceptsOnlyBoundedSelfContainedSparseImages"
+        },
+        {
+          "path": "builder/sourceutil/vmdk_test.go",
+          "selector": "TestInspectVMDKRejectsDescriptorLegacyAndWrongExtensionPayload"
+        },
+        {
+          "path": "builder/sourceutil/vmdk_name_test.go",
+          "selector": "TestVMDKInputNamesAllowDefaultVMwareNamesWithoutRelaxingDockerNames"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperCannotHideVMDKFromPreflight"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperRetainsExistingRawAndQCOWArchives"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperBoundsNamesTypesAndXZDictionary"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperRejectsBzipAndZstdIncludingSkippableFrames"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseAcceptsSingleVMDKURLAndLocalUpload"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDKRequiresConversionAndDisablesNetwork"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU"
         }
       ],
       "test_type": "regression",
@@ -11541,6 +11658,32 @@
         {
           "path": "worker/appm/conversion/version_vm_import_test.go",
           "selector": "TestCreateVolumesRejectsInvalidVMRegistryImport"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-import.vmdk-converted-runtime",
+      "title": "Require Builder-converted runtime disks for VMDK imports",
+      "title_zh": "Require Builder-converted runtime disks for VMDK imports",
+      "interface_type": "workflow",
+      "interface": "volume.buildVMDiskImportDataVolumeTemplate",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestVMDKDiskImportRequiresConvertedRuntime"
+        },
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestVMDKHTTPImportCannotUseAnotherFormatToBypassConversion"
+        },
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestConvertedVMDKRegistryImportPreservesSourceProvenance"
         }
       ],
       "test_type": "regression",
@@ -14010,6 +14153,29 @@
         {
           "path": "api/handler/service_vm_power_status_test.go",
           "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.vmdk-persistent-root",
+      "title": "Boot VMDK sources from converted persistent root disks",
+      "title_zh": "Boot VMDK sources from converted persistent root disks",
+      "interface_type": "workflow",
+      "interface": "conversion.resolveVMBootPath",
+      "code_paths": [
+        "worker/appm/conversion/version.go",
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestVMDKSourceUsesConvertedPersistentRoot"
+        },
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestCreateVolumesRejectsUnconvertedVMDKWithoutBlankFallback"
         }
       ],
       "test_type": "regression",
