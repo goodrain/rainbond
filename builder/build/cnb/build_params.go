@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultCNBMavenVersion     = "3.9.14"
+	defaultCNBMavenVersion     = "3.10.0"
 	defaultCNBComposerVersion  = "2.7.9"
 	pythonPackageManagerPip    = "pip"
 	pythonPackageManagerPipenv = "pipenv"

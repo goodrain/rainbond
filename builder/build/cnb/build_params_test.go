@@ -21,8 +21,8 @@ func TestValidateSupportedBuildParamsPinsJavaMavenVersion(t *testing.T) {
 	if err := validateSupportedBuildParams(re); err != nil {
 		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
 	}
-	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.9.14" {
-		t.Fatalf("expected BUILD_RUNTIMES_MAVEN to be pinned to 3.9.14, got %q", got)
+	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.10.0" {
+		t.Fatalf("expected BUILD_RUNTIMES_MAVEN to be pinned to 3.10.0, got %q", got)
 	}
 	if got := re.BuildEnvs["BP_JAVA_APP_SERVER"]; got != "tomcat" {
 		t.Fatalf("expected BP_JAVA_APP_SERVER=tomcat, got %q", got)
@@ -41,8 +41,8 @@ func TestValidateSupportedBuildParamsSetsDefaultJavaMavenVersion(t *testing.T) {
 	if err := validateSupportedBuildParams(re); err != nil {
 		t.Fatalf("validateSupportedBuildParams returned error: %v", err)
 	}
-	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.9.14" {
-		t.Fatalf("expected default BUILD_RUNTIMES_MAVEN=3.9.14, got %q", got)
+	if got := re.BuildEnvs["BUILD_RUNTIMES_MAVEN"]; got != "3.10.0" {
+		t.Fatalf("expected default BUILD_RUNTIMES_MAVEN=3.10.0, got %q", got)
 	}
 }
 
