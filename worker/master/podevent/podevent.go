@@ -3,16 +3,17 @@ package podevent
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	utils "github.com/goodrain/rainbond/util"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	utils "github.com/goodrain/rainbond/util"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -185,6 +186,7 @@ func (c *HealthStateCache) CleanupOldStates(maxAge time.Duration) {
 
 // PodEvent -
 type PodEvent struct {
+	handleMu         sync.Mutex
 	clientset        kubernetes.Interface
 	stopCh           chan struct{}
 	podEventCh       chan *corev1.Pod
@@ -219,16 +221,43 @@ func New(stopCh chan struct{}) *PodEvent {
 	return pe
 }
 
-// Handle -
-func (p *PodEvent) Handle() {
+// Handle processes pod events and probe checks until leadership or the controller stops.
+func (p *PodEvent) Handle(ctx context.Context) {
 	// Add periodic check for probe issues (every 30 seconds)
 	// This ensures we detect issues even when pod state doesn't change
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for {
+	p.handle(ctx, ticker.C)
+}
+
+func (p *PodEvent) handle(ctx context.Context, ticks <-chan time.Time) {
+	// A new leader term must not overlap a previous handler that is still exiting.
+	p.handleMu.Lock()
+	defer p.handleMu.Unlock()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
 		select {
+		case <-p.stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	for {
+		// Prefer cancellation over queued pod events or ticks.
+		if ctx.Err() != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
 		case pod := <-p.podEventCh:
+			if ctx.Err() != nil {
+				return
+			}
 			// Monitoring window: 0 seconds to 30 minutes after startup
 			// Immediate detection for scheduling failures, extended monitoring for runtime issues
 			podAge := time.Now().Sub(pod.CreationTimestamp.Time)
@@ -244,9 +273,9 @@ func (p *PodEvent) Handle() {
 				logrus.Debugf("Pod %s/%s outside monitoring window (age: %.1fs)",
 					pod.Namespace, pod.Name, podAge.Seconds())
 			}
-		case <-ticker.C:
+		case <-ticks:
 			// Periodic check: re-check all pods in cache for probe issues
-			p.periodicProbeCheck()
+			p.periodicProbeCheck(ctx)
 		case <-p.stopCh:
 			return
 		}
@@ -1172,13 +1201,12 @@ func (p *PodEvent) checkReadinessHealth(pod *corev1.Pod, cs corev1.ContainerStat
 				if existingEvent.TargetID == pod.Name {
 					// Event already exists for this pod, don't create duplicate
 					return
-				} else {
-					// Event exists but for a different pod (old pod), delete it and create new one
-					logrus.Infof("Found old ReadinessUnhealthy event for pod %s (current pod: %s), deleting old event",
-						existingEvent.TargetID, pod.Name)
-					if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String()); err != nil && err != gorm.ErrRecordNotFound {
-						logrus.Warnf("Failed to delete old event: %v", err)
-					}
+				}
+				// Event exists but for a different pod (old pod), delete it and create new one
+				logrus.Infof("Found old ReadinessUnhealthy event for pod %s (current pod: %s), deleting old event",
+					existingEvent.TargetID, pod.Name)
+				if err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, EventTypeReadinessUnhealthy.String()); err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warnf("Failed to delete old event: %v", err)
 				}
 			}
 
@@ -1528,12 +1556,15 @@ func (p *PodEvent) detectProbeIssues(pod *corev1.Pod) {
 
 // periodicProbeCheck periodically re-checks all recent pods for probe issues
 // This ensures we catch issues even when pod state doesn't change
-func (p *PodEvent) periodicProbeCheck() {
+func (p *PodEvent) periodicProbeCheck(ctx context.Context) {
 	// Track checked pods to avoid duplicates
 	checkedPods := make(map[string]bool)
 
 	// First, check pods in cache
 	p.recentPods.Range(func(key, value interface{}) bool {
+		if ctx.Err() != nil {
+			return false
+		}
 		// Re-fetch pod from Kubernetes to get latest state
 		podKey := key.(string)
 		parts := strings.Split(podKey, "/")
@@ -1543,9 +1574,12 @@ func (p *PodEvent) periodicProbeCheck() {
 		namespace, name := parts[0], parts[1]
 
 		// Get latest pod state
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		latestPod, err := p.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+		requestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		latestPod, err := p.clientset.CoreV1().Pods(namespace).Get(requestCtx, name, metav1.GetOptions{})
+		cancel()
+		if ctx.Err() != nil {
+			return false
+		}
 		if err != nil {
 			// Pod might have been deleted, remove from cache
 			p.recentPods.Delete(key)
@@ -1565,19 +1599,29 @@ func (p *PodEvent) periodicProbeCheck() {
 		return true
 	})
 
+	if ctx.Err() != nil {
+		return
+	}
+
 	// Also actively scan for pods with health probes that might not be in cache
 	// This handles cases where pod events weren't received
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	requestCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// List all pods across all namespaces
-	pods, err := p.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	pods, err := p.clientset.CoreV1().Pods("").List(requestCtx, metav1.ListOptions{})
+	if ctx.Err() != nil {
+		return
+	}
 	if err != nil {
 		logrus.Warnf("Failed to list pods for periodic check: %v", err)
 		return
 	}
 
 	for _, pod := range pods.Items {
+		if ctx.Err() != nil {
+			return
+		}
 		// Skip if already checked from cache
 		podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 		if checkedPods[podKey] {

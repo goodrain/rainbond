@@ -21,11 +21,12 @@ package master
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/config/configs/rbdcomponent"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -175,7 +176,7 @@ func (m *Controller) Start() error {
 		defer m.diskCache.Stop()
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
-		go m.podEvent.Handle()
+		go m.podEvent.Handle(ctx)
 		m.store.RegisterVolumeTypeListener("volumeTypeEvent", m.volumeTypeEvent.GetChan())
 		defer m.store.UnRegisterVolumeTypeListener("volumeTypeEvent")
 
