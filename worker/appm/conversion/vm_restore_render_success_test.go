@@ -136,6 +136,14 @@ func TestRestoreRendererCompleteSuccessPath(t *testing.T) {
 		if vmName := "windows-app-" + serviceID; vm.Name != vmName || labels["kubevirt.io/domain"] != vmName || labels["rainbond_app"] != "windows-app" {
 			t.Fatalf("restore render lost application identity: VM %q, template domain %q, application %q", vm.Name, labels["kubevirt.io/domain"], labels["rainbond_app"])
 		}
+		declaration, err := RenderVMForNativeRestore(restoreRenderSQL{database: database}, serviceID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nativeVM := declaration.GetVirtualMachine()
+		if nativeVM == nil || nativeVM.Name != vm.Name || nativeVM.Spec.Template.ObjectMeta.Labels["rainbond_app"] != "windows-app" || nativeVM.Spec.Template.ObjectMeta.Labels["kubevirt.io/domain"] != vm.Name {
+			t.Fatal("native configuration render lost application identity")
+		}
 		if len(app.VMStartupHints.ConfigMaps) != 1 {
 			t.Fatal("renderer did not identify the generated initialization disk")
 		}
@@ -501,6 +509,27 @@ func TestRestoreRendererSealedACompleteSuccess(t *testing.T) {
 	if len(app.GetClaimsManually()) != 0 || len(f.dynamic.Actions()) != 0 {
 		t.Fatal("A render scheduled a volume import or executed a VM operation")
 	}
+	t.Run("native configuration check survives replacement of previous PVCs", func(t *testing.T) {
+		for _, name := range []string{"manual7", "manual8", "manual9", "a-root", "a-data"} {
+			if err := f.core.CoreV1().PersistentVolumeClaims(f.scope.Namespace).Delete(context.Background(), name, metav1.DeleteOptions{}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := RenderVMForRestore(f.manager, f.scope.ServiceID); err == nil {
+			t.Fatal("runtime render accepted missing ledger-bound disks")
+		}
+		declaration, err := RenderVMForNativeRestore(f.manager, f.scope.ServiceID)
+		if err != nil {
+			t.Fatalf("native configuration check requires the previous physical disks: %v", err)
+		}
+		vm := declaration.GetVirtualMachine()
+		if vm == nil || declaration.ContainerCPU != 2000 || declaration.ContainerMemory != 4096 || declaration.ExtensionSet["vm_boot_mode"] != "uefi" {
+			t.Fatal("native check lost the configured hardware")
+		}
+		if declaration.VMStorageView != nil || declaration.VMRestoredRuntime != nil || dbBefore != f.databaseImage(t) || writes != 0 || f.routes.Load() != 0 || f.clusterWrites.Load() != 0 {
+			t.Fatal("native configuration render resolved physical storage or mutated platform state")
+		}
+	})
 }
 
 func (f renderLifecycleFixture) step(t *testing.T, name string, fn func(vmrestore.Current) (vmrestore.Mutation, error)) {

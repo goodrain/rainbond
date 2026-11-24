@@ -78,7 +78,7 @@ func (s *ServiceAction) nativeRestoreEngine(ctx context.Context, serviceID strin
 	engine := vmrestore.NewNativeRestoreEngine(backend)
 	engine.Managed = &vmrestore.ManagedNativeRestore{Store: store, Resolver: vmrestore.NewResolver(store, s.kubeClient, s.kubevirtClient.DynamicClient()), Snapshots: snapshots, Backend: backend, Core: s.kubeClient, Dynamic: s.kubevirtClient.DynamicClient(), CurrentStartup: snapshots.Identity.ProveStartup}
 	engine.Managed.BuildPlatform = func(ctx context.Context, scope vmrestore.Scope) (*kv.VirtualMachine, error) {
-		app, err := conversion.RenderVMForRestore(manager, scope.ServiceID)
+		app, err := conversion.RenderVMForNativeRestore(manager, scope.ServiceID)
 		if err != nil {
 			return nil, err
 		}

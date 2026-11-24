@@ -10,6 +10,15 @@ import (
 // RenderVMForRestore builds only the selected VM configuration. It does not
 // register gateways, reconcile routes, apply plugins or publish any resource.
 func RenderVMForRestore(manager db.Manager, serviceID string) (*v1.AppService, error) {
+	return renderVMForRestore(manager, serviceID, true)
+}
+
+// RenderVMForNativeRestore compares configured fields without resolving physical disk bindings.
+func RenderVMForNativeRestore(manager db.Manager, serviceID string) (*v1.AppService, error) {
+	return renderVMForRestore(manager, serviceID, false)
+}
+
+func renderVMForRestore(manager db.Manager, serviceID string, resolveBindings bool) (*v1.AppService, error) {
 	as, err := InitCacheAppService(manager, serviceID, "")
 	if err != nil {
 		return nil, err
@@ -22,7 +31,7 @@ func RenderVMForRestore(manager db.Manager, serviceID string) (*v1.AppService, e
 	if err := TenantServiceConfigGroup(as, manager); err != nil {
 		return nil, err
 	}
-	if err := TenantServiceVersion(as, manager); err != nil {
+	if err := tenantServiceVersion(as, manager, resolveBindings); err != nil {
 		return nil, err
 	}
 	return as, nil
