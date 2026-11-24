@@ -219,6 +219,8 @@ type RulesInterface interface {
 
 // AppInterface app handle interface
 type AppInterface interface {
+	ShareDeliveryArtifact(w http.ResponseWriter, r *http.Request)
+	DeliveryArtifactStatus(w http.ResponseWriter, r *http.Request)
 	ExportApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
 	Upload(w http.ResponseWriter, r *http.Request)

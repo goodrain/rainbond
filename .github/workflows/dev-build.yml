@@ -273,8 +273,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha,scope=ui
-          cache-to: type=gha,mode=max,scope=ui
+          cache-from: type=registry,ref=rainbond/rainbond-ui:buildcache-amd64-${{ hashFiles('Dockerfile', 'package.json', 'yarn.lock', '.npmrc') }}
+          cache-to: type=registry,ref=rainbond/rainbond-ui:buildcache-amd64-${{ hashFiles('Dockerfile', 'package.json', 'yarn.lock', '.npmrc') }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
           provenance: false
           tags: |
             rainbond/rainbond-ui:${{ env.VERSION }}
@@ -346,8 +346,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha,scope=console
-          cache-to: type=gha,mode=max,scope=console
+          cache-from: type=registry,ref=rainbond/rainbond:buildcache-amd64-${{ hashFiles('Dockerfile', 'requirements.txt', 'scripts/install_openapi_client.sh') }}
+          cache-to: type=registry,ref=rainbond/rainbond:buildcache-amd64-${{ hashFiles('Dockerfile', 'requirements.txt', 'scripts/install_openapi_client.sh') }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
           provenance: false
           tags: |
             rainbond/rainbond:${{ env.VERSION }}

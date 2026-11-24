@@ -25,7 +25,7 @@ func TestPlatformDefaultsRemainReferencedWithoutActiveBuilds(t *testing.T) {
 		t.Fatal("default configuration incomplete")
 	}
 	joined := "\n" + strings.Join(result.Images, "\n") + "\n"
-	for _, image := range []string{"goodrain.me/runner:latest-amd64", "goodrain.me/builder:latest-arm64", "goodrain.me/ubuntu-noble-builder:0.0.98", "goodrain.me/run-jammy-full:0.1.141"} {
+	for _, image := range []string{"goodrain.me/runner:latest-amd64", "goodrain.me/builder:latest-arm64", "goodrain.me/ubuntu-noble-builder:0.0.98-security.1", "goodrain.me/run-jammy-full:0.1.141"} {
 		if !strings.Contains(joined, "\n"+image+"\n") {
 			t.Fatal("required build image missing", image)
 		}

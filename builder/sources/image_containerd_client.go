@@ -40,6 +40,15 @@ import (
 
 type containerdImageCliFactory struct{}
 
+const (
+	// imagePushAttempts 每种协议下的推送尝试次数
+	imagePushAttempts = 3
+	// imagePushRetryDelay 两次推送尝试之间的等待时间
+	imagePushRetryDelay = 5 * time.Second
+	// minImagePushTimeout 单次 ImagePush 的最短截止时间
+	minImagePushTimeout = 30 * time.Minute
+)
+
 func (f containerdImageCliFactory) NewClient(endpoint string, timeout time.Duration) (ImageClient, error) {
 	var (
 		containerdCli *containerd.Client
@@ -351,21 +360,31 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 		}
 	}
 
-	NewTracker := docker.NewInMemoryTracker()
-	options := docker.ResolverOptions{
-		Tracker: NewTracker,
+	// 整个推送设置截止时间。containerd 的推送在远端异常时可能无限等待，
+	// 没有截止时间会让分享任务永远停在“同步中”。timeout 单位为分钟，
+	// 与 docker 实现一致；部分调用方传入的值较小，这里保底 30 分钟，避免误伤慢速推送。
+	pushTimeout := time.Duration(timeout) * time.Minute
+	if pushTimeout < minImagePushTimeout {
+		pushTimeout = minImagePushTimeout
 	}
+	pushCtx, cancel := context.WithTimeout(ctx, pushTimeout)
+	defer cancel()
+	scope := fmt.Sprintf("repository:%s:%s", named.Name(), "push")
 
-	ongoing := newPushJobs(NewTracker)
+	// pushOnce 每次调用都使用全新的 tracker 和 resolver。
+	// 共用 tracker 时，上一次失败会把未完成的层留在“上传中”状态，
+	// 重试时 containerd 会认为该层仍在被其他推送上传，从而无限等待。
+	pushOnce := func(scheme string) error {
+		tracker := docker.NewInMemoryTracker()
+		ongoing := newPushJobs(tracker)
+		opts := hostOptions
+		opts.DefaultScheme = scheme
+		resolver := docker.NewResolver(docker.ResolverOptions{
+			Tracker: tracker,
+			Hosts:   config.ConfigureHosts(pushCtx, opts),
+		})
 
-	var pushFunc = func(scheme string) error {
-		// 配置指定协议
-		hostOptions.DefaultScheme = scheme
-		options.Hosts = config.ConfigureHosts(ctx, hostOptions)
-		resolver := docker.NewResolver(options)
-
-		// 镜像推送任务
-		eg, ctx := errgroup.WithContext(ctx)
+		eg, egCtx := errgroup.WithContext(docker.WithScope(pushCtx, scope))
 		doneCh := make(chan struct{})
 
 		eg.Go(func() error {
@@ -374,32 +393,10 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 				ongoing.add(remotes.MakeRefKey(ctx, desc))
 				return nil, nil
 			})
-
-			ropts := []containerd.RemoteOpt{
+			return c.client.Push(egCtx, reference, desc,
 				containerd.WithResolver(resolver),
 				containerd.WithImageHandler(jobHandler),
-			}
-
-			// 尝试多次推送，确保清理缓存后重新拉取并推送
-			for attempts := 0; attempts < 3; attempts++ {
-				// 从 image 中提取仓库名称，使用 Name() 获取
-				repository := named.Name() // 使用 .Name() 获取仓库路径
-				// 使用 WithScope 设置作用域，采用 repository:镜像名称:操作类型 格式
-				scope := fmt.Sprintf("repository:%s:%s", repository, "push") // 构造作用域
-				ctx := namespaces.WithNamespace(context.Background(), Namespace)
-				ctx = docker.WithScope(ctx, scope)
-				if err := c.client.Push(ctx, reference, desc, ropts...); err != nil {
-					if attempts < 2 {
-						printLog(logger, "warn", fmt.Sprintf("推送失败，重试中... (%d/3)", attempts+1), map[string]string{"step": "pushimage"})
-						_ = c.client.ImageService().Delete(ctx, reference) // 清理缓存镜像
-						time.Sleep(5 * time.Second)
-						continue
-					}
-					return errors.Wrap(err, "推送过程中发生错误")
-				}
-				break
-			}
-			return nil
+			)
 		})
 
 		// 进度显示任务
@@ -408,7 +405,6 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 			defer ticker.Stop()
 			start := time.Now()
 			done := false
-
 			for {
 				select {
 				case <-ticker.C:
@@ -418,25 +414,50 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 					}
 				case <-doneCh:
 					done = true
-				case <-ctx.Done():
+				case <-egCtx.Done():
 					done = true
 				}
 			}
 		})
-
-		// 等待所有 goroutine 完成
 		return eg.Wait()
 	}
 
+	pushWithRetry := func(scheme string) error {
+		var lastErr error
+		for attempt := 1; attempt <= imagePushAttempts; attempt++ {
+			lastErr = pushOnce(scheme)
+			if lastErr == nil {
+				return nil
+			}
+			logrus.Warnf("push image %s over %s failed (attempt %d/%d): %v", reference, scheme, attempt, imagePushAttempts, lastErr)
+			if pushCtx.Err() != nil {
+				return lastErr
+			}
+			if attempt < imagePushAttempts {
+				printLog(logger, "warn", fmt.Sprintf("推送失败，重试中... (%d/%d)：%s", attempt, imagePushAttempts, lastErr.Error()), map[string]string{"step": "pushimage"})
+				select {
+				case <-time.After(imagePushRetryDelay):
+				case <-pushCtx.Done():
+					return lastErr
+				}
+			}
+		}
+		return lastErr
+	}
+
 	// 先尝试 HTTPS
-	err = pushFunc("https")
-	if err != nil {
+	err = pushWithRetry("https")
+	if err != nil && pushCtx.Err() == nil {
 		// 如果是协议相关错误，尝试降级为 HTTP
 		printLog(logger, "warn", fmt.Sprintf("HTTPS 推送失败，尝试使用 HTTP：%s", err.Error()), map[string]string{"step": "pushimage"})
-		err = pushFunc("http")
+		err = pushWithRetry("http")
 	}
 
 	if err != nil {
+		if pushCtx.Err() != nil {
+			err = errors.Wrapf(err, "推送超时（%s）", pushTimeout)
+		}
+		logrus.Errorf("push image %s failed: %v", reference, err)
 		return errors.Wrap(err, "推送失败")
 	}
 

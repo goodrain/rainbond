@@ -46,12 +46,16 @@ type ImageShareItem struct {
 	LocalImageUsername string `json:"-"`
 	LocalImagePassword string `json:"-"`
 	ShareID            string `json:"share_id"`
-	BuildKitImage      string
-	BuildKitArgs       []string
-	BuildKitCache      bool
-	kubeClient         kubernetes.Interface
-	Logger             event.Logger
-	ShareInfo          struct {
+	SourceAuth         struct {
+		User     string `json:"user"`
+		Password string `json:"password"`
+	} `json:"source_auth"`
+	BuildKitImage string
+	BuildKitArgs  []string
+	BuildKitCache bool
+	kubeClient    kubernetes.Interface
+	Logger        event.Logger
+	ShareInfo     struct {
 		ServiceKey    string `json:"service_key" `
 		AppVersion    string `json:"app_version" `
 		DeployVersion string `json:"deploy_version,omitempty"`
@@ -79,6 +83,10 @@ func NewImageShareItem(in []byte, imageClient sources.ImageClient, kubeClient ku
 	}
 	isi.LocalImageUsername = builder.REGISTRYUSER
 	isi.LocalImagePassword = builder.REGISTRYPASS
+	if isi.SourceAuth.User != "" {
+		isi.LocalImageUsername = isi.SourceAuth.User
+		isi.LocalImagePassword = isi.SourceAuth.Password
+	}
 	eventID := isi.ShareInfo.EventID
 	if manager := event.GetManager(); manager != nil {
 		isi.Logger = manager.GetLogger(eventID)

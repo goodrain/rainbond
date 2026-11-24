@@ -47,8 +47,8 @@ func TestJavaLanguageConfigAnnotationsAndProcfile(t *testing.T) {
 	if annotations["cnb-bp-maven-additional-build-arguments"] != "-DskipTests" {
 		t.Fatalf("expected maven additional build arguments, got %q", annotations["cnb-bp-maven-additional-build-arguments"])
 	}
-	if annotations["cnb-bp-maven-version"] != "3.9.14" {
-		t.Fatalf("expected fixed cnb-bp-maven-version=3.9.14, got %q", annotations["cnb-bp-maven-version"])
+	if annotations["cnb-bp-maven-version"] != "3.10.0" {
+		t.Fatalf("expected fixed cnb-bp-maven-version=3.10.0, got %q", annotations["cnb-bp-maven-version"])
 	}
 	if annotations["cnb-bp-maven-built-module"] != "service-a" {
 		t.Fatalf("expected cnb-bp-maven-built-module=service-a, got %q", annotations["cnb-bp-maven-built-module"])
