@@ -176,6 +176,11 @@ class VerifyImagesTest(unittest.TestCase):
         self.assertTrue(any("rbd-api" in p and "amd64, arm64" in p for p in problems))
         self.assertTrue(any("rbd-mq" in p and "HTTP 404" in p for p in problems))
 
+    def test_esgz_images_cover_everything_installed_except_the_ui(self):
+        self.assertEqual(len(release.ESGZ_IMAGES), len(release.RELEASE_IMAGES) - 1)
+        self.assertFalse(any(image.endswith("/rainbond-ui") for image in release.ESGZ_IMAGES))
+        self.assertIn("registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond", release.ESGZ_IMAGES)
+
     def test_bearer_challenge_is_followed(self):
         calls = []
 

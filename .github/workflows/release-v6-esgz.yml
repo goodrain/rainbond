@@ -1,0 +1,74 @@
+name: "release-v6-esgz"
+
+# 单机版的 chart（rainbond-chart 的 V6-k3s 分支）拉的是 <版本>-esgz 镜像，
+# k3s 用 --snapshotter=stargz 懒加载。这里把已构建好的镜像转成 eStargz，
+# 文件内容和配置都不变，所以不需要重新编译，和普通镜像不会出现代码差异。
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'existing image version, for example v6.10.3-release'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    environment: release-v6
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [rbd-api, rbd-chaos, rbd-worker, rbd-init-probe, rbd-mq, rainbond-operator, rainbond]
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      - name: Convert to eStargz and push
+        env:
+          IMAGE: ${{ matrix.image }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "FROM docker.io/rainbond/${IMAGE}:${VERSION}" > Dockerfile.esgz
+          docker buildx build -f Dockerfile.esgz \
+            --platform linux/amd64,linux/arm64 \
+            --provenance=false \
+            --output type=image,push=true,oci-mediatypes=true,compression=estargz,force-compression=true \
+            -t "docker.io/rainbond/${IMAGE}:${VERSION}-esgz" \
+            -t "registry.cn-hangzhou.aliyuncs.com/goodrain/${IMAGE}:${VERSION}-esgz" \
+            .
+
+  verify:
+    needs: convert
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Verify eStargz images are multi-arch
+        env:
+          VERSION: ${{ inputs.version }}
+        run: python3 hack/release/release.py verify-images "${VERSION}-esgz" --esgz

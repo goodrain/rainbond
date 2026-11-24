@@ -18,71 +18,201 @@ on:
         options:
           - linux/amd64
           - linux/amd64,linux/arm64
-      
+  # release-publish calls this after every release, so the standalone image ships with it.
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      platforms:
+        required: true
+        type: string
+
 env:
-  VERSION: ${{ github.event.inputs.version }}
-  
+  VERSION: ${{ inputs.version }}
+
+# Each architecture builds on its own native runner (no QEMU) and pushes only to
+# Docker Hub. Aliyun receives the image afterwards through hack/release/sync-image.sh,
+# which bounds every registry call and retries it, so a stalled Aliyun upload can
+# no longer hang the job for hours or force a rebuild.
 jobs:
-  standalone:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     environment: release-v6
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: goodrain/rainbond-console
-          ref: ${{ github.event.inputs.branch }}
-      
-      # - name: Free Disk Space (Ubuntu)
-      #   uses: jlumbroso/free-disk-space@main
-      #   with:
-      #     tool-cache: false
-      #     android: true
-      #     dotnet: true
-      #     haskell: true
-      #     large-packages: true
-      #     docker-images: true
-      #     swap-storage: true
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          ref: ${{ inputs.branch }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Pull Amd64 Docker image
-        run: |
-          ARCH=amd64 VERSION=${{ env.VERSION }} sh standalone/images-package.sh
+      - name: Package k3s system images
+        timeout-minutes: 15
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: sh standalone/images-package.sh
 
-      - name: Pull Arm64 Docker image
-        run: |
-          if [[ "${{ github.event.inputs.platforms }}" == "linux/amd64,linux/arm64" ]]; then
-            ARCH=arm64 VERSION=${{ env.VERSION }} sh standalone/images-package.sh
-          fi
-      
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-
-      - name: Build and push
+      # Unchanged layers come from the registry cache with their original
+      # digests, so Docker Hub and Aliyun already hold them and only changed
+      # layers are uploaded. The base stage clones the latest chart and is
+      # always rebuilt so a cached chart is never shipped.
+      - name: Build and push to Docker Hub
+        id: build
         uses: docker/build-push-action@v6
         with:
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: linux/${{ matrix.arch }}
           build-args: |
             VERSION=${{ env.VERSION }}
           context: .
           file: standalone/Dockerfile
           push: true
           provenance: false
+          no-cache-filters: base
+          cache-from: type=registry,ref=rainbond/rainbond:buildcache-standalone-${{ matrix.arch }}-${{ hashFiles('standalone/**') }}
+          cache-to: type=registry,ref=rainbond/rainbond:buildcache-standalone-${{ matrix.arch }}-${{ hashFiles('standalone/**') }},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
           tags: |
-            rainbond/rainbond:${{ env.VERSION }}-k3s
-            registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${{ env.VERSION }}-k3s
+            rainbond/rainbond:${{ env.VERSION }}-k3s-${{ matrix.arch }}
+
+      - name: Save image digest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s\n' "$IMAGE_DIGEST" > "$RUNNER_TEMP/image-digest"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-digest
+          if-no-files-found: error
+          overwrite: true
+
+  sync-aliyun:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release-v6
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        exclude:
+          - arch: ${{ inputs.platforms == 'linux/amd64' && 'arm64' || 'none' }}
+    steps:
+      - name: Checkout workflow tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download image digest
+        uses: actions/download-artifact@v4
+        with:
+          name: standalone-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/registry-sync
+
+      - name: Install Skopeo
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      # The standalone image is several hundred MB when no layer is cached, so each
+      # attempt gets 10 minutes instead of the default 5.
+      - name: Sync image to Aliyun by digest
+        timeout-minutes: 50
+        env:
+          ARCH: ${{ matrix.arch }}
+          RETRY_TIMEOUT: 10m
+        run: |
+          set -euo pipefail
+          digest=$(cat "$RUNNER_TEMP/registry-sync/image-digest")
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::Invalid image digest"; exit 1; }
+          bash hack/release/sync-image.sh "docker.io/rainbond/rainbond@${digest}" \
+            "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-k3s-${ARCH}"
+
+  manifest:
+    needs: sync-aliyun
+    runs-on: ubuntu-latest
+    environment: release-v6
+    timeout-minutes: 30
+    steps:
+      - name: Checkout workflow tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Skopeo
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        timeout-minutes: 2
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          password: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+
+      # Both architecture images are already in Aliyun, so only the index is copied.
+      - name: Create the -k3s manifest
+        timeout-minutes: 20
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          source="docker.io/rainbond/rainbond:${VERSION}-k3s"
+          children=()
+          for platform in ${PLATFORMS//,/ }; do
+            children+=("${source}-${platform#linux/}")
+          done
+          bash hack/release/retry.sh docker buildx imagetools create -t "$source" "${children[@]}"
+          bash hack/release/retry.sh skopeo inspect --raw \
+            --authfile "${DOCKER_CONFIG:-$HOME/.docker}/config.json" \
+            "docker://${source}" > "$RUNNER_TEMP/manifest.json"
+          digest="sha256:$(sha256sum "$RUNNER_TEMP/manifest.json" | cut -d ' ' -f 1)"
+          bash hack/release/sync-image.sh --index-only "docker.io/rainbond/rainbond@${digest}" \
+            "registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:${VERSION}-k3s"
