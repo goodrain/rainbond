@@ -48,7 +48,7 @@ func (s *staticConfig) InjectMirrorConfig(re *build.Request) error {
 
 // CustomOrder returns nginx-only buildpack order for static projects.
 func (s *staticConfig) CustomOrder(re *build.Request) []orderBuildpack {
-	version := util.GetenvDefault("CNB_NGINX_BUILDPACK_VERSION", "1.0.12")
+	version := util.GetenvDefault("CNB_NGINX_BUILDPACK_VERSION", "1.3.8")
 	return []orderBuildpack{
 		{ID: "paketo-buildpacks/nginx", Version: version},
 	}
