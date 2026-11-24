@@ -104,6 +104,21 @@ func (m *ManagedNativeRestore) checkAdvanced(ctx context.Context, scope Scope, s
 	if err != nil {
 		return err
 	}
+	// KubeVirt admission pins its PCI topology version on the live template;
+	// the pure Region renderer does not emit that controller default. Preserve
+	// the snapshot's version only when the renderer omits it. Source/live and
+	// explicitly configured values still take part in the strict comparison.
+	const pciTopologyVersion = "kubevirt.io/pci-topology-version"
+	if value, pinned := want.Annotations[pciTopologyVersion]; pinned {
+		if _, configured := b.Annotations[pciTopologyVersion]; !configured {
+			annotations := make(map[string]string, len(b.Annotations)+1)
+			for key, current := range b.Annotations {
+				annotations[key] = current
+			}
+			annotations[pciTopologyVersion] = value
+			b.Annotations = annotations
+		}
+	}
 	wantHash, _ := snapshotDigest(want)
 	aHash, _ := snapshotDigest(a)
 	bHash, _ := snapshotDigest(b)

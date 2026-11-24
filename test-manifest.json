@@ -12968,6 +12968,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-pci-default-metadata",
+      "title": "Native restore preserves admitted PCI topology defaults and rejects real metadata changes",
+      "title_zh": "Native restore preserves admitted PCI topology defaults and rejects real metadata changes",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.checkAdvanced",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_advanced.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_metadata_test.go",
+          "selector": "TestManagedNativeRestorePreservesControllerPCITopologyDefault"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-platform-convergence",
       "title": "Converge native VM restore with platform bindings and durable ownership",
       "title_zh": "Converge native VM restore with platform bindings and durable ownership",

@@ -649,6 +649,7 @@
 | rainbond.vm-restore.mutation-volume-references | 部分磁盘回收中的授权引用重查 | active | regression | pkg/vmrestore.Resolver.VolumeReferencesForMutation | pkg/vmrestore/mutation_references_test.go::TestMutationReferencesRecheckSurvivingPVCWithoutRestoringDeletedDV<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesRejectReplacementUIDAndWrongActor<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesKeepSharedSnapshotAndCloneProtection<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesAllowRecordedOwnerOnDeletingSurvivor<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesRejectStateOrUIDChangesDuringScan<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesRequireExactIssuedReceipt<br>pkg/vmrestore/mutation_references_test.go::TestMutationReferencesAllowMissingPVCButRejectForeignSurvivors |
 | rainbond.vm-restore.native-http | Expose scoped native VM restore HTTP operations | active | integration | POST/GET /v2/tenants/{tenant}/services/{service}/vm-snapshots/{snapshot}/restore | api/controller/vm_snapshot_test.go::TestVMSnapshotControllerStartsAndReadsNativeRestore<br>api/controller/vm_snapshot_test.go::TestVMSnapshotControllerRejectsInvalidNativeRestoreRequest |
 | rainbond.vm-restore.native-longhorn | Start and observe owned offline KubeVirt restores | active | integration | pkg/vmrestore.NativeRestoreEngine.Start | pkg/vmrestore/native_restore_test.go |
+| rainbond.vm-restore.native-pci-default-metadata | Native restore preserves admitted PCI topology defaults and rejects real metadata changes | active | regression | vmrestore.ManagedNativeRestore.checkAdvanced | pkg/vmrestore/native_restore_metadata_test.go::TestManagedNativeRestorePreservesControllerPCITopologyDefault |
 | rainbond.vm-restore.native-platform-convergence | Converge native VM restore with platform bindings and durable ownership | active | regression | vmrestore.ManagedNativeRestore.Advance | pkg/vmrestore/native_restore_control_test.go::TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically<br>pkg/vmrestore/native_restore_control_test.go::TestNativeRestoreControlRejectsChangedIntentAndConfiguration<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRequiresPlatformCommitBeforeSuccess<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRejectsUnprovenNativeAndDiskResults<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePreflightAndCapacityAreFailClosed<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePinsNativeUIDAndUnknownOutcomes<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePreservesUnknownFieldsAndRejectsUnknownDiskReplacement<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreKeepsReadonlyIdentityAndRefusesExtraDisks<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPFixedDomainErrorCodes<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRejectsDesiredAndLiveAdvancedDrift<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeAdvancedDefaultsDoNotHideRealEdits |
 | rainbond.vm-restore.native-source-config | Derive A access mode and quota from exact native backup metadata | active | regression | NativeRestoreConfig | pkg/vmrestore/restore_native_source_test.go |
 | rainbond.vm-restore.native-status-read | Native restore status remains readable after power changes | active | regression | vmrestore.NativeRestoreEngine.Status | pkg/vmrestore/native_restore_test.go::TestNativeRestoreStatusSurvivesPowerAndReadinessChanges |
@@ -7254,6 +7255,16 @@
 - 业务入口: `pkg/vmrestore.NativeRestoreEngine.Start`
 - 代码路径: `pkg/vmrestore/native_restore.go`
 - 测试路径: `pkg/vmrestore/native_restore_test.go`
+
+### Native restore preserves admitted PCI topology defaults and rejects real metadata changes
+
+- Capability ID: `rainbond.vm-restore.native-pci-default-metadata`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmrestore.ManagedNativeRestore.checkAdvanced`
+- 代码路径: `pkg/vmrestore/native_restore_advanced.go`
+- 测试路径: `pkg/vmrestore/native_restore_metadata_test.go::TestManagedNativeRestorePreservesControllerPCITopologyDefault`
 
 ### Converge native VM restore with platform bindings and durable ownership
 
