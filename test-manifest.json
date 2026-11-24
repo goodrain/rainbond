@@ -12892,6 +12892,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-console-layout",
+      "title": "Preserve Console disk declarations during same-configuration native restore",
+      "title_zh": "Preserve Console disk declarations during same-configuration native restore",
+      "interface_type": "workflow",
+      "interface": "ManagedNativeRestore.Start",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_advanced.go",
+        "pkg/vmrestore/native_restore_control.go",
+        "pkg/vmrestore/restore_before_config.go",
+        "pkg/vmrestore/restore_runtime_projection.go",
+        "pkg/vmrestore/restore_runtime_selection.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestSelectedRuntimeConfigNormalizesConsoleDiskLayout"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestManagedNativeRestorePreservesConsoleDiskMetadata"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestManagedNativeRestoreRejectsChangedInstallationMedia"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestNativeConsoleSelectionRejectsMalformedOrChangedRows"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestNativeControlRejectsCrossConfigurationBeforeFence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-http",
       "title": "Expose scoped native VM restore HTTP operations",
       "title_zh": "Expose scoped native VM restore HTTP operations",

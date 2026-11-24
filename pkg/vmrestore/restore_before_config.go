@@ -22,6 +22,7 @@ type beforeLayoutItem struct {
 	Boot       *bool  `json:"boot"`
 	Bus        string `json:"bus"`
 	BootOrder  *uint  `json:"boot_order"`
+	Image      string `json:"image,omitempty"`
 }
 
 func decodeBeforeLayout(raw string) ([]beforeLayoutItem, error) {
@@ -53,7 +54,7 @@ func decodeBeforeLayout(raw string) ([]beforeLayoutItem, error) {
 					return nil, ErrCorrupt
 				}
 				switch name {
-				case "disk_key", "disk_name", "disk_role", "device_type", "source_kind", "order_index", "boot", "bus", "boot_order":
+				case "disk_key", "disk_name", "disk_role", "device_type", "source_kind", "order_index", "boot", "bus", "boot_order", "image":
 				default:
 					return nil, ErrCorrupt
 				}
@@ -75,6 +76,9 @@ func decodeBeforeLayout(raw string) ([]beforeLayoutItem, error) {
 			}
 			var item beforeLayoutItem
 			if json.Unmarshal(data, &item) != nil {
+				return nil, ErrCorrupt
+			}
+			if _, present := fields["image"]; present && item.SourceKind != "container_disk" && item.SourceKind != "installer" {
 				return nil, ErrCorrupt
 			}
 			items = append(items, item)

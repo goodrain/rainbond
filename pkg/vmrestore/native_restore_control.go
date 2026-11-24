@@ -29,7 +29,8 @@ func (n NativeRestoreControl) validate(scope Scope, intent *RestoreIntent) error
 		return ErrCorrupt
 	}
 	hash, err := RestoreConfigHash(n.Config)
-	if err != nil || hash != intent.ConfigAfterHash {
+	beforeHash, beforeErr := RestoreConfigHash(intent.Before)
+	if err != nil || beforeErr != nil || hash != intent.ConfigAfterHash || hash != beforeHash {
 		return ErrConflict
 	}
 	return nil
@@ -63,7 +64,7 @@ func (s *Store) PrepareNativeRestoreDB(scope Scope, e Expectation, intent Restor
 		if c.State.Fence != nil || c.State.Admission != nil || c.Receipt != nil || c.State.BindingGeneration != intent.SourceGeneration {
 			return Mutation{}, ErrBusy
 		}
-		if err := requireBeforeConfig(tx, scope, intent.Before); err != nil {
+		if err := requireBeforeNativeConfig(tx, scope, intent.Before); err != nil {
 			return Mutation{}, err
 		}
 		for key, b := range c.State.Bindings {
@@ -152,11 +153,15 @@ func (s *Store) CommitNativeRestoreDB(scope Scope, e Expectation, request Restor
 		if hash != c.Receipt.Steps["native-observed"].RequestHash {
 			return Mutation{}, ErrConflict
 		}
-		if err := requireBeforeConfig(tx, scope, c.Receipt.Restore.Before); err != nil {
+		if err := requireBeforeNativeConfig(tx, scope, c.Receipt.Restore.Before); err != nil {
 			return Mutation{}, err
 		}
-		if err := writeRestoreConfig(tx, scope, request.Config); err != nil {
-			return Mutation{}, err
+		// Native restore is restricted to the same logical configuration. Only
+		// replace physical bindings; retain Console's display/media declarations.
+		beforeHash, _ := RestoreConfigHash(c.Receipt.Restore.Before)
+		afterHash, _ := RestoreConfigHash(request.Config)
+		if beforeHash != afterHash {
+			return Mutation{}, ErrNativeRestoreConfigurationChanged
 		}
 		c.State.Bindings = cloneBindings(request.Bindings)
 		c.State.BindingGeneration++

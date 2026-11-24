@@ -10,6 +10,9 @@ import (
 // capability_id: rainbond.vm-restore.native-platform-convergence
 func TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically(t *testing.T) {
 	f := newRestoreCommitFixture(t)
+	f.after = f.intent.Before
+	f.intent.ConfigAfterHash, _ = RestoreConfigHash(f.after)
+	f.targets[9] = ObjectRef{Kind: "PersistentVolumeClaim", Namespace: f.scope.Namespace, Name: "restored-data-9", UID: "restored-data-9-uid"}
 	f.seedBeforeAttributes(t)
 	startup := testStartupPolicy("platform")
 	source := testStartupPolicy("restored")
@@ -66,6 +69,8 @@ func TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically(t *testing.T)
 // capability_id: rainbond.vm-restore.native-platform-convergence
 func TestNativeRestoreControlRejectsChangedIntentAndConfiguration(t *testing.T) {
 	f := newRestoreCommitFixture(t)
+	f.after = f.intent.Before
+	f.intent.ConfigAfterHash, _ = RestoreConfigHash(f.after)
 	f.seedBeforeAttributes(t)
 	c := NativeRestoreControl{Config: f.after, BeforeStartup: testStartupPolicy("platform"), SourceStartup: testStartupPolicy("restored"), SnapshotOperationID: "snapshot-source", NativeProofHash: strings.Repeat("a", 64), RestoreName: "vmr-012345678901234567890123", RequestID: "request-a", Nonce: "attempt-a"}
 	if _, err := f.store.PrepareNativeRestoreDB(f.scope, f.expect, f.intent, c, f.old); err != nil {
