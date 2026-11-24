@@ -61,6 +61,10 @@ func (m *ManagedNativeRestore) read(scope Scope, name, request string) (Current,
 func managedNativeDTO(c Current, request string, actual *native.VirtualMachineRestore) NativeRestoreDTO {
 	r := c.Receipt
 	d := NativeRestoreDTO{RestoreName: r.NativeRestore.RestoreName, SnapshotName: r.Restore.SourceSnapshot.Name, RequestID: request, Phase: "pending", RequiresAdvance: true, Volumes: []NativeRestoreVolumeDTO{}}
+	if r.Steps["native-storage-failed"].Applied {
+		d.Phase, d.ErrorCode, d.RequiresAdvance = "failed", "vm_restore_native_failed", false
+		return d
+	}
 	if actual != nil {
 		d.Volumes = projectNativeRestore(actual).Volumes
 		if status := projectNativeRestore(actual); status.Phase == "failed" {
@@ -341,7 +345,7 @@ func (m *ManagedNativeRestore) Advance(ctx context.Context, scope Scope, name, r
 	if err != nil {
 		return NativeRestoreDTO{}, err
 	}
-	if c.Receipt.Steps["native-finalize"].Applied {
+	if c.Receipt.Steps["native-finalize"].Applied || c.Receipt.Steps["native-storage-failed"].Applied {
 		return managedNativeDTO(c, request, actual), nil
 	}
 	if c.State.Fence == nil || c.State.Fence.OperationID != c.Receipt.OperationID || c.State.Fence.Kind != "restore" {
@@ -377,6 +381,16 @@ func (m *ManagedNativeRestore) Advance(ctx context.Context, scope Scope, name, r
 		}
 		if err = m.writersClear(ctx, scope, c.Receipt.OldBindings); err != nil {
 			return NativeRestoreDTO{}, err
+		}
+		preserved, changed, err := m.preserveNativeSources(ctx, scope, c, vm)
+		if err != nil {
+			return NativeRestoreDTO{}, err
+		}
+		if changed {
+			if err = m.updateVM(ctx, scope, c, vm, preserved); err != nil {
+				return NativeRestoreDTO{}, err
+			}
+			return managedNativeDTO(c, request, nil), nil
 		}
 		e := nativeExpectation(c, "native-create-claimed")
 		c, err = m.Store.Mutate(scope, e, func(now Current) (Mutation, error) {
@@ -425,6 +439,22 @@ func (m *ManagedNativeRestore) Advance(ctx context.Context, scope Scope, name, r
 	}
 	if !c.Receipt.Steps[NativeRestoreCommitStep].Applied {
 		bindings, err := m.restoredBindings(ctx, scope, c, vm, actual)
+		if errors.Is(err, ErrSnapshotPending) {
+			return managedNativeDTO(c, request, actual), nil
+		}
+		if errors.Is(err, errNativeCloneFailed) {
+			c, err = m.Store.Mutate(scope, nativeExpectation(c, "native-storage-failed"), func(now Current) (Mutation, error) {
+				if nativeOwner(now, scope, nativeExpectation(c, "native-storage-failed")) != nil || now.Receipt.Steps[NativeRestoreCommitStep].Applied {
+					return Mutation{}, ErrConflict
+				}
+				now.State.Fence.Phase = "native-storage-failed"
+				return Mutation{State: now.State, Receipt: now.Receipt}, nil
+			})
+			if err != nil {
+				return NativeRestoreDTO{}, err
+			}
+			return managedNativeDTO(c, request, actual), nil
+		}
 		if err != nil {
 			return NativeRestoreDTO{}, err
 		}
@@ -649,6 +679,9 @@ func (m *ManagedNativeRestore) restoredBindings(ctx context.Context, scope Scope
 		}
 		if pv.DeletionTimestamp != nil || pv.Spec.CSI == nil || pv.Spec.CSI.Driver != class.Provisioner || pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.UID != pvc.UID || pv.Spec.ClaimRef.Name != pvc.Name || pv.Spec.ClaimRef.Namespace != scope.Namespace {
 			return nil, ErrConflict
+		}
+		if err := m.nativeCloneReady(ctx, pv, observed, *backup); err != nil {
+			return nil, err
 		}
 		mounted := false
 		var mountedDV string

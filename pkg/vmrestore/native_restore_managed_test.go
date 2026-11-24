@@ -31,11 +31,15 @@ type managedNativeBackendFixture struct {
 	scope             Scope
 	createErrorBefore error
 	createErrorAfter  error
+	beforeCreate      func()
 }
 
 func (b *managedNativeBackendFixture) CreateRestore(ctx context.Context, scope Scope, restore *native.VirtualMachineRestore) (*native.VirtualMachineRestore, error) {
 	if b.createErrorBefore != nil {
 		return nil, b.createErrorBefore
+	}
+	if b.beforeCreate != nil {
+		b.beforeCreate()
 	}
 	actual, err := b.nativeRestoreBackendFixture.CreateRestore(ctx, scope, restore)
 	if b.createErrorAfter != nil {
@@ -159,7 +163,7 @@ func newManagedNativeFixture(t *testing.T, readOnly ...bool) managedNativeFixtur
 			t.Fatal(err)
 		}
 	}
-	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{dataVolumeResource: "DataVolumeList", virtualMachineResource: "VirtualMachineList", virtualMachineInstanceResource: "VirtualMachineInstanceList", vmSnapshotResource: "VirtualMachineSnapshotList", vmSnapshotContentResource: "VirtualMachineSnapshotContentList", csiSnapshotResource: "VolumeSnapshotList", csiSnapshotContentResource: "VolumeSnapshotContentList", dataSourceResource: "DataSourceList"})
+	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{dataVolumeResource: "DataVolumeList", virtualMachineResource: "VirtualMachineList", virtualMachineInstanceResource: "VirtualMachineInstanceList", vmSnapshotResource: "VirtualMachineSnapshotList", vmSnapshotContentResource: "VirtualMachineSnapshotContentList", csiSnapshotResource: "VolumeSnapshotList", csiSnapshotContentResource: "VolumeSnapshotContentList", dataSourceResource: "DataSourceList", nativeLonghornVolumeResource: "VolumeList"})
 	vm := nativeAsVM(b.fixture.content.Spec.Source.VirtualMachine).DeepCopy()
 	vm.ResourceVersion = "1"
 	strategy := kv.RunStrategyHalted

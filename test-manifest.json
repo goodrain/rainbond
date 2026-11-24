@@ -13091,6 +13091,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-source-retention",
+      "title": "Native restore retains original DataVolumes before controller cleanup",
+      "title_zh": "\u539f\u751f\u6062\u590d\u5728\u63a7\u5236\u5668\u6e05\u7406\u524d\u4fdd\u7559\u6e90\u6570\u636e\u5377",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_storage.go",
+        "pkg/vmrestore/native_restore_managed.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_storage_test.go",
+          "selector": "TestNativeRestoreRetainsSourceDataVolumeBeforeControllerCleanup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-status-read",
       "title": "Native restore status remains readable after power changes",
       "title_zh": "Native restore status remains readable after power changes",
@@ -13103,6 +13122,25 @@
         {
           "path": "pkg/vmrestore/native_restore_test.go",
           "selector": "TestNativeRestoreStatusSurvivesPowerAndReadinessChanges"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-storage-readiness",
+      "title": "Native restore waits for verified Longhorn clone completion",
+      "title_zh": "\u539f\u751f\u6062\u590d\u7b49\u5f85\u7ecf\u8eab\u4efd\u6838\u9a8c\u7684 Longhorn \u514b\u9686\u5b8c\u6210",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_storage.go",
+        "pkg/vmrestore/native_restore_managed.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_storage_test.go",
+          "selector": "TestNativeRestoreWaitsForLonghornCloneAndPersistsFailure"
         }
       ],
       "test_type": "regression",

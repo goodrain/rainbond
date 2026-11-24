@@ -653,7 +653,9 @@
 | rainbond.vm-restore.native-pci-default-metadata | Native restore preserves admitted PCI topology defaults and rejects real metadata changes | active | regression | vmrestore.ManagedNativeRestore.checkAdvanced | pkg/vmrestore/native_restore_metadata_test.go::TestManagedNativeRestorePreservesControllerPCITopologyDefault |
 | rainbond.vm-restore.native-platform-convergence | Converge native VM restore with platform bindings and durable ownership | active | regression | vmrestore.ManagedNativeRestore.Advance | pkg/vmrestore/native_restore_control_test.go::TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically<br>pkg/vmrestore/native_restore_control_test.go::TestNativeRestoreControlRejectsChangedIntentAndConfiguration<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRequiresPlatformCommitBeforeSuccess<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRejectsUnprovenNativeAndDiskResults<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePreflightAndCapacityAreFailClosed<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePinsNativeUIDAndUnknownOutcomes<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestorePreservesUnknownFieldsAndRejectsUnknownDiskReplacement<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreKeepsReadonlyIdentityAndRefusesExtraDisks<br>api/controller/vm_snapshot_lifecycle_test.go::TestSnapshotHTTPFixedDomainErrorCodes<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeRestoreRejectsDesiredAndLiveAdvancedDrift<br>pkg/vmrestore/native_restore_managed_test.go::TestManagedNativeAdvancedDefaultsDoNotHideRealEdits |
 | rainbond.vm-restore.native-source-config | Derive A access mode and quota from exact native backup metadata | active | regression | NativeRestoreConfig | pkg/vmrestore/restore_native_source_test.go |
+| rainbond.vm-restore.native-source-retention | 原生恢复在控制器清理前保留源数据卷 | active | regression | vmrestore.ManagedNativeRestore.Advance | pkg/vmrestore/native_restore_storage_test.go::TestNativeRestoreRetainsSourceDataVolumeBeforeControllerCleanup |
 | rainbond.vm-restore.native-status-read | Native restore status remains readable after power changes | active | regression | vmrestore.NativeRestoreEngine.Status | pkg/vmrestore/native_restore_test.go::TestNativeRestoreStatusSurvivesPowerAndReadinessChanges |
+| rainbond.vm-restore.native-storage-readiness | 原生恢复等待经身份核验的 Longhorn 克隆完成 | active | regression | vmrestore.ManagedNativeRestore.Advance | pkg/vmrestore/native_restore_storage_test.go::TestNativeRestoreWaitsForLonghornCloneAndPersistsFailure |
 | rainbond.vm-restore.ordinary-power-admission | Hold VM power admission through exact runtime completion | active | regression | pkg/vmrestore/ordinary_vm_admission.go | pkg/vmrestore/ordinary_vm_admission_test.go |
 | rainbond.vm-restore.ordinary-power-handler | Use restored A disks and complete actual power events through the admitted handler | active | integration | ServiceAction.restoredPower | api/handler/vm_restored_power_test.go |
 | rainbond.vm-restore.owned-state-mutation | 内部状态更新沿用作用域准入所有权 | active | regression | Store.MutateTx and active VM volume consumers | pkg/vmrestore/owned_state_mutation_test.go |
@@ -7297,6 +7299,16 @@
 - 代码路径: `pkg/vmrestore/restore_native_source.go`
 - 测试路径: `pkg/vmrestore/restore_native_source_test.go`
 
+### 原生恢复在控制器清理前保留源数据卷
+
+- Capability ID: `rainbond.vm-restore.native-source-retention`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmrestore.ManagedNativeRestore.Advance`
+- 代码路径: `pkg/vmrestore/native_restore_storage.go`, `pkg/vmrestore/native_restore_managed.go`
+- 测试路径: `pkg/vmrestore/native_restore_storage_test.go::TestNativeRestoreRetainsSourceDataVolumeBeforeControllerCleanup`
+
 ### Native restore status remains readable after power changes
 
 - Capability ID: `rainbond.vm-restore.native-status-read`
@@ -7306,6 +7318,16 @@
 - 业务入口: `vmrestore.NativeRestoreEngine.Status`
 - 代码路径: `pkg/vmrestore/native_restore.go`
 - 测试路径: `pkg/vmrestore/native_restore_test.go::TestNativeRestoreStatusSurvivesPowerAndReadinessChanges`
+
+### 原生恢复等待经身份核验的 Longhorn 克隆完成
+
+- Capability ID: `rainbond.vm-restore.native-storage-readiness`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmrestore.ManagedNativeRestore.Advance`
+- 代码路径: `pkg/vmrestore/native_restore_storage.go`, `pkg/vmrestore/native_restore_managed.go`
+- 测试路径: `pkg/vmrestore/native_restore_storage_test.go::TestNativeRestoreWaitsForLonghornCloneAndPersistsFailure`
 
 ### Hold VM power admission through exact runtime completion
 
