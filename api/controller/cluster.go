@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
@@ -40,6 +42,8 @@ import (
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -435,8 +439,26 @@ func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	upgradeComponentImages(w, r, k8s.Default().K8sClient,
-		utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), body)
+	res := make([]string, 0)
+	for k, v := range body {
+		var cpt v1alpha1.RbdComponent
+		err := k8s.Default().K8sClient.Get(context.Background(),
+			types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: k}, &cpt)
+		if err != nil {
+			res = append(res, fmt.Sprintf(`%s获取异常%s`, k, err.Error()))
+			continue
+		}
+		original := cpt.DeepCopy()
+		cpt.Spec.Image = v
+		logrus.Infof("upgrade [%s] image to [%s]", k, v)
+		// Patch only the image so fields absent from the vendored CRD type are preserved.
+		err = k8s.Default().K8sClient.Patch(context.Background(), &cpt, k8sclient.MergeFrom(original))
+		if err != nil {
+			res = append(res, fmt.Sprintf(`%s更新异常%s`, k, err.Error()))
+			continue
+		}
+	}
+	httputil.ReturnSuccess(r, w, res)
 }
 
 // ListUpgradeStatus -

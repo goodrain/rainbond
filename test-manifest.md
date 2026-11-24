@@ -193,7 +193,6 @@
 | rainbond.cluster-resource.validate-gvr | 校验集群资源 GVR 参数 | active | regression | api/handler.validateGVRParams | api/handler/cluster_resource_test.go::TestValidateGVRParams |
 | rainbond.cluster.rbd-component-readiness | Rainbond component readiness overview | active | regression | api/handler.clusterAction.ListRainbondComponents | api/handler/cluster_overview_test.go::TestPodReadyForOverview<br>api/handler/cluster_overview_test.go::TestBuildRainbondComponentOverviewSortsByName<br>api/handler/cluster_overview_test.go::TestFinalizeRainbondComponentOverviewKeepsZeroPodOperatorSorted<br>api/handler/cluster_overview_test.go::TestDeduplicateRainbondComponentPodsPreventsOverlappingCounts |
 | rainbond.cluster.upgrade-preserves-component-config | Preserve custom component configuration during image upgrades | active | regression | POST /v2/cluster/rbd-upgrade | api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig |
-| rainbond.cluster.upgrade-source-mount-preflight | 升级前识别控制台核心源码覆盖 | active | regression | api/controller.upgradeComponentImages | api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsBlockWholeRequest<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountPaths<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsAllowStandardAndOtherComponents<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsRequestCancellation<br>api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsConcurrentChange |
 | rainbond.cnb-version.extract-major | 从 CNB 版本表达式提取主版本 | active | regression | builder/parser/code.extractMajorFromSpec | builder/parser/code/cnb_versions_test.go::TestExtractMajorFromSpec |
 | rainbond.cnb-version.golang-order-and-default | 保持 Go CNB 版本顺序并将最新版本设为默认 | active | regression | builder/parser/code.GetCNBVersions | builder/parser/code/cnb_versions_test.go::TestGetCNBVersionsGoOrderingAndDefault |
 | rainbond.cnb-version.match-golang | 归一化并匹配 Go CNB 版本表达式 | active | regression | builder/parser/code.MatchCNBVersion | builder/parser/code/cnb_versions_test.go::TestMatchCNBVersion_Golang |
@@ -2695,16 +2694,6 @@
 - 业务入口: `POST /v2/cluster/rbd-upgrade`
 - 代码路径: `api/controller/cluster.go`
 - 测试路径: `api/controller/cluster_upgrade_test.go::TestUpgradePreservesComponentConfig`
-
-### 升级前识别控制台核心源码覆盖
-
-- Capability ID: `rainbond.cluster.upgrade-source-mount-preflight`
-- 状态: `active`
-- 测试类型: `regression`
-- 接口类型: `workflow`
-- 业务入口: `api/controller.upgradeComponentImages`
-- 代码路径: `api/controller/cluster.go`, `api/controller/upgrade_source_mounts.go`
-- 测试路径: `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsBlockWholeRequest`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountPaths`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsAllowStandardAndOtherComponents`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsRequestCancellation`, `api/controller/upgrade_source_mounts_test.go::TestUpgradeSourceMountsConcurrentChange`
 
 ### 从 CNB 版本表达式提取主版本
 
