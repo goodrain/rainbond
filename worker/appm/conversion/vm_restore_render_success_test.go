@@ -48,6 +48,9 @@ type restoreRenderSQL struct {
 
 func (m restoreRenderSQL) DB() *gorm.DB               { return m.database }
 func (m restoreRenderSQL) TenantDao() dbdao.TenantDao { return &mysqldao.TenantDaoImpl{DB: m.database} }
+func (m restoreRenderSQL) ApplicationDao() dbdao.ApplicationDao {
+	return &mysqldao.ApplicationDaoImpl{DB: m.database}
+}
 func (m restoreRenderSQL) TenantServiceDao() dbdao.TenantServiceDao {
 	return &mysqldao.TenantServicesDaoImpl{DB: m.database}
 }
@@ -96,7 +99,7 @@ func TestRestoreRendererCompleteSuccessPath(t *testing.T) {
 	}
 	defer database.Close()
 	database.LogMode(false)
-	if err := database.AutoMigrate(&dbmodel.ApplicationConfigGroup{}, &dbmodel.ConfigGroupService{}).Error; err != nil {
+	if err := database.AutoMigrate(&dbmodel.Application{}, &dbmodel.ApplicationConfigGroup{}, &dbmodel.ConfigGroupService{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	for _, model := range []interface{}{&dbmodel.Tenants{}, &dbmodel.TenantServices{}, &dbmodel.TenantServiceLable{}, &dbmodel.ComponentK8sAttributes{}, &dbmodel.VersionInfo{}, &dbmodel.TenantServiceRelation{}, &dbmodel.TenantServiceEnvVar{}, &dbmodel.TenantServicesPort{}, &dbmodel.TenantServiceVolume{}, &dbmodel.TenantServiceMountRelation{}, &dbmodel.TenantServiceProbe{}, &dbmodel.HTTPRule{}, &dbmodel.TenantServicePluginRelation{}} {
@@ -107,10 +110,13 @@ func TestRestoreRendererCompleteSuccessPath(t *testing.T) {
 	if err := database.Create(&dbmodel.Tenants{UUID: "tenant", Name: "team", Namespace: "team"}).Error; err != nil {
 		t.Fatal(err)
 	}
+	if err := database.Create(&dbmodel.Application{AppID: "app-id", TenantID: "tenant", K8sApp: "windows-app", GovernanceMode: dbmodel.GovernanceModeBuildInServiceMesh}).Error; err != nil {
+		t.Fatal(err)
+	}
 	core := kubefake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "rainbond-env", Namespace: "team", UID: "legacy-env"}})
 	for _, serviceID := range []string{"service", "another-service"} {
 		for _, row := range []interface{}{
-			&dbmodel.TenantServices{TenantID: "tenant", ServiceID: serviceID, ServiceAlias: serviceID, K8sComponentName: serviceID, DeployVersion: "render-version", ExtendMethod: string(dbmodel.ServiceTypeVM), ContainerCPU: 2000, ContainerMemory: 2048},
+			&dbmodel.TenantServices{TenantID: "tenant", AppID: "app-id", ServiceID: serviceID, ServiceAlias: serviceID, K8sComponentName: serviceID, DeployVersion: "render-version", ExtendMethod: string(dbmodel.ServiceTypeVM), ContainerCPU: 2000, ContainerMemory: 2048},
 			&dbmodel.VersionInfo{ServiceID: serviceID, BuildVersion: "render-version", ImageName: "example.invalid/base", DeliveredType: "image"},
 			&dbmodel.TenantServiceEnvVar{TenantID: "tenant", ServiceID: serviceID, AttrName: "EXAMPLE_SETTING", AttrValue: "same-value", Scope: "inner"},
 		} {
@@ -122,8 +128,13 @@ func TestRestoreRendererCompleteSuccessPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if app.GetVirtualMachine() == nil {
+		vm := app.GetVirtualMachine()
+		if vm == nil {
 			t.Fatal("VM not rendered")
+		}
+		labels := vm.Spec.Template.ObjectMeta.Labels
+		if vmName := "windows-app-" + serviceID; vm.Name != vmName || labels["kubevirt.io/domain"] != vmName || labels["rainbond_app"] != "windows-app" {
+			t.Fatalf("restore render lost application identity: VM %q, template domain %q, application %q", vm.Name, labels["kubevirt.io/domain"], labels["rainbond_app"])
 		}
 		if len(app.VMStartupHints.ConfigMaps) != 1 {
 			t.Fatal("renderer did not identify the generated initialization disk")
@@ -182,6 +193,9 @@ func newRenderLifecycleFixture(t *testing.T) renderLifecycleFixture {
 	}
 	t.Cleanup(func() { database.Close() })
 	database.LogMode(false)
+	if err := database.AutoMigrate(&dbmodel.Application{}).Error; err != nil {
+		t.Fatal(err)
+	}
 	for _, m := range []interface{}{&dbmodel.Tenants{}, &dbmodel.TenantServices{}, &dbmodel.TenantServiceLable{}, &dbmodel.ComponentK8sAttributes{}, &dbmodel.VersionInfo{}, &dbmodel.TenantServiceRelation{}, &dbmodel.TenantServiceEnvVar{}, &dbmodel.TenantServicesPort{}, &dbmodel.TenantServiceVolume{}, &dbmodel.TenantServiceMountRelation{}, &dbmodel.TenantServiceProbe{}, &dbmodel.HTTPRule{}, &dbmodel.TenantServicePluginRelation{}, &dbmodel.ApplicationConfigGroup{}, &dbmodel.ConfigGroupService{}, &dbmodel.TenantServiceConfigFile{}} {
 		if err := database.AutoMigrate(m).Error; err != nil {
 			t.Fatalf("fixture setup stage 10 failed: %v", err)
