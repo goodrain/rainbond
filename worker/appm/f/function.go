@@ -99,7 +99,9 @@ func ApplyOne(ctx context.Context, apply apply.Applicator, clientset kubernetes.
 	} else {
 		// update service
 		for _, service := range app.GetServices(true) {
-			ensureService(service, clientset)
+			if err := ensureService(service, clientset); err != nil {
+				return fmt.Errorf("sync service %s/%s: %w", service.Namespace, service.Name, err)
+			}
 		}
 		// update secret
 		for _, secret := range app.GetSecrets(true) {
@@ -163,7 +165,7 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 		if k8sErrors.IsNotFound(err) {
 			_, err = clientSet.CoreV1().Services(new.Namespace).Create(context.Background(), new, metav1.CreateOptions{})
 			if err != nil && !k8sErrors.IsAlreadyExists(err) {
-				logrus.Warningf("error creating service %+v: %v", new, err)
+				return err
 			}
 			return nil
 		}

@@ -19,17 +19,22 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/mq"
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/component/mq"
+
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	cleanupguard "github.com/goodrain/rainbond/pkg/cleanup"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -181,10 +186,23 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 }
 
 // Stop service stop
-func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
+func (o *OperationHandler) Stop(ctx context.Context, batchOpReq model.ComponentOpReq) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
 		return err
+	}
+	if service.IsVM() {
+		// VM deletion garbage-collects DataVolumeTemplate disks. Batch power
+		// operations must use the same non-destructive path as single-VM stop.
+		ctx, err = vmBatchOperationContext(ctx, batchOpReq, service)
+		if err != nil {
+			return err
+		}
+		manager := GetServiceManager()
+		if manager == nil {
+			return vmBatchOperationResult(ctx, errors.New("VM power handler is unavailable"))
+		}
+		return vmBatchOperationResult(ctx, manager.StopVM(ctx, service.ServiceID))
 	}
 	body := batchOpReq.TaskBody(service)
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
@@ -199,10 +217,24 @@ func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
 }
 
 // Start service start
-func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
+func (o *OperationHandler) Start(ctx context.Context, batchOpReq model.ComponentOpReq) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
 		return err
+	}
+	if service.IsVM() {
+		ctx, err = vmBatchOperationContext(ctx, batchOpReq, service)
+		if err != nil {
+			return err
+		}
+		manager := GetServiceManager()
+		if manager == nil {
+			return vmBatchOperationResult(ctx, errors.New("VM power handler is unavailable"))
+		}
+		return vmBatchOperationResult(ctx, manager.StartOrCreateVM(ctx, &model.StartStopStruct{
+			TenantID: service.TenantID, ServiceID: service.ServiceID,
+			EventID: batchOpReq.GetEventID(), TaskType: "start",
+		}, service.DeployVersion))
 	}
 
 	body := batchOpReq.TaskBody(service)
@@ -215,6 +247,36 @@ func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
 		return err
 	}
 	return nil
+}
+
+func vmBatchOperationContext(ctx context.Context, req model.ComponentOpReq, service *dbmodel.TenantServices) (context.Context, error) {
+	operationEvent, err := db.GetManager().ServiceEventDao().GetEventByEventID(req.GetEventID())
+	if err != nil {
+		return nil, err
+	}
+	if operationEvent == nil || operationEvent.TenantID != service.TenantID || operationEvent.TargetID != service.ServiceID || operationEvent.ServiceID != service.ServiceID || operationEvent.OptType != req.OpType() {
+		return nil, errors.New("VM power event does not match the component operation")
+	}
+	return context.WithValue(ctx, ctxutil.ContextKey("event"), operationEvent), nil
+}
+
+func vmBatchOperationResult(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	var accepted *bcode.Code
+	var submitted *vmPowerSubmittedError
+	if errors.Is(err, vmrestore.ErrRestoreUnknown) || errors.As(err, &submitted) || errors.As(err, &accepted) && accepted.Status == 202 && accepted.Message == "vm_power_pending" {
+		// Batch success means accepted, just like a queued container operation.
+		// The runtime observer owns event completion, including uncertain writes.
+		return nil
+	}
+	// A raw pending error can describe a previous admission, before this
+	// request was accepted. Only close the current request's scoped event.
+	if eventErr := markDirectVMOperationEvent(ctx, dbmodel.EventStatusFailure); eventErr != nil {
+		return errors.Wrap(eventErr, "close failed VM batch power event")
+	}
+	return err
 }
 
 // Upgrade service upgrade
@@ -306,7 +368,12 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	}
 	previousVersion, err := cleanupguard.SelectRollbackVersion(db.GetManager().Begin, service.TenantID, service.ServiceID, rollback.RollBackVersion, rollback.EventID, oldDeployVersion)
 	if err != nil {
-		re.ErrMsg = "rollback version is no longer available"
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, cleanupguard.ErrVersionProtected) || errors.Is(err, cleanupguard.ErrStateChanged) {
+			re.ErrMsg = "rollback version is no longer available"
+		} else {
+			logrus.WithError(err).Errorf("select rollback version failed for component %s", service.ServiceID)
+			re.ErrMsg = "failed to select rollback version"
+		}
 		return
 	}
 	oldDeployVersion = previousVersion

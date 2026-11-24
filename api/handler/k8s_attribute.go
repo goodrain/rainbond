@@ -23,8 +23,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
+
+	vmrestore "github.com/goodrain/rainbond/pkg/vmrestore"
 
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
@@ -115,11 +119,24 @@ func (s *ServiceAction) ReviseAttributeAffinityByArch(attributeValue string, arc
 
 // GetK8sAttribute -
 func (s *ServiceAction) GetK8sAttribute(componentID, name string) (*dbmodel.ComponentK8sAttributes, error) {
-	return s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, name)
+	if err := vmrestore.CheckPublicAttribute(name); err != nil {
+		return nil, err
+	}
+	attr, err := s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, name)
+	if err != nil || attr == nil {
+		return attr, err
+	}
+	if err := vmrestore.CheckPublicAttribute(attr.Name); err != nil {
+		return nil, err
+	}
+	return attr, nil
 }
 
 // CreateK8sAttribute -
 func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr *apimodel.ComponentK8sAttribute) error {
+	if err := normalizeVMLoginCredentialAttribute(k8sAttr); err != nil {
+		return err
+	}
 	if err := s.getDBManager().ComponentK8sAttributeDao().AddModel(k8sAttr.DbModel(tenantID, componentID)); err != nil {
 		return err
 	}
@@ -128,8 +145,17 @@ func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr
 
 // UpdateK8sAttribute -
 func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *apimodel.ComponentK8sAttribute) error {
+	if err := normalizeVMLoginCredentialAttribute(k8sAttributes); err != nil {
+		return err
+	}
 	attr, err := s.getDBManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, k8sAttributes.Name)
 	if err != nil {
+		return err
+	}
+	if attr == nil {
+		return gorm.ErrRecordNotFound
+	}
+	if err := vmrestore.CheckPublicAttribute(attr.Name); err != nil {
 		return err
 	}
 	if k8sAttributes.SaveType != "" {
@@ -142,12 +168,66 @@ func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *ap
 	return s.syncVMRuntimeDevicesForAttribute(componentID, k8sAttributes.Name)
 }
 
-// DeleteK8sAttribute -
-func (s *ServiceAction) DeleteK8sAttribute(componentID, name string) error {
-	if err := s.getDBManager().ComponentK8sAttributeDao().DeleteByComponentIDAndName(componentID, name); err != nil {
+// ValidateVMLoginCredentialAttributes validates managed login inputs before request side effects.
+func ValidateVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
+	return normalizeVMLoginCredentialAttributes(attributes)
+}
+
+func normalizeVMLoginCredentialAttributes(attributes []apimodel.ComponentK8sAttribute) error {
+	for i := range attributes {
+		if err := normalizeVMLoginCredentialAttribute(&attributes[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeVMLoginCredentialAttribute(attribute *apimodel.ComponentK8sAttribute) error {
+	if attribute == nil {
+		return nil
+	}
+	if err := vmrestore.CheckPublicAttribute(attribute.Name); err != nil {
 		return err
 	}
-	return s.syncVMRuntimeDevicesForAttribute(componentID, name)
+	switch attribute.Name {
+	case "vm_ssh_username":
+		username := strings.TrimSpace(attribute.AttributeValue)
+		if strings.HasPrefix(username, `"`) {
+			var decoded string
+			if json.Unmarshal([]byte(username), &decoded) == nil {
+				username = strings.TrimSpace(decoded)
+			}
+		}
+		if username == "root" {
+			return bcode.NewBadRequest(conversion.VMLoginNonRootMessage)
+		}
+	case "login_password", "vm_login_password":
+		return bcode.NewBadRequest("plain VM login password attributes are forbidden")
+	case conversion.VMLoginPasswordHashAttribute:
+		hash, err := conversion.NormalizeVMLoginPasswordHash(attribute.AttributeValue)
+		if err != nil {
+			return bcode.NewBadRequest("invalid VM login password hash attribute")
+		}
+		attribute.AttributeValue = hash
+		attribute.SaveType = "string"
+	}
+	return nil
+}
+
+// DeleteK8sAttribute -
+func (s *ServiceAction) DeleteK8sAttribute(componentID, name string) error {
+	attr, err := s.GetK8sAttribute(componentID, name)
+	if err != nil {
+		return err
+	}
+	if attr == nil {
+		// An earlier deletion may have committed before runtime synchronization failed.
+		return s.syncVMRuntimeDevicesForAttribute(componentID, name)
+	}
+	if err := vmrestore.DeletePublicAttribute(s.getDBManager().DB(), componentID, attr.ID); err != nil {
+		return err
+	}
+	return s.syncVMRuntimeDevicesForAttribute(componentID, attr.Name)
 }
 
 var vmRuntimeDeviceAttributeNames = []string{
@@ -246,7 +326,7 @@ func (s *ServiceAction) syncVMRuntimeDeviceConfig(vm *kubevirtv1.VirtualMachine,
 	if !changed {
 		return nil
 	}
-	_, err := s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+	_, err := vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), vm, updatedVM)
 	return err
 }
 
@@ -346,6 +426,7 @@ func (s *ServiceAction) syncVirtualMachineConfigMaps(serviceID string) error {
 		}
 		existing, err := s.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), cm.Name, metav1.GetOptions{})
 		if err == nil && existing != nil {
+			vmrestore.PreserveStartupMediaMetadata(existing, cm)
 			cm.ResourceVersion = existing.ResourceVersion
 			cm.UID = existing.UID
 			if _, err = s.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{}); err != nil {
@@ -364,16 +445,24 @@ func (s *ServiceAction) syncVirtualMachineSpec(existingVM, desiredVM *kubevirtv1
 	if existingVM == nil || desiredVM == nil {
 		return nil
 	}
+	preservedVM, err := s.pinRunningVMNetworkIdentity(existingVM)
+	if err != nil {
+		return err
+	}
+	existingVM = preservedVM
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentVM, err := s.kubevirtClient.VirtualMachine(existingVM.Namespace).Get(context.Background(), existingVM.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
+		if currentVM.UID != existingVM.UID {
+			return fmt.Errorf("VM identity changed before synchronizing its specification")
+		}
 		updatedVM, changed := applyVirtualMachineSpec(currentVM, desiredVM)
 		if !changed {
 			return nil
 		}
-		_, err = s.kubevirtClient.VirtualMachine(updatedVM.Namespace).Update(context.Background(), updatedVM, metav1.UpdateOptions{})
+		_, err = vmrestore.UpdateObservedRuntimeVM(context.Background(), s.kubevirtClient.DynamicClient(), currentVM, updatedVM)
 		return err
 	})
 }
@@ -382,12 +471,45 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	if existingVM == nil || desiredVM == nil {
 		return existingVM, false
 	}
-	if reflect.DeepEqual(existingVM.Spec, desiredVM.Spec) {
+	updatedVM := existingVM.DeepCopy()
+	desiredSpec := desiredVM.Spec.DeepCopy()
+	desiredSpec.RunStrategy = updatedVM.Spec.RunStrategy
+	desiredSpec.Running = updatedVM.Spec.Running
+	if existingVM.Spec.Template != nil && desiredSpec.Template != nil {
+		// Resource rendering has no explicit network-edit intent. Preserve the
+		// complete stored binding, including MACs pinned before upgrading older VMs.
+		currentSpec := &updatedVM.Spec.Template.Spec
+		interfaces := currentSpec.Domain.Devices.Interfaces
+		for i := range interfaces {
+			if interfaces[i].MacAddress != "" {
+				continue
+			}
+			for _, next := range desiredSpec.Template.Spec.Domain.Devices.Interfaces {
+				if interfaces[i].Name == next.Name {
+					interfaces[i].MacAddress = next.MacAddress
+					break
+				}
+			}
+		}
+		if len(interfaces) > 0 {
+			desiredSpec.Template.Spec.Domain.Devices.Interfaces = interfaces
+		}
+		if len(currentSpec.Networks) > 0 {
+			desiredSpec.Template.Spec.Networks = currentSpec.Networks
+		}
+		currentFirmware := existingVM.Spec.Template.Spec.Domain.Firmware
+		newFirmware := desiredSpec.Template.Spec.Domain.Firmware
+		if currentFirmware != nil {
+			if newFirmware == nil {
+				desiredSpec.Template.Spec.Domain.Firmware = currentFirmware.DeepCopy()
+			} else if currentFirmware.UUID != "" && newFirmware.UUID == "" {
+				newFirmware.UUID = currentFirmware.UUID
+			}
+		}
+	}
+	if reflect.DeepEqual(existingVM.Spec, *desiredSpec) {
 		return existingVM, false
 	}
-	updatedVM := existingVM.DeepCopy()
-	updatedVM.Spec = desiredVM.Spec
-	updatedVM.Spec.RunStrategy = existingVM.Spec.RunStrategy
-	updatedVM.Spec.Running = existingVM.Spec.Running
+	updatedVM.Spec = *desiredSpec
 	return updatedVM, true
 }

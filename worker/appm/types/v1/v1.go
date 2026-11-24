@@ -20,13 +20,15 @@ package v1
 
 import (
 	"fmt"
-	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
-	"github.com/goodrain/rainbond/event"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
+
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
+	kubevirtv1 "kubevirt.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/goodrain/rainbond/util/k8s"
 	betav1 "k8s.io/api/networking/v1beta1"
@@ -107,23 +109,27 @@ var OnDelete TypeUpgradeMethod = "OnDelete"
 
 // AppServiceBase app service base info
 type AppServiceBase struct {
-	TenantID         string
-	TenantName       string
-	AppID            string
-	ServiceID        string
-	ServiceAlias     string
-	ServiceType      AppServiceType
-	ServiceKind      model.ServiceKind
-	discoveryCfg     *dbmodel.ThirdPartySvcDiscoveryCfg
-	DeployVersion    string
-	ContainerCPU     int
-	ContainerMemory  int
-	ContainerGPU     int
-	UpgradeMethod    TypeUpgradeMethod
-	Replicas         int
-	NeedProxy        bool
-	IsWindowsService bool
-	CreaterID        string
+	RestoreRender     bool                      `json:"-"`
+	VMStartupHints    *vmrestore.VMStartupHints `json:"-"`
+	VMStorageView     *vmrestore.BindingView
+	VMRestoredRuntime *vmrestore.RuntimeSelection
+	TenantID          string
+	TenantName        string
+	AppID             string
+	ServiceID         string
+	ServiceAlias      string
+	ServiceType       AppServiceType
+	ServiceKind       model.ServiceKind
+	discoveryCfg      *dbmodel.ThirdPartySvcDiscoveryCfg
+	DeployVersion     string
+	ContainerCPU      int
+	ContainerMemory   int
+	ContainerGPU      int
+	UpgradeMethod     TypeUpgradeMethod
+	Replicas          int
+	NeedProxy         bool
+	IsWindowsService  bool
+	CreaterID         string
 	//depend all service id
 	Dependces          []string
 	ExtensionSet       map[string]string
@@ -161,6 +167,7 @@ func (a AppServiceBase) IsThirdComponent() bool {
 	return a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String()
 }
 
+// ISVM reports whether the component is a virtual machine.
 func (a AppServiceBase) ISVM() bool {
 	return string(a.ServiceType) == dbmodel.ServiceKindVirtualMachine.String()
 }
@@ -246,6 +253,7 @@ func GetCacheKeyOnlyAppID(appID string) CacheKey {
 	return CacheKey(appID)
 }
 
+// GetVirtualMachine returns the component's rendered virtual machine.
 func (a AppService) GetVirtualMachine() *kubevirtv1.VirtualMachine {
 	return a.virtualmachine
 }
@@ -1363,7 +1371,7 @@ type K8sResources struct {
 	Services    []*corev1.Service
 	Secrets     []*corev1.Secret
 	Ingresses   []interface{}
-	ApiSixRoute []*v2.ApisixRoute
+	APISixRoute []*v2.ApisixRoute `json:"ApiSixRoute"`
 }
 
 // GetTCPMeshImageName get tcp mesh image name

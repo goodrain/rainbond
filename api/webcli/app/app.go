@@ -107,6 +107,7 @@ type InitMessage struct {
 	Md5           string `json:"Md5"`
 	Namespace     string `json:"namespace"`
 	Mode          string `json:"mode"`
+	FlowControl   bool   `json:"flow_control"`
 }
 
 // SetUpgrader -
@@ -128,6 +129,7 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 		logrus.Print("Failed to upgrade connection: " + err.Error())
 		return
 	}
+	defer conn.Close()
 
 	_, stream, err := conn.ReadMessage()
 	if err != nil {
@@ -213,21 +215,23 @@ func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer slave.Close()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 	opts := []webtty.Option{
 		webtty.WithWindowTitle([]byte(ip)),
 		webtty.WithReconnect(60),
 		webtty.WithPermitWrite(),
 	}
+	master, controlledSlave, flowOptions := configureTerminalFlowControl(ctx, &WsWrapper{conn}, slave, init.FlowControl)
+	opts = append(opts, flowOptions...)
 	// create web tty and run
-	tty, err := webtty.New(&WsWrapper{conn}, slave, opts...)
+	tty, err := webtty.New(master, controlledSlave, opts...)
 	if err != nil {
 		logrus.Errorf("open web tty context failure %s", err.Error())
 		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
 	err = tty.Run(ctx)
 	if err != nil {
 		if strings.Contains(err.Error(), "master closed") {

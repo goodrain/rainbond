@@ -1,13 +1,17 @@
 package conversion
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -15,6 +19,12 @@ import (
 
 const (
 	vmOSNameKey               = "vm_os_name"
+	vmBootSourceFormatKey     = "vm_boot_source_format"
+	vmSSHUsernameKey          = "vm_ssh_username"
+	vmSSHPublicKeyKey         = "vm_ssh_authorized_key"
+	vmLoginPasswordHashKey    = VMLoginPasswordHashAttribute
+	vmSSHAuthorizedKeyLimit   = 16 * 1024
+	vmLoginPasswordHashLimit  = 256
 	vmGPUEnabledKey           = "vm_gpu_enabled"
 	vmGPUResourcesKey         = "vm_gpu_resources"
 	vmGPUCountKey             = "vm_gpu_count"
@@ -39,7 +49,33 @@ const (
 	vmGuestSyncVolume    = "rainbond-guest-sync"
 )
 
+// VMLoginPasswordHashAttribute is the managed VM login verifier attribute.
+const VMLoginPasswordHashAttribute = "vm_login_password_hash"
+
+// VMLoginNonRootMessage explains the first-login account policy without echoing input.
+const VMLoginNonRootMessage = "Use a non-root Linux username for VM login (for example ubuntu)"
+
+var vmLinuxUsernamePattern = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
+var vmSHA512CryptPattern = regexp.MustCompile(`^\$6\$rounds=(\d{6,7})\$([./0-9A-Za-z]{16})\$([./0-9A-Za-z]{86})$`)
+
+type vmLoginMode string
+
+const (
+	vmLoginModeNone     vmLoginMode = "none"
+	vmLoginModeSSHKey   vmLoginMode = "ssh_key"
+	vmLoginModePassword vmLoginMode = "password"
+)
+
+type vmLoginBootstrap struct {
+	Mode          vmLoginMode
+	Username      string
+	AuthorizedKey string
+	PasswordHash  string
+}
+
 type vmRuntimeConfig struct {
+	// RootDiskBus stays SATA unless login bootstrap was validated for a Linux disk image.
+	RootDiskBus kubevirtv1.DiskBus
 	Networks    []kubevirtv1.Network
 	Interfaces  []kubevirtv1.Interface
 	Volumes     []kubevirtv1.Volume
@@ -62,8 +98,16 @@ type vmDiskLayoutItem struct {
 
 func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret,
 	guestFiles []volume.VMGuestFile) (vmRuntimeConfig, error) {
+	login, err := validateVMLoginBootstrap(extensionSet)
+	if err != nil {
+		return vmRuntimeConfig{}, err
+	}
+	if login.Mode != vmLoginModeNone && (!looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) || vmBootSourceUsesCDRom(extensionSet)) {
+		return vmRuntimeConfig{}, errors.New("VM login bootstrap requires a Linux disk image")
+	}
 	interfaceModel := resolveVMInterfaceModel()
 	cfg := vmRuntimeConfig{
+		RootDiskBus: kubevirtv1.DiskBusSATA,
 		Networks: []kubevirtv1.Network{
 			{
 				Name: vmPrimaryNetworkName,
@@ -83,6 +127,13 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 		},
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
+	}
+	if looksLikeWindowsGuestHint(extensionSet[vmOSNameKey]) {
+		cfg.Interfaces[0].Bridge = nil
+		cfg.Interfaces[0].Masquerade = &kubevirtv1.InterfaceMasquerade{}
+	}
+	if login.Mode != vmLoginModeNone {
+		cfg.RootDiskBus = kubevirtv1.DiskBusVirtio
 	}
 	if envConfigMap := buildVMEnvConfigMap(extensionSet, envs, envVarSecrets); envConfigMap != nil {
 		cfg.ConfigMaps = append(cfg.ConfigMaps, envConfigMap)
@@ -104,18 +155,51 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 			},
 		})
 	}
-	if syncVolume := buildVMGuestSyncVolume(extensionSet, guestFiles); syncVolume != nil {
+	syncVolume, err := buildVMGuestSyncVolume(extensionSet, guestFiles, login)
+	if err != nil {
+		return vmRuntimeConfig{}, err
+	}
+	if syncVolume != nil {
 		cfg.Volumes = append(cfg.Volumes, *syncVolume)
-		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
-			Name: vmGuestSyncVolume,
-			DiskDevice: kubevirtv1.DiskDevice{
-				CDRom: &kubevirtv1.CDRomTarget{
-					Bus: kubevirtv1.DiskBusSATA,
-				},
+		syncDiskDevice := kubevirtv1.DiskDevice{
+			CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
 			},
+		}
+		if login.Mode != vmLoginModeNone {
+			syncDiskDevice = kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{Bus: cfg.RootDiskBus},
+			}
+		}
+		cfg.Disks = append(cfg.Disks, kubevirtv1.Disk{
+			Name:       vmGuestSyncVolume,
+			DiskDevice: syncDiskDevice,
 		})
 	}
 	return cfg, nil
+}
+
+func applyVMLoginRootDiskBus(disks []kubevirtv1.Disk, diskMeta map[string]volume.VMDiskMeta,
+	bootPath vmBootPath, rootDiskBus kubevirtv1.DiskBus) []kubevirtv1.Disk {
+	if bootPath != vmBootPathImportedRootDisk || rootDiskBus != kubevirtv1.DiskBusVirtio {
+		return disks
+	}
+	rootMeta, ok := diskMeta[vmDiskRootKey]
+	if !ok || rootMeta.DiskKey != vmDiskRootKey || rootMeta.DeviceType != vmDiskDeviceDisk || rootMeta.DiskName == "" {
+		return disks
+	}
+
+	for index := range disks {
+		if disks[index].Name != rootMeta.DiskName || disks[index].DiskDevice.Disk == nil {
+			continue
+		}
+		updated := append([]kubevirtv1.Disk(nil), disks...)
+		target := *updated[index].DiskDevice.Disk
+		target.Bus = rootDiskBus
+		updated[index].DiskDevice.Disk = &target
+		return updated
+	}
+	return disks
 }
 
 func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret) *corev1.ConfigMap {
@@ -179,20 +263,130 @@ func buildVMEnvConfigMap(extensionSet map[string]string, envs []corev1.EnvVar, e
 	}
 }
 
-func buildVMGuestSyncVolume(extensionSet map[string]string, guestFiles []volume.VMGuestFile) *kubevirtv1.Volume {
-	if !looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) || len(guestFiles) == 0 {
-		return nil
+func validateVMLoginBootstrap(extensionSet map[string]string) (vmLoginBootstrap, error) {
+	username := strings.TrimSpace(extensionSet[vmSSHUsernameKey])
+	publicKey := strings.TrimSpace(extensionSet[vmSSHPublicKeyKey])
+	passwordHash := extensionSet[vmLoginPasswordHashKey]
+	if extensionSet["vm_login_password"] != "" {
+		return vmLoginBootstrap{}, errors.New("invalid VM login configuration")
 	}
-	commands := make([]string, 0, len(guestFiles)+8)
-	commands = append(commands,
-		"#!/bin/bash",
-		"set -eu",
-		"",
-		"mkdir -p /var/lib/cloud/scripts/per-boot",
-		"cat >/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh <<'EOF'",
-		"#!/bin/bash",
-		"set -eu",
-	)
+	if username == "" && publicKey == "" && passwordHash == "" {
+		return vmLoginBootstrap{Mode: vmLoginModeNone}, nil
+	}
+	if username == "root" {
+		return vmLoginBootstrap{}, errors.New(VMLoginNonRootMessage)
+	}
+	if username == "" || !vmLinuxUsernamePattern.MatchString(username) || publicKey != "" && passwordHash != "" {
+		return vmLoginBootstrap{}, errors.New("invalid VM login configuration")
+	}
+	if publicKey != "" {
+		if len(publicKey) > vmSSHAuthorizedKeyLimit || strings.ContainsAny(publicKey, "\r\n") || strings.Contains(publicKey, "PRIVATE KEY") {
+			return vmLoginBootstrap{}, errors.New("invalid VM SSH public key")
+		}
+		parsed, _, options, rest, err := ssh.ParseAuthorizedKey([]byte(publicKey))
+		if err != nil || len(options) != 0 || len(bytes.TrimSpace(rest)) != 0 {
+			return vmLoginBootstrap{}, errors.New("invalid VM SSH public key")
+		}
+		return vmLoginBootstrap{
+			Mode:          vmLoginModeSSHKey,
+			Username:      username,
+			AuthorizedKey: strings.TrimSpace(string(ssh.MarshalAuthorizedKey(parsed))),
+		}, nil
+	}
+	if passwordHash == "" || passwordHash != strings.TrimSpace(passwordHash) || len(passwordHash) > vmLoginPasswordHashLimit ||
+		strings.ContainsAny(passwordHash, "\r\n\x00") || username == "root" ||
+		!looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) || vmBootSourceUsesCDRom(extensionSet) {
+		return vmLoginBootstrap{}, errors.New("invalid VM password bootstrap configuration")
+	}
+	passwordHash, err := NormalizeVMLoginPasswordHash(passwordHash)
+	if err != nil {
+		return vmLoginBootstrap{}, err
+	}
+	return vmLoginBootstrap{Mode: vmLoginModePassword, Username: username, PasswordHash: passwordHash}, nil
+}
+
+// NormalizeVMLoginPasswordHash accepts a raw or JSON-string-encoded Console value and validates
+// the SHA-512-crypt verifier before it is stored or rendered into cloud-init.
+func NormalizeVMLoginPasswordHash(value string) (string, error) {
+	if value == "" || value != strings.TrimSpace(value) || len(value) > vmLoginPasswordHashLimit ||
+		strings.ContainsAny(value, "\r\n\x00") {
+		return "", errors.New("invalid VM login password hash")
+	}
+	logicalValue := value
+	if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+		if err := json.Unmarshal([]byte(value), &logicalValue); err != nil {
+			return "", errors.New("invalid VM login password hash")
+		}
+	}
+	if logicalValue == "" || len(logicalValue) > vmLoginPasswordHashLimit || strings.ContainsAny(logicalValue, "\r\n\x00") {
+		return "", errors.New("invalid VM login password hash")
+	}
+	parts := vmSHA512CryptPattern.FindStringSubmatch(logicalValue)
+	if len(parts) != 4 {
+		return "", errors.New("invalid VM login password hash")
+	}
+	rounds, err := strconv.Atoi(parts[1])
+	if err != nil || rounds < 100000 || rounds > 1000000 {
+		return "", errors.New("invalid VM login password hash")
+	}
+	return logicalValue, nil
+}
+
+func buildVMGuestSyncVolume(extensionSet map[string]string, guestFiles []volume.VMGuestFile,
+	login vmLoginBootstrap) (*kubevirtv1.Volume, error) {
+	if !looksLikeLinuxGuestHint(extensionSet[vmOSNameKey]) || len(guestFiles) == 0 && login.Mode == vmLoginModeNone {
+		return nil, nil
+	}
+	syncScript := buildVMGuestSyncScript(guestFiles)
+	userData := ""
+	if login.Mode == vmLoginModeNone {
+		userData = buildVMLegacyGuestSyncUserData(syncScript)
+	} else {
+		cloudConfig := map[string]any{
+			"users": []any{"default"},
+		}
+		user := map[string]any{"name": login.Username}
+		switch login.Mode {
+		case vmLoginModeSSHKey:
+			cloudConfig["ssh_pwauth"] = false
+			user["ssh_authorized_keys"] = []string{login.AuthorizedKey}
+		case vmLoginModePassword:
+			cloudConfig["ssh_pwauth"] = true
+			user["hashed_passwd"] = login.PasswordHash
+			user["lock_passwd"] = false
+			user["groups"] = []string{"sudo"}
+			user["sudo"] = "ALL=(ALL) ALL"
+			user["shell"] = "/bin/bash"
+		default:
+			return nil, errors.New("invalid VM login mode")
+		}
+		cloudConfig["users"] = append(cloudConfig["users"].([]any), user)
+		if len(guestFiles) > 0 {
+			cloudConfig["write_files"] = []map[string]string{{
+				"path":        "/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh",
+				"permissions": "0700",
+				"content":     syncScript,
+			}}
+		}
+		cloudConfigData, err := json.Marshal(cloudConfig)
+		if err != nil {
+			return nil, fmt.Errorf("marshal VM cloud-init configuration: %w", err)
+		}
+		userData = "#cloud-config\n" + string(cloudConfigData) + "\n"
+	}
+	return &kubevirtv1.Volume{
+		Name: vmGuestSyncVolume,
+		VolumeSource: kubevirtv1.VolumeSource{
+			CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+				UserData: userData,
+			},
+		},
+	}, nil
+}
+
+func buildVMGuestSyncScript(guestFiles []volume.VMGuestFile) string {
+	commands := make([]string, 0, len(guestFiles)+2)
+	commands = append(commands, "#!/bin/bash", "set -eu")
 	for _, file := range guestFiles {
 		commands = append(commands,
 			fmt.Sprintf("src_dir=$(blkid -L %s -o device | xargs -r dirname || true)", shellQuote(file.VolumeLabel)),
@@ -203,19 +397,22 @@ func buildVMGuestSyncVolume(extensionSet map[string]string, guestFiles []volume.
 			"fi",
 		)
 	}
-	commands = append(commands,
+	return strings.Join(commands, "\n") + "\n"
+}
+
+func buildVMLegacyGuestSyncUserData(syncScript string) string {
+	commands := []string{
+		"#!/bin/bash",
+		"set -eu",
+		"",
+		"mkdir -p /var/lib/cloud/scripts/per-boot",
+		"cat >/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh <<'EOF'",
+		strings.TrimSuffix(syncScript, "\n"),
 		"EOF",
 		"chmod +x /var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh",
 		"/var/lib/cloud/scripts/per-boot/90-rainbond-sync.sh || true",
-	)
-	return &kubevirtv1.Volume{
-		Name: vmGuestSyncVolume,
-		VolumeSource: kubevirtv1.VolumeSource{
-			CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-				UserData: strings.Join(commands, "\n") + "\n",
-			},
-		},
 	}
+	return strings.Join(commands, "\n") + "\n"
 }
 
 func parentDir(targetPath string) string {
@@ -275,6 +472,7 @@ func buildVMHostDevices(extensionSet map[string]string) []kubevirtv1.HostDevice 
 	return devices
 }
 
+// BuildVMAccelerationDevices returns GPU and host devices requested by VM attributes.
 func BuildVMAccelerationDevices(extensionSet map[string]string) ([]kubevirtv1.GPU, []kubevirtv1.HostDevice) {
 	return buildVMGPUDevices(extensionSet), buildVMHostDevices(extensionSet)
 }

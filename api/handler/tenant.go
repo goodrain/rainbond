@@ -908,7 +908,7 @@ func (t *TenantAction) TenantResourceQuota(ctx context.Context, namespace string
 
 // ConvertMemory formats memory in Mi or whole Gi units.
 func ConvertMemory(memory int) string {
-	if memory >= 1024 {
+	if memory >= 1024 && memory%1024 == 0 {
 		return fmt.Sprintf("%vGi", memory/1024)
 	}
 	return fmt.Sprintf("%vMi", memory)
@@ -916,7 +916,7 @@ func ConvertMemory(memory int) string {
 
 // ConvertCPU formats millicores as milliCPU or whole CPU units.
 func ConvertCPU(cpu int) string {
-	if cpu >= 1000 {
+	if cpu >= 1000 && cpu%1000 == 0 {
 		return fmt.Sprintf("%v", strconv.Itoa(cpu/1000))
 	}
 	return fmt.Sprintf("%vm", cpu)

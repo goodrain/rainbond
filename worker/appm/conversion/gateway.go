@@ -105,7 +105,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	for _, sec := range k8s.Secrets {
 		as.SetSecret(sec)
 	}
-	for _, route := range k8s.ApiSixRoute {
+	for _, route := range k8s.APISixRoute {
 		_, createErr := k8s2.Default().ApiSixClient.ApisixV2().
 			ApisixRoutes(as.GetNamespace()).
 			Create(context.Background(), route, metav1.CreateOptions{})
@@ -217,7 +217,7 @@ func (a *AppServiceBuild) Build(as *v1.AppService) (*v1.K8sResources, error) {
 		Services:    services,
 		Secrets:     secrets,
 		Ingresses:   ingresses,
-		ApiSixRoute: apiSixRoutes,
+		APISixRoute: apiSixRoutes,
 	}, nil
 }
 

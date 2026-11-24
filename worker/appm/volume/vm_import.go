@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/docker/distribution/reference"
@@ -344,6 +346,12 @@ func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels,
 }
 
 func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) (kubevirtv1.DataVolumeTemplateSpec, error) {
+	// VMDK is an input to Builder, not a runtime disk format. The server-owned
+	// build target must carry the converted QCOW2; never bypass that validation
+	// by sending an original VMDK directly to a CDI HTTP/registry importer.
+	if unconvertedVMDKImport(cfg) {
+		return kubevirtv1.DataVolumeTemplateSpec{}, fmt.Errorf("%w: VMDK must be converted by Builder before disk import", ErrInvalidVMRegistryImport)
+	}
 	logrus.Infof(
 		"vm disk import template build: claim=%s service_id=%s volume_name=%s source_type=%s image_url=%s cert_configmap=%s extra_headers=%d",
 		claim.Name,
@@ -404,4 +412,22 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 			},
 		},
 	}, nil
+}
+
+func unconvertedVMDKImport(cfg vmDiskImportConfig) bool {
+	format := strings.ToLower(strings.TrimSpace(cfg.Format))
+	if format == "vmdk" || strings.HasPrefix(format, "vmdk.") {
+		return true
+	}
+	// A registry source may legitimately retain the original VMDK URI solely
+	// as provenance. Only the actual HTTP input is inspected here.
+	if cfg.SourceType == vmDiskImportSourceTypeRegistry || cfg.SourceType == vmDiskImportSourceTypeHTTPArtifact {
+		return false
+	}
+	u, err := url.Parse(cfg.ImageURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+	name := strings.ToLower(path.Base(u.Path))
+	return strings.HasSuffix(name, ".vmdk") || strings.HasSuffix(name, ".vmdk.gz") || strings.HasSuffix(name, ".vmdk.xz")
 }

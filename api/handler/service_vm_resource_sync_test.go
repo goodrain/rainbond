@@ -11,6 +11,7 @@ import (
 	mqpb "github.com/goodrain/rainbond/mq/api/grpc/pb"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/jinzhu/gorm"
 	"google.golang.org/grpc"
 )
 
@@ -22,6 +23,8 @@ type resourceSyncTestManager struct {
 	relationDao     dbdao.TenantServiceRelationDao
 	attributeDao    dbdao.ComponentK8sAttributeDao
 }
+
+func (m resourceSyncTestManager) DB() *gorm.DB { return nil }
 
 func (m resourceSyncTestManager) TenantServiceDao() dbdao.TenantServiceDao {
 	return m.serviceDao

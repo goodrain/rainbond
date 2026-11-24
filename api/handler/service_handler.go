@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
@@ -45,7 +46,18 @@ type ServiceHandler interface {
 	CreateVMExport(serviceID string, req *VMExportRequest) (*VMExportStatus, error)
 	GetVMExport(serviceID, exportName string) (*VMExportStatus, error)
 	CreateVMSnapshot(serviceID string, req *VMSnapshotRequest) (*VMSnapshotStatus, error)
+	PrepareVMSnapshot(context.Context, string, *VMSnapshotRequest) (*VMSnapshotStatus, error)
+	ListVMSnapshots(context.Context, string, int, int) (vmrestore.SnapshotListDTO, error)
+	GetVMSnapshot(context.Context, string, string) (vmrestore.SnapshotOperationDTO, error)
+	VMSnapshotAction(context.Context, string, string, string, vmrestore.SnapshotActionRequest) (vmrestore.SnapshotOperationDTO, error)
+	StartNativeVMRestore(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
+	GetNativeVMRestore(context.Context, string, string, string) (vmrestore.NativeRestoreDTO, error)
+	GetVMRestore(context.Context, string, string) (vmrestore.RestoreOperationDTO, error)
+	GetVMRestoreControl(context.Context, string) (vmrestore.RestoreControlDTO, error)
+	VMRestoreCommand(context.Context, string, string, string, vmrestore.RestoreCommand) (vmrestore.RestoreOperationDTO, error)
+	GetExistingVMSnapshotCapability(context.Context, string, string) (*ExistingVMSnapshotCapability, error)
 	GetVMLiveUpdateCapability(serviceID string) VMLiveUpdateCapability
+	GetVMRecycleRecovery(context.Context, string) (*VMRecycleRecovery, error)
 	SetVMFixedPodIP(ctx context.Context, serviceID string, enabled bool) (*VMFixedPodIPResult, error)
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error

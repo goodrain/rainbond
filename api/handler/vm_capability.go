@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"os"
 	"sort"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,17 +20,21 @@ var (
 	}
 )
 
+// VMCapability describes the VM features and host devices available to a region.
 type VMCapability struct {
-	ChunkUploadSupported bool     `json:"chunk_upload_supported"`
-	GPUSupported         bool     `json:"gpu_supported"`
-	USBSupported         bool     `json:"usb_supported"`
-	GPUResources         []string `json:"gpu_resources"`
-	USBResources         []string `json:"usb_resources"`
+	ChunkUploadSupported       bool     `json:"chunk_upload_supported"`
+	GPUSupported               bool     `json:"gpu_supported"`
+	USBSupported               bool     `json:"usb_supported"`
+	PasswordBootstrapSupported bool     `json:"password_bootstrap_supported"`
+	GPUResources               []string `json:"gpu_resources"`
+	USBResources               []string `json:"usb_resources"`
 }
 
+// BuildVMCapabilities builds the supported VM features and host-device resources.
 func BuildVMCapabilities(dynamicClient dynamic.Interface) (*VMCapability, error) {
 	capabilities := &VMCapability{
-		ChunkUploadSupported: true,
+		ChunkUploadSupported:       true,
+		PasswordBootstrapSupported: os.Getenv("VM_PASSWORD_BOOTSTRAP_ENABLED") == "true",
 	}
 	if dynamicClient == nil {
 		return capabilities, nil

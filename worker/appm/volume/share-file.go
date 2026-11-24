@@ -20,13 +20,15 @@ package volume
 
 import (
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 	"os"
 	"path"
 	"strings"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/vmrestore"
+	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 // ShareFileVolume nfs volume struct
@@ -73,6 +75,24 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		v.generateVolumeSubPath(define, vm)
 		define.volumeMounts = append(define.volumeMounts, *vm)
 	} else if v.as.GetVirtualMachine() != nil {
+		if v.as.VMStorageView != nil {
+			for _, resolved := range v.as.VMStorageView.Volumes {
+				if resolved.VolumeID != v.svm.ID || !resolved.Mapped {
+					continue
+				}
+				if !resolved.Attached {
+					return nil
+				}
+				if resolved.ActivePVC == nil || resolved.Provisioning != "bound" {
+					return vmrestore.ErrConflict
+				}
+				define.vmVolume = append(define.vmVolume, kubevirtv1.Volume{Name: resolved.CanonicalName, VolumeSource: kubevirtv1.VolumeSource{PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{ClaimName: resolved.ActivePVC.Name, ReadOnly: resolved.ReadOnly}}}})
+				order := uint(len(define.vmDisk) + 1)
+				define.vmDisk = append(define.vmDisk, kubevirtv1.Disk{Name: resolved.CanonicalName, BootOrder: &order, DiskDevice: BuildVMDiskDevice(volumeMountPath)})
+				define.SetVMDiskMeta(VMDiskMeta{DiskName: resolved.CanonicalName, DiskKey: resolved.DiskKey, DeviceType: VMVolumeDeviceType(volumeMountPath), SourceKind: "volume", VolumePath: volumeMountPath, VolumeName: resolved.DiskKey})
+				return nil
+			}
+		}
 		importConfigs := map[string]vmDiskImportConfig{}
 		if v.dbmanager != nil {
 			var err error

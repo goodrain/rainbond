@@ -1,6 +1,7 @@
 package exector
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,7 +39,8 @@ type vmDiskBuildStrategy string
 
 const (
 	vmDiskBuildStrategyDirect       vmDiskBuildStrategy = "direct"
-	vmDiskBuildStrategyConvertRaw   vmDiskBuildStrategy = "convert-raw"
+	vmDiskBuildStrategyConvertDisk  vmDiskBuildStrategy = "convert-disk"
+	vmDiskBuildStrategyConvertVMDK  vmDiskBuildStrategy = "convert-vmdk"
 	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
 )
 
@@ -63,34 +65,52 @@ COPY ${VM_PATH} /disk/disk.img.gz
 RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
 `
 
-var vmRawToQCOW2DockerfileTmpl = `
+// IMG is a filename convention, not a disk format. Probe inside the converter
+// image, which provides qemu-img, and accept only self-contained raw/QCOW2 disks.
+// Parse its JSON with shell builtins to avoid adding converter dependencies.
+var vmDiskToQCOW2DockerfileTmpl = `
 FROM ${CONVERTER_IMAGE} AS convert
 WORKDIR /work
 COPY ${VM_PATH} /work/source.img
-RUN /usr/bin/qemu-img convert -p -f raw -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img
+RUN /usr/bin/qemu-img info --output=json /work/source.img > /work/source-info.json && format= && while IFS= read -r line; do case "$line" in '    "format": "raw"'*) format=raw ;; '    "format": "qcow2"'*) format=qcow2 ;; *'"backing-filename":'*|*'"data-file":'*) echo 'VM disk must not reference external files' >&2; exit 1 ;; esac; done < /work/source-info.json && case "$format" in raw|qcow2) ;; *) echo 'unsupported VM disk content format' >&2; exit 1 ;; esac && /usr/bin/qemu-img convert -p -f "$format" -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source-info.json
+FROM scratch
+COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
+`
+
+// Go has already verified the complete bounded VMDK header/descriptor. Disable
+// network and use a literal file child with backing=null as a second boundary;
+// never pass untrusted descriptor names or image options to qemu.
+var vmVMDKToQCOW2DockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS convert
+WORKDIR /work
+COPY ${VM_PATH} /work/source.img
+RUN --network=none set -eu; input='json:{"driver":"vmdk","file":{"driver":"file","filename":"/work/source.img"},"backing":null}'; trap 'rm -f /work/rootdisk.qcow2 /work/rootdisk.tmp.qcow2' EXIT; /usr/bin/qemu-img info --output=json "$input" > /work/source-info.json && /usr/bin/qemu-img check "$input" && /usr/bin/qemu-img convert -p -O qcow2 -c "$input" /work/rootdisk.tmp.qcow2 && /usr/bin/qemu-img check -f qcow2 /work/rootdisk.tmp.qcow2 || { echo "vm_vmdk_invalid: VMDK完整性检查或转换失败，请检查源盘、正常关机并重新导出单文件磁盘" >&2; exit 1; }; mv /work/rootdisk.tmp.qcow2 /work/rootdisk.qcow2; trap - EXIT; rm -f /work/source.img /work/source-info.json
 FROM scratch
 COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
 `
 
 // VMBuildItem -
 type VMBuildItem struct {
-	cleanupAdmission *nativeBuildAdmission
-	Logger           event.Logger `json:"logger"`
-	Arch             string       `json:"arch"`
-	VMImageSource    string       `json:"vm_image_source"`
-	VMImageToken     string       `json:"vm_image_token"`
-	ImageClient      sources.ImageClient
-	Configs          map[string]gjson.Result `json:"configs"`
-	ServiceID        string                  `json:"service_id"`
-	DeployVersion    string                  `json:"deploy_version"`
-	Image            string                  `json:"image"`
-	BuildKitImage    string
-	BuildKitArgs     []string
-	BuildKitCache    bool
-	Action           string `json:"action"`
-	EventID          string `json:"event_id"`
-	TenantID         string `json:"tenant_id"`
-	kubeClient       kubernetes.Interface
+	// Delivery artifacts have their own identity and never modify runtime builds.
+	SkipVersionStore  bool `json:"-"`
+	cleanupAdmission  *nativeBuildAdmission
+	Logger            event.Logger `json:"logger"`
+	Arch              string       `json:"arch"`
+	VMImageSource     string       `json:"vm_image_source"`
+	VMImageToken      string       `json:"vm_image_token"`
+	ImageClient       sources.ImageClient
+	Configs           map[string]gjson.Result `json:"configs"`
+	ServiceID         string                  `json:"service_id"`
+	DeployVersion     string                  `json:"deploy_version"`
+	Image             string                  `json:"image"`
+	BuildKitImage     string
+	BuildKitArgs      []string
+	BuildKitCache     bool
+	Action            string `json:"action"`
+	EventID           string `json:"event_id"`
+	TenantID          string `json:"tenant_id"`
+	kubeClient        kubernetes.Interface
+	readVMRootImports func() (string, error)
 }
 
 // NewVMBuildItem -
@@ -136,7 +156,10 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		fileInfoList[0].Name(),
 	)
 	renderStarted := time.Now()
-	dockerfile, err := renderVMDockerfile(fileInfoList[0].Name())
+	dockerfile, convertedVMDK, err := renderVMSourceDockerfileChecked(sourcePath, fileInfoList[0].Name())
+	if err == nil && convertedVMDK {
+		err = v.validateVMDKRuntimeBinding()
+	}
 	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_render", renderStarted, err, map[string]interface{}{
 		"service_id":  v.ServiceID,
 		"event_id":    v.EventID,
@@ -181,6 +204,11 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		return err
 	}
 	v.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
+	if convertedVMDK {
+		if err := v.validateVMDKRuntimeBinding(); err != nil {
+			return err
+		}
+	}
 	storeVersionStarted := time.Now()
 	if err := recordVMBuildStage(v.Logger, "vm_version_store", storeVersionStarted, v.storeVersionInfo(imageName), map[string]interface{}{
 		"service_id":     v.ServiceID,
@@ -207,6 +235,9 @@ func (v *VMBuildItem) localImageName() string {
 }
 
 func (v *VMBuildItem) storeVersionInfo(imageName string) error {
+	if v.SkipVersionStore {
+		return nil
+	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(v.DeployVersion, v.ServiceID)
 	if err != nil {
 		return err
@@ -222,6 +253,7 @@ func (v *VMBuildItem) storeVersionInfo(imageName string) error {
 	return v.cleanupAdmission.saveVersion(version)
 }
 
+// UpdateVersionInfo stores the final status of the VM build event.
 func (v *VMBuildItem) UpdateVersionInfo(status string) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(v.EventID)
 	if err != nil {
@@ -234,6 +266,14 @@ func (v *VMBuildItem) UpdateVersionInfo(status string) error {
 }
 
 func renderVMDockerfile(fileName string) (string, error) {
+	// Filenames are interpolated into Dockerfile COPY/ADD instructions. Keep
+	// paths, options, variable expansion, and additional instructions out.
+	if !sourceutil.IsSafeVMImageFileName(fileName) {
+		return "", fmt.Errorf("unsafe vm image file name %q", fileName)
+	}
+	if sourceutil.IsWrappedVMVMDKFileName(fileName) {
+		return "", fmt.Errorf("vm_vmdk_wrapped: 请先解压为单个自包含VMDK再上传")
+	}
 	media, err := resolveVMBuildMedia(fileName)
 	if err != nil {
 		return "", err
@@ -250,8 +290,10 @@ func renderVMDockerfile(fileName string) (string, error) {
 		switch resolveVMDiskBuildStrategy(fileName) {
 		case vmDiskBuildStrategyHTTPArtifact:
 			return strings.TrimPrefix(util.ParseVariable(vmHTTPArtifactDockerfileTmpl, envs), "\n"), nil
-		case vmDiskBuildStrategyConvertRaw:
-			return strings.TrimPrefix(util.ParseVariable(vmRawToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyConvertDisk:
+			return strings.TrimPrefix(util.ParseVariable(vmDiskToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyConvertVMDK:
+			return strings.TrimPrefix(util.ParseVariable(vmVMDKToQCOW2DockerfileTmpl, envs), "\n"), nil
 		default:
 			return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
 		}
@@ -260,13 +302,45 @@ func renderVMDockerfile(fileName string) (string, error) {
 	}
 }
 
+func renderVMSourceDockerfile(sourcePath, fileName string) (string, error) {
+	dockerfile, _, err := renderVMSourceDockerfileChecked(sourcePath, fileName)
+	return dockerfile, err
+}
+
+func renderVMSourceDockerfileChecked(sourcePath, fileName string) (string, bool, error) {
+	if !sourceutil.IsSafeVMImageFileName(fileName) && !sourceutil.IsSafeVMVMDKInputFileName(fileName) {
+		return "", false, fmt.Errorf("unsafe VM source file name")
+	}
+	vmdk, err := sourceutil.InspectVMDKFile(filepath.Join(sourcePath, fileName))
+	if err != nil {
+		return "", false, err
+	}
+	if vmdk {
+		const staged = "source.vmdk"
+		if fileName != staged {
+			if _, err := os.Lstat(filepath.Join(sourcePath, staged)); !os.IsNotExist(err) {
+				return "", false, fmt.Errorf("vm_vmdk_staging_conflict: 请清理旧的源文件，只保留一个VMDK")
+			}
+			if err := os.Rename(filepath.Join(sourcePath, fileName), filepath.Join(sourcePath, staged)); err != nil {
+				return "", false, err
+			}
+		}
+		envs := map[string]string{"VM_PATH": staged, "CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage)}
+		return strings.TrimPrefix(util.ParseVariable(vmVMDKToQCOW2DockerfileTmpl, envs), "\n"), true, nil
+	}
+	dockerfile, err := renderVMDockerfile(fileName)
+	return dockerfile, false, err
+}
+
 func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
 	name := strings.ToLower(strings.TrimSpace(fileName))
 	switch {
-	case strings.HasSuffix(name, ".img.gz"):
+	case strings.HasSuffix(name, ".vmdk"):
+		return vmDiskBuildStrategyConvertVMDK
+	case strings.HasSuffix(name, ".img.gz"), strings.HasSuffix(name, ".raw.gz"):
 		return vmDiskBuildStrategyHTTPArtifact
-	case strings.HasSuffix(name, ".img"):
-		return vmDiskBuildStrategyConvertRaw
+	case strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"):
+		return vmDiskBuildStrategyConvertDisk
 	default:
 		return vmDiskBuildStrategyDirect
 	}
@@ -283,7 +357,7 @@ func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
 	switch {
 	case strings.HasSuffix(name, ".iso"):
 		return vmBuildMediaISO, nil
-	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".tar"):
+	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"), strings.HasSuffix(name, ".vmdk"), strings.HasSuffix(name, ".tar"):
 		return vmBuildMediaDisk, nil
 	default:
 		return "", fmt.Errorf("unsupported vm image format for %q", fileName)
@@ -293,6 +367,9 @@ func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
 // RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
 	if sourceutil.IsLocalPackageSource(v.VMImageSource) {
+		if err := sourceutil.ValidateVMLocalPackageSource(v.VMImageSource); err != nil {
+			return err
+		}
 		logrus.Infof("vm build uses local package source: service_id=%s event_id=%s source=%s", v.ServiceID, v.EventID, v.VMImageSource)
 		readLocalStarted := time.Now()
 		if _, err := sourceutil.ReadLocalPackageDir(v.VMImageSource); err != nil {
@@ -302,6 +379,9 @@ func (v *VMBuildItem) RunVMBuild() error {
 				"vm_image_source": v.VMImageSource,
 			})
 		}
+		if err := sourceutil.ValidateVMLocalPackageSource(v.VMImageSource); err != nil {
+			return err
+		}
 		if err := recordVMBuildStage(v.Logger, "vm_local_source_prepare", readLocalStarted, nil, map[string]interface{}{
 			"service_id":      v.ServiceID,
 			"event_id":        v.EventID,
@@ -309,16 +389,24 @@ func (v *VMBuildItem) RunVMBuild() error {
 		}); err != nil {
 			return err
 		}
-		defer os.RemoveAll(v.VMImageSource)
+		defer func() {
+			if err := sourceutil.RemoveVMLocalPackageSource(v.VMImageSource); err != nil {
+				logrus.Warn("VM local source cleanup refused outside the managed upload boundary")
+			}
+		}()
 		return v.vmBuild(v.VMImageSource)
 	}
 	vmImageSource := vmRemoteImageSourceDir(v.ServiceID, v.EventID)
+	if v.SkipVersionStore {
+		defer os.RemoveAll(vmImageSource)
+	}
 	logrus.Infof("vm build downloads remote source: service_id=%s event_id=%s source=%s target_dir=%s", v.ServiceID, v.EventID, v.VMImageSource, vmImageSource)
 	err := downloadFile(vmImageSource, v.VMImageSource, v.VMImageToken, v.Logger, map[string]interface{}{
-		"service_id":      v.ServiceID,
-		"event_id":        v.EventID,
-		"vm_image_source": v.VMImageSource,
-		"target_dir":      vmImageSource,
+		"delivery_capture": v.SkipVersionStore,
+		"service_id":       v.ServiceID,
+		"event_id":         v.EventID,
+		"vm_image_source":  v.VMImageSource,
+		"target_dir":       vmImageSource,
 	})
 	if err != nil {
 		return err
@@ -336,6 +424,10 @@ func vmRemoteImageSourceDir(serviceID, eventID string) string {
 
 func downloadFile(downPath, url, token string, Logger event.Logger, metadata map[string]interface{}) error {
 	downloadStarted := time.Now()
+	fileName, err := sourceutil.VMImageFileNameFromURL(url)
+	if err != nil {
+		return recordVMBuildStage(Logger, "vm_source_download", downloadStarted, err, metadata)
+	}
 	// 创建一个 HTTP client 和 request
 	client := sourceutil.NewRemotePackageHTTPClient(url)
 	req, err := http.NewRequest("GET", url, nil)
@@ -344,6 +436,14 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 			"url":        url,
 			"target_dir": downPath,
 		}))
+	}
+	if metadata["delivery_capture"] == true {
+		ctx, cancel := context.WithTimeout(req.Context(), 90*time.Minute)
+		defer cancel()
+		req = req.WithContext(ctx)
+		// The URL names a gzip artifact. Preserve those bytes even if the export
+		// server also advertises HTTP Content-Encoding: gzip.
+		req.Header.Set("Accept-Encoding", "identity")
 	}
 
 	// 添加请求头，例如设置 User-Agent
@@ -372,8 +472,6 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 			"content_length": rsp.ContentLength,
 		}))
 	}
-	baseURL := filepath.Base(url)
-	fileName := strings.Split(baseURL, "?")[0]
 	downPath = path.Join(downPath, fileName)
 	dir := filepath.Dir(downPath)
 	// 递归创建目录
@@ -410,7 +508,12 @@ func downloadFile(downPath, url, token string, Logger event.Logger, metadata map
 		Logger.Info("image size is unknown, downloading will take some time, please be patient.", map[string]string{"step": "builder-exector"})
 	}
 
-	written, err := io.Copy(f, myDownloader)
+	var written int64
+	if metadata["delivery_capture"] == true {
+		written, err = copyVMDeliveryDisk(f, myDownloader, func() (uint64, error) { return vmDeliveryAvailableSpace(dir) })
+	} else {
+		written, err = io.Copy(f, myDownloader)
+	}
 	if err != nil {
 		downError := fmt.Sprintf("download vm image %v failure: %v", url, err.Error())
 		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
@@ -475,6 +578,7 @@ func formatVMBuildStageLog(fields map[string]interface{}) string {
 	return strings.Join(parts, " ")
 }
 
+// MyDownloader reports progress while reading a VM image download.
 type MyDownloader struct {
 	io.Reader       // 读取器
 	Total     int64 // 总大小

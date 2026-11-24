@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +30,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/pkg/vmrestore"
 
 	"github.com/goodrain/rainbond/util/portprotocol"
 
@@ -101,12 +104,23 @@ func updateAPISixRoute(as *v1.AppService) error {
 
 // TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
+	return tenantServiceVersion(as, dbmanager, true)
+}
+
+func tenantServiceVersion(as *v1.AppService, dbmanager db.Manager, resolveBindings bool) error {
+	if resolveBindings {
+		if err := loadVMRestoreBindingView(as, dbmanager); err != nil {
+			return err
+		}
+	}
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
 
-	go updateAPISixRoute(as)
+	if !as.RestoreRender {
+		go updateAPISixRoute(as)
+	}
 
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
@@ -169,9 +183,31 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	podtmpSpec := corev1.PodTemplateSpec{}
 	vmDataVolumeTemplates := dv.GetVMDataVolumeTemplates()
 	if as.GetVirtualMachine() != nil {
-		vmRuntime, err := buildVMRuntimeConfig(as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles())
+		runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles := as.ExtensionSet, envs, envVarSecrets, dv.GetVMGuestFiles()
+		runtimeExtensions = make(map[string]string, len(as.ExtensionSet)+1)
+		for key, value := range as.ExtensionSet {
+			runtimeExtensions[key] = value
+		}
+		runtimeExtensions["service_id"] = as.ServiceID
+		if as.VMRestoredRuntime != nil {
+			runtimeExtensions = vmRuntimeExtensionsForRestoredDisk(as.ExtensionSet)
+			runtimeEnvs = nil
+			runtimeSecrets = nil
+			runtimeFiles = nil
+		}
+		vmRuntime, err := buildVMRuntimeConfig(runtimeExtensions, runtimeEnvs, runtimeSecrets, runtimeFiles)
 		if err != nil {
 			return fmt.Errorf("create vm runtime config failure: %v", err)
+		}
+		as.VMStartupHints = &vmrestore.VMStartupHints{ConfigMaps: []vmrestore.VMStartupConfigMap{}}
+		for _, v := range vmRuntime.Volumes {
+			if v.CloudInitNoCloud != nil {
+				as.VMStartupHints.NoCloudVolumeName = v.Name
+				as.VMStartupHints.NoCloudDiskName = v.Name
+			}
+			if v.ConfigMap != nil {
+				as.VMStartupHints.ConfigMaps = append(as.VMStartupHints.ConfigMaps, vmrestore.VMStartupConfigMap{VolumeName: v.Name, DiskName: v.Name, Name: v.ConfigMap.Name})
+			}
 		}
 		for _, configMap := range vmRuntime.ConfigMaps {
 			as.SetConfigMap(configMap)
@@ -217,6 +253,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			return fmt.Errorf("create vm disk layout failure: %v", err)
 		}
 		disks = layoutDisks
+		disks = applyVMLoginRootDiskBus(disks, dv.GetVMDiskMeta(), bootPath, vmRuntime.RootDiskBus)
 		layoutVolumes, err := applyVMBootVolumeLayout(as.ExtensionSet, volumes, bootPath)
 		if err != nil {
 			return fmt.Errorf("create vm volume layout failure: %v", err)
@@ -245,7 +282,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Machine:   &kubevirtv1.Machine{Type: "q35"},
 			Devices: kubevirtv1.Devices{
 				Disks:       disks,
-				Interfaces:  vmRuntime.Interfaces,
+				Interfaces:  withStableVMInterfaceMACs(vmRuntime.Interfaces, as.ServiceID),
 				GPUs:        vmRuntime.GPUs,
 				HostDevices: vmRuntime.HostDevices,
 			},
@@ -323,7 +360,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		podtmpSpec = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      labels,
-				Annotations: annotations,
+				Annotations: configFilePodAnnotations(annotations, as.GetConfigMaps()),
 				Name:        as.GetK8sWorkloadName() + "-pod-spec",
 			},
 			Spec: corev1.PodSpec{
@@ -387,6 +424,18 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
 	if vm := as.GetVirtualMachine(); vm != nil {
 		vm.Spec.DataVolumeTemplates = vmDataVolumeTemplates
+		if as.VMRestoredRuntime != nil {
+			clients := k8s.Default()
+			if clients == nil || clients.Clientset == nil {
+				return vmrestore.ErrReferenceUnavailable
+			}
+			projected, err := vmrestore.ProjectRestoredRuntime(context.Background(), clients.Clientset, vm, *as.VMRestoredRuntime)
+			if err != nil {
+				return err
+			}
+			*vm = *projected
+			vmDataVolumeTemplates = vm.Spec.DataVolumeTemplates
+		}
 		if manifests := buildVMArtifactImportManifests(as.GetNamespace(), vmDataVolumeTemplates); len(manifests) > 0 {
 			as.SetManifests(append(as.GetManifests(), manifests...))
 		}
@@ -872,6 +921,9 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		for _, t := range tsmr {
 			sv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
 			if err != nil {
+				if as.RestoreRender {
+					return nil, vmrestore.ErrReferenceUnavailable
+				}
 				if strings.Contains(err.Error(), "record not found") {
 					err := dbmanager.TenantServiceMountRelationDao().DElTenantServiceMountRelationByDepService(t.ServiceID, t.DependServiceID)
 					if err != nil {
@@ -1407,6 +1459,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) (*corev1.Affinity, 
 	return &affinity, nil
 }
 
+func configFilePodAnnotations(annotations map[string]string, configMaps []*corev1.ConfigMap) map[string]string {
+	files := make(map[string]map[string]string)
+	for _, config := range configMaps {
+		if config.Annotations[v1.ConfigFileScopeAnnotation] == v1.ConfigFileScopeOwned {
+			files[config.Name] = config.Data
+		}
+	}
+	if len(files) == 0 {
+		return annotations
+	}
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	content, _ := json.Marshal(files)
+	annotations["rainbond.io/config-file-checksum"] = fmt.Sprintf("%x", sha256.Sum256(content))
+	return annotations
+}
+
 func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) (map[string]string, error) {
 	annotations := make(map[string]string)
 	annotationsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameAnnotations)
@@ -1611,6 +1681,9 @@ func vmRuntimeAttributeNames() []string {
 		"vm_usb_resources",
 		"vm_boot_mode",
 		"vm_boot_source_format",
+		vmSSHUsernameKey,
+		vmSSHPublicKeyKey,
+		vmLoginPasswordHashKey,
 		"vm_disk_layout",
 		"vm_fixed_ip_enabled",
 		"vm_fixed_ip",
@@ -1618,7 +1691,7 @@ func vmRuntimeAttributeNames() []string {
 }
 
 func vmBootSourceFormat(extensionSet map[string]string) string {
-	return strings.ToLower(strings.TrimSpace(extensionSet["vm_boot_source_format"]))
+	return strings.ToLower(strings.TrimSpace(extensionSet[vmBootSourceFormatKey]))
 }
 
 func vmBootSourceUsesCDRom(extensionSet map[string]string) bool {

@@ -641,7 +641,20 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Post("/vm-exports", middleware.WrapEL(controller.GetManager().CreateVMExport, dbmodel.TargetTypeService, "export-vm", dbmodel.SYNEVENTTYPE, true))
 	r.Get("/vm-exports/{name}", controller.GetManager().GetVMExport)
-	r.Post("/vm-snapshots", middleware.WrapEL(controller.GetManager().CreateVMSnapshot, dbmodel.TargetTypeService, "snapshot-vm", dbmodel.SYNEVENTTYPE, true))
+	r.Put("/vm-delivery-captures/{name}", middleware.SnapshotCommand(controller.VMDeliveryCapture))
+	r.Get("/vm-delivery-captures/{name}", controller.VMDeliveryCapture)
+	r.Post("/vm-delivery-captures/{name}", middleware.SnapshotCommand(controller.VMDeliveryCapture))
+	r.Delete("/vm-delivery-captures/{name}", controller.VMDeliveryCapture)
+	r.Post("/vm-snapshots", middleware.SnapshotCommand(controller.GetVMSnapshotController().CreateVMSnapshot))
+	r.Get("/vm-snapshots", controller.GetVMSnapshotController().ListVMSnapshots)
+	r.Get("/vm-snapshots/{name}", controller.GetVMSnapshotController().GetVMSnapshot)
+	r.Post("/vm-snapshots/{name}/restore", middleware.SnapshotCommand(controller.GetVMSnapshotController().RestoreVMSnapshot))
+	r.Get("/vm-snapshots/{name}/restore/{request_id}", controller.GetVMSnapshotController().GetVMSnapshotRestore)
+	r.Post("/vm-snapshots/{name}/{snapshot_action}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
+	r.Delete("/vm-snapshots/{name}", middleware.SnapshotCommand(controller.GetVMSnapshotController().SnapshotAction))
+	r.Get("/vm-restores/{operation_id}", controller.GetVMRestoreController().GetVMRestore)
+	r.Get("/vm-restore-control", controller.GetVMRestoreController().GetVMRestoreControl)
+	r.Post("/vm-restores/{operation_id}/steps/{restore_action}", middleware.SnapshotCommand(controller.GetVMRestoreController().VMRestoreCommand))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE, true))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE, true))
@@ -651,6 +664,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, dbmodel.TargetTypeService, "horizontal-service", dbmodel.ASYNEVENTTYPE, true))
 	r.Put("/vm-network/fixed-ip", middleware.WrapEL(controller.GetManager().SetVMFixedPodIP, dbmodel.TargetTypeService, "vm-fixed-ip", dbmodel.SYNEVENTTYPE, true))
 	r.Get("/vm-live-update-capability", controller.GetManager().VMLiveUpdateCapability)
+	r.Get("/vm-snapshot-capability", controller.GetManager().ExistingVMSnapshotCapability)
+	r.Get("/vm-recycle-recovery", controller.GetManager().VMRecycleRecovery)
 
 	//设置应用语言(act)
 	r.Post("/language", middleware.WrapEL(controller.GetManager().SetLanguage, dbmodel.TargetTypeService, "set-language", dbmodel.SYNEVENTTYPE, false))
@@ -834,6 +849,8 @@ func (v2 *V2) prometheusRouter() chi.Router {
 
 func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Post("/delivery-artifacts", controller.GetManager().ShareDeliveryArtifact)
+	r.Get("/delivery-artifacts/{share_id}", controller.GetManager().DeliveryArtifactStatus)
 	r.Post("/export", controller.GetManager().ExportApp)
 	r.Get("/export/{eventID}", controller.GetManager().ExportApp)
 
