@@ -621,6 +621,7 @@
 | rainbond.vm-power.batch-stop-preserves-disks | Batch VM stop uses the power API without destructive worker tasks | active | regression | handler.BatchOperationHandler.Stop | api/handler/service_batch_vm_stop_test.go::TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.legacy-stop-preserves-disks | Legacy queued VM stop fails closed before deleting runtime or persistent disks | active | regression | controller.stopController.stopOne | worker/appm/controller/stop_vm_preservation_test.go::TestLegacyWorkerStopCannotDeleteUnmappedVM |
+| rainbond.vm-power.scoped-single-event | Single-component power events retain component scope | active | regression | api/util.CreateEvent | api/util/events_test.go::TestCreateEventScopesRestoredVMPower |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-power.stop-restoring-fallback | Fallback to halt transient VM when direct stop fails | active | regression | api/handler.ServiceAction.StopVM | api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails |
 | rainbond.vm-probe-attribute-syncs-spec | VM probe attributes trigger VirtualMachine spec sync | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes |
@@ -6975,6 +6976,16 @@
 - 业务入口: `controller.stopController.stopOne`
 - 代码路径: `worker/appm/controller/stop.go`
 - 测试路径: `worker/appm/controller/stop_vm_preservation_test.go::TestLegacyWorkerStopCannotDeleteUnmappedVM`
+
+### Single-component power events retain component scope
+
+- Capability ID: `rainbond.vm-power.scoped-single-event`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `api/util.CreateEvent`
+- 代码路径: `api/util/events.go`
+- 测试路径: `api/util/events_test.go::TestCreateEventScopesRestoredVMPower`
 
 ### 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程
 

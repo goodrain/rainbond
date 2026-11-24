@@ -12154,6 +12154,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.scoped-single-event",
+      "title": "Single-component power events retain component scope",
+      "title_zh": "Single-component power events retain component scope",
+      "interface_type": "package_function",
+      "interface": "api/util.CreateEvent",
+      "code_paths": [
+        "api/util/events.go"
+      ],
+      "tests": [
+        {
+          "path": "api/util/events_test.go",
+          "selector": "TestCreateEventScopesRestoredVMPower"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.start-existing-or-create",
       "title": "Start existing stopped VM before falling back to worker create flow",
       "title_zh": "\u4f18\u5148\u542f\u52a8\u5df2\u5b58\u5728\u4e14\u5df2\u505c\u6b62\u7684\u865a\u62df\u673a\uff0c\u5426\u5219\u56de\u9000\u5230 worker \u521b\u5efa\u6d41\u7a0b",
