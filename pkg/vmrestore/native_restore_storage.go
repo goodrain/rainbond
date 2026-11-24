@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	kv "kubevirt.io/api/core/v1"
 )
 
@@ -95,23 +96,9 @@ func (m *ManagedNativeRestore) nativeCloneReady(ctx context.Context, pv *corev1.
 	if !strings.HasPrefix(handle, "snap://") {
 		return nil
 	}
-	volumes, err := m.Dynamic.Resource(nativeLonghornVolumeResource).List(ctx, metav1.ListOptions{FieldSelector: "metadata.name=" + pv.Spec.CSI.VolumeHandle})
+	volume, err := readLonghornVolume(ctx, m.Dynamic, pv.Spec.CSI.VolumeHandle)
 	if err != nil {
-		return ErrReferenceUnavailable
-	}
-	var volume *unstructured.Unstructured
-	for index := range volumes.Items {
-		candidate := &volumes.Items[index]
-		if candidate.GetName() != pv.Spec.CSI.VolumeHandle {
-			continue
-		}
-		if volume != nil || !validUID(string(candidate.GetUID())) || candidate.GetDeletionTimestamp() != nil {
-			return ErrConflict
-		}
-		volume = candidate
-	}
-	if volume == nil {
-		return ErrReferenceUnavailable
+		return err
 	}
 	source, _, _ := unstructured.NestedString(volume.Object, "spec", "dataSource")
 	if source != handle {
@@ -132,4 +119,29 @@ func (m *ManagedNativeRestore) nativeCloneReady(ctx context.Context, pv *corev1.
 	default:
 		return ErrSnapshotPending
 	}
+}
+
+func readLonghornVolume(ctx context.Context, client dynamic.Interface, handle string) (*unstructured.Unstructured, error) {
+	if handle == "" {
+		return nil, ErrConflict
+	}
+	volumes, err := client.Resource(nativeLonghornVolumeResource).List(ctx, metav1.ListOptions{FieldSelector: "metadata.name=" + handle})
+	if err != nil {
+		return nil, ErrReferenceUnavailable
+	}
+	var volume *unstructured.Unstructured
+	for index := range volumes.Items {
+		candidate := &volumes.Items[index]
+		if candidate.GetName() != handle {
+			continue
+		}
+		if volume != nil || !validUID(string(candidate.GetUID())) || candidate.GetDeletionTimestamp() != nil {
+			return nil, ErrConflict
+		}
+		volume = candidate
+	}
+	if volume == nil {
+		return nil, ErrReferenceUnavailable
+	}
+	return volume, nil
 }

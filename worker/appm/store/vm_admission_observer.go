@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/vmrestore"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 )
 
-// startVMAdmissionObserver consumes actual VMI informer completion events. It
+// startVMAdmissionObserver consumes actual runtime informer completion events. It
 // does not run restore phases or poll a second operation journal.
 func (a *appRuntimeStore) startVMAdmissionObserver(stop <-chan struct{}) {
 	if a.k8sClient == nil || a.k8sClient.DynamicClient == nil || a.dbmanager == nil || a.dbmanager.DB() == nil {
@@ -23,7 +24,10 @@ func (a *appRuntimeStore) startVMAdmissionObserver(stop <-chan struct{}) {
 		if tombstone, ok := value.(cache.DeletedFinalStateUnknown); ok {
 			value = tombstone.Obj
 		}
-		object, ok := value.(*unstructured.Unstructured)
+		if pod, ok := value.(*corev1.Pod); ok && pod.Labels["kubevirt.io"] != "virt-launcher" {
+			return
+		}
+		object, ok := value.(metav1.Object)
 		if !ok {
 			return
 		}
@@ -48,6 +52,10 @@ func (a *appRuntimeStore) startVMAdmissionObserver(stop <-chan struct{}) {
 		// binding-generation completion can finish it in the shared Store.
 		_ = store.ObserveOrdinaryVMCompletion(ctx, resolver, a.k8sClient.DynamicClient, scope)
 	}
-	_, _ = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{AddFunc: observe, UpdateFunc: func(_, current interface{}) { observe(current) }, DeleteFunc: observe})
+	handler := cache.ResourceEventHandlerFuncs{AddFunc: observe, UpdateFunc: func(_, current interface{}) { observe(current) }, DeleteFunc: observe}
+	_, _ = informer.AddEventHandler(handler)
+	if a.informers != nil && a.informers.Pod != nil {
+		_, _ = a.informers.Pod.AddEventHandler(handler)
+	}
 	factory.Start(stop)
 }

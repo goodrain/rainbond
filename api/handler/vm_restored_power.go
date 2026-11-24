@@ -61,6 +61,20 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	client := s.kubevirtClient.DynamicClient()
 	resolver := vmrestore.NewResolver(store, s.kubeClient, client)
 	if state.State.Admission != nil {
+		if action == "stop" && (state.State.Admission.Action == "ordinary-vm-start" || state.State.Admission.Action == "ordinary-vm-restart") {
+			eventID := ""
+			if event, ok := ctx.Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent); ok && event != nil {
+				eventID = event.EventID
+			}
+			err := store.StopPendingOrdinaryVM(ctx, resolver, client, scope, eventID)
+			if errors.Is(err, vmrestore.ErrRestorePending) {
+				return true, &bcode.Code{Status: 202, Code: 202, Message: "vm_power_pending"}
+			}
+			if errors.Is(err, vmrestore.ErrRestoreUnknown) || errors.Is(err, vmrestore.ErrReferenceUnavailable) {
+				return true, &vmPowerSubmittedError{cause: err}
+			}
+			return true, err
+		}
 		err := store.ObserveOrdinaryVMCompletion(ctx, resolver, client, scope)
 		if err != nil {
 			return true, err
@@ -152,6 +166,9 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	err = store.ObserveOrdinaryVMCompletion(ctx, resolver, client, scope)
 	if errors.Is(err, vmrestore.ErrRestorePending) {
 		return true, &bcode.Code{Status: 202, Code: 202, Message: "vm_power_pending"}
+	}
+	if errors.Is(err, vmrestore.ErrOrdinaryVMFailed) {
+		return true, err
 	}
 	if err != nil {
 		return true, &vmPowerSubmittedError{cause: err}

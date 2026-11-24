@@ -12106,6 +12106,47 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.cancel-pending-handler",
+      "title": "Normal stop API can cancel unfinished restored VM startup",
+      "title_zh": "\u6b63\u5e38\u5173\u95ed\u63a5\u53e3\u53ef\u53d6\u6d88\u5c1a\u672a\u5b8c\u6210\u7684\u6062\u590d\u865a\u62df\u673a\u542f\u52a8",
+      "interface_type": "handler_method",
+      "interface": "handler.ServiceAction.StopVM",
+      "code_paths": [
+        "api/handler/vm_restored_power.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restored_power_test.go",
+          "selector": "TestRestoredPowerHandlerCanStopAnUnfinishedStartup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.cancel-pending-start",
+      "title": "Pending VM startup can be stopped without dropping admission early",
+      "title_zh": "\u542f\u52a8\u672a\u5b8c\u6210\u65f6\u53ef\u5b89\u5168\u5173\u95ed\u5e76\u5728\u8fd0\u884c\u65f6\u9000\u51fa\u540e\u91ca\u653e\u64cd\u4f5c\u9501",
+      "interface_type": "workflow",
+      "interface": "vmrestore.Store.StopPendingOrdinaryVM",
+      "code_paths": [
+        "pkg/vmrestore/ordinary_vm_stop.go",
+        "pkg/vmrestore/ordinary_vm_admission.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestPendingStartStopsBeforeReleasingAdmissionAndCompletesBothEvents"
+        },
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestPendingStartRefusesToStopReplacementVM"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.direct-ops-event-close",
       "title": "Close direct VM power operation events after synchronous KubeVirt actions",
       "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
@@ -12218,6 +12259,30 @@
         {
           "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.terminal-start-failure",
+      "title": "Terminal VM and backend clone failures close startup safely",
+      "title_zh": "\u865a\u62df\u673a\u6216\u514b\u9686\u7ec8\u6001\u5931\u8d25\u81ea\u52a8\u5173\u95ed\u542f\u52a8\u4efb\u52a1",
+      "interface_type": "workflow",
+      "interface": "vmrestore.Store.ObserveOrdinaryVMCompletion",
+      "code_paths": [
+        "pkg/vmrestore/ordinary_vm_stop.go",
+        "pkg/vmrestore/ordinary_vm_admission.go",
+        "worker/appm/store/vm_admission_observer.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestTerminalInstanceFailureStopsVMAndClosesFailedStart"
+        },
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestFailedCloneStopsPendingStartupInsteadOfKeepingOperationBusy"
         }
       ],
       "test_type": "regression",

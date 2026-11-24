@@ -619,11 +619,14 @@
 | rainbond.vm-power.batch-restored-event-lifecycle | Restored VM batch power preserves scoped events and observes asynchronous completion | active | regression | OperationHandler.Start; OperationHandler.Stop; BatchOperationHandler.createEvents | api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerRetainsPendingAndUnknownUntilObserved<br>api/handler/service_batch_vm_restored_power_test.go::TestBatchRestoredVMPowerClosesRejectedEventWithoutMutatingFence |
 | rainbond.vm-power.batch-start-preserves-disks | Batch VM start reuses the preserved VM power API and retains the container worker path | active | regression | handler.BatchOperationHandler.Start | api/handler/service_batch_vm_stop_test.go::TestBatchStartUsesVMPowerAndKeepsContainerWorkerPath |
 | rainbond.vm-power.batch-stop-preserves-disks | Batch VM stop uses the power API without destructive worker tasks | active | regression | handler.BatchOperationHandler.Stop | api/handler/service_batch_vm_stop_test.go::TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath |
+| rainbond.vm-power.cancel-pending-handler | 正常关闭接口可取消尚未完成的恢复虚拟机启动 | active | regression | handler.ServiceAction.StopVM | api/handler/vm_restored_power_test.go::TestRestoredPowerHandlerCanStopAnUnfinishedStartup |
+| rainbond.vm-power.cancel-pending-start | 启动未完成时可安全关闭并在运行时退出后释放操作锁 | active | regression | vmrestore.Store.StopPendingOrdinaryVM | pkg/vmrestore/ordinary_vm_stop_test.go::TestPendingStartStopsBeforeReleasingAdmissionAndCompletesBothEvents<br>pkg/vmrestore/ordinary_vm_stop_test.go::TestPendingStartRefusesToStopReplacementVM |
 | rainbond.vm-power.direct-ops-event-close | 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态 | active | regression | api/handler direct VM power operations | api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventSuccess<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMMarksDirectStartEventFailure<br>api/handler/service_vm_power_test.go::TestRestartVMMarksDirectRestartEventSuccess<br>api/handler/service_vm_power_test.go::TestStopVMMarksDirectStopEventSuccess |
 | rainbond.vm-power.legacy-stop-preserves-disks | Legacy queued VM stop fails closed before deleting runtime or persistent disks | active | regression | controller.stopController.stopOne | worker/appm/controller/stop_vm_preservation_test.go::TestLegacyWorkerStopCannotDeleteUnmappedVM |
 | rainbond.vm-power.scoped-single-event | Single-component power events retain component scope | active | regression | api/util.CreateEvent | api/util/events_test.go::TestCreateEventScopesRestoredVMPower |
 | rainbond.vm-power.start-existing-or-create | 优先启动已存在且已停止的虚拟机，否则回退到 worker 创建流程 | active | regression | api/handler.ServiceAction.StartOrCreateVM | api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingStoppedVMWhenSpecSyncFindsMissingRootImport<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsStoppedAlwaysRunStrategyVM<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMStartsExistingVMWithUnknownPrintableStatus<br>api/handler/service_vm_power_test.go::TestStartOrCreateVMFallsBackToWorkerStartWhenVMIsMissing |
 | rainbond.vm-power.stop-restoring-fallback | Fallback to halt transient VM when direct stop fails | active | regression | api/handler.ServiceAction.StopVM | api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails |
+| rainbond.vm-power.terminal-start-failure | 虚拟机或克隆终态失败自动关闭启动任务 | active | regression | vmrestore.Store.ObserveOrdinaryVMCompletion | pkg/vmrestore/ordinary_vm_stop_test.go::TestTerminalInstanceFailureStopsVMAndClosesFailedStart<br>pkg/vmrestore/ordinary_vm_stop_test.go::TestFailedCloneStopsPendingStartupInsteadOfKeepingOperationBusy |
 | rainbond.vm-probe-attribute-syncs-spec | VM probe attributes trigger VirtualMachine spec sync | active | regression | api/handler.isVMRuntimeSpecAttribute | api/handler/k8s_attribute_vm_runtime_test.go::TestIsVMRuntimeSpecAttributeIncludesProbeAttributes |
 | rainbond.vm-probe-change-syncs-spec | VM probe changes sync VirtualMachine spec | active | regression | api/handler.ServiceAction.ServiceProbe | api/handler/service_vm_resource_sync_test.go::TestServiceProbeSyncsVirtualMachineSpecWhenVMProbeChanges |
 | rainbond.vm-publish.http-artifact-image-build | 将导出的虚拟机磁盘构建为 HTTP 制品镜像 | active | regression | builder/exector.BuildFromVM | api/handler/share/service_share_test.go::TestServiceShareVMImageSourceSkipsDeliveredPathReferenceValidation<br>builder/exector/build_from_vm_test.go::TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport<br>builder/exector/build_from_vm_test.go::TestDownloadFileUsesVMExportTokenHeader<br>builder/exector/build_from_vm_test.go::TestDownloadFileOverwritesExistingPartialFile<br>builder/exector/build_from_vm_test.go::TestVMRemoteImageSourceDirUsesEventID<br>builder/exector/build_from_vm_test.go::TestMyDownloaderLogsUnknownSizeProgress<br>builder/exector/share_image_test.go::TestNewImageShareItemCapturesVMImageSource<br>builder/sources/image_test.go::TestBuildKitImageOutputUsesUncompressedLayersForVMBuild<br>builder/sourceutil/remote_http_client_test.go::TestNewRemotePackageHTTPClientSkipsTLSVerifyForVMExportService |
@@ -6959,6 +6962,26 @@
 - 代码路径: `api/handler/service_batch_operation.go`, `api/handler/service_operation.go`
 - 测试路径: `api/handler/service_batch_vm_stop_test.go::TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath`
 
+### 正常关闭接口可取消尚未完成的恢复虚拟机启动
+
+- Capability ID: `rainbond.vm-power.cancel-pending-handler`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `handler_method`
+- 业务入口: `handler.ServiceAction.StopVM`
+- 代码路径: `api/handler/vm_restored_power.go`
+- 测试路径: `api/handler/vm_restored_power_test.go::TestRestoredPowerHandlerCanStopAnUnfinishedStartup`
+
+### 启动未完成时可安全关闭并在运行时退出后释放操作锁
+
+- Capability ID: `rainbond.vm-power.cancel-pending-start`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmrestore.Store.StopPendingOrdinaryVM`
+- 代码路径: `pkg/vmrestore/ordinary_vm_stop.go`, `pkg/vmrestore/ordinary_vm_admission.go`
+- 测试路径: `pkg/vmrestore/ordinary_vm_stop_test.go::TestPendingStartStopsBeforeReleasingAdmissionAndCompletesBothEvents`, `pkg/vmrestore/ordinary_vm_stop_test.go::TestPendingStartRefusesToStopReplacementVM`
+
 ### 在同步执行 KubeVirt 虚拟机电源操作后闭环事件状态
 
 - Capability ID: `rainbond.vm-power.direct-ops-event-close`
@@ -7008,6 +7031,16 @@
 - 业务入口: `api/handler.ServiceAction.StopVM`
 - 代码路径: `api/handler/service.go`
 - 测试路径: `api/handler/service_vm_power_test.go::TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails`
+
+### 虚拟机或克隆终态失败自动关闭启动任务
+
+- Capability ID: `rainbond.vm-power.terminal-start-failure`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `vmrestore.Store.ObserveOrdinaryVMCompletion`
+- 代码路径: `pkg/vmrestore/ordinary_vm_stop.go`, `pkg/vmrestore/ordinary_vm_admission.go`, `worker/appm/store/vm_admission_observer.go`
+- 测试路径: `pkg/vmrestore/ordinary_vm_stop_test.go::TestTerminalInstanceFailureStopsVMAndClosesFailedStart`, `pkg/vmrestore/ordinary_vm_stop_test.go::TestFailedCloneStopsPendingStartupInsteadOfKeepingOperationBusy`
 
 ### VM probe attributes trigger VirtualMachine spec sync
 
