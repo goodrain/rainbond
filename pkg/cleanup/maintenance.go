@@ -8,6 +8,17 @@ import (
 // RequestMaintenance closes admission before waiting for already accepted
 // writers. Only the explicit owner can progress this durable maintenance record.
 func RequestMaintenance(database *gorm.DB, r CoordinationRequest) (bool, error) {
+	return requestMaintenance(database, r, false)
+}
+
+// RequestIdleMaintenance closes write admission only when all accepted work has
+// already finished. Busy storage stays writable so a whole build can issue its
+// remaining Registry requests before the scheduler retries the same time slot.
+func RequestIdleMaintenance(database *gorm.DB, r CoordinationRequest) (bool, error) {
+	return requestMaintenance(database, r, true)
+}
+
+func requestMaintenance(database *gorm.DB, r CoordinationRequest, idleOnly bool) (bool, error) {
 	if !r.valid() || r.Kind != "gc" {
 		return false, ErrCoordinationChanged
 	}
@@ -36,6 +47,18 @@ func RequestMaintenance(database *gorm.DB, r CoordinationRequest) (bool, error) 
 	}
 	if store.Mode != "ready" || store.MaintenanceOperationID != "" {
 		return false, ErrCoordinationBusy
+	}
+	if idleOnly {
+		// AcquireOperation takes this same storage-row lock. Checking outstanding
+		// work and closing admission therefore form one atomic choice; an earlier
+		// writer can continue, or maintenance wins and a later writer is rejected.
+		var outstanding int
+		if err := tx.Model(&model.CleanupOperation{}).Where("storage_id = ? AND state <> ?", r.StorageID, "finished").Count(&outstanding).Error; err != nil {
+			return false, err
+		}
+		if outstanding != 0 {
+			return false, ErrCoordinationBusy
+		}
 	}
 	op := model.CleanupOperation{OperationID: r.OperationID, StorageID: r.StorageID, Generation: r.Generation, Owner: r.Owner, Kind: r.Kind, Scope: r.Scope, Fingerprint: r.Fingerprint, State: "draining"}
 	if err := tx.Create(&op).Error; err != nil {
