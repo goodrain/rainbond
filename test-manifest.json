@@ -12628,6 +12628,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-power.container-disk-defaults",
+      "title": "Defaulted container disks release completed VM power operations",
+      "title_zh": "Defaulted container disks release completed VM power operations",
+      "interface_type": "workflow",
+      "interface": "vmrestore.runtimeInstanceMatches; ServiceAction.StartOrCreateVM",
+      "code_paths": [
+        "pkg/vmrestore/restore_kube_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_power_container_disk_defaults_test.go",
+          "selector": "TestRestoredPowerCompletionHandlesContainerDiskDefaults"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-power.direct-ops-event-close",
       "title": "Close direct VM power operation events after synchronous KubeVirt actions",
       "title_zh": "\u5728\u540c\u6b65\u6267\u884c KubeVirt \u865a\u62df\u673a\u7535\u6e90\u64cd\u4f5c\u540e\u95ed\u73af\u4e8b\u4ef6\u72b6\u6001",
@@ -12670,6 +12688,24 @@
         {
           "path": "worker/appm/controller/stop_vm_preservation_test.go",
           "selector": "TestLegacyWorkerStopCannotDeleteUnmappedVM"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.runtime-observer-retry",
+      "title": "VM power completion retries unchanged runtime and VM-only updates",
+      "title_zh": "VM power completion retries unchanged runtime and VM-only updates",
+      "interface_type": "workflow",
+      "interface": "store.startVMAdmissionObserver",
+      "code_paths": [
+        "worker/appm/store/vm_admission_observer.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/store/vm_admission_observer_test.go",
+          "selector": "TestVMAdmissionObserverRechecksUnchangedRuntimeAndVMOnlyUpdates"
         }
       ],
       "test_type": "regression",
