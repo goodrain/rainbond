@@ -104,8 +104,14 @@ func updateAPISixRoute(as *v1.AppService) error {
 
 // TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
-	if err := loadVMRestoreBindingView(as, dbmanager); err != nil {
-		return err
+	return tenantServiceVersion(as, dbmanager, true)
+}
+
+func tenantServiceVersion(as *v1.AppService, dbmanager db.Manager, resolveBindings bool) error {
+	if resolveBindings {
+		if err := loadVMRestoreBindingView(as, dbmanager); err != nil {
+			return err
+		}
 	}
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {

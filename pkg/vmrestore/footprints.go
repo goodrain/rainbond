@@ -97,7 +97,11 @@ func inFlightRestore(state State, receipts []Receipt, operationID string) bool {
 // and advance the binding generation in that transaction. The producer and this
 // reader share RestoreCommitStep; a nonempty plan alone proves no transition.
 func committedBindingFootprint(receipt Receipt, volumeID uint) (bool, error) {
-	step, committed := receipt.Steps[RestoreCommitStep]
+	commitStep := RestoreCommitStep
+	if receipt.NativeRestore != nil {
+		commitStep = NativeRestoreCommitStep
+	}
+	step, committed := receipt.Steps[commitStep]
 	if !committed {
 		if receipt.ConfigCommitHash != "" {
 			return false, ErrCorrupt

@@ -367,7 +367,7 @@ func TestOverviewLocalDiskFailureUsesCooldownAndPreservesStaleSample(t *testing.
 func TestOverviewEmptyInstalledPluginsAreAnArray(t *testing.T) {
 	action := &clusterAction{rainbondClient: rainbondfake.NewSimpleClientset()}
 	for _, official := range []bool{false, true} {
-		got, err := action.ListPlugins(official)
+		got, err := action.ListPlugins(context.Background(), official)
 		require.NoError(t, err)
 		encoded, err := json.Marshal(got)
 		require.NoError(t, err)

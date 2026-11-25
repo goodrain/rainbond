@@ -69,7 +69,7 @@ func TestVMDiskConversionRejectsInvalidOrDependentImages(t *testing.T) {
 			source := filepath.Join(dir, "source.img")
 			switch kind {
 			case "unsupported format":
-				runVMQEMUImg(t, qemuImg, "create", "-f", "vmdk", source, "1M")
+				runVMQEMUImg(t, qemuImg, "create", "-f", "vpc", source, "1M")
 			case "corrupt qcow2":
 				runVMQEMUImg(t, qemuImg, "create", "-f", "qcow2", source, "1M")
 				content, err := os.ReadFile(source)
@@ -148,16 +148,20 @@ func runVMQEMUImg(t *testing.T, qemuImg string, args ...string) []byte {
 
 func runVMConversionDockerfile(t *testing.T, qemuImg, dir, fileName string) error {
 	t.Helper()
-	dockerfile, err := renderVMDockerfile(fileName)
+	dockerfile, err := renderVMSourceDockerfile(dir, fileName)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
-	if !strings.Contains(dockerfile, "\nCOPY "+fileName+" /work/source.img\n") {
+	stagedName := fileName
+	if strings.Contains(dockerfile, "\nCOPY source.vmdk /work/source.img\n") {
+		stagedName = "source.vmdk"
+	}
+	if !strings.Contains(dockerfile, "\nCOPY "+stagedName+" /work/source.img\n") {
 		t.Fatalf("expected converter COPY to preserve source filename %q", fileName)
 	}
-	if fileName != "source.img" {
+	if stagedName != "source.img" {
 		// Stage the named upload at the fixed path used by the converter COPY.
-		content, err := os.ReadFile(filepath.Join(dir, fileName))
+		content, err := os.ReadFile(filepath.Join(dir, stagedName))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -177,6 +181,7 @@ func runVMConversionDockerfile(t *testing.T, qemuImg, dir, fileName string) erro
 	// Execute the generated conversion instruction with only its container paths
 	// relocated. The qemu-img binary and input content are real, without Docker.
 	command := strings.ReplaceAll(commands[0], "/usr/bin/qemu-img", `"$QEMU_IMG"`)
+	command = strings.TrimPrefix(command, "--network=none ")
 	command = strings.ReplaceAll(command, "/work/", "./")
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Dir = dir
@@ -188,4 +193,81 @@ func runVMConversionDockerfile(t *testing.T, qemuImg, dir, fileName string) erro
 		return err
 	}
 	return nil
+}
+
+// capability_id: rainbond.vm-build.vmdk-self-contained
+func TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename(t *testing.T) {
+	qemu := requireVMQEMUImg(t)
+	for _, kind := range []string{"monolithicSparse", "streamOptimized"} {
+		for _, name := range []string{"windows.vmdk", "renamed.img", "renamed.qcow2", "Windows 10 x64.vmdk", "迁移 磁盘.vmdk"} {
+			t.Run(kind+"/"+name, func(t *testing.T) {
+				dir := t.TempDir()
+				reference := filepath.Join(dir, "reference.raw")
+				data := make([]byte, 2<<20)
+				copy(data[512:], []byte("original VMware guest data must survive server conversion"))
+				data[510] = 0x55
+				data[511] = 0xaa
+				if err := os.WriteFile(reference, data, 0600); err != nil {
+					t.Fatal(err)
+				}
+				original := filepath.Join(dir, "Windows 10 x64.vmdk")
+				runVMQEMUImg(t, qemu, "convert", "-f", "raw", "-O", "vmdk", "-o", "subformat="+kind, reference, original)
+				if err := os.Rename(original, filepath.Join(dir, name)); err != nil {
+					t.Fatal(err)
+				}
+				if err := runVMConversionDockerfile(t, qemu, dir, name); err != nil {
+					t.Fatal(err)
+				}
+				out := filepath.Join(dir, "rootdisk.qcow2")
+				runVMQEMUImg(t, qemu, "compare", "-f", "qcow2", "-F", "raw", out, reference)
+				runVMQEMUImg(t, qemu, "check", "-f", "qcow2", out)
+			})
+		}
+	}
+}
+
+// capability_id: rainbond.vm-build.vmdk-self-contained
+func TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU(t *testing.T) {
+	qemu := requireVMQEMUImg(t)
+	for _, mode := range []string{"parent CID", "parent hint", "comment parent hint", "external extent", "truncated grain data"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			source := filepath.Join(dir, "source.vmdk")
+			runVMQEMUImg(t, qemu, "create", "-f", "vmdk", source, "1M")
+			content, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			descriptor := content[512 : 512+20*512]
+			end := bytes.IndexByte(descriptor, 0)
+			text := string(descriptor[:end])
+			switch mode {
+			case "parent CID":
+				text = strings.Replace(text, "parentCID=ffffffff", "parentCID=12345678", 1)
+			case "parent hint":
+				text += "parentFileNameHint=\"http://127.0.0.1:9/must-not-open\"\n"
+			case "comment parent hint":
+				text += "# parentFileNameHint=\"/outside/must-not-open\"\n"
+			case "external extent":
+				text = strings.Replace(text, " SPARSE ", " FLAT ", 1)
+			case "truncated grain data":
+				content = content[:32]
+			}
+			if len(content) > 512 {
+				for i := 512; i < 512+20*512; i++ {
+					content[i] = 0
+				}
+				copy(content[512:], text)
+			}
+			if err = os.WriteFile(source, content, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err = runVMConversionDockerfile(t, qemu, dir, "source.vmdk"); err == nil {
+				t.Fatal("unsafe VMDK produced a runtime disk", mode)
+			}
+			if _, err = os.Stat(filepath.Join(dir, "rootdisk.qcow2")); !os.IsNotExist(err) {
+				t.Fatal("failed preflight must leave no runtime disk")
+			}
+		})
+	}
 }

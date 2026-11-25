@@ -12,6 +12,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ktesting "k8s.io/client-go/testing"
@@ -120,7 +121,56 @@ func newKubeSnapshotFixture(t *testing.T) kubeSnapshotFixture {
 	client.EXPECT().CoreV1().Return(r.core.CoreV1()).AnyTimes()
 	client.EXPECT().StorageV1().Return(r.core.StorageV1()).AnyTimes()
 	client.EXPECT().KubernetesSnapshotClient().Return(csiClient).AnyTimes()
+	client.EXPECT().DynamicClient().Return(r.dynamic).AnyTimes()
 	return kubeSnapshotFixture{f, r, NewKubeSnapshotBackend(r.resolver, client), nativeClient, csiClient}
+}
+
+// capability_id: rainbond.vm-snapshot.selected-class-admission
+func TestNativeSnapshotAdmissionUsesActualProfileSelection(t *testing.T) {
+	for _, tt := range []struct {
+		name, preferred, policy, otherPolicy string
+		deleting, denied, supported          bool
+	}{
+		{name: "profile resolves two Delete classes", preferred: "selected", policy: "Delete", otherPolicy: "Delete", supported: true},
+		{name: "Retain preference cannot borrow unrelated Delete", preferred: "selected", policy: "Retain", otherPolicy: "Delete"},
+		{name: "dangling profile never falls back", preferred: "missing", policy: "Delete"},
+		{name: "deleting selected class", policy: "Delete", deleting: true},
+		{name: "profile denied", policy: "Delete", denied: true},
+		{name: "unique Retain", policy: "Retain"},
+		{name: "unique Delete", policy: "Delete", supported: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newKubeSnapshotFixture(t)
+			ctx := context.Background()
+			_ = f.csi.SnapshotV1().VolumeSnapshotClasses().Delete(ctx, "cephfs-snapshot", metav1.DeleteOptions{})
+			class := &csi.VolumeSnapshotClass{ObjectMeta: metav1.ObjectMeta{Name: "selected"}, Driver: "cephfs.csi.ceph.com", DeletionPolicy: csi.DeletionPolicy(tt.policy)}
+			if tt.deleting {
+				now := metav1.Now()
+				class.DeletionTimestamp = &now
+			}
+			if _, err := f.csi.SnapshotV1().VolumeSnapshotClasses().Create(ctx, class, metav1.CreateOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			if tt.otherPolicy != "" {
+				other := class.DeepCopy()
+				other.Name, other.DeletionPolicy = "other", csi.DeletionPolicy(tt.otherPolicy)
+				_, _ = f.csi.SnapshotV1().VolumeSnapshotClasses().Create(ctx, other, metav1.CreateOptions{})
+			}
+			if tt.preferred != "" {
+				_, err := f.resolver.dynamic.Resource(schema.GroupVersionResource{Group: "cdi.kubevirt.io", Version: "v1beta1", Resource: "storageprofiles"}).Create(ctx, &unstructured.Unstructured{Object: map[string]interface{}{"apiVersion": "cdi.kubevirt.io/v1beta1", "kind": "StorageProfile", "metadata": map[string]interface{}{"name": "cephfs-vm-snapshot"}, "status": map[string]interface{}{"snapshotClass": tt.preferred}}}, metav1.CreateOptions{})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tt.denied {
+				f.resolver.dynamic.PrependReactor("get", "storageprofiles", func(ktesting.Action) (bool, runtime.Object, error) { return true, nil, errors.New("denied") })
+			}
+			err := f.backend.checkStorage(ctx, f.scope, SnapshotDisk{SourcePVC: f.resolver.currentBinding().ActivePVC})
+			if (err == nil) != tt.supported {
+				t.Fatalf("selected class admission: %v; want supported=%t", err, tt.supported)
+			}
+		})
+	}
 }
 
 // capability_id: rainbond.vm-snapshot.longhorn-storage

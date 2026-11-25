@@ -17,10 +17,8 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -321,9 +319,11 @@ func TestBeginDoesNotLogVMCreateErrorPublicKey(t *testing.T) {
 
 	vmClient := kubecli.NewMockVirtualMachineInterface(ctrl)
 	vmClient.EXPECT().Create(gomock.Any(), app.GetVirtualMachine(), gomock.Any()).Return(nil, fmt.Errorf("admission denied %s", sentinelKey))
-	vmClient.EXPECT().Delete(gomock.Any(), "vm-test", gomock.Any()).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "virtualmachines"}, "vm-test"))
+	// A create failure can leave an existing VM behind. Error cleanup must
+	// retain its identity and disks rather than issuing a destructive delete.
+	vmClient.EXPECT().Delete(gomock.Any(), "vm-test", gomock.Any()).Times(0)
 	kubevirtClient := kubecli.NewMockKubevirtClient(ctrl)
-	kubevirtClient.EXPECT().VirtualMachine("rbd-test").Return(vmClient).Times(2)
+	kubevirtClient.EXPECT().VirtualMachine("rbd-test").Return(vmClient)
 
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {

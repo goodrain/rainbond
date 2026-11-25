@@ -93,6 +93,9 @@ func CreateEvent(target, optType, targetID, tenantID, reqBody, userName, status,
 		SynType:     synType,
 		OptType:     optType,
 	}
+	if target == "service" {
+		event.ServiceID = targetID
+	}
 	if optType == "volume-file-upload" {
 		event.Status = status
 		event.FinalStatus = "complete"

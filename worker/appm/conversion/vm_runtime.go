@@ -128,6 +128,10 @@ func buildVMRuntimeConfig(extensionSet map[string]string, envs []corev1.EnvVar, 
 		GPUs:        buildVMGPUDevices(extensionSet),
 		HostDevices: buildVMHostDevices(extensionSet),
 	}
+	if looksLikeWindowsGuestHint(extensionSet[vmOSNameKey]) {
+		cfg.Interfaces[0].Bridge = nil
+		cfg.Interfaces[0].Masquerade = &kubevirtv1.InterfaceMasquerade{}
+	}
 	if login.Mode != vmLoginModeNone {
 		cfg.RootDiskBus = kubevirtv1.DiskBusVirtio
 	}

@@ -99,7 +99,7 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
-	ListPlugins(official bool) (rbds []*model.RainbondPlugins, err error)
+	ListPlugins(ctx context.Context, official bool) (rbds []*model.RainbondPlugins, err error)
 	PluginExists(name string) (bool, error)
 	CreatePlugin(req *model.CreateRBDPluginReq) error
 	ListAbilities() (rbds []unstructured.Unstructured, err error)
@@ -701,6 +701,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	allPods = append(allPods, roPods.Items...)
 	allPods = deduplicateRainbondComponentPods(allPods)
 	res = finalizeRainbondComponentOverview(buildRainbondComponentOverview(allPods))
+	c.addRainbondComponentReplicaStatus(ctx, utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), res)
 	return res, nil
 }
 
@@ -788,9 +789,9 @@ func buildRainbondComponentOverview(pods []corev1.Pod) []*model.RainbondComponen
 }
 
 // ListPlugins -
-func (c *clusterAction) ListPlugins(official bool) (plugins []*model.RainbondPlugins, err error) {
+func (c *clusterAction) ListPlugins(ctx context.Context, official bool) (plugins []*model.RainbondPlugins, err error) {
 	plugins = make([]*model.RainbondPlugins, 0)
-	res, err := c.HandlePlugins()
+	res, err := c.HandlePlugins(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
@@ -973,9 +974,14 @@ func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Un
 }
 
 // HandlePlugins -
-func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err error) {
+func (c *clusterAction) HandlePlugins(ctx context.Context) (plugins []*model.RainbondPlugins, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	plugins = make([]*model.RainbondPlugins, 0)
-	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
@@ -984,41 +990,57 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 	}
 	// list plugin status
 	var appIDs []string
+	seenApps := make(map[string]bool)
 	for _, item := range list.Items {
-		if item.Labels["app_id"] != "" {
-			appIDs = append(appIDs, item.Labels["app_id"])
+		if appID := item.Labels["app_id"]; appID != "" && !seenApps[appID] {
+			appIDs = append(appIDs, appID)
+			seenApps[appID] = true
 		}
 	}
 	appStatuses := make(map[string]string)
-	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
-		AppIds: appIDs,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "get app statuses")
-	}
-	for _, status := range statuses.AppStatuses {
-		appStatuses[status.AppId] = status.Status
-	}
-
-	// Establish the mapping relationship between appID and teamName
-	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "get apps by app ids")
-	}
-	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
-	if err != nil {
-		return nil, errors.Wrap(err, "get tenants")
-	}
-
 	var (
 		appTeamIDs = make(map[string]string)
 		teamNames  = make(map[string]string)
 	)
-	for _, app := range apps {
-		appTeamIDs[app.AppID] = app.TenantID
+	if len(appIDs) > 0 {
+		statuses, err := c.statusCli.ListAppStatuses(ctx, &pb.AppStatusesReq{AppIds: appIDs})
+		if err != nil {
+			return nil, errors.Wrap(err, "get app statuses")
+		}
+		for _, status := range statuses.AppStatuses {
+			appStatuses[status.AppId] = status.Status
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
+		if err != nil {
+			return nil, errors.Wrap(err, "get apps by app ids")
+		}
+		var tenantIDs []string
+		seenTenants := make(map[string]bool)
+		for _, app := range apps {
+			appTeamIDs[app.AppID] = app.TenantID
+			if app.TenantID != "" && !seenTenants[app.TenantID] {
+				tenantIDs = append(tenantIDs, app.TenantID)
+				seenTenants[app.TenantID] = true
+			}
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if len(tenantIDs) > 0 {
+			tenants, err := db.GetManager().TenantDao().GetTenantsByTenantIDs(tenantIDs)
+			if err != nil {
+				return nil, errors.Wrap(err, "get tenants")
+			}
+			for _, tenant := range tenants {
+				teamNames[tenant.UUID] = tenant.Name
+			}
+		}
 	}
-	for _, tenant := range tenants {
-		teamNames[tenant.UUID] = tenant.Name
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	// Construct the returned data

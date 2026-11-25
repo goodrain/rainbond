@@ -186,12 +186,14 @@ func TestSnapshotHTTPReadAndActionContracts(t *testing.T) {
 		}
 	}
 }
+
+// capability_id: rainbond.vm-restore.native-platform-convergence
 func TestSnapshotHTTPFixedDomainErrorCodes(t *testing.T) {
 	for _, tc := range []struct {
 		err    error
 		status int
 		code   string
-	}{{vmrestore.ErrSnapshotInvalid, 400, "vm_snapshot_invalid_request"}, {vmrestore.ErrInternalAttribute, 403, "vm_snapshot_forbidden"}, {vmrestore.ErrCorrupt, 409, "vm_restore_conflict"}, {vmrestore.ErrSnapshotConfig, 422, "vm_snapshot_config_unsupported"}, {vmrestore.ErrSnapshotIncomplete, 422, "vm_snapshot_incomplete"}, {vmrestore.ErrSnapshotPending, 409, "vm_snapshot_pending"}} {
+	}{{vmrestore.ErrSnapshotInvalid, 400, "vm_snapshot_invalid_request"}, {vmrestore.ErrInternalAttribute, 403, "vm_snapshot_forbidden"}, {vmrestore.ErrCorrupt, 409, "vm_restore_conflict"}, {vmrestore.ErrSnapshotConfig, 422, "vm_snapshot_config_unsupported"}, {vmrestore.ErrSnapshotIncomplete, 422, "vm_snapshot_incomplete"}, {vmrestore.ErrSnapshotPending, 409, "vm_snapshot_pending"}, {vmrestore.ErrNativeRestoreConfigurationChanged, 422, "vm_restore_native_configuration_changed"}} {
 		w := httptest.NewRecorder()
 		snapshotHTTPError(w, httptest.NewRequest("GET", "/", nil), fmt.Errorf("upstream NON_SECRET_INTERNAL_SENTINEL: %w", tc.err))
 		var body struct {

@@ -4,11 +4,13 @@ import (
 	"context"
 	"strings"
 
+	"github.com/goodrain/rainbond/pkg/vmstorage"
 	csi "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kv "kubevirt.io/api/core/v1"
 	native "kubevirt.io/api/snapshot/v1beta1"
@@ -118,9 +120,6 @@ func (b *KubeSnapshotBackend) checkStorage(ctx context.Context, scope Scope, dis
 	if err != nil {
 		return ErrReferenceUnavailable
 	}
-	if !snapshotStorageSupported(storage) {
-		return ErrSnapshotStorage
-	}
 	pv, err := b.client.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
 	if err != nil {
 		return ErrReferenceUnavailable
@@ -132,31 +131,22 @@ func (b *KubeSnapshotBackend) checkStorage(ctx context.Context, scope Scope, dis
 	if err != nil {
 		return ErrReferenceUnavailable
 	}
-	matching, defaults := 0, 0
+	classEvidence := make([]unstructured.Unstructured, 0, len(classes.Items))
 	for _, class := range classes.Items {
-		if class.Driver == storage.Provisioner && class.DeletionPolicy == csi.VolumeSnapshotContentDelete {
-			matching++
-			if class.Annotations["snapshot.storage.kubernetes.io/is-default-class"] == "true" {
-				defaults++
-			}
+		object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&class)
+		if err != nil {
+			return ErrReferenceUnavailable
 		}
+		classEvidence = append(classEvidence, unstructured.Unstructured{Object: object})
 	}
-	if matching != 1 && defaults != 1 {
+	selected := vmstorage.SelectSnapshotClass(ctx, b.client.DynamicClient(), storage, classEvidence)
+	if selected.Status == "unknown" {
+		return ErrReferenceUnavailable
+	}
+	if !vmstorage.ManagedSnapshotCapability(selected).Supported {
 		return ErrSnapshotStorage
 	}
 	return nil
-}
-
-func snapshotStorageSupported(storage *storagev1.StorageClass) bool {
-	if storage == nil || storage.DeletionTimestamp != nil || strings.EqualFold(storage.Parameters["backingSnapshot"], "true") {
-		return false
-	}
-	switch storage.Provisioner {
-	case "cephfs.csi.ceph.com", "driver.longhorn.io":
-		return true
-	default:
-		return false
-	}
 }
 
 // Context performs preflight while the VM may still be Running.

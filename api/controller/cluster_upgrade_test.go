@@ -23,19 +23,28 @@ import (
 // capability_id: rainbond.cluster.upgrade-preserves-component-config
 func TestUpgradePreservesComponentConfig(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		namespace string
-		image     string
+		name           string
+		namespace      string
+		image          string
+		sourceOverride bool
 	}{
 		{name: "new image", image: "example.invalid/rainbond:new"},
 		{name: "same image", image: "example.invalid/rainbond:old"},
 		{name: "custom namespace", namespace: "custom-system", image: "example.invalid/rainbond:new"},
+		{name: "temporary source override with new image", image: "example.invalid/rainbond:new", sourceOverride: true},
+		{name: "temporary source override with same image", image: "example.invalid/rainbond:old", sourceOverride: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("RBD_NAMESPACE", tc.namespace)
 			namespace := tc.namespace
 			if namespace == "" {
 				namespace = "rbd-system"
+			}
+			volume := `{"name":"custom","emptyDir":{}}`
+			mount := `{"name":"custom","mountPath":"/custom"}`
+			if tc.sourceOverride {
+				volume = `{"name":"custom","configMap":{"name":"console-test-source"}}`
+				mount = `{"name":"custom","mountPath":"/app/ui/console/views/app_overview.py","readOnly":true,"subPath":"app_overview.py"}`
 			}
 			// affinity and tolerations are valid CRD fields missing from the vendored Go type.
 			stored := []byte(`{
@@ -46,8 +55,8 @@ func TestUpgradePreservesComponentConfig(t *testing.T) {
 					"imagePullPolicy":"IfNotPresent","args":["--custom"],
 					"env":[{"name":"DB_TYPE","value":"mysql"}],
 					"resources":{"requests":{"cpu":"100m"}},
-					"volumes":[{"name":"custom","emptyDir":{}}],
-					"volumeMounts":[{"name":"custom","mountPath":"/custom"}],
+					"volumes":[` + volume + `],
+					"volumeMounts":[` + mount + `],
 					"affinity":{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{
 						"nodeSelectorTerms":[{"matchFields":[{"key":"metadata.name","operator":"In","values":["custom-node"]}]}]}}},
 					"tolerations":[{"key":"node.kubernetes.io/unschedulable","operator":"Exists","effect":"NoSchedule"}]},

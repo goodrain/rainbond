@@ -476,25 +476,35 @@ func applyVirtualMachineSpec(existingVM, desiredVM *kubevirtv1.VirtualMachine) (
 	desiredSpec.RunStrategy = updatedVM.Spec.RunStrategy
 	desiredSpec.Running = updatedVM.Spec.Running
 	if existingVM.Spec.Template != nil && desiredSpec.Template != nil {
-		// A rebuilt resource specification must keep the NIC already known to
-		// the guest, including MACs pinned before upgrading older VMs.
-		for i := range desiredSpec.Template.Spec.Domain.Devices.Interfaces {
-			next := &desiredSpec.Template.Spec.Domain.Devices.Interfaces[i]
-			for _, current := range existingVM.Spec.Template.Spec.Domain.Devices.Interfaces {
-				if current.Name == next.Name && current.MacAddress != "" {
-					next.MacAddress = current.MacAddress
+		// Resource rendering has no explicit network-edit intent. Preserve the
+		// complete stored binding, including MACs pinned before upgrading older VMs.
+		currentSpec := &updatedVM.Spec.Template.Spec
+		interfaces := currentSpec.Domain.Devices.Interfaces
+		for i := range interfaces {
+			if interfaces[i].MacAddress != "" {
+				continue
+			}
+			for _, next := range desiredSpec.Template.Spec.Domain.Devices.Interfaces {
+				if interfaces[i].Name == next.Name {
+					interfaces[i].MacAddress = next.MacAddress
 					break
 				}
 			}
 		}
+		if len(interfaces) > 0 {
+			desiredSpec.Template.Spec.Domain.Devices.Interfaces = interfaces
+		}
+		if len(currentSpec.Networks) > 0 {
+			desiredSpec.Template.Spec.Networks = currentSpec.Networks
+		}
 		currentFirmware := existingVM.Spec.Template.Spec.Domain.Firmware
 		newFirmware := desiredSpec.Template.Spec.Domain.Firmware
-		if currentFirmware != nil && currentFirmware.UUID != "" && (newFirmware == nil || newFirmware.UUID == "") {
+		if currentFirmware != nil {
 			if newFirmware == nil {
-				newFirmware = &kubevirtv1.Firmware{}
-				desiredSpec.Template.Spec.Domain.Firmware = newFirmware
+				desiredSpec.Template.Spec.Domain.Firmware = currentFirmware.DeepCopy()
+			} else if currentFirmware.UUID != "" && newFirmware.UUID == "" {
+				newFirmware.UUID = currentFirmware.UUID
 			}
-			newFirmware.UUID = currentFirmware.UUID
 		}
 	}
 	if reflect.DeepEqual(existingVM.Spec, *desiredSpec) {

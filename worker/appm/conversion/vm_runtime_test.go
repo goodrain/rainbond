@@ -63,8 +63,8 @@ func TestBuildVMRuntimeConfigRandomWindowsNetworkUsesVirtio(t *testing.T) {
 	if cfg.Interfaces[0].Model != "virtio" {
 		t.Fatalf("expected windows random network to use virtio, got %q", cfg.Interfaces[0].Model)
 	}
-	if cfg.Interfaces[0].Bridge == nil {
-		t.Fatalf("expected windows random network to use bridge binding")
+	if cfg.Interfaces[0].Masquerade == nil || cfg.Interfaces[0].Bridge != nil {
+		t.Fatalf("expected Windows to use a private DHCP lease behind the pod network")
 	}
 }
 

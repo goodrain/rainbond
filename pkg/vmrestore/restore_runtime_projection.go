@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
-	"strings"
-
-	dbmodel "github.com/goodrain/rainbond/db/model"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -80,8 +77,20 @@ func (s *Store) ReadRestoredRuntimeSelection(ctx context.Context, resolver *Reso
 	if err != nil {
 		return nil, err
 	}
-	if c.State.BindingGeneration != view.BindingGeneration || c.Receipt == nil || c.Receipt.Execution == nil || c.Receipt.Restore == nil || c.Receipt.ConfigCommitHash == "" || !c.Receipt.Steps[RestoreCommitStep].Applied {
+	if c.State.BindingGeneration != view.BindingGeneration || c.Receipt == nil || c.Receipt.Restore == nil || c.Receipt.ConfigCommitHash == "" {
 		return nil, ErrCorrupt
+	}
+	var startup, beforeStartup RestoreStartupPolicy
+	if c.Receipt.NativeRestore != nil {
+		if !c.Receipt.Steps[NativeRestoreCommitStep].Applied {
+			return nil, ErrCorrupt
+		}
+		startup, beforeStartup = c.Receipt.NativeRestore.SourceStartup, c.Receipt.NativeRestore.BeforeStartup
+	} else {
+		if c.Receipt.Execution == nil || !c.Receipt.Steps[RestoreCommitStep].Applied {
+			return nil, ErrCorrupt
+		}
+		startup, beforeStartup = c.Receipt.Execution.SourceStartup, c.Receipt.Execution.BeforeStartup
 	}
 	config, err := s.selectedRuntimeConfig(scope)
 	if err != nil {
@@ -90,59 +99,11 @@ func (s *Store) ReadRestoredRuntimeSelection(ctx context.Context, resolver *Reso
 	if err := resolver.stable(scope, current.State); err != nil {
 		return nil, err
 	}
-	return &RuntimeSelection{Scope: scope, BindingGeneration: view.BindingGeneration, Bindings: cloneBindings(c.State.Bindings), Config: config, Startup: c.Receipt.Execution.SourceStartup, BeforeStartup: c.Receipt.Execution.BeforeStartup}, nil
+	return &RuntimeSelection{Scope: scope, BindingGeneration: view.BindingGeneration, Bindings: cloneBindings(c.State.Bindings), Config: config, Startup: startup, BeforeStartup: beforeStartup}, nil
 }
 
 func (s *Store) selectedRuntimeConfig(scope Scope) (RestoreConfig, error) {
-	var service dbmodel.TenantServices
-	if err := s.db.Where("service_id = ? AND tenant_id = ?", scope.ServiceID, scope.TenantID).Take(&service).Error; err != nil {
-		return RestoreConfig{}, err
-	}
-	var rows []dbmodel.TenantServiceVolume
-	if err := s.db.Where("service_id = ?", scope.ServiceID).Find(&rows).Error; err != nil {
-		return RestoreConfig{}, err
-	}
-	var attrs []dbmodel.ComponentK8sAttributes
-	if err := s.db.Where("component_id = ? AND name IN (?)", scope.ServiceID, []string{"vm_boot_mode", "vm_disk_layout"}).Find(&attrs).Error; err != nil {
-		return RestoreConfig{}, err
-	}
-	values := map[string]string{}
-	for _, a := range attrs {
-		if _, ok := values[a.Name]; ok || a.TenantID != scope.TenantID {
-			return RestoreConfig{}, ErrCorrupt
-		}
-		values[a.Name] = a.AttributeValue
-	}
-	boot := strings.ToLower(strings.TrimSpace(values["vm_boot_mode"]))
-	if boot == "legacy" {
-		boot = "bios"
-	}
-	if boot == "efi" {
-		boot = "uefi"
-	}
-	items, err := decodeBeforeLayout(values["vm_disk_layout"])
-	if err != nil {
-		return RestoreConfig{}, err
-	}
-	config := RestoreConfig{Hardware: SnapshotConfig{CPUMilli: service.ContainerCPU, MemoryMiB: int64(service.ContainerMemory), BootMode: boot, DiskLayout: []SnapshotLayout{}}, Volumes: []RestoreVolumeConfig{}}
-	byKey := map[string]dbmodel.TenantServiceVolume{}
-	for _, row := range rows {
-		if pvcDisk(row) {
-			if _, ok := byKey[row.VolumeName]; ok {
-				return config, ErrCorrupt
-			}
-			byKey[row.VolumeName] = row
-		}
-	}
-	for _, item := range items {
-		row, exists := byKey[item.DiskKey]
-		if !exists || item.BootOrder == nil {
-			return config, ErrCorrupt
-		}
-		config.Hardware.DiskLayout = append(config.Hardware.DiskLayout, SnapshotLayout{VolumeID: row.ID, DiskKey: row.VolumeName, CanonicalName: canonicalVolumeName(row.ID), Role: item.DiskRole, Device: item.DeviceType, Bus: item.Bus, BootOrder: *item.BootOrder, ReadOnly: row.IsReadOnly})
-		config.Volumes = append(config.Volumes, RestoreVolumeConfig{VolumeID: row.ID, DiskKey: row.VolumeName, CapacityGiB: row.VolumeCapacity, StorageClass: row.VolumeType, ReadOnly: row.IsReadOnly, AccessMode: row.AccessMode})
-	}
-	return config, config.validate(scope)
+	return readSelectedRuntimeConfig(s.db, scope, false)
 }
 
 // ProjectRestoredRuntime replaces only ledger-owned disk/configuration and

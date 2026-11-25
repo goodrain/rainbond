@@ -3,7 +3,7 @@ package constants
 // Shared helper identities keep runtime defaults and reference protection aligned.
 const (
 	// CNBBuilderImageName is the internal CNB builder image and version.
-	CNBBuilderImageName = "ubuntu-noble-builder:0.0.98"
+	CNBBuilderImageName = "ubuntu-noble-builder:0.0.98-security.1"
 	// CNBRunImageName is the internal CNB run image and version.
 	CNBRunImageName = "ubuntu-noble-run:0.0.73"
 	// PHPCNBBuilderImageName is the PHP builder image and version.

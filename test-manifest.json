@@ -1686,6 +1686,50 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.idle-maintenance-atomic-admission",
+      "title": "Idle maintenance atomic admission",
+      "title_zh": "Idle maintenance atomic admission",
+      "interface_type": "package_function",
+      "interface": "cleanup.RequestIdleMaintenance",
+      "code_paths": [
+        "pkg/cleanup/maintenance.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceAndProducerRaceHasOnlyOneAdmission"
+        },
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestConcurrentIdleMaintenanceHasOneGCWinner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.idle-maintenance-preserves-push",
+      "title": "Idle maintenance preserves push",
+      "title_zh": "Idle maintenance preserves push",
+      "interface_type": "package_function",
+      "interface": "cleanup.RequestIdleMaintenance",
+      "code_paths": [
+        "pkg/cleanup/maintenance.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceLeavesAcceptedBuildWritableUntilPushFinishes"
+        },
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceDoesNotIgnoreUnfinishedOperations"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",
@@ -2906,6 +2950,78 @@
         {
           "path": "db/mysql/dao/k8s_resource_cleanup_test.go",
           "selector": "TestSavedWorkloadWritesRespectCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-cancel-drain",
+      "title": "Scheduled gc cancel drain",
+      "title_zh": "Scheduled gc cancel drain",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCCanceledDrainDoesNotStartOrReleaseWriter"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-preflight",
+      "title": "Scheduled gc preflight",
+      "title_zh": "Scheduled gc preflight",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCRejectsUnqualifiedRegistryBeforeMutation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-slots",
+      "title": "Scheduled gc slots",
+      "title_zh": "Scheduled gc slots",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCStartupSharesDaemonSetRolloutIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-verified-completion",
+      "title": "Scheduled gc verified completion",
+      "title_zh": "Scheduled gc verified completion",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCVerifiedCompletionIsIdempotent"
         }
       ],
       "test_type": "regression",
@@ -6511,6 +6627,293 @@
       "status": "active"
     },
     {
+      "id": "rainbond.image-clean.atomic-scheduled-retirement",
+      "title": "Atomic scheduled retirement",
+      "title_zh": "Atomic scheduled retirement",
+      "interface_type": "package_function",
+      "interface": "cleanup.RetireScheduledVersions",
+      "code_paths": [
+        "pkg/cleanup/scheduled_version.go",
+        "pkg/cleanup/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestScheduledRetirementCommitsCandidatesOnlyAfterReferenceAudit"
+        },
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestRecoverScheduledRetirementOnlyBeforeDeletionAdmission"
+        },
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestRecoveryAndDeletionAdmissionHaveOneWinner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-busy-cancel",
+      "title": "Coordinated manager busy cancel",
+      "title_zh": "Coordinated manager busy cancel",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerCancelsBusyBackoff"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-busy-retry",
+      "title": "Coordinated manager busy retry",
+      "title_zh": "Coordinated manager busy retry",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRetriesBusyWithSameTrigger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-cancelled-start",
+      "title": "Coordinated manager cancelled start",
+      "title_zh": "Coordinated manager cancelled start",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerStoppedBeforeStartDoesNotExecute"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-config",
+      "title": "Coordinated manager config",
+      "title_zh": "Coordinated manager config",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRejectsInvalidDailyConfiguration"
+        },
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRejectsMultipleCoordinatedRunners"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-required",
+      "title": "Coordinated manager required",
+      "title_zh": "Coordinated manager required",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRequiresCoordinatedRunner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-triggers",
+      "title": "Coordinated manager triggers",
+      "title_zh": "Coordinated manager triggers",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRunsCoordinatedStartupAndDailyWithoutFatalErrors"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-unavailable-no-retry",
+      "title": "Coordinated manager unavailable no retry",
+      "title_zh": "Coordinated manager unavailable no retry",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerDoesNotRetryUnavailable"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-run-cancellation",
+      "title": "Daily run cancellation",
+      "title_zh": "Daily run cancellation",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestRunDailyCancellationAndWaitFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-run-loop",
+      "title": "Daily run loop",
+      "title_zh": "Daily run loop",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestRunDailyStartupAndScheduledWallClock"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule",
+      "title": "Daily schedule",
+      "title_zh": "Daily schedule",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestDailyScheduleNextWallClock"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-flag-validation",
+      "title": "Daily schedule flag validation",
+      "title_zh": "Daily schedule flag validation",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosDailyCleanupFlagsRejectInvalidValues"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-flags",
+      "title": "Daily schedule flags",
+      "title_zh": "Daily schedule flags",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosDailyCleanupFlags"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-validation",
+      "title": "Daily schedule validation",
+      "title_zh": "Daily schedule validation",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestDailyScheduleRejectsInvalidConfiguration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.permitted-manifest-deletion",
+      "title": "Permitted manifest deletion",
+      "title_zh": "Permitted manifest deletion",
+      "interface_type": "workflow",
+      "interface": "registry.CoordinatedCleanupClient",
+      "code_paths": [
+        "builder/sources/registry/coordinated_cleanup.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/registry/coordinated_cleanup_test.go",
+          "selector": "TestCoordinatedCleanupClientDoesNotReplayDeletion"
+        },
+        {
+          "path": "builder/sources/registry/coordinated_cleanup_test.go",
+          "selector": "TestCoordinatedCleanupClientRequiresCompleteInventoryAndExactAbsence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.image-clean.registry-gc-noop",
       "title": "Skip registry garbage collect exec when no hub pod matches",
       "title_zh": "\u5f53\u6ca1\u6709\u5339\u914d\u7684\u4ed3\u5e93 Pod \u65f6\u8df3\u8fc7\u5783\u573e\u56de\u6536\u6267\u884c",
@@ -6523,6 +6926,84 @@
         {
           "path": "builder/clean/clean_test.go",
           "selector": "TestPodExecCmdNoMatchingPod"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.safe-schedule-enable-flags",
+      "title": "Safe schedule enable flags",
+      "title_zh": "Safe schedule enable flags",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosSafeScheduledCleanupEnableFlags"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.scheduled-version-retirement",
+      "title": "Scheduled version retirement",
+      "title_zh": "Scheduled version retirement",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.runScheduledVersionCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetiresOnlyUnprotectedOldVersion"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetainsDeferredCandidatesAndNeverReplaysUnknownDelete"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetiresSharedOldDigestAsOneGroup"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetriesKnownRejectionWithoutDuplicatingCandidates"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupDistinguishesBusyProducerAndUncertainty"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRecoversCommittedCrashBeforeReadiness"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRecoversKnownProxyOutcomeWithoutReplayingDelete"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.scheduler-wait-cancellation",
+      "title": "Scheduler wait cancellation",
+      "title_zh": "Scheduler wait cancellation",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestCleanupWaitHonorsCancellationAndDeadline"
         }
       ],
       "test_type": "regression",
@@ -7499,6 +7980,42 @@
       "status": "active"
     },
     {
+      "id": "rainbond.overview.deployment-replica-status",
+      "title": "Verify Deployment replica health without counting rollout history",
+      "title_zh": "Verify Deployment replica health without counting rollout history",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListRainbondComponents",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/handler/component_replica_status.go",
+        "api/model/model.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentDeploymentReplicaStatus"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusQueriesAreDemandDriven"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusRequestCacheAndLegacyOrdering"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusRespectsRequestDeadline"
+        },
+        {
+          "path": "api/handler/component_replica_status_test.go",
+          "selector": "TestRainbondComponentReplicaStatusCachesFailedLookups"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.overview.disk-availability",
       "title": "Distinguish missing node filesystem measurements",
       "title_zh": "Distinguish missing node filesystem measurements",
@@ -8013,6 +8530,46 @@
       "status": "active"
     },
     {
+      "id": "rainbond.plugins.scoped-context-reads",
+      "title": "Plugin reads preserve request budget and scope tenant enrichment",
+      "title_zh": "Plugin reads preserve request budget and scope tenant enrichment",
+      "interface_type": "handler_method",
+      "interface": "clusterAction.ListPlugins",
+      "code_paths": [
+        "api/handler/cluster.go",
+        "api/controller/cluster.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/plugin_reads_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.pod-logs.tenant-context-guard",
+      "title": "Reject pod logs without tenant context",
+      "title_zh": "Reject pod logs without tenant context",
+      "interface_type": "view_endpoint",
+      "interface": "api/controller.PodController.PodLogs",
+      "code_paths": [
+        "api/controller/pods.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/pods_test.go",
+          "selector": "TestPodLogsRejectsInvalidTenantContext"
+        },
+        {
+          "path": "api/controller/pods_test.go",
+          "selector": "TestPodLogsWithTenantPreservesLogValidation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.rainbondfile.missing",
       "title": "Return not found when rainbondfile is missing",
       "title_zh": "\u7f3a\u5c11 rainbondfile \u65f6\u8fd4\u56de\u672a\u627e\u5230",
@@ -8217,6 +8774,51 @@
         {
           "path": "api/handler/resource_import_daemonset_test.go",
           "selector": "TestExtendMethodForResourceTypeSupportsDaemonSet"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.rollback.failed-http-status",
+      "title": "Return failure HTTP status for failed async rollbacks",
+      "title_zh": "Return failure HTTP status for failed async rollbacks",
+      "interface_type": "view_endpoint",
+      "interface": "PUT component rollback",
+      "code_paths": [
+        "api/controller/service_action.go",
+        "api/middleware/middleware.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/rollback_result_test.go",
+          "selector": "TestRollbackResponseEndsFailedAsyncOperation"
+        },
+        {
+          "path": "api/controller/rollback_result_test.go",
+          "selector": "TestRollbackResponseKeepsSuccessfulAsyncSubmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.rollback.selection-failure-diagnostics",
+      "title": "Classify rollback selection failures and preserve queue compensation",
+      "title_zh": "Classify rollback selection failures and preserve queue compensation",
+      "interface_type": "handler_method",
+      "interface": "api.handler.OperationHandler.RollBack",
+      "code_paths": [
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/rollback_selection_failure_test.go",
+          "selector": "TestRollbackDatabaseFailureIsNotReportedAsMissingVersion"
+        },
+        {
+          "path": "api/handler/rollback_selection_failure_test.go",
+          "selector": "TestRollbackQueuesOnceAndCompensatesOnlyAfterQueueFailure"
         }
       ],
       "test_type": "regression",
@@ -9001,6 +9603,24 @@
       "status": "active"
     },
     {
+      "id": "rainbond.source-repo.shallow-submodules",
+      "title": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "title_zh": "Source builds shallow-clone submodules and fall back for missing pinned commits",
+      "interface_type": "package_function",
+      "interface": "builder/sources.GitCloneOrPull",
+      "code_paths": [
+        "builder/sources/git.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/git_submodule_test.go",
+          "selector": "TestGitCloneOrPullSubmoduleDepth"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.source-repo.show-url",
       "title": "Strip credentials from repository display URLs",
       "title_zh": "\u4ece\u4ed3\u5e93\u5c55\u793a\u5730\u5740\u4e2d\u53bb\u9664\u51ed\u636e",
@@ -9067,24 +9687,6 @@
         {
           "path": "builder/sources/sftp_test.go",
           "selector": "TestSFTPClientCloseZeroValue"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.source-repo.shallow-submodules",
-      "title": "Source builds shallow-clone submodules and fall back for missing pinned commits",
-      "title_zh": "Source builds shallow-clone submodules and fall back for missing pinned commits",
-      "interface_type": "package_function",
-      "interface": "builder/sources.GitCloneOrPull",
-      "code_paths": [
-        "builder/sources/git.go"
-      ],
-      "tests": [
-        {
-          "path": "builder/sources/git_submodule_test.go",
-          "selector": "TestGitCloneOrPullSubmoduleDepth"
         }
       ],
       "test_type": "regression",
@@ -11082,6 +11684,38 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.local-source-boundary",
+      "title": "Restrict VM local upload reads and cleanup to managed event directories",
+      "title_zh": "\u9650\u5236\u865a\u62df\u673a\u672c\u5730\u4e0a\u4f20\u76ee\u5f55\u7684\u8bfb\u53d6\u548c\u6e05\u7406\u8303\u56f4",
+      "interface_type": "workflow",
+      "interface": "sourceutil.ValidateVMLocalPackageSource",
+      "code_paths": [
+        "builder/sourceutil/vm_local_source.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vm_local_source_test.go",
+          "selector": "TestVMLocalSourceOnlyAllowsManagedSingleEventDirectory"
+        },
+        {
+          "path": "builder/sourceutil/vm_local_source_test.go",
+          "selector": "TestVMLocalSourceRejectsAnyDirectorySymlinkOrNonDirectory"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseRejectsUnmanagedLocalPathBeforeReading"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.retain-failed-build-pod",
       "title": "Retain failed VM build pods for diagnostics",
       "title_zh": "\u4fdd\u7559\u5931\u8d25\u7684\u865a\u62df\u673a\u6784\u5efa Pod \u4fbf\u4e8e\u8bca\u65ad",
@@ -11130,6 +11764,91 @@
         {
           "path": "builder/exector/build_from_vm_compat_test.go",
           "selector": "TestVMDownloadRejectsUnsafeURLNamesBeforeRequest"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.vmdk-runtime-binding",
+      "title": "Bind detected VMDK builds to this task converted QCOW2 registry root",
+      "title_zh": "\u786e\u4fdd\u771f\u5b9eVMDK\u6784\u5efa\u7531\u672c\u4efb\u52a1QCOW2\u8fd0\u884c\u4ea7\u7269\u6d88\u8d39",
+      "interface_type": "workflow",
+      "interface": "VMBuildItem.validateVMDKRuntimeBinding",
+      "code_paths": [
+        "builder/exector/vmdk_binding.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/vmdk_binding_test.go",
+          "selector": "TestVMDKRuntimeConsumerMustUseThisConvertedRegistryImage"
+        },
+        {
+          "path": "builder/exector/vmdk_binding_test.go",
+          "selector": "TestVMDKBareInternalImageNeverMatchesExternalDockerHub"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.vmdk-self-contained",
+      "title": "Validate standalone VMDK and convert to QCOW2 without external dependencies",
+      "title_zh": "\u6821\u9a8c\u81ea\u5305\u542bVMDK\u5e76\u5b89\u5168\u8f6c\u6362\u4e3aQCOW2",
+      "interface_type": "workflow",
+      "interface": "VMBuildItem.vmBuild",
+      "code_paths": [
+        "builder/sourceutil/vmdk.go",
+        "builder/sourceutil/vm_wrapper.go",
+        "builder/sourceutil/vm_image_name.go",
+        "builder/parser/vm_service.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vmdk_test.go",
+          "selector": "TestInspectVMDKAcceptsOnlyBoundedSelfContainedSparseImages"
+        },
+        {
+          "path": "builder/sourceutil/vmdk_test.go",
+          "selector": "TestInspectVMDKRejectsDescriptorLegacyAndWrongExtensionPayload"
+        },
+        {
+          "path": "builder/sourceutil/vmdk_name_test.go",
+          "selector": "TestVMDKInputNamesAllowDefaultVMwareNamesWithoutRelaxingDockerNames"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperCannotHideVMDKFromPreflight"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperRetainsExistingRawAndQCOWArchives"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperBoundsNamesTypesAndXZDictionary"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperRejectsBzipAndZstdIncludingSkippableFrames"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseAcceptsSingleVMDKURLAndLocalUpload"
+        },
+        {
+          "path": "builder/exector/build_from_vm_test.go",
+          "selector": "TestRenderVMDKRequiresConversionAndDisablesNetwork"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename"
+        },
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU"
         }
       ],
       "test_type": "regression",
@@ -11557,6 +12276,32 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-import.vmdk-converted-runtime",
+      "title": "Require Builder-converted runtime disks for VMDK imports",
+      "title_zh": "Require Builder-converted runtime disks for VMDK imports",
+      "interface_type": "workflow",
+      "interface": "volume.buildVMDiskImportDataVolumeTemplate",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestVMDKDiskImportRequiresConvertedRuntime"
+        },
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestVMDKHTTPImportCannotUseAnotherFormatToBypassConversion"
+        },
+        {
+          "path": "worker/appm/volume/vmdk_import_test.go",
+          "selector": "TestConvertedVMDKRegistryImportPreservesSourceProvenance"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-live-update.capability-requires-installer-media-removal",
       "title": "Block live update capability until installer media is removed",
       "title_zh": "\u521d\u59cb\u5316\u5b89\u88c5\u5149\u76d8\u672a\u5220\u9664\u65f6\u5c4f\u853d\u70ed\u66f4\u65b0\u80fd\u529b",
@@ -11741,6 +12486,36 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.preserve-binding-on-edit",
+      "title": "Preserve stored VM network bindings and omitted firmware during resource edits",
+      "title_zh": "Preserve stored VM network bindings and omitted firmware during resource edits",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.syncVirtualMachineSpec; applyVirtualMachineSpec",
+      "code_paths": [
+        "api/handler/k8s_attribute.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestHardwareSaveUpdatesResourcesWithoutReplacingStoredNetwork"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeRetainsExplicitDiskAndDeviceChanges"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeKeepsCompleteNetworkBinding"
+        },
+        {
+          "path": "api/handler/vm_network_binding_preservation_test.go",
+          "selector": "TestSpecMergeFirmwareDefaultsAndExplicitUUID"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-network.stable-interface-identity",
       "title": "Preserve VM network identity across creation, updates and restarts",
       "title_zh": "\u865a\u62df\u673a\u7f51\u5361\u6807\u8bc6\u5728\u521b\u5efa\u3001\u66f4\u65b0\u548c\u91cd\u542f\u4e2d\u4fdd\u6301\u7a33\u5b9a",
@@ -11787,6 +12562,28 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-network.windows-private-dhcp",
+      "title": "Windows VM pod networking uses private DHCP without changing unrelated guests",
+      "title_zh": "Windows \u865a\u62df\u673a\u4f7f\u7528\u79c1\u6709 DHCP \u4e14\u4fdd\u6301\u5176\u4ed6\u6765\u5bbe\u7f51\u7edc\u4e0d\u53d8",
+      "interface_type": "workflow",
+      "interface": "conversion.buildVMRuntimeConfig",
+      "code_paths": [
+        "worker/appm/conversion/vm_runtime.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vm_windows_network_test.go",
+          "selector": "TestWindowsPodNetworkDoesNotDelegateLauncherAddressToGuest"
+        },
+        {
+          "path": "worker/appm/conversion/vm_windows_network_test.go",
+          "selector": "TestLinuxAndUnidentifiedGuestsKeepTheirNetworkBinding"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-pods.cleanup-completed-virt-launcher",
       "title": "Cleanup completed virt-launcher pods after VM hot update",
       "title_zh": "\u865a\u62df\u673a\u70ed\u66f4\u65b0\u540e\u6e05\u7406\u5df2\u5b8c\u6210\u7684 virt-launcher Pod",
@@ -11799,6 +12596,127 @@
         {
           "path": "api/handler/service_vm_pod_cleanup_test.go",
           "selector": "TestGetPodsCleansUpCompletedVMLauncherPodsAfterHotUpdate"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-post-submit-observation",
+      "title": "Batch VM power keeps accepted writes pending when runtime observation fails",
+      "title_zh": "Batch VM power keeps accepted writes pending when runtime observation fails",
+      "interface_type": "workflow",
+      "interface": "ServiceAction.restoredPower; vmBatchOperationResult",
+      "code_paths": [
+        "api/handler/vm_restored_power.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerKeepsSubmittedObservationFailurePending"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-restored-event-lifecycle",
+      "title": "Restored VM batch power preserves scoped events and observes asynchronous completion",
+      "title_zh": "Restored VM batch power preserves scoped events and observes asynchronous completion",
+      "interface_type": "workflow",
+      "interface": "OperationHandler.Start; OperationHandler.Stop; BatchOperationHandler.createEvents",
+      "code_paths": [
+        "api/handler/service_operation.go",
+        "api/handler/service_batch_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerRetainsPendingAndUnknownUntilObserved"
+        },
+        {
+          "path": "api/handler/service_batch_vm_restored_power_test.go",
+          "selector": "TestBatchRestoredVMPowerClosesRejectedEventWithoutMutatingFence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-start-preserves-disks",
+      "title": "Batch VM start reuses the preserved VM power API and retains the container worker path",
+      "title_zh": "Batch VM start reuses the preserved VM power API and retains the container worker path",
+      "interface_type": "workflow",
+      "interface": "handler.BatchOperationHandler.Start",
+      "code_paths": [
+        "api/handler/service_batch_operation.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_stop_test.go",
+          "selector": "TestBatchStartUsesVMPowerAndKeepsContainerWorkerPath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.batch-stop-preserves-disks",
+      "title": "Batch VM stop uses the power API without destructive worker tasks",
+      "title_zh": "Batch VM stop uses the power API without destructive worker tasks",
+      "interface_type": "workflow",
+      "interface": "handler.BatchOperationHandler.Stop",
+      "code_paths": [
+        "api/handler/service_batch_operation.go",
+        "api/handler/service_operation.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_batch_vm_stop_test.go",
+          "selector": "TestBatchStopUsesVMPowerAndKeepsContainerWorkerPath"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.cancel-pending-handler",
+      "title": "Normal stop API can cancel unfinished restored VM startup",
+      "title_zh": "\u6b63\u5e38\u5173\u95ed\u63a5\u53e3\u53ef\u53d6\u6d88\u5c1a\u672a\u5b8c\u6210\u7684\u6062\u590d\u865a\u62df\u673a\u542f\u52a8",
+      "interface_type": "handler_method",
+      "interface": "handler.ServiceAction.StopVM",
+      "code_paths": [
+        "api/handler/vm_restored_power.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/vm_restored_power_test.go",
+          "selector": "TestRestoredPowerHandlerCanStopAnUnfinishedStartup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.cancel-pending-start",
+      "title": "Pending VM startup can be stopped without dropping admission early",
+      "title_zh": "\u542f\u52a8\u672a\u5b8c\u6210\u65f6\u53ef\u5b89\u5168\u5173\u95ed\u5e76\u5728\u8fd0\u884c\u65f6\u9000\u51fa\u540e\u91ca\u653e\u64cd\u4f5c\u9501",
+      "interface_type": "workflow",
+      "interface": "vmrestore.Store.StopPendingOrdinaryVM",
+      "code_paths": [
+        "pkg/vmrestore/ordinary_vm_stop.go",
+        "pkg/vmrestore/ordinary_vm_admission.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestPendingStartStopsBeforeReleasingAdmissionAndCompletesBothEvents"
+        },
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestPendingStartRefusesToStopReplacementVM"
         }
       ],
       "test_type": "regression",
@@ -11829,6 +12747,42 @@
         {
           "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStopVMMarksDirectStopEventSuccess"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.legacy-stop-preserves-disks",
+      "title": "Legacy queued VM stop fails closed before deleting runtime or persistent disks",
+      "title_zh": "Legacy queued VM stop fails closed before deleting runtime or persistent disks",
+      "interface_type": "workflow",
+      "interface": "controller.stopController.stopOne",
+      "code_paths": [
+        "worker/appm/controller/stop.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/controller/stop_vm_preservation_test.go",
+          "selector": "TestLegacyWorkerStopCannotDeleteUnmappedVM"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.scoped-single-event",
+      "title": "Single-component power events retain component scope",
+      "title_zh": "Single-component power events retain component scope",
+      "interface_type": "package_function",
+      "interface": "api/util.CreateEvent",
+      "code_paths": [
+        "api/util/events.go"
+      ],
+      "tests": [
+        {
+          "path": "api/util/events_test.go",
+          "selector": "TestCreateEventScopesRestoredVMPower"
         }
       ],
       "test_type": "regression",
@@ -11881,6 +12835,30 @@
         {
           "path": "api/handler/service_vm_power_test.go",
           "selector": "TestStopVMFallsBackToHaltingProvisioningVMWhenDirectStopFails"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-power.terminal-start-failure",
+      "title": "Terminal VM and backend clone failures close startup safely",
+      "title_zh": "\u865a\u62df\u673a\u6216\u514b\u9686\u7ec8\u6001\u5931\u8d25\u81ea\u52a8\u5173\u95ed\u542f\u52a8\u4efb\u52a1",
+      "interface_type": "workflow",
+      "interface": "vmrestore.Store.ObserveOrdinaryVMCompletion",
+      "code_paths": [
+        "pkg/vmrestore/ordinary_vm_stop.go",
+        "pkg/vmrestore/ordinary_vm_admission.go",
+        "worker/appm/store/vm_admission_observer.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestTerminalInstanceFailureStopsVMAndClosesFailedStart"
+        },
+        {
+          "path": "pkg/vmrestore/ordinary_vm_stop_test.go",
+          "selector": "TestFailedCloneStopsPendingStartupInsteadOfKeepingOperationBusy"
         }
       ],
       "test_type": "regression",
@@ -12005,6 +12983,25 @@
         }
       ],
       "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-recycle.original-disk-preflight",
+      "title": "Original VM recycle recovery preflight",
+      "title_zh": "\u56de\u6536\u6062\u590d\u6838\u9a8c\u539f\u865a\u62df\u673a\u4e0e\u78c1\u76d8",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.GetVMRecycleRecovery",
+      "code_paths": [
+        "api/handler/service_vm_recycle.go",
+        "api/controller/vm_recycle.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_recycle_test.go",
+          "selector": "TestVMRecycleRecoveryRequiresStoppedOriginalVMAndLiveDisks"
+        }
+      ],
+      "test_type": "integration",
       "status": "active"
     },
     {
@@ -12554,6 +13551,44 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-console-layout",
+      "title": "Preserve Console disk declarations during same-configuration native restore",
+      "title_zh": "Preserve Console disk declarations during same-configuration native restore",
+      "interface_type": "workflow",
+      "interface": "ManagedNativeRestore.Start",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_advanced.go",
+        "pkg/vmrestore/native_restore_control.go",
+        "pkg/vmrestore/restore_before_config.go",
+        "pkg/vmrestore/restore_runtime_projection.go",
+        "pkg/vmrestore/restore_runtime_selection.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestSelectedRuntimeConfigNormalizesConsoleDiskLayout"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestManagedNativeRestorePreservesConsoleDiskMetadata"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestManagedNativeRestoreRejectsChangedInstallationMedia"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestNativeConsoleSelectionRejectsMalformedOrChangedRows"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_console_layout_test.go",
+          "selector": "TestNativeControlRejectsCrossConfigurationBeforeFence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-http",
       "title": "Expose scoped native VM restore HTTP operations",
       "title_zh": "Expose scoped native VM restore HTTP operations",
@@ -12595,6 +13630,91 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-restore.native-pci-default-metadata",
+      "title": "Native restore preserves admitted PCI topology defaults and rejects real metadata changes",
+      "title_zh": "Native restore preserves admitted PCI topology defaults and rejects real metadata changes",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.checkAdvanced",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_advanced.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_metadata_test.go",
+          "selector": "TestManagedNativeRestorePreservesControllerPCITopologyDefault"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-platform-convergence",
+      "title": "Converge native VM restore with platform bindings and durable ownership",
+      "title_zh": "Converge native VM restore with platform bindings and durable ownership",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_managed.go",
+        "pkg/vmrestore/native_restore_control.go",
+        "pkg/vmrestore/native_restore.go",
+        "pkg/vmrestore/restore_runtime_projection.go",
+        "pkg/vmrestore/footprints.go",
+        "pkg/vmrestore/state.go",
+        "pkg/vmrestore/store.go",
+        "api/handler/vm_native_restore.go",
+        "api/controller/vm_snapshot.go",
+        "pkg/vmrestore/native_restore_advanced.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_control_test.go",
+          "selector": "TestNativeRestoreControlOwnsFenceAndCommitsBindingsAtomically"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_control_test.go",
+          "selector": "TestNativeRestoreControlRejectsChangedIntentAndConfiguration"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRequiresPlatformCommitBeforeSuccess"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRejectsUnprovenNativeAndDiskResults"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePreflightAndCapacityAreFailClosed"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePinsNativeUIDAndUnknownOutcomes"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestorePreservesUnknownFieldsAndRejectsUnknownDiskReplacement"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreKeepsReadonlyIdentityAndRefusesExtraDisks"
+        },
+        {
+          "path": "api/controller/vm_snapshot_lifecycle_test.go",
+          "selector": "TestSnapshotHTTPFixedDomainErrorCodes"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeRestoreRejectsDesiredAndLiveAdvancedDrift"
+        },
+        {
+          "path": "pkg/vmrestore/native_restore_managed_test.go",
+          "selector": "TestManagedNativeAdvancedDefaultsDoNotHideRealEdits"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-restore.native-source-config",
       "title": "Derive A access mode and quota from exact native backup metadata",
       "title_zh": "Derive A access mode and quota from exact native backup metadata",
@@ -12606,6 +13726,62 @@
       "tests": [
         {
           "path": "pkg/vmrestore/restore_native_source_test.go"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-source-retention",
+      "title": "Native restore retains original DataVolumes before controller cleanup",
+      "title_zh": "\u539f\u751f\u6062\u590d\u5728\u63a7\u5236\u5668\u6e05\u7406\u524d\u4fdd\u7559\u6e90\u6570\u636e\u5377",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_storage.go",
+        "pkg/vmrestore/native_restore_managed.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_storage_test.go",
+          "selector": "TestNativeRestoreRetainsSourceDataVolumeBeforeControllerCleanup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-status-read",
+      "title": "Native restore status remains readable after power changes",
+      "title_zh": "Native restore status remains readable after power changes",
+      "interface_type": "workflow",
+      "interface": "vmrestore.NativeRestoreEngine.Status",
+      "code_paths": [
+        "pkg/vmrestore/native_restore.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_test.go",
+          "selector": "TestNativeRestoreStatusSurvivesPowerAndReadinessChanges"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-restore.native-storage-readiness",
+      "title": "Native restore waits for verified Longhorn clone completion",
+      "title_zh": "\u539f\u751f\u6062\u590d\u7b49\u5f85\u7ecf\u8eab\u4efd\u6838\u9a8c\u7684 Longhorn \u514b\u9686\u5b8c\u6210",
+      "interface_type": "workflow",
+      "interface": "vmrestore.ManagedNativeRestore.Advance",
+      "code_paths": [
+        "pkg/vmrestore/native_restore_storage.go",
+        "pkg/vmrestore/native_restore_managed.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/native_restore_storage_test.go",
+          "selector": "TestNativeRestoreWaitsForLonghornCloneAndPersistsFailure"
         }
       ],
       "test_type": "regression",
@@ -13750,6 +14926,51 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-runtime.stopped-import-status",
+      "title": "Report stopped VM power separately from pending disk imports",
+      "title_zh": "\u78c1\u76d8\u5bfc\u5165\u4e2d\u5df2\u5173\u95ed\u865a\u62df\u673a\u7684\u72b6\u6001\u5224\u5b9a",
+      "interface_type": "handler_method",
+      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
+      "code_paths": [
+        "api/handler/service.go"
+      ],
+      "tests": [
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportDoesNotRemainStartingWithoutVMI"
+        },
+        {
+          "path": "api/handler/service_vm_power_status_test.go",
+          "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-runtime.vmdk-persistent-root",
+      "title": "Boot VMDK sources from converted persistent root disks",
+      "title_zh": "Boot VMDK sources from converted persistent root disks",
+      "interface_type": "workflow",
+      "interface": "conversion.resolveVMBootPath",
+      "code_paths": [
+        "worker/appm/conversion/version.go",
+        "worker/appm/volume/vm_import.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestVMDKSourceUsesConvertedPersistentRoot"
+        },
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestCreateVolumesRejectsUnconvertedVMDKWithoutBlankFallback"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-snapshot.authoritative-readback",
       "title": "Read persisted snapshot source and accepted manifest facts",
       "title_zh": "\u8bfb\u53d6\u6301\u4e45\u5316\u5feb\u7167\u6765\u6e90\u4e0e\u5df2\u63a5\u53d7\u6e05\u5355\u4e8b\u5b9e",
@@ -14213,6 +15434,25 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-snapshot.selected-class-admission",
+      "title": "Snapshot creation honors the selected storage profile class",
+      "title_zh": "Snapshot creation honors the selected storage profile class",
+      "interface_type": "workflow",
+      "interface": "vmrestore.KubeSnapshotBackend.checkStorage",
+      "code_paths": [
+        "pkg/vmrestore/snapshot_kube.go",
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmrestore/snapshot_kube_test.go",
+          "selector": "TestNativeSnapshotAdmissionUsesActualProfileSelection"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-storage.existing-snapshot-capability",
       "title": "Existing VM complete snapshot participants capability",
       "title_zh": "\u5df2\u6709\u865a\u62df\u673a\u5b8c\u6574\u53c2\u4e0e\u76d8\u5feb\u7167\u80fd\u529b\u53ea\u8bfb\u67e5\u8be2",
@@ -14275,6 +15515,24 @@
         {
           "path": "api/controller/vm_snapshot_capability_test.go",
           "selector": "TestExistingSnapshotCapabilityHTTPRejectsMissingAndForeignContext"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.managed-snapshot-admission",
+      "title": "Managed snapshot admission uses the selected class policy",
+      "title_zh": "Managed snapshot admission uses the selected class policy",
+      "interface_type": "workflow",
+      "interface": "vmstorage.ManagedSnapshotCapability",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/managed_snapshot_test.go",
+          "selector": "TestManagedSnapshotAdmissionUsesSelectedClassPolicy"
         }
       ],
       "test_type": "regression",
@@ -14395,6 +15653,24 @@
         {
           "path": "api/handler/vm_snapshot_capability_test.go",
           "selector": "TestVolumeOptionsSnapshotCapabilityPreservesUnknown"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-storage.snapshot-socket-node",
+      "title": "CSI host socket evidence requires the same node",
+      "title_zh": "CSI host socket evidence requires the same node",
+      "interface_type": "workflow",
+      "interface": "vmstorage.Inspector.StorageClass",
+      "code_paths": [
+        "pkg/vmstorage/snapshot.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/vmstorage/snapshot_test.go",
+          "selector": "TestSnapshotCapabilityNeverJoinsHostSocketsAcrossNodes"
         }
       ],
       "test_type": "regression",
@@ -14860,6 +16136,57 @@
         {
           "path": "api/webcli/app/app_test.go",
           "selector": "TestGetContainerArgsRejectsMissingContainer"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.webcli.output-flow-control",
+      "title": "Negotiate bounded terminal output with consumer acknowledgements",
+      "title_zh": "\u7ec8\u7aef\u8f93\u51fa\u534f\u5546\u6d41\u63a7\u53ca\u6d88\u8d39\u786e\u8ba4",
+      "interface_type": "workflow",
+      "interface": "api/webcli/app.configureTerminalFlowControl",
+      "code_paths": [
+        "api/webcli/app/app.go",
+        "api/webcli/app/flow_control.go"
+      ],
+      "tests": [
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlBoundsOutputAndKeepsInputAlive"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlLegacyClientDoesNotWaitForAcknowledgements"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlPartialAcknowledgementOnlyReleasesConsumedBytes"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlCancellationWhileWindowFull"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlDisconnectWhileWindowFull"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlRejectsInvalidAcknowledgements"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlRejectsAcknowledgementWithoutOutstandingOutput"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlCloseUnblocksWaitingSlaveRead"
+        },
+        {
+          "path": "api/webcli/app/flow_control_test.go",
+          "selector": "TestTerminalFlowControlInitFlagIsOptIn"
         }
       ],
       "test_type": "regression",
@@ -15960,47 +17287,6 @@
         {
           "path": "db/mysql/dao/volume_type_test.go",
           "selector": "TestShouldBackfillStorageClassAccessMode"
-        }
-      ],
-      "test_type": "regression",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-recycle.original-disk-preflight",
-      "title": "Original VM recycle recovery preflight",
-      "title_zh": "回收恢复核验原虚拟机与磁盘",
-      "interface_type": "handler_method",
-      "interface": "ServiceAction.GetVMRecycleRecovery",
-      "code_paths": [
-        "api/handler/service_vm_recycle.go",
-        "api/controller/vm_recycle.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_vm_recycle_test.go",
-          "selector": "TestVMRecycleRecoveryRequiresStoppedOriginalVMAndLiveDisks"
-        }
-      ],
-      "test_type": "integration",
-      "status": "active"
-    },
-    {
-      "id": "rainbond.vm-runtime.stopped-import-status",
-      "title": "Report stopped VM power separately from pending disk imports",
-      "title_zh": "\u78c1\u76d8\u5bfc\u5165\u4e2d\u5df2\u5173\u95ed\u865a\u62df\u673a\u7684\u72b6\u6001\u5224\u5b9a",
-      "interface_type": "handler_method",
-      "interface": "ServiceAction.resolveVMServiceRuntimeStatusWithGuest",
-      "code_paths": [
-        "api/handler/service.go"
-      ],
-      "tests": [
-        {
-          "path": "api/handler/service_vm_power_status_test.go",
-          "selector": "TestStoppedImportDoesNotRemainStartingWithoutVMI"
-        },
-        {
-          "path": "api/handler/service_vm_power_status_test.go",
-          "selector": "TestStoppedImportRequiresConfirmedPowerAndAbsentVMI"
         }
       ],
       "test_type": "regression",

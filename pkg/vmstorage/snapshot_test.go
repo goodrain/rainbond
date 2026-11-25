@@ -106,6 +106,7 @@ func TestSnapshotCapabilityAssociatesSeparateSidecarsBySharedSocket(t *testing.T
 	socket := func(name, path string, container corev1.Container) *corev1.Pod {
 		container.VolumeMounts = []corev1.VolumeMount{{Name: "socket-dir", MountPath: "/csi/"}}
 		pod := readyPod(name, container)
+		pod.Spec.NodeName = "node-a"
 		pod.Spec.Volumes = []corev1.Volume{{Name: "socket-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: path}}}}
 		return pod
 	}
@@ -128,6 +129,42 @@ func TestSnapshotCapabilityAssociatesSeparateSidecarsBySharedSocket(t *testing.T
 	got = NewInspector(c, d).StorageClass(context.Background(), "fast")
 	if got.Supported || got.ReasonCode != "driver_snapshotter_not_ready" {
 		t.Fatalf("unrelated CSI sockets were associated: %+v", got)
+	}
+}
+
+// capability_id: rainbond.vm-storage.snapshot-socket-node
+func TestSnapshotCapabilityNeverJoinsHostSocketsAcrossNodes(t *testing.T) {
+	for _, tt := range []struct {
+		name, driverNode, snapshotterNode string
+		supported                         bool
+	}{
+		{"same node", "node-a", "node-a", true},
+		{"different nodes", "node-a", "node-b", false},
+		{"driver unscheduled", "", "node-a", false},
+		{"snapshotter unscheduled", "node-a", "", false},
+		{"both unscheduled", "", "", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			core, dyn := fixture()
+			_ = core.CoreV1().Pods("infra").Delete(ctx, "provider", metav1.DeleteOptions{})
+			for n, container := range []corev1.Container{
+				{Name: "driver", Args: []string{"--drivername=example.csi.io", "--endpoint=unix:///csi/csi.sock"}},
+				{Name: "snapshotter", Image: "registry/csi-snapshotter:v1", Args: []string{"--csi-address=/csi/csi.sock"}},
+			} {
+				container.VolumeMounts = []corev1.VolumeMount{{Name: "socket", MountPath: "/csi"}}
+				pod := readyPod(container.Name, container)
+				pod.Spec.NodeName = []string{tt.driverNode, tt.snapshotterNode}[n]
+				pod.Spec.Volumes = []corev1.Volume{{Name: "socket", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/var/lib/csi"}}}}
+				if _, err := core.CoreV1().Pods("infra").Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got := NewInspector(core, dyn).StorageClass(ctx, "fast")
+			if got.Supported != tt.supported || !tt.supported && got.ReasonCode != "driver_snapshotter_not_ready" {
+				t.Fatalf("node/socket association: %+v", got)
+			}
+		})
 	}
 }
 

@@ -33,18 +33,22 @@ type NativeRestoreVolumeDTO struct {
 
 // NativeRestoreDTO is a durable projection of a KubeVirt restore CR.
 type NativeRestoreDTO struct {
-	RestoreName  string                   `json:"restore_name"`
-	SnapshotName string                   `json:"snapshot_name"`
-	RequestID    string                   `json:"request_id"`
-	Phase        string                   `json:"phase"`
-	Complete     bool                     `json:"complete"`
-	ErrorCode    string                   `json:"error_code,omitempty"`
-	Volumes      []NativeRestoreVolumeDTO `json:"volumes"`
+	RequiresAdvance bool                     `json:"requires_advance,omitempty"`
+	RestoreName     string                   `json:"restore_name"`
+	SnapshotName    string                   `json:"snapshot_name"`
+	RequestID       string                   `json:"request_id"`
+	Phase           string                   `json:"phase"`
+	Complete        bool                     `json:"complete"`
+	ErrorCode       string                   `json:"error_code,omitempty"`
+	Volumes         []NativeRestoreVolumeDTO `json:"volumes"`
 }
 
 // NativeRestoreEngine starts and observes one deterministic offline KubeVirt
 // restore. It never starts the VM; a restored VM remains halted for inspection.
-type NativeRestoreEngine struct{ backend NativeRestoreBackend }
+type NativeRestoreEngine struct {
+	backend NativeRestoreBackend
+	Managed *ManagedNativeRestore
+}
 
 func NewNativeRestoreEngine(backend NativeRestoreBackend) *NativeRestoreEngine {
 	return &NativeRestoreEngine{backend: backend}
@@ -90,19 +94,26 @@ func expectedNativeRestore(scope Scope, vm *kv.VirtualMachine, snapshot *native.
 	}
 }
 
-func validateNativeRestoreSource(scope Scope, vm *kv.VirtualMachine, vmi *kv.VirtualMachineInstance, snapshot *native.VirtualMachineSnapshot, restoreName string) error {
+func validateNativeRestoreIdentity(scope Scope, vm *kv.VirtualMachine, snapshot *native.VirtualMachineSnapshot) error {
 	if vm == nil || snapshot == nil || vm.Namespace != scope.Namespace || snapshot.Namespace != scope.Namespace || vm.Labels["service_id"] != scope.ServiceID || snapshot.Labels["service_id"] != scope.ServiceID || vm.Labels["tenant_id"] != scope.TenantID || snapshot.Labels["tenant_id"] != scope.TenantID || !validUID(string(vm.UID)) || !validUID(string(snapshot.UID)) || vm.Spec.Template == nil || vm.DeletionTimestamp != nil || snapshot.DeletionTimestamp != nil {
 		return ErrConflict
+	}
+	group := kv.GroupVersion.Group
+	if snapshot.Status == nil || snapshot.Status.SourceUID == nil || *snapshot.Status.SourceUID != vm.UID || snapshot.Spec.Source.APIGroup == nil || *snapshot.Spec.Source.APIGroup != group || snapshot.Spec.Source.Kind != "VirtualMachine" || snapshot.Spec.Source.Name != vm.Name {
+		return ErrConflict
+	}
+	return nil
+}
+
+func validateNativeRestoreSource(scope Scope, vm *kv.VirtualMachine, vmi *kv.VirtualMachineInstance, snapshot *native.VirtualMachineSnapshot, restoreName string) error {
+	if err := validateNativeRestoreIdentity(scope, vm, snapshot); err != nil {
+		return err
 	}
 	if vmi != nil || vmWantsRunning(vm) || vm.Status.SnapshotInProgress != nil || vm.Status.RestoreInProgress != nil && *vm.Status.RestoreInProgress != restoreName {
 		return ErrBusy
 	}
 	if snapshot.Status == nil || snapshot.Status.ReadyToUse == nil || !*snapshot.Status.ReadyToUse || snapshot.Status.Phase != native.Succeeded || snapshot.Status.SourceUID == nil || *snapshot.Status.SourceUID != vm.UID || snapshot.Status.Error != nil {
 		return ErrSnapshotPending
-	}
-	group := kv.GroupVersion.Group
-	if snapshot.Spec.Source.APIGroup == nil || *snapshot.Spec.Source.APIGroup != group || snapshot.Spec.Source.Kind != "VirtualMachine" || snapshot.Spec.Source.Name != vm.Name {
-		return ErrConflict
 	}
 	return nil
 }
@@ -122,20 +133,19 @@ func projectNativeRestore(restore *native.VirtualMachineRestore) NativeRestoreDT
 	for _, volume := range restore.Status.Restores {
 		result.Volumes = append(result.Volumes, NativeRestoreVolumeDTO{VolumeName: volume.VolumeName, PVCName: volume.PersistentVolumeClaimName, VolumeSnapshotName: volume.VolumeSnapshotName})
 	}
-	if restore.Status.Complete != nil && *restore.Status.Complete {
-		result.Phase, result.Complete = "succeeded", true
-		return result
-	}
 	for _, condition := range restore.Status.Conditions {
 		if condition.Type == native.ConditionFailure && condition.Status == corev1.ConditionTrue {
 			result.Phase, result.ErrorCode = "failed", "vm_restore_native_failed"
 			return result
 		}
 	}
+	if restore.Status.Complete != nil && *restore.Status.Complete {
+		result.Phase, result.Complete = "succeeded", true
+	}
 	return result
 }
 
-func (e *NativeRestoreEngine) load(ctx context.Context, scope Scope, snapshotName, requestID string) (*native.VirtualMachineRestore, *native.VirtualMachineRestore, error) {
+func (e *NativeRestoreEngine) load(ctx context.Context, scope Scope, snapshotName, requestID string, command bool) (*native.VirtualMachineRestore, *native.VirtualMachineRestore, error) {
 	if e == nil || e.backend == nil || !validName(snapshotName) {
 		return nil, nil, ErrSnapshotInvalid
 	}
@@ -154,7 +164,12 @@ func (e *NativeRestoreEngine) load(ctx context.Context, scope Scope, snapshotNam
 		}
 		return nil, nil, ErrReferenceUnavailable
 	}
-	if err := validateNativeRestoreSource(scope, vm, vmi, snapshot, name); err != nil {
+	if command {
+		err = validateNativeRestoreSource(scope, vm, vmi, snapshot, name)
+	} else {
+		err = validateNativeRestoreIdentity(scope, vm, snapshot)
+	}
+	if err != nil {
 		return nil, nil, err
 	}
 	expected := expectedNativeRestore(scope, vm, snapshot, requestID, name)
@@ -169,7 +184,10 @@ func (e *NativeRestoreEngine) load(ctx context.Context, scope Scope, snapshotNam
 }
 
 func (e *NativeRestoreEngine) Start(ctx context.Context, scope Scope, snapshotName, requestID string) (NativeRestoreDTO, error) {
-	actual, expected, err := e.load(ctx, scope, snapshotName, requestID)
+	if e != nil && e.Managed != nil {
+		return e.Managed.Advance(ctx, scope, snapshotName, requestID)
+	}
+	actual, expected, err := e.load(ctx, scope, snapshotName, requestID, true)
 	if err != nil {
 		return NativeRestoreDTO{}, err
 	}
@@ -186,7 +204,10 @@ func (e *NativeRestoreEngine) Start(ctx context.Context, scope Scope, snapshotNa
 }
 
 func (e *NativeRestoreEngine) Status(ctx context.Context, scope Scope, snapshotName, requestID string) (NativeRestoreDTO, error) {
-	actual, _, err := e.load(ctx, scope, snapshotName, requestID)
+	if e != nil && e.Managed != nil {
+		return e.Managed.Status(ctx, scope, snapshotName, requestID)
+	}
+	actual, _, err := e.load(ctx, scope, snapshotName, requestID, false)
 	if err != nil {
 		return NativeRestoreDTO{}, err
 	}

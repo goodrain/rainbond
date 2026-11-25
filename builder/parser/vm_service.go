@@ -57,11 +57,20 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 		return []ParseError{}
 	}
 	var fileExt string
+	var fileName string
 	if sourceutil.IsLocalPackageSource(t.sourceBody) {
+		if err := sourceutil.ValidateVMLocalPackageSource(t.sourceBody); err != nil {
+			t.errappend(Errorf(FatalError, "vm_local_source_invalid"))
+			return t.errors
+		}
 		fileInfoList, err := t.readPackageDir(t.sourceBody)
 		if err != nil {
 			logrus.Errorf("read package path %v failure: %v", t.sourceBody, err)
 			t.errappend(Errorf(FatalError, "http get failure"))
+			return t.errors
+		}
+		if err := sourceutil.ValidateVMLocalPackageSource(t.sourceBody); err != nil {
+			t.errappend(Errorf(FatalError, "vm_local_source_invalid"))
 			return t.errors
 		}
 		if len(fileInfoList) != 1 {
@@ -70,13 +79,15 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 			t.errappend(Errorf(FatalError, "http get failure"))
 			return t.errors
 		}
-		fileExt = strings.ToLower(path.Ext(fileInfoList[0].Name()))
+		fileName = fileInfoList[0].Name()
+		fileExt = strings.ToLower(path.Ext(fileName))
 	} else {
-		fileName, err := sourceutil.VMImageFileNameFromURL(t.sourceBody)
+		parsedName, err := sourceutil.VMImageFileNameFromURL(t.sourceBody)
 		if err != nil {
 			t.errappend(Errorf(FatalError, "image package file name verification failed"))
 			return t.errors
 		}
+		fileName = parsedName
 		rsp, err := t.probeRemotePackage()
 		if err != nil {
 			logrus.Errorf("HTTP 探测请求失败 %v: %v", t.sourceBody, err)
@@ -97,7 +108,16 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 
 		fileExt = strings.ToLower(path.Ext(fileName))
 	}
-	if fileExt != ".iso" && fileExt != ".qcow2" && fileExt != ".img" && fileExt != ".raw" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
+	if sourceutil.IsWrappedVMVMDKFileName(fileName) {
+		t.logger.Error("VMDK请先解压并合并为单文件再上传", map[string]string{"step": "parse"})
+		t.errappend(Errorf(FatalError, "vm_vmdk_wrapped"))
+		return t.errors
+	}
+	if fileExt == ".vmdk" && !sourceutil.IsSafeVMVMDKInputFileName(fileName) {
+		t.errappend(Errorf(FatalError, "unsafe VMDK file name"))
+		return t.errors
+	}
+	if fileExt != ".iso" && fileExt != ".qcow2" && fileExt != ".img" && fileExt != ".raw" && fileExt != ".vmdk" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
 		t.logger.Error("上传包格式校验失败，不符合包要求", map[string]string{"step": "parse"})
 		t.errappend(Errorf(FatalError, "image package format verification failed"))
 		return t.errors

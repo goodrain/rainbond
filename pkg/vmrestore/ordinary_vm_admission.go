@@ -3,6 +3,7 @@ package vmrestore
 import (
 	"context"
 	"strings"
+	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/google/uuid"
@@ -91,11 +92,27 @@ func (s *Store) ordinaryOutcome(scope Scope, expect Expectation, known bool, sta
 	}
 	defer tx.Rollback()
 	_, err := s.MutateTx(tx, scope, expect, func(now Current) (Mutation, error) {
+		stopEvent, stopStep, _, err := ordinaryStopIntent(now.Receipt)
+		if err != nil {
+			return Mutation{}, err
+		}
+		if known && stopStep != "" && (expect.Step != "ordinary-cancelled" || status != dbmodel.EventStatusFailure) {
+			return Mutation{}, ErrConflict
+		}
 		if err := now.State.FinishMutation(expect.OperationID, known); err != nil {
 			return Mutation{}, err
 		}
 		if known && now.Receipt.PowerEventID != "" {
-			result := tx.Model(&dbmodel.ServiceEvent{}).Where("event_id = ? AND tenant_id = ? AND service_id = ?", now.Receipt.PowerEventID, scope.TenantID, scope.ServiceID).Updates(map[string]interface{}{"status": string(status), "final_status": string(dbmodel.EventFinalStatusComplete)})
+			result := tx.Model(&dbmodel.ServiceEvent{}).Where("event_id = ? AND tenant_id = ? AND service_id = ?", now.Receipt.PowerEventID, scope.TenantID, scope.ServiceID).Updates(map[string]interface{}{"status": string(status), "final_status": string(dbmodel.EventFinalStatusComplete), "end_time": time.Now().Format(time.RFC3339)})
+			if result.Error != nil {
+				return Mutation{}, result.Error
+			}
+			if result.RowsAffected != 1 {
+				return Mutation{}, ErrConflict
+			}
+		}
+		if known && stopEvent != "" {
+			result := tx.Model(&dbmodel.ServiceEvent{}).Where("event_id = ? AND tenant_id = ? AND service_id = ?", stopEvent, scope.TenantID, scope.ServiceID).Updates(map[string]interface{}{"status": string(dbmodel.EventStatusSuccess), "final_status": string(dbmodel.EventFinalStatusComplete), "end_time": time.Now().Format(time.RFC3339)})
 			if result.Error != nil {
 				return Mutation{}, result.Error
 			}
@@ -192,6 +209,33 @@ func (s *Store) ObserveOrdinaryVMCompletion(ctx context.Context, resolver *Resol
 	}
 	if !sameObject(ref, refOf("VirtualMachine", vm)) {
 		return ErrConflict
+	}
+	_, stopStep, failedStop, err := ordinaryStopIntent(c.Receipt)
+	if err != nil {
+		return err
+	}
+	if stopStep != "" {
+		return s.observeOrdinaryStop(ctx, resolver, client, scope, c, vm, failedStop)
+	}
+	if a.Action != "ordinary-vm-stop" {
+		retiredUID := ""
+		if a.Action == "ordinary-vm-restart" {
+			retiredUID = c.Receipt.Resources[1].UID
+		}
+		failed, err := ordinaryInstanceFailed(ctx, client, scope, ref, retiredUID)
+		if err != nil {
+			return err
+		}
+		if failed {
+			return s.stopPendingOrdinaryVM(ctx, resolver, client, scope, "", true)
+		}
+		failed, err = ordinaryCloneFailed(ctx, resolver, client, scope, c)
+		if err != nil {
+			return err
+		}
+		if failed {
+			return s.stopPendingOrdinaryVM(ctx, resolver, client, scope, "", true)
+		}
 	}
 	view, err := resolver.ReadBindingView(ctx, scope)
 	if err != nil {

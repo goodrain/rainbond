@@ -14,6 +14,13 @@ import (
 	kv "kubevirt.io/api/core/v1"
 )
 
+// vmPowerSubmittedError distinguishes failed observation after an accepted
+// runtime write from a failure before this request was submitted.
+type vmPowerSubmittedError struct{ cause error }
+
+func (e *vmPowerSubmittedError) Error() string { return e.cause.Error() }
+func (e *vmPowerSubmittedError) Unwrap() error { return e.cause }
+
 func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action string) (bool, error) {
 	manager := s.getDBManager()
 	if manager == nil || manager.DB() == nil {
@@ -54,6 +61,20 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	client := s.kubevirtClient.DynamicClient()
 	resolver := vmrestore.NewResolver(store, s.kubeClient, client)
 	if state.State.Admission != nil {
+		if action == "stop" && (state.State.Admission.Action == "ordinary-vm-start" || state.State.Admission.Action == "ordinary-vm-restart") {
+			eventID := ""
+			if event, ok := ctx.Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent); ok && event != nil {
+				eventID = event.EventID
+			}
+			err := store.StopPendingOrdinaryVM(ctx, resolver, client, scope, eventID)
+			if errors.Is(err, vmrestore.ErrRestorePending) {
+				return true, &bcode.Code{Status: 202, Code: 202, Message: "vm_power_pending"}
+			}
+			if errors.Is(err, vmrestore.ErrRestoreUnknown) || errors.Is(err, vmrestore.ErrReferenceUnavailable) {
+				return true, &vmPowerSubmittedError{cause: err}
+			}
+			return true, err
+		}
 		err := store.ObserveOrdinaryVMCompletion(ctx, resolver, client, scope)
 		if err != nil {
 			return true, err
@@ -138,7 +159,7 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	}
 	if err != nil {
 		if err := store.FinishOrdinaryVMAttempt(scope, op, false); err != nil {
-			return true, err
+			return true, &vmPowerSubmittedError{cause: err}
 		}
 		return true, vmrestore.ErrRestoreUnknown
 	}
@@ -146,5 +167,11 @@ func (s *ServiceAction) restoredPower(ctx context.Context, serviceID, action str
 	if errors.Is(err, vmrestore.ErrRestorePending) {
 		return true, &bcode.Code{Status: 202, Code: 202, Message: "vm_power_pending"}
 	}
-	return true, err
+	if errors.Is(err, vmrestore.ErrOrdinaryVMFailed) {
+		return true, err
+	}
+	if err != nil {
+		return true, &vmPowerSubmittedError{cause: err}
+	}
+	return true, nil
 }

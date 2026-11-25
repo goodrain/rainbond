@@ -468,7 +468,11 @@ func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
 
 // PodLogs -
 func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
-	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
+	tenant, ok := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
+	if !ok || tenant == nil {
+		httputil.ReturnError(r, w, http.StatusBadRequest, "tenant context is required")
+		return
+	}
 	logs(w, r, chi.URLParam(r, "pod_name"), tenant.Namespace)
 }
 

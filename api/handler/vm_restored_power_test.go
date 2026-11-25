@@ -215,6 +215,52 @@ func TestRestoredPowerHandlerUsesAThroughStartAndStopAndFinishesActualEvents(t *
 	}
 }
 
+// capability_id: rainbond.vm-power.cancel-pending-handler
+func TestRestoredPowerHandlerCanStopAnUnfinishedStartup(t *testing.T) {
+	a, store, resolver, scope, dyn := restoredPowerFixture(t)
+	ctx := context.Background()
+	for _, id := range []string{"unfinished-start", "cancel-start"} {
+		if err := a.getDBManager().DB().Create(&dbmodel.ServiceEvent{EventID: id, TenantID: scope.TenantID, ServiceID: scope.ServiceID, Status: "checking"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	err := a.StartOrCreateVM(newVMOperationEventContext("unfinished-start"), &apimodel.StartStopStruct{TenantID: scope.TenantID, ServiceID: scope.ServiceID, TaskType: "start", EventID: "unfinished-start"}, "")
+	var accepted *bcode.Code
+	if !errors.As(err, &accepted) || accepted.Status != 202 {
+		t.Fatal("startup was not accepted as pending", err)
+	}
+	vmGVR := schema.GroupVersionResource{Group: "kubevirt.io", Version: "v1", Resource: "virtualmachines"}
+	vmiGVR := schema.GroupVersionResource{Group: "kubevirt.io", Version: "v1", Resource: "virtualmachineinstances"}
+	instance := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "kubevirt.io/v1", "kind": "VirtualMachineInstance",
+		"metadata": map[string]interface{}{"name": "vm", "namespace": scope.Namespace, "uid": "pending-instance", "ownerReferences": []interface{}{map[string]interface{}{"kind": "VirtualMachine", "name": "vm", "uid": "vm-uid"}}},
+		"status":   map[string]interface{}{"phase": "Scheduling"},
+	}}
+	if _, err := dyn.Resource(vmiGVR).Namespace(scope.Namespace).Create(ctx, instance, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := store.ReadOnly(scope, "")
+	err = a.StopVM(newVMOperationEventContext("cancel-start"), scope.ServiceID)
+	if !errors.As(err, &accepted) || accepted.Status != 202 {
+		t.Fatal("stop of pending startup was rejected", err)
+	}
+	vm, _ := dyn.Resource(vmGVR).Namespace(scope.Namespace).Get(ctx, "vm", metav1.GetOptions{})
+	strategy, _, _ := unstructured.NestedString(vm.Object, "spec", "runStrategy")
+	if strategy != "Halted" {
+		t.Fatal("stop did not change the power intent")
+	}
+	if err := dyn.Resource(vmiGVR).Namespace(scope.Namespace).Delete(ctx, "vm", metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ObserveOrdinaryVMCompletion(ctx, resolver, dyn, scope); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := store.ReadOnly(scope, "")
+	if after.State.Admission != nil || after.State.BindingGeneration != before.State.BindingGeneration || after.State.Bindings["7"].ActivePVC.UID != before.State.Bindings["7"].ActivePVC.UID {
+		t.Fatal("stop did not release admission while retaining the restored disk")
+	}
+}
+
 // capability_id: rainbond.vm-restore.ordinary-power-handler
 func TestOrdinarySpecSyncPreservesPublishedFirmwareAndDoesNotMutateDesired(t *testing.T) {
 	existing := &kv.VirtualMachine{Spec: kv.VirtualMachineSpec{Template: &kv.VirtualMachineInstanceTemplateSpec{Spec: kv.VirtualMachineInstanceSpec{Domain: kv.DomainSpec{Firmware: &kv.Firmware{UUID: "11111111-1111-4111-8111-111111111111"}, CPU: &kv.CPU{Cores: 1}}}}}}

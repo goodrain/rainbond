@@ -113,6 +113,7 @@ type StepResult struct {
 
 // Receipt is Region resource ownership and step idempotency, not the total workflow.
 type Receipt struct {
+	NativeRestore             *NativeRestoreControl     `json:"native_restore,omitempty"`
 	Startup                   *VMStartupProof           `json:"startup,omitempty"`
 	SnapshotIdentity          *SnapshotFirmwareIdentity `json:"snapshot_identity,omitempty"`
 	PowerEventID              string                    `json:"power_event_id,omitempty"`
@@ -213,7 +214,7 @@ func validResourceRef(r ResourceRef, scope Scope) bool {
 		return false
 	}
 	switch r.Kind {
-	case "PersistentVolumeClaim", "DataVolume", "VirtualMachine", "VirtualMachineInstance", "Pod", "Job", "ConfigMap", "VirtualMachineSnapshot", "VirtualMachineSnapshotContent", "VolumeSnapshot":
+	case "PersistentVolumeClaim", "DataVolume", "VirtualMachine", "VirtualMachineInstance", "Pod", "Job", "ConfigMap", "VirtualMachineSnapshot", "VirtualMachineRestore", "VirtualMachineSnapshotContent", "VolumeSnapshot":
 		return r.Namespace == scope.Namespace
 	case "PersistentVolume", "StorageClass", "VolumeSnapshotContent":
 		return r.Namespace == ""
@@ -281,6 +282,9 @@ func (s State) Validate(scope Scope) error {
 
 // Validate verifies a receipt belongs to the requested component and operation.
 func (r Receipt) Validate(scope Scope, operationID string) error {
+	if r.NativeRestore != nil && (r.Restore == nil || r.Execution != nil || r.NativeRestore.validate(scope, r.Restore) != nil) {
+		return ErrCorrupt
+	}
 	if r.Startup != nil && r.Startup.validate(scope) != nil {
 		return ErrCorrupt
 	}
