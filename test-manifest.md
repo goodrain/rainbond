@@ -89,6 +89,8 @@
 | rainbond.cleanup.helm-release-values-proof | Match desired Helm overrides to actual release config digests | active | regression | cleanup.HelmReleaseMatchesOverrides | pkg/cleanup/helm_release_identity_test.go::TestHelmReleaseOverridesRequireActualConfig |
 | rainbond.cleanup.helm-retained-reference-inventory | Protect retained Helm manifests and hooks without exposing Secret contents | active | integration | cleanup.InspectHelmReleaseReferences | pkg/cleanup/helm_references_test.go::TestHelmRetainedManifestAndHooksProvideReferencesOnly<br>pkg/cleanup/helm_references_test.go::TestHelmCorruptForeignAndUnknownReleasesAreNotEmptySuccess<br>pkg/cleanup/helm_references_test.go::TestHelmReferenceDecompressionIsBounded<br>pkg/cleanup/kubeidentity/helm_references_test.go::TestHelmInventoryReadsOnlyReleaseDataIncludingUnlabelledHistory |
 | rainbond.cleanup.helmapp-mutation-admission | Protect HelmApp create update and install intents during cleanup | active | regression | ApplicationAction.CreateApp | api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission |
+| rainbond.cleanup.idle-maintenance-atomic-admission | Idle maintenance atomic admission | active | regression | cleanup.RequestIdleMaintenance | pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceAndProducerRaceHasOnlyOneAdmission<br>pkg/cleanup/idle_maintenance_test.go::TestConcurrentIdleMaintenanceHasOneGCWinner |
+| rainbond.cleanup.idle-maintenance-preserves-push | Idle maintenance preserves push | active | regression | cleanup.RequestIdleMaintenance | pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceLeavesAcceptedBuildWritableUntilPushFinishes<br>pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceDoesNotIgnoreUnfinishedOperations |
 | rainbond.cleanup.import_reference_handoff | Atomically hand import references to successful versions | active | regression | TransferImportedReferencesToVersions | pkg/cleanup/reference_handoff_test.go::TestImportHandoffWaitsForEverySuccessfulVersionAndRollsBack |
 | rainbond.cleanup.managed-cache-binding | Bind managed cache enrollment to observed system storage | active | integration | POST /v2/cleanup/managed-cache/prepare | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedCachePreparationUsesActualNodeAndVolume<br>api/controller/cleanup_coordination_test.go::TestManagedCachePreparationDerivesIdentityAndNeverPromotesReady |
 | rainbond.cleanup.managed-package-binding | Managed package roots bind to observed grdata storage | active | regression | kubeidentity.InspectManagedPackageSource | pkg/cleanup/kubeidentity/managed_cache_test.go::TestManagedPackagePreparationUsesActualGrdataVolume<br>pkg/cleanup/registration_test.go::TestManagedPackageRegistrationsAreFixedDistinctAndNeverReady |
@@ -151,6 +153,10 @@
 | rainbond.cleanup.registry-upload-lifecycle | Keep upload leases across parts and drain existing sessions safely | active | regression | pkg/cleanup.AcquireUploadRequest | pkg/cleanup/upload_coordination_test.go::TestUploadSessionRemainsProtectedBetweenParts |
 | rainbond.cleanup.restore-producer-transaction | Keep restore metadata and result publication in admitted transactions | active | integration | BackupAPPRestore.withMetadataWrite | builder/exector/cleanup_restore_admission_test.go::TestRestoreMetadataRetainsAdmissionAndRollsBackFailure |
 | rainbond.cleanup.saved-workload-reference-coordination | Serialize saved workload reference writes with cleanup admission | active | regression | K8sResourceDaoImpl | db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission |
+| rainbond.cleanup.scheduled-gc-cancel-drain | Scheduled gc cancel drain | active | regression | controller.CleanupCoordinationHandler.RunScheduledCleanup | api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCCanceledDrainDoesNotStartOrReleaseWriter |
+| rainbond.cleanup.scheduled-gc-preflight | Scheduled gc preflight | active | regression | controller.CleanupCoordinationHandler.RunScheduledCleanup | api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCRejectsUnqualifiedRegistryBeforeMutation |
+| rainbond.cleanup.scheduled-gc-slots | Scheduled gc slots | active | regression | controller.CleanupCoordinationHandler.RunScheduledCleanup | api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCStartupSharesDaemonSetRolloutIdentity |
+| rainbond.cleanup.scheduled-gc-verified-completion | Scheduled gc verified completion | active | regression | controller.CleanupCoordinationHandler.RunScheduledCleanup | api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCVerifiedCompletionIsIdempotent |
 | rainbond.cleanup.service-mesh-mutation-admission | Protect ServiceMesh mutations until reference persistence is confirmed | active | regression | ApplicationAction.CreateServiceMeshCR | api/handler/cleanup_service_mesh_test.go::TestServiceMeshMutationsHoldCleanupAdmission |
 | rainbond.cleanup.service_check_import_handoff | Preserve imported image references across component creation | active | regression | CleanServiceCheckData | api/handler/service_check_cleanup_test.go::TestServiceCheckCreationCleanupPreservesImportReferences |
 | rainbond.cleanup.share-task-completion | Slug sharing remains active until result persistence finishes | active | regression | exectorManager.slugShare | builder/exector/cleanup_task_boundary_test.go::TestSlugShareTaskWaitsForResultPersistence |
@@ -337,7 +343,25 @@
 | rainbond.helm-repo.add-idempotent | 当相同 Helm 仓库已存在时跳过重复添加 | active | regression | pkg/helm.Repo.Add | pkg/helm/repo_test.go::TestRepoAddSkipsExistingConfig |
 | rainbond.helm-repo.reject-deprecated | 拒绝已废弃的 Helm 仓库地址 | active | regression | pkg/helm.Repo.Add | pkg/helm/repo_test.go::TestRepoAddRejectsDeprecatedRepo |
 | rainbond.helm-repo.requested-filter | 校验并匹配请求更新的 Helm 仓库名称 | active | regression | pkg/helm.checkRequestedRepos | pkg/helm/helm_release_test.go::TestCheckRequestedRepos |
+| rainbond.image-clean.atomic-scheduled-retirement | Atomic scheduled retirement | active | regression | cleanup.RetireScheduledVersions | pkg/cleanup/scheduled_version_test.go::TestScheduledRetirementCommitsCandidatesOnlyAfterReferenceAudit<br>pkg/cleanup/scheduled_version_test.go::TestRecoverScheduledRetirementOnlyBeforeDeletionAdmission<br>pkg/cleanup/scheduled_version_test.go::TestRecoveryAndDeletionAdmissionHaveOneWinner |
+| rainbond.image-clean.coordinated-manager-busy-cancel | Coordinated manager busy cancel | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerCancelsBusyBackoff |
+| rainbond.image-clean.coordinated-manager-busy-retry | Coordinated manager busy retry | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerRetriesBusyWithSameTrigger |
+| rainbond.image-clean.coordinated-manager-cancelled-start | Coordinated manager cancelled start | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerStoppedBeforeStartDoesNotExecute |
+| rainbond.image-clean.coordinated-manager-config | Coordinated manager config | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerRejectsInvalidDailyConfiguration<br>builder/clean/clean_test.go::TestManagerRejectsMultipleCoordinatedRunners |
+| rainbond.image-clean.coordinated-manager-required | Coordinated manager required | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerRequiresCoordinatedRunner |
+| rainbond.image-clean.coordinated-manager-triggers | Coordinated manager triggers | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerRunsCoordinatedStartupAndDailyWithoutFatalErrors |
+| rainbond.image-clean.coordinated-manager-unavailable-no-retry | Coordinated manager unavailable no retry | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestManagerDoesNotRetryUnavailable |
+| rainbond.image-clean.daily-run-cancellation | Daily run cancellation | active | regression | clean.runDaily | builder/clean/schedule_test.go::TestRunDailyCancellationAndWaitFailure |
+| rainbond.image-clean.daily-run-loop | Daily run loop | active | regression | clean.runDaily | builder/clean/schedule_test.go::TestRunDailyStartupAndScheduledWallClock |
+| rainbond.image-clean.daily-schedule | Daily schedule | active | regression | clean.runDaily | builder/clean/schedule_test.go::TestDailyScheduleNextWallClock |
+| rainbond.image-clean.daily-schedule-flag-validation | Daily schedule flag validation | active | regression | rbdcomponent.AddChaosFlags | config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosDailyCleanupFlagsRejectInvalidValues |
+| rainbond.image-clean.daily-schedule-flags | Daily schedule flags | active | regression | rbdcomponent.AddChaosFlags | config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosDailyCleanupFlags |
+| rainbond.image-clean.daily-schedule-validation | Daily schedule validation | active | regression | clean.runDaily | builder/clean/schedule_test.go::TestDailyScheduleRejectsInvalidConfiguration |
+| rainbond.image-clean.permitted-manifest-deletion | Permitted manifest deletion | active | regression | registry.CoordinatedCleanupClient | builder/sources/registry/coordinated_cleanup_test.go::TestCoordinatedCleanupClientDoesNotReplayDeletion<br>builder/sources/registry/coordinated_cleanup_test.go::TestCoordinatedCleanupClientRequiresCompleteInventoryAndExactAbsence |
 | rainbond.image-clean.registry-gc-noop | 当没有匹配的仓库 Pod 时跳过垃圾回收执行 | active | regression | builder/clean.Manager.PodExecCmd | builder/clean/clean_test.go::TestPodExecCmdNoMatchingPod |
+| rainbond.image-clean.safe-schedule-enable-flags | Safe schedule enable flags | active | regression | rbdcomponent.AddChaosFlags | config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosSafeScheduledCleanupEnableFlags |
+| rainbond.image-clean.scheduled-version-retirement | Scheduled version retirement | active | regression | controller.CleanupCoordinationHandler.runScheduledVersionCleanup | api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetiresOnlyUnprotectedOldVersion<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetainsDeferredCandidatesAndNeverReplaysUnknownDelete<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetiresSharedOldDigestAsOneGroup<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetriesKnownRejectionWithoutDuplicatingCandidates<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupDistinguishesBusyProducerAndUncertainty<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRecoversCommittedCrashBeforeReadiness<br>api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRecoversKnownProxyOutcomeWithoutReplayingDelete |
+| rainbond.image-clean.scheduler-wait-cancellation | Scheduler wait cancellation | active | regression | clean.Manager.Start | builder/clean/clean_test.go::TestCleanupWaitHonorsCancellationAndDeadline |
 | rainbond.image-clean.stop-loop | 通过取消上下文停止镜像清理管理器循环 | active | regression | builder/clean.Manager.Stop | builder/clean/clean_test.go::TestManagerStopCancelsContext |
 | rainbond.image-share.single-attempt | 镜像分享失败后不自动重试 | active | regression | builder/exector.imageShare | builder/exector/share_image_test.go::TestExecuteImageShareOnceDoesNotRetryFailure<br>builder/exector/share_image_test.go::TestExecuteImageShareOnceReturnsSuccess |
 | rainbond.ingress-nginx.meta-namespace-key | 为 ingress-nginx 监听对象构建 namespace/name 键 | active | regression | util/ingress-nginx/k8s.MetaNamespaceKey | util/ingress-nginx/k8s/main_test.go::TestMetaNamespaceKey |
@@ -1662,6 +1686,26 @@
 - 代码路径: `api/handler/application_handler.go`
 - 测试路径: `api/handler/cleanup_helmapp_test.go::TestHelmAppMutationsHoldCleanupAdmission`
 
+### Idle maintenance atomic admission
+
+- Capability ID: `rainbond.cleanup.idle-maintenance-atomic-admission`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `cleanup.RequestIdleMaintenance`
+- 代码路径: `pkg/cleanup/maintenance.go`
+- 测试路径: `pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceAndProducerRaceHasOnlyOneAdmission`, `pkg/cleanup/idle_maintenance_test.go::TestConcurrentIdleMaintenanceHasOneGCWinner`
+
+### Idle maintenance preserves push
+
+- Capability ID: `rainbond.cleanup.idle-maintenance-preserves-push`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `cleanup.RequestIdleMaintenance`
+- 代码路径: `pkg/cleanup/maintenance.go`
+- 测试路径: `pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceLeavesAcceptedBuildWritableUntilPushFinishes`, `pkg/cleanup/idle_maintenance_test.go::TestIdleMaintenanceDoesNotIgnoreUnfinishedOperations`
+
 ### Atomically hand import references to successful versions
 
 - Capability ID: `rainbond.cleanup.import_reference_handoff`
@@ -2281,6 +2325,46 @@
 - 业务入口: `K8sResourceDaoImpl`
 - 代码路径: `db/mysql/dao/k8s_resource.go`
 - 测试路径: `db/mysql/dao/k8s_resource_cleanup_test.go::TestSavedWorkloadWritesRespectCleanupAdmission`
+
+### Scheduled gc cancel drain
+
+- Capability ID: `rainbond.cleanup.scheduled-gc-cancel-drain`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.CleanupCoordinationHandler.RunScheduledCleanup`
+- 代码路径: `api/controller/cleanup_scheduled_gc.go`
+- 测试路径: `api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCCanceledDrainDoesNotStartOrReleaseWriter`
+
+### Scheduled gc preflight
+
+- Capability ID: `rainbond.cleanup.scheduled-gc-preflight`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.CleanupCoordinationHandler.RunScheduledCleanup`
+- 代码路径: `api/controller/cleanup_scheduled_gc.go`
+- 测试路径: `api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCRejectsUnqualifiedRegistryBeforeMutation`
+
+### Scheduled gc slots
+
+- Capability ID: `rainbond.cleanup.scheduled-gc-slots`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.CleanupCoordinationHandler.RunScheduledCleanup`
+- 代码路径: `api/controller/cleanup_scheduled_gc.go`
+- 测试路径: `api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCStartupSharesDaemonSetRolloutIdentity`
+
+### Scheduled gc verified completion
+
+- Capability ID: `rainbond.cleanup.scheduled-gc-verified-completion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.CleanupCoordinationHandler.RunScheduledCleanup`
+- 代码路径: `api/controller/cleanup_scheduled_gc.go`
+- 测试路径: `api/controller/cleanup_scheduled_gc_test.go::TestScheduledGCVerifiedCompletionIsIdempotent`
 
 ### Protect ServiceMesh mutations until reference persistence is confirmed
 
@@ -4142,6 +4226,156 @@
 - 代码路径: `pkg/helm/update.go`
 - 测试路径: `pkg/helm/helm_release_test.go::TestCheckRequestedRepos`
 
+### Atomic scheduled retirement
+
+- Capability ID: `rainbond.image-clean.atomic-scheduled-retirement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `package_function`
+- 业务入口: `cleanup.RetireScheduledVersions`
+- 代码路径: `pkg/cleanup/scheduled_version.go`, `pkg/cleanup/store.go`
+- 测试路径: `pkg/cleanup/scheduled_version_test.go::TestScheduledRetirementCommitsCandidatesOnlyAfterReferenceAudit`, `pkg/cleanup/scheduled_version_test.go::TestRecoverScheduledRetirementOnlyBeforeDeletionAdmission`, `pkg/cleanup/scheduled_version_test.go::TestRecoveryAndDeletionAdmissionHaveOneWinner`
+
+### Coordinated manager busy cancel
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-busy-cancel`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerCancelsBusyBackoff`
+
+### Coordinated manager busy retry
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-busy-retry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerRetriesBusyWithSameTrigger`
+
+### Coordinated manager cancelled start
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-cancelled-start`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerStoppedBeforeStartDoesNotExecute`
+
+### Coordinated manager config
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-config`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerRejectsInvalidDailyConfiguration`, `builder/clean/clean_test.go::TestManagerRejectsMultipleCoordinatedRunners`
+
+### Coordinated manager required
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-required`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerRequiresCoordinatedRunner`
+
+### Coordinated manager triggers
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-triggers`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerRunsCoordinatedStartupAndDailyWithoutFatalErrors`
+
+### Coordinated manager unavailable no retry
+
+- Capability ID: `rainbond.image-clean.coordinated-manager-unavailable-no-retry`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestManagerDoesNotRetryUnavailable`
+
+### Daily run cancellation
+
+- Capability ID: `rainbond.image-clean.daily-run-cancellation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.runDaily`
+- 代码路径: `builder/clean/schedule.go`
+- 测试路径: `builder/clean/schedule_test.go::TestRunDailyCancellationAndWaitFailure`
+
+### Daily run loop
+
+- Capability ID: `rainbond.image-clean.daily-run-loop`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.runDaily`
+- 代码路径: `builder/clean/schedule.go`
+- 测试路径: `builder/clean/schedule_test.go::TestRunDailyStartupAndScheduledWallClock`
+
+### Daily schedule
+
+- Capability ID: `rainbond.image-clean.daily-schedule`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.runDaily`
+- 代码路径: `builder/clean/schedule.go`
+- 测试路径: `builder/clean/schedule_test.go::TestDailyScheduleNextWallClock`
+
+### Daily schedule flag validation
+
+- Capability ID: `rainbond.image-clean.daily-schedule-flag-validation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `rbdcomponent.AddChaosFlags`
+- 代码路径: `config/configs/rbdcomponent/chaos_config.go`
+- 测试路径: `config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosDailyCleanupFlagsRejectInvalidValues`
+
+### Daily schedule flags
+
+- Capability ID: `rainbond.image-clean.daily-schedule-flags`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `rbdcomponent.AddChaosFlags`
+- 代码路径: `config/configs/rbdcomponent/chaos_config.go`
+- 测试路径: `config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosDailyCleanupFlags`
+
+### Daily schedule validation
+
+- Capability ID: `rainbond.image-clean.daily-schedule-validation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.runDaily`
+- 代码路径: `builder/clean/schedule.go`
+- 测试路径: `builder/clean/schedule_test.go::TestDailyScheduleRejectsInvalidConfiguration`
+
+### Permitted manifest deletion
+
+- Capability ID: `rainbond.image-clean.permitted-manifest-deletion`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `registry.CoordinatedCleanupClient`
+- 代码路径: `builder/sources/registry/coordinated_cleanup.go`
+- 测试路径: `builder/sources/registry/coordinated_cleanup_test.go::TestCoordinatedCleanupClientDoesNotReplayDeletion`, `builder/sources/registry/coordinated_cleanup_test.go::TestCoordinatedCleanupClientRequiresCompleteInventoryAndExactAbsence`
+
 ### 当没有匹配的仓库 Pod 时跳过垃圾回收执行
 
 - Capability ID: `rainbond.image-clean.registry-gc-noop`
@@ -4151,6 +4385,36 @@
 - 业务入口: `builder/clean.Manager.PodExecCmd`
 - 代码路径: `builder/clean/clean.go`
 - 测试路径: `builder/clean/clean_test.go::TestPodExecCmdNoMatchingPod`
+
+### Safe schedule enable flags
+
+- Capability ID: `rainbond.image-clean.safe-schedule-enable-flags`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `rbdcomponent.AddChaosFlags`
+- 代码路径: `config/configs/rbdcomponent/chaos_config.go`
+- 测试路径: `config/configs/rbdcomponent/chaos_schedule_test.go::TestChaosSafeScheduledCleanupEnableFlags`
+
+### Scheduled version retirement
+
+- Capability ID: `rainbond.image-clean.scheduled-version-retirement`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `controller.CleanupCoordinationHandler.runScheduledVersionCleanup`
+- 代码路径: `api/controller/cleanup_scheduled_versions.go`
+- 测试路径: `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetiresOnlyUnprotectedOldVersion`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetainsDeferredCandidatesAndNeverReplaysUnknownDelete`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetiresSharedOldDigestAsOneGroup`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRetriesKnownRejectionWithoutDuplicatingCandidates`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupDistinguishesBusyProducerAndUncertainty`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRecoversCommittedCrashBeforeReadiness`, `api/controller/cleanup_scheduled_versions_test.go::TestScheduledVersionCleanupRecoversKnownProxyOutcomeWithoutReplayingDelete`
+
+### Scheduler wait cancellation
+
+- Capability ID: `rainbond.image-clean.scheduler-wait-cancellation`
+- 状态: `active`
+- 测试类型: `regression`
+- 接口类型: `workflow`
+- 业务入口: `clean.Manager.Start`
+- 代码路径: `builder/clean/clean.go`
+- 测试路径: `builder/clean/clean_test.go::TestCleanupWaitHonorsCancellationAndDeadline`
 
 ### 通过取消上下文停止镜像清理管理器循环
 

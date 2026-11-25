@@ -22,16 +22,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/containerd/containerd/errdefs"
-	dockercli "github.com/docker/docker/client"
+	"fmt"
+	"sync"
+	"time"
+
 	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
-	"github.com/goodrain/rainbond/util"
+	guard "github.com/goodrain/rainbond/pkg/cleanup"
 	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -41,150 +39,118 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	"os"
-	"strings"
-	"time"
 )
 
-// Manager CleanManager
+// Runner performs cleanup through the coordinated admission and execution path.
+// It must never fall back to uncoordinated registry or filesystem cleanup.
+type Runner func(context.Context, string, uint) error
+
+// Manager schedules coordinated cleanup without directly deleting artifacts.
 type Manager struct {
-	imageClient   sources.ImageClient
-	ctx           context.Context
-	cancel        context.CancelFunc
-	config        *rest.Config
-	keepCount     uint
-	clientset     *kubernetes.Clientset
-	cleanInterval int
+	imageClient sources.ImageClient
+	ctx         context.Context
+	cancel      context.CancelFunc
+	keepCount   uint
+	schedule    dailySchedule
+	runner      Runner
+	now         func() time.Time
+	wait        func(context.Context, time.Duration) error
+	startMu     sync.Mutex
+	started     bool
 }
 
-// CreateCleanManager create clean manager
-func CreateCleanManager(imageClient sources.ImageClient) (*Manager, error) {
+// CreateCleanManager creates a daily cleanup scheduler. The optional runner
+// preserves constructor compatibility; Start rejects a missing runner.
+func CreateCleanManager(imageClient sources.ImageClient, runners ...Runner) (*Manager, error) {
+	config := configs.Default().ChaosConfig
+	if config.KeepCount <= 0 {
+		return nil, fmt.Errorf("cleanup keep-count must be positive")
+	}
+	schedule, err := newDailySchedule(config.CleanTime, config.CleanTimeZone)
+	if err != nil {
+		return nil, err
+	}
+	if len(runners) > 1 {
+		return nil, fmt.Errorf("cleanup accepts at most one coordinated runner")
+	}
+	var runner Runner
+	if len(runners) == 1 {
+		runner = runners[0]
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &Manager{
-		imageClient:   imageClient,
-		ctx:           ctx,
-		cancel:        cancel,
-		config:        k8s.Default().RestConfig,
-		keepCount:     uint(configs.Default().ChaosConfig.KeepCount),
-		clientset:     k8s.Default().Clientset,
-		cleanInterval: configs.Default().ChaosConfig.CleanInterval,
-	}
-	return c, nil
+	return &Manager{imageClient: imageClient, ctx: ctx, cancel: cancel,
+		keepCount: uint(config.KeepCount), schedule: schedule, runner: runner,
+		now: time.Now, wait: waitForCleanupTime}, nil
 }
 
-// Start start clean
-func (t *Manager) Start(errchan chan error) error {
-	logrus.Info("CleanManager is starting.")
-	duration := time.Duration(t.cleanInterval) * time.Minute
-	run := func() {
-		err := util.Exec(t.ctx, func() error {
-			//保留份数 默认5份
-			keepCount := t.keepCount
-			logrus.Infof("[clean] start cleanup task, keep count: %d, querying components with more than %d success versions", keepCount, keepCount)
-			// 获取构建成功的 并且大于5个版本的serviceId和具体的版本数
-			services, err := db.GetManager().VersionInfoDao().GetServicesAndCount("success", keepCount)
-			if err != nil {
-				logrus.Error("[clean] failed to query components with excess versions: ", err)
-				return nil
-			}
-			logrus.Infof("[clean] found %d components with more than %d versions", len(services), keepCount)
-			for _, service := range services {
-				needDelete := service.Count - keepCount
-				logrus.Infof("[clean] component %s has %d success versions, need to delete oldest %d", service.ServiceID, service.Count, needDelete)
-				// service.Count-5： 超过指定数量的版本数,一定是正整数
-				versions, err := db.GetManager().VersionInfoDao().SearchExpireVersionInfo(service.ServiceID, needDelete)
-				if err != nil {
-					logrus.Errorf("[clean] failed to query expired versions for component %s: %s", service.ServiceID, err.Error())
-					continue
-				}
-				logrus.Infof("[clean] component %s has %d expired versions to delete", service.ServiceID, len(versions))
-				for _, v := range versions {
-					logrus.Infof("[clean] version to delete: ID=%s, DeliveredType=%q, FinalStatus=%s, Path=%s", v.BuildVersion, v.DeliveredType, v.FinalStatus, v.DeliveredPath)
-					if v.DeliveredType == "image" {
-						// 跳过系统镜像（builder 和 runner）
-						if strings.Contains(strings.ToLower(v.DeliveredPath), "builder") ||
-							strings.Contains(strings.ToLower(v.DeliveredPath), "runner") {
-							logrus.Infof("[clean] skipping system image: %s", v.DeliveredPath)
-							continue
-						}
-
-						//clean rbd-hub images
-						imageInfo := sources.ImageNameHandle(v.DeliveredPath)
-						logrus.Infof("[clean] processing image version ID=%s, path=%s, host=%s", v.BuildVersion, v.DeliveredPath, imageInfo.Host)
-						if strings.Contains(imageInfo.Host, "goodrain.me") {
-							logrus.Infof("[clean] deleting tag from rbd-hub registry: %s/%s", imageInfo.Name, imageInfo.Tag)
-							reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
-							if err != nil {
-								logrus.Errorf("[clean] failed to connect rbd-hub: %v", err)
-								continue
-							} else {
-								err = reg.CleanRepoByTag(imageInfo.Name, imageInfo.Tag, keepCount)
-								if err != nil {
-									logrus.Errorf("[clean] failed to delete rbd-hub tag %s:%s, err: %v", imageInfo.Name, imageInfo.Tag, err)
-									continue
-								}
-							}
-						} else {
-							logrus.Infof("[clean] image host is not goodrain.me, skip registry cleanup: %s", imageInfo.Host)
-						}
-						logrus.Infof("[clean] removing local image: %s", v.DeliveredPath)
-						err := t.imageClient.ImageRemove(v.DeliveredPath)
-
-						// 如果删除镜像失败 并且不是镜像不存在的错误
-						if err != nil && !(errdefs.IsNotFound(err) || dockercli.IsErrNotFound(err)) {
-							logrus.Errorf("[clean] failed to remove local image %s: %v", v.DeliveredPath, err)
-							continue
-						}
-
-						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-							logrus.Errorf("[clean] failed to delete version record %s: %v", v.BuildVersion, err)
-							continue
-						}
-						logrus.Infof("[clean] image version deleted successfully: %s", v.DeliveredPath)
-						continue
-					}
-					if v.DeliveredType == "slug" {
-						filePath := v.DeliveredPath
-						logrus.Infof("[clean] deleting slug file: %s", filePath)
-						if err := os.Remove(filePath); err != nil {
-							// 如果删除文件失败 并且不是文件不存在的错误
-							if !errors.Is(err, os.ErrNotExist) {
-								logrus.Errorf("[clean] failed to delete slug file %s: %v", filePath, err)
-								continue
-							}
-							logrus.Infof("[clean] slug file not found, skipping: %s", filePath)
-						}
-						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-							logrus.Errorf("[clean] failed to delete version record %s: %v", v.BuildVersion, err)
-							continue
-						}
-						logrus.Infof("[clean] slug file deleted successfully: %s", filePath)
-					}
-				}
-			}
-			// only registry garbage-collect
-			logrus.Info("[clean] running rbd-hub registry garbage-collect")
-			cmd := []string{"registry", "garbage-collect", "/etc/docker/registry/config.yml"}
-			out, b, err := t.PodExecCmd(t.config, t.clientset, "rbd-hub", cmd)
-			if err != nil {
-				logrus.Error("[clean] rbd-hub garbage-collect failed: ", out.String(), b.String(), err.Error())
-			} else {
-				logrus.Info("[clean] rbd-hub garbage-collect succeeded")
-			}
-			return nil
-		}, duration)
-		if err != nil {
-			errchan <- err
-		}
+func waitForCleanupTime(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
-	go run()
+}
+
+// Start launches the injected runner once at startup and then at daily times.
+// Controlled cleanup errors are warnings, not fatal errors for Chaos.
+func (t *Manager) Start(_ chan error) error {
+	t.startMu.Lock()
+	defer t.startMu.Unlock()
+	if t.runner == nil {
+		return fmt.Errorf("coordinated cleanup runner is required")
+	}
+	if t.ctx == nil || t.schedule.location == nil || t.now == nil || t.wait == nil {
+		return fmt.Errorf("cleanup manager is not initialized")
+	}
+	if err := t.ctx.Err(); err != nil {
+		return err
+	}
+	if t.started {
+		return fmt.Errorf("cleanup manager is already started")
+	}
+	t.started = true
+	logrus.Info("coordinated cleanup scheduler is starting")
+	go func() {
+		startup := true
+		runDaily(t.ctx, t.schedule, t.now, t.wait, func(ctx context.Context, scheduled time.Time) {
+			trigger := "startup"
+			if !startup {
+				trigger = "daily:" + scheduled.Format(time.RFC3339)
+			}
+			startup = false
+			t.runTrigger(ctx, trigger)
+		})
+	}()
 	return nil
 }
 
-// Stop stop
+// runTrigger retries only known contention, retaining the ledger trigger identity.
+func (t *Manager) runTrigger(ctx context.Context, trigger string) {
+	for ctx.Err() == nil {
+		err := t.runner(ctx, trigger, t.keepCount)
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		if !errors.Is(err, guard.ErrCoordinationBusy) {
+			logrus.WithError(err).Warn("coordinated cleanup skipped or failed")
+			return
+		}
+		logrus.Warn("coordinated cleanup busy; postponing the same trigger for one minute")
+		if err := t.wait(ctx, time.Minute); err != nil {
+			return
+		}
+	}
+}
+
+// Stop cancels the scheduler and any context-aware coordinated cleanup run.
 func (t *Manager) Stop() error {
-	logrus.Info("CleanManager is stoping.")
-	t.cancel()
+	logrus.Info("coordinated cleanup scheduler is stopping")
+	if t.cancel != nil {
+		t.cancel()
+	}
 	return nil
 }
 

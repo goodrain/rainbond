@@ -21,6 +21,7 @@ type versionRow struct {
 	FinalStatus        string
 }
 
+// RetirementResult distinguishes metadata retirement from physical image deletion.
 type RetirementResult struct {
 	RecordRetired  bool    `json:"record_retired"`
 	ImageDeleted   bool    `json:"image_deleted"`
@@ -35,6 +36,17 @@ func RetireVersion(begin func() *gorm.DB, tenantID string, expected VersionExpec
 		return RetirementResult{}, tx.Error
 	}
 	defer tx.Rollback()
+	result, err := retireVersionInTransaction(tx, tenantID, expected)
+	if err != nil {
+		return RetirementResult{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return RetirementResult{}, err
+	}
+	return result, nil
+}
+
+func retireVersionInTransaction(tx *gorm.DB, tenantID string, expected VersionExpectation) (RetirementResult, error) {
 	if err := lockSQLiteVersionStore(tx); err != nil {
 		return RetirementResult{}, err
 	}
@@ -64,9 +76,6 @@ func RetireVersion(begin func() *gorm.DB, tenantID string, expected VersionExpec
 	}
 	if deleted.RowsAffected != 1 {
 		return RetirementResult{}, ErrStateChanged
-	}
-	if err := tx.Commit().Error; err != nil {
-		return RetirementResult{}, err
 	}
 	return RetirementResult{RecordRetired: true}, nil
 }
@@ -172,6 +181,7 @@ type Inspection struct {
 	Checkpoints     map[string]string `json:"checkpoints"`
 }
 
+// InspectVersions reads retained version identities without retiring records.
 func InspectVersions(begin func() *gorm.DB, serviceID string) (Inspection, error) {
 	tx := begin()
 	if tx.Error != nil {

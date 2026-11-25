@@ -20,6 +20,10 @@ package component
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/api/controller"
 	api_db "github.com/goodrain/rainbond/api/db"
@@ -60,9 +64,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"os"
-	"time"
 )
 
 // Database -
@@ -247,13 +248,17 @@ func ChaosInit() rainbond.FuncComponent {
 				errChan <- err
 				return
 			}
-			//默认清理策略：保留最新构建成功的5份，过期镜像将会清理本地和rbd-hub
-			cle, err := clean.CreateCleanManager(exec.GetImageClient())
+			// 只通过协调清理入口执行启动和每日任务，不回退到旧的直接清理循环。
+			cleanupCoordinator := controller.NewCleanupCoordinationHandler()
+			cle, err := clean.CreateCleanManager(exec.GetImageClient(), cleanupCoordinator.RunScheduledCleanup)
 			if err != nil {
 				errChan <- err
 				return
 			}
 			if configs.Default().ChaosConfig.CleanUp {
+				logrus.Warn("deprecated --clean-up is ignored; use --scheduled-clean-up for coordinated daily cleanup")
+			}
+			if configs.Default().ChaosConfig.ScheduledCleanUp {
 				if err := cle.Start(errChan); err != nil {
 					errChan <- err
 					return

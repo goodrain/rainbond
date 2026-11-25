@@ -1686,6 +1686,50 @@
       "status": "active"
     },
     {
+      "id": "rainbond.cleanup.idle-maintenance-atomic-admission",
+      "title": "Idle maintenance atomic admission",
+      "title_zh": "Idle maintenance atomic admission",
+      "interface_type": "package_function",
+      "interface": "cleanup.RequestIdleMaintenance",
+      "code_paths": [
+        "pkg/cleanup/maintenance.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceAndProducerRaceHasOnlyOneAdmission"
+        },
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestConcurrentIdleMaintenanceHasOneGCWinner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.idle-maintenance-preserves-push",
+      "title": "Idle maintenance preserves push",
+      "title_zh": "Idle maintenance preserves push",
+      "interface_type": "package_function",
+      "interface": "cleanup.RequestIdleMaintenance",
+      "code_paths": [
+        "pkg/cleanup/maintenance.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceLeavesAcceptedBuildWritableUntilPushFinishes"
+        },
+        {
+          "path": "pkg/cleanup/idle_maintenance_test.go",
+          "selector": "TestIdleMaintenanceDoesNotIgnoreUnfinishedOperations"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.cleanup.import_reference_handoff",
       "title": "Atomically hand import references to successful versions",
       "title_zh": "Atomically hand import references to successful versions",
@@ -2906,6 +2950,78 @@
         {
           "path": "db/mysql/dao/k8s_resource_cleanup_test.go",
           "selector": "TestSavedWorkloadWritesRespectCleanupAdmission"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-cancel-drain",
+      "title": "Scheduled gc cancel drain",
+      "title_zh": "Scheduled gc cancel drain",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCCanceledDrainDoesNotStartOrReleaseWriter"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-preflight",
+      "title": "Scheduled gc preflight",
+      "title_zh": "Scheduled gc preflight",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCRejectsUnqualifiedRegistryBeforeMutation"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-slots",
+      "title": "Scheduled gc slots",
+      "title_zh": "Scheduled gc slots",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCStartupSharesDaemonSetRolloutIdentity"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.cleanup.scheduled-gc-verified-completion",
+      "title": "Scheduled gc verified completion",
+      "title_zh": "Scheduled gc verified completion",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.RunScheduledCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_gc.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_gc_test.go",
+          "selector": "TestScheduledGCVerifiedCompletionIsIdempotent"
         }
       ],
       "test_type": "regression",
@@ -6511,6 +6627,293 @@
       "status": "active"
     },
     {
+      "id": "rainbond.image-clean.atomic-scheduled-retirement",
+      "title": "Atomic scheduled retirement",
+      "title_zh": "Atomic scheduled retirement",
+      "interface_type": "package_function",
+      "interface": "cleanup.RetireScheduledVersions",
+      "code_paths": [
+        "pkg/cleanup/scheduled_version.go",
+        "pkg/cleanup/store.go"
+      ],
+      "tests": [
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestScheduledRetirementCommitsCandidatesOnlyAfterReferenceAudit"
+        },
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestRecoverScheduledRetirementOnlyBeforeDeletionAdmission"
+        },
+        {
+          "path": "pkg/cleanup/scheduled_version_test.go",
+          "selector": "TestRecoveryAndDeletionAdmissionHaveOneWinner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-busy-cancel",
+      "title": "Coordinated manager busy cancel",
+      "title_zh": "Coordinated manager busy cancel",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerCancelsBusyBackoff"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-busy-retry",
+      "title": "Coordinated manager busy retry",
+      "title_zh": "Coordinated manager busy retry",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRetriesBusyWithSameTrigger"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-cancelled-start",
+      "title": "Coordinated manager cancelled start",
+      "title_zh": "Coordinated manager cancelled start",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerStoppedBeforeStartDoesNotExecute"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-config",
+      "title": "Coordinated manager config",
+      "title_zh": "Coordinated manager config",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRejectsInvalidDailyConfiguration"
+        },
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRejectsMultipleCoordinatedRunners"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-required",
+      "title": "Coordinated manager required",
+      "title_zh": "Coordinated manager required",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRequiresCoordinatedRunner"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-triggers",
+      "title": "Coordinated manager triggers",
+      "title_zh": "Coordinated manager triggers",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerRunsCoordinatedStartupAndDailyWithoutFatalErrors"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.coordinated-manager-unavailable-no-retry",
+      "title": "Coordinated manager unavailable no retry",
+      "title_zh": "Coordinated manager unavailable no retry",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestManagerDoesNotRetryUnavailable"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-run-cancellation",
+      "title": "Daily run cancellation",
+      "title_zh": "Daily run cancellation",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestRunDailyCancellationAndWaitFailure"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-run-loop",
+      "title": "Daily run loop",
+      "title_zh": "Daily run loop",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestRunDailyStartupAndScheduledWallClock"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule",
+      "title": "Daily schedule",
+      "title_zh": "Daily schedule",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestDailyScheduleNextWallClock"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-flag-validation",
+      "title": "Daily schedule flag validation",
+      "title_zh": "Daily schedule flag validation",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosDailyCleanupFlagsRejectInvalidValues"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-flags",
+      "title": "Daily schedule flags",
+      "title_zh": "Daily schedule flags",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosDailyCleanupFlags"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.daily-schedule-validation",
+      "title": "Daily schedule validation",
+      "title_zh": "Daily schedule validation",
+      "interface_type": "workflow",
+      "interface": "clean.runDaily",
+      "code_paths": [
+        "builder/clean/schedule.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/schedule_test.go",
+          "selector": "TestDailyScheduleRejectsInvalidConfiguration"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.permitted-manifest-deletion",
+      "title": "Permitted manifest deletion",
+      "title_zh": "Permitted manifest deletion",
+      "interface_type": "workflow",
+      "interface": "registry.CoordinatedCleanupClient",
+      "code_paths": [
+        "builder/sources/registry/coordinated_cleanup.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sources/registry/coordinated_cleanup_test.go",
+          "selector": "TestCoordinatedCleanupClientDoesNotReplayDeletion"
+        },
+        {
+          "path": "builder/sources/registry/coordinated_cleanup_test.go",
+          "selector": "TestCoordinatedCleanupClientRequiresCompleteInventoryAndExactAbsence"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.image-clean.registry-gc-noop",
       "title": "Skip registry garbage collect exec when no hub pod matches",
       "title_zh": "\u5f53\u6ca1\u6709\u5339\u914d\u7684\u4ed3\u5e93 Pod \u65f6\u8df3\u8fc7\u5783\u573e\u56de\u6536\u6267\u884c",
@@ -6523,6 +6926,84 @@
         {
           "path": "builder/clean/clean_test.go",
           "selector": "TestPodExecCmdNoMatchingPod"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.safe-schedule-enable-flags",
+      "title": "Safe schedule enable flags",
+      "title_zh": "Safe schedule enable flags",
+      "interface_type": "workflow",
+      "interface": "rbdcomponent.AddChaosFlags",
+      "code_paths": [
+        "config/configs/rbdcomponent/chaos_config.go"
+      ],
+      "tests": [
+        {
+          "path": "config/configs/rbdcomponent/chaos_schedule_test.go",
+          "selector": "TestChaosSafeScheduledCleanupEnableFlags"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.scheduled-version-retirement",
+      "title": "Scheduled version retirement",
+      "title_zh": "Scheduled version retirement",
+      "interface_type": "workflow",
+      "interface": "controller.CleanupCoordinationHandler.runScheduledVersionCleanup",
+      "code_paths": [
+        "api/controller/cleanup_scheduled_versions.go"
+      ],
+      "tests": [
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetiresOnlyUnprotectedOldVersion"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetainsDeferredCandidatesAndNeverReplaysUnknownDelete"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetiresSharedOldDigestAsOneGroup"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRetriesKnownRejectionWithoutDuplicatingCandidates"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupDistinguishesBusyProducerAndUncertainty"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRecoversCommittedCrashBeforeReadiness"
+        },
+        {
+          "path": "api/controller/cleanup_scheduled_versions_test.go",
+          "selector": "TestScheduledVersionCleanupRecoversKnownProxyOutcomeWithoutReplayingDelete"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.image-clean.scheduler-wait-cancellation",
+      "title": "Scheduler wait cancellation",
+      "title_zh": "Scheduler wait cancellation",
+      "interface_type": "workflow",
+      "interface": "clean.Manager.Start",
+      "code_paths": [
+        "builder/clean/clean.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/clean/clean_test.go",
+          "selector": "TestCleanupWaitHonorsCancellationAndDeadline"
         }
       ],
       "test_type": "regression",
