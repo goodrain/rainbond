@@ -27,6 +27,9 @@ func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 		{name: "plain qcow2", fileName: "ubuntu.qcow2", want: vmBuildMediaDisk},
 		{name: "plain img", fileName: "ubuntu.img", want: vmBuildMediaDisk},
 		{name: "plain VMDK", fileName: "Windows10.VMDK", want: vmBuildMediaDisk},
+		{name: "VirtualBox disk", fileName: "linux.vdi", want: vmBuildMediaDisk},
+		{name: "Virtual PC disk", fileName: "windows.vhd", want: vmBuildMediaDisk},
+		{name: "Hyper-V disk", fileName: "windows.VHDX", want: vmBuildMediaDisk},
 		{name: "gzip disk export", fileName: "disk.img.gz", want: vmBuildMediaDisk},
 		{name: "xz disk export", fileName: "disk.qcow2.xz", want: vmBuildMediaDisk},
 		{name: "tar disk export", fileName: "disk.tar", want: vmBuildMediaDisk},
@@ -46,7 +49,7 @@ func TestResolveVMBuildMediaDistinguishesISOAndDiskImages(t *testing.T) {
 }
 
 func TestResolveVMBuildMediaRejectsUnknownFormats(t *testing.T) {
-	if _, err := resolveVMBuildMedia("ubuntu.vdi"); err == nil {
+	if _, err := resolveVMBuildMedia("ubuntu.unknown"); err == nil {
 		t.Fatal("expected unknown vm media format to fail")
 	}
 }
@@ -62,22 +65,22 @@ func TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup(t *testing.T)
 }
 
 // capability_id: rainbond.vm-build.vmdk-self-contained
-func TestRenderVMDKRequiresConversionAndDisablesNetwork(t *testing.T) {
+func TestRenderVMDKValidatesWithoutConvertingDisk(t *testing.T) {
 	dockerfile, err := renderVMDockerfile("windows.vmdk")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"RUN --network=none ", `"driver":"vmdk"`, `"driver":"file"`, `"backing":null`, "qemu-img convert -p -O qcow2", "qemu-img check -f qcow2", "rootdisk.tmp.qcow2", "COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/"} {
+	for _, fragment := range []string{"RUN --network=none ", `"driver":"vmdk"`, `"driver":"file"`, `"backing":null`, `qemu-img check "$input"`, "COPY --from=validate --chown=107:107 /work/source.img /disk/rootdisk.vmdk"} {
 		if !strings.Contains(dockerfile, fragment) {
-			t.Fatal("missing converter safety contract", fragment)
+			t.Fatal("missing VMDK validation or publication contract", fragment)
 		}
 	}
-	if strings.Contains(dockerfile, "ADD --chown=107:107 windows.vmdk /disk/") {
-		t.Fatal("VMDK cannot be published directly as a runtime disk")
+	if strings.Contains(dockerfile, "qemu-img convert") || strings.Contains(dockerfile, ".qcow2") {
+		t.Fatal("VMDK must reach CDI unchanged, without a Builder format conversion")
 	}
 	for _, name := range []string{"windows.vmdk.gz", "windows.vmdk.xz"} {
 		if _, err := renderVMDockerfile(name); err == nil {
-			t.Fatal("wrapped VMDK bypassed converter preflight")
+			t.Fatal("wrapped VMDK bypassed validation")
 		}
 	}
 }
@@ -95,7 +98,7 @@ func TestRenderVMDockerfileUsesDedicatedTemplatesPerMedia(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render qcow2 dockerfile: %v", err)
 	}
-	if diskDockerfile != "FROM scratch\nADD --chown=107:107 rootdisk.qcow2 /disk/\n" {
+	if !strings.Contains(diskDockerfile, "COPY rootdisk.qcow2 /work/source.img\n") || strings.Contains(diskDockerfile, "qemu-img convert") {
 		t.Fatalf("unexpected disk dockerfile: %q", diskDockerfile)
 	}
 }
@@ -124,20 +127,20 @@ func TestRenderVMDockerfileUsesHTTPArtifactForGzipRawExport(t *testing.T) {
 	}
 }
 
-func TestRenderVMDockerfileUsesQCOW2ConversionForRawDisk(t *testing.T) {
+func TestRenderVMDockerfileValidatesDiskForCDI(t *testing.T) {
 	dockerfile, err := renderVMDockerfile("rootdisk.img")
 	if err != nil {
 		t.Fatalf("render raw disk dockerfile: %v", err)
 	}
 	for _, instruction := range []string{
-		"FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS convert\n",
+		"FROM quay.io/kubevirt/cdi-importer:v1.65.0 AS validate\n",
 		"COPY rootdisk.img /work/source.img\n",
 		"/usr/bin/qemu-img info --output=json /work/source.img",
-		`/usr/bin/qemu-img convert -p -f "$format" -O qcow2`,
-		"COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/\n",
+		`/usr/bin/qemu-img check -f "$format" /work/source.img`,
+		"COPY --from=validate --chown=107:107 /work/source.img /disk/rootdisk.img\n",
 	} {
 		if !strings.Contains(dockerfile, instruction) {
-			t.Fatalf("missing disk conversion instruction %q in %q", instruction, dockerfile)
+			t.Fatalf("missing disk validation instruction %q in %q", instruction, dockerfile)
 		}
 	}
 }
@@ -162,7 +165,7 @@ func TestRenderVMDockerfileRejectsUnsafeFileNames(t *testing.T) {
 func TestRenderVMDockerfileRetainsArchiveAndISOPaths(t *testing.T) {
 	for _, name := range []string{
 		"disk.tar", "disk.tar.gz", "disk.tar.xz", "disk.qcow2.gz", "disk.qcow2.xz", "disk.img.xz",
-		"乌班图.qcow2", "磁盘１.qcow2", "磁盘.tar", "磁盘.tar.gz", "磁盘.tar.xz", "磁盘.qcow2.gz", "磁盘.qcow2.xz", "磁盘.img.xz",
+		"磁盘.tar", "磁盘.tar.gz", "磁盘.tar.xz", "磁盘.qcow2.gz", "磁盘.qcow2.xz", "磁盘.img.xz",
 	} {
 		t.Run(name, func(t *testing.T) {
 			got, err := renderVMDockerfile(name)

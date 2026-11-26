@@ -144,3 +144,61 @@ func TestVMWrapperRejectsBzipAndZstdIncludingSkippableFrames(t *testing.T) {
 		})
 	}
 }
+
+// capability_id: rainbond.vm-build.native-disk-validation
+func TestVMWrapperCannotHideNativeDiskFromPreflight(t *testing.T) {
+	vhdx := append([]byte("vhdxfile"), make([]byte, 504)...)
+	xz := map[string]string{
+		"vdi":  "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AH/ABZdAABuWMWeOsIjsQBMax49CZXJ9I3cLQAAAABPIeXUAzeT2QABMoAEAAAAvlVjtLHEZ/sCAAAAAARZWg==",
+		"vhd":  "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AH/ABFdADGbyhhwtKQNMv8FhIVYXIAAAAAAAB0WnzWoBs2cAAEtgAQAAADw5eNGscRn+wIAAAAABFla",
+		"vhdx": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AH/ABFdADsaCLHozadDW1GtK3ngJ6AAAAAAAPs5nrCp3vfTAAEtgAQAAADw5eNGscRn+wIAAAAABFla",
+	}
+	for kind, data := range map[string][]byte{"vdi": nativeVDIFixture(), "vhd": nativeVHDFixture(false, false), "vhdx": vhdx} {
+		cases := map[string][]byte{
+			"renamed.raw.xz":            vmBase64Fixture(t, xz[kind]),
+			"renamed.raw.gz":            vmGzipFixture(t, data),
+			"renamed.tar":               vmTarFixture(t, "renamed.raw", data),
+			"renamed.tar.gz":            vmGzipFixture(t, vmTarFixture(t, "renamed.qcow2", data)),
+			"named.tar":                 vmTarFixture(t, "disk."+kind, make([]byte, 512)),
+			"named." + kind + ".gz":     vmGzipFixture(t, make([]byte, 512)),
+			"named." + kind + ".tar.gz": vmGzipFixture(t, vmTarFixture(t, "renamed.raw", make([]byte, 512))),
+			"named." + kind + ".tar":    vmTarFixture(t, "renamed.raw", make([]byte, 512)),
+		}
+		for name, wrapped := range cases {
+			t.Run(kind+"/"+name, func(t *testing.T) {
+				p := writeNativeDiskFixture(t, name, wrapped)
+				_, err := InspectVMDKFile(p)
+				var sourceErr *VMDKSourceError
+				if !errors.As(err, &sourceErr) || sourceErr.Code != "vm_disk_wrapped" {
+					t.Fatal("wrapped native disk reached the legacy disk path", err)
+				}
+			})
+		}
+	}
+}
+
+// capability_id: rainbond.vm-build.native-disk-validation
+func TestVMWrapperKeepsFixedVHDRawCompatibilityBoundary(t *testing.T) {
+	fixed := nativeVHDFixture(true, false)
+	for name, data := range map[string][]byte{
+		"renamed.raw.gz": vmGzipFixture(t, fixed),
+		"renamed.tar":    vmTarFixture(t, "renamed.raw", fixed),
+	} {
+		if recognized, err := InspectVMDKFile(writeNativeDiskFixture(t, name, data)); recognized || err != nil {
+			t.Fatal("footer-only fixed VHD must retain the existing raw wrapper path", err)
+		}
+	}
+	for name, data := range map[string][]byte{
+		"fixed.vhd.gz": vmGzipFixture(t, fixed),
+		"fixed.tar":    vmTarFixture(t, "fixed.vhd", fixed),
+	} {
+		if _, err := InspectVMDKFile(writeNativeDiskFixture(t, name, data)); err == nil {
+			t.Fatal("explicitly wrapped VHD accepted")
+		}
+	}
+	_, err := InspectVMDKFile(writeNativeDiskFixture(t, "named.vhd.gz", vmGzipFixture(t, validVMDKFixture(""))))
+	var sourceErr *VMDKSourceError
+	if !errors.As(err, &sourceErr) || sourceErr.Code != "vm_vmdk_wrapped" {
+		t.Fatal("VMDK error identity changed", err)
+	}
+}

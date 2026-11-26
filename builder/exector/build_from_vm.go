@@ -39,8 +39,8 @@ type vmDiskBuildStrategy string
 
 const (
 	vmDiskBuildStrategyDirect       vmDiskBuildStrategy = "direct"
-	vmDiskBuildStrategyConvertDisk  vmDiskBuildStrategy = "convert-disk"
-	vmDiskBuildStrategyConvertVMDK  vmDiskBuildStrategy = "convert-vmdk"
+	vmDiskBuildStrategyValidateDisk vmDiskBuildStrategy = "validate-disk"
+	vmDiskBuildStrategyValidateVMDK vmDiskBuildStrategy = "validate-vmdk"
 	vmDiskBuildStrategyHTTPArtifact vmDiskBuildStrategy = "http-artifact"
 )
 
@@ -65,28 +65,29 @@ COPY ${VM_PATH} /disk/disk.img.gz
 RUN ln -sf /disk/disk.img.gz /usr/share/nginx/html/disk.img.gz && printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location /disk.img.gz {\n    add_header Content-Type application/gzip;\n    try_files /disk.img.gz =404;\n  }\n}\n' > /etc/nginx/conf.d/default.conf
 `
 
-// IMG is a filename convention, not a disk format. Probe inside the converter
-// image, which provides qemu-img, and accept only self-contained raw/QCOW2 disks.
-// Parse its JSON with shell builtins to avoid adding converter dependencies.
-var vmDiskToQCOW2DockerfileTmpl = `
-FROM ${CONVERTER_IMAGE} AS convert
+// Probe the actual format and reject external dependencies before publication.
+// RAW and VHD do not implement qemu-img check; the other supported formats do.
+// No disk data is rewritten here: CDI owns conversion into the persistent disk.
+var vmDiskValidationDockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS validate
 WORKDIR /work
 COPY ${VM_PATH} /work/source.img
-RUN /usr/bin/qemu-img info --output=json /work/source.img > /work/source-info.json && format= && while IFS= read -r line; do case "$line" in '    "format": "raw"'*) format=raw ;; '    "format": "qcow2"'*) format=qcow2 ;; *'"backing-filename":'*|*'"data-file":'*) echo 'VM disk must not reference external files' >&2; exit 1 ;; esac; done < /work/source-info.json && case "$format" in raw|qcow2) ;; *) echo 'unsupported VM disk content format' >&2; exit 1 ;; esac && /usr/bin/qemu-img convert -p -f "$format" -O qcow2 -c /work/source.img /work/rootdisk.qcow2 && rm -f /work/source.img /work/source-info.json
+RUN --network=none set -eu; /usr/bin/qemu-img info --output=json /work/source.img > /work/source-info.json; format=; while IFS= read -r line; do case "$line" in '    "format": "raw"'*) format=raw ;; '    "format": "qcow2"'*) format=qcow2 ;; '    "format": "vdi"'*) format=vdi ;; '    "format": "vpc"'*) format=vpc ;; '    "format": "vhdx"'*) format=vhdx ;; *'"backing-filename":'*|*'"data-file":'*|*'"encrypted": true'*) echo 'vm_disk_external_dependency: 磁盘必须是无父盘、外部数据文件或加密的自包含单文件' >&2; exit 1 ;; esac; done < /work/source-info.json; case "$format" in raw|vpc) ;; qcow2|vdi|vhdx) /usr/bin/qemu-img check -f "$format" /work/source.img ;; *) echo 'vm_disk_unsupported_format: 不支持的磁盘内容格式' >&2; exit 1 ;; esac; rm -f /work/source-info.json
 FROM scratch
-COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
+COPY --from=validate --chown=107:107 /work/source.img /disk/rootdisk.img
 `
 
 // Go has already verified the complete bounded VMDK header/descriptor. Disable
-// network and use a literal file child with backing=null as a second boundary;
-// never pass untrusted descriptor names or image options to qemu.
-var vmVMDKToQCOW2DockerfileTmpl = `
-FROM ${CONVERTER_IMAGE} AS convert
+// network and use a literal file child with backing=null as a second boundary.
+// Publish the validated bytes unchanged; CDI converts this single-file artifact
+// directly to raw in the persistent volume, without an intermediate QCOW2 disk.
+var vmVMDKDockerfileTmpl = `
+FROM ${CONVERTER_IMAGE} AS validate
 WORKDIR /work
 COPY ${VM_PATH} /work/source.img
-RUN --network=none set -eu; input='json:{"driver":"vmdk","file":{"driver":"file","filename":"/work/source.img"},"backing":null}'; trap 'rm -f /work/rootdisk.qcow2 /work/rootdisk.tmp.qcow2' EXIT; /usr/bin/qemu-img info --output=json "$input" > /work/source-info.json && /usr/bin/qemu-img check "$input" && /usr/bin/qemu-img convert -p -O qcow2 -c "$input" /work/rootdisk.tmp.qcow2 && /usr/bin/qemu-img check -f qcow2 /work/rootdisk.tmp.qcow2 || { echo "vm_vmdk_invalid: VMDK完整性检查或转换失败，请检查源盘、正常关机并重新导出单文件磁盘" >&2; exit 1; }; mv /work/rootdisk.tmp.qcow2 /work/rootdisk.qcow2; trap - EXIT; rm -f /work/source.img /work/source-info.json
+RUN --network=none set -eu; input='json:{"driver":"vmdk","file":{"driver":"file","filename":"/work/source.img"},"backing":null}'; /usr/bin/qemu-img check "$input" || { echo "vm_vmdk_invalid: VMDK完整性检查失败，请检查源盘、正常关机并重新导出单文件磁盘" >&2; exit 1; }
 FROM scratch
-COPY --from=convert --chown=107:107 /work/rootdisk.qcow2 /disk/
+COPY --from=validate --chown=107:107 /work/source.img /disk/rootdisk.vmdk
 `
 
 // VMBuildItem -
@@ -156,9 +157,9 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		fileInfoList[0].Name(),
 	)
 	renderStarted := time.Now()
-	dockerfile, convertedVMDK, err := renderVMSourceDockerfileChecked(sourcePath, fileInfoList[0].Name())
-	if err == nil && convertedVMDK {
-		err = v.validateVMDKRuntimeBinding()
+	dockerfile, validatedDisk, err := renderVMSourceDockerfileChecked(sourcePath, fileInfoList[0].Name())
+	if err == nil && validatedDisk {
+		err = v.validateVMDiskRuntimeBinding()
 	}
 	if err = recordVMBuildStage(v.Logger, "vm_dockerfile_render", renderStarted, err, map[string]interface{}{
 		"service_id":  v.ServiceID,
@@ -204,8 +205,8 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 		return err
 	}
 	v.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
-	if convertedVMDK {
-		if err := v.validateVMDKRuntimeBinding(); err != nil {
+	if validatedDisk {
+		if err := v.validateVMDiskRuntimeBinding(); err != nil {
 			return err
 		}
 	}
@@ -290,10 +291,10 @@ func renderVMDockerfile(fileName string) (string, error) {
 		switch resolveVMDiskBuildStrategy(fileName) {
 		case vmDiskBuildStrategyHTTPArtifact:
 			return strings.TrimPrefix(util.ParseVariable(vmHTTPArtifactDockerfileTmpl, envs), "\n"), nil
-		case vmDiskBuildStrategyConvertDisk:
-			return strings.TrimPrefix(util.ParseVariable(vmDiskToQCOW2DockerfileTmpl, envs), "\n"), nil
-		case vmDiskBuildStrategyConvertVMDK:
-			return strings.TrimPrefix(util.ParseVariable(vmVMDKToQCOW2DockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyValidateDisk:
+			return strings.TrimPrefix(util.ParseVariable(vmDiskValidationDockerfileTmpl, envs), "\n"), nil
+		case vmDiskBuildStrategyValidateVMDK:
+			return strings.TrimPrefix(util.ParseVariable(vmVMDKDockerfileTmpl, envs), "\n"), nil
 		default:
 			return strings.TrimPrefix(util.ParseVariable(vmDiskDockerfileTmpl, envs), "\n"), nil
 		}
@@ -326,21 +327,38 @@ func renderVMSourceDockerfileChecked(sourcePath, fileName string) (string, bool,
 			}
 		}
 		envs := map[string]string{"VM_PATH": staged, "CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage)}
-		return strings.TrimPrefix(util.ParseVariable(vmVMDKToQCOW2DockerfileTmpl, envs), "\n"), true, nil
+		return strings.TrimPrefix(util.ParseVariable(vmVMDKDockerfileTmpl, envs), "\n"), true, nil
+	}
+	if err := sourceutil.InspectVMNativeDiskFile(filepath.Join(sourcePath, fileName)); err != nil {
+		return "", false, err
+	}
+	media, err := sourceutil.InspectVMImageMediaFile(filepath.Join(sourcePath, fileName))
+	if err != nil {
+		return "", false, err
+	}
+	envs := map[string]string{
+		"VM_PATH":         fileName,
+		"CONVERTER_IMAGE": utils.GetenvDefault("VM_QCOW2_CONVERTER_IMAGE", defaultVMQCOW2ConverterImage),
+	}
+	switch media {
+	case sourceutil.VMImageMediaISO:
+		return strings.TrimPrefix(util.ParseVariable(vmISODockerfileTmpl, envs), "\n"), false, nil
+	case sourceutil.VMImageMediaDisk:
+		return strings.TrimPrefix(util.ParseVariable(vmDiskValidationDockerfileTmpl, envs), "\n"), true, nil
 	}
 	dockerfile, err := renderVMDockerfile(fileName)
-	return dockerfile, false, err
+	return dockerfile, resolveVMDiskBuildStrategy(fileName) == vmDiskBuildStrategyValidateDisk, err
 }
 
 func resolveVMDiskBuildStrategy(fileName string) vmDiskBuildStrategy {
 	name := strings.ToLower(strings.TrimSpace(fileName))
 	switch {
 	case strings.HasSuffix(name, ".vmdk"):
-		return vmDiskBuildStrategyConvertVMDK
+		return vmDiskBuildStrategyValidateVMDK
 	case strings.HasSuffix(name, ".img.gz"), strings.HasSuffix(name, ".raw.gz"):
 		return vmDiskBuildStrategyHTTPArtifact
-	case strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"):
-		return vmDiskBuildStrategyConvertDisk
+	case sourceutil.IsVMPlainDiskFormat(strings.TrimPrefix(filepath.Ext(name), ".")):
+		return vmDiskBuildStrategyValidateDisk
 	default:
 		return vmDiskBuildStrategyDirect
 	}
@@ -357,7 +375,7 @@ func resolveVMBuildMedia(fileName string) (vmBuildMedia, error) {
 	switch {
 	case strings.HasSuffix(name, ".iso"):
 		return vmBuildMediaISO, nil
-	case strings.HasSuffix(name, ".qcow2"), strings.HasSuffix(name, ".img"), strings.HasSuffix(name, ".raw"), strings.HasSuffix(name, ".vmdk"), strings.HasSuffix(name, ".tar"):
+	case sourceutil.IsVMPlainDiskFormat(strings.TrimPrefix(filepath.Ext(name), ".")), strings.HasSuffix(name, ".tar"):
 		return vmBuildMediaDisk, nil
 	default:
 		return "", fmt.Errorf("unsupported vm image format for %q", fileName)

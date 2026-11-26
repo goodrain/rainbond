@@ -25,9 +25,12 @@ const (
 	vmDiskImportSourceTypeRegistry     = "registry"
 	vmDiskImportSourceTypeHTTPArtifact = "http-artifact"
 
-	VMArtifactImageAnnotation   = "rainbond.com/vm-artifact-image"
+	// VMArtifactImageAnnotation identifies the image serving an HTTP disk artifact.
+	VMArtifactImageAnnotation = "rainbond.com/vm-artifact-image"
+	// VMArtifactServiceAnnotation identifies the Service serving an HTTP disk artifact.
 	VMArtifactServiceAnnotation = "rainbond.com/vm-artifact-service"
-	VMArtifactPathAnnotation    = "rainbond.com/vm-artifact-path"
+	// VMArtifactPathAnnotation identifies the disk path served by an HTTP artifact.
+	VMArtifactPathAnnotation = "rainbond.com/vm-artifact-path"
 
 	defaultVMArtifactPath = "disk.img.gz"
 )
@@ -346,11 +349,11 @@ func buildVMBlankDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels,
 }
 
 func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, labels, annotations map[string]string, cfg vmDiskImportConfig) (kubevirtv1.DataVolumeTemplateSpec, error) {
-	// VMDK is an input to Builder, not a runtime disk format. The server-owned
-	// build target must carry the converted QCOW2; never bypass that validation
-	// by sending an original VMDK directly to a CDI HTTP/registry importer.
-	if unconvertedVMDKImport(cfg) {
-		return kubevirtv1.DataVolumeTemplateSpec{}, fmt.Errorf("%w: VMDK must be converted by Builder before disk import", ErrInvalidVMRegistryImport)
+	// Desktop disk formats must pass Builder's single-file and parent checks
+	// before CDI imports their published registry artifact. Keep legacy RAW and
+	// QCOW2 HTTP restore paths compatible.
+	if unpublishedVMDesktopDiskImport(cfg) {
+		return kubevirtv1.DataVolumeTemplateSpec{}, fmt.Errorf("%w: VMDK/VDI/VHD/VHDX必须通过磁盘镜像入口校验并发布为单文件镜像后导入", ErrInvalidVMRegistryImport)
 	}
 	logrus.Infof(
 		"vm disk import template build: claim=%s service_id=%s volume_name=%s source_type=%s image_url=%s cert_configmap=%s extra_headers=%d",
@@ -414,10 +417,12 @@ func buildVMDiskImportDataVolumeTemplate(claim *corev1.PersistentVolumeClaim, la
 	}, nil
 }
 
-func unconvertedVMDKImport(cfg vmDiskImportConfig) bool {
+func unpublishedVMDesktopDiskImport(cfg vmDiskImportConfig) bool {
 	format := strings.ToLower(strings.TrimSpace(cfg.Format))
-	if format == "vmdk" || strings.HasPrefix(format, "vmdk.") {
-		return true
+	base := strings.SplitN(format, ".", 2)[0]
+	switch base {
+	case "vmdk", "vdi", "vhd", "vhdx":
+		return format != base || cfg.SourceType != vmDiskImportSourceTypeRegistry
 	}
 	// A registry source may legitimately retain the original VMDK URI solely
 	// as provenance. Only the actual HTTP input is inspected here.
@@ -429,5 +434,10 @@ func unconvertedVMDKImport(cfg vmDiskImportConfig) bool {
 		return false
 	}
 	name := strings.ToLower(path.Base(u.Path))
-	return strings.HasSuffix(name, ".vmdk") || strings.HasSuffix(name, ".vmdk.gz") || strings.HasSuffix(name, ".vmdk.xz")
+	for _, suffix := range []string{".vmdk", ".vdi", ".vhd", ".vhdx"} {
+		if strings.HasSuffix(name, suffix) || strings.HasSuffix(name, suffix+".gz") || strings.HasSuffix(name, suffix+".xz") {
+			return true
+		}
+	}
+	return false
 }
