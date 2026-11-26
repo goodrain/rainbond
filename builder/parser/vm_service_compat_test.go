@@ -11,6 +11,41 @@ import (
 	"github.com/goodrain/rainbond/event"
 )
 
+// capability_id: rainbond.vm-build.native-disk-artifacts
+func TestVMServiceParseNativeDiskFormats(t *testing.T) {
+	withDefaultClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(http.NoBody), Request: req}, nil
+	}))
+	for _, format := range []string{"qcow2", "img", "raw", "vmdk", "vdi", "vhd", "vhdx", "iso"} {
+		for _, ext := range []string{format, strings.ToUpper(format)} {
+			t.Run(ext, func(t *testing.T) {
+				name := "source." + ext
+				p := CreateVMServiceParse("https://example.invalid/"+name+"?download=1", event.GetTestLogger())
+				if errs := p.Parse(); len(errs) != 0 {
+					t.Fatal("supported VM source URL rejected", errs)
+				}
+				dir := t.TempDir()
+				if err := os.WriteFile(filepath.Join(dir, name), []byte("validated later by Builder"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				info, err := entries[0].Info()
+				if err != nil {
+					t.Fatal(err)
+				}
+				local := CreateVMServiceParse("/grdata/package_build/temp/events/native-disk", event.GetTestLogger()).(*VMServiceParse)
+				local.readPackageDir = func(string) ([]os.FileInfo, error) { return []os.FileInfo{info}, nil }
+				if errs := local.Parse(); len(errs) != 0 {
+					t.Fatal("supported VM upload rejected", errs)
+				}
+			})
+		}
+	}
+}
+
 // capability_id: rainbond.vm-run.raw-image-format
 func TestVMServiceParseRemoteNativeRaw(t *testing.T) {
 	withDefaultClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {

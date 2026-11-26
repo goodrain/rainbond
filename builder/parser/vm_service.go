@@ -117,7 +117,7 @@ func (t *VMServiceParse) Parse() ParseErrorList {
 		t.errappend(Errorf(FatalError, "unsafe VMDK file name"))
 		return t.errors
 	}
-	if fileExt != ".iso" && fileExt != ".qcow2" && fileExt != ".img" && fileExt != ".raw" && fileExt != ".vmdk" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
+	if !sourceutil.IsVMPlainDiskFormat(strings.TrimPrefix(fileExt, ".")) && fileExt != ".iso" && fileExt != ".tar" && fileExt != ".gz" && fileExt != ".xz" {
 		t.logger.Error("上传包格式校验失败，不符合包要求", map[string]string{"step": "parse"})
 		t.errappend(Errorf(FatalError, "image package format verification failed"))
 		return t.errors

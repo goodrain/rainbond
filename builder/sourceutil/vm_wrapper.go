@@ -24,8 +24,26 @@ func invalidVMWrapper() error {
 	return vmdkError("vm_image_archive_invalid", "镜像压缩流或归档无效、超出安全限制，请重新生成单文件镜像或归档")
 }
 
-// Preserve compressed RAW/QCOW2 paths without hiding a VMDK from preflight.
+func wrappedVMNativeDisk() error {
+	return vmdkError("vm_disk_wrapped", "压缩或归档中的VDI/VHD/VHDX暂不支持，请先解压为独立磁盘文件再上传")
+}
+
+func vmWrappedNativeFileName(name string) bool {
+	name = strings.ToLower(name)
+	for _, suffix := range []string{".gz", ".xz", ".tar"} {
+		name = strings.TrimSuffix(name, suffix)
+	}
+	switch path.Ext(name) {
+	case ".vdi", ".vhd", ".vhdx":
+		return true
+	}
+	return false
+}
+
+// Preserve compressed RAW/QCOW2 paths without hiding a native disk header.
 // Inspect streams only; no archive member is extracted on the host.
+// Footer-only fixed VHDs renamed as RAW retain the legacy wrapper path:
+// inspecting their footer would require a second full decompression pass.
 func inspectVMWrapper(f *os.File, head []byte, _ int64) (bool, error) {
 	if unsupportedVMWrapper(head) {
 		return true, vmdkError("vm_image_compression_unsupported", "当前不支持Bzip2或Zstd镜像包，请改用未压缩镜像、gzip或xz")
@@ -52,6 +70,9 @@ func inspectVMWrapper(f *os.File, head []byte, _ int64) (bool, error) {
 		}
 		reader = z
 	} else if vmTarHeader(head) {
+		if vmWrappedNativeFileName(f.Name()) {
+			return true, wrappedVMNativeDisk()
+		}
 		return true, inspectVMTar(f)
 	} else {
 		return false, nil
@@ -63,6 +84,9 @@ func inspectVMWrapper(f *os.File, head []byte, _ int64) (bool, error) {
 	}
 	if vmVMDKPrefix(prefix) {
 		return true, wrappedVMDK()
+	}
+	if vmNativeDiskPrefix(prefix) || vmWrappedNativeFileName(f.Name()) {
+		return true, wrappedVMNativeDisk()
 	}
 	if compressedVMWrapper(prefix) {
 		return true, invalidVMWrapper()
@@ -104,6 +128,9 @@ func inspectVMTar(reader io.Reader) error {
 		}
 		if vmVMDKPrefix(data[:n]) {
 			return wrappedVMDK()
+		}
+		if vmNativeDiskPrefix(data[:n]) || vmWrappedNativeFileName(h.Name) {
+			return wrappedVMNativeDisk()
 		}
 		if vmTarHeader(data[:n]) || unsupportedVMWrapper(data[:n]) || n >= 2 && bytes.Equal(data[:2], []byte{0x1f, 0x8b}) || n >= 6 && bytes.Equal(data[:6], []byte{0xfd, '7', 'z', 'X', 'Z', 0}) {
 			return invalidVMWrapper()

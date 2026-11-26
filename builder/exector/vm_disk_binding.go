@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
+	"github.com/goodrain/rainbond/builder/sourceutil"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-type vmdkRootConsumer struct {
+type vmDiskRootConsumer struct {
 	VolumeName string `json:"volume_name"`
 	DiskKey    string `json:"disk_key"`
 	SourceType string `json:"source_type"`
@@ -18,16 +19,16 @@ type vmdkRootConsumer struct {
 	ImageURL   string `json:"image_url"`
 }
 
-func invalidVMDKConsumer() error {
-	return fmt.Errorf("vm_vmdk_runtime_binding_invalid: 当前根盘未绑定本次转换的QCOW2镜像，请通过VMDK入口重新创建，不能直接导入原VMDK下载地址")
+func invalidVMDiskConsumer() error {
+	return fmt.Errorf("vm_disk_runtime_binding_invalid: 当前根盘未绑定本次校验发布的磁盘镜像，请通过磁盘镜像入口重新创建，不能直接导入未经校验的下载地址")
 }
 
-func validateVMDKRuntimeConsumer(raw, image, local string) error {
+func validateVMDiskRuntimeConsumer(raw, image, local string) error {
 	if len(raw) == 0 || len(raw) > 1<<20 {
-		return invalidVMDKConsumer()
+		return invalidVMDiskConsumer()
 	}
-	var keyed map[string]vmdkRootConsumer
-	var root *vmdkRootConsumer
+	var keyed map[string]vmDiskRootConsumer
+	var root *vmDiskRootConsumer
 	if err := json.Unmarshal([]byte(raw), &keyed); err == nil {
 		for key, item := range keyed {
 			if item.VolumeName == "" {
@@ -35,16 +36,16 @@ func validateVMDKRuntimeConsumer(raw, image, local string) error {
 			}
 			if item.VolumeName == "disk" {
 				if root != nil {
-					return invalidVMDKConsumer()
+					return invalidVMDiskConsumer()
 				}
 				copy := item
 				root = &copy
 			}
 		}
 	} else {
-		var list []vmdkRootConsumer
+		var list []vmDiskRootConsumer
 		if err = json.Unmarshal([]byte(raw), &list); err != nil {
-			return invalidVMDKConsumer()
+			return invalidVMDiskConsumer()
 		}
 		for _, item := range list {
 			name := item.VolumeName
@@ -53,15 +54,20 @@ func validateVMDKRuntimeConsumer(raw, image, local string) error {
 			}
 			if name == "disk" {
 				if root != nil {
-					return invalidVMDKConsumer()
+					return invalidVMDiskConsumer()
 				}
 				copy := item
 				root = &copy
 			}
 		}
 	}
-	if root == nil || strings.ToLower(strings.TrimSpace(root.SourceType)) != "registry" || strings.ToLower(strings.TrimSpace(root.Format)) != "qcow2" {
-		return invalidVMDKConsumer()
+	if root == nil || strings.ToLower(strings.TrimSpace(root.SourceType)) != "registry" {
+		return invalidVMDiskConsumer()
+	}
+	// CDI probes the actual disk, including legacy QCOW2 artifacts. New builds
+	// preserve the original format while retaining the server-owned task target.
+	if !sourceutil.IsVMPlainDiskFormat(root.Format) {
+		return invalidVMDiskConsumer()
 	}
 	strip := func(value string) string {
 		value = strings.TrimSpace(value)
@@ -77,7 +83,7 @@ func validateVMDKRuntimeConsumer(raw, image, local string) error {
 	}
 	actual := strip(root.ImageURL)
 	if actual == "" {
-		return invalidVMDKConsumer()
+		return invalidVMDiskConsumer()
 	}
 	if !qualified(actual) {
 		// Worker resolves bare task names against its internal registry, not
@@ -87,7 +93,7 @@ func validateVMDKRuntimeConsumer(raw, image, local string) error {
 				return nil
 			}
 		}
-		return invalidVMDKConsumer()
+		return invalidVMDiskConsumer()
 	}
 	normalize := func(value string) string {
 		value = strip(value)
@@ -103,10 +109,10 @@ func validateVMDKRuntimeConsumer(raw, image, local string) error {
 	if expected := normalize(local); expected != "" && normalize(actual) == expected {
 		return nil
 	}
-	return invalidVMDKConsumer()
+	return invalidVMDiskConsumer()
 }
 
-func (v *VMBuildItem) validateVMDKRuntimeBinding() error {
+func (v *VMBuildItem) validateVMDiskRuntimeBinding() error {
 	if v.SkipVersionStore {
 		return nil
 	} // delivery-only artifact, never a VM start.
@@ -115,18 +121,18 @@ func (v *VMBuildItem) validateVMDKRuntimeBinding() error {
 		reader = func() (string, error) {
 			manager := db.GetManager()
 			if manager == nil || manager.ComponentK8sAttributeDao() == nil {
-				return "", invalidVMDKConsumer()
+				return "", invalidVMDiskConsumer()
 			}
 			attr, err := manager.ComponentK8sAttributeDao().GetByComponentIDAndName(v.ServiceID, dbmodel.K8sAttributeNameVMDiskImports)
 			if err != nil || attr == nil {
-				return "", invalidVMDKConsumer()
+				return "", invalidVMDiskConsumer()
 			}
 			return attr.AttributeValue, nil
 		}
 	}
 	raw, err := reader()
 	if err != nil {
-		return invalidVMDKConsumer()
+		return invalidVMDiskConsumer()
 	}
-	return validateVMDKRuntimeConsumer(raw, v.Image, v.localImageName())
+	return validateVMDiskRuntimeConsumer(raw, v.Image, v.localImageName())
 }

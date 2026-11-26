@@ -3,6 +3,7 @@ package vmrestore
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	corev1 "k8s.io/api/core/v1"
@@ -218,10 +219,31 @@ func RuntimeVMMatches(a, b *kv.VirtualMachine) bool {
 	return apiequality.Semantic.DeepEqual(a.Spec.Template.Spec.Domain, b.Spec.Template.Spec.Domain) && apiequality.Semantic.DeepEqual(a.Spec.Template.Spec.Volumes, b.Spec.Template.Spec.Volumes) && apiequality.Semantic.DeepEqual(a.Spec.DataVolumeTemplates, b.Spec.DataVolumeTemplates)
 }
 
+// runtimeVolumesWithDefaults compares KubeVirt's VMI admission defaults without
+// changing the live instance or the VM template. All volume identities and
+// explicitly configured pull policies remain part of the comparison.
+func runtimeVolumesWithDefaults(volumes []kv.Volume) []kv.Volume {
+	if volumes == nil {
+		return nil
+	}
+	result := make([]kv.Volume, len(volumes))
+	for i := range volumes {
+		result[i] = *volumes[i].DeepCopy()
+		if disk := result[i].ContainerDisk; disk != nil && disk.ImagePullPolicy == "" {
+			if strings.HasSuffix(disk.Image, ":latest") || !strings.ContainsAny(disk.Image, ":@") {
+				disk.ImagePullPolicy = corev1.PullAlways
+			} else {
+				disk.ImagePullPolicy = corev1.PullIfNotPresent
+			}
+		}
+	}
+	return result
+}
+
 // runtimeInstanceMatches reuses the approved safe hardware/layout projection.
 // Guest memory is checked independently of KubeVirt launcher overhead/defaults.
 func runtimeInstanceMatches(instance *kv.VirtualMachineInstance, vm *kv.VirtualMachine, selected RuntimeSelection) bool {
-	if instance == nil || vm == nil || vm.Spec.Template == nil || instance.Spec.Domain.Firmware == nil || string(instance.Spec.Domain.Firmware.UUID) != selected.Startup.FirmwareUUID || !apiequality.Semantic.DeepEqual(instance.Spec.Volumes, vm.Spec.Template.Spec.Volumes) {
+	if instance == nil || vm == nil || vm.Spec.Template == nil || instance.Spec.Domain.Firmware == nil || string(instance.Spec.Domain.Firmware.UUID) != selected.Startup.FirmwareUUID || !apiequality.Semantic.DeepEqual(runtimeVolumesWithDefaults(instance.Spec.Volumes), runtimeVolumesWithDefaults(vm.Spec.Template.Spec.Volumes)) {
 		return false
 	}
 	disks := []SnapshotDisk{}
