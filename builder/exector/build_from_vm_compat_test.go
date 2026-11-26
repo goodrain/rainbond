@@ -76,7 +76,7 @@ func TestVMNativeRawBuildStrategies(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !strings.Contains(got, "COPY "+name+" /work/source.img\n") || !strings.Contains(got, "qemu-img info --output=json") {
-				t.Fatal("native raw must use content-aware disk conversion")
+				t.Fatal("native raw must use content-aware disk validation")
 			}
 		})
 	}

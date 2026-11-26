@@ -11559,9 +11559,56 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-build.content-media-routing",
+      "title": "Route optical and disk media by content before runtime binding",
+      "title_zh": "\u6309\u5b9e\u9645\u5185\u5bb9\u9009\u62e9\u5149\u9a71\u6216\u78c1\u76d8\u6d41\u7a0b\u5e76\u9a8c\u8bc1\u8fd0\u884c\u5236\u54c1\u7ed1\u5b9a",
+      "interface_type": "workflow",
+      "interface": "renderVMSourceDockerfileChecked",
+      "code_paths": [
+        "builder/sourceutil/vm_image_media.go",
+        "builder/exector/build_from_vm.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/vm_image_media_test.go",
+          "selector": "TestISOContentRenamedAsDiskUsesInstallerMedia"
+        },
+        {
+          "path": "builder/exector/vm_image_media_test.go",
+          "selector": "TestStructuredDiskRenamedAsISOStillRequiresValidationAndBinding"
+        },
+        {
+          "path": "builder/exector/vm_image_media_test.go",
+          "selector": "TestMediaProbeDoesNotBypassDiskDependencyChecks"
+        },
+        {
+          "path": "builder/exector/vm_image_media_test.go",
+          "selector": "TestUnknownAndWrappedMediaKeepExistingBuildRouting"
+        },
+        {
+          "path": "builder/sourceutil/vm_image_media_test.go",
+          "selector": "TestVMImageMediaDetectsISOWithoutTrustingExtension"
+        },
+        {
+          "path": "builder/sourceutil/vm_image_media_test.go",
+          "selector": "TestVMImageMediaPrioritizesStructuredDiskMagic"
+        },
+        {
+          "path": "builder/sourceutil/vm_image_media_test.go",
+          "selector": "TestVMImageMediaKeepsUnknownAndWrappedInputsOnLegacyPath"
+        },
+        {
+          "path": "builder/sourceutil/vm_image_media_test.go",
+          "selector": "TestVMImageMediaRejectsUnsafeFiles"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-build.img-content-detection",
-      "title": "IMG conversion detects disk contents and preserves guest sectors",
-      "title_zh": "IMG conversion detects disk contents and preserves guest sectors",
+      "title": "Validate actual disk contents and preserve guest sectors for CDI import",
+      "title_zh": "\u6821\u9a8c\u5b9e\u9645\u78c1\u76d8\u5185\u5bb9\u5e76\u4fdd\u7559\u539f\u59cb\u6247\u533a\u4ea4\u7531CDI\u5bfc\u5165",
       "interface_type": "workflow",
       "interface": "builder/exector.renderVMDockerfile",
       "code_paths": [
@@ -11570,11 +11617,11 @@
       "tests": [
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMDiskConversionPreservesGuestContent"
+          "selector": "TestVMDiskValidationPreservesGuestContent"
         },
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMDiskConversionRejectsInvalidOrDependentImages"
+          "selector": "TestVMDiskValidationRejectsInvalidOrDependentImages"
         },
         {
           "path": "builder/exector/build_from_vm_test.go",
@@ -11615,6 +11662,90 @@
         {
           "path": "builder/exector/build_from_vm_test.go",
           "selector": "TestRunVMBuildRejectsUnmanagedLocalPathBeforeAnyReadOrCleanup"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.native-disk-artifacts",
+      "title": "Publish native disk formats unchanged for one CDI conversion",
+      "title_zh": "\u539f\u683c\u5f0f\u53d1\u5e03\u78c1\u76d8\u5236\u54c1\u5e76\u4ec5\u7531CDI\u5b8c\u6210\u8f6c\u6362",
+      "interface_type": "workflow",
+      "interface": "VMBuildItem.vmBuild",
+      "code_paths": [
+        "builder/exector/build_from_vm.go",
+        "builder/exector/vm_disk_binding.go",
+        "builder/sourceutil/vm_disk_format.go",
+        "builder/parser/vm_service.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/exector/build_from_vm_content_test.go",
+          "selector": "TestVMDiskValidationPreservesGuestContent"
+        },
+        {
+          "path": "builder/exector/vm_native_disk_test.go",
+          "selector": "TestNativeDiskBuildRejectsMissingRuntimeBindingBeforePublication"
+        },
+        {
+          "path": "builder/exector/vm_native_disk_test.go",
+          "selector": "TestNativeDiskArtifactsPreserveFormatForCDI"
+        },
+        {
+          "path": "builder/exector/vm_native_disk_test.go",
+          "selector": "TestNativeDiskRuntimeBindingRetainsSourceFormat"
+        },
+        {
+          "path": "builder/sourceutil/vm_disk_format_test.go",
+          "selector": "TestVMPlainDiskFormatsKeepOpticalAndWrappedMediaSeparate"
+        },
+        {
+          "path": "builder/parser/vm_service_compat_test.go",
+          "selector": "TestVMServiceParseNativeDiskFormats"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
+      "id": "rainbond.vm-build.native-disk-validation",
+      "title": "Reject dependent VDI and VHD metadata before QEMU import",
+      "title_zh": "\u5728QEMU\u5bfc\u5165\u524d\u62d2\u7eddVDI\u548cVHD\u5dee\u5206\u76d8\u53ca\u65e0\u6548\u5143\u6570\u636e",
+      "interface_type": "workflow",
+      "interface": "sourceutil.InspectVMNativeDiskFile",
+      "code_paths": [
+        "builder/sourceutil/vm_native_disk.go",
+        "builder/sourceutil/vm_wrapper.go"
+      ],
+      "tests": [
+        {
+          "path": "builder/sourceutil/vm_native_disk_test.go",
+          "selector": "TestInspectVMNativeDiskAcceptsSelfContainedVDIAndVHD"
+        },
+        {
+          "path": "builder/sourceutil/vm_native_disk_test.go",
+          "selector": "TestInspectVMNativeDiskRejectsDependentAndInvalidVDI"
+        },
+        {
+          "path": "builder/sourceutil/vm_native_disk_test.go",
+          "selector": "TestInspectVMNativeDiskRejectsDependentAndInvalidVHD"
+        },
+        {
+          "path": "builder/sourceutil/vm_native_disk_test.go",
+          "selector": "TestInspectVMNativeDiskPreservesOtherFormatsAndRejectsUnsafeFiles"
+        },
+        {
+          "path": "builder/sourceutil/vm_native_disk_test.go",
+          "selector": "TestInspectVMNativeDiskDoesNotTreatGuestVHDFooterAsContainer"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperCannotHideNativeDiskFromPreflight"
+        },
+        {
+          "path": "builder/sourceutil/vm_wrapper_test.go",
+          "selector": "TestVMWrapperKeepsFixedVHDRawCompatibilityBoundary"
         }
       ],
       "test_type": "regression",
@@ -11676,22 +11807,26 @@
     },
     {
       "id": "rainbond.vm-build.vmdk-runtime-binding",
-      "title": "Bind detected VMDK builds to this task converted QCOW2 registry root",
-      "title_zh": "\u786e\u4fdd\u771f\u5b9eVMDK\u6784\u5efa\u7531\u672c\u4efb\u52a1QCOW2\u8fd0\u884c\u4ea7\u7269\u6d88\u8d39",
+      "title": "Bind validated disk artifacts to this task registry root",
+      "title_zh": "\u5c06\u5df2\u6821\u9a8c\u78c1\u76d8\u5236\u54c1\u7ed1\u5b9a\u5230\u672c\u6b21\u4efb\u52a1\u6839\u76d8",
       "interface_type": "workflow",
-      "interface": "VMBuildItem.validateVMDKRuntimeBinding",
+      "interface": "VMBuildItem.validateVMDiskRuntimeBinding",
       "code_paths": [
-        "builder/exector/vmdk_binding.go",
+        "builder/exector/vm_disk_binding.go",
         "builder/exector/build_from_vm.go"
       ],
       "tests": [
         {
-          "path": "builder/exector/vmdk_binding_test.go",
-          "selector": "TestVMDKRuntimeConsumerMustUseThisConvertedRegistryImage"
+          "path": "builder/exector/vm_disk_binding_test.go",
+          "selector": "TestVMDKRuntimeConsumerMustUseThisValidatedRegistryImage"
         },
         {
-          "path": "builder/exector/vmdk_binding_test.go",
+          "path": "builder/exector/vm_disk_binding_test.go",
           "selector": "TestVMDKBareInternalImageNeverMatchesExternalDockerHub"
+        },
+        {
+          "path": "builder/exector/vm_disk_binding_test.go",
+          "selector": "TestVMDKValidatedRuntimeConsumerRequiresOneRootDisk"
         }
       ],
       "test_type": "regression",
@@ -11699,8 +11834,8 @@
     },
     {
       "id": "rainbond.vm-build.vmdk-self-contained",
-      "title": "Validate standalone VMDK and convert to QCOW2 without external dependencies",
-      "title_zh": "\u6821\u9a8c\u81ea\u5305\u542bVMDK\u5e76\u5b89\u5168\u8f6c\u6362\u4e3aQCOW2",
+      "title": "Validate standalone VMDK and publish unchanged for CDI import",
+      "title_zh": "\u6821\u9a8c\u81ea\u5305\u542bVMDK\u5e76\u4fdd\u7559\u539f\u59cb\u5b57\u8282\u4ea4\u7531CDI\u5bfc\u5165",
       "interface_type": "workflow",
       "interface": "VMBuildItem.vmBuild",
       "code_paths": [
@@ -11745,15 +11880,15 @@
         },
         {
           "path": "builder/exector/build_from_vm_test.go",
-          "selector": "TestRenderVMDKRequiresConversionAndDisablesNetwork"
+          "selector": "TestRenderVMDKValidatesWithoutConvertingDisk"
         },
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMDKConversionPreservesGuestSectorsAndEmbeddedBasename"
+          "selector": "TestVMDKValidationPreservesBytesForRawImport"
         },
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMDKConversionRejectsParentsAndExternalFilesBeforeQEMU"
+          "selector": "TestVMDKValidationRejectsParentsAndExternalFilesBeforeQEMU"
         }
       ],
       "test_type": "regression",
@@ -12116,6 +12251,33 @@
       "status": "active"
     },
     {
+      "id": "rainbond.vm-import.native-disk-formats",
+      "title": "Import all supported native disk formats into persistent CDI volumes",
+      "title_zh": "\u5c06\u652f\u6301\u7684\u539f\u683c\u5f0f\u78c1\u76d8\u5bfc\u5165CDI\u6301\u4e45\u5377",
+      "interface_type": "workflow",
+      "interface": "volume.buildVMDiskImportDataVolumeTemplate",
+      "code_paths": [
+        "worker/appm/volume/vm_import.go",
+        "worker/appm/conversion/version.go"
+      ],
+      "tests": [
+        {
+          "path": "worker/appm/volume/vm_native_disk_test.go",
+          "selector": "TestNativeDiskRegistryImportsUseCDI"
+        },
+        {
+          "path": "worker/appm/volume/vm_native_disk_test.go",
+          "selector": "TestDesktopDiskImportsCannotBypassBuilderValidation"
+        },
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestNativeDiskSourcesUseImportedPersistentRoot"
+        }
+      ],
+      "test_type": "regression",
+      "status": "active"
+    },
+    {
       "id": "rainbond.vm-import.registry-datavolume",
       "title": "Import VM root disk from registry DataVolume",
       "title_zh": "\u901a\u8fc7 registry DataVolume \u5bfc\u5165\u865a\u62df\u673a\u7cfb\u7edf\u76d8",
@@ -12181,26 +12343,31 @@
       "status": "active"
     },
     {
-      "id": "rainbond.vm-import.vmdk-converted-runtime",
-      "title": "Require Builder-converted runtime disks for VMDK imports",
-      "title_zh": "Require Builder-converted runtime disks for VMDK imports",
+      "id": "rainbond.vm-import.vmdk-validated-registry",
+      "title": "Import validated VMDK registry artifacts directly through CDI",
+      "title_zh": "\u7531CDI\u76f4\u63a5\u5bfc\u5165\u5df2\u6821\u9a8c\u53d1\u5e03\u7684VMDK\u5236\u54c1",
       "interface_type": "workflow",
       "interface": "volume.buildVMDiskImportDataVolumeTemplate",
       "code_paths": [
-        "worker/appm/volume/vm_import.go"
+        "worker/appm/volume/vm_import.go",
+        "worker/appm/conversion/version.go"
       ],
       "tests": [
         {
           "path": "worker/appm/volume/vmdk_import_test.go",
-          "selector": "TestVMDKDiskImportRequiresConvertedRuntime"
+          "selector": "TestVMDKDiskImportRequiresPublishedRegistryArtifact"
         },
         {
           "path": "worker/appm/volume/vmdk_import_test.go",
-          "selector": "TestVMDKHTTPImportCannotUseAnotherFormatToBypassConversion"
+          "selector": "TestVMDKHTTPImportCannotBypassPublication"
         },
         {
           "path": "worker/appm/volume/vmdk_import_test.go",
-          "selector": "TestConvertedVMDKRegistryImportPreservesSourceProvenance"
+          "selector": "TestVMDKRegistryImportPreservesSourceProvenance"
+        },
+        {
+          "path": "worker/appm/conversion/vmdk_runtime_test.go",
+          "selector": "TestCreateVolumesVMDKImportUsesValidatedRegistryWithoutBlankFallback"
         }
       ],
       "test_type": "regression",
@@ -14595,11 +14762,11 @@
         },
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMDiskConversionPreservesGuestContent"
+          "selector": "TestVMDiskValidationPreservesGuestContent"
         },
         {
           "path": "builder/exector/build_from_vm_content_test.go",
-          "selector": "TestVMNativeRawConversionRejectsExternalReferences"
+          "selector": "TestVMNativeRawValidationRejectsExternalReferences"
         }
       ],
       "test_type": "regression",
@@ -14890,8 +15057,8 @@
     },
     {
       "id": "rainbond.vm-runtime.vmdk-persistent-root",
-      "title": "Boot VMDK sources from converted persistent root disks",
-      "title_zh": "Boot VMDK sources from converted persistent root disks",
+      "title": "Boot VMDK sources from CDI imported persistent root disks",
+      "title_zh": "\u4eceCDI\u5bfc\u5165\u7684\u6301\u4e45\u6839\u76d8\u542f\u52a8VMDK\u865a\u62df\u673a",
       "interface_type": "workflow",
       "interface": "conversion.resolveVMBootPath",
       "code_paths": [
@@ -14901,11 +15068,7 @@
       "tests": [
         {
           "path": "worker/appm/conversion/vmdk_runtime_test.go",
-          "selector": "TestVMDKSourceUsesConvertedPersistentRoot"
-        },
-        {
-          "path": "worker/appm/conversion/vmdk_runtime_test.go",
-          "selector": "TestCreateVolumesRejectsUnconvertedVMDKWithoutBlankFallback"
+          "selector": "TestNativeDiskSourcesUseImportedPersistentRoot"
         }
       ],
       "test_type": "regression",
